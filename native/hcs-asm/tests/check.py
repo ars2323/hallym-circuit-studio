@@ -63,13 +63,13 @@ def run_oracle(path, settings):
         subprocess.run([ORACLE] + oracle_flags(settings) + ["-dump", "-file", os.path.abspath(path)],
                        cwd=tmp, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60)
         text = {}
-        with open(os.path.join(tmp, "text.asm"), errors="replace") as f:
+        with open(os.path.join(tmp, "text.asm"), encoding="utf-8", errors="replace") as f:
             for line in f:
                 m = re.match(r"\[0x([0-9a-f]{8})\]\s+0x([0-9a-f]{8})", line)
                 if m:
                     text[int(m.group(1), 16)] = int(m.group(2), 16)
         data = {}
-        with open(os.path.join(tmp, "data.asm"), errors="replace") as f:
+        with open(os.path.join(tmp, "data.asm"), encoding="utf-8", errors="replace") as f:
             for line in f:
                 m = re.match(r"\[0x([0-9a-f]{8})\]\.\.\.\[0x([0-9a-f]{8})\]\s+0x([0-9a-f]{8})", line)
                 if m:
@@ -143,7 +143,7 @@ def main():
             continue
         ours = {int(w["addr"], 16): int(w["word"], 16) for w in json.loads(out)["text"]}
         theirs = {}
-        with open(os.path.join(CASES, "qtspim", golden)) as f:
+        with open(os.path.join(CASES, "qtspim", golden), encoding="utf-8", errors="replace") as f:
             for line in f:
                 if line.startswith("Kernel Text Segment"):
                     break  # hcs-asm은 커널 세그먼트를 내보내지 않는다
