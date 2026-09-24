@@ -54,6 +54,10 @@ public final class Engine {
         List<String> cmd = new ArrayList<String>(Arrays.asList(
                 java.getPath(), "-Djava.awt.headless=true", "-jar", jar.getPath(),
                 name + ".circ", "-tty", "table"));
+        String prefs = System.getProperty("java.util.prefs.userRoot");
+        if (prefs != null) {
+            cmd.add(1, "-Djava.util.prefs.userRoot=" + prefs); // 테스트가 개발자 PC의 Logisim 설정을 바꾸지 않게
+        }
         File args = new File(dir, name + ".args");
         if (args.exists()) {
             String text = new String(Files.readAllBytes(args.toPath()), StandardCharsets.UTF_8).trim();
