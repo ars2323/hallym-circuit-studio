@@ -254,9 +254,10 @@ public class Startup {
 			AppPreferences.clear();
 		}
 
-		try {
-			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-		} catch (Exception ex) { }
+		// HCS: FlatLaf with the Hallym design tokens and Pretendard (#21) instead of the platform look.
+		if (!isTty) {
+			kr.ac.hallym.hcs.app.theme.Theme.install();
+		}
 
 		// parse arguments
 		for (int i = 0; i < args.length; i++) {
