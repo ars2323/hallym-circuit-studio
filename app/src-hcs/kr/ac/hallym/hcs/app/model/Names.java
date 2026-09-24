@@ -88,9 +88,14 @@ public final class Names {
         return same.indexOf(c) + 1;
     }
 
-    /** 포트의 전체 이름: {@code 부품 이름.포트 이름}. 예: {@code PC.Q}, {@code AND #3.in1}. */
+    /**
+     * 포트의 전체 이름: {@code 부품 이름.포트 이름}. 예: {@code PC.Q}, {@code AND #3.in1}. 라벨로 이름이 붙는
+     * 포트 하나짜리 부품(핀·터널)은 이름이 같으므로 한 번만 쓴다: {@code PC}.
+     */
     public static String port(Circuit circuit, Component c, int end) {
-        return name(circuit, c) + "." + Kinds.portName(c, end);
+        String name = name(circuit, c);
+        String port = Kinds.portName(c, end);
+        return port.equals(name) ? name : name + "." + port;
     }
 
     /** 시뮬레이션 상태의 회로 경로: 맨 위 회로부터 지금 회로까지. */

@@ -209,7 +209,7 @@ public final class ZoomController {
         zoomAt(newZoom, new Point(r.width / 2, r.height / 2));
     }
 
-    void fitCircuit() {
+    public void fitCircuit() {
         Bounds b = proj.getCurrentCircuit() == null ? null : proj.getCurrentCircuit().getBounds();
         fit(b);
     }

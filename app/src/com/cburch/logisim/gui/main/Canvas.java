@@ -519,6 +519,11 @@ public class Canvas extends JPanel
 	public void setHcsZoom(kr.ac.hallym.hcs.app.zoom.ZoomController value) {
 		hcsZoom = value;
 	}
+
+	// HCS: #72 (fit from the context menu)
+	public kr.ac.hallym.hcs.app.zoom.ZoomController getHcsZoom() {
+		return hcsZoom;
+	}
 	private Bounds oldPreferredSize;
 	private MyListener myListener = new MyListener();
 	private MyViewport viewport = new MyViewport();

@@ -69,6 +69,7 @@ public final class ContextMenus {
     private static final Map<Project, Selection.Listener> LISTENERS = new WeakHashMap<>();
 
     static {
+        PROVIDERS.add(new EditMenus());
         PROVIDERS.add(new SplitterMenu());
         kr.ac.hallym.hcs.app.ext.CircExtensions.addPruner(kr.ac.hallym.hcs.app.splitter.SplitterEdits.PRUNER);
     }
