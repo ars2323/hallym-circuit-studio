@@ -1,0 +1,46 @@
+Hallym Circuit Studio
+Copyright (c) 2026 AIAC Lab, Hallym University
+
+This product is a fork of Logisim 2.7.1 and is distributed under the
+GNU General Public License, version 2 or (at your option) any later version.
+See LICENSE.
+
+It includes or bundles the following third-party components.
+
+--------------------------------------------------------------------------
+Logisim 2.7.1
+  Copyright (c) 2011, Carl Burch.
+  License: GNU General Public License, version 2 or later
+  Source:  http://www.cburch.com/logisim/
+  Location: vendor/logisim-2.7.1/ (original jar), app/ (fork)
+
+--------------------------------------------------------------------------
+SPIM 9.1.24
+  Copyright (c) 1990-2023, James R. Larus. All rights reserved.
+  License: BSD 3-Clause (see vendor/spim-9.1.24/README)
+  Source:  https://sourceforge.net/projects/spimsimulator/
+  Location: vendor/spim-9.1.24/ (original source)
+  Used only through the separate executable hcs-asm (native/hcs-asm/).
+  SPIM code is not linked into or copied into any GPL-licensed code.
+
+--------------------------------------------------------------------------
+Pretendard 1.3.9
+  Copyright (c) 2021, Kil Hyung-jin, with Reserved Font Name Pretendard.
+  License: SIL Open Font License, Version 1.1
+  Location: assets/fonts/pretendard/ (LICENSE.txt included)
+
+--------------------------------------------------------------------------
+FlatLaf
+  Copyright (c) FormDev Software GmbH.
+  License: Apache License, Version 2.0
+  Source:  https://www.formdev.com/flatlaf/
+  Used as a build dependency of app/.
+
+--------------------------------------------------------------------------
+Hallym University identity assets (logo, emblem, signature, characters
+Haram & Hari)
+  Owned by Hallym University (한림대학교 소유). Commercial use is prohibited
+  (상업적 사용 금지). Used unmodified under the university's identity and
+  character guidelines. These assets are NOT covered by the GPL license of
+  this product.
+  Location: assets/hallym/
