@@ -226,6 +226,8 @@ public class Frame extends LFrame implements LocaleListener {
 		mainPanel.addView(EDIT_LAYOUT, canvasPane);
 		mainPanel.setView(EDIT_LAYOUT);
 		mainPanelSuper.add(mainPanel, BorderLayout.CENTER);
+		// HCS: file tabs, circuit tabs and simulation path above the canvas (#68)
+		mainPanelSuper.add(new kr.ac.hallym.hcs.app.tabs.FileTabBar(this), BorderLayout.NORTH);
 
 		// set up the contents, split down the middle, with the canvas
 		// on the right and a split pane on the left containing the

@@ -181,6 +181,12 @@ public class Startup {
 		// use that as the file to open now.
 		initialized = true;
 		
+		// HCS: file tabs; reopen the files that were open last time (#68)
+		kr.ac.hallym.hcs.app.tabs.FileTabs.get().install();
+		if (filesToOpen.isEmpty()) {
+			filesToOpen.addAll(kr.ac.hallym.hcs.app.tabs.FileTabs.get().restoreFiles());
+		}
+
 		// load file
 		if (filesToOpen.isEmpty()) {
 			ProjectActions.doNew(monitor, true);
@@ -201,6 +207,8 @@ public class Startup {
 				}
 			}
 		}
+
+		kr.ac.hallym.hcs.app.tabs.FileTabs.get().afterRestore(); // HCS: #68
 
 		for (File fileToPrint : filesToPrint) {
 			doPrintFile(fileToPrint);
