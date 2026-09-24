@@ -24,7 +24,7 @@ final class InstructionMemory extends MemoryFactory {
 
     InstructionMemory() {
         super("Instruction Memory", Text.of("Instruction Memory", "명령어 메모리"),
-                Text.of("Instruction Memory", "Instruction Memory"), 0x00400000, 0x00100000);
+                Text.of("Instruction Memory", "Instruction Memory"), false, 0x00400000, 0x00100000);
         setOffsetBounds(Bounds.create(-200, -40, 200, 80));
         Port addr = new Port(-200, 0, Port.INPUT, W32);
         addr.setToolTip(Text.of("Addr: byte address (PC)", "Addr: 바이트 주소(PC)"));
