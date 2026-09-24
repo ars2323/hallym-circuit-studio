@@ -92,4 +92,4 @@ jobs:
           gh release create "$GITHUB_REF_NAME" --draft --verify-tag \
             --title "Hallym Circuit Studio $GITHUB_REF_NAME (트랙 A: MIPS 부품 라이브러리)" \
             --notes-file dist/RELEASE_NOTES.md \
-            dist/*.zip dist/hcs-mips.jar dist/hcs-asm dist/hcs-asm.exe dist/사용안내.md
+            dist/*.zip dist/hcs-mips.jar dist/hcs-asm dist/hcs-asm.exe dist/hcs-mips-guide-ko.md

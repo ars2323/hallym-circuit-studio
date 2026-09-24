@@ -22,6 +22,8 @@ cp "$linux" "$out/hcs-asm"
 chmod +x "$out/hcs-asm"
 cp "$exe" "$out/hcs-asm.exe"
 cp "$root/docs/track-a-guide.md" "$out/사용안내.md"
+# Release 자산 이름은 ASCII로 둔다. GitHub가 한글 자산 이름을 default.md로 바꾼다. zip 안에는 사용안내.md로 둔다.
+cp "$root/docs/track-a-guide.md" "$out/hcs-mips-guide-ko.md"
 
 # 한 폴더에 풀면 바로 쓰는 zip. jar와 hcs-asm이 같은 폴더에 있어야 .s 불러오기가 된다.
 for os in windows linux; do
@@ -42,7 +44,7 @@ cat > "$out/RELEASE_NOTES.md" <<NOTES
 
 - 부품: Instruction Memory, Data Memory, Stack, Console, Radix Probe
 - 우클릭 ".s 프로그램 불러오기": QtSpim(Hallym MIPS)과 같은 기계어
-- \`hcs-mips-$version-windows.zip\`을 풀어 \`hcs-mips.jar\`와 \`hcs-asm.exe\`를 같은 폴더에 두고 씁니다. 자세한 내용은 \`사용안내.md\`.
+- \`hcs-mips-$version-windows.zip\`을 풀어 \`hcs-mips.jar\`와 \`hcs-asm.exe\`를 같은 폴더에 두고 씁니다. 자세한 내용은 zip 안의 \`사용안내.md\`. 같은 문서를 \`hcs-mips-guide-ko.md\`로도 따로 올렸습니다.
 
 학생 배포 여부는 담당자가 정합니다(draft).
 NOTES
