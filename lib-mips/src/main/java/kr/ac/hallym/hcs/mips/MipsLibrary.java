@@ -23,7 +23,8 @@ public class MipsLibrary extends Library {
             new AddTool(new InstructionMemory()),
             new AddTool(new DataMemory()),
             new AddTool(new StackMemory()),
-            new AddTool(new Console()));
+            new AddTool(new Console()),
+            new AddTool(new RadixProbe()));
 
     public MipsLibrary() {
     }

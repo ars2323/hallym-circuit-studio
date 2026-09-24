@@ -12,6 +12,7 @@ import com.cburch.logisim.data.Value;
 import com.cburch.logisim.file.Loader;
 import com.cburch.logisim.file.LogisimFile;
 import com.cburch.logisim.instance.InstanceData;
+import com.cburch.logisim.instance.InstanceState;
 import com.cburch.logisim.proj.Project;
 import com.cburch.logisim.tools.Library;
 
@@ -55,5 +56,9 @@ final class InProcessSim {
 
     InstanceData data(Component c) {
         return state.getInstanceState(c).getData();
+    }
+
+    InstanceState state(Component c) {
+        return state.getInstanceState(c);
     }
 }
