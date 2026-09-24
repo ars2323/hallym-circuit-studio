@@ -46,7 +46,7 @@ def fail(name, message):
 
 
 def run_hcs_asm(path, flags):
-    p = subprocess.run([HCS_ASM] + flags + [path], capture_output=True, text=True)
+    p = subprocess.run([HCS_ASM] + flags + [path], capture_output=True, text=True, encoding="utf-8")
     return p.returncode, p.stdout, p.stderr
 
 
@@ -61,7 +61,7 @@ def run_oracle(path, settings):
     """Return ({addr: word} text, {addr: word} data) from spim -dump."""
     with tempfile.TemporaryDirectory() as tmp:
         subprocess.run([ORACLE] + oracle_flags(settings) + ["-dump", "-file", os.path.abspath(path)],
-                       cwd=tmp, capture_output=True, text=True, timeout=60)
+                       cwd=tmp, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60)
         text = {}
         with open(os.path.join(tmp, "text.asm"), errors="replace") as f:
             for line in f:
@@ -108,7 +108,7 @@ def main():
     for name in cases:
         path = os.path.join(CASES, name + ".s")
         flags_path = os.path.join(CASES, name + ".flags")
-        flags = open(flags_path).read().split() if os.path.exists(flags_path) else []
+        flags = open(flags_path, encoding="utf-8").read().split() if os.path.exists(flags_path) else []
         code, out, err = run_hcs_asm(path, flags)
         if code not in (0, 1):
             fail(name, f"exit {code}: {err.strip()}")
@@ -118,11 +118,11 @@ def main():
             fail(name, f"exit {code} does not match errors {result['errors']}")
         golden = os.path.join(CASES, name + ".json")
         if update:
-            with open(golden, "w") as f:
+            with open(golden, "w", encoding="utf-8") as f:
                 f.write(out)
         elif not os.path.exists(golden):
             fail(name, "no golden .json (run with --update)")
-        elif open(golden).read() != out:
+        elif open(golden, encoding="utf-8").read() != out:
             fail(name, "output differs from golden .json")
         if not result["errors"] and with_oracle:
             check_against_oracle(name, path, result)
