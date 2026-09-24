@@ -15,10 +15,10 @@ tools/verify-assets.sh
 step "엔진 소스 원본 일치"
 tools/check-engine-unchanged.sh
 
-step "Gradle 빌드·테스트"
-./gradlew --no-daemon -q build
-
 step "hcs-asm 빌드·어셈블 일치"
 make -s -C native/hcs-asm -j"$(nproc)" test
+
+step "Gradle 빌드·테스트 (hcs-asm을 쓰는 테스트 포함)"
+./gradlew --no-daemon -q build
 
 printf '\nci-local: all checks passed (%s)\n' "$(git rev-parse --short HEAD)"

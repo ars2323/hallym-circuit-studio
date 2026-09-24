@@ -60,6 +60,10 @@ tasks.test {
     systemProperty("hcs.mipsJar", tasks.jar.get().archiveFile.get().asFile.absolutePath)
     systemProperty("hcs.smokeJar", smokeJar.get().archiveFile.get().asFile.absolutePath)
     systemProperty("hcs.testsDir", rootProject.file("tests").absolutePath)
+    // hcs-asm과 원본 spim 오라클은 make -C native/hcs-asm oracle 로 먼저 빌드한다(tools/ci-local.sh 순서).
+    systemProperty("hcs.asm", rootProject.file("native/hcs-asm/build/hcs-asm").absolutePath)
+    systemProperty("hcs.spimOracle", rootProject.file("native/hcs-asm/build/oracle/spim").absolutePath)
+    systemProperty("hcs.spimDir", rootProject.file("vendor/spim-9.1.24").absolutePath)
     testLogging {
         events("failed")
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL

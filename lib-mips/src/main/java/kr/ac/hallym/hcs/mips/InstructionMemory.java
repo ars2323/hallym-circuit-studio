@@ -8,9 +8,11 @@ package kr.ac.hallym.hcs.mips;
 import com.cburch.logisim.data.Bounds;
 import com.cburch.logisim.data.Direction;
 import com.cburch.logisim.data.Value;
+import com.cburch.logisim.instance.Instance;
 import com.cburch.logisim.instance.InstancePainter;
 import com.cburch.logisim.instance.InstanceState;
 import com.cburch.logisim.instance.Port;
+import com.cburch.logisim.tools.MenuExtender;
 
 /**
  * Instruction Memory(PLAN.md 6.2). 입력 {@code Addr}(32), 출력 {@code Instr}(32). 클럭 없는 읽기 전용이다.
@@ -40,6 +42,15 @@ final class InstructionMemory extends MemoryFactory {
             out = word(image.read(addr.toIntValue()));
         }
         state.setPort(INSTR, out, DELAY);
+    }
+
+    /** 우클릭 메뉴 ".s 프로그램 불러오기"(PLAN.md 6.3). */
+    @Override
+    protected Object getInstanceFeature(Instance instance, Object key) {
+        if (key == MenuExtender.class && true) {
+            return new LoadProgramMenu(instance);
+        }
+        return super.getInstanceFeature(instance, key);
     }
 
     @Override
