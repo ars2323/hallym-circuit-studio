@@ -70,6 +70,21 @@
 - 정의되지 않은 비트는 `x`, 오류 비트는 `E`로 자리마다 보인다(16진수는 그 비트를 포함한 자리).
 - 부품 폭은 2진수 줄이 들어가게 입력 폭에 따라 정해진다(32비트: 260).
 
+## .s 불러오기
+
+Instruction Memory나 Data Memory를 우클릭하면 ".s 프로그램 불러오기..."가 있다(PLAN.md 6.3). 한 번 불러온 뒤에는 "다시 불러오기: 파일 이름"도 보인다.
+
+1. .s 파일을 고르면 `hcs-asm`(docs/hcs-asm.md)으로 과제 표준 설정으로 어셈블한다. `hcs-asm`은 시스템 속성 `hcs.asm`, 환경 변수 `HCS_ASM`, `hcs-mips.jar`와 같은 폴더 순서로 찾는다. 트랙 A 배포 zip은 두 파일을 한 폴더에 둔다.
+2. 어셈블 오류가 있으면 줄 번호와 메시지(최대 10개)를 보이고 아무것도 바꾸지 않는다.
+3. .text는 Instruction Memory, .data는 Data Memory(Stack 제외)의 `contents`에 넣는다. 우클릭한 부품이 한쪽을 받고, 다른 쪽은 파일의 모든 회로에서 찾는다. 후보가 둘 이상일 때만 목록에서 고르게 한다. 주소는 SPIM 그대로라 확인할 것이 없다.
+4. `source` 속성에 .s 경로를 저장한다. .circ와 같은 폴더나 그 아래면 상대 경로(`prog.s`, `asm/prog.s`), 아니면 절대 경로다.
+5. 바꾼 속성은 Edit › Undo 한 번으로 되돌린다.
+6. 넣은 워드 수, 영역 밖 워드, hcs-asm 경고(`main` 위치 등), 프로그램이 쓰는 명령어 목록(PLAN.md 6.6)을 보인다.
+
+명령어 이름은 `Disassembler`가 MIPS32 명세의 opcode·funct 표로 직접 정한다. SPIM의 표는 옮기지 않았다(규칙 2.5). 정수 명령어와 syscall, 코프로세서 이동, TLB·eret을 알고, 부동소수점은 모른다(`?`). 테스트는 원본 spim의 디스어셈블(`tt.core.s` 등 2000워드 이상)과 이름을 대조한다.
+
+원조 2.7.1 GUI(Xvfb)에서 우클릭 → 파일 선택 → 요약 창까지 확인했다. 다만 우클릭 메뉴는 파일의 마우스 매핑(Project › Options › Mouse, 기본: 오른쪽 버튼 = Menu Tool)에 따른다.
+
 ## 속성
 
 | 이름(.circ) | 뜻 | Instruction Memory | Data Memory | Stack |

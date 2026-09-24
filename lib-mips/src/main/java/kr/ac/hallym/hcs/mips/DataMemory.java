@@ -12,9 +12,11 @@ import com.cburch.logisim.data.Bounds;
 import com.cburch.logisim.data.Direction;
 import com.cburch.logisim.data.Value;
 import com.cburch.logisim.instance.InstanceData;
+import com.cburch.logisim.instance.Instance;
 import com.cburch.logisim.instance.InstancePainter;
 import com.cburch.logisim.instance.InstanceState;
 import com.cburch.logisim.instance.Port;
+import com.cburch.logisim.tools.MenuExtender;
 
 /**
  * Data Memory와 Stack(PLAN.md 6.2). 입력 {@code Addr}, {@code WriteData}, {@code MemWrite}, {@code MemRead},
@@ -138,6 +140,15 @@ class DataMemory extends MemoryFactory {
             out = st.memory.isDefined(a) ? word(st.memory.read(a)) : MemoryFactory.floating();
         }
         s.setPort(READ_DATA, out, DELAY);
+    }
+
+    /** 우클릭 메뉴 ".s 프로그램 불러오기"(PLAN.md 6.3). */
+    @Override
+    protected Object getInstanceFeature(Instance instance, Object key) {
+        if (key == MenuExtender.class && !(this instanceof StackMemory)) {
+            return new LoadProgramMenu(instance);
+        }
+        return super.getInstanceFeature(instance, key);
     }
 
     @Override
