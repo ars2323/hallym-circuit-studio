@@ -71,6 +71,7 @@ public final class ContextMenus {
     static {
         PROVIDERS.add(new EditMenus());
         PROVIDERS.add(new SplitterMenu());
+        PROVIDERS.add(new kr.ac.hallym.hcs.app.probe.ProbeMenu());
         kr.ac.hallym.hcs.app.ext.CircExtensions.addPruner(kr.ac.hallym.hcs.app.splitter.SplitterEdits.PRUNER);
     }
 

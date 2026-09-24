@@ -59,6 +59,23 @@ class ZoomMathTest {
         assertEquals(new Point((int) Math.round(500 * 2.0 - 200), (int) Math.round(250 * 2.0 - 150)), c2);
     }
 
+    /**
+     * 끌어 이동은 화면 좌표로 잰다. 원조 Canvas는 마우스 x·y를 배율로 나눠 넘기지만(zoomEvent의 translatePoint)
+     * 화면 좌표는 그대로라, 200%에서 100px 끌면 보이는 영역도 100px 움직여야 한다.
+     */
+    @Test
+    void panUsesScreenCoordinates() {
+        java.awt.Component src = new java.awt.Canvas();
+        java.awt.event.MouseEvent e = new java.awt.event.MouseEvent(src, java.awt.event.MouseEvent.MOUSE_DRAGGED, 0,
+                0, 300, 200, 900, 700, 0, false, java.awt.event.MouseEvent.BUTTON2);
+        // 원조 Canvas.zoomEvent(배율 2.0)와 같은 변환
+        e.translatePoint(-150, -100);
+        assertEquals(new Point(150, 100), e.getPoint(), "canvas coordinates are divided by the zoom");
+        assertEquals(new Point(900, 700), e.getLocationOnScreen(), "screen coordinates are not");
+        Point view = ZoomController.panTarget(new Point(400, 300), new Point(1000, 750), e.getLocationOnScreen());
+        assertEquals(new Point(500, 350), view, "dragging 100px left/50px up moves the view by the same pixels");
+    }
+
     @Test
     void typedPercent() {
         assertEquals(1.5, ZoomMath.parsePercent("150"));

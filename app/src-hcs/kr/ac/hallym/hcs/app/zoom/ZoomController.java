@@ -146,17 +146,17 @@ public final class ZoomController {
     /** 캔버스 마우스 처리 앞에서 부른다. 이동으로 쓴 이벤트면 true. */
     public boolean handlePan(MouseEvent e) {
         switch (e.getID()) {
+        // 캔버스는 마우스 좌표를 배율로 나눠 넘기므로(원조 Canvas.zoomEvent) 이동량은 화면 좌표로 잰다
         case MouseEvent.MOUSE_PRESSED:
             if (spaceDown || SwingUtilities.isMiddleMouseButton(e)) {
-                dragFrom = SwingUtilities.convertPoint(canvas, e.getPoint(), pane);
+                dragFrom = e.getLocationOnScreen();
                 viewFrom = pane.getViewport().getViewPosition();
                 return true;
             }
             return false;
         case MouseEvent.MOUSE_DRAGGED:
             if (dragFrom != null) {
-                Point now = SwingUtilities.convertPoint(canvas, e.getPoint(), pane);
-                setView(new Point(viewFrom.x - (now.x - dragFrom.x), viewFrom.y - (now.y - dragFrom.y)));
+                setView(panTarget(viewFrom, dragFrom, e.getLocationOnScreen()));
                 return true;
             }
             return false;
@@ -169,6 +169,11 @@ public final class ZoomController {
         default:
             return dragFrom != null;
         }
+    }
+
+    /** 끌어 이동: 보이는 영역이 손을 따라 움직인다(화면 좌표 기준, 배율과 무관). */
+    static Point panTarget(Point viewFrom, Point dragFromScreen, Point nowScreen) {
+        return new Point(viewFrom.x - (nowScreen.x - dragFromScreen.x), viewFrom.y - (nowScreen.y - dragFromScreen.y));
     }
 
     private void wheel(MouseWheelEvent e) {
