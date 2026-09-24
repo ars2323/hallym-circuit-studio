@@ -117,6 +117,11 @@ public final class SimControls {
         tb.add(button("open", "bar.open", () -> ProjectActions.doOpen(frame, proj)));
         tb.add(button("save", "bar.save", () -> ProjectActions.doSave(proj)));
         tb.add(button("undo", "bar.undo", proj::undoAction));
+        kr.ac.hallym.hcs.app.edit.RedoStack redo = kr.ac.hallym.hcs.app.edit.RedoStack.of(proj);
+        JButton redoButton = button("redo", "bar.redo", redo::redo);
+        redo.addListener(() -> redoButton.setEnabled(redo.canRedo()));
+        redoButton.setEnabled(redo.canRedo());
+        tb.add(redoButton);
         tb.addSeparator();
         tb.add(button("select", "bar.select", () -> use(baseTool("Edit Tool"))));
         tb.add(button("poke", "bar.poke", () -> use(baseTool("Poke Tool"))));

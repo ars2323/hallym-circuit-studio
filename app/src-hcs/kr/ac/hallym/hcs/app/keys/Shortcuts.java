@@ -59,6 +59,7 @@ public final class Shortcuts {
         TABLE.put("Ctrl+Click", "keys.poke");
         TABLE.put("Double-click", "keys.value");
         TABLE.put("F2", "keys.label");
+        TABLE.put("Ctrl+Y / Ctrl+Shift+Z", "keys.redo");
         TABLE.put("P", "keys.probe");
         TABLE.put("Ctrl+Wheel", "keys.zoomWheel");
         TABLE.put("Ctrl+= / Ctrl+-", "keys.zoomStep");
