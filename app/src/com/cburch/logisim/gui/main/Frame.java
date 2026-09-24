@@ -227,8 +227,15 @@ public class Frame extends LFrame implements LocaleListener {
 		mainPanel.addView(EDIT_LAYOUT, canvasPane);
 		mainPanel.setView(EDIT_LAYOUT);
 		mainPanelSuper.add(mainPanel, BorderLayout.CENTER);
-		// HCS: file tabs, circuit tabs and simulation path above the canvas (#68)
-		mainPanelSuper.add(new kr.ac.hallym.hcs.app.tabs.FileTabBar(this), BorderLayout.NORTH);
+		// HCS: file tabs, circuit tabs and simulation path above the canvas (#68);
+		// toolbar groups, simulation-off banner and status bar (#77)
+		kr.ac.hallym.hcs.app.sim.SimControls hcsSim = kr.ac.hallym.hcs.app.sim.SimControls.install(this);
+		JPanel hcsTop = new JPanel(new BorderLayout());
+		hcsTop.add(hcsSim.toolbar(), BorderLayout.NORTH);
+		hcsTop.add(new kr.ac.hallym.hcs.app.tabs.FileTabBar(this), BorderLayout.CENTER);
+		hcsTop.add(hcsSim.banner(), BorderLayout.SOUTH);
+		mainPanelSuper.add(hcsTop, BorderLayout.NORTH);
+		mainPanelSuper.add(hcsSim.statusBar(), BorderLayout.SOUTH);
 		// HCS: drop .circ files on the window to open them (#70)
 		kr.ac.hallym.hcs.app.dnd.DropOpen.install(this, layoutCanvas);
 		// HCS: context menus follow the order in which things were selected (#105)
