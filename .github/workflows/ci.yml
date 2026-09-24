@@ -10,5 +10,5 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Verify vendor originals
-        run: tools/verify-vendor.sh
+      - name: Checks
+        run: tools/ci-local.sh
