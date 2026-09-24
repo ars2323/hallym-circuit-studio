@@ -177,13 +177,11 @@ public final class SimControls {
     void cycles(int n) {
         Simulator sim = proj.getSimulator();
         Timer t = new Timer(0, null);
-        int[] left = {2 * n};
+        StatusModel.Run run = new StatusModel.Run(n);
         t.addActionListener(e -> {
-            if (left[0]-- <= 0) {
+            if (!run.step(sim::tick)) {
                 t.stop();
-                return;
             }
-            sim.tick();
         });
         t.setDelay(n == 1 ? 0 : 5);
         t.start();

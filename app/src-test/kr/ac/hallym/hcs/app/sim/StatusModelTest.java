@@ -52,6 +52,22 @@ class StatusModelTest {
         assertEquals(3, StatusModel.cycles(7));
     }
 
+    /** 도구 모음의 N 사이클 버튼이 쓰는 Run: n 사이클 = 틱 2n번, 그 뒤로는 부르지 않는다. */
+    @Test
+    void runStepsTwoTicksPerCycle() {
+        for (int n : new int[] {1, 5}) {
+            StatusModel.Run run = new StatusModel.Run(n);
+            int[] ticks = {0};
+            while (run.step(() -> ticks[0]++)) {
+                // 타이머 한 번에 한 틱
+            }
+            assertEquals(2 * n, ticks[0]);
+            assertEquals(n, StatusModel.cycles(ticks[0]));
+            assertEquals(false, run.step(() -> ticks[0]++));
+            assertEquals(2 * n, ticks[0]);
+        }
+    }
+
     @Test
     void programAndMissingValues() throws Exception {
         Loader loader = new Loader(null);

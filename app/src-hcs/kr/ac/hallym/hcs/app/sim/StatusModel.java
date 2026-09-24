@@ -22,11 +22,33 @@ public final class StatusModel {
     private StatusModel() {
     }
 
+    /** n 사이클을 한 틱씩 나눠 실행한다. 도구 모음 버튼(타이머)과 테스트가 같은 규칙을 쓴다. */
+    public static final class Run {
+        private int left;
+
+        public Run(int cycles) {
+            this.left = 2 * cycles;
+        }
+
+        /** 남은 틱이 있으면 tick을 한 번 부르고 true, 끝났으면 false. */
+        public boolean step(Runnable tick) {
+            if (left <= 0) {
+                return false;
+            }
+            left--;
+            tick.run();
+            return true;
+        }
+    }
+
     /** 한 사이클: 틱 두 번과 그 뒤 전파(원조 Simulator가 틱마다 하는 일과 같다). */
     public static void oneCycle(Propagator p) {
-        for (int i = 0; i < 2; i++) {
+        Run r = new Run(1);
+        while (r.step(() -> {
             p.tick();
             p.propagate();
+        })) {
+            // 틱마다 전파
         }
     }
 
