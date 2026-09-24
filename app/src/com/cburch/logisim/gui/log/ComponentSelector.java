@@ -279,8 +279,9 @@ class ComponentSelector extends JTree {
 			return true;
 		}
 
-		public Enumeration<?> children() {
-			return Collections.enumeration(Collections.emptySet());
+		// HCS: Java 9+ TreeNode.children() returns Enumeration<? extends TreeNode>
+		public Enumeration<? extends TreeNode> children() {
+			return Collections.enumeration(Collections.<TreeNode>emptySet());
 		}
 	}
 	

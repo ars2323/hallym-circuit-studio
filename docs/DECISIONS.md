@@ -166,3 +166,10 @@
 - **결정:** `hcs-asm.exe`는 GitHub Actions Windows 러너에서 MSYS2 UCRT64의 MinGW g++로 정적 링크해 만든다(`LDFLAGS=-static`). Windows 작업은 hcs-asm 골든과 QtSpim GUI 출력 비교를 돌린다(원본 spim 오라클은 Linux만). `v*` 태그를 push하면 CI가 `tools/package-track-a.sh`로 `hcs-mips-<버전>-windows.zip`·`-linux.zip`(jar, hcs-asm, 사용안내, 라이선스)을 만들어 **draft** Release에 올린다. 사용 안내는 `docs/track-a-guide.md`다.
 - **이유:** hcs-asm은 Qt가 필요 없는 작은 명령줄 도구라 MSVC·Qt 설정 없이 MinGW로 충분하다. SPIM 원본에도 MinGW 빌드 설정이 있다. 정적 링크면 학생 PC에 런타임 DLL이 없어도 된다. JSON은 Windows에서도 LF로 내도록 표준 출력을 바이너리 모드로 둔다. 학생 배포는 사용자 결정이라 draft로 둔다.
 - **대안:** Hallym MIPS처럼 MSVC + winflexbison(Qt 없이도 가능하지만 설정이 길다), 크로스 컴파일(Windows에서 실제로 도는지 확인 못 함).
+
+## D-022 포크 빌드(app)
+
+- **날짜:** 2026-09-24
+- **결정:** `app/`은 Gradle + JDK 21 toolchain(`--release 21`)으로 빌드한다. 원본 jar 배치(`src/`, `resources/`, `doc/`)를 그대로 소스·리소스 폴더로 쓰고, 테스트는 `app/src-test/`에 둔다. 소스가 없는 서드파티 클래스(ColorPicker, FontChooser, JavaHelp, MRJAdapter)는 빌드 때 vendor jar에서 꺼내 실행 가능한 단일 jar(`hallym-circuit-studio.jar`)에 함께 묶는다. JDK 21에서 컴파일되게 엔진 밖 세 곳만 고쳤다(`// HCS:` 주석): `draw/shapes/CurveUtil.java`의 UTF-8 BOM 제거, `gui/main/SimulationTreeNode`와 `gui/log/ComponentSelector`의 `TreeNode.children()` 반환형(Java 9 변경).
+- **이유:** 원본 배치를 옮기지 않아야 이후 변경을 원본 커밋과의 diff로 추적할 수 있다. 서드파티는 원본 jar에 든 바이트코드를 그대로 쓰면 버전 차이가 없다. 엔진은 한 줄도 바꾸지 않았고(`tools/check-engine-unchanged.sh`), 포크 jar가 엔진 회귀 5개 회로에서 표준 jar와 같은 출력을 낸다.
+- **대안:** Maven Central의 JavaHelp 등 새 버전 사용(원본과 동작이 달라질 수 있음), 소스를 Gradle 표준 배치로 옮김(원본과의 diff가 흐려짐).

@@ -1,4 +1,5 @@
-﻿/* Copyright (c) 2010, Carl Burch. License information is located in the
+// HCS: removed the UTF-8 byte order mark that current javac rejects (no other change).
+/* Copyright (c) 2010, Carl Burch. License information is located in the
  * com.cburch.logisim.Main source code and at www.cburch.com/logisim/. */
 
 package com.cburch.draw.shapes;

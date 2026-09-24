@@ -18,24 +18,24 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /** Logisim jar 하나를 {@code -tty table}로 돌려 결과를 문자열로 받는다. */
-final class Engine {
+public final class Engine {
     static final long TIMEOUT_SECONDS = 60;
 
     private final File java;
     private final File jar;
 
-    Engine(File java, File jar) {
+    public Engine(File java, File jar) {
         this.java = java;
         this.jar = jar;
     }
 
     /** 지금 JVM으로 jar를 돌린다. */
-    static Engine current(File jar) {
+    public static Engine current(File jar) {
         return new Engine(new File(new File(System.getProperty("java.home"), "bin"), "java"), jar);
     }
 
     /** tests/circ/<name>.circ의 회로 목록(이름 순). */
-    static List<String> circuits(File dir) {
+    public static List<String> circuits(File dir) {
         List<String> names = new ArrayList<String>();
         File[] files = dir.listFiles();
         if (files != null) {
@@ -50,7 +50,7 @@ final class Engine {
     }
 
     /** "exit=<code>" 한 줄과 표준 출력. <name>.args가 있으면 그 인자를 덧붙인다(예: -load). */
-    String run(File dir, String name) throws IOException, InterruptedException {
+    public String run(File dir, String name) throws IOException, InterruptedException {
         List<String> cmd = new ArrayList<String>(Arrays.asList(
                 java.getPath(), "-Djava.awt.headless=true", "-jar", jar.getPath(),
                 name + ".circ", "-tty", "table"));
