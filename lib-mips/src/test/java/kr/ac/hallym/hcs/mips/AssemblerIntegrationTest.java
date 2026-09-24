@@ -52,11 +52,11 @@ class AssemblerIntegrationTest {
         try (var list = Files.list(TESTS.resolve("asm"))) {
             for (Path p : (Iterable<Path>) list.filter(f -> f.toString().endsWith(".json"))::iterator) {
                 AssembledProgram prog = AssembledProgram.fromJson(Files.readString(p));
-                assertNotNull(prog.settings.get("branch_offset"), p.toString());
+                assertEquals(false, prog.settings.get("delayed_branches"), p.toString());
                 files += 1;
             }
         }
-        assertTrue(files >= 11);
+        assertTrue(files >= 10);
         AssembledProgram mem = AssembledProgram.fromJson(Files.readString(TESTS.resolve("asm/memory.json")));
         assertEquals(0x00400000L, (long) mem.entry);
         assertEquals(0x10010000L, (long) mem.labels.get("arr"));
@@ -196,7 +196,8 @@ class AssemblerIntegrationTest {
     void settingsMapKeepsHcsAsmNames() throws Exception {
         AssembledProgram prog = assemble(TESTS.resolve("asm/branches.s"));
         Map<String, Object> s = prog.settings;
-        assertEquals("pc+4", s.get("branch_offset"));
+        assertEquals(false, s.get("delayed_branches")); // QtSpim 기본 설정 그대로(D-010)
+        assertEquals(false, s.get("bare_machine"));
         assertEquals(false, s.get("exception_handler"));
         assertEquals(Value.TRUE, Value.TRUE); // 형식상
     }
