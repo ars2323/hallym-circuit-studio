@@ -21,6 +21,7 @@ dependencies {
     "smokeCompileOnly"(files(logisimJar))
 
     testImplementation(files(logisimJar))
+    testImplementation(project(":regress")) // CircNormalizer
     testImplementation(platform("org.junit:junit-bom:5.13.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
