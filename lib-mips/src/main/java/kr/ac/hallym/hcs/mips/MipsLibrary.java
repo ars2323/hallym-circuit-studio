@@ -22,7 +22,8 @@ public class MipsLibrary extends Library {
     private final List<Tool> tools = Arrays.<Tool>asList(
             new AddTool(new InstructionMemory()),
             new AddTool(new DataMemory()),
-            new AddTool(new StackMemory()));
+            new AddTool(new StackMemory()),
+            new AddTool(new Console()));
 
     public MipsLibrary() {
     }

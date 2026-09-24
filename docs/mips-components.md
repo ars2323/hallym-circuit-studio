@@ -31,6 +31,30 @@
 - 워드 접근만 한다. 하위 2비트는 쓰지 않고, 읽거나 쓸 때 0이 아니면 표시한다.
 - 실행 중 쓴 값은 .circ에 저장하지 않는다. 시뮬레이션을 리셋하면 `contents`로 돌아간다.
 
+## Console
+
+| 포트 | 방향 | 폭 | 위치 |
+| --- | --- | --- | --- |
+| `Syscall` | 입력 | 1 | 왼쪽 (−260, −40) |
+| `V0` | 입력 | 32 | 왼쪽 (−260, 0) |
+| `A0` | 입력 | 32 | 왼쪽 (−260, 40) |
+| `clk` | 입력 | 1 | 아래 (−220, 60) |
+| `Exit` | 출력 | 1 | 오른쪽 가운데 (0, 0) |
+
+`clk` 상승 에지에 `Syscall`이 1이면 `V0`의 번호대로 처리한다(PLAN.md 6.9).
+
+| `V0` | 동작 |
+| --- | --- |
+| 1 | print_int: `A0`를 부호 있는 10진수로 |
+| 4 | print_string: `A0` 주소부터 0 바이트까지. 같은 회로의 Data Memory·Stack에서 바이트 단위로 읽는다(리틀 엔디언). 바이트는 UTF-8로 읽어 .s의 한글 문자열도 보인다 |
+| 11 | print_char: `A0`의 하위 8비트 |
+| 10 | exit: `Exit`를 1로 하고 시뮬레이션 클럭 틱을 멈춘다. 그 뒤 syscall은 처리하지 않는다 |
+
+- 그 밖의 번호, 정의되지 않은 `V0`·`A0`, 메모리에 없는 문자열 주소는 처리하지 않고 부품 안에 빨갛게 표시한다. `Syscall`이 떠 있으면 "Syscall 떠 있음"을 표시한다.
+- 부품 안에 최근 출력 6줄(한 줄 34자, 넘치면 접음)이 보인다. 원조 2.7.1에서도 출력을 볼 수 있다.
+- `Exit`는 PLAN.md 6.9에 없던 출력이다(D-014). 원조 2.7.1 `-tty` 모드는 `halt` 출력 핀으로만 멈추므로, `Exit`를 `halt` 핀에 이으면 명령줄에서도 프로그램 끝에서 멈춘다.
+- 실행 중 출력은 .circ에 저장하지 않는다. 리셋하면 지워진다.
+
 ## 속성
 
 | 이름(.circ) | 뜻 | Instruction Memory | Data Memory | Stack |
@@ -55,13 +79,15 @@ Stack의 영역 `0x7FF00000`~`0x7FFFFFFF`에는 SPIM의 `$sp` 초기값 `0x7FFFE
 
 첫 줄은 형식 이름, 그다음 줄마다 시작 주소(16진수 8자리)와 이어지는 워드(한 줄에 최대 8개)다.
 
-## 원조 2.7.1에서 확인한 것 (`MemoryComponentsTest`)
+## 원조 2.7.1에서 확인한 것 (`MemoryComponentsTest`, `ConsoleTest`)
 
 테스트는 원조 API로 회로를 만들어 저장하고, 원조 jar를 `-tty table`로 돌려 명세에서 계산한 값과 비교한다.
 
 - Instruction Memory가 PC를 따라 내용을 읽고, 쓰지 않은 워드는 0, 영역 밖은 구동하지 않는다.
 - Data Memory와 Stack의 `ReadData`를 한 선에 이었을 때, 두 영역에 쓴 뒤 읽으면 주소가 속한 쪽만 값을 낸다. `MemRead`가 0인 동안은 선이 x다.
 - `MemWrite`가 떠 있으면 쓰지 않는다. 떠 있는 `WriteData`를 쓴 칸은 다시 읽으면 x다.
+- Console이 ROM으로 만든 syscall 순서(print_string, print_int −42, print_char, Syscall 0, 지원하지 않는 5번, 한글 print_string, exit, exit 뒤 print_int)를 처리해 `Hello\n-42A한글`을 내고, exit 뒤에는 처리하지 않는다. 출력 글자는 원조 엔진을 테스트 JVM 안에서 돌려(`InProcessSim`) 부품 상태로 확인한다.
+- 원조 jar `-tty`에서 `Exit`를 `halt`에 이으면 exit를 처리한 사이클에서 멈춘다.
 
 ## 알려진 원조 동작
 
