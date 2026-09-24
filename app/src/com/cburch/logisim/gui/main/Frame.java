@@ -234,7 +234,15 @@ public class Frame extends LFrame implements LocaleListener {
 		// HCS: context menus follow the order in which things were selected (#105)
 		kr.ac.hallym.hcs.app.menu.ContextMenus.install(this);
 		kr.ac.hallym.hcs.app.probe.ProbeMenu.installKey(layoutCanvas); // HCS: P puts a probe on a wire (#75)
-		layoutCanvas.setHcsKeys(new kr.ac.hallym.hcs.app.keys.Shortcuts(layoutCanvas)); // HCS: #78
+		kr.ac.hallym.hcs.app.keys.Shortcuts hcsKeys = new kr.ac.hallym.hcs.app.keys.Shortcuts(layoutCanvas); // HCS: #78
+		layoutCanvas.setHcsKeys(hcsKeys); // HCS: #78
+		layoutCanvas.addMouseMotionListener(new java.awt.event.MouseMotionAdapter() { // HCS: #76 cursor for palette
+			@Override
+			public void mouseMoved(java.awt.event.MouseEvent e) {
+				hcsKeys.moved(e);
+			}
+		});
+		kr.ac.hallym.hcs.app.palette.PaletteWindow.install(this, hcsKeys::lastMouse); // HCS: Ctrl+K (#76)
 		kr.ac.hallym.hcs.app.find.FindDialog.install(this); // HCS: Ctrl+F (#80)
 
 		// set up the contents, split down the middle, with the canvas
