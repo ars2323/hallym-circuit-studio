@@ -229,6 +229,8 @@ public class Frame extends LFrame implements LocaleListener {
 		mainPanelSuper.add(mainPanel, BorderLayout.CENTER);
 		// HCS: file tabs, circuit tabs and simulation path above the canvas (#68)
 		mainPanelSuper.add(new kr.ac.hallym.hcs.app.tabs.FileTabBar(this), BorderLayout.NORTH);
+		// HCS: drop .circ files on the window to open them (#70)
+		kr.ac.hallym.hcs.app.dnd.DropOpen.install(this, layoutCanvas);
 
 		// set up the contents, split down the middle, with the canvas
 		// on the right and a split pane on the left containing the

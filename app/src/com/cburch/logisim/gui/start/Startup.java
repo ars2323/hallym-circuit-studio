@@ -213,6 +213,10 @@ public class Startup {
 			doPrintFile(fileToPrint);
 		}
 
+		// HCS: autosave and recovery of unsaved work (#70)
+		kr.ac.hallym.hcs.app.autosave.AutoSave.get().offerRecovery();
+		kr.ac.hallym.hcs.app.autosave.AutoSave.get().start();
+
 		// HCS: first-run quick start guide (#23)
 		kr.ac.hallym.hcs.app.tutorial.QuickStart.showOnFirstRun();
 	}

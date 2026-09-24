@@ -142,6 +142,12 @@ public final class CircExtensionIO {
         }
     }
 
+    /** 원조 writer가 쓴 .circ 바이트에 확장 정보를 넣은 것(자동 저장용). */
+    public static byte[] withExtension(byte[] xml, CircExtension ext) throws IOException {
+        String text = new String(xml, StandardCharsets.UTF_8);
+        return insert(text, ext).getBytes(StandardCharsets.UTF_8);
+    }
+
     static String insert(String text, CircExtension ext) throws IOException {
         Matcher m = EXISTING.matcher(text);
         String base = m.find() ? m.replaceAll("") : text;
