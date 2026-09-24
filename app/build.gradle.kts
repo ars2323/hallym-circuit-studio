@@ -40,6 +40,7 @@ sourceSets {
 
 dependencies {
     implementation(files(thirdParty))
+    implementation("com.formdev:flatlaf:3.7.2") // Apache-2.0, NOTICE
     testImplementation(project(":regress"))
     testImplementation(platform("org.junit:junit-bom:5.13.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")
@@ -48,6 +49,7 @@ dependencies {
 
 tasks.processResources {
     from("src-hcs") { include("**/*.properties") } // 포크 문구 번들은 코드 옆에 둔다
+    from(rootProject.file("assets/fonts/pretendard")) { into("kr/ac/hallym/hcs/app/fonts") } // OFL, LICENSE.txt 포함
 }
 
 tasks.withType<JavaCompile>().configureEach {
@@ -64,9 +66,17 @@ application {
 tasks.jar {
     archiveFileName = "hallym-circuit-studio.jar"
     manifest {
-        attributes("Main-Class" to "com.cburch.logisim.Main", "Implementation-Version" to project.version)
+        attributes(
+            "Main-Class" to "com.cburch.logisim.Main",
+            "Implementation-Version" to project.version,
+            "Multi-Release" to "true", // FlatLaf의 META-INF/versions/9 클래스
+        )
     }
     from(zipTree(thirdParty.map { it.archiveFile })) // 실행 가능한 단일 jar
+    from(configurations.runtimeClasspath.map { cp -> cp.filter { it.name.startsWith("flatlaf") }.map { zipTree(it) } }) {
+        exclude("META-INF/versions/**/module-info.class", "module-info.class", "META-INF/MANIFEST.MF")
+        rename("^LICENSE$", "LICENSE-FlatLaf.txt") // Apache-2.0 전문
+    }
     from(rootProject.file("LICENSE")) { rename { "COPYING.TXT" } }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }

@@ -188,3 +188,11 @@
 - **결정:** PLAN.md 7.0의 네임스페이스는 `<project>`의 마지막 자식 `<hcs:ext xmlns:hcs="urn:hallym-circuit-studio:ext" version="1">` 하나다. 그 안에 `<hcs:circuit name="…">`마다 항목 요소(`<hcs:tunnel …/>`처럼 종류 이름과 문자열 속성)를 둔다. 엔진의 XmlReader·XmlWriter는 바꾸지 않는다. 파일을 연 뒤 이 요소를 따로 읽어 LogisimFile 옆에 붙이고(`CircExtensions`), 원조 방식으로 저장한 파일 끝에 다시 넣는다(`ProjectActions`의 `// HCS:` 두 곳, proj 패키지라 엔진 밖). 확장 정보가 없으면 저장한 파일을 건드리지 않는다. 모르는 종류·속성은 그대로 두었다가 다시 쓴다. 사람마다 다른 설정은 .circ가 아니라 OS별 설정 폴더(Windows `%APPDATA%\HallymCircuitStudio`, macOS `~/Library/Application Support/HallymCircuitStudio`, 그 밖 `$XDG_CONFIG_HOME/hallym-circuit-studio`)의 `settings.properties`에 둔다. 포크가 더한 코드는 `app/src-hcs/`, 문구는 그 옆의 `messages(_ko).properties`다.
 - **이유:** 원조 2.7.1의 XmlReader는 `<project>` 아래 모르는 요소를 건너뛴다(JDK 8에서 원조 jar로 확인, `CircExtensionTest`). 요소 하나에 모으면 원조로 다시 저장했을 때 빠지는 범위가 분명하다. 엔진 writer를 바꾸면 규칙 2.1의 패치가 되고, 확장 정보가 없는 파일의 바이트 호환(D-006)을 따로 증명해야 한다. 저장 뒤 끼워 넣기는 확장 정보가 없을 때 아무 일도 하지 않으므로 그 증명이 필요 없다.
 - **대안:** 부품 속성으로 저장(원조가 모르는 속성은 경고 없이 버리지만 부품마다 흩어지고 회로 단위 정보를 둘 곳이 없음), .circ 옆 별도 파일(제출할 때 빠뜨림), 엔진 XmlWriter 패치(규칙 2.1).
+
+## D-025 포크의 모양: FlatLaf Light + 디자인 토큰 + Pretendard
+
+- **날짜:** 2026-09-24(#21)
+- **결정:** 포크는 시작할 때(`Startup`, `// HCS:`) 시스템 모양 대신 FlatLaf Light에 `Tokens`(D-008, Hallym MIPS `tokens.h` 값)를 입히고, UI 글꼴을 번들한 Pretendard 13px로 둔다. 색 배치는 Hallym MIPS `light.qss`를 따른다. 선택은 옅은 파랑 바탕에 navy 글자, 기본 버튼은 blue, 툴팁은 navy, 스크롤바는 12px에 화살표가 없다. Pretendard를 못 쓰면 맑은 고딕 → Noto Sans CJK KR → Segoe UI 순으로 쓴다. 바뀌는 것은 Swing 부분(메뉴·트리·표·대화상자)뿐이고 캔버스 그림은 엔진 그대로다. `-tty`에서는 모양을 설치하지 않는다. 다크 모드는 넣지 않는다(Hallym MIPS도 라이트 전용이고, 다크는 대비 근거부터 새로 설계해야 한다). FlatLaf 3.7.2는 포크 jar에 넣고(`Multi-Release`), Apache-2.0 전문을 `META-INF/LICENSE-FlatLaf.txt`로 함께 넣는다.
+- **이유:** 두 제품이 같은 학생에게 쓰이므로 색과 글꼴이 같아야 한다. 토큰을 Java 한 곳에 두고 FlatLaf 설정 값을 거기서 만들면 값이 어긋나지 않는다. `ThemeTest`가 글자·바탕 쌍의 WCAG AA(4.5:1)와 teal을 글자에 쓰지 않는 규칙을 확인한다.
+- **라이선스:** Apache-2.0은 GPL 3과 호환되고 GPL 2와는 호환되지 않는다. Logisim은 "GPL 2 또는 그 이후"이므로 FlatLaf를 넣은 포크 jar는 GPL 3 조건으로 배포된다(NOTICE에 적음). 트랙 A의 `hcs-mips.jar`는 FlatLaf를 넣지 않으므로 그대로다.
+- **대안:** 시스템 모양 유지(Windows·macOS·Linux에서 모양이 다르고 토큰을 입힐 수 없음), FlatLaf `.properties` 파일로 설정(토큰이 Java와 파일 두 곳에 생김), 다크 모드 동시 제공(대비 근거 없음).

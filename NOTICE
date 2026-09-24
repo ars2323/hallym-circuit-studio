@@ -35,7 +35,10 @@ FlatLaf
   Copyright (c) FormDev Software GmbH.
   License: Apache License, Version 2.0
   Source:  https://www.formdev.com/flatlaf/
-  Used as a build dependency of app/.
+  Bundled in the fork jar (hallym-circuit-studio.jar) with its license text
+  at META-INF/LICENSE-FlatLaf.txt. Apache-2.0 is compatible with GPL
+  version 3, so the fork jar that bundles FlatLaf is distributed under
+  GPL version 3 (the "any later version" option of Logisim's license).
 
 --------------------------------------------------------------------------
 Hallym University identity assets (logo, emblem, signature, characters
