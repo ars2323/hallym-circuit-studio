@@ -33,24 +33,20 @@ final class ProgramLoader {
             this.component = component;
         }
 
-        long base() {
-            return component.getAttributeSet().getValue(MemoryFactory.BASE) & 0xffffffffL;
-        }
-
-        long size() {
-            return component.getAttributeSet().getValue(MemoryFactory.SIZE) & 0xffffffffL;
+        long[] region() {
+            return MemoryFactory.region(component.getAttributeSet());
         }
 
         boolean contains(long addr) {
-            return addr >= base() && addr - base() < size();
+            return MemoryFactory.contains(region(), (int) addr);
         }
 
         /** 목록에 보일 이름. 예: {@code datapath › IMem (00400000-004fffff)}. */
         String describe() {
             String label = component.getAttributeSet().getValue(StdAttr.LABEL);
             String name = label == null || label.isEmpty() ? component.getFactory().getDisplayName() : label;
-            long last = Math.min(base() + size(), 0x100000000L) - 1;
-            return circuit.getName() + " › " + name + " (" + WordImage.hex(base()) + "-" + WordImage.hex(last) + ")";
+            long[] r = region();
+            return circuit.getName() + " \u203a " + name + " (" + WordImage.hex(r[0]) + "-" + WordImage.hex(r[1] - 1) + ")";
         }
 
         @Override

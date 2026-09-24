@@ -10,6 +10,7 @@ import java.awt.Font;
 import java.awt.Graphics;
 
 import com.cburch.logisim.data.Attribute;
+import com.cburch.logisim.data.AttributeSet;
 import com.cburch.logisim.data.Attributes;
 import com.cburch.logisim.data.BitWidth;
 import com.cburch.logisim.data.Bounds;
@@ -35,7 +36,10 @@ abstract class MemoryFactory extends InstanceFactory {
     static final Attribute<Integer> BASE =
             Attributes.forHexInteger("base", Text.of("Start Address", "시작 주소"));
     static final Attribute<Integer> SIZE =
-            Attributes.forHexInteger("size", Text.of("Size (bytes)", "크기(바이트)"));
+            Attributes.forHexInteger("size", Text.of("Limit (bytes)", "한계(바이트)"));
+    /** Stack의 맨 위 워드 주소. Stack은 여기서 아래로 자란다. */
+    static final Attribute<Integer> TOP =
+            Attributes.forHexInteger("top", Text.of("Top Word Address", "맨 위 워드 주소"));
     static final WordImageAttribute CONTENTS =
             new WordImageAttribute("contents", Text.of("Initial Contents", "초기 내용"));
     static final Attribute<String> SOURCE =
@@ -47,20 +51,38 @@ abstract class MemoryFactory extends InstanceFactory {
 
     private final Text title;
 
-    MemoryFactory(String name, Text displayName, Text title, int defaultBase, int defaultSize) {
+    /**
+     * @param start 위로 자라는 메모리는 시작 주소({@code base}), 아래로 자라는 Stack은 맨 위 워드({@code top})
+     */
+    MemoryFactory(String name, Text displayName, Text title, boolean growsDown, int start, int defaultSize) {
         super(name, displayName);
         this.title = title;
         setAttributes(
-                new Attribute<?>[] {BASE, SIZE, CONTENTS, SOURCE, StdAttr.LABEL, StdAttr.LABEL_FONT},
-                new Object[] {defaultBase, defaultSize, WordImage.EMPTY, "", "", StdAttr.DEFAULT_LABEL_FONT});
+                new Attribute<?>[] {growsDown ? TOP : BASE, SIZE, CONTENTS, SOURCE, StdAttr.LABEL, StdAttr.LABEL_FONT},
+                new Object[] {start, defaultSize, WordImage.EMPTY, "", "", StdAttr.DEFAULT_LABEL_FONT});
     }
 
-    /** 영역 [base, base+size)에 addr이 있는지. 부호 없는 32비트로 비교한다. */
-    static boolean contains(InstanceState state, int addr) {
-        long base = state.getAttributeValue(BASE) & 0xffffffffL;
-        long size = state.getAttributeValue(SIZE) & 0xffffffffL;
+    /**
+     * 영역 {낮은 주소, 높은 주소(제외)}. 부호 없는 32비트. 위로 자라면 [base, base+size), 아래로 자라면
+     * [top+4−size, top+4). 2^32를 넘거나 0 아래로 가면 자른다.
+     */
+    static long[] region(AttributeSet attrs) {
+        long size = attrs.getValue(SIZE) & 0xffffffffL;
+        if (attrs.containsAttribute(TOP)) {
+            long high = (attrs.getValue(TOP) & 0xffffffffL) + 4;
+            return new long[] {Math.max(0, high - size), high};
+        }
+        long low = attrs.getValue(BASE) & 0xffffffffL;
+        return new long[] {low, Math.min(low + size, 0x100000000L)};
+    }
+
+    static boolean contains(long[] region, int addr) {
         long a = addr & 0xffffffffL;
-        return a >= base && a - base < size;
+        return a >= region[0] && a < region[1];
+    }
+
+    static boolean contains(InstanceState state, int addr) {
+        return contains(region(state.getAttributeSet()), addr);
     }
 
     static Value word(int value) {
@@ -126,9 +148,7 @@ abstract class MemoryFactory extends InstanceFactory {
     abstract void drawPorts(InstancePainter painter);
 
     static String region(InstancePainter painter) {
-        long base = painter.getAttributeValue(BASE) & 0xffffffffL;
-        long size = painter.getAttributeValue(SIZE) & 0xffffffffL;
-        long last = Math.min(base + size, 0x100000000L) - 1;
-        return WordImage.hex(base) + "-" + WordImage.hex(last);
+        long[] r = region(painter.getAttributeSet());
+        return WordImage.hex(r[0]) + "-" + WordImage.hex(r[1] - 1);
     }
 }

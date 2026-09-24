@@ -192,8 +192,8 @@ MIPS 32비트 주소를 그대로 쓰는 Instruction Memory, Data Memory, Stack,
 | 부품 | 포트 | 기본 주소 영역 | 초기 내용 |
 | --- | --- | --- | --- |
 | Instruction Memory | 입력 `Addr`(32), 출력 `Instr`(32). 클럭 없음, 읽기 전용 | `0x00400000`부터 (.text) | .s의 .text |
-| Data Memory | 입력 `Addr`(32), `WriteData`(32), `MemWrite`, `MemRead`, clk. 출력 `ReadData`(32) | `0x10010000`부터 (.data) | .s의 .data |
-| Stack | Data Memory와 같음 | `0x7FFFFFFF` 아래 영역 | 비어 있음 |
+| Data Memory | 입력 `Addr`(32), `WriteData`(32), `MemWrite`, `MemRead`, clk. 출력 `ReadData`(32) | `0x10010000`부터 높은 주소 쪽으로, 한계 1MB (.data) | .s의 .data |
+| Stack | Data Memory와 같음 | 맨 위 워드 `0x7FFFFFFC`부터 낮은 주소 쪽으로, 한계 1MB | 비어 있음 |
 
 기본 주소는 SPIM과 같다. Hallym MIPS에서 본 주소가 회로에서도 그대로 보인다. Stack은 당분간 Data Memory와 별도 부품으로 두고, 나중에 합친다. QtSpim 기반 시뮬레이터는 .bss와 힙을 쓰지 않으므로 그 영역의 부품은 두지 않는다. .data 끝과 스택 사이 주소에 접근하면 어느 영역에도 없는 주소로 진단된다.
 
@@ -206,7 +206,9 @@ MIPS 32비트 주소를 그대로 쓰는 Instruction Memory, Data Memory, Stack,
 - **떠 있는 제어 입력은 1로 취급하지 않는다.** 쓰기를 하지 않고 진단으로 알린다. 기본 RAM과 다른 점이다.
 - **워드 접근만.** 바이트·하프워드 접근(`lb`, `sb`, `lh`)은 지원하지 않는다. 워드 정렬이 안 된 주소는 진단으로 알린다.
 - **속성.** 시작 주소와 영역 크기를 바꿀 수 있다.
-- **모양.** 부품 안에는 현재 주소 근처 몇 워드만 보인다. 전체 내용은 사이클 뷰의 메모리 패널에서 .data 라벨과 `$sp` 표시와 함께 본다. Hallym MIPS의 Data·Stack 창과 같은 모양이다.
+- **자라는 방향과 한계.** Data는 시작 주소에서 높은 주소 쪽으로, Stack은 맨 위 워드에서 낮은 주소 쪽으로 자란다. 한계(기본 1MB)는 속성으로 바꾼다. 희소 저장이라 한계가 커도 쓴 페이지만 메모리를 쓴다.
+- **동작하지 않는 경우만 알린다.** 어느 메모리 영역에도 없는 주소(두 영역 사이 포함), 워드 정렬 안 된 주소, Stack 한계 바로 아래(한계 폭 안) 주소 접근은 "스택 사용량이 한계(1MB)를 넘었습니다", Data·Stack 영역 겹침, 떠 있는 제어 입력. 사실만 말하고 원인·해결책은 추측하지 않는다.
+- **모양.** 부품 안에는 영역, Stack의 현재·최대 깊이(접근한 주소 기준), 현재 주소의 워드가 보인다. 전체 내용은 사이클 뷰의 메모리 패널에서 본다. Data는 낮은 주소부터 .data 라벨과 함께, Stack은 높은 주소가 위이고 `$sp` 화살표와 현재 깊이·최대 깊이를 함께 보인다(Hallym MIPS의 Data·Stack 창과 같은 모양, 3단계).
 - **저장.** Instruction Memory는 .s 경로와 기계어 스냅샷을 .circ에 저장해, .s가 없어도 파일이 동작한다. Data Memory와 Stack은 실행 중 쓴 값을 저장하지 않고, 리셋하면 .data 초기값으로 돌아간다.
 - **Verilog(향후).** 표준 라이브러리 모듈 `lg_imem`, `lg_dmem`에 대응하고, 초기 내용은 `$readmemh`로 내보낸다(7.7).
 
