@@ -19,6 +19,19 @@ import com.cburch.logisim.file.LogisimFile;
 public final class CircExtensions {
     private static final Map<LogisimFile, CircExtension> BY_FILE = new WeakHashMap<>();
 
+    /** 저장하기 전에 더 이상 가리키는 것이 없는 항목을 지우는 쪽(예: 지운 스플리터의 팔 이름). */
+    public interface Pruner {
+        void prune(LogisimFile file, CircExtension ext);
+    }
+
+    private static final java.util.List<Pruner> PRUNERS = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    public static void addPruner(Pruner p) {
+        if (!PRUNERS.contains(p)) {
+            PRUNERS.add(p);
+        }
+    }
+
     private CircExtensions() {
     }
 
@@ -40,6 +53,11 @@ public final class CircExtensions {
         CircExtension ext;
         synchronized (CircExtensions.class) {
             ext = BY_FILE.get(file);
+        }
+        if (ext != null) {
+            for (Pruner p : PRUNERS) {
+                p.prune(file, ext);
+            }
         }
         CircExtensionIO.writeInto(dest, ext == null ? new CircExtension() : ext);
     }
