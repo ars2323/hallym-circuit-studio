@@ -86,7 +86,9 @@ public final class ContextMenus {
             return;
         }
         SelectionOrder<Component> order = new SelectionOrder<>();
-        Selection.Listener l = e -> order.update(proj.getSelection().getComponents());
+        // 같은 AWT 이벤트(마우스 한 번) 안의 선택 변경은 한 묶음: 사각형 선택은 순서가 없다
+        Selection.Listener l = e -> order.update(proj.getSelection().getComponents(),
+                java.awt.EventQueue.getCurrentEvent());
         proj.getSelection().addListener(l);
         ORDERS.put(proj, order);
         LISTENERS.put(proj, l);
@@ -97,7 +99,7 @@ public final class ContextMenus {
         if (o == null) {
             o = new SelectionOrder<>();
         }
-        o.update(proj.getSelection().getComponents());
+        o.update(proj.getSelection().getComponents(), java.awt.EventQueue.getCurrentEvent());
         return o;
     }
 

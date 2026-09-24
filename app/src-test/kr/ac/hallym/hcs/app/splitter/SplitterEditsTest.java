@@ -217,11 +217,22 @@ class SplitterEditsTest {
         List<String> none = new ArrayList<>();
         o.update(none);
         assertTrue(o.order().isEmpty());
-        o.update(Arrays.asList(pc, addr, zero)); // 사각형으로 한꺼번에
+        o.update(Arrays.asList(pc, addr, zero)); // addAll처럼 한 번에
         assertFalse(o.known(), "several at once: the order is not known");
         o.update(none);
-        o.update(Collections.singletonList(zero));
+        // 원조 사각형 선택: 같은 마우스 입력 안에서 부품마다 이벤트가 따로 온다
+        Object drag = new Object();
+        o.update(Collections.singletonList(pc), drag);
+        o.update(Arrays.asList(pc, addr), drag);
+        o.update(Arrays.asList(pc, addr, zero), drag);
+        assertFalse(o.known(), "one drag selecting three wires: the order is not known");
+        o.update(none, new Object());
+        // Shift+클릭: 클릭마다 다른 입력
+        o.update(Collections.singletonList(zero), new Object());
+        o.update(Arrays.asList(zero, pc), new Object());
+        o.update(Arrays.asList(zero, pc, addr), new Object());
         assertTrue(o.known());
+        assertEquals(Arrays.asList(zero, pc, addr), o.order());
         assertTrue(CircExtensionIO.NS.startsWith("urn:"));
     }
 }
