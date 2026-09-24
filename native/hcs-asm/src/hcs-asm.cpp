@@ -16,6 +16,8 @@
 #include <vector>
 
 #if defined(_WIN32)
+#include <fcntl.h>
+#include <io.h>
 #include <windows.h>
 #elif defined(__linux__)
 #include <unistd.h>
@@ -234,6 +236,9 @@ std::string json_string(const std::string &s) {
 }  // namespace
 
 int main(int argc, char **argv) {
+#if defined(_WIN32)
+  _setmode(_fileno(stdout), _O_BINARY);  // JSON은 LF로 낸다(Linux와 같은 바이트)
+#endif
   Options opt;
   if (!parse_args(argc, argv, &opt)) {
     usage(stderr);
