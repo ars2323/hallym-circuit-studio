@@ -20,6 +20,7 @@ import java.util.Map;
 import javax.swing.JOptionPane;
 import javax.swing.Timer;
 
+import com.cburch.logisim.file.Loader;
 import com.cburch.logisim.file.LogisimFile;
 import com.cburch.logisim.proj.Project;
 import com.cburch.logisim.proj.ProjectActions;
@@ -160,6 +161,15 @@ public final class AutoSave {
         }
     }
 
+    /**
+     * 복구한 창을 dest에 저장한다. 복구한 창은 자동 저장 폴더에서 열렸으므로, 원조 Loader.save가 새 위치를 정하기
+     * 전에 라이브러리 경로를 그 폴더 기준(절대 경로)으로 쓴다. 한 번 저장해 위치를 정한 뒤 다시 저장하면 원래 폴더
+     * 기준 상대 경로가 된다(정상 열기·저장과 같은 바이트).
+     */
+    public static boolean saveRecovered(Loader loader, LogisimFile file, File dest) {
+        return loader.save(file, dest) && loader.save(file, dest);
+    }
+
     /** 자동 저장에서 복구한 창인가(저장할 때 어디에 저장할지 묻는다). */
     public synchronized boolean isRecovered(Project p) {
         return recovered.containsKey(p);
@@ -172,6 +182,31 @@ public final class AutoSave {
         }
         File f = mainFile(p);
         return store.contains(f) ? null : f;
+    }
+
+    /**
+     * 복구하며 연 자동 저장 파일이 원조의 최근 파일 목록에 들어가지 않게, 그 칸을 원래 파일로 바꾼다(원래 파일이
+     * 없으면 칸을 비운다). 원조 RecentProjects는 환경설정 키 recent0~에 "시각;경로"로 둔다.
+     */
+    static void replaceRecent(File autosaved, File original) {
+        java.util.prefs.Preferences prefs = java.util.prefs.Preferences.userNodeForPackage(
+                com.cburch.logisim.Main.class);
+        String path;
+        try {
+            path = autosaved.getCanonicalPath();
+        } catch (IOException e) {
+            path = autosaved.getAbsolutePath();
+        }
+        for (int i = 0; i < 20; i++) {
+            String v = prefs.get("recent" + i, null);
+            if (v != null && v.endsWith(";" + path)) {
+                if (original != null) {
+                    prefs.put("recent" + i, v.substring(0, v.indexOf(';') + 1) + original.getAbsolutePath());
+                } else {
+                    prefs.remove("recent" + i);
+                }
+            }
+        }
     }
 
     /** 시작할 때: 남은 자동 저장이 있으면 복구를 제안한다. 복구한 창 수. */
@@ -199,6 +234,7 @@ public final class AutoSave {
                         keys.put(p, key);
                         recovered.put(p, e.original);
                     }
+                    replaceRecent(e.circ, e.original);
                     p.getLogisimFile().setName(Messages.get("autosave.recoveredTitle", e.title)); // 자동 저장 파일 이름 대신
                     p.getLogisimFile().setDirty(true);
                     n++;

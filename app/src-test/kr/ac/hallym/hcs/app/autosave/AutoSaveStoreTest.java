@@ -117,7 +117,35 @@ class AutoSaveStoreTest {
         AutoSaveStore.Entry e = s.write(AutoSaveStore.key(circ, "x"), circ, "ref-mips", xml, 5);
         assertEquals(before, sha(circ));
         // 자동 저장 폴더에서 열어도 jar를 찾는다(창 없이)
-        LogisimFile back = new Loader(null).openLogisimFile(e.circ);
+        Loader recoveredLoader = new Loader(null);
+        LogisimFile back = recoveredLoader.openLogisimFile(e.circ);
         assertEquals(file.getCircuits().size(), back.getCircuits().size());
+
+        // 복구한 창을 원래 자리에 저장하면 정상 저장과 같다(라이브러리가 원래 폴더 기준 상대 경로)
+        File restored = work.resolve("restored.circ").toFile();
+        assertTrue(AutoSave.saveRecovered(recoveredLoader, back, restored));
+        String saved = new String(Files.readAllBytes(restored.toPath()), StandardCharsets.UTF_8);
+        assertTrue(saved.contains("desc=\"jar#hcs-mips.jar#kr.ac.hallym.hcs.mips.MipsLibrary\""), saved);
+        assertEquals(CircNormalizer.normalize(new String(Files.readAllBytes(circ.toPath()), StandardCharsets.UTF_8)),
+                CircNormalizer.normalize(saved));
+        assertEquals(before, sha(circ), "the original was never written");
+    }
+
+    /** 한 번만 저장하면(원조 Loader.save) 자동 저장 폴더 기준 경로가 남는다: 두 번 저장하는 이유. */
+    @Test
+    void oneSaveFromTheAutosaveFolderLeavesAnAbsoluteLibraryPath() throws Exception {
+        Path work = Files.createDirectories(tmp.resolve("w2"));
+        File circ = work.resolve("ref-mips.circ").toFile();
+        Files.copy(REF_MIPS.toPath(), circ.toPath());
+        Files.copy(MIPS_JAR.toPath(), work.resolve("hcs-mips.jar"), StandardCopyOption.REPLACE_EXISTING);
+        LogisimFile file = new Loader(null).openLogisimFile(circ);
+        AutoSaveStore s = new AutoSaveStore(tmp.resolve("autosave2").toFile());
+        AutoSaveStore.Entry e = s.write("k-ref", circ, "ref-mips", AutoSave.serialize(file), 5);
+        Loader l = new Loader(null);
+        LogisimFile back = l.openLogisimFile(e.circ);
+        File once = work.resolve("once.circ").toFile();
+        assertTrue(l.save(back, once));
+        String text = new String(Files.readAllBytes(once.toPath()), StandardCharsets.UTF_8);
+        assertFalse(text.contains("desc=\"jar#hcs-mips.jar#"), "documents why saveRecovered saves twice");
     }
 }

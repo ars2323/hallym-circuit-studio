@@ -317,7 +317,12 @@ public class ProjectActions {
 		Loader loader = proj.getLogisimFile().getLoader();
 		Tool oldTool = proj.getTool();
 		proj.setTool(null);
-		boolean ret = loader.save(proj.getLogisimFile(), f);
+		boolean ret;
+		if (kr.ac.hallym.hcs.app.autosave.AutoSave.get().isRecovered(proj)) { // HCS: #70
+			ret = kr.ac.hallym.hcs.app.autosave.AutoSave.saveRecovered(loader, proj.getLogisimFile(), f);
+		} else {
+			ret = loader.save(proj.getLogisimFile(), f);
+		}
 		if (ret) ret = saveExtension(proj, f); // HCS
 		if (ret) kr.ac.hallym.hcs.app.autosave.AutoSave.get().saved(proj); // HCS: #70
 		if (ret) {
