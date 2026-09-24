@@ -144,4 +144,23 @@ class PaletteTest {
         assertEquals(1 + 3, and.getEnds().size(), "three inputs and an output");
         assertEquals(32, byName.get("Register").getEnds().get(0).getWidth().getWidth());
     }
+
+    /** 목록에는 저장 이름(Multiplexer)이 아니라 원조 표시 이름과 속성 표시 이름이 보인다(한국어 UI). */
+    @Test
+    void listShowsDisplayNamesInTheUiLanguage() throws Exception {
+        start();
+        java.util.Locale before = com.cburch.logisim.util.LocaleManager.getLocale();
+        com.cburch.logisim.util.LocaleManager.setLocale(java.util.Locale.KOREAN);
+        try {
+            Palette.Item mux = first("mux 32");
+            assertEquals("Multiplexer", mux.name, "storage name for placing");
+            assertEquals("멀티플렉서", Palette.displayName(mux));
+            assertEquals("데이터 비트 32", Palette.attrText(mux));
+            String label = PaletteWindow.label(mux);
+            assertTrue(label.contains("멀티플렉서") && !label.contains("Multiplexer") && !label.contains("width="),
+                    label);
+        } finally {
+            com.cburch.logisim.util.LocaleManager.setLocale(before);
+        }
+    }
 }

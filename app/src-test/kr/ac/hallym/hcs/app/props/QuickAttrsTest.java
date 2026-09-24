@@ -178,4 +178,16 @@ class QuickAttrsTest {
 
         assertEquals("width", QuickAttrs.hints(adder).get(0).attr.getName());
     }
+
+    /** 우클릭(메뉴)으로는 빠른 속성 창을 숨기지 않는다: 놓기가 메뉴로 가서 다시 보일 기회가 없다. */
+    @Test
+    void onlyLeftDragHidesTheQuickBar() {
+        javax.swing.JPanel src = new javax.swing.JPanel();
+        java.awt.event.MouseEvent left = new java.awt.event.MouseEvent(src, java.awt.event.MouseEvent.MOUSE_PRESSED,
+                0L, java.awt.event.InputEvent.BUTTON1_DOWN_MASK, 5, 5, 1, false, java.awt.event.MouseEvent.BUTTON1);
+        java.awt.event.MouseEvent right = new java.awt.event.MouseEvent(src, java.awt.event.MouseEvent.MOUSE_PRESSED,
+                0L, java.awt.event.InputEvent.BUTTON3_DOWN_MASK, 5, 5, 1, true, java.awt.event.MouseEvent.BUTTON3);
+        assertTrue(QuickBar.hidesWhilePressed(left));
+        assertFalse(QuickBar.hidesWhilePressed(right));
+    }
 }
