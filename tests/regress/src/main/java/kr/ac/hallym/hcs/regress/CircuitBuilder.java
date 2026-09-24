@@ -6,11 +6,10 @@
 package kr.ac.hallym.hcs.regress;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.Writer;
-import java.nio.charset.StandardCharsets;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -35,19 +34,8 @@ import com.cburch.logisim.tools.Library;
  * 합선·단선을 피하기 위해서다. 곧은 선은 {@link #wire}로 따로 긋는다.
  */
 public final class CircuitBuilder {
-    /** 원조 2.7.1이 새 파일에 넣는 기본 라이브러리 순서 그대로. */
-    private static final String TEMPLATE = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n"
-            + "<project source=\"2.7.1\" version=\"1.0\">\n"
-            + "  <lib desc=\"#Wiring\" name=\"0\"/>\n"
-            + "  <lib desc=\"#Gates\" name=\"1\"/>\n"
-            + "  <lib desc=\"#Plexers\" name=\"2\"/>\n"
-            + "  <lib desc=\"#Arithmetic\" name=\"3\"/>\n"
-            + "  <lib desc=\"#Memory\" name=\"4\"/>\n"
-            + "  <lib desc=\"#I/O\" name=\"5\"/>\n"
-            + "  <lib desc=\"#Base\" name=\"6\"/>\n"
-            + "  <main name=\"main\"/>\n"
-            + "  <circuit name=\"main\"/>\n"
-            + "</project>\n";
+    /** 원조 2.7.1 GUI가 새 파일을 만들 때 쓰는 템플릿(jar 안 resources/logisim/default.templ). */
+    private static final String TEMPLATE_RESOURCE = "/resources/logisim/default.templ";
 
     private final LogisimFile file;
     private final Circuit circuit;
@@ -58,7 +46,10 @@ public final class CircuitBuilder {
         this.circuit = circuit;
     }
 
-    /** 기본 라이브러리 7개와 빈 main 회로가 있는 새 파일(원조 2.7.1이 새로 만든 파일과 같은 머리). */
+    /**
+     * 원조 2.7.1 GUI의 File › New와 같은 새 파일: 기본 라이브러리 7개, 도구 모음, 우클릭 → Menu Tool 매핑,
+     * 빈 main 회로.
+     */
     public static LogisimFile newFile(Loader loader) throws IOException {
         return newFile(loader, null);
     }
@@ -70,8 +61,11 @@ public final class CircuitBuilder {
     public static LogisimFile newFile(Loader loader, File dir) throws IOException {
         File tmp = File.createTempFile("hcs-template", ".circ", dir);
         try {
-            try (Writer w = new OutputStreamWriter(new FileOutputStream(tmp), StandardCharsets.UTF_8)) {
-                w.write(TEMPLATE);
+            try (InputStream in = Loader.class.getResourceAsStream(TEMPLATE_RESOURCE)) {
+                if (in == null) {
+                    throw new IOException("no " + TEMPLATE_RESOURCE + " in the Logisim jar");
+                }
+                Files.copy(in, tmp.toPath(), StandardCopyOption.REPLACE_EXISTING);
             }
             return loader.openLogisimFile(tmp);
         } catch (LoadFailedException e) {
