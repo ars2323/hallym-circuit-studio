@@ -73,6 +73,7 @@ public final class ContextMenus {
         PROVIDERS.add(new SplitterMenu());
         PROVIDERS.add(new kr.ac.hallym.hcs.app.probe.ProbeMenu());
         kr.ac.hallym.hcs.app.ext.CircExtensions.addPruner(kr.ac.hallym.hcs.app.splitter.SplitterEdits.PRUNER);
+        kr.ac.hallym.hcs.app.ext.CircExtensions.addPruner(kr.ac.hallym.hcs.app.labels.TunnelColorStore.PRUNER);
     }
 
     private ContextMenus() {
