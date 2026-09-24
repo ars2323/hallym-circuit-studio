@@ -111,6 +111,7 @@ public class Canvas extends JPanel
 		}
 
 		public void mouseDragged(MouseEvent e) {
+			if (hcsZoom != null && hcsZoom.handlePan(e)) return; // HCS: #69
 			if (drag_tool != null) {
 				drag_tool.mouseDragged(Canvas.this, getGraphics(), e);
 			}
@@ -139,6 +140,7 @@ public class Canvas extends JPanel
 		}
 
 		public void mousePressed(MouseEvent e) {
+			if (hcsZoom != null && hcsZoom.handlePan(e)) { Canvas.this.requestFocus(); return; } // HCS: #69
 			viewport.setErrorMessage(null, null);
 			proj.setStartupScreen(false);
 			Canvas.this.requestFocus();
@@ -151,6 +153,7 @@ public class Canvas extends JPanel
 		}
 
 		public void mouseReleased(MouseEvent e) {
+			if (hcsZoom != null && hcsZoom.handlePan(e)) return; // HCS: #69
 			if (drag_tool != null) {
 				drag_tool.mouseReleased(Canvas.this, getGraphics(), e);
 				drag_tool = null;
@@ -510,6 +513,12 @@ public class Canvas extends JPanel
 	private Selection selection;
 	private MouseMappings mappings;
 	private CanvasPane canvasPane;
+	private kr.ac.hallym.hcs.app.zoom.ZoomController hcsZoom; // HCS: #69
+
+	// HCS: #69
+	public void setHcsZoom(kr.ac.hallym.hcs.app.zoom.ZoomController value) {
+		hcsZoom = value;
+	}
 	private Bounds oldPreferredSize;
 	private MyListener myListener = new MyListener();
 	private MyViewport viewport = new MyViewport();

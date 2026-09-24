@@ -68,7 +68,8 @@ public class Frame extends LFrame implements LocaleListener {
 	public static final String VIEW_TOOLBOX = "toolbox";
 	public static final String VIEW_SIMULATION = "simulation";
 
-	private static final double[] ZOOM_OPTIONS = { 20, 50, 75, 100, 133, 150, 200, 250, 300, 400 };
+	// HCS: 25-400% steps shared with Ctrl+wheel and Ctrl+= / Ctrl+- (#69, kr.ac.hallym.hcs.app.zoom.ZoomMath)
+	private static final double[] ZOOM_OPTIONS = { 25, 33, 50, 67, 75, 100, 125, 150, 200, 250, 300, 400 };
 	
 	class MyProjectListener
 			implements ProjectListener, LibraryListener, CircuitListener,
@@ -257,6 +258,9 @@ public class Frame extends LFrame implements LocaleListener {
 		this.setExtendedState(AppPreferences.WINDOW_STATE.get().intValue());
 		
 		menuListener.register(mainPanel);
+		// HCS: zoom and pan (#69)
+		layoutCanvas.setHcsZoom(kr.ac.hallym.hcs.app.zoom.ZoomController.install(proj, layoutCanvas,
+				canvasPane, layoutZoomModel, getRootPane()));
 		KeyboardToolSelection.register(toolbar);
 
 		proj.setFrame(this);
