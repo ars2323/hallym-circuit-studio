@@ -65,6 +65,10 @@ final class BarIcons implements Icon {
             g.draw(new Arc2D.Double(3, 4, 10, 9, 90, -250, Arc2D.OPEN));
             g.fillPolygon(new Polygon(new int[] {1, 7, 6}, new int[] {5, 2, 8}, 3));
             break;
+        case "redo":
+            g.draw(new Arc2D.Double(3, 4, 10, 9, 90, 250, Arc2D.OPEN));
+            g.fillPolygon(new Polygon(new int[] {15, 9, 10}, new int[] {5, 2, 8}, 3));
+            break;
         case "select":
             g.fillPolygon(new Polygon(new int[] {3, 3, 7, 9, 11, 9, 13}, new int[] {1, 14, 10, 15, 14, 9, 9}, 7));
             break;

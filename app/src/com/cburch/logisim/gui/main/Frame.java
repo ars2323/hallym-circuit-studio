@@ -256,6 +256,7 @@ public class Frame extends LFrame implements LocaleListener {
 		});
 		kr.ac.hallym.hcs.app.palette.PaletteWindow.install(this, hcsKeys::lastMouse); // HCS: Ctrl+K (#76)
 		kr.ac.hallym.hcs.app.find.FindDialog.install(this); // HCS: Ctrl+F (#80)
+		kr.ac.hallym.hcs.app.edit.RedoStack.installKeys(getRootPane(), proj); // HCS: Ctrl+Shift+Z redo (review)
 
 		// set up the contents, split down the middle, with the canvas
 		// on the right and a split pane on the left containing the
