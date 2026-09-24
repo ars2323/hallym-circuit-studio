@@ -9,4 +9,7 @@ step() { printf '\n== %s\n' "$1"; }
 step "vendor 원본 검증"
 tools/verify-vendor.sh
 
+step "엔진 소스 원본 일치"
+tools/check-engine-unchanged.sh
+
 printf '\nci-local: all checks passed (%s)\n' "$(git rev-parse --short HEAD)"
