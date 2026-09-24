@@ -231,6 +231,8 @@ public class Frame extends LFrame implements LocaleListener {
 		mainPanelSuper.add(new kr.ac.hallym.hcs.app.tabs.FileTabBar(this), BorderLayout.NORTH);
 		// HCS: drop .circ files on the window to open them (#70)
 		kr.ac.hallym.hcs.app.dnd.DropOpen.install(this, layoutCanvas);
+		// HCS: context menus follow the order in which things were selected (#105)
+		kr.ac.hallym.hcs.app.menu.ContextMenus.install(this);
 
 		// set up the contents, split down the middle, with the canvas
 		// on the right and a split pane on the left containing the
