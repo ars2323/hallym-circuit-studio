@@ -110,7 +110,7 @@ final class ProgramLoader {
                         " 워드가 그 메모리 영역 밖에 있음").get());
             }
         } else if (!p.text.isEmpty()) {
-            plan.notes.add(Text.of("No Instruction Memory for .text", ".text를 넣을 Instruction Memory가 없음").get());
+            plan.notes.add(Text.of("No Instruction Memory for .text", ".text를 넣을 명령어 메모리가 없음").get());
         }
         if (data != null) {
             plan.changes.add(new Change(data, MemoryFactory.CONTENTS, p.dataImage()));
@@ -127,7 +127,7 @@ final class ProgramLoader {
                         " 워드가 그 메모리 영역 밖에 있음").get());
             }
         } else if (!p.data.isEmpty()) {
-            plan.notes.add(Text.of("No Data Memory for .data", ".data를 넣을 Data Memory가 없음").get());
+            plan.notes.add(Text.of("No Data Memory for .data", ".data를 넣을 데이터 메모리가 없음").get());
         }
         for (AssembledProgram.Message w : p.warnings) {
             plan.notes.add(Text.of("hcs-asm: ", "hcs-asm: ").get() + w);

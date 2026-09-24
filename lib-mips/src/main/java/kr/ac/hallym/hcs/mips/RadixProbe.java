@@ -28,8 +28,8 @@ import com.cburch.logisim.instance.StdAttr;
 import com.cburch.logisim.util.GraphicsUtil;
 
 /**
- * 다중 진법 Probe(PLAN.md 5.1). 입력 하나의 값을 16진수·10진수·2진수로 함께 보인다. 주 진법(굵게, 맨 위)은
- * {@code radix} 속성으로 정하고, 시뮬레이션 중에는 찌르기 도구로 클릭할 때마다 바뀐다(저장하지 않음).
+ * 다중 진법 프로브(PLAN.md 5.1). 입력 하나의 값을 16진수·10진수·2진수로 함께 보인다. 주 진법(굵게, 맨 위)은
+ * {@code radix} 속성으로 정하고, 시뮬레이션 중에는 조작 도구로 클릭할 때마다 바뀐다(저장하지 않음).
  * 10진수는 {@code signed} 속성으로 부호 있음·없음을 고르고, 2진수는 4비트씩 끊는다.
  */
 final class RadixProbe extends InstanceFactory {
@@ -52,7 +52,7 @@ final class RadixProbe extends InstanceFactory {
     private static final Color SECONDARY_COLOR = new Color(0x5A6472); // Hallym MIPS text-2
     private static final int HEIGHT = 50;
 
-    /** 시뮬레이션 중 찌르기로 바꾼 주 진법. 없으면 속성을 따른다. */
+    /** 시뮬레이션 중 조작 도구로 바꾼 주 진법. 없으면 속성을 따른다. */
     static final class State implements InstanceData, Cloneable {
         int primary = -1;
 
@@ -80,7 +80,7 @@ final class RadixProbe extends InstanceFactory {
     }
 
     RadixProbe() {
-        super("Radix Probe", Text.of("Radix Probe", "다중 진법 Probe"));
+        super("Radix Probe", Text.of("Radix Probe", "다중 진법 프로브"));
         setAttributes(new Attribute<?>[] {StdAttr.WIDTH, RADIX, SIGNED, StdAttr.LABEL, StdAttr.LABEL_FONT},
                 new Object[] {BitWidth.create(32), RADIXES[HEX], Boolean.TRUE, "", StdAttr.DEFAULT_LABEL_FONT});
         setPorts(new Port[] {new Port(0, 0, Port.INPUT, StdAttr.WIDTH)});

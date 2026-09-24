@@ -20,7 +20,7 @@ Logisim 2.7.1에서 **Project › Load Library › JAR Library…**를 누르고
 | Data Memory | `Addr`, `WriteData`(32), `MemWrite`, `MemRead`, clk | `ReadData`(32) | `0x10010000`부터 위로(.data). 읽기는 바로, 쓰기는 clk 상승 에지 |
 | Stack | Data Memory와 같음 | 같음 | `0x7FFFFFFC`부터 아래로 |
 | Console | `Syscall`, `V0`(32), `A0`(32), clk | `Exit` | syscall 1(정수), 4(문자열), 11(문자), 10(끝) |
-| Radix Probe | 값 하나 | 없음 | 16·10·2진수를 함께 보여 줌. 찌르기 도구로 누르면 주 진법이 바뀜 |
+| Radix Probe | 값 하나 | 없음 | 16·10·2진수를 함께 보여 줌. 조작 도구로 누르면 주 진법이 바뀜 |
 
 - 주소는 **32비트 바이트 주소 그대로** 연결합니다. 스플리터로 자를 필요가 없습니다. 워드 단위로만 읽고 씁니다.
 - Data Memory와 Stack의 `ReadData`는 **한 선에 이어도 됩니다.** 주소가 속한 쪽만 값을 냅니다.

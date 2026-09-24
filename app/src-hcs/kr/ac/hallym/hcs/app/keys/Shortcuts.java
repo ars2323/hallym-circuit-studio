@@ -44,7 +44,7 @@ import kr.ac.hallym.hcs.app.model.Names;
 
 /**
  * 조작과 단축키(#78, PLAN.md 11.7). 선택·편집 도구에서 방향키는 한 칸 이동(원조의 연결 유지 이동과 같은 방법),
- * R은 시계 방향 회전(Shift+R 반대), ?는 단축키 표. Ctrl+클릭은 입력 핀·버튼을 찌르기 도구처럼 누르고, 입력 핀
+ * R은 시계 방향 회전(Shift+R 반대), ?는 단축키 표. Ctrl+클릭은 입력 핀·버튼을 조작 도구처럼 누르고, 입력 핀
  * 더블클릭은 값 넣기. 포트 위에 마우스를 올리면 포트 이름과 폭. 단축키 사용자 설정은 4b.
  */
 public final class Shortcuts {
@@ -196,7 +196,7 @@ public final class Shortcuts {
         return d;
     }
 
-    /** 캔버스 마우스 처리 앞에서: 선택·편집 도구에서 Ctrl+클릭한 입력 핀·버튼은 찌르기 도구처럼. */
+    /** 캔버스 마우스 처리 앞에서: 선택·편집 도구에서 Ctrl+클릭한 입력 핀·버튼은 조작 도구처럼. */
     public boolean mouse(MouseEvent e, java.awt.Graphics g) {
         if (e.getID() == MouseEvent.MOUSE_PRESSED) {
             if (editing() && e.isControlDown() && javax.swing.SwingUtilities.isLeftMouseButton(e)
@@ -307,7 +307,7 @@ public final class Shortcuts {
     }
 
     /**
-     * 입력 핀에 값을 넣는다. 원조 찌르기 도구가 핀을 누를 때와 같은 경로(Pin.setValue)라 시뮬레이션 상태만 바뀌고
+     * 입력 핀에 값을 넣는다. 원조 조작 도구가 핀을 누를 때와 같은 경로(Pin.setValue)라 시뮬레이션 상태만 바뀌고
      * .circ에는 남지 않는다.
      */
     public static void setPinValue(CircuitState state, Component pin, long v) {

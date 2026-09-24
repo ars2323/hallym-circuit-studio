@@ -19,7 +19,7 @@ import com.cburch.logisim.data.Value;
 import com.cburch.logisim.instance.InstanceState;
 import com.cburch.logisim.instance.StdAttr;
 
-/** 다중 진법 Probe(PLAN.md 5.1). */
+/** 다중 진법 프로브(PLAN.md 5.1). */
 class RadixProbeTest {
     @TempDir
     Path tmp;

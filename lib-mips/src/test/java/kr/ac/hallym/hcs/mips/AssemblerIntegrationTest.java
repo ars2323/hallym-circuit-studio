@@ -161,7 +161,7 @@ class AssemblerIntegrationTest {
         AssembledProgram prog = assemble(TESTS.resolve("asm/strings.s"));
         ProgramLoader.Plan plan = ProgramLoader.plan(prog, null, null, "strings.s");
         assertTrue(plan.changes.isEmpty());
-        assertEquals(2, plan.notes.stream().filter(n -> n.contains("Memory")).count(), plan.notes.toString());
+        assertEquals(2, plan.notes.stream().filter(n -> n.contains("Memory") || n.contains("메모리가 없음")).count(), plan.notes.toString());
     }
 
     @Test
