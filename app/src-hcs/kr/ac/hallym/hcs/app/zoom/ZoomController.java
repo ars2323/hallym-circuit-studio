@@ -44,22 +44,26 @@ public final class ZoomController {
     private final Canvas canvas;
     private final CanvasPane pane;
     private final ZoomModel model;
+    /** 레이아웃 편집 화면일 때만 단축키가 동작한다(모양 편집 화면은 제 배율이 따로 있다). */
+    private final java.util.function.BooleanSupplier active;
     private boolean spaceDown;
     private Point dragFrom;
     private Point viewFrom;
     private Cursor savedCursor;
 
-    private ZoomController(Project proj, Canvas canvas, CanvasPane pane, ZoomModel model) {
+    private ZoomController(Project proj, Canvas canvas, CanvasPane pane, ZoomModel model,
+            java.util.function.BooleanSupplier active) {
         this.proj = proj;
         this.canvas = canvas;
         this.pane = pane;
         this.model = model;
+        this.active = active;
     }
 
     /** 창(Frame)을 만들 때 한 번. */
     public static ZoomController install(Project proj, Canvas canvas, CanvasPane pane, ZoomModel model,
-            JComponent keyRoot) {
-        ZoomController z = new ZoomController(proj, canvas, pane, model);
+            JComponent keyRoot, java.util.function.BooleanSupplier layoutShown) {
+        ZoomController z = new ZoomController(proj, canvas, pane, model, layoutShown);
         z.bindKeys(keyRoot);
         z.bindMouse();
         return z;
@@ -84,11 +88,15 @@ public final class ZoomController {
         canvas.getActionMap().put("hcsZoomSel", action(this::fitSelection));
     }
 
-    private static void bind(InputMap im, ActionMap am, String name, Runnable r, KeyStroke... keys) {
+    private void bind(InputMap im, ActionMap am, String name, Runnable r, KeyStroke... keys) {
         for (KeyStroke k : keys) {
             im.put(k, name);
         }
-        am.put(name, action(r));
+        am.put(name, action(() -> {
+            if (active.getAsBoolean()) {
+                r.run();
+            }
+        }));
     }
 
     private static AbstractAction action(Runnable r) {

@@ -260,7 +260,7 @@ public class Frame extends LFrame implements LocaleListener {
 		menuListener.register(mainPanel);
 		// HCS: zoom and pan (#69)
 		layoutCanvas.setHcsZoom(kr.ac.hallym.hcs.app.zoom.ZoomController.install(proj, layoutCanvas,
-				canvasPane, layoutZoomModel, getRootPane()));
+				canvasPane, layoutZoomModel, getRootPane(), () -> EDIT_LAYOUT.equals(getEditorView())));
 		KeyboardToolSelection.register(toolbar);
 
 		proj.setFrame(this);

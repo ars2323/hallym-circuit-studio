@@ -21,7 +21,7 @@ public class KeyboardToolSelection extends AbstractAction {
 		InputMap imap = toolbar.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
 		int mask = toolbar.getToolkit().getMenuShortcutKeyMask();
 		for (int i = 0; i < 10; i++) {
-			if (i <= 1) continue; // HCS: Ctrl+0 fits, Ctrl+1 is 100% (#69, D-027); tools keep Ctrl+2..9
+			if (i <= 1) continue; // HCS: Ctrl+0 fits, Ctrl+1 is 100% (#69, D-028); tools keep Ctrl+2..9
 			KeyStroke keyStroke = KeyStroke.getKeyStroke((char) ('0' + i), mask);
 			int j = (i == 0 ? 10 : i - 1);
 			KeyboardToolSelection action = new KeyboardToolSelection(toolbar, j);
