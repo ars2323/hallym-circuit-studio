@@ -28,6 +28,8 @@ import org.junit.jupiter.api.io.TempDir;
 import com.cburch.logisim.file.Loader;
 import com.cburch.logisim.file.LogisimFile;
 
+import kr.ac.hallym.hcs.regress.CircNormalizer;
+
 /**
  * 원조 Logisim 2.7.1이 JAR 라이브러리를 어떻게 불러오고 .circ에 어떻게 저장하는지 고정한다
  * (docs/jar-library.md, 이슈 #4).

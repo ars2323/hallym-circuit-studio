@@ -3,7 +3,7 @@
  * Copyright (c) 2026 AIAC Lab, Hallym University.
  * License: GNU GPL version 2 or later. See LICENSE.
  */
-package kr.ac.hallym.hcs.mips;
+package kr.ac.hallym.hcs.regress;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -20,23 +20,23 @@ import java.util.List;
  *       부품은 identity hash 순서라 세션마다 달라질 수 있다.</li>
  * </ol>
  */
-final class CircNormalizer {
+public final class CircNormalizer {
     private CircNormalizer() {
     }
 
-    static String normalize(String xml) {
-        List<String> out = new ArrayList<>();
+    public static String normalize(String xml) {
+        List<String> out = new ArrayList<String>();
         List<String> block = null; // 현재 모으는 wire/comp 묶음
         List<String> items = null; // 한 circuit 안의 wire/comp 묶음들
         for (String raw : xml.split("\r?\n")) {
-            String line = raw.strip();
+            String line = raw.trim();
             if (line.isEmpty()) {
                 continue;
             }
             if (items == null) {
                 out.add(line);
                 if (line.startsWith("<circuit ")) {
-                    items = new ArrayList<>();
+                    items = new ArrayList<String>();
                 }
                 continue;
             }
@@ -52,7 +52,8 @@ final class CircNormalizer {
                 if (line.endsWith("/>")) {
                     items.add(line);
                 } else {
-                    block = new ArrayList<>(List.of(line));
+                    block = new ArrayList<String>();
+                    block.add(line);
                 }
             } else if (line.equals("</circuit>")) {
                 Collections.sort(items);

@@ -6,6 +6,8 @@ plugins {
 rootProject.name = "hallym-circuit-studio"
 
 include("lib-mips")
+include("regress")
+project(":regress").projectDir = file("tests/regress")
 
 dependencyResolutionManagement {
     repositories {
