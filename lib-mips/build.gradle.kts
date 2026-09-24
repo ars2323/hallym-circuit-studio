@@ -64,6 +64,8 @@ tasks.test {
     systemProperty("hcs.asm", rootProject.file("native/hcs-asm/build/hcs-asm").absolutePath)
     systemProperty("hcs.spimOracle", rootProject.file("native/hcs-asm/build/oracle/spim").absolutePath)
     systemProperty("hcs.spimDir", rootProject.file("vendor/spim-9.1.24").absolutePath)
+    // tests/mips/ref-mips.circ 다시 쓰기: ./gradlew :lib-mips:test -Phcs.update=true
+    systemProperty("hcs.update", (findProperty("hcs.update") ?: "false").toString())
     testLogging {
         events("failed")
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL

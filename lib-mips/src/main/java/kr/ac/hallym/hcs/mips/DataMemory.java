@@ -56,7 +56,7 @@ class DataMemory extends MemoryFactory {
         Value lastClock = Value.UNKNOWN;
         long[] region = {0, 0};
         boolean growsDown;
-        /** 가장 낮게 접근한 주소와 마지막으로 접근한 주소(Stack 깊이). -1: 없음. */
+        /** 클럭 상승 에지에 읽거나 쓴 가장 낮은 주소와 마지막 주소(Stack 깊이). -1: 없음. */
         long lowest = -1;
         long last = -1;
         Problem problem;
@@ -169,8 +169,8 @@ class DataMemory extends MemoryFactory {
         Value read = s.getPort(MEM_READ);
         boolean inRegion = addr.isFullyDefined() && st.contains(addr.toIntValue());
         boolean used = Value.TRUE.equals(write) || Value.TRUE.equals(read);
-        if (used && inRegion) {
-            st.accessed(addr.toIntValue());
+        if (rising && used && inRegion) {
+            st.accessed(addr.toIntValue()); // 에지 순간의 값만 센다(전파 중 잠깐 나타나는 주소 제외)
         }
         if (rising && inRegion && Value.TRUE.equals(write)) {
             Value data = s.getPort(WRITE_DATA);

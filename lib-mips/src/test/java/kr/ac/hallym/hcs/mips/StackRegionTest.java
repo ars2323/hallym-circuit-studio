@@ -80,14 +80,14 @@ class StackRegionTest {
         long[] depth = {4, 8, 12, 16, 12, 8, 4};
         long[] max = {4, 8, 12, 16, 16, 16, 16};
         for (int n = 0; n < 7; n += 1) {
-            DataMemory.State st = (DataMemory.State) sim.data(stack);
-            assertEquals(depth[n], st.depth(), "depth at step " + n);
-            assertEquals(max[n], st.maxDepth(), "max at step " + n);
-            assertNull(st.problem);
             if (n >= 4) {
                 assertEquals((int) ADDRS[n], sim.port(stack, DataMemory.READ_DATA).toIntValue());
             }
-            sim.cycle();
+            sim.cycle(); // 상승 에지에 n번째 접근이 기록된다
+            DataMemory.State st = (DataMemory.State) sim.data(stack);
+            assertEquals(depth[n], st.depth(), "depth after step " + n);
+            assertEquals(max[n], st.maxDepth(), "max after step " + n);
+            assertNull(st.problem);
         }
     }
 

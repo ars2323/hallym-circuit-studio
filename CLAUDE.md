@@ -109,7 +109,7 @@ git과 gh는 설치·로그인돼 있다. 저장소 관리는 전부 직접 한�
   - Instruction Memory, Data Memory, Stack, Console, 다중 진법 Probe를 만든다.
   - 32비트 byte 주소, 희소 저장, 영역 밖이면 출력 안 함(floating), 떠 있는 제어 입력은 쓰기 안 함, 워드 접근만 지원한다.
   - 부품 우클릭 메뉴에 ".s 불러오기"를 둔다. `hcs-asm`을 jar와 같은 폴더에서 찾는다.
-  - 참조 single-cycle MIPS 회로(`tests/circ/ref-mips.circ`)를 직접 만든다. 교재 기본 명령어와 syscall 디코드를 넣고, 예제 .s의 레지스터·메모리·Console 결과가 SPIM 실행 결과와 같은지 테스트한다.
+  - 참조 single-cycle MIPS 회로(`tests/mips/ref-mips.circ`, 우리 테스트용)를 직접 만든다. 분기 가산기는 PC 기준이다(QtSpim 기계어 그대로, D-010). 교재 기본 명령어와 syscall 디코드를 넣고, 예제 .s의 레지스터·메모리·Console 결과가 SPIM 실행 결과와 같은지 테스트한다.
 - **2a단계 (트랙 B, `app`):**
   - 원본 소스 커밋 위에서 최신 JDK 빌드를 정리하고, 엔진 회귀 테스트가 표준 jar와 같은 결과를 내는지 먼저 확인한다.
   - 그다음 FlatLaf, 디자인 토큰, Pretendard를 적용하고 `lib-mips` 부품을 번들한다.
