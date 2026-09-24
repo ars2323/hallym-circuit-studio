@@ -64,9 +64,15 @@ class LibraryManager {
 	private static class JarDescriptor extends LibraryDescriptor {
 		private File file;
 		private String className;
+		private File source; // HCS: D-007. file is what the .circ names; source is what is loaded
 		
 		JarDescriptor(File file, String className) {
+			this(file, file, className);
+		}
+		
+		JarDescriptor(File file, File source, String className) {
 			this.file = file;
+			this.source = source;
 			this.className = className;
 		}
 		
@@ -82,7 +88,7 @@ class LibraryManager {
 		
 		@Override
 		void setBase(Loader loader, LoadedLibrary lib) throws LoadFailedException {
-			lib.setBase(loader.loadJarFile(file, className));
+			lib.setBase(loader.loadJarFile(source, className));
 		}
 		
 		@Override
@@ -149,6 +155,14 @@ class LibraryManager {
 			int sepLoc = name.lastIndexOf(desc_sep);
 			String fileName = name.substring(0, sepLoc);
 			String className = name.substring(sepLoc + 1);
+			// HCS: D-007. If the named jar cannot be read and the fork bundles that library,
+			// load the bundled jar instead of asking, but keep the named path for saving.
+			File named = new File(fileName);
+			if (!named.isAbsolute() && loader.getCurrentDirectory() != null) {
+				named = new File(loader.getCurrentDirectory(), fileName);
+			}
+			File bundled = kr.ac.hallym.hcs.app.BundledLibraries.substitute(named, className);
+			if (bundled != null) return loadJarLibrary(loader, named, bundled, className);
 			File toRead = loader.getFileFor(fileName, Loader.JAR_FILTER);
 			return loadJarLibrary(loader, toRead, className);
 		} else {
@@ -176,12 +190,17 @@ class LibraryManager {
 	}
 	
 	public LoadedLibrary loadJarLibrary(Loader loader, File toRead, String className) {
-		JarDescriptor jarDescriptor = new JarDescriptor(toRead, className);
+		return loadJarLibrary(loader, toRead, toRead, className); // HCS: D-007
+	}
+	
+	// HCS: D-007. named goes into the saved descriptor; source is the jar actually loaded.
+	private LoadedLibrary loadJarLibrary(Loader loader, File named, File source, String className) {
+		JarDescriptor jarDescriptor = new JarDescriptor(named, source, className);
 		LoadedLibrary ret = findKnown(jarDescriptor);
 		if (ret != null) return ret;
 
 		try {
-			ret = new LoadedLibrary(loader.loadJarFile(toRead, className));
+			ret = new LoadedLibrary(loader.loadJarFile(source, className));
 		} catch (LoadFailedException e) {
 			loader.showError(e.getMessage());
 			return null;

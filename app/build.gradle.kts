@@ -71,9 +71,24 @@ tasks.jar {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
+evaluationDependsOn(":lib-mips")
+val mipsJar = project(":lib-mips").tasks.named<Jar>("jar")
+
+// 개발용 배치: 포크 jar 옆 lib/에 번들 라이브러리(hcs-mips.jar)와 hcs-asm을 둔다(D-007). 배포 zip은 2c(#29).
+val stage by tasks.registering(Sync::class) {
+    into(layout.buildDirectory.dir("stage"))
+    from(tasks.jar)
+    into("lib") {
+        from(mipsJar)
+        from(rootProject.file("native/hcs-asm/build")) { include("hcs-asm", "hcs-asm.exe") }
+    }
+}
+
 tasks.test {
     useJUnitPlatform()
-    dependsOn(tasks.jar)
+    dependsOn(tasks.jar, mipsJar)
+    systemProperty("hcs.mipsJar", mipsJar.get().archiveFile.get().asFile.absolutePath)
+    systemProperty("hcs.refMips", rootProject.file("tests/mips/ref-mips.circ").absolutePath)
     systemProperty("java.awt.headless", "true")
     systemProperty("hcs.forkJar", tasks.jar.get().archiveFile.get().asFile.absolutePath)
     systemProperty("hcs.logisimJar", logisimJar.absolutePath)
