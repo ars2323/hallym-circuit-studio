@@ -67,7 +67,7 @@ SPIM(BSD)은 `native/hcs-asm`이 만드는 별도 실행 파일로만 쓴다. GP
 ### 5. 학교 로고·캐릭터 (규칙 2.4)
 
 - `assets/hallym/` 아래 이미지 파일의 M은 위반이다(원형 가공).
-- 가이드라인 PDF, `.ai`, `.eps`, `.psd` 파일이 어디든 A로 들어오면 위반이다. `resources/` 아래 파일이 추적되거나 `.gitignore`에서 `resources/`가 빠지면 위반이다.
+- 학교 가이드라인 PDF(로고·캐릭터 원본 zip에서 나온 매뉴얼, 예: `한림대학교 캐릭터 관리 및 활용 메뉴얼(외부공유용).pdf`), `.ai`, `.eps`, `.psd` 파일이 어디든 A로 들어오면 위반이다. `vendor/spim-9.1.24/Documentation/`의 SPIM 문서 PDF처럼 원본 배포본에 들어 있는 PDF는 해당 없다. `resources/` 아래 파일이 추적되거나 `.gitignore`에서 `resources/`가 빠지면 위반이다.
 - 로고·캐릭터를 가공하는 코드·스크립트: 색 변환·필터(`RGBImageFilter`, `ColorConvertOp`, `RescaleOp`, `-modulate`, `-colorize`, `-fill`, `-negate`), 가로세로 비율을 바꾸는 크기 조절(`-resize WxH!`, 폭과 높이를 따로 정한 `drawImage`·`getScaledInstance`), 로고·캐릭터 위에 도형·글자를 그리는 코드. 대상이 로고·캐릭터 파일인지 diff에서 확인되면 위반, 불분명하면 "확인 필요"다.
 - 오류 진단 메시지 화면에 캐릭터를 쓰는 코드는 CLAUDE.md 8절 위반으로 "확인 필요"에 적는다.
 
