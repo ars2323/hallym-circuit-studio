@@ -50,14 +50,20 @@ final class OriginalLogisim {
         b.commit();
         Path circ = dir.resolve(name + ".circ");
         CircuitBuilder.save(file, circ.toFile());
-        List<String> cmd = List.of(Path.of(System.getProperty("java.home"), "bin", "java").toString(),
-                "-Djava.awt.headless=true", "-jar", LOGISIM_JAR.toString(), circ.toString(), "-tty", "table");
+        List<String> cmd = new ArrayList<>(List.of(Path.of(System.getProperty("java.home"), "bin", "java").toString(),
+                "-Djava.awt.headless=true", "-jar", LOGISIM_JAR.toString(), circ.toString(), "-tty", "table"));
+        String prefs = System.getProperty("java.util.prefs.userRoot");
+        if (prefs != null) {
+            cmd.add(1, "-Djava.util.prefs.userRoot=" + prefs); // 개발자 PC의 Logisim 설정을 바꾸지 않게
+        }
         Path out = dir.resolve(name + ".out");
-        Process p = new ProcessBuilder(cmd).directory(dir.toFile()).redirectErrorStream(true)
-                .redirectOutput(out.toFile()).start();
+        Path err = dir.resolve(name + ".err");
+        // 표준 오류(JVM 안내 등)는 행에 섞지 않는다
+        Process p = new ProcessBuilder(cmd).directory(dir.toFile()).redirectOutput(out.toFile())
+                .redirectError(err.toFile()).start();
         assertTrue(p.waitFor(60, TimeUnit.SECONDS), name + ": 60초 안에 halt하지 않음");
         String text = Files.readString(out);
-        assertEquals(0, p.exitValue(), text);
+        assertEquals(0, p.exitValue(), text + Files.readString(err));
         List<String[]> rows = new ArrayList<>();
         for (String line : text.split("\n")) {
             if (!line.isBlank()) {
