@@ -162,20 +162,34 @@ public final class LabelOverlay {
     }
 
     /**
-     * 원조가 회로를 그릴 Graphics. 원조 라벨 글자만 빼는 Graphics를 돌려주고, 뺀 라벨은 paint가 칩으로 그린다.
-     * Graphics2D가 아니면 그대로 돌려준다(원조 라벨 그대로).
+     * 원조가 회로를 그릴 Graphics. 부품마다 그 부품 자신의 원조 라벨 글자만 빼는 Graphics를 돌려주고, 뺀 라벨은
+     * paint가 칩으로 그린다. hidden은 원조 {@code Circuit.draw}에 넘기는 것과 같아야 한다(가려진 부품은 원조가
+     * create()를 부르지 않는다). Graphics2D가 아니면 그대로 돌려준다(원조 라벨 그대로).
      */
-    public static Graphics wrap(Canvas canvas, Graphics g, Circuit circuit) {
+    public static Graphics wrap(Canvas canvas, Graphics g, Circuit circuit, java.util.Collection<Component> hidden) {
         if (!(g instanceof Graphics2D) || circuit == null) {
             return g;
         }
         LabelOverlay o = of(canvas);
         o.labels = labelFields(circuit, g);
-        Set<String> skip = new HashSet<>();
-        for (LabelField f : o.labels) {
-            skip.add(FilterGraphics.key(f.text, f.drawX, f.drawY));
+        return filter((Graphics2D) g, circuit, hidden, o.labels);
+    }
+
+    /** 원조 그리기 순서(선 한 번, 그다음 가려지지 않은 부품)에 맞춘 거르기 Graphics. */
+    static FilterGraphics filter(Graphics2D g, Circuit circuit, java.util.Collection<Component> hidden,
+            List<LabelField> fields) {
+        Map<Component, String> keys = new HashMap<>();
+        for (LabelField f : fields) {
+            keys.put(f.comp, FilterGraphics.key(f.text, f.drawX, f.drawY));
         }
-        return new FilterGraphics((Graphics2D) g, skip);
+        List<Component> order = new ArrayList<>();
+        order.add(null); // 원조는 선을 그릴 Graphics를 먼저 만든다
+        for (Component c : circuit.getNonWires()) {
+            if (hidden == null || !hidden.contains(c)) {
+                order.add(c);
+            }
+        }
+        return new FilterGraphics(g, order.iterator(), keys);
     }
 
     /** 원조 회로 그리기 뒤에 부른다. */
@@ -470,43 +484,52 @@ public final class LabelOverlay {
             if (la == null || !tf.getText().equals(c.getAttributeSet().getValue(la))) {
                 continue; // 라벨 속성의 글자만(글자 부품의 본문 등은 원조 그대로)
             }
-            Font font = tf.getFont() != null ? tf.getFont() : g.getFont();
-            FontMetrics fm = g.getFontMetrics(font);
-            int x = tf.getX();
-            int y = tf.getY();
-            int width = fm.stringWidth(tf.getText());
-            int ascent = fm.getAscent();
-            int descent = fm.getDescent();
-            switch (tf.getHAlign()) {
-            case TextField.H_CENTER:
-                x -= width / 2;
-                break;
-            case TextField.H_RIGHT:
-                x -= width;
-                break;
-            default:
-                break;
-            }
-            switch (tf.getVAlign()) {
-            case TextField.V_TOP:
-                y += ascent;
-                break;
-            case TextField.V_CENTER:
-                y += ascent / 2;
-                break;
-            case TextField.V_CENTER_OVERALL:
-                y += (ascent - descent) / 2;
-                break;
-            case TextField.V_BOTTOM:
-                y -= descent;
-                break;
-            default:
-                break;
-            }
-            Rectangle r = new Rectangle(x, y - ascent, width, ascent + descent);
-            ret.add(new LabelField(c, tf.getText(), r, x, y));
+            int[] d = drawPoint(tf, g);
+            Rectangle r = new Rectangle(d[0], d[1] - d[2], d[4], d[2] + d[3]);
+            ret.add(new LabelField(c, tf.getText(), r, d[0], d[1]));
         }
         return ret;
+    }
+
+    /**
+     * 원조 {@code TextField.draw}가 drawString에 넘기는 기준선 좌표를 같은 식으로 계산한다.
+     * 반환: {x, y, ascent, descent, width}.
+     */
+    static int[] drawPoint(TextField tf, Graphics g) {
+        Font font = tf.getFont() != null ? tf.getFont() : g.getFont();
+        FontMetrics fm = g.getFontMetrics(font);
+        int x = tf.getX();
+        int y = tf.getY();
+        int width = fm.stringWidth(tf.getText());
+        int ascent = fm.getAscent();
+        int descent = fm.getDescent();
+        switch (tf.getHAlign()) {
+        case TextField.H_CENTER:
+            x -= width / 2;
+            break;
+        case TextField.H_RIGHT:
+            x -= width;
+            break;
+        default:
+            break;
+        }
+        switch (tf.getVAlign()) {
+        case TextField.V_TOP:
+            y += ascent;
+            break;
+        case TextField.V_CENTER:
+            y += ascent / 2;
+            break;
+        case TextField.V_CENTER_OVERALL:
+            y += (ascent - descent) / 2;
+            break;
+        case TextField.V_BOTTOM:
+            y -= descent;
+            break;
+        default:
+            break;
+        }
+        return new int[] {x, y, ascent, descent, width};
     }
 
     /** 부품의 원조 라벨 TextField. 없으면 null. */

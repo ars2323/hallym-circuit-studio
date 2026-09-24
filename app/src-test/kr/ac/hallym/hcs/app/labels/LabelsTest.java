@@ -124,11 +124,7 @@ class LabelsTest {
     }
 
     private static Graphics wrapFor(Circuit c, Graphics2D g) {
-        Set<String> skip = new HashSet<>();
-        for (LabelOverlay.LabelField f : LabelOverlay.labelFields(c, g)) {
-            skip.add(FilterGraphics.key(f.text, f.drawX, f.drawY));
-        }
-        return new FilterGraphics(g, skip);
+        return LabelOverlay.filter(g, c, Collections.<Component>emptySet(), LabelOverlay.labelFields(c, g));
     }
 
     /** 걸러 낸 그리기는 원조 라벨 글자만 빠지고 나머지 픽셀(부품, 값 글자)은 원조와 같다. */

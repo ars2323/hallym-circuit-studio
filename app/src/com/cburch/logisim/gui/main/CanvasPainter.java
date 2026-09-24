@@ -164,7 +164,7 @@ class CanvasPainter implements PropertyChangeListener {
 		CircuitState circState = proj.getCircuitState();
 		boolean printerView = AppPreferences.PRINTER_VIEW.getBoolean();
 		// HCS: label chips take the place of the original label text on the editing canvas (#79)
-		Graphics hcsG = kr.ac.hallym.hcs.app.labels.LabelOverlay.wrap(canvas, g, circ);
+		Graphics hcsG = kr.ac.hallym.hcs.app.labels.LabelOverlay.wrap(canvas, g, circ, hidden);
 		ComponentDrawContext context = new ComponentDrawContext(canvas,
 				circ, circState, base, hcsG, printerView);
 		context.setHighlightedWires(highlightedWires);
