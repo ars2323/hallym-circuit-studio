@@ -49,7 +49,7 @@ public final class Engine {
         return names;
     }
 
-    /** "exit=<code>" 한 줄과 표준 출력. <name>.args가 있으면 그 인자를 덧붙인다(예: -load). */
+    /** "exit=<code>" 한 줄과 표준 출력(표준 오류 제외). <name>.args가 있으면 그 인자를 덧붙인다(예: -load). */
     public String run(File dir, String name) throws IOException, InterruptedException {
         List<String> cmd = new ArrayList<String>(Arrays.asList(
                 java.getPath(), "-Djava.awt.headless=true", "-jar", jar.getPath(),
@@ -59,15 +59,19 @@ public final class Engine {
             String text = new String(Files.readAllBytes(args.toPath()), StandardCharsets.UTF_8).trim();
             cmd.addAll(Arrays.asList(text.split("\\s+")));
         }
-        Process p = new ProcessBuilder(cmd).directory(dir).redirectErrorStream(true).start();
+        Process p = new ProcessBuilder(cmd).directory(dir).start();
         ByteArrayOutputStream out = new ByteArrayOutputStream();
+        ByteArrayOutputStream err = new ByteArrayOutputStream(); // JVM 로그(예: 환경설정 폴더 생성)는 비교하지 않는다
         Thread reader = new Thread(() -> copy(p.getInputStream(), out));
+        Thread errors = new Thread(() -> copy(p.getErrorStream(), err));
         reader.start();
+        errors.start();
         if (!p.waitFor(TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
             p.destroyForcibly();
             throw new IOException(name + ": no halt within " + TIMEOUT_SECONDS + "s");
         }
         reader.join();
+        errors.join();
         return "exit=" + p.exitValue() + "\n" + new String(out.toByteArray(), StandardCharsets.UTF_8);
     }
 
