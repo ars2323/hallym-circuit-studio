@@ -27,7 +27,7 @@ public final class TunnelColors {
     private TunnelColors() {
     }
 
-    /** 이름의 팔레트 번호. 앞뒤 공백은 무시한다(원조 터널 연결과 같게 이름 그대로 비교하되 표시만). */
+    /** 이름의 팔레트 번호. 이름을 다듬지 않는다(원조 터널이 이름 그대로 연결하므로). */
     public static int index(String name) {
         // FNV-1a 32비트: JVM·실행과 무관하게 같다
         int h = 0x811C9DC5;

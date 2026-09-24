@@ -466,6 +466,10 @@ public final class LabelOverlay {
             if (tf == null || tf.getText() == null || tf.getText().isEmpty()) {
                 continue;
             }
+            com.cburch.logisim.data.Attribute<?> la = c.getAttributeSet().getAttribute("label");
+            if (la == null || !tf.getText().equals(c.getAttributeSet().getValue(la))) {
+                continue; // 라벨 속성의 글자만(글자 부품의 본문 등은 원조 그대로)
+            }
             Font font = tf.getFont() != null ? tf.getFont() : g.getFont();
             FontMetrics fm = g.getFontMetrics(font);
             int x = tf.getX();

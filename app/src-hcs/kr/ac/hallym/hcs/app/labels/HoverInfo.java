@@ -12,9 +12,11 @@ import com.cburch.logisim.circuit.Circuit;
 import com.cburch.logisim.circuit.CircuitState;
 import com.cburch.logisim.circuit.Wire;
 import com.cburch.logisim.comp.Component;
+import com.cburch.logisim.comp.ComponentUserEvent;
 import com.cburch.logisim.data.Attribute;
 import com.cburch.logisim.data.BitWidth;
 import com.cburch.logisim.data.Location;
+import com.cburch.logisim.tools.ToolTipMaker;
 
 import kr.ac.hallym.hcs.app.Messages;
 import kr.ac.hallym.hcs.app.model.Kinds;
@@ -34,25 +36,46 @@ public final class HoverInfo {
     private HoverInfo() {
     }
 
-    /** 캔버스 툴팁: 점 p의 부품이나 선 정보(HTML). 없으면 null. */
-    public static String tip(CircuitState state, Location p) {
+    /**
+     * 캔버스 툴팁: 점 p의 부품이나 선 정보(HTML). 부품에 원조 툴팁이 있으면 마지막 줄로 붙인다. 없으면 null.
+     */
+    public static String tip(CircuitState state, Location p, com.cburch.logisim.gui.main.Canvas canvas) {
         if (state == null) {
             return null;
         }
         List<String> l = lines(state, p);
-        return l == null ? null : html(l);
+        if (l == null) {
+            return null;
+        }
+        Component hit = hit(state.getCircuit(), p);
+        Object maker = hit == null ? null : hit.getFeature(ToolTipMaker.class);
+        if (maker instanceof ToolTipMaker && canvas != null) {
+            String t = ((ToolTipMaker) maker).getToolTip(new ComponentUserEvent(canvas, p.getX(), p.getY()));
+            if (t != null && !t.isEmpty()) {
+                l.add(t);
+            }
+        }
+        return html(l);
+    }
+
+    /** 점 p를 덮는 부품(선 제외). 없으면 null. */
+    static Component hit(Circuit circuit, Location p) {
+        for (Component c : circuit.getAllContaining(p)) {
+            if (!(c instanceof Wire)) {
+                return c;
+            }
+        }
+        return null;
     }
 
     /** 점 p에 있는 부품이나 선의 정보(글자 줄들). 없으면 null. */
     public static List<String> lines(CircuitState state, Location p) {
         Circuit circuit = state.getCircuit();
-        Component hit = null;
+        Component hit = hit(circuit, p);
         Wire wire = null;
         for (Component c : circuit.getAllContaining(p)) {
-            if (c instanceof Wire) {
-                wire = wire == null ? (Wire) c : wire;
-            } else if (hit == null) {
-                hit = c;
+            if (c instanceof Wire && wire == null) {
+                wire = (Wire) c;
             }
         }
         if (hit != null) {

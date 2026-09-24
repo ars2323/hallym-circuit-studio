@@ -837,7 +837,7 @@ public class Canvas extends JPanel
 			// HCS: port name and width over a port (#78)
 			String hcsTip = kr.ac.hallym.hcs.app.keys.Shortcuts.portTip(getCircuit(), loc);
 			// HCS: full path, label, inputs, width and net names over a component or wire (#79)
-			if (hcsTip == null) hcsTip = kr.ac.hallym.hcs.app.labels.HoverInfo.tip(proj.getCircuitState(), loc);
+			if (hcsTip == null) hcsTip = kr.ac.hallym.hcs.app.labels.HoverInfo.tip(proj.getCircuitState(), loc, this);
 			if (hcsTip != null) {
 				unrepairMouseEvent(event);
 				return hcsTip;

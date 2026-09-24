@@ -139,6 +139,7 @@ class LabelsTest {
         b.add("Wiring", "Pin", 100, 100, "width", "8", "label", "Operand");
         b.add("Memory", "Register", 400, 200, "width", "8", "label", "PC");
         b.add("Gates", "AND Gate", 300, 320);
+        b.add("Base", "Text", 550, 350, "text", "memo");
         b.commit();
         Circuit c = file.getMainCircuit();
         CircuitState state = new Project(file).getCircuitState();
@@ -146,7 +147,7 @@ class LabelsTest {
 
         BufferedImage g0 = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB);
         List<LabelOverlay.LabelField> fields = LabelOverlay.labelFields(c, g0.createGraphics());
-        assertEquals(2, fields.size());
+        assertEquals(2, fields.size(), "labels only, not the body of a Text component");
         List<Rectangle> labels = new ArrayList<>();
         for (LabelOverlay.LabelField f : fields) {
             Rectangle r = new Rectangle(f.bounds);
@@ -230,6 +231,8 @@ class LabelsTest {
         assertEquals(2, w.get(0).split(" › ").length, w.toString());
         assertNull(HoverInfo.lines(state, Location.create(50, 50)));
         assertTrue(HoverInfo.html(gate).startsWith("<html><b>main › AND #1</b>"));
+        assertTrue(HoverInfo.tip(state, Location.create(290, 200), null).contains("main › AND #1"));
+        assertNull(HoverInfo.tip(state, Location.create(50, 50), null));
         assertNotNull(reg);
     }
 }
