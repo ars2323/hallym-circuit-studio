@@ -52,6 +52,46 @@ class EditMenusTest {
         assertEquals(Arrays.asList("d", "d"), sorted(info.get("others")), "a tunnel is named once");
     }
 
+    /** 메뉴의 선택지는 원조 속성에서 읽으므로 모두 적용할 수 있다(핀 풀, NOT·AND 크기 등). */
+    @Test
+    void everyOfferedOptionApplies() throws Exception {
+        LogisimFile file = CircuitBuilder.newFile(new Loader(null), tmp.toFile());
+        CircuitBuilder b = new CircuitBuilder(file, file.getMainCircuit());
+        Component pin = b.add("Wiring", "Pin", 100, 100);
+        Component not = b.add("Gates", "NOT Gate", 300, 100);
+        Component and = b.add("Gates", "AND Gate", 500, 100);
+        Component buf = b.add("Gates", "Buffer", 700, 100);
+        b.commit();
+        Circuit main = file.getMainCircuit();
+        assertEquals(Arrays.asList("none", "up", "down"), values(pin, "pull"));
+        assertEquals(Arrays.asList("20", "30"), values(not, "size"));
+        assertEquals(Arrays.asList("30", "50", "70"), values(and, "size"));
+        for (Object[] c : new Object[][] {{pin, "pull"}, {not, "size"}, {and, "size"}, {buf, "size"}}) {
+            for (String v : values((Component) c[0], (String) c[1])) {
+                kr.ac.hallym.hcs.app.edit.CircuitEdits.setAttribute(main,
+                        Collections.singletonList(current(main, (Component) c[0])), (String) c[1], v).execute();
+            }
+        }
+    }
+
+    static List<String> values(Component c, String attr) {
+        List<String> ret = new java.util.ArrayList<>();
+        for (String[] o : EditMenus.options(c, attr)) {
+            ret.add(o[0]);
+        }
+        return ret;
+    }
+
+    /** 속성을 바꾸면 원조가 부품을 새로 만들 수 있으니 같은 위치·종류의 지금 부품. */
+    static Component current(Circuit c, Component old) {
+        for (Component comp : c.getNonWires()) {
+            if (comp.getFactory() == old.getFactory() && comp.getLocation().equals(old.getLocation())) {
+                return comp;
+            }
+        }
+        return old;
+    }
+
     static List<String> sorted(List<String> l) {
         Collections.sort(l);
         return l;

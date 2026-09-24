@@ -143,12 +143,47 @@ public final class EditMenus implements ContextMenus.Provider {
         menu.add(widthMenu(t, Collections.singletonList(c)));
         boolean tri = "true".equals(value(c, "tristate"));
         menu.add(item(tri ? "menu.triOff" : "menu.triOn", () -> set(t, c, "tristate", Boolean.toString(!tri))));
-        JMenu pull = new JMenu(Messages.get("menu.pull"));
-        for (String p : new String[] {"none", "0", "1"}) {
-            pull.add(item("menu.pull." + p, () -> set(t, c, "pull", p)));
+        JMenu pull = optionMenu(t, c, "pull", "menu.pull");
+        if (pull != null) {
+            menu.add(pull);
         }
-        menu.add(pull);
         menu.add(item("menu.label", () -> askLabel(t, Collections.singletonList(c))));
+    }
+
+    /**
+     * 속성의 선택지(원조 저장 값, 원조 표시 이름). 손으로 적지 않고 원조 속성에서 읽는다. 선택지가 정해진 속성이
+     * 아니면 빈 목록.
+     */
+    static List<String[]> options(Component c, String attr) {
+        List<String[]> ret = new ArrayList<>();
+        @SuppressWarnings("unchecked")
+        Attribute<Object> a = (Attribute<Object>) c.getAttributeSet().getAttribute(attr);
+        if (a == null) {
+            return ret;
+        }
+        java.awt.Component editor = a.getCellEditor(null, c.getAttributeSet().getValue(a));
+        if (editor instanceof javax.swing.JComboBox) {
+            javax.swing.JComboBox<?> combo = (javax.swing.JComboBox<?>) editor;
+            for (int i = 0; i < combo.getItemCount(); i++) {
+                Object v = combo.getItemAt(i);
+                ret.add(new String[] {a.toStandardString(v), a.toDisplayString(v)});
+            }
+        }
+        return ret;
+    }
+
+    JMenu optionMenu(ContextMenus.Target t, Component c, String attr, String titleKey) {
+        List<String[]> opts = options(c, attr);
+        if (opts.isEmpty()) {
+            return null;
+        }
+        JMenu m = new JMenu(Messages.get(titleKey));
+        for (String[] o : opts) {
+            JMenuItem it = new JMenuItem(o[1]);
+            it.addActionListener(e -> set(t, c, attr, o[0]));
+            m.add(it);
+        }
+        return m;
     }
 
     static String value(Component c, String attr) {
@@ -249,12 +284,9 @@ public final class EditMenus implements ContextMenus.Provider {
             }
             menu.add(inputs);
         }
-        if (c.getAttributeSet().getAttribute("size") != null) {
-            JMenu size = new JMenu(Messages.get("menu.size"));
-            for (String s : new String[] {"30", "50", "70"}) {
-                size.add(item("menu.size." + s, () -> set(t, c, "size", s)));
-            }
-            menu.add(size);
+        JMenu size = optionMenu(t, c, "size", "menu.size");
+        if (size != null) {
+            menu.add(size); // 선택지는 부품마다 다르다(NOT은 20·30, AND 등은 30·50·70)
         }
         menu.add(facingMenu(t, one));
         menu.add(widthMenu(t, one));
