@@ -1,0 +1,25 @@
+{
+  "tool": "hcs-asm 0.1.0",
+  "spim": "Version 9.1.24 of August 1, 2023 (final)",
+  "settings": {"bare_machine": false, "accept_pseudo_insts": true, "exception_handler": true, "branch_offset": "pc+4"},
+  "entry": "0x00400024",
+  "text": [
+    {"addr": "0x00400000", "word": "0x8fa40000", "handler": true},
+    {"addr": "0x00400004", "word": "0x27a50004", "handler": true},
+    {"addr": "0x00400008", "word": "0x24a60004", "handler": true},
+    {"addr": "0x0040000c", "word": "0x00041080", "handler": true},
+    {"addr": "0x00400010", "word": "0x00c23021", "handler": true},
+    {"addr": "0x00400014", "word": "0x0c100009", "handler": true},
+    {"addr": "0x00400018", "word": "0x00000000", "handler": true},
+    {"addr": "0x0040001c", "word": "0x3402000a", "handler": true},
+    {"addr": "0x00400020", "word": "0x0000000c", "handler": true},
+    {"addr": "0x00400024", "word": "0x3402000a", "line": 4, "source": "li    $v0, 10"},
+    {"addr": "0x00400028", "word": "0x0000000c", "line": 5, "source": "syscall"}
+  ],
+  "data": [],
+  "labels": {
+    "main": "0x00400024"
+  },
+  "errors": [],
+  "warnings": []
+}

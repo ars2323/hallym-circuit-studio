@@ -1,0 +1,39 @@
+{
+  "tool": "hcs-asm 0.1.0",
+  "spim": "Version 9.1.24 of August 1, 2023 (final)",
+  "settings": {"bare_machine": false, "accept_pseudo_insts": true, "exception_handler": false, "branch_offset": "pc+4"},
+  "entry": "0x00400000",
+  "text": [
+    {"addr": "0x00400000", "word": "0x34080005", "line": 6, "source": "li    $t0, 5              # 작은 양수: ori 하나"},
+    {"addr": "0x00400004", "word": "0x3c01ffff", "line": 7, "source": "li    $t1, -5             # 작은 음수: addiu 하나"},
+    {"addr": "0x00400008", "word": "0x3429fffb", "line": 7, "source": "li    $t1, -5             # 작은 음수: addiu 하나"},
+    {"addr": "0x0040000c", "word": "0x3c011234", "line": 8, "source": "li    $t2, 0x12345678     # 큰 값: lui + ori"},
+    {"addr": "0x00400010", "word": "0x342a5678", "line": 8, "source": "li    $t2, 0x12345678     # 큰 값: lui + ori"},
+    {"addr": "0x00400014", "word": "0x3c0b1001", "line": 9, "source": "la    $t3, val            # lui (+ ori)"},
+    {"addr": "0x00400018", "word": "0x00086021", "line": 10, "source": "move  $t4, $t0"},
+    {"addr": "0x0040001c", "word": "0x01006827", "line": 11, "source": "not   $t5, $t0"},
+    {"addr": "0x00400020", "word": "0x00087022", "line": 12, "source": "neg   $t6, $t0"},
+    {"addr": "0x00400024", "word": "0x0109082a", "line": 13, "source": "blt   $t0, $t1, done      # slt + bne"},
+    {"addr": "0x00400028", "word": "0x14200007", "line": 13, "source": "blt   $t0, $t1, done      # slt + bne"},
+    {"addr": "0x0040002c", "word": "0x0128082a", "line": 14, "source": "bgt   $t0, $t1, next      # slt + bne"},
+    {"addr": "0x00400030", "word": "0x14200000", "line": 14, "source": "bgt   $t0, $t1, next      # slt + bne"},
+    {"addr": "0x00400034", "word": "0x0128082a", "line": 15, "source": "ble   $t0, $t1, done"},
+    {"addr": "0x00400038", "word": "0x10200003", "line": 15, "source": "ble   $t0, $t1, done"},
+    {"addr": "0x0040003c", "word": "0x0109082a", "line": 16, "source": "bge   $t0, $t1, done"},
+    {"addr": "0x00400040", "word": "0x10200001", "line": 16, "source": "bge   $t0, $t1, done"},
+    {"addr": "0x00400044", "word": "0x04010000", "line": 17, "source": "b     done"},
+    {"addr": "0x00400048", "word": "0x3402000a", "line": 18, "source": "li    $v0, 10"},
+    {"addr": "0x0040004c", "word": "0x0000000c", "line": 19, "source": "syscall"}
+  ],
+  "data": [
+    {"addr": "0x10010000", "word": "0x12345678"}
+  ],
+  "labels": {
+    "done": "0x00400048",
+    "main": "0x00400000",
+    "next": "0x00400034",
+    "val": "0x10010000"
+  },
+  "errors": [],
+  "warnings": []
+}

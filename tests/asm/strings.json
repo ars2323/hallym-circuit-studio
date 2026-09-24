@@ -1,0 +1,43 @@
+{
+  "tool": "hcs-asm 0.1.0",
+  "spim": "Version 9.1.24 of August 1, 2023 (final)",
+  "settings": {"bare_machine": false, "accept_pseudo_insts": true, "exception_handler": false, "branch_offset": "pc+4"},
+  "entry": "0x00400000",
+  "text": [
+    {"addr": "0x00400000", "word": "0x3c041001", "line": 13, "source": "la    $a0, hello"},
+    {"addr": "0x00400004", "word": "0x34020004", "line": 14, "source": "li    $v0, 4"},
+    {"addr": "0x00400008", "word": "0x0000000c", "line": 15, "source": "syscall"},
+    {"addr": "0x0040000c", "word": "0x3404002a", "line": 16, "source": "li    $a0, 42"},
+    {"addr": "0x00400010", "word": "0x34020001", "line": 17, "source": "li    $v0, 1"},
+    {"addr": "0x00400014", "word": "0x0000000c", "line": 18, "source": "syscall"},
+    {"addr": "0x00400018", "word": "0x34040041", "line": 19, "source": "li    $a0, 'A'"},
+    {"addr": "0x0040001c", "word": "0x3402000b", "line": 20, "source": "li    $v0, 11"},
+    {"addr": "0x00400020", "word": "0x0000000c", "line": 21, "source": "syscall"},
+    {"addr": "0x00400024", "word": "0x3402000a", "line": 22, "source": "li    $v0, 10"},
+    {"addr": "0x00400028", "word": "0x0000000c", "line": 23, "source": "syscall"}
+  ],
+  "data": [
+    {"addr": "0x10010000", "word": "0x6c6c6548"},
+    {"addr": "0x10010004", "word": "0x4d202c6f"},
+    {"addr": "0x10010008", "word": "0x21535049"},
+    {"addr": "0x1001000c", "word": "0x6261000a"},
+    {"addr": "0x10010010", "word": "0xff030201"},
+    {"addr": "0x10010014", "word": "0xffff1234"},
+    {"addr": "0x10010018", "word": "0x00000007"},
+    {"addr": "0x1001001c", "word": "0x00000000"},
+    {"addr": "0x10010020", "word": "0x00000000"},
+    {"addr": "0x10010024", "word": "0xdeadbeef"}
+  ],
+  "labels": {
+    "bytes": "0x10010010",
+    "gap": "0x1001001c",
+    "halves": "0x10010014",
+    "hello": "0x10010000",
+    "main": "0x00400000",
+    "raw": "0x1001000e",
+    "tail": "0x10010024",
+    "words": "0x10010018"
+  },
+  "errors": [],
+  "warnings": []
+}

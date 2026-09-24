@@ -20,7 +20,8 @@ SPIM 9.1.24
   License: BSD 3-Clause (see vendor/spim-9.1.24/README)
   Source:  https://sourceforge.net/projects/spimsimulator/
   Location: vendor/spim-9.1.24/ (original source)
-  Used only through the separate executable hcs-asm (native/hcs-asm/).
+  Used only through the separate executable hcs-asm (native/hcs-asm/),
+  which is itself BSD 3-Clause licensed (native/hcs-asm/LICENSE).
   SPIM code is not linked into or copied into any GPL-licensed code.
 
 --------------------------------------------------------------------------
