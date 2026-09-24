@@ -12,4 +12,7 @@ tools/verify-vendor.sh
 step "엔진 소스 원본 일치"
 tools/check-engine-unchanged.sh
 
+step "Gradle 빌드·테스트"
+./gradlew --no-daemon -q build
+
 printf '\nci-local: all checks passed (%s)\n' "$(git rev-parse --short HEAD)"
