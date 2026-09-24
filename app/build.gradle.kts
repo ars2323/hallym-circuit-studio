@@ -28,7 +28,7 @@ val thirdParty by tasks.registering(Jar::class) {
 
 sourceSets {
     main {
-        java.setSrcDirs(listOf("src"))
+        java.setSrcDirs(listOf("src", "src-hcs")) // src-hcs: 포크가 더한 코드(kr.ac.hallym.hcs.app)
         resources.setSrcDirs(listOf("."))
         resources.include("resources/**", "doc/**")
     }
@@ -44,6 +44,10 @@ dependencies {
     testImplementation(platform("org.junit:junit-bom:5.13.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+tasks.processResources {
+    from("src-hcs") { include("**/*.properties") } // 포크 문구 번들은 코드 옆에 둔다
 }
 
 tasks.withType<JavaCompile>().configureEach {

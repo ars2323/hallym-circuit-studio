@@ -174,8 +174,16 @@
 - **이유:** 원본 배치를 옮기지 않아야 이후 변경을 원본 커밋과의 diff로 추적할 수 있다. 서드파티는 원본 jar에 든 바이트코드를 그대로 쓰면 버전 차이가 없다. 엔진은 한 줄도 바꾸지 않았고(`tools/check-engine-unchanged.sh`), 포크 jar가 엔진 회귀 5개 회로에서 표준 jar와 같은 출력을 낸다.
 - **대안:** Maven Central의 JavaHelp 등 새 버전 사용(원본과 동작이 달라질 수 있음), 소스를 Gradle 표준 배치로 옮김(원본과의 diff가 흐려짐).
 - **보강(#20):** 포크는 JDK 21에서 돌아 XML 직렬화기의 들여쓰기가 원조(JDK 8)와 다르다. 저장 결과를 JDK 8 모양으로 다시 쓰는 후처리는 하지 않는다. D-006 기준(정규화 + 의미 동등성)으로 원조 저장 결과와 같음을 `ForkSaveCompatTest`가 매번 확인한다. 원본 소스를 고칠 때는 줄바꿈(CRLF/LF)을 원본대로 둔다.
+
 ## D-023 스플리터 편집기를 2b로
 
 - **날짜:** 2026-09-24(요구사항 2의 7번)
 - **결정:** 스플리터 편집기를 4b에서 2b로 옮기고 명세를 넓힌다(범위 입력, 비트 그림, 프리셋, 팔 라벨, MSB/LSB 방향, 선 우클릭 나누기·합치기·뽑기, 배정 안 된 비트·폭 불일치 표시). 저장은 늘 2.7.1 표준 속성(`fanout`, `incoming`, `bitN`)이고 팔 이름만 네임스페이스에 둔다. 이슈 #90에서 스플리터 부분을 떼어 2b 이슈로 만들었다.
 - **이유:** MIPS 데이터패스는 명령어 필드를 나누는 스플리터가 많고, 2.7.1의 bitN 목록 편집은 학생이 가장 자주 틀리는 곳이다. 편집 핵심과 함께 있어야 한다. 표준 속성으로 저장해야 원조에서 같은 동작이다.
+
+## D-024 .circ 확장 정보의 저장 형식과 앱 환경설정
+
+- **날짜:** 2026-09-24(#67)
+- **결정:** PLAN.md 7.0의 네임스페이스는 `<project>`의 마지막 자식 `<hcs:ext xmlns:hcs="urn:hallym-circuit-studio:ext" version="1">` 하나다. 그 안에 `<hcs:circuit name="…">`마다 항목 요소(`<hcs:tunnel …/>`처럼 종류 이름과 문자열 속성)를 둔다. 엔진의 XmlReader·XmlWriter는 바꾸지 않는다. 파일을 연 뒤 이 요소를 따로 읽어 LogisimFile 옆에 붙이고(`CircExtensions`), 원조 방식으로 저장한 파일 끝에 다시 넣는다(`ProjectActions`의 `// HCS:` 두 곳, proj 패키지라 엔진 밖). 확장 정보가 없으면 저장한 파일을 건드리지 않는다. 모르는 종류·속성은 그대로 두었다가 다시 쓴다. 사람마다 다른 설정은 .circ가 아니라 OS별 설정 폴더(Windows `%APPDATA%\HallymCircuitStudio`, macOS `~/Library/Application Support/HallymCircuitStudio`, 그 밖 `$XDG_CONFIG_HOME/hallym-circuit-studio`)의 `settings.properties`에 둔다. 포크가 더한 코드는 `app/src-hcs/`, 문구는 그 옆의 `messages(_ko).properties`다.
+- **이유:** 원조 2.7.1의 XmlReader는 `<project>` 아래 모르는 요소를 건너뛴다(JDK 8에서 원조 jar로 확인, `CircExtensionTest`). 요소 하나에 모으면 원조로 다시 저장했을 때 빠지는 범위가 분명하다. 엔진 writer를 바꾸면 규칙 2.1의 패치가 되고, 확장 정보가 없는 파일의 바이트 호환(D-006)을 따로 증명해야 한다. 저장 뒤 끼워 넣기는 확장 정보가 없을 때 아무 일도 하지 않으므로 그 증명이 필요 없다.
+- **대안:** 부품 속성으로 저장(원조가 모르는 속성은 경고 없이 버리지만 부품마다 흩어지고 회로 단위 정보를 둘 곳이 없음), .circ 옆 별도 파일(제출할 때 빠뜨림), 엔진 XmlWriter 패치(규칙 2.1).
