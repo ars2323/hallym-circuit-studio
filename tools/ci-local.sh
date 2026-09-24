@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# CI(Linux)와 같은 검사를 로컬에서 돌린다. .github/workflows/ci.yml도 이 스크립트를 호출한다.
+set -euo pipefail
+root="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$root"
+
+step() { printf '\n== %s\n' "$1"; }
+
+step "vendor 원본 검증"
+tools/verify-vendor.sh
+
+printf '\nci-local: all checks passed (%s)\n' "$(git rev-parse --short HEAD)"
