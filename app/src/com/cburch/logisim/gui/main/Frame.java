@@ -226,7 +226,12 @@ public class Frame extends LFrame implements LocaleListener {
 		mainPanel = new CardPanel();
 		mainPanel.addView(EDIT_LAYOUT, canvasPane);
 		mainPanel.setView(EDIT_LAYOUT);
-		mainPanelSuper.add(mainPanel, BorderLayout.CENTER);
+		// HCS: attribute panel docked right of the canvas and collapsible, quick attribute bar (#74)
+		JPanel attrPanel = new JPanel(new BorderLayout());
+		attrPanel.add(attrTable, BorderLayout.CENTER);
+		kr.ac.hallym.hcs.app.props.AttrDock hcsDock = new kr.ac.hallym.hcs.app.props.AttrDock(mainPanel, attrPanel);
+		kr.ac.hallym.hcs.app.props.QuickBar.install(this, layoutCanvas, hcsDock);
+		mainPanelSuper.add(hcsDock.component(), BorderLayout.CENTER);
 		// HCS: file tabs, circuit tabs and simulation path above the canvas (#68);
 		// toolbar groups, simulation-off banner and status bar (#77)
 		kr.ac.hallym.hcs.app.sim.SimControls hcsSim = kr.ac.hallym.hcs.app.sim.SimControls.install(this);
@@ -258,13 +263,9 @@ public class Frame extends LFrame implements LocaleListener {
 		JPanel explPanel = new JPanel(new BorderLayout());
 		explPanel.add(projectToolbar, BorderLayout.NORTH);
 		explPanel.add(explorerPane, BorderLayout.CENTER);
-		JPanel attrPanel = new JPanel(new BorderLayout());
-		attrPanel.add(attrTable, BorderLayout.CENTER);
-		attrPanel.add(zoom, BorderLayout.SOUTH);
+		explPanel.add(zoom, BorderLayout.SOUTH); // HCS: #74 zoom control stays on the left
 
-		leftRegion = new HorizontalSplitPane(explPanel, attrPanel,
-				AppPreferences.WINDOW_LEFT_SPLIT.get().doubleValue());
-		mainRegion = new VerticalSplitPane(leftRegion, mainPanelSuper,
+		mainRegion = new VerticalSplitPane(explPanel, mainPanelSuper, // HCS: #74 attributes moved to the right dock
 				AppPreferences.WINDOW_MAIN_SPLIT.get().doubleValue());
 
 		getContentPane().add(mainRegion, BorderLayout.CENTER);
@@ -480,7 +481,7 @@ public class Frame extends LFrame implements LocaleListener {
 		if (loc != null) {
 			AppPreferences.WINDOW_LOCATION.set(loc.x + "," + loc.y);
 		}
-		AppPreferences.WINDOW_LEFT_SPLIT.set(Double.valueOf(leftRegion.getFraction()));
+		if (leftRegion != null) AppPreferences.WINDOW_LEFT_SPLIT.set(Double.valueOf(leftRegion.getFraction())); // HCS: #74 no left split
 		AppPreferences.WINDOW_MAIN_SPLIT.set(Double.valueOf(mainRegion.getFraction()));
 		AppPreferences.DIALOG_DIRECTORY.set(JFileChoosers.getCurrentDirectory());
 	}

@@ -58,6 +58,7 @@ public final class Shortcuts {
         TABLE.put("Delete", "keys.delete");
         TABLE.put("Ctrl+Click", "keys.poke");
         TABLE.put("Double-click", "keys.value");
+        TABLE.put("F2", "keys.label");
         TABLE.put("P", "keys.probe");
         TABLE.put("Ctrl+Wheel", "keys.zoomWheel");
         TABLE.put("Ctrl+= / Ctrl+-", "keys.zoomStep");
@@ -101,6 +102,8 @@ public final class Shortcuts {
         }
         int mods = e.getModifiersEx();
         switch (e.getKeyCode()) {
+        case KeyEvent.VK_F2:
+            return mods == 0 && sel.getComponents().size() == 1 && editLabel(sel.getComponents().iterator().next());
         case KeyEvent.VK_LEFT:
             return mods == 0 && nudge(sel, -10, 0);
         case KeyEvent.VK_RIGHT:
@@ -190,6 +193,12 @@ public final class Shortcuts {
                     askValue(pin);
                     return true;
                 }
+                Component labeled = labeled(at(e));
+                if (labeled != null && canvas.getProject().getFrame() != null) {
+                    // 캔버스가 누름 뒤에 초점을 가져가므로 그다음에 칸을 연다
+                    javax.swing.SwingUtilities.invokeLater(() -> editLabel(labeled));
+                    return true;
+                }
             }
         } else if (poking && e.getID() == MouseEvent.MOUSE_RELEASED) {
             poke.mouseReleased(canvas, g, e);
@@ -225,6 +234,22 @@ public final class Shortcuts {
         for (Component c : canvas.getCircuit().getAllContaining(p)) {
             String f = c.getFactory().getName();
             if ((f.equals("Pin") && !isOutputPin(c)) || f.equals("Button")) {
+                return c;
+            }
+        }
+        return null;
+    }
+
+    /** 라벨을 제자리에서 고친다(#74). 원조 속성 표와 같은 Action이다. */
+    private boolean editLabel(Component c) {
+        return canvas.getProject().getFrame() != null && kr.ac.hallym.hcs.app.props.InlineEditor.editLabel(
+                canvas.getProject().getFrame(), canvas, c);
+    }
+
+    /** 포인터 아래 라벨 속성이 있는 부품(글자 부품은 원조 글자 도구가 고친다). */
+    Component labeled(Location p) {
+        for (Component c : canvas.getCircuit().getAllContaining(p)) {
+            if (kr.ac.hallym.hcs.app.props.QuickAttrs.labelAttr(c) != null) {
                 return c;
             }
         }
