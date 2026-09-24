@@ -66,6 +66,7 @@ public final class Shortcuts {
         TABLE.put("Space+Drag", "keys.pan");
         TABLE.put("Ctrl+2 … Ctrl+9", "keys.tools");
         TABLE.put("Ctrl+F", "keys.find");
+        TABLE.put("Ctrl+K", "keys.palette");
         TABLE.put("?", "keys.help");
     }
 
@@ -92,6 +93,12 @@ public final class Shortcuts {
             return false;
         }
         Selection sel = canvas.getSelection();
+        // 아무것도 고르지 않았을 때 글자를 치면 부품 검색(#76)
+        if (sel.isEmpty() && e.getModifiersEx() == 0 && Character.isLetter(e.getKeyChar())) {
+            kr.ac.hallym.hcs.app.palette.PaletteWindow.open(canvas.getProject().getFrame(), lastMouse(),
+                    String.valueOf(e.getKeyChar()));
+            return true;
+        }
         int mods = e.getModifiersEx();
         switch (e.getKeyCode()) {
         case KeyEvent.VK_LEFT:
@@ -192,6 +199,22 @@ public final class Shortcuts {
             return true;
         }
         return false;
+    }
+
+    private Location mouse;
+
+    /** 캔버스의 마지막 포인터 자리(논리 좌표). 모르면 보이는 영역 가운데. */
+    public Location lastMouse() {
+        if (mouse != null) {
+            return mouse;
+        }
+        java.awt.Rectangle r = canvas.getVisibleRect();
+        return Location.create(r.x + r.width / 2, r.y + r.height / 2);
+    }
+
+    /** 캔버스 마우스 이동을 알려 준다. */
+    public void moved(MouseEvent e) {
+        mouse = Location.create(e.getX(), e.getY());
     }
 
     private static Location at(MouseEvent e) {
@@ -303,14 +326,18 @@ public final class Shortcuts {
     }
 
     void showTable() {
+        showTable(canvas.getProject().getFrame());
+    }
+
+    /** 단축키 표 창(명령 팔레트에서도). */
+    public static void showTable(java.awt.Component parent) {
         StringBuilder sb = new StringBuilder("<html><table>");
         for (Map.Entry<String, String> e : TABLE.entrySet()) {
             sb.append("<tr><td><b>").append(e.getKey()).append("</b></td><td>").append(Messages.get(e.getValue()))
                     .append("</td></tr>");
         }
         sb.append("</table></html>");
-        JOptionPane.showMessageDialog(canvas.getProject().getFrame(), sb.toString(), Messages.get("keys.title"),
-                JOptionPane.PLAIN_MESSAGE);
+        JOptionPane.showMessageDialog(parent, sb.toString(), Messages.get("keys.title"), JOptionPane.PLAIN_MESSAGE);
     }
 
     /** 표의 모든 설명 문구 키(테스트용). */

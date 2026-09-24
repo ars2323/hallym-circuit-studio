@@ -185,6 +185,13 @@ public final class FindDialog extends JDialog {
         }
     }
 
+    /** 찾기 창 열기(명령 팔레트에서도). */
+    public static void open(Frame frame) {
+        FindDialog d = new FindDialog(frame);
+        d.setVisible(true);
+        d.query.requestFocusInWindow();
+    }
+
     /** 창에 Ctrl+F를 단다. */
     public static void install(Frame frame) {
         int menu = Toolkit.getDefaultToolkit().getMenuShortcutKeyMask();
