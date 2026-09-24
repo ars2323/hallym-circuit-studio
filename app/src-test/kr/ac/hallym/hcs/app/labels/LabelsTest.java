@@ -231,4 +231,26 @@ class LabelsTest {
         assertNull(HoverInfo.tip(state, Location.create(50, 50), null));
         assertNotNull(reg);
     }
+
+    /** 스플리터 팔 라벨: 범위와(있으면) 팔 이름, 팔 순서대로 팔 끝에. */
+    @Test
+    void splitterArmLabelsShowRangesAndNames() throws Exception {
+        LogisimFile file = CircuitBuilder.newFile(new Loader(null), tmp.toFile());
+        Circuit c = file.getMainCircuit();
+        CircuitBuilder b = new CircuitBuilder(file, c);
+        Component sp = b.add("Wiring", "Splitter", 300, 200, "fanout", "2", "incoming", "32");
+        b.commit();
+        List<LabelOverlay.ArmLabel> plain = LabelOverlay.armLabels(file, c, sp);
+        assertEquals(2, plain.size());
+        assertEquals("[15:0]", plain.get(0).text);
+        assertEquals("[31:16]", plain.get(1).text);
+        assertEquals(sp.getEnds().get(1).getLocation(), plain.get(0).end);
+
+        kr.ac.hallym.hcs.app.splitter.SplitterSpec spec = kr.ac.hallym.hcs.app.splitter.SplitterSpec
+                .parse("15:0, 31:16", 32, false).withNames(java.util.Arrays.asList("imm", "upper"));
+        kr.ac.hallym.hcs.app.splitter.SplitterEdits.setNames(file, c, sp.getLocation(), spec);
+        List<LabelOverlay.ArmLabel> named = LabelOverlay.armLabels(file, c, sp);
+        assertEquals("[15:0] imm", named.get(0).text);
+        assertEquals("[31:16] upper", named.get(1).text);
+    }
 }
