@@ -5,6 +5,7 @@ plugins {
 
 rootProject.name = "hallym-circuit-studio"
 
+include("app")
 include("lib-mips")
 include("regress")
 project(":regress").projectDir = file("tests/regress")
