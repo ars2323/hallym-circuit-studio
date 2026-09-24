@@ -84,6 +84,26 @@ class PaletteTest {
         }
     }
 
+    /** 원조 편집기에서 고를 수 없는 숫자는 그 부품을 내지 않고 예외도 없다. */
+    @Test
+    void outOfRangeNumbersOfferNothingWrong() throws Exception {
+        start();
+        for (String q : new String[] {"reg 64", "reg 0", "mux 40", "split 64", "and 1", "and 33",
+                "reg 0x11111111111111111", "add 99999999999"}) {
+            for (Palette.Item it : Palette.search(q, libs, Collections.<Circuit>emptyList(),
+                    Collections.<String>emptyList(), Collections.<String>emptyList())) {
+                String w = it.attrs.getOrDefault("width", it.attrs.getOrDefault("incoming", "1"));
+                assertTrue(Integer.parseInt(w) >= 1 && Integer.parseInt(w) <= 32, q + " → " + it);
+                String inputs = it.attrs.get("inputs");
+                assertTrue(inputs == null || (Integer.parseInt(inputs) >= 2 && Integer.parseInt(inputs) <= 32),
+                        q + " → " + it);
+            }
+        }
+        assertEquals(Collections.singletonMap("width", "32"), first("reg 32").attrs, "the edge values still work");
+        assertEquals(Collections.singletonMap("inputs", "32"), first("and 32").attrs);
+        assertEquals(Collections.singletonMap("width", "1"), first("reg 1").attrs);
+    }
+
     @Test
     void recentFavoritesSubcircuitsAndCommands() throws Exception {
         start();

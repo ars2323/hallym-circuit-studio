@@ -131,29 +131,63 @@ public final class Palette {
         return new String[] {q, null};
     }
 
-    /** 뒤 숫자를 속성으로: 게이트는 입력 수, 스플리터는 incoming, 폭 속성이 있으면 폭, 상수는 값도. */
+    /**
+     * 뒤 숫자를 속성으로: 게이트는 입력 수, 스플리터는 incoming, 폭 속성이 있으면 폭, 상수는 값도. 원조 편집기에서
+     * 고를 수 없는 값(폭 1~32 밖, 원조 속성이 해석하지 못하는 값)이면 null: 그 부품은 목록에 내지 않는다.
+     */
     public static Map<String, String> attributesFor(ComponentFactory f, String arg) {
         Map<String, String> m = new LinkedHashMap<>();
         if (arg == null) {
             return m;
         }
-        com.cburch.logisim.data.AttributeSet as = f.createAttributeSet();
-        if (as.getAttribute("inputs") != null && Kinds.of(f).category() == Kinds.Category.GATE) {
-            m.put("inputs", decimal(arg));
-        } else if (f.getName().equals("Splitter")) {
-            m.put("incoming", decimal(arg));
-        } else if (f.getName().equals("Constant") && arg.startsWith("0x")) {
-            m.put("value", arg);
-        } else if (as.getAttribute("width") != null) {
-            m.put("width", decimal(arg));
-        } else if (as.getAttribute("dataWidth") != null) {
-            m.put("dataWidth", decimal(arg));
+        String n = decimal(arg);
+        if (n == null) {
+            return null;
         }
+        com.cburch.logisim.data.AttributeSet as = f.createAttributeSet();
+        String key;
+        boolean isWidth = true;
+        if (as.getAttribute("inputs") != null && Kinds.of(f).category() == Kinds.Category.GATE) {
+            key = "inputs";
+            isWidth = false;
+        } else if (f.getName().equals("Splitter")) {
+            key = "incoming";
+        } else if (f.getName().equals("Constant") && arg.startsWith("0x")) {
+            key = "value";
+            n = arg;
+            isWidth = false;
+        } else if (as.getAttribute("width") != null) {
+            key = "width";
+        } else if (as.getAttribute("dataWidth") != null) {
+            key = "dataWidth";
+        } else {
+            return m;
+        }
+        if (isWidth) {
+            int w = Integer.parseInt(n);
+            if (w < 1 || w > 32) {
+                return null; // 원조 편집기의 폭 목록(1~32) 밖
+            }
+        }
+        @SuppressWarnings("unchecked")
+        com.cburch.logisim.data.Attribute<Object> a = (com.cburch.logisim.data.Attribute<Object>) as.getAttribute(key);
+        try {
+            a.parse(n); // 원조가 해석하지 못하면(예: 게이트 입력 2~32 밖) 내지 않는다
+        } catch (RuntimeException e) {
+            return null;
+        }
+        m.put(key, n);
         return m;
     }
 
+    /** 10진 문자열로(0x는 16진). int 범위를 넘거나 읽을 수 없으면 null. */
     private static String decimal(String arg) {
-        return arg.startsWith("0x") ? Long.toString(Long.parseLong(arg.substring(2), 16)) : arg;
+        try {
+            long v = arg.startsWith("0x") ? Long.parseLong(arg.substring(2), 16) : Long.parseLong(arg);
+            return v > Integer.MAX_VALUE ? null : Long.toString(v);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     /** 이름 맞춤 점수: 정확 100, 앞이 같음 80, 포함 50, 없음 0. */
@@ -198,8 +232,12 @@ public final class Palette {
                 if (s == 0) {
                     continue;
                 }
+                Map<String, String> attrs = attributesFor(f, parts[1]);
+                if (attrs == null) {
+                    continue; // 숫자가 이 부품에 맞지 않는다
+                }
                 s += boost(f.getName(), recent, favorites);
-                ret.add(new Item(Kind.COMPONENT, f.getName(), lib, null, null, attributesFor(f, parts[1]), s));
+                ret.add(new Item(Kind.COMPONENT, f.getName(), lib, null, null, attrs, s));
             }
         }
         for (Circuit c : subcircuits) {
