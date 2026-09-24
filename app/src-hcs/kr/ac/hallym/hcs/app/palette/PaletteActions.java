@@ -110,7 +110,7 @@ public final class PaletteActions {
     }
 
     /** .s 불러오기: 이 회로의 Instruction Memory 메뉴 항목(Hallym MIPS 라이브러리)을 누른다. */
-    static void loadProgram(Project proj) {
+    public static void loadProgram(Project proj) {
         for (Component c : proj.getCurrentCircuit().getNonWires()) {
             if (c.getFactory().getName().equals("Instruction Memory")) {
                 Object ext = c.getFeature(MenuExtender.class);
