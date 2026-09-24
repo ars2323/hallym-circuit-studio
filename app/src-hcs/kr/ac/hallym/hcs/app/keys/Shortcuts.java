@@ -65,6 +65,7 @@ public final class Shortcuts {
         TABLE.put("F", "keys.zoomSel");
         TABLE.put("Space+Drag", "keys.pan");
         TABLE.put("Ctrl+2 … Ctrl+9", "keys.tools");
+        TABLE.put("Ctrl+F", "keys.find");
         TABLE.put("?", "keys.help");
     }
 

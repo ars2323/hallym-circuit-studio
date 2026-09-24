@@ -235,6 +235,7 @@ public class Frame extends LFrame implements LocaleListener {
 		kr.ac.hallym.hcs.app.menu.ContextMenus.install(this);
 		kr.ac.hallym.hcs.app.probe.ProbeMenu.installKey(layoutCanvas); // HCS: P puts a probe on a wire (#75)
 		layoutCanvas.setHcsKeys(new kr.ac.hallym.hcs.app.keys.Shortcuts(layoutCanvas)); // HCS: #78
+		kr.ac.hallym.hcs.app.find.FindDialog.install(this); // HCS: Ctrl+F (#80)
 
 		// set up the contents, split down the middle, with the canvas
 		// on the right and a split pane on the left containing the
