@@ -156,12 +156,15 @@ public final class QuickAttrs {
         return act;
     }
 
-    /** 글자 값을 원조 속성의 해석으로 바꾼 Action. 해석할 수 없으면 IllegalArgumentException. */
+    /**
+     * 글자 값을 원조 속성의 해석으로 바꾼 Action. 원조 속성 표처럼 글자를 다듬지 않고 그대로 넘긴다. 해석할 수
+     * 없으면 IllegalArgumentException.
+     */
     public static SetAttributeAction parse(Circuit circuit, List<Component> comps, Attribute<Object> attr,
             String text) {
         Object v;
         try {
-            v = attr.parse(text.trim());
+            v = attr.parse(text);
         } catch (RuntimeException e) {
             throw new IllegalArgumentException(text, e);
         }
@@ -175,7 +178,7 @@ public final class QuickAttrs {
     public static boolean unchanged(List<Component> comps, Attribute<Object> attr, String text) {
         Object v;
         try {
-            v = attr.parse(text.trim());
+            v = attr.parse(text);
         } catch (RuntimeException e) {
             return false;
         }

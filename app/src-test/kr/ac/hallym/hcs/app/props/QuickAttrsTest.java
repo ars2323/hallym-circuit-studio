@@ -120,6 +120,15 @@ class QuickAttrsTest {
         label.undo(proj);
         assertEquals("PC", reg.getAttributeSet().getValue(QuickAttrs.labelAttr(reg)));
 
+        // UI가 쓰는 글자 경로도 원조 속성 표처럼 글자를 그대로 넘긴다(앞뒤 공백 포함)
+        SetAttributeAction typed = QuickAttrs.parse(file.getMainCircuit(), Collections.singletonList(reg),
+                QuickAttrs.labelAttr(reg), " PC 2 ");
+        typed.doIt(proj);
+        assertEquals(" PC 2 ", reg.getAttributeSet().getValue(QuickAttrs.labelAttr(reg)));
+        assertTrue(QuickAttrs.unchanged(Collections.singletonList(reg), QuickAttrs.labelAttr(reg), " PC 2 "));
+        assertFalse(QuickAttrs.unchanged(Collections.singletonList(reg), QuickAttrs.labelAttr(reg), "PC 2"));
+        typed.undo(proj);
+
         QuickAttrs.Entry inputs = QuickAttrs.entries(and).get(0);
         Object before = and2.getAttributeSet().getValue(inputs.attr);
         SetAttributeAction set = QuickAttrs.parse(file.getMainCircuit(), Arrays.asList(and, and2), inputs.attr, "4");
