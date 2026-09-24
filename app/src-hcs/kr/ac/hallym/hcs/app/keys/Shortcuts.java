@@ -90,15 +90,15 @@ public final class Shortcuts {
             showTable();
             return true;
         }
-        if (!editing()) {
-            return false;
-        }
         Selection sel = canvas.getSelection();
-        // 아무것도 고르지 않았을 때 글자를 치면 부품 검색(#76)
-        if (sel.isEmpty() && e.getModifiersEx() == 0 && Character.isLetter(e.getKeyChar())) {
+        // 글자를 치면 부품 검색(#76): 편집 도구에서 아무것도 고르지 않았을 때, 조작 도구에서 누르고 있는 부품이 없을 때
+        if (opensPalette(canvas.getProject().getTool(), sel.isEmpty(), e)) {
             kr.ac.hallym.hcs.app.palette.PaletteWindow.open(canvas.getProject().getFrame(), lastMouse(),
                     String.valueOf(e.getKeyChar()));
             return true;
+        }
+        if (!editing()) {
+            return false;
         }
         int mods = e.getModifiersEx();
         switch (e.getKeyCode()) {
@@ -121,6 +121,23 @@ public final class Shortcuts {
         default:
             return false;
         }
+    }
+
+    /**
+     * 글자 키가 검색창을 여는가(#76). 편집·선택 도구는 선택이 비었을 때, 조작 도구는 값을 받는 부품(핀 값 입력,
+     * 키보드 부품)을 누르고 있지 않을 때, 배선 도구는 늘. 글자 도구와 부품 놓기 도구는 원조대로 글자를 받는다.
+     */
+    static boolean opensPalette(Tool tool, boolean selectionEmpty, KeyEvent e) {
+        if ((e.getModifiersEx() & ~KeyEvent.SHIFT_DOWN_MASK) != 0 || !Character.isLetter(e.getKeyChar())) {
+            return false;
+        }
+        if (tool instanceof EditTool || tool instanceof SelectTool) {
+            return selectionEmpty;
+        }
+        if (tool instanceof PokeTool) {
+            return !((PokeTool) tool).hcsHasCaret();
+        }
+        return tool instanceof com.cburch.logisim.tools.WiringTool;
     }
 
     /** 원조 선택 도구가 끌어 옮길 때와 같이 연결을 유지하며 한 칸 옮긴다. */

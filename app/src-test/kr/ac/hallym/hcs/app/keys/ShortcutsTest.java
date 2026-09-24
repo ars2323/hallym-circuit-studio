@@ -124,4 +124,37 @@ class ShortcutsTest {
         }
         assertTrue(Shortcuts.TABLE.containsKey("R / Shift+R"));
     }
+
+    private static java.awt.event.KeyEvent key(char c, int mods) {
+        return new java.awt.event.KeyEvent(new javax.swing.JPanel(), java.awt.event.KeyEvent.KEY_PRESSED, 0L, mods,
+                java.awt.event.KeyEvent.getExtendedKeyCodeForChar(c), c);
+    }
+
+    /** #76: 글자를 치면 검색창. 조작 도구(첫 화면의 기본 도구)에서도 열리고, 값을 받는 부품을 누르고 있으면 원조대로. */
+    @Test
+    void lettersOpenThePaletteInPokeAndEditTools() throws Exception {
+        com.cburch.logisim.tools.PokeTool poke = new com.cburch.logisim.tools.PokeTool();
+        assertTrue(Shortcuts.opensPalette(poke, true, key('m', 0)), "poke tool, nothing poked");
+        assertTrue(Shortcuts.opensPalette(poke, false, key('M', java.awt.event.InputEvent.SHIFT_DOWN_MASK)));
+        assertTrue(Shortcuts.opensPalette(new com.cburch.logisim.tools.EditTool(
+                new com.cburch.logisim.tools.SelectTool(), new com.cburch.logisim.tools.WiringTool()), true,
+                key('r', 0)), "edit tool, empty selection");
+        assertTrue(Shortcuts.opensPalette(new com.cburch.logisim.tools.SelectTool(), true, key('a', 0)));
+        assertTrue(!Shortcuts.opensPalette(new com.cburch.logisim.tools.SelectTool(), false, key('a', 0)),
+                "a selection keeps the original keys (R rotates, digits set inputs)");
+        assertTrue(Shortcuts.opensPalette(new com.cburch.logisim.tools.WiringTool(), true, key('x', 0)));
+        assertTrue(!Shortcuts.opensPalette(new com.cburch.logisim.tools.TextTool(), true, key('a', 0)),
+                "the text tool types text");
+        assertTrue(!Shortcuts.opensPalette(poke, true, key('3', 0)), "digits are not letters");
+        assertTrue(!Shortcuts.opensPalette(poke, true,
+                key('k', java.awt.event.InputEvent.CTRL_DOWN_MASK)), "Ctrl+K is its own shortcut");
+
+        // 핀·키보드 부품을 누르고 있으면(원조 poke caret) 글자는 그 부품으로 간다
+        java.lang.reflect.Field f = com.cburch.logisim.tools.PokeTool.class.getDeclaredField("pokeCaret");
+        f.setAccessible(true);
+        f.set(poke, java.lang.reflect.Proxy.newProxyInstance(getClass().getClassLoader(),
+                new Class<?>[] {com.cburch.logisim.tools.Caret.class}, (proxy, m, args) -> null));
+        assertTrue(poke.hcsHasCaret());
+        assertTrue(!Shortcuts.opensPalette(poke, true, key('a', 0)), "hex digit a goes to the poked pin");
+    }
 }
