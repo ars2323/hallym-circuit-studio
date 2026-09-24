@@ -135,6 +135,7 @@ public class ProjectActions {
 		}
 		Frame newFrame = new Frame(newProject);
 		newProject.setFrame(newFrame);
+		kr.ac.hallym.hcs.app.tabs.FileTabs.get().placeLikeActive(newFrame); // HCS: #68
 		return newFrame;
 	}
 	
