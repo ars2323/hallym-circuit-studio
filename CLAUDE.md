@@ -59,7 +59,12 @@ git과 gh는 설치·로그인돼 있다. 저장소 관리는 전부 직접 한�
 - **저장소:** `gh repo create hallym-circuit-studio --private --source=. --remote=origin --push`. 설명은 "Hallym Circuit Studio — 한림대학교 Micro-architecture 실습도구 (Logisim 2.7.1 fork)"로 한다. public 전환은 사용자 결정이므로 하지 않고, `needs-human` 이슈에 적어 둔다.
 - **마일스톤:** 단계마다 하나씩 만든다. `0 기반`, `1 MIPS 부품 라이브러리`, `2 포크 + 정적 진단`, `3 기록 엔진 + 사이클 뷰`, `4 동적 진단`.
 - **이슈:** PLAN.md의 항목을 작업 단위 이슈로 쪼개 해당 마일스톤에 단다. 미결정 사항은 `question` 라벨 이슈로 만들고, 조사로 풀리면 결론을 달고 닫는다.
-- **브랜치와 PR:** `main`에 직접 push하지 않는다. `feat/…`, `fix/…`, `docs/…`, `chore/…` 브랜치를 만들고, 작업 단위마다 PR을 연다. PR 본문은 한국어로 쓰고 `Closes #N`을 단다. CI가 통과하면 `gh pr merge --squash --delete-branch`로 직접 머지한다.
+- **브랜치와 PR:** `main`에 직접 push하지 않는다. `feat/…`, `fix/…`, `docs/…`, `chore/…` 브랜치를 만들고, 작업 단위마다 PR을 연다. PR 본문은 한국어로 쓰고 `Closes #N`을 단다.
+- **머지 절차:**
+  1. CI가 통과하는지 확인한다.
+  2. `gh pr merge` 전에 compat-reviewer 서브에이전트(`.claude/agents/compat-reviewer.md`)를 돌린다. 이 에이전트는 diff만 보고 2절 절대 규칙 위반과 테스트 없는 기능 변경을 보고한다.
+  3. 위반이 있으면 고친 뒤 다시 돌린다. 위반 0건이 될 때까지 반복한다. "확인 필요" 항목은 PR 본문에 판단 근거를 적는다.
+  4. `gh pr merge --squash --delete-branch`로 직접 머지한다.
 - **커밋:** 영어 명령형 한 줄 제목(`Add Data Memory component`)에 필요하면 본문을 단다. 작은 단위로 자주 커밋한다.
 - **CI (GitHub Actions):** Linux에서 빌드, 단위 테스트, 엔진 회귀, 어셈블 일치를 매 push·PR마다 돌린다. Windows 러너 작업(`hcs-asm.exe`, jpackage zip/MSI)은 1단계 배포 전에 추가한다.
 - **릴리스:** 단계 산출물은 태그(`v0.1.0` = 1단계 라이브러리)와 GitHub Release로 만든다. 첨부물은 `hcs-mips.jar`, `hcs-asm`(Linux), `hcs-asm.exe`, 사용 안내다. 학생 배포는 사용자 결정이므로 Release는 draft로 둔다.
