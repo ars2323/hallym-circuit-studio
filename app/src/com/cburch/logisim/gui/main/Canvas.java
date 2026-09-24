@@ -112,6 +112,7 @@ public class Canvas extends JPanel
 
 		public void mouseDragged(MouseEvent e) {
 			if (hcsZoom != null && hcsZoom.handlePan(e)) return; // HCS: #69
+			if (hcsKeys != null && hcsKeys.mouse(e, getGraphics())) return; // HCS: #78
 			if (drag_tool != null) {
 				drag_tool.mouseDragged(Canvas.this, getGraphics(), e);
 			}
@@ -141,6 +142,7 @@ public class Canvas extends JPanel
 
 		public void mousePressed(MouseEvent e) {
 			if (hcsZoom != null && hcsZoom.handlePan(e)) { Canvas.this.requestFocus(); return; } // HCS: #69
+			if (hcsKeys != null && hcsKeys.mouse(e, getGraphics())) { Canvas.this.requestFocus(); return; } // HCS: #78
 			viewport.setErrorMessage(null, null);
 			proj.setStartupScreen(false);
 			Canvas.this.requestFocus();
@@ -154,6 +156,7 @@ public class Canvas extends JPanel
 
 		public void mouseReleased(MouseEvent e) {
 			if (hcsZoom != null && hcsZoom.handlePan(e)) return; // HCS: #69
+			if (hcsKeys != null && hcsKeys.mouse(e, getGraphics())) return; // HCS: #78
 			if (drag_tool != null) {
 				drag_tool.mouseReleased(Canvas.this, getGraphics(), e);
 				drag_tool = null;
@@ -179,6 +182,7 @@ public class Canvas extends JPanel
 		// KeyListener methods
 		//
 		public void keyPressed(KeyEvent e) {
+			if (hcsKeys != null && hcsKeys.keyPressed(e)) { e.consume(); return; } // HCS: #78
 			Tool tool = proj.getTool();
 			if (tool != null) tool.keyPressed(Canvas.this, e);
 		}
@@ -520,6 +524,14 @@ public class Canvas extends JPanel
 		hcsZoom = value;
 	}
 
+	// HCS: #78
+	private kr.ac.hallym.hcs.app.keys.Shortcuts hcsKeys;
+
+	// HCS: #78
+	public void setHcsKeys(kr.ac.hallym.hcs.app.keys.Shortcuts value) {
+		hcsKeys = value;
+	}
+
 	// HCS: #72 (fit from the context menu)
 	public kr.ac.hallym.hcs.app.zoom.ZoomController getHcsZoom() {
 		return hcsZoom;
@@ -822,6 +834,12 @@ public class Canvas extends JPanel
 		if (showTips) {
 			Canvas.snapToGrid(event);
 			Location loc = Location.create(event.getX(), event.getY());
+			// HCS: port name and width over a port (#78)
+			String hcsTip = kr.ac.hallym.hcs.app.keys.Shortcuts.portTip(getCircuit(), loc);
+			if (hcsTip != null) {
+				unrepairMouseEvent(event);
+				return hcsTip;
+			}
 			ComponentUserEvent e = null;
 			for (Component comp : getCircuit().getAllContaining(loc)) {
 				Object makerObj = comp.getFeature(ToolTipMaker.class);
