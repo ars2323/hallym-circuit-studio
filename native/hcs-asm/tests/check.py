@@ -17,7 +17,7 @@ import tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 TOOL_DIR = os.path.dirname(HERE)
 ROOT = os.path.abspath(os.path.join(TOOL_DIR, "..", ".."))
-HCS_ASM = os.path.join(TOOL_DIR, "build", "hcs-asm")
+HCS_ASM = os.path.join(TOOL_DIR, "build", "hcs-asm.exe" if os.name == "nt" else "hcs-asm")
 ORACLE = os.path.join(TOOL_DIR, "build", "oracle", "spim")
 CASES = os.path.join(ROOT, "tests", "asm")
 SPIM_SRC = os.path.join(ROOT, "vendor", "spim-9.1.24")
@@ -103,6 +103,7 @@ def check_against_oracle(name, path, result):
 
 def main():
     update = "--update" in sys.argv
+    with_oracle = "--no-oracle" not in sys.argv  # Windows CI: 원본 spim 오라클은 Linux에서만 돈다
     cases = sorted(f[:-2] for f in os.listdir(CASES) if f.endswith(".s"))
     for name in cases:
         path = os.path.join(CASES, name + ".s")
@@ -123,10 +124,10 @@ def main():
             fail(name, "no golden .json (run with --update)")
         elif open(golden).read() != out:
             fail(name, "output differs from golden .json")
-        if not result["errors"]:
+        if not result["errors"] and with_oracle:
             check_against_oracle(name, path, result)
 
-    for rel, flags in ORACLE_ONLY:
+    for rel, flags in (ORACLE_ONLY if with_oracle else []):
         path = os.path.join(SPIM_SRC, rel)
         code, out, err = run_hcs_asm(path, flags)
         if code not in (0, 1):
@@ -153,13 +154,13 @@ def main():
             diff = [a for a in sorted(set(ours) | set(theirs)) if ours.get(a) != theirs.get(a)][:3]
             fail(rel, f"differs from QtSpim at {[hex(a) for a in diff]} ({len(theirs)} QtSpim words)")
 
-    total = len(cases) + len(ORACLE_ONLY) + len(QTSPIM_GOLDEN)
+    total = len(cases) + (len(ORACLE_ONLY) if with_oracle else 0) + len(QTSPIM_GOLDEN)
     if failures:
         print("\n".join(failures))
         print(f"hcs-asm tests: {len(failures)} failure(s) in {total} programs")
         sys.exit(1)
-    print(f"hcs-asm tests OK ({len(cases)} golden, {total - len(QTSPIM_GOLDEN)} checked against spim, "
-          f"{len(QTSPIM_GOLDEN)} against QtSpim GUI output)")
+    oracle = f"{total - len(QTSPIM_GOLDEN)} checked against spim" if with_oracle else "spim oracle skipped"
+    print(f"hcs-asm tests OK ({len(cases)} golden, {oracle}, {len(QTSPIM_GOLDEN)} against QtSpim GUI output)")
 
 
 if __name__ == "__main__":

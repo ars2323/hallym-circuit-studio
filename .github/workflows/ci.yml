@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
   workflow_dispatch:
 
@@ -36,3 +37,59 @@ jobs:
           path: |
             **/build/reports/tests/
             **/build/test-results/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: |
+            lib-mips/build/libs/hcs-mips.jar
+            native/hcs-asm/build/hcs-asm
+
+  # hcs-asm.exe: MSYS2 MinGW g++로 정적 링크한다. SPIM 원본 CPU/는 그대로 컴파일한다.
+  windows:
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: false
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-python
+            make
+            bison
+            flex
+      - name: Build hcs-asm.exe
+        run: make -s -C native/hcs-asm -j4 all LDFLAGS=-static
+      - name: hcs-asm golden and QtSpim output match
+        run: python native/hcs-asm/tests/check.py --no-oracle
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: native/hcs-asm/build/hcs-asm.exe
+
+  # v* 태그: 트랙 A 배포 zip을 만들어 draft Release에 올린다. 학생 배포는 사용자 결정이라 draft로 둔다.
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [linux, windows]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist-in
+      - name: Package track A
+        run: tools/package-track-a.sh "${GITHUB_REF_NAME#v}" dist-in dist
+      - name: Draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --draft --verify-tag \
+            --title "Hallym Circuit Studio $GITHUB_REF_NAME (트랙 A: MIPS 부품 라이브러리)" \
+            --notes-file dist/RELEASE_NOTES.md \
+            dist/*.zip dist/hcs-mips.jar dist/hcs-asm dist/hcs-asm.exe dist/사용안내.md

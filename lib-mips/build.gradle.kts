@@ -7,6 +7,8 @@ plugins {
 
 val logisimJar = rootProject.file("vendor/logisim-2.7.1/logisim-generic-2.7.1.jar")
 
+version = "0.1.0" // 트랙 A 배포 버전(태그 v0.1.0)
+
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)
@@ -39,7 +41,11 @@ tasks.named<JavaCompile>("compileTestJava") { options.release = 21 }
 tasks.jar {
     archiveFileName = "hcs-mips.jar"
     manifest {
-        attributes("Library-Class" to "kr.ac.hallym.hcs.mips.MipsLibrary")
+        attributes(
+            "Library-Class" to "kr.ac.hallym.hcs.mips.MipsLibrary",
+            "Implementation-Title" to "Hallym MIPS component library",
+            "Implementation-Version" to project.version,
+        )
     }
 }
 

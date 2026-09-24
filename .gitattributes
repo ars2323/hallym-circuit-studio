@@ -1,2 +1,7 @@
 # 결정 기록은 끝에 항목을 덧붙이기만 하므로, 동시에 붙인 항목을 둘 다 살린다.
 docs/DECISIONS.md merge=union
+
+# 우리 어셈블 테스트 입력과 기대 출력은 운영체제와 무관하게 LF로 둔다(Windows CI의 hcs-asm.exe 골든 비교).
+# vendor/와 app/은 원본 바이트 그대로 두어야 하므로(규칙 2.2) 넣지 않는다.
+tests/asm/** text eol=lf
+tests/mips/*.s text eol=lf

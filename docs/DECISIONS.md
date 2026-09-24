@@ -159,3 +159,10 @@
 - **이유:** 우리 테스트용 회로다(학생 설계 아님). 기계어가 QtSpim 그대로이므로 회로가 PC 기준으로 계산해야 SPIM과 같은 결과가 난다(사용자 지시). 예외 처리기를 켜고 spim을 돌리면 시작 코드가 `$a0~$a2`, `$ra`를 바꿔 조건이 달라지고, 끄고 `run 0x00400000`하면 회로와 같은 시작 조건이 된다. spim 명령줄에는 레지스터를 설정하는 명령이 없다.
 - **Stack 깊이 기록:** 클럭 상승 에지의 접근만 센다. 전파 중 잠깐 나타나는 주소를 세면 깊이가 틀렸다(팩토리얼에서 8바이트 더 깊게 잡힘).
 - **대안:** 서브회로로 나눈 학생식 회로(테스트가 레지스터 값을 읽기 어려움), 교재식 PC+4 분기 가산기(QtSpim 기계어와 결과가 달라짐).
+
+## D-021 트랙 A 배포: Windows 빌드와 draft Release
+
+- **날짜:** 2026-09-24
+- **결정:** `hcs-asm.exe`는 GitHub Actions Windows 러너에서 MSYS2 UCRT64의 MinGW g++로 정적 링크해 만든다(`LDFLAGS=-static`). Windows 작업은 hcs-asm 골든과 QtSpim GUI 출력 비교를 돌린다(원본 spim 오라클은 Linux만). `v*` 태그를 push하면 CI가 `tools/package-track-a.sh`로 `hcs-mips-<버전>-windows.zip`·`-linux.zip`(jar, hcs-asm, 사용안내, 라이선스)을 만들어 **draft** Release에 올린다. 사용 안내는 `docs/track-a-guide.md`다.
+- **이유:** hcs-asm은 Qt가 필요 없는 작은 명령줄 도구라 MSVC·Qt 설정 없이 MinGW로 충분하다. SPIM 원본에도 MinGW 빌드 설정이 있다. 정적 링크면 학생 PC에 런타임 DLL이 없어도 된다. JSON은 Windows에서도 LF로 내도록 표준 출력을 바이너리 모드로 둔다. 학생 배포는 사용자 결정이라 draft로 둔다.
+- **대안:** Hallym MIPS처럼 MSVC + winflexbison(Qt 없이도 가능하지만 설정이 길다), 크로스 컴파일(Windows에서 실제로 도는지 확인 못 함).
