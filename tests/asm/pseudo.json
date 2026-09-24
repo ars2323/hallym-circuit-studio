@@ -1,7 +1,7 @@
 {
   "tool": "hcs-asm 0.1.0",
   "spim": "Version 9.1.24 of August 1, 2023 (final)",
-  "settings": {"bare_machine": false, "accept_pseudo_insts": true, "exception_handler": false, "branch_offset": "pc+4"},
+  "settings": {"bare_machine": false, "accept_pseudo_insts": true, "exception_handler": false, "delayed_branches": false},
   "entry": "0x00400000",
   "text": [
     {"addr": "0x00400000", "word": "0x34080005", "line": 6, "source": "li    $t0, 5              # 작은 양수: ori 하나"},
@@ -14,14 +14,14 @@
     {"addr": "0x0040001c", "word": "0x01006827", "line": 11, "source": "not   $t5, $t0"},
     {"addr": "0x00400020", "word": "0x00087022", "line": 12, "source": "neg   $t6, $t0"},
     {"addr": "0x00400024", "word": "0x0109082a", "line": 13, "source": "blt   $t0, $t1, done      # slt + bne"},
-    {"addr": "0x00400028", "word": "0x14200007", "line": 13, "source": "blt   $t0, $t1, done      # slt + bne"},
+    {"addr": "0x00400028", "word": "0x14200008", "line": 13, "source": "blt   $t0, $t1, done      # slt + bne"},
     {"addr": "0x0040002c", "word": "0x0128082a", "line": 14, "source": "bgt   $t0, $t1, next      # slt + bne"},
-    {"addr": "0x00400030", "word": "0x14200000", "line": 14, "source": "bgt   $t0, $t1, next      # slt + bne"},
+    {"addr": "0x00400030", "word": "0x14200001", "line": 14, "source": "bgt   $t0, $t1, next      # slt + bne"},
     {"addr": "0x00400034", "word": "0x0128082a", "line": 15, "source": "ble   $t0, $t1, done"},
-    {"addr": "0x00400038", "word": "0x10200003", "line": 15, "source": "ble   $t0, $t1, done"},
+    {"addr": "0x00400038", "word": "0x10200004", "line": 15, "source": "ble   $t0, $t1, done"},
     {"addr": "0x0040003c", "word": "0x0109082a", "line": 16, "source": "bge   $t0, $t1, done"},
-    {"addr": "0x00400040", "word": "0x10200001", "line": 16, "source": "bge   $t0, $t1, done"},
-    {"addr": "0x00400044", "word": "0x04010000", "line": 17, "source": "b     done"},
+    {"addr": "0x00400040", "word": "0x10200002", "line": 16, "source": "bge   $t0, $t1, done"},
+    {"addr": "0x00400044", "word": "0x04010001", "line": 17, "source": "b     done"},
     {"addr": "0x00400048", "word": "0x3402000a", "line": 18, "source": "li    $v0, 10"},
     {"addr": "0x0040004c", "word": "0x0000000c", "line": 19, "source": "syscall"}
   ],

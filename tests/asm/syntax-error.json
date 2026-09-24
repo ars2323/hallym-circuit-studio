@@ -1,7 +1,7 @@
 {
   "tool": "hcs-asm 0.1.0",
   "spim": "Version 9.1.24 of August 1, 2023 (final)",
-  "settings": {"bare_machine": false, "accept_pseudo_insts": true, "exception_handler": false, "branch_offset": "pc+4"},
+  "settings": {"bare_machine": false, "accept_pseudo_insts": true, "exception_handler": false, "delayed_branches": false},
   "entry": "0x00400000",
   "text": [],
   "data": [],

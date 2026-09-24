@@ -30,8 +30,12 @@ ORACLE_ONLY = [
     ("Tests/tt.dir.s", ["-exception"]),
     ("Tests/tt.io.s", ["-exception"]),
     ("Tests/tt.bare.s", ["-nopseudo"]),
-    ("Tests/tt.alu.bare.s", ["-bare"]),
-    ("Tests/tt.fpu.bare.s", ["-bare"]),
+]
+
+# QtSpim GUI 출력(Save Log File)과 비교: (프로그램, 골든 파일). tests/asm/qtspim/README.md
+QTSPIM_GOLDEN = [
+    ("helloworld.s", "helloworld.text.txt"),
+    ("Tests/tt.core.s", "tt.core.text.txt"),
 ]
 
 failures = []
@@ -47,15 +51,10 @@ def run_hcs_asm(path, flags):
 
 
 def oracle_flags(settings):
-    flags = ["-exception" if settings["exception_handler"] else "-noexception"]
-    if settings["bare_machine"]:
-        flags.append("-bare")
-    else:
-        flags.append("-asm")
-        if settings["branch_offset"] == "pc+4":
-            flags.append("-delayed_branches")
-    flags.append("-pseudo" if settings["accept_pseudo_insts"] else "-nopseudo")
-    return flags
+    """spim command line with the same settings. hcs-asm always uses QtSpim's defaults
+    (extended machine, no delayed branches), so only these two can differ."""
+    return ["-exception" if settings["exception_handler"] else "-noexception", "-asm",
+            "-pseudo" if settings["accept_pseudo_insts"] else "-nopseudo"]
 
 
 def run_oracle(path, settings):
@@ -135,12 +134,32 @@ def main():
             continue
         check_against_oracle(rel, path, json.loads(out))
 
-    total = len(cases) + len(ORACLE_ONLY)
+    for rel, golden in QTSPIM_GOLDEN:
+        path = os.path.join(SPIM_SRC, rel)
+        code, out, err = run_hcs_asm(path, ["-exception"])
+        if code not in (0, 1):
+            fail(rel, f"exit {code}: {err.strip()}")
+            continue
+        ours = {int(w["addr"], 16): int(w["word"], 16) for w in json.loads(out)["text"]}
+        theirs = {}
+        with open(os.path.join(CASES, "qtspim", golden)) as f:
+            for line in f:
+                if line.startswith("Kernel Text Segment"):
+                    break  # hcs-asm은 커널 세그먼트를 내보내지 않는다
+                m = re.match(r"\[([0-9a-f]{8})\] ([0-9a-f]{8}) ", line)
+                if m:
+                    theirs[int(m.group(1), 16)] = int(m.group(2), 16)
+        if not theirs or ours != theirs:
+            diff = [a for a in sorted(set(ours) | set(theirs)) if ours.get(a) != theirs.get(a)][:3]
+            fail(rel, f"differs from QtSpim at {[hex(a) for a in diff]} ({len(theirs)} QtSpim words)")
+
+    total = len(cases) + len(ORACLE_ONLY) + len(QTSPIM_GOLDEN)
     if failures:
         print("\n".join(failures))
         print(f"hcs-asm tests: {len(failures)} failure(s) in {total} programs")
         sys.exit(1)
-    print(f"hcs-asm tests OK ({len(cases)} golden, {total} checked against spim)")
+    print(f"hcs-asm tests OK ({len(cases)} golden, {total - len(QTSPIM_GOLDEN)} checked against spim, "
+          f"{len(QTSPIM_GOLDEN)} against QtSpim GUI output)")
 
 
 if __name__ == "__main__":

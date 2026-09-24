@@ -15,10 +15,7 @@ g++, make, bison, flex가 필요하다. `parser.y`와 `scanner.l`은 `build/` �
 
 ```text
 hcs-asm [options] <file.s>
-  -asm / -bare            확장 기계(기본) / bare 기계(-nopseudo 포함)
   -pseudo / -nopseudo     의사 명령어 허용(기본: 허용)
-  -branch pc4             분기 오프셋 = (목적지 − (PC+4)) / 4 (기본, 교재와 같음)
-  -branch pc              분기 오프셋 = (목적지 − PC) / 4 (QtSpim·Hallym MIPS 기본값과 같은 비트)
   -exception / -noexception   예외 처리기를 먼저 올림 / 올리지 않음(기본)
   -exception_file <f>     예외 처리기 파일(기본: 실행 파일 옆 exceptions.s)
   -version
@@ -32,7 +29,7 @@ hcs-asm [options] <file.s>
 {
   "tool": "hcs-asm 0.1.0",
   "spim": "Version 9.1.24 of August 1, 2023 (final)",
-  "settings": {"bare_machine": false, "accept_pseudo_insts": true, "exception_handler": false, "branch_offset": "pc+4"},
+  "settings": {"bare_machine": false, "accept_pseudo_insts": true, "exception_handler": false, "delayed_branches": false},
   "entry": "0x00400000",
   "text": [
     {"addr": "0x00400000", "word": "0x3c041001", "line": 7, "source": "la   $a0, msg        # load address"}
@@ -48,7 +45,7 @@ hcs-asm [options] <file.s>
 
 | 필드 | 내용 |
 | --- | --- |
-| `settings` | 어셈블에 쓴 설정. 같은 소스라도 `branch_offset`에 따라 분기 워드가 달라진다 |
+| `settings` | 어셈블에 쓴 설정. 확장 기계와 지연 분기 끔은 늘 QtSpim 기본값 그대로다 |
 | `entry` | `main` 라벨 주소. 없으면 `null` |
 | `text` | 사용자 텍스트 세그먼트의 모든 워드. 주소·값은 `0x` 16진수 문자열(8자리) |
 | `text[].line`, `source` | 원래 소스 줄 번호와 원문(주석 포함). 의사 명령어가 여러 워드로 펼쳐지면 모든 워드가 같은 줄을 가진다 |
@@ -67,27 +64,16 @@ hcs-asm [options] <file.s>
 - **예외 처리기 없음(기본):** 사용자 `.text`가 `0x00400000`부터 그대로 놓인다. 시작 코드도 커널 세그먼트도 없다. `main`이 첫 줄이면 `entry`는 `0x00400000`이다.
 - **예외 처리기 있음(`-exception`, QtSpim·Hallym MIPS 기본값):** `exceptions.s`의 `__start` 시작 코드 9워드가 `0x00400000`~`0x00400020`에 먼저 놓이고 `main`은 `0x00400024`다.
 
-## 분기 오프셋 (PLAN.md 10장 미결정 1번, D-010)
+## 기계어는 QtSpim 그대로 (D-010, 사용자 확정)
 
-SPIM은 `delayed_branches` 설정에 따라 분기 명령의 16비트 오프셋을 다르게 인코딩한다. 어셈블 단계에서 이 설정이 바꾸는 것은 이것 하나뿐이다(`CPU/sym-tbl.cpp:264`).
+hcs-asm은 QtSpim·Hallym MIPS 기본 설정(확장 기계, 지연 분기 끔, 의사 명령어 켬)으로 SPIM 코어가 만든 기계어를 **그대로** 낸다. 인코딩을 고르거나 바꾸는 옵션은 없다. 분기 목적지를 어떻게 계산할지는 학생 데이터패스의 몫이고, 도구는 주소에 해당하는 워드를 내보낼 뿐이다.
 
-| | 오프셋 인코딩 | 실행 | `jal`이 저장하는 `$ra` |
-| --- | --- | --- | --- |
-| SPIM, 지연 분기 끔(QtSpim·Hallym MIPS 기본) | (목적지 − PC) / 4 | 지연 슬롯 없음 | PC+4 |
-| SPIM, 지연 분기 켬 | (목적지 − (PC+4)) / 4 | 지연 슬롯 실행 | PC+8 |
-| 교재 single-cycle 데이터패스 | (목적지 − (PC+4)) / 4 | 지연 슬롯 없음 | PC+4 |
-
-예(`tests/asm/branches.s`): `0x00400010`의 `bne $t0, $t1, loop`(목적지 `0x0040000c`)는 지연 분기 끔에서 `0x1509ffff`(오프셋 −1), 교재 정의로는 `0x1509fffe`(오프셋 −2)다.
-
-교재 데이터패스는 인코딩은 "지연 분기 켬"과, 실행은 "지연 분기 끔"과 같다. 그래서:
-
-- **과제 표준 설정(Hallym MIPS):** 예외 처리기 불러오기 끔, 지연 분기 끔, 의사 명령어 켬, bare 끔. 실행 의미가 학생 회로(지연 슬롯 없음, `$ra` = PC+4)와 같고 `main`이 `0x00400000`에 온다.
-- **hcs-asm 기본값:** 같은 설정으로 어셈블하되 분기 오프셋만 교재 정의(`-branch pc4`)로 인코딩한다. 교재대로 만든 데이터패스가 그대로 실행할 수 있는 기계어다.
-- **결과:** 분기 명령(`beq`, `bne`와 `blt` 같은 의사 분기가 펼쳐진 `bne`/`beq`)의 오프셋 필드만 Hallym MIPS 화면보다 1 작고, 나머지 워드는 비트 단위로 같다. Hallym MIPS와 같은 비트가 필요하면 `-branch pc`를 쓴다.
+참고 사실(0단계 조사): 지연 분기를 끈 SPIM은 분기 오프셋을 `(목적지 − PC) / 4`로 인코딩한다. 교재는 `(목적지 − (PC+4)) / 4`로 설명한다. 어셈블 단계에서 `delayed_branches` 설정이 바꾸는 것은 이 오프셋 하나다(`CPU/sym-tbl.cpp:264`). 예: `tests/asm/branches.s`의 `0x0040000c: bne $t0, $t1, loop`(목적지 `0x00400008`)는 `0x1509ffff`다.
 
 ## 테스트
 
 `native/hcs-asm/tests/check.py`가 두 가지를 확인한다.
 
-1. **골든:** `tests/asm/<이름>.s`(+ `<이름>.flags`)의 출력이 `tests/asm/<이름>.json`과 글자 단위로 같다. 산술, lw/sw, 앞·뒤 분기, j/jal/jr, 의사 명령어, `.data` 문자열·지시어, 문법 오류, 미정의 라벨, `main` 위치 경고, 예외 처리기, `-branch pc`를 다룬다. 출력을 바꿨으면 `python3 native/hcs-asm/tests/check.py --update`로 다시 만들고 diff를 검토한다.
-2. **오라클:** 오류 없는 모든 입력과 SPIM 원본 테스트 프로그램(`helloworld.s`, `Tests/tt.core.s` 등 8개)을 수정하지 않은 원본 `spim` 명령줄(`build/oracle/spim -dump`, 배포하지 않음)로도 어셈블해 텍스트·데이터 워드가 모두 같은지 본다. `-branch pc4`는 `spim -delayed_branches`와 비교한다.
+1. **골든:** `tests/asm/<이름>.s`(+ `<이름>.flags`)의 출력이 `tests/asm/<이름>.json`과 글자 단위로 같다. 산술, lw/sw, 앞·뒤 분기, j/jal/jr, 의사 명령어, `.data` 문자열·지시어, 문법 오류, 미정의 라벨, `main` 위치 경고, 예외 처리기를 다룬다. 출력을 바꿨으면 `python3 native/hcs-asm/tests/check.py --update`로 다시 만들고 diff를 검토한다.
+2. **오라클:** 오류 없는 모든 입력과 SPIM 원본 테스트 프로그램(`helloworld.s`, `Tests/tt.core.s` 등 6개)을 수정하지 않은 원본 `spim` 명령줄(`build/oracle/spim -dump`, 배포하지 않음)로도 어셈블해 텍스트·데이터 워드가 모두 같은지 본다.
+3. **QtSpim GUI 출력:** Hallym MIPS 저장소에 있는 원본 QtSpim GUI의 Save Log File 골든(`tests/asm/qtspim/`, `helloworld.s`와 `tt.core.s`의 사용자 텍스트 약 4700워드)을 `hcs-asm -exception` 출력과 주소·워드 단위로 비교한다. 분기를 포함해 모든 명령이 같다.

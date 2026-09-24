@@ -42,9 +42,7 @@ namespace {
 
 struct Options {
   std::string input;
-  bool bare = false;
   bool pseudo = true;
-  bool branch_pc4 = true;  // branch offsets relative to PC+4 (textbook) or PC (SPIM default)
   bool exception = false;
   std::string exception_file;  // empty: exceptions.s next to the executable
 };
@@ -74,15 +72,11 @@ void usage(FILE *out) {
       "usage: hcs-asm [options] <file.s>\n"
       "Assemble <file.s> with the SPIM %s core and print JSON on stdout.\n"
       "\n"
+      "The machine code is exactly what QtSpim and Hallym MIPS produce with their\n"
+      "default settings (extended machine, delayed branches off).\n"
+      "\n"
       "options (names follow the spim command line):\n"
-      "  -asm                 extended machine (default)\n"
-      "  -bare                bare machine; implies -nopseudo\n"
       "  -pseudo / -nopseudo  accept pseudo instructions (default: -pseudo)\n"
-      "  -branch pc4          branch offset = (target - (PC+4)) / 4, as in the textbook\n"
-      "                       datapath and MIPS hardware (default; same bits as SPIM\n"
-      "                       with delayed branches)\n"
-      "  -branch pc           branch offset = (target - PC) / 4, the bits QtSpim and\n"
-      "                       Hallym MIPS show with delayed branches off\n"
       "  -exception           load the exception handler (default off)\n"
       "  -noexception         do not load the exception handler (default)\n"
       "  -exception_file <f>  exception handler file (implies -exception)\n"
@@ -93,17 +87,10 @@ void usage(FILE *out) {
 bool parse_args(int argc, char **argv, Options *o) {
   for (int i = 1; i < argc; i += 1) {
     std::string a = argv[i];
-    if (a == "-asm" || a == "-a") {
-      o->bare = false;
-    } else if (a == "-bare" || a == "-b") {
-      o->bare = true;
-      o->pseudo = false;
-    } else if (a == "-pseudo" || a == "-p") {
+    if (a == "-pseudo" || a == "-p") {
       o->pseudo = true;
     } else if (a == "-nopseudo" || a == "-np") {
       o->pseudo = false;
-    } else if (a == "-branch" && i + 1 < argc && (std::string(argv[i + 1]) == "pc4" || std::string(argv[i + 1]) == "pc")) {
-      o->branch_pc4 = std::string(argv[++i]) == "pc4";
     } else if (a == "-exception" || a == "-e") {
       o->exception = true;
     } else if (a == "-noexception" || a == "-ne") {
@@ -273,11 +260,11 @@ int main(int argc, char **argv) {
   message_out.i = 1;
   console_out.i = 2;
   console_in.i = 0;
-  bare_machine = opt.bare;
+  // QtSpim defaults: extended machine, no delayed branches or loads. The tool
+  // never changes how SPIM encodes instructions (D-010).
+  bare_machine = false;
   accept_pseudo_insts = opt.pseudo;
-  // In the assembler, delayed_branches only subtracts 1 from branch offsets
-  // (CPU/sym-tbl.cpp); nothing here runs the program.
-  delayed_branches = opt.branch_pc4;
+  delayed_branches = false;
   delayed_loads = false;
   mapped_io = false;
   quiet = false;
@@ -412,10 +399,10 @@ int main(int argc, char **argv) {
   out += "{\n";
   out += "  \"tool\": " + json_string(std::string("hcs-asm ") + HCS_ASM_VERSION) + ",\n";
   out += "  \"spim\": " + json_string(SPIM_VERSION) + ",\n";
-  out += "  \"settings\": {\"bare_machine\": " + std::string(opt.bare ? "true" : "false") +
-         ", \"accept_pseudo_insts\": " + (opt.pseudo ? "true" : "false") +
+  out += std::string("  \"settings\": {\"bare_machine\": false")
+         + ", \"accept_pseudo_insts\": " + (opt.pseudo ? "true" : "false") +
          ", \"exception_handler\": " + (opt.exception ? "true" : "false") +
-         ", \"branch_offset\": " + (opt.branch_pc4 ? "\"pc+4\"" : "\"pc\"") + "},\n";
+         ", \"delayed_branches\": false},\n";
   out += "  \"entry\": " + (main_label ? json_string(hex32(main_label->addr)) : std::string("null")) + ",\n";
   out += "  \"text\": [";
   for (size_t i = 0; i < text.size(); i += 1) {
