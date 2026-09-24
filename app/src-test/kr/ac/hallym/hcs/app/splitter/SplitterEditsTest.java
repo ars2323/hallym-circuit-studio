@@ -113,6 +113,84 @@ class SplitterEditsTest {
         return SplitterEdits.names(file, file.getMainCircuit(), Location.create(300, 300));
     }
 
+    /** 팔 이름 바꾸기는 회로 변경과 같은 되돌리기 한 단계다. */
+    @Test
+    void namesAreUndoneWithTheEdit() throws Exception {
+        LogisimFile file = CircuitBuilder.newFile(new Loader(null), tmp.toFile());
+        CircuitBuilder b = new CircuitBuilder(file, file.getMainCircuit());
+        b.add("Wiring", "Splitter", 300, 300);
+        b.commit();
+        Circuit main = file.getMainCircuit();
+        Location at = Location.create(300, 300);
+        SplitterSpec named = SplitterSpec.parse("1 hi, 0 lo", 2, true);
+        com.cburch.logisim.proj.Action act = SplitterEdits.withNames(null, "names", file, main, at, named);
+        act.doIt(null);
+        assertEquals(Arrays.asList("hi", "lo"), SplitterEdits.names(file, main, at));
+        act.undo(null);
+        assertTrue(SplitterEdits.names(file, main, at).isEmpty());
+        assertTrue(CircExtensions.of(file).isEmpty(), "undo leaves nothing to save");
+    }
+
+    /** 지운 스플리터의 이름은 저장할 때 빠진다. 팔 수가 다른 스플리터는 이름을 물려받지 않는다. */
+    @Test
+    void staleNamesAreDroppedOnSave() throws Exception {
+        kr.ac.hallym.hcs.app.ext.CircExtensions.addPruner(SplitterEdits.PRUNER);
+        LogisimFile file = CircuitBuilder.newFile(new Loader(null), tmp.toFile());
+        CircuitBuilder b = new CircuitBuilder(file, file.getMainCircuit());
+        Component sp = b.add("Wiring", "Splitter", 300, 300);
+        b.commit();
+        Circuit main = file.getMainCircuit();
+        Location at = Location.create(300, 300);
+        SplitterEdits.setNames(file, main, at, SplitterSpec.parse("1 hi, 0 lo", 2, true));
+        com.cburch.logisim.circuit.CircuitMutation del = new com.cburch.logisim.circuit.CircuitMutation(main);
+        del.remove(sp);
+        del.execute();
+        File saved = tmp.resolve("deleted.circ").toFile();
+        CircuitBuilder.save(file, saved);
+        CircExtensions.afterSave(file, saved);
+        assertFalse(new String(Files.readAllBytes(saved.toPath()), StandardCharsets.UTF_8).contains("hcs:"));
+
+        CircuitBuilder b2 = new CircuitBuilder(file, main);
+        b2.add("Wiring", "Splitter", 300, 300, "fanout", "3", "incoming", "3");
+        b2.commit();
+        SplitterEdits.setNames(file, main, at, SplitterSpec.parse("1 hi, 0 lo", 2, true));
+        CircuitBuilder.save(file, saved);
+        CircExtensions.afterSave(file, saved);
+        assertFalse(new String(Files.readAllBytes(saved.toPath()), StandardCharsets.UTF_8).contains("hcs:"),
+                "two names do not belong to a three-arm splitter");
+    }
+
+    /** 이름 없이 편집한 스플리터는 원조 API로 같은 속성을 준 스플리터와 똑같이 저장된다. */
+    @Test
+    void editedSplitterWithoutNamesSavesLikeTheOriginal() throws Exception {
+        SplitterSpec spec = SplitterSpec.Preset.MIPS_I.spec(true);
+        LogisimFile edited = CircuitBuilder.newFile(new Loader(null), tmp.toFile());
+        CircuitBuilder b = new CircuitBuilder(edited, edited.getMainCircuit());
+        Component sp = b.add("Wiring", "Splitter", 300, 300);
+        b.commit();
+        SplitterEdits.change(edited.getMainCircuit(), sp, spec).execute();
+        File a = tmp.resolve("edited.circ").toFile();
+        CircuitBuilder.save(edited, a);
+        CircExtensions.afterSave(edited, a);
+
+        LogisimFile plain = CircuitBuilder.newFile(new Loader(null), tmp.toFile());
+        CircuitBuilder p = new CircuitBuilder(plain, plain.getMainCircuit());
+        List<String> attrs = new ArrayList<>();
+        for (java.util.Map.Entry<String, String> e : spec.toStandardAttrs().entrySet()) {
+            attrs.add(e.getKey());
+            attrs.add(e.getValue());
+        }
+        p.add("Wiring", "Splitter", 300, 300, attrs.toArray(new String[0]));
+        p.commit();
+        File c = tmp.resolve("plain.circ").toFile();
+        CircuitBuilder.save(plain, c);
+        String sa = new String(Files.readAllBytes(a.toPath()), StandardCharsets.UTF_8);
+        String sc = new String(Files.readAllBytes(c.toPath()), StandardCharsets.UTF_8);
+        assertFalse(sa.contains("hcs:"));
+        assertEquals(kr.ac.hallym.hcs.regress.CircNormalizer.normalize(sc),
+                kr.ac.hallym.hcs.regress.CircNormalizer.normalize(sa));
+    }
+
     @Test
     void clickingABoundarySplitsOrJoins() throws Exception {
         SplitterSpec s = SplitterSpec.parse("7:0", 8, true);
@@ -135,9 +213,15 @@ class SplitterEditsTest {
         assertEquals(Arrays.asList(pc, addr, zero), o.order());
         o.update(Arrays.asList(zero, pc));
         assertEquals(Arrays.asList(pc, zero), o.order(), "deselected ones drop out, order kept");
+        assertTrue(o.known());
         List<String> none = new ArrayList<>();
         o.update(none);
         assertTrue(o.order().isEmpty());
+        o.update(Arrays.asList(pc, addr, zero)); // 사각형으로 한꺼번에
+        assertFalse(o.known(), "several at once: the order is not known");
+        o.update(none);
+        o.update(Collections.singletonList(zero));
+        assertTrue(o.known());
         assertTrue(CircExtensionIO.NS.startsWith("urn:"));
     }
 }

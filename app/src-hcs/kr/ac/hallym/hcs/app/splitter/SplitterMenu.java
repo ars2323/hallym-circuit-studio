@@ -42,6 +42,19 @@ public final class SplitterMenu implements ContextMenus.Provider {
         List<Wire> wires = selectedWires(t);
         if (wires.size() >= 2) {
             JMenuItem combine = new JMenuItem(Messages.get("splitter.combine", wires.size()));
+            boolean widthsKnown = true;
+            for (Wire w : wires) {
+                widthsKnown &= width(t.circuit, w) > 0;
+            }
+            if (!t.selectionOrderKnown) {
+                // 사각형으로 한꺼번에 고르면 순서가 없다: 도구가 순서를 정하지 않는다(1장 원칙)
+                combine.setEnabled(false);
+                combine.setToolTipText(Messages.get("splitter.combineNeedsOrder"));
+                combine.setText(Messages.get("splitter.combineNeedsOrder"));
+            } else if (!widthsKnown) {
+                combine.setEnabled(false);
+                combine.setToolTipText(Messages.get("splitter.combineUnknownWidth"));
+            }
             combine.addActionListener(e -> combine(t.project, t.circuit, wires));
             menu.add(combine);
         } else if (t.isWire()) {
@@ -109,15 +122,13 @@ public final class SplitterMenu implements ContextMenus.Provider {
     /** 고른 순서대로 한 버스로. 새 스플리터는 고른 선들 오른쪽에 두고(팔이 왼쪽), 연결은 학생이 한다. */
     static void combine(Project proj, Circuit circuit, List<Wire> wires) {
         List<Integer> widths = new ArrayList<>();
-        List<String> names = new ArrayList<>();
-        Netlist nl = Netlist.of(circuit);
         Bounds box = null;
         for (Wire w : wires) {
-            widths.add(Math.max(1, width(circuit, w)));
-            names.add(netName(circuit, nl.netOf(w)));
+            widths.add(width(circuit, w));
             box = box == null ? w.getBounds() : box.add(w.getBounds());
         }
-        SplitterSpec spec = SplitterSpec.combine(widths, names);
+        // 팔 이름은 학생이 편집기에서 직접 붙인다(도구가 채운 이름은 저장하지 않는다)
+        SplitterSpec spec = SplitterSpec.combine(widths, null);
         if (spec.width() > 32) {
             javax.swing.JOptionPane.showMessageDialog(proj.getFrame(), Messages.get("splitter.tooWide", spec.width()));
             return;
@@ -127,22 +138,5 @@ public final class SplitterMenu implements ContextMenus.Provider {
         Location at = Location.create(x, y);
         CircuitMutation m = SplitterEdits.create(proj.getLogisimFile(), circuit, at, Direction.WEST, spec);
         proj.doAction(m.toAction(() -> Messages.get("splitter.combineAction")));
-        if (SplitterEdits.setNames(proj.getLogisimFile(), circuit, at, spec)) {
-            proj.getLogisimFile().setDirty(true);
-        }
-    }
-
-    /** 선의 이름: 넷에 라벨 붙은 터널·핀이 있으면 그 이름, 없으면 빈 이름. */
-    static String netName(Circuit circuit, Netlist.Net net) {
-        if (net == null) {
-            return "";
-        }
-        for (Netlist.PortRef p : net.ports()) {
-            String label = Names.label(p.component);
-            if (label != null && label.matches("[A-Za-z_][\\w.]*")) {
-                return label;
-            }
-        }
-        return "";
     }
 }

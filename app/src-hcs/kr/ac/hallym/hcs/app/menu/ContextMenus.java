@@ -40,14 +40,17 @@ public final class ContextMenus {
         public final Component component;
         /** 여러 개를 골랐을 때 고른 순서. */
         public final List<Component> selection;
+        /** 고른 순서를 아는가(사각형으로 한꺼번에 골랐으면 모른다). */
+        public final boolean selectionOrderKnown;
 
-        Target(Canvas canvas, Location point, Component component, List<Component> selection) {
+        Target(Canvas canvas, Location point, Component component, List<Component> selection, boolean known) {
             this.canvas = canvas;
             this.project = canvas.getProject();
             this.circuit = canvas.getCircuit();
             this.point = point;
             this.component = component;
             this.selection = selection;
+            this.selectionOrderKnown = known;
         }
 
         public boolean isWire() {
@@ -67,6 +70,7 @@ public final class ContextMenus {
 
     static {
         PROVIDERS.add(new SplitterMenu());
+        kr.ac.hallym.hcs.app.ext.CircExtensions.addPruner(kr.ac.hallym.hcs.app.splitter.SplitterEdits.PRUNER);
     }
 
     private ContextMenus() {
@@ -88,13 +92,13 @@ public final class ContextMenus {
         LISTENERS.put(proj, l);
     }
 
-    static synchronized List<Component> selectionOrder(Project proj) {
+    static synchronized SelectionOrder<Component> selectionOrder(Project proj) {
         SelectionOrder<Component> o = ORDERS.get(proj);
         if (o == null) {
-            return new ArrayList<>(proj.getSelection().getComponents());
+            o = new SelectionOrder<>();
         }
         o.update(proj.getSelection().getComponents());
-        return o.order();
+        return o;
     }
 
     /** Menu Tool이 만든 menu(없으면 null)에 대상별 항목을 더한다. 더할 것도 없고 menu도 없으면 null. */
@@ -105,8 +109,8 @@ public final class ContextMenus {
         if (!here.isEmpty()) {
             comp = here.iterator().next();
         }
-        List<Component> sel = selectionOrder(proj);
-        Target t = new Target(canvas, pt, comp, sel);
+        SelectionOrder<Component> sel = selectionOrder(proj);
+        Target t = new Target(canvas, pt, comp, sel.order(), sel.known());
         JPopupMenu m = menu != null ? menu : new JPopupMenu();
         int before = m.getComponentCount();
         for (Provider p : PROVIDERS) {

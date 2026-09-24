@@ -33,6 +33,66 @@ import kr.ac.hallym.hcs.app.ext.CircExtensions;
 public final class SplitterEdits {
     static final String KIND = "splitter";
 
+    /** 저장 전: 그 자리에 팔 수가 같은 스플리터가 없는 이름 항목을 지운다(되돌리기·삭제·이동 뒤에 남지 않게). */
+    public static final CircExtensions.Pruner PRUNER = (file, ext) -> {
+        for (Circuit c : file.getCircuits()) {
+            for (CircExtension.Item item : ext.items(c.getName())) {
+                if (item.kind().equals(KIND) && splitterFor(c, item) == null) {
+                    ext.remove(c.getName(), item);
+                }
+            }
+        }
+    };
+
+    /** 이름 항목이 가리키는 스플리터: 그 위치에 있고 팔 수가 이름 수와 같아야 한다. */
+    static Component splitterFor(Circuit c, CircExtension.Item item) {
+        Location at = at(item);
+        int n = 0;
+        while (item.get("arm" + n) != null) {
+            n++;
+        }
+        for (Component comp : c.getNonWires()) {
+            if (comp.getFactory().getName().equals("Splitter") && comp.getLocation().equals(at)
+                    && comp.getEnds().size() - 1 == n) {
+                return comp;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 회로 변경과 팔 이름 바꾸기를 되돌리기 한 번으로 묶는다. base가 null이면 이름만 바꾼다.
+     */
+    public static com.cburch.logisim.proj.Action withNames(com.cburch.logisim.proj.Action base, String name,
+            LogisimFile file, Circuit circuit, Location at, SplitterSpec spec) {
+        return new com.cburch.logisim.proj.Action() {
+            private SplitterSpec before;
+
+            @Override
+            public String getName() {
+                return name;
+            }
+
+            @Override
+            public void doIt(com.cburch.logisim.proj.Project proj) {
+                if (base != null) {
+                    base.doIt(proj);
+                }
+                List<String> old = names(file, circuit, at);
+                before = spec.withNames(old);
+                setNames(file, circuit, at, spec);
+            }
+
+            @Override
+            public void undo(com.cburch.logisim.proj.Project proj) {
+                setNames(file, circuit, at, before == null ? spec.withNames(new ArrayList<String>()) : before);
+                if (base != null) {
+                    base.undo(proj);
+                }
+            }
+        };
+    }
+
     private SplitterEdits() {
     }
 

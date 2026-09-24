@@ -376,12 +376,14 @@ public final class SplitterEditor extends JDialog {
             return;
         }
         Location at = splitter.getLocation();
-        if (!s.toStandardAttrs().equals(cur.toStandardAttrs())) {
-            CircuitMutation m = SplitterEdits.change(circuit, splitter, s);
-            proj.doAction(m.toAction(() -> Messages.get("splitter.editAction")));
-        }
-        if (SplitterEdits.setNames(proj.getLogisimFile(), circuit, at, s)) {
-            proj.getLogisimFile().setDirty(true);
+        boolean attrs = !s.toStandardAttrs().equals(cur.toStandardAttrs());
+        boolean names = !s.names().equals(cur.names());
+        if (attrs || names) {
+            com.cburch.logisim.proj.Action base = attrs
+                    ? SplitterEdits.change(circuit, splitter, s).toAction(() -> Messages.get("splitter.editAction"))
+                    : null;
+            proj.doAction(SplitterEdits.withNames(base, Messages.get("splitter.editAction"), proj.getLogisimFile(),
+                    circuit, at, s));
         }
     }
 
@@ -401,9 +403,7 @@ public final class SplitterEditor extends JDialog {
             return;
         }
         CircuitMutation m = SplitterEdits.create(proj.getLogisimFile(), circuit, at, Direction.EAST, s);
-        proj.doAction(m.toAction(() -> Messages.get("splitter.createAction")));
-        if (SplitterEdits.setNames(proj.getLogisimFile(), circuit, at, s)) {
-            proj.getLogisimFile().setDirty(true);
-        }
+        proj.doAction(SplitterEdits.withNames(m.toAction(() -> Messages.get("splitter.createAction")),
+                Messages.get("splitter.createAction"), proj.getLogisimFile(), circuit, at, s));
     }
 }

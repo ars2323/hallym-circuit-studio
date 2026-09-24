@@ -18,15 +18,28 @@ import java.util.List;
  */
 public final class SelectionOrder<T> {
     private final List<T> order = new ArrayList<>();
+    /** 한 번에 여럿이 들어와(사각형 선택 등) 순서를 알 수 없는 것. */
+    private final List<T> unordered = new ArrayList<>();
 
     /** 지금 선택된 것들로 순서를 갱신한다. */
     public synchronized void update(Collection<? extends T> now) {
         order.removeIf(t -> !contains(now, t));
+        unordered.removeIf(t -> !contains(now, t));
+        List<T> added = new ArrayList<>();
         for (T t : now) {
             if (!containsIdentity(order, t)) {
-                order.add(t);
+                added.add(t);
             }
         }
+        order.addAll(added);
+        if (added.size() > 1) {
+            unordered.addAll(added);
+        }
+    }
+
+    /** 지금 선택의 순서를 아는가(모두 하나씩 골랐는가). */
+    public synchronized boolean known() {
+        return unordered.isEmpty();
     }
 
     public synchronized List<T> order() {
