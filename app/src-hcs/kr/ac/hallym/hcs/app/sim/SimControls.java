@@ -200,6 +200,7 @@ public final class SimControls {
         legend.setForeground(Tokens.BLUE);
         legend.setToolTipText(Messages.get("bar.legendTip"));
         p.add(legend);
+        p.add(kr.ac.hallym.hcs.app.labels.LabelOverlay.densityButton()); // #79
         refresh();
         return p;
     }

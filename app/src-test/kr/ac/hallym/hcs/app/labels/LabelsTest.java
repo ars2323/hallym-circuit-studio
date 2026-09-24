@@ -1,0 +1,235 @@
+/*
+ * Hallym Circuit Studio
+ * Copyright (c) 2026 AIAC Lab, Hallym University.
+ * License: GNU GPL version 2 or later. See LICENSE.
+ */
+package kr.ac.hallym.hcs.app.labels;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.awt.Color;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Rectangle;
+import java.awt.image.BufferedImage;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import com.cburch.logisim.circuit.Circuit;
+import com.cburch.logisim.circuit.CircuitState;
+import com.cburch.logisim.circuit.Wire;
+import com.cburch.logisim.comp.Component;
+import com.cburch.logisim.comp.ComponentDrawContext;
+import com.cburch.logisim.data.Location;
+import com.cburch.logisim.file.Loader;
+import com.cburch.logisim.file.LogisimFile;
+import com.cburch.logisim.proj.Project;
+
+import kr.ac.hallym.hcs.regress.CircuitBuilder;
+
+/** #79: 라벨 칩 배치(겹침 0), 원조 라벨만 빼는 그리기, 터널 색, 버스 이름, 마우스 오버 정보. */
+class LabelsTest {
+    @TempDir
+    Path tmp;
+
+    private static boolean overlaps(Rectangle a, Rectangle b) {
+        return a.intersects(b);
+    }
+
+    @Test
+    void chipsStayHomeWhenFreeAndNeverOverlap() {
+        // 빈 자리면 원래 자리 그대로
+        List<LabelLayout.Req> one = Collections.singletonList(
+                new LabelLayout.Req("a", new Rectangle(100, 100, 20, 10), 30, 14, 0));
+        LabelLayout.Placed p = LabelLayout.layout(one, new ArrayList<>(), 4, 10).get(0);
+        assertEquals(new Rectangle(95, 98, 30, 14), p.rect);
+        assertFalse(p.leader);
+
+        // 빽빽한 라벨 40개와 부품 12개: 칩끼리, 칩과 부품이 겹치지 않는다
+        Random rnd = new Random(7);
+        List<LabelLayout.Req> reqs = new ArrayList<>();
+        for (int i = 0; i < 40; i++) {
+            int x = 200 + 10 * (i % 8);
+            int y = 200 + 10 * (i / 8);
+            reqs.add(new LabelLayout.Req("L" + i, new Rectangle(x, y, 20, 10), 24 + rnd.nextInt(30), 14, 0));
+        }
+        List<Rectangle> obstacles = new ArrayList<>();
+        for (int i = 0; i < 12; i++) {
+            obstacles.add(new Rectangle(150 + 40 * (i % 4), 150 + 40 * (i / 4), 30, 30));
+        }
+        List<LabelLayout.Placed> placed = LabelLayout.layout(reqs, obstacles, 4, 40);
+        assertEquals(40, placed.size());
+        for (int i = 0; i < placed.size(); i++) {
+            LabelLayout.Placed a = placed.get(i);
+            assertFalse(a.overlapped, "no free spot for " + a.key);
+            for (Rectangle o : obstacles) {
+                assertFalse(overlaps(a.rect, o), a.key + " on a component");
+            }
+            for (int j = i + 1; j < placed.size(); j++) {
+                assertFalse(overlaps(a.rect, placed.get(j).rect), a.key + " / " + placed.get(j).key);
+            }
+        }
+        assertTrue(placed.stream().anyMatch(x -> x.leader), "far moves get a leader line");
+
+        // 입력 순서와 무관하게 같은 결과
+        List<LabelLayout.Req> shuffled = new ArrayList<>(reqs);
+        Collections.shuffle(shuffled, new Random(3));
+        List<LabelLayout.Placed> again = LabelLayout.layout(shuffled, obstacles, 4, 40);
+        for (int i = 0; i < placed.size(); i++) {
+            assertEquals(placed.get(i).key, again.get(i).key);
+            assertEquals(placed.get(i).rect, again.get(i).rect);
+        }
+    }
+
+    @Test
+    void tunnelColorsAreDeterministic() {
+        Set<Integer> used = new HashSet<>();
+        for (String n : new String[] {"clk", "PC", "ALUResult", "RegWrite", "MemRead", "rs", "rt", "rd", "imm",
+            "funct", "zero", "branch", "jump", "op"}) {
+            int i = TunnelColors.index(n);
+            assertTrue(i >= 0 && i < TunnelColors.PALETTE.length);
+            assertEquals(i, TunnelColors.index(n));
+            assertEquals(TunnelColors.PALETTE[i], TunnelColors.of(n));
+            used.add(i);
+        }
+        assertTrue(used.size() >= 5, "names spread over the palette: " + used);
+        // FNV-1a 결과를 고정해 실행·JVM과 무관함을 확인한다
+        assertEquals(Math.floorMod(0xE40C292C, TunnelColors.PALETTE.length), TunnelColors.index("a"));
+    }
+
+    private static BufferedImage render(Circuit c, CircuitState state, boolean filtered) {
+        BufferedImage img = new BufferedImage(700, 400, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = img.createGraphics();
+        g.setColor(Color.WHITE);
+        g.fillRect(0, 0, 700, 400);
+        g.setColor(Color.BLACK);
+        Graphics draw = filtered ? wrapFor(c, g) : g;
+        ComponentDrawContext ctx = new ComponentDrawContext(new javax.swing.JPanel(), c, state, g, draw);
+        c.draw(ctx, Collections.<Component>emptySet());
+        g.dispose();
+        return img;
+    }
+
+    private static Graphics wrapFor(Circuit c, Graphics2D g) {
+        Set<String> skip = new HashSet<>();
+        for (LabelOverlay.LabelField f : LabelOverlay.labelFields(c, g)) {
+            skip.add(FilterGraphics.key(f.text, f.drawX, f.drawY));
+        }
+        return new FilterGraphics(g, skip);
+    }
+
+    /** 걸러 낸 그리기는 원조 라벨 글자만 빠지고 나머지 픽셀(부품, 값 글자)은 원조와 같다. */
+    @Test
+    void filterRemovesOnlyTheOriginalLabels() throws Exception {
+        LogisimFile file = CircuitBuilder.newFile(new Loader(null), tmp.toFile());
+        CircuitBuilder b = new CircuitBuilder(file, file.getMainCircuit());
+        b.add("Wiring", "Pin", 100, 100, "width", "8", "label", "Operand");
+        b.add("Memory", "Register", 400, 200, "width", "8", "label", "PC");
+        b.add("Gates", "AND Gate", 300, 320);
+        b.commit();
+        Circuit c = file.getMainCircuit();
+        CircuitState state = new Project(file).getCircuitState();
+        state.getPropagator().propagate();
+
+        BufferedImage g0 = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB);
+        List<LabelOverlay.LabelField> fields = LabelOverlay.labelFields(c, g0.createGraphics());
+        assertEquals(2, fields.size());
+        List<Rectangle> labels = new ArrayList<>();
+        for (LabelOverlay.LabelField f : fields) {
+            Rectangle r = new Rectangle(f.bounds);
+            r.grow(2, 2);
+            labels.add(r);
+        }
+
+        BufferedImage orig = render(c, state, false);
+        BufferedImage filt = render(c, state, true);
+        int inLabelInk = 0;
+        int differOutside = 0;
+        int inkOutside = 0;
+        for (int y = 0; y < 400; y++) {
+            for (int x = 0; x < 700; x++) {
+                boolean inLabel = false;
+                for (Rectangle r : labels) {
+                    inLabel |= r.contains(x, y);
+                }
+                int a = orig.getRGB(x, y) & 0xFFFFFF;
+                int f = filt.getRGB(x, y) & 0xFFFFFF;
+                if (inLabel) {
+                    if (a != 0xFFFFFF && f == 0xFFFFFF) {
+                        inLabelInk++;
+                    }
+                } else {
+                    if (a != f) {
+                        differOutside++;
+                    }
+                    if (a != 0xFFFFFF) {
+                        inkOutside++;
+                    }
+                }
+            }
+        }
+        assertTrue(inLabelInk > 20, "the original labels were drawn and are now gone: " + inLabelInk);
+        assertEquals(0, differOutside, "nothing else changed");
+        assertTrue(inkOutside > 200, "components are still drawn");
+    }
+
+    @Test
+    void busNamesOnLongNamedBuses() throws Exception {
+        LogisimFile file = CircuitBuilder.newFile(new Loader(null), tmp.toFile());
+        CircuitBuilder b = new CircuitBuilder(file, file.getMainCircuit());
+        Component res = b.add("Wiring", "Pin", 100, 100, "width", "32", "label", "ALUResult");
+        b.wire(Location.create(100, 100), Location.create(240, 100));
+        Component bit = b.add("Wiring", "Pin", 100, 200, "label", "zero");
+        b.wire(Location.create(100, 200), Location.create(240, 200));
+        Component s = b.add("Wiring", "Pin", 100, 300, "width", "8", "label", "imm");
+        b.wire(Location.create(100, 300), Location.create(130, 300));
+        b.commit();
+        Circuit c = file.getMainCircuit();
+        Map<Wire, String> names = LabelOverlay.busNames(c);
+        assertEquals(1, names.size(), names.toString());
+        assertEquals("ALUResult[31:0]", names.values().iterator().next());
+        assertNotNull(res);
+        assertNotNull(bit);
+        assertNotNull(s);
+    }
+
+    @Test
+    void hoverShowsPathLabelInputsWidthAndNets() throws Exception {
+        LogisimFile file = CircuitBuilder.newFile(new Loader(null), tmp.toFile());
+        CircuitBuilder b = new CircuitBuilder(file, file.getMainCircuit());
+        Component and = b.add("Gates", "AND Gate", 300, 200, "inputs", "3", "width", "4");
+        b.tunnel(and, 0, "sum");
+        Component reg = b.add("Memory", "Register", 500, 300, "width", "8", "label", "PC");
+        b.wire(Location.create(600, 100), Location.create(700, 100));
+        b.commit();
+        CircuitState state = new Project(file).getCircuitState();
+
+        List<String> gate = HoverInfo.lines(state, Location.create(290, 200));
+        assertEquals("main › AND #1", gate.get(0));
+        assertTrue(gate.get(1).contains("3") && gate.get(1).contains("4"), gate.toString());
+        assertTrue(gate.get(2).contains("out = sum"), gate.toString());
+
+        List<String> r = HoverInfo.lines(state, Location.create(480, 300));
+        assertEquals("main › PC", r.get(0));
+        assertTrue(r.get(1).contains("PC") && r.get(1).contains("8"), r.toString());
+
+        List<String> w = HoverInfo.lines(state, Location.create(650, 100));
+        assertEquals(2, w.get(0).split(" › ").length, w.toString());
+        assertNull(HoverInfo.lines(state, Location.create(50, 50)));
+        assertTrue(HoverInfo.html(gate).startsWith("<html><b>main › AND #1</b>"));
+        assertNotNull(reg);
+    }
+}
