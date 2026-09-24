@@ -93,7 +93,7 @@ git과 gh는 설치·로그인돼 있다. 저장소 관리는 전부 직접 한�
    - `CPU/`가 `vendor/spim-9.1.24/CPU/`와 같은지 diff로 확인한다. 달라진 점이 있으면 기록한다.
    - QtSpim 기본 설정: 예외 처리기 불러오기, 지연 분기, bare machine, 의사 명령어. `QtSpim/spim_settings.h`, `spimview.cpp`에서 기본값을 찾는다. Hallym MIPS가 이를 바꿨는지도 본다.
 5. **`hcs-asm` 명령줄 어셈블러.** `native/hcs-asm/`에서 `vendor/spim-9.1.24/CPU/`를 수정 없이 링크하고, `parser.y`와 `scanner.l`은 빌드 디렉터리에서 생성한다.
-   - 입력은 .s 파일 경로와 설정 플래그다. 과제 표준 설정을 기본값으로 한다: 예외 처리기 없음, 지연 분기 끔, 의사 명령어 켬.
+   - 입력은 .s 파일 경로와 설정 플래그다. 과제 표준 설정을 기본값으로 한다: 예외 처리기 없음, 지연 분기 끔, 의사 명령어 켬. 단, 분기 오프셋은 교재 정의(PC+4 기준)로 인코딩한다(`docs/DECISIONS.md` D-010).
    - 출력은 JSON 한 덩어리다: `text[{addr, word, line, source}]`, `data[{addr, word}]`, `labels{name: addr}`, `errors[{line, message}]`, `settings{…}`. 어셈블 오류가 있으면 비정상 종료 코드를 낸다.
    - 사용자 `.text`는 `0x00400000`부터(main부터), `.data`는 `0x10010000`부터다. 커널 세그먼트는 출력하지 않는다. 시작 코드 없이 올렸을 때 SPIM이 어떤 주소에 무엇을 두는지 실제로 확인한다.
    - 테스트: `tests/asm/`에 예제 .s(산술, lw/sw, beq/bne 앞·뒤 분기, j/jal, la/li 등 의사 명령어, .data 문자열)를 두고 기대 JSON과 비교한다.

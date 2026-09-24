@@ -1,0 +1,36 @@
+{
+  "tool": "hcs-asm 0.1.0",
+  "spim": "Version 9.1.24 of August 1, 2023 (final)",
+  "settings": {"bare_machine": false, "accept_pseudo_insts": true, "exception_handler": false, "branch_offset": "pc+4"},
+  "entry": "0x00400000",
+  "text": [
+    {"addr": "0x00400000", "word": "0x3c101001", "line": 7, "source": "la    $s0, arr"},
+    {"addr": "0x00400004", "word": "0x8e080000", "line": 8, "source": "lw    $t0, 0($s0)"},
+    {"addr": "0x00400008", "word": "0x8e090004", "line": 9, "source": "lw    $t1, 4($s0)"},
+    {"addr": "0x0040000c", "word": "0x8e0a000c", "line": 10, "source": "lw    $t2, 12($s0)"},
+    {"addr": "0x00400010", "word": "0x01095820", "line": 11, "source": "add   $t3, $t0, $t1"},
+    {"addr": "0x00400014", "word": "0x016a5820", "line": 12, "source": "add   $t3, $t3, $t2"},
+    {"addr": "0x00400018", "word": "0xae0b0010", "line": 13, "source": "sw    $t3, 16($s0)"},
+    {"addr": "0x0040001c", "word": "0x22110010", "line": 14, "source": "addi  $s1, $s0, 16"},
+    {"addr": "0x00400020", "word": "0x8e2cfffc", "line": 15, "source": "lw    $t4, -4($s1)"},
+    {"addr": "0x00400024", "word": "0xae2c0000", "line": 16, "source": "sw    $t4, 0($s1)"},
+    {"addr": "0x00400028", "word": "0x3c011001", "line": 17, "source": "lw    $t5, out"},
+    {"addr": "0x0040002c", "word": "0x8c2d0010", "line": 17, "source": "lw    $t5, out"},
+    {"addr": "0x00400030", "word": "0x3402000a", "line": 18, "source": "li    $v0, 10"},
+    {"addr": "0x00400034", "word": "0x0000000c", "line": 19, "source": "syscall"}
+  ],
+  "data": [
+    {"addr": "0x10010000", "word": "0x0000000a"},
+    {"addr": "0x10010004", "word": "0x00000014"},
+    {"addr": "0x10010008", "word": "0x0000001e"},
+    {"addr": "0x1001000c", "word": "0x00000028"},
+    {"addr": "0x10010010", "word": "0x00000000"}
+  ],
+  "labels": {
+    "arr": "0x10010000",
+    "main": "0x00400000",
+    "out": "0x10010010"
+  },
+  "errors": [],
+  "warnings": []
+}

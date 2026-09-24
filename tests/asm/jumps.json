@@ -1,0 +1,25 @@
+{
+  "tool": "hcs-asm 0.1.0",
+  "spim": "Version 9.1.24 of August 1, 2023 (final)",
+  "settings": {"bare_machine": false, "accept_pseudo_insts": true, "exception_handler": false, "branch_offset": "pc+4"},
+  "entry": "0x00400000",
+  "text": [
+    {"addr": "0x00400000", "word": "0x34040003", "line": 4, "source": "li    $a0, 3"},
+    {"addr": "0x00400004", "word": "0x0c100004", "line": 5, "source": "jal   square"},
+    {"addr": "0x00400008", "word": "0x00028021", "line": 6, "source": "move  $s0, $v0"},
+    {"addr": "0x0040000c", "word": "0x08100007", "line": 7, "source": "j     end"},
+    {"addr": "0x00400010", "word": "0x00840018", "line": 8, "source": "mult  $a0, $a0"},
+    {"addr": "0x00400014", "word": "0x00001012", "line": 9, "source": "mflo  $v0"},
+    {"addr": "0x00400018", "word": "0x03e00008", "line": 10, "source": "jr    $ra"},
+    {"addr": "0x0040001c", "word": "0x3402000a", "line": 11, "source": "li    $v0, 10"},
+    {"addr": "0x00400020", "word": "0x0000000c", "line": 12, "source": "syscall"}
+  ],
+  "data": [],
+  "labels": {
+    "end": "0x0040001c",
+    "main": "0x00400000",
+    "square": "0x00400010"
+  },
+  "errors": [],
+  "warnings": []
+}

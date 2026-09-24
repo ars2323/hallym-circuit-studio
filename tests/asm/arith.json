@@ -1,0 +1,42 @@
+{
+  "tool": "hcs-asm 0.1.0",
+  "spim": "Version 9.1.24 of August 1, 2023 (final)",
+  "settings": {"bare_machine": false, "accept_pseudo_insts": true, "exception_handler": false, "branch_offset": "pc+4"},
+  "entry": "0x00400000",
+  "text": [
+    {"addr": "0x00400000", "word": "0x20080007", "line": 4, "source": "addi  $t0, $zero, 7"},
+    {"addr": "0x00400004", "word": "0x2009fffd", "line": 5, "source": "addi  $t1, $zero, -3"},
+    {"addr": "0x00400008", "word": "0x01095020", "line": 6, "source": "add   $t2, $t0, $t1"},
+    {"addr": "0x0040000c", "word": "0x01095822", "line": 7, "source": "sub   $t3, $t0, $t1"},
+    {"addr": "0x00400010", "word": "0x01096021", "line": 8, "source": "addu  $t4, $t0, $t1"},
+    {"addr": "0x00400014", "word": "0x01096823", "line": 9, "source": "subu  $t5, $t0, $t1"},
+    {"addr": "0x00400018", "word": "0x01098024", "line": 10, "source": "and   $s0, $t0, $t1"},
+    {"addr": "0x0040001c", "word": "0x01098825", "line": 11, "source": "or    $s1, $t0, $t1"},
+    {"addr": "0x00400020", "word": "0x01099027", "line": 12, "source": "nor   $s2, $t0, $t1"},
+    {"addr": "0x00400024", "word": "0x01099826", "line": 13, "source": "xor   $s3, $t0, $t1"},
+    {"addr": "0x00400028", "word": "0x0128a02a", "line": 14, "source": "slt   $s4, $t1, $t0"},
+    {"addr": "0x0040002c", "word": "0x0128a82b", "line": 15, "source": "sltu  $s5, $t1, $t0"},
+    {"addr": "0x00400030", "word": "0x29360000", "line": 16, "source": "slti  $s6, $t1, 0"},
+    {"addr": "0x00400034", "word": "0x311700ff", "line": 17, "source": "andi  $s7, $t0, 0xff"},
+    {"addr": "0x00400038", "word": "0x35048000", "line": 18, "source": "ori   $a0, $t0, 0x8000"},
+    {"addr": "0x0040003c", "word": "0x39050001", "line": 19, "source": "xori  $a1, $t0, 1"},
+    {"addr": "0x00400040", "word": "0x3c061234", "line": 20, "source": "lui   $a2, 0x1234"},
+    {"addr": "0x00400044", "word": "0x00083900", "line": 21, "source": "sll   $a3, $t0, 4"},
+    {"addr": "0x00400048", "word": "0x00091f02", "line": 22, "source": "srl   $v1, $t1, 28"},
+    {"addr": "0x0040004c", "word": "0x00091843", "line": 23, "source": "sra   $v1, $t1, 1"},
+    {"addr": "0x00400050", "word": "0x01087004", "line": 24, "source": "sllv  $t6, $t0, $t0"},
+    {"addr": "0x00400054", "word": "0x01090018", "line": 25, "source": "mult  $t0, $t1"},
+    {"addr": "0x00400058", "word": "0x00007812", "line": 26, "source": "mflo  $t7"},
+    {"addr": "0x0040005c", "word": "0x0000c010", "line": 27, "source": "mfhi  $t8"},
+    {"addr": "0x00400060", "word": "0x0109001a", "line": 28, "source": "div   $t0, $t1"},
+    {"addr": "0x00400064", "word": "0x0000c812", "line": 29, "source": "mflo  $t9"},
+    {"addr": "0x00400068", "word": "0x3402000a", "line": 30, "source": "li    $v0, 10"},
+    {"addr": "0x0040006c", "word": "0x0000000c", "line": 31, "source": "syscall"}
+  ],
+  "data": [],
+  "labels": {
+    "main": "0x00400000"
+  },
+  "errors": [],
+  "warnings": []
+}

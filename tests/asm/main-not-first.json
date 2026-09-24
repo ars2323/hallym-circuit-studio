@@ -1,0 +1,21 @@
+{
+  "tool": "hcs-asm 0.1.0",
+  "spim": "Version 9.1.24 of August 1, 2023 (final)",
+  "settings": {"bare_machine": false, "accept_pseudo_insts": true, "exception_handler": false, "branch_offset": "pc+4"},
+  "entry": "0x00400004",
+  "text": [
+    {"addr": "0x00400000", "word": "0x03e00008", "line": 3, "source": "jr    $ra"},
+    {"addr": "0x00400004", "word": "0x0c100000", "line": 5, "source": "jal   helper"},
+    {"addr": "0x00400008", "word": "0x3402000a", "line": 6, "source": "li    $v0, 10"},
+    {"addr": "0x0040000c", "word": "0x0000000c", "line": 7, "source": "syscall"}
+  ],
+  "data": [],
+  "labels": {
+    "helper": "0x00400000",
+    "main": "0x00400004"
+  },
+  "errors": [],
+  "warnings": [
+    {"line": null, "message": "main is at 0x00400004, not at the start of .text 0x00400000"}
+  ]
+}
