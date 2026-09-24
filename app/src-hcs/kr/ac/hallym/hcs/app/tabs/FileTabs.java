@@ -204,7 +204,7 @@ public final class FileTabs {
     private boolean restoreDone;
 
     /** 지난번에 열려 있던 파일(있는 것만). 그때 활성 탭은 {@link #afterRestore}에서 다시 활성으로 한다. */
-    public List<File> restoreFiles() {
+    List<File> restoreFiles() {
         List<String> paths = Settings.get().getList(OPEN);
         int active = Settings.get().getInt(ACTIVE, -1);
         List<File> ret = new ArrayList<>();
@@ -221,8 +221,35 @@ public final class FileTabs {
         return ret;
     }
 
+    /** 파일 하나를 연다. 실패하면 예외. */
+    public interface Opener {
+        void open(File f) throws Exception;
+    }
+
+    /**
+     * 지난번에 열려 있던 파일을 연다. 없어졌거나 열 수 없는 파일은 건너뛴다(명령줄로 준 파일과 달리 프로그램을
+     * 끝내지 않는다). 하나라도 열었으면 true.
+     */
+    public boolean openRestored(Opener opener) {
+        boolean any = false;
+        List<File> files = restoreFiles();
+        for (File f : files) {
+            try {
+                opener.open(f);
+                any = true;
+            } catch (Exception | LinkageError e) {
+                restoring.remove(f);
+                if (f.equals(restoreActive)) {
+                    restoreActive = null;
+                }
+            }
+        }
+        afterRestore();
+        return any;
+    }
+
     /** 복원한 파일을 모두 연 뒤: 지난번 활성 탭으로. 창이 열렸다는 알림이 늦게 오면 그때 한다. */
-    public void afterRestore() {
+    void afterRestore() {
         restoreDone = true;
         SwingUtilities.invokeLater(this::activateRestored);
     }

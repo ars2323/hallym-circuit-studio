@@ -181,15 +181,16 @@ public class Startup {
 		// use that as the file to open now.
 		initialized = true;
 		
-		// HCS: file tabs; reopen the files that were open last time (#68)
+		// HCS: file tabs (#68)
 		kr.ac.hallym.hcs.app.tabs.FileTabs.get().install();
-		if (filesToOpen.isEmpty()) {
-			filesToOpen.addAll(kr.ac.hallym.hcs.app.tabs.FileTabs.get().restoreFiles());
-		}
 
 		// load file
 		if (filesToOpen.isEmpty()) {
-			ProjectActions.doNew(monitor, true);
+			// HCS: reopen the files that were open last time; a file that fails to open is skipped (#68)
+			if (!kr.ac.hallym.hcs.app.tabs.FileTabs.get().openRestored(
+					f -> ProjectActions.doOpen(monitor, f, substitutions))) {
+				ProjectActions.doNew(monitor, true);
+			}
 			if (showSplash) monitor.close();
 		} else {
 			boolean first = true;
@@ -207,8 +208,6 @@ public class Startup {
 				}
 			}
 		}
-
-		kr.ac.hallym.hcs.app.tabs.FileTabs.get().afterRestore(); // HCS: #68
 
 		for (File fileToPrint : filesToPrint) {
 			doPrintFile(fileToPrint);
