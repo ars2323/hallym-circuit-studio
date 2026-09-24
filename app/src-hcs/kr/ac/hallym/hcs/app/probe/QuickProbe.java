@@ -170,21 +170,70 @@ public final class QuickProbe {
                 && a.getY() <= b.getY() + b.getHeight() && b.getY() <= a.getY() + a.getHeight();
     }
 
-    /** 넷의 이름(라벨 붙은 터널·핀), 없으면 빈 문자열. 프로브 라벨로 쓴다. */
+    /**
+     * 넷의 이름, 없으면 빈 문자열. 프로브 라벨로 쓴다. 터널 이름, 값을 내는 핀(입력 핀), 그 밖의 핀 순서이고 같은
+     * 순위에서는 이름 순이라 포트 순서와 무관하게 늘 같다.
+     */
     public static String netName(Circuit c, Netlist.Net net) {
         if (net == null) {
             return "";
         }
+        java.util.TreeSet<String> tunnels = new java.util.TreeSet<>();
+        java.util.TreeSet<String> drivers = new java.util.TreeSet<>();
+        java.util.TreeSet<String> pins = new java.util.TreeSet<>();
         for (Netlist.PortRef p : net.ports()) {
             String f = p.component.getFactory().getName();
-            if (f.equals("Tunnel") || f.equals("Pin")) {
-                String label = Names.label(p.component);
-                if (label != null) {
-                    return label;
-                }
+            String label = Names.label(p.component);
+            if (label == null) {
+                continue;
+            }
+            if (f.equals("Tunnel")) {
+                tunnels.add(label);
+            } else if (f.equals("Pin")) {
+                (p.data().isOutput() && !p.data().isInput() ? drivers : pins).add(label);
+            }
+        }
+        for (java.util.TreeSet<String> s : java.util.Arrays.asList(tunnels, drivers, pins)) {
+            if (!s.isEmpty()) {
+                return s.first();
             }
         }
         return "";
+    }
+
+    /** 프로브들과, 빠른 프로브가 함께 넣은 짧은 선(프로브 연결점에서 다른 곳과 닿지 않는 끝)을 지우는 변경. */
+    public static CircuitMutation removeAll(Circuit c, List<Component> probes) {
+        CircuitMutation m = new CircuitMutation(c);
+        for (Component p : probes) {
+            m.remove(p);
+            Location q = p.getLocation();
+            for (Wire w : c.getWires()) {
+                if ((w.getEnd0().equals(q) || w.getEnd1().equals(q)) && onlyThisAt(c, q, p, w)) {
+                    m.remove(w);
+                }
+            }
+        }
+        return m;
+    }
+
+    /** 점 q에 프로브 p와 선 w 말고 다른 것이 없는가. */
+    private static boolean onlyThisAt(Circuit c, Location q, Component p, Wire w) {
+        for (Wire o : c.getWires()) {
+            if (o != w && (o.getEnd0().equals(q) || o.getEnd1().equals(q) || o.contains(q))) {
+                return false;
+            }
+        }
+        for (Component comp : c.getNonWires()) {
+            if (comp == p) {
+                continue;
+            }
+            for (EndData e : comp.getEnds()) {
+                if (e.getLocation().equals(q)) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     /** 프로브와 짧은 선을 더하는 변경(되돌리기 한 번). */

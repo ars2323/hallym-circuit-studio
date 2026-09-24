@@ -56,10 +56,7 @@ public final class ProbeMenu implements ContextMenus.Provider {
                 menu.add(sel);
                 JMenuItem del = new JMenuItem(Messages.get("probe.deleteAll", probes.size()));
                 del.addActionListener(e -> {
-                    CircuitMutation m = new CircuitMutation(t.circuit);
-                    for (Component p : probes) {
-                        m.remove(p);
-                    }
+                    CircuitMutation m = QuickProbe.removeAll(t.circuit, probes);
                     t.project.doAction(m.toAction(() -> Messages.get("probe.deleteAllAction")));
                 });
                 menu.add(del);

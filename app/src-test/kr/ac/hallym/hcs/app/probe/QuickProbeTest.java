@@ -122,6 +122,38 @@ class QuickProbeTest {
     }
 
     @Test
+    void deletingProbesTakesTheirStubsAlong() throws Exception {
+        start();
+        Component a = b.add("Wiring", "Pin", 100, 200, "label", "a");
+        line(100, 200, 300, 200);
+        b.commit();
+        Circuit c = file.getMainCircuit();
+        Set<String> before = signature(c);
+        int wires = c.getWires().size();
+        Wire w = wireAt(c, Location.create(100, 200), Location.create(300, 200));
+        placeAndCheck(w, Location.create(200, 200), a);
+        QuickProbe.removeAll(c, QuickProbe.probes(c)).execute();
+        assertTrue(QuickProbe.probes(c).isEmpty());
+        assertEquals(before, signature(c));
+        assertTrue(c.getWires().size() <= wires + 1, "the stub is gone (the wire may stay split in two)");
+        for (Wire o : c.getWires()) {
+            assertTrue(o.getEnd0().getY() == 200 && o.getEnd1().getY() == 200, "only the original line remains: " + o);
+        }
+    }
+
+    @Test
+    void netNameIsStable() throws Exception {
+        start();
+        b.add("Wiring", "Pin", 100, 200, "label", "zeta");
+        b.add("Wiring", "Pin", 300, 200, "output", "true", "facing", "west", "label", "alpha");
+        line(100, 200, 300, 200);
+        b.commit();
+        Circuit c = file.getMainCircuit();
+        Wire w = wireAt(c, Location.create(100, 200), Location.create(300, 200));
+        assertEquals("zeta", QuickProbe.netName(c, Netlist.of(c).netOf(w)), "the driving pin comes first");
+    }
+
+    @Test
     void givesUpWhenThereIsNoRoom() throws Exception {
         start();
         b.add("Wiring", "Pin", 100, 200, "label", "a");

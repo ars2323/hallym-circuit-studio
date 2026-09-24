@@ -156,8 +156,7 @@ public final class ZoomController {
             return false;
         case MouseEvent.MOUSE_DRAGGED:
             if (dragFrom != null) {
-                Point now = e.getLocationOnScreen();
-                setView(new Point(viewFrom.x - (now.x - dragFrom.x), viewFrom.y - (now.y - dragFrom.y)));
+                setView(panTarget(viewFrom, dragFrom, e.getLocationOnScreen()));
                 return true;
             }
             return false;
@@ -170,6 +169,11 @@ public final class ZoomController {
         default:
             return dragFrom != null;
         }
+    }
+
+    /** 끌어 이동: 보이는 영역이 손을 따라 움직인다(화면 좌표 기준, 배율과 무관). */
+    static Point panTarget(Point viewFrom, Point dragFromScreen, Point nowScreen) {
+        return new Point(viewFrom.x - (nowScreen.x - dragFromScreen.x), viewFrom.y - (nowScreen.y - dragFromScreen.y));
     }
 
     private void wheel(MouseWheelEvent e) {
