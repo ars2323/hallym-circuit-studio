@@ -40,7 +40,7 @@ public final class CircuitEdits {
     }
 
     @SuppressWarnings("unchecked")
-    static void set(AttributeSet as, String name, String value) {
+    public static void set(AttributeSet as, String name, String value) {
         Attribute<Object> a = (Attribute<Object>) as.getAttribute(name);
         if (a != null) {
             as.setValue(a, a.parse(value));
@@ -230,7 +230,7 @@ public final class CircuitEdits {
     }
 
     /** from에서 to를 향하는 방향. */
-    static Direction towards(Location from, Location to) {
+    public static Direction towards(Location from, Location to) {
         if (to.getX() > from.getX()) {
             return Direction.EAST;
         }
