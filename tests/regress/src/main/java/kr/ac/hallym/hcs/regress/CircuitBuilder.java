@@ -5,6 +5,12 @@
  */
 package kr.ac.hallym.hcs.regress;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -17,6 +23,8 @@ import com.cburch.logisim.comp.EndData;
 import com.cburch.logisim.data.Attribute;
 import com.cburch.logisim.data.AttributeSet;
 import com.cburch.logisim.data.Location;
+import com.cburch.logisim.file.LoadFailedException;
+import com.cburch.logisim.file.Loader;
 import com.cburch.logisim.file.LogisimFile;
 import com.cburch.logisim.tools.AddTool;
 import com.cburch.logisim.tools.Library;
@@ -26,35 +34,85 @@ import com.cburch.logisim.tools.Library;
  * (PLAN.md 부록 A.2). 연결은 주로 같은 라벨의 터널을 포트 위에 놓아 만든다. 선 모양 때문에 생기는 우연한
  * 합선·단선을 피하기 위해서다. 곧은 선은 {@link #wire}로 따로 긋는다.
  */
-final class CircuitBuilder {
+public final class CircuitBuilder {
+    /** 원조 2.7.1이 새 파일에 넣는 기본 라이브러리 순서 그대로. */
+    private static final String TEMPLATE = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n"
+            + "<project source=\"2.7.1\" version=\"1.0\">\n"
+            + "  <lib desc=\"#Wiring\" name=\"0\"/>\n"
+            + "  <lib desc=\"#Gates\" name=\"1\"/>\n"
+            + "  <lib desc=\"#Plexers\" name=\"2\"/>\n"
+            + "  <lib desc=\"#Arithmetic\" name=\"3\"/>\n"
+            + "  <lib desc=\"#Memory\" name=\"4\"/>\n"
+            + "  <lib desc=\"#I/O\" name=\"5\"/>\n"
+            + "  <lib desc=\"#Base\" name=\"6\"/>\n"
+            + "  <main name=\"main\"/>\n"
+            + "  <circuit name=\"main\"/>\n"
+            + "</project>\n";
+
     private final LogisimFile file;
     private final Circuit circuit;
     private final List<Component> pending = new ArrayList<Component>();
 
-    CircuitBuilder(LogisimFile file, Circuit circuit) {
+    public CircuitBuilder(LogisimFile file, Circuit circuit) {
         this.file = file;
         this.circuit = circuit;
     }
 
-    Circuit circuit() {
+    /** 기본 라이브러리 7개와 빈 main 회로가 있는 새 파일(원조 2.7.1이 새로 만든 파일과 같은 머리). */
+    public static LogisimFile newFile(Loader loader) throws IOException {
+        return newFile(loader, null);
+    }
+
+    /**
+     * {@link #newFile(Loader)}와 같되, 원조 Loader가 JAR 라이브러리 경로를 dir 기준 상대 경로로 저장하도록
+     * 임시 템플릿을 dir 안에 만든다. 원조는 저장할 때 지금 열린 파일의 폴더를 기준으로 경로를 정한다.
+     */
+    public static LogisimFile newFile(Loader loader, File dir) throws IOException {
+        File tmp = File.createTempFile("hcs-template", ".circ", dir);
+        try {
+            try (Writer w = new OutputStreamWriter(new FileOutputStream(tmp), StandardCharsets.UTF_8)) {
+                w.write(TEMPLATE);
+            }
+            return loader.openLogisimFile(tmp);
+        } catch (LoadFailedException e) {
+            throw new IOException(e.getMessage(), e);
+        } finally {
+            tmp.delete();
+        }
+    }
+
+    /** 원조의 저장 코드로 dest에 저장한다. */
+    public static void save(LogisimFile file, File dest) throws IOException {
+        if (!file.getLoader().save(file, dest)) {
+            throw new IOException("save failed: " + dest);
+        }
+        new File(dest.getPath() + ".bak").delete();
+    }
+
+    public Circuit circuit() {
         return circuit;
     }
 
     /** 기본 라이브러리 부품을 (x, y)에 놓는다. attrs는 저장 이름과 값의 쌍이다(.circ의 {@code <a name val>}). */
-    Component add(String library, String name, int x, int y, String... attrs) {
+    public Component add(String library, String name, int x, int y, String... attrs) {
         Library lib = file.getLoader().getBuiltin().getLibrary(library);
         if (lib == null) {
             throw new IllegalArgumentException("no library " + library);
         }
+        return add(lib, name, x, y, attrs);
+    }
+
+    /** 파일에 추가한 라이브러리(예: JAR 라이브러리)의 부품을 놓는다. */
+    public Component add(Library lib, String name, int x, int y, String... attrs) {
         AddTool tool = (AddTool) lib.getTool(name);
         if (tool == null) {
-            throw new IllegalArgumentException("no component " + library + "/" + name);
+            throw new IllegalArgumentException("no component " + lib.getName() + "/" + name);
         }
         return place(tool.getFactory(), x, y, attrs);
     }
 
     /** 이 파일의 다른 회로를 서브회로로 놓는다. */
-    Component addSubcircuit(Circuit sub, int x, int y) {
+    public Component addSubcircuit(Circuit sub, int x, int y) {
         return place(sub.getSubcircuitFactory(), x, y);
     }
 
@@ -77,24 +135,24 @@ final class CircuitBuilder {
         as.setValue(attr, attr.parse(value));
     }
 
-    static Location port(Component c, int index) {
+    public static Location port(Component c, int index) {
         return c.getEnds().get(index).getLocation();
     }
 
-    static int width(Component c, int index) {
+    public static int width(Component c, int index) {
         EndData end = c.getEnds().get(index);
         return end.getWidth().getWidth();
     }
 
     /** 포트 위에 라벨 터널을 놓는다. 같은 라벨의 터널끼리 연결된다. */
-    void tunnel(Component c, int index, String label) {
+    public void tunnel(Component c, int index, String label) {
         Location at = port(c, index);
         add("Wiring", "Tunnel", at.getX(), at.getY(),
                 "width", Integer.toString(width(c, index)), "label", label);
     }
 
     /** 출력 핀을 만들고 라벨 터널로 연결한다. */
-    Component output(String label, int width, int x, int y) {
+    public Component output(String label, int width, int x, int y) {
         Component pin = add("Wiring", "Pin", x, y,
                 "facing", "west", "output", "true", "width", Integer.toString(width), "label", label);
         tunnel(pin, 0, label);
@@ -102,14 +160,14 @@ final class CircuitBuilder {
     }
 
     /** 입력 핀(서브회로의 포트)을 만들고 라벨 터널로 연결한다. */
-    Component input(String label, int width, int x, int y) {
+    public Component input(String label, int width, int x, int y) {
         Component pin = add("Wiring", "Pin", x, y, "width", Integer.toString(width), "label", label);
         tunnel(pin, 0, label);
         return pin;
     }
 
     /** 상수를 만들고 라벨 터널로 연결한다. */
-    Component constant(String label, int width, int value, int x, int y) {
+    public Component constant(String label, int width, int value, int x, int y) {
         Component k = add("Wiring", "Constant", x, y,
                 "width", Integer.toString(width), "value", "0x" + Integer.toHexString(value));
         tunnel(k, 0, label);
@@ -117,7 +175,7 @@ final class CircuitBuilder {
     }
 
     /** 두 점을 가로 또는 세로 곧은 선으로 잇는다. */
-    void wire(Location a, Location b) {
+    public void wire(Location a, Location b) {
         if (a.getX() != b.getX() && a.getY() != b.getY()) {
             throw new IllegalArgumentException("wire must be straight: " + a + " " + b);
         }
@@ -125,7 +183,7 @@ final class CircuitBuilder {
     }
 
     /** 모은 부품을 회로에 넣는다. */
-    void commit() {
+    public void commit() {
         CircuitMutation m = new CircuitMutation(circuit);
         m.addAll(pending);
         m.execute();

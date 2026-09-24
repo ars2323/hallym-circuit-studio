@@ -14,7 +14,6 @@ import java.nio.charset.StandardCharsets;
 
 import com.cburch.logisim.circuit.Circuit;
 import com.cburch.logisim.comp.Component;
-import com.cburch.logisim.file.LoadFailedException;
 import com.cburch.logisim.file.Loader;
 import com.cburch.logisim.file.LogisimFile;
 
@@ -25,20 +24,6 @@ import com.cburch.logisim.file.LogisimFile;
  * 스스로 입력을 만들고, {@code halt} 출력 핀이 1이 되면 멈춘다.
  */
 final class Circuits {
-    /** 원조 2.7.1이 새 파일에 넣는 기본 라이브러리 순서 그대로. */
-    private static final String TEMPLATE = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n"
-            + "<project source=\"2.7.1\" version=\"1.0\">\n"
-            + "  <lib desc=\"#Wiring\" name=\"0\"/>\n"
-            + "  <lib desc=\"#Gates\" name=\"1\"/>\n"
-            + "  <lib desc=\"#Plexers\" name=\"2\"/>\n"
-            + "  <lib desc=\"#Arithmetic\" name=\"3\"/>\n"
-            + "  <lib desc=\"#Memory\" name=\"4\"/>\n"
-            + "  <lib desc=\"#I/O\" name=\"5\"/>\n"
-            + "  <lib desc=\"#Base\" name=\"6\"/>\n"
-            + "  <main name=\"main\"/>\n"
-            + "  <circuit name=\"main\"/>\n"
-            + "</project>\n";
-
     interface Body {
         void build(LogisimFile file, CircuitBuilder b);
     }
@@ -60,27 +45,9 @@ final class Circuits {
     }
 
     private static void write(File dir, String name, Body body) throws IOException {
-        File tmp = File.createTempFile("hcs-template", ".circ");
-        try {
-            try (Writer w = new OutputStreamWriter(new FileOutputStream(tmp), StandardCharsets.UTF_8)) {
-                w.write(TEMPLATE);
-            }
-            Loader loader = new Loader(null);
-            LogisimFile file;
-            try {
-                file = loader.openLogisimFile(tmp);
-            } catch (LoadFailedException e) {
-                throw new IOException(e.getMessage(), e);
-            }
-            body.build(file, new CircuitBuilder(file, file.getMainCircuit()));
-            File dest = new File(dir, name + ".circ");
-            if (!loader.save(file, dest)) {
-                throw new IOException("save failed: " + dest);
-            }
-            new File(dir, name + ".circ.bak").delete();
-        } finally {
-            tmp.delete();
-        }
+        LogisimFile file = CircuitBuilder.newFile(new Loader(null));
+        body.build(file, new CircuitBuilder(file, file.getMainCircuit()));
+        CircuitBuilder.save(file, new File(dir, name + ".circ"));
     }
 
     /** 클럭으로 도는 카운터. 반환값은 Counter 부품이다(0 Q, 2 clk, 3 clr, 4 load, 5 ct, 6 carry). */
