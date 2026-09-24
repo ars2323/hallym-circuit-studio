@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# CI(Linux)와 같은 검사를 로컬에서 돌린다. .github/workflows/ci.yml도 이 스크립트를 호출한다.
+# GitHub CI(.github/workflows/ci.yml)와 같은 검사를 로컬에서 재현한다. 순서와 명령을 워크플로와 맞춘다.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
