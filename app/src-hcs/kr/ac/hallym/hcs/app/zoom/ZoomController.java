@@ -195,6 +195,11 @@ public final class ZoomController {
         e.consume();
     }
 
+    /** 지금 배율. */
+    public double zoomFactor() {
+        return model.getZoomFactor();
+    }
+
     /** 보이는 영역 안의 점 inView를 고정한 채 배율을 바꾼다. */
     public void zoomAt(double newZoom, Point inView) {
         double old = model.getZoomFactor();
