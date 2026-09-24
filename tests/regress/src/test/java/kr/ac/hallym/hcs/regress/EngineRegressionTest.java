@@ -57,6 +57,8 @@ class EngineRegressionTest {
             String committed = read(new File(DIR, f.getName()));
             if (f.getName().endsWith(".circ")) {
                 assertEquals(CircNormalizer.normalize(committed), CircNormalizer.normalize(fresh), f.getName());
+                assertEquals(java.util.Collections.<String>emptyList(),
+                        CircEquivalence.compare(new File(DIR, f.getName()), f), f.getName());
             } else {
                 assertEquals(committed, fresh, f.getName());
             }

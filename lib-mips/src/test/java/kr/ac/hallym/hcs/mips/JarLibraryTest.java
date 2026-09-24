@@ -28,6 +28,7 @@ import org.junit.jupiter.api.io.TempDir;
 import com.cburch.logisim.file.Loader;
 import com.cburch.logisim.file.LogisimFile;
 
+import kr.ac.hallym.hcs.regress.CircEquivalence;
 import kr.ac.hallym.hcs.regress.CircNormalizer;
 
 /**
@@ -171,6 +172,7 @@ class JarLibraryTest {
         String fixture = Files.readString(circ);
         String resaved = Files.readString(tmp.resolve("saved.circ"));
         assertEquals(CircNormalizer.normalize(fixture), CircNormalizer.normalize(resaved));
+        assertEquals(List.of(), CircEquivalence.compare(circ.toFile(), tmp.resolve("saved.circ").toFile()));
     }
 
     @Test
