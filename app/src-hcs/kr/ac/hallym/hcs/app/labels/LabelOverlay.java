@@ -221,16 +221,14 @@ public final class LabelOverlay {
 
     // ---- 터널 색 ----
 
-    private static void tunnels(Graphics2D g, Circuit circuit, java.util.Set<Component> hidden) {
+    private void tunnels(Graphics2D g, Circuit circuit, java.util.Set<Component> hidden) {
+        com.cburch.logisim.file.LogisimFile file = canvas.getProject().getLogisimFile();
         for (Component c : circuit.getNonWires()) {
-            if (!c.getFactory().getName().equals("Tunnel") || hidden.contains(c)) {
+            String name = TunnelColorStore.name(c);
+            if (name == null || hidden.contains(c)) {
                 continue;
             }
-            String name = Names.label(c);
-            if (name == null) {
-                continue;
-            }
-            Color col = TunnelColors.of(name);
+            Color col = TunnelColorStore.display(file, circuit, name);
             Bounds b = c.getBounds();
             g.setColor(new Color(col.getRed(), col.getGreen(), col.getBlue(), 70));
             g.fillRect(b.getX() + 1, b.getY() + 1, b.getWidth() - 1, b.getHeight() - 1);

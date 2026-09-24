@@ -362,6 +362,54 @@ public final class EditMenus implements ContextMenus.Provider {
             t.project.doAction(SelectionActions.dropAll(t.project.getSelection()));
             t.project.getSelection().addAll(same);
         }, label, same.size()));
+        menu.add(tunnelColorMenu(t, c));
+    }
+
+    /** 터널 색 직접 지정(.circ 확장 정보에 저장, D-042). "자동"은 이름으로 정한 색(저장 안 함). */
+    javax.swing.JMenu tunnelColorMenu(ContextMenus.Target t, Component c) {
+        String name = kr.ac.hallym.hcs.app.labels.TunnelColorStore.name(c);
+        javax.swing.JMenu m = new javax.swing.JMenu(Messages.get("tunnel.color"));
+        if (name == null) {
+            m.setEnabled(false);
+            return m;
+        }
+        com.cburch.logisim.file.LogisimFile file = t.project.getLogisimFile();
+        java.awt.Color now = kr.ac.hallym.hcs.app.labels.TunnelColorStore.get(file, t.circuit, name);
+        javax.swing.JRadioButtonMenuItem auto = new javax.swing.JRadioButtonMenuItem(
+                Messages.get("tunnel.color.auto"), now == null);
+        auto.addActionListener(e -> t.project.doAction(
+                kr.ac.hallym.hcs.app.labels.TunnelColorStore.action(file, t.circuit, name, null)));
+        m.add(auto);
+        m.addSeparator();
+        java.awt.Color[] pal = kr.ac.hallym.hcs.app.labels.TunnelColors.PALETTE;
+        for (int i = 0; i < pal.length; i++) {
+            java.awt.Color col = pal[i];
+            javax.swing.JRadioButtonMenuItem it = new javax.swing.JRadioButtonMenuItem(
+                    Messages.get("tunnel.color." + i), swatch(col), col.equals(now));
+            it.addActionListener(e -> t.project.doAction(
+                    kr.ac.hallym.hcs.app.labels.TunnelColorStore.action(file, t.circuit, name, col)));
+            m.add(it);
+        }
+        return m;
+    }
+
+    private static javax.swing.Icon swatch(java.awt.Color col) {
+        return new javax.swing.Icon() {
+            public int getIconWidth() {
+                return 12;
+            }
+
+            public int getIconHeight() {
+                return 12;
+            }
+
+            public void paintIcon(java.awt.Component comp, java.awt.Graphics g, int x, int y) {
+                g.setColor(col);
+                g.fillRect(x, y, 12, 12);
+                g.setColor(java.awt.Color.DARK_GRAY);
+                g.drawRect(x, y, 11, 11);
+            }
+        };
     }
 
     /** 같은 이름 터널(위→아래, 왼쪽→오른쪽 순). */
