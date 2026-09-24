@@ -26,6 +26,9 @@ import com.cburch.logisim.tools.Tool;
 import com.cburch.logisim.util.JFileChoosers;
 import com.cburch.logisim.util.StringUtil;
 
+import kr.ac.hallym.hcs.app.Messages; // HCS
+import kr.ac.hallym.hcs.app.ext.CircExtensions; // HCS
+
 public class ProjectActions {
 	private ProjectActions() { }
 	
@@ -151,6 +154,7 @@ public class ProjectActions {
 		Loader loader = new Loader(monitor);
 		LogisimFile file = loader.openLogisimFile(source, substitutions);
 		AppPreferences.updateRecentFile(source);
+		loadExtension(file, source); // HCS
 		
 		return completeProject(monitor, loader, file, false);
 	}
@@ -217,6 +221,7 @@ public class ProjectActions {
 			LogisimFile lib = loader.openLogisimFile(f);
 			AppPreferences.updateRecentFile(f);
 			if (lib == null) return null;
+			loadExtension(lib, f); // HCS
 			if (proj == null) {
 				proj = new Project(lib);
 			} else {
@@ -309,12 +314,36 @@ public class ProjectActions {
 		Tool oldTool = proj.getTool();
 		proj.setTool(null);
 		boolean ret = loader.save(proj.getLogisimFile(), f);
+		if (ret) ret = saveExtension(proj, f); // HCS
 		if (ret) {
 			AppPreferences.updateRecentFile(f);
 			proj.setFileAsClean();
 		}
 		proj.setTool(oldTool);
 		return ret;
+	}
+
+	// HCS: .circ 확장 정보(D-024). 원조 로더는 hcs:ext 요소를 건너뛰므로 따로 읽고, 원조 방식으로 저장한
+	// 파일 끝에 다시 넣는다. 확장 정보가 없으면 저장한 파일을 건드리지 않는다.
+	private static void loadExtension(LogisimFile file, File source) {
+		try {
+			CircExtensions.afterOpen(file, source);
+		} catch (IOException e) {
+			// 확장 정보를 못 읽어도 회로는 연다
+		}
+	}
+
+	private static boolean saveExtension(Project proj, File f) {
+		try {
+			CircExtensions.afterSave(proj.getLogisimFile(), f);
+			return true;
+		} catch (IOException e) {
+			JOptionPane.showMessageDialog(proj.getFrame(),
+				Messages.get("extSaveError", e.toString()),
+				Messages.get("extSaveErrorTitle"),
+				JOptionPane.ERROR_MESSAGE);
+			return false;
+		}
 	}
 
 	public static void doQuit() {
