@@ -55,6 +55,7 @@
 - **결정:** .circ의 `jar#<경로>#kr.ac.hallym.hcs.mips.MipsLibrary`는 (1) 그 경로의 jar를 읽을 수 있으면 원조처럼 그것을 쓰고, (2) 읽을 수 없으면 대화상자 대신 포크에 번들된 `hcs-mips.jar`로 연결한다. 저장할 때는 파일에 있던 설명자 문자열을 유지한다. `Loader.getFileFor()` 한 곳의 격리된 패치로 구현한다(#22, `docs/engine-patches.txt`와 회귀 테스트 필요). 학생에게는 jar를 .circ와 같은 폴더에 두도록 안내한다.
 - **이유:** 원조 2.7.1은 jar가 같은 폴더·한 단계 아래·위에 있을 때만 상대 경로로 저장하고 그 밖은 절대 경로로 저장한다. 다른 PC에서 열면 경로가 깨지고 파일 선택 창이 뜬다. 포크 사용자는 jar를 따로 챙기지 않아도 되어야 하고, 같은 파일을 원조로 다시 열 수 있어야 한다. `-sub` 치환은 원래 파일을 먼저 찾은 뒤 적용돼 쓸 수 없고, `getFileFor`는 패키지 전용이라 하위 클래스로 바꿀 수 없다.
 - **대안:** 늘 번들 jar를 우선(학생 폴더의 옛 jar와 동작이 갈릴 때 원조와 결과가 달라짐), 포크가 열 때 jar를 .circ 옆에 복사(학생 폴더에 몰래 파일을 만듦), 번들 라이브러리를 내장 라이브러리로 등록(설명자가 `#이름`이 되어 원조에서 열리지 않음).
+- **보강(#22 구현):** 패치 자리는 `Loader.getFileFor`가 아니라 `LibraryManager`다. getFileFor가 번들 jar를 돌려주면 저장 설명자가 번들 jar 경로가 되어 "설명자 유지"를 못 지킨다. `LibraryManager.loadLibrary`의 jar 분기에서 .circ가 가리키는 파일(named)을 읽을 수 없고 클래스가 번들된 라이브러리일 때만, `JarDescriptor`에 저장용 경로(named)와 불러올 jar(source)를 따로 넣는다. 그 밖의 경우는 원조 코드 경로 그대로다. 번들 위치는 포크 jar 옆 `lib/hcs-mips.jar`(hcs-asm도 같은 `lib/`)이고, 판단은 `kr.ac.hallym.hcs.app.BundledLibraries` 한 곳에 둔다. `BundledLibraryTest`가 번들 연결·설명자 유지(상대·다른 PC 절대 경로)·D-006 동등, 경로의 jar가 있을 때 원조 동작, 다른 라이브러리·번들 없음일 때 원조처럼 파일 선택 창을 띄우려는 것을 확인한다.
 
 ## D-008 디자인 토큰과 로고 원본의 출처
 
