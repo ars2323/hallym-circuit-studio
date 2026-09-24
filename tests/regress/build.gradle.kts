@@ -42,6 +42,7 @@ tasks.named<JavaExec>("run") {
 tasks.test {
     useJUnitPlatform()
     systemProperty("java.awt.headless", "true")
+    systemProperty("java.util.prefs.userRoot", layout.buildDirectory.dir("test-prefs").get().asFile.absolutePath) // 개발자 PC의 Logisim 설정을 바꾸지 않게
     systemProperty("hcs.logisimJar", logisimJar.absolutePath)
     systemProperty("hcs.circDir", rootProject.file("tests/circ").absolutePath)
     testLogging {

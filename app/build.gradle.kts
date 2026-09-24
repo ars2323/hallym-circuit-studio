@@ -50,6 +50,11 @@ dependencies {
 tasks.processResources {
     from("src-hcs") { include("**/*.properties") } // 포크 문구 번들은 코드 옆에 둔다
     from(rootProject.file("assets/fonts/pretendard")) { into("kr/ac/hallym/hcs/app/fonts") } // OFL, LICENSE.txt 포함
+    // 첫 실행 안내의 캐릭터(한림대학교 소유, 원본 그대로). 쓰는 두 장만 넣는다.
+    from(rootProject.file("assets/hallym/character")) {
+        include("haram-hari-greeting.png", "haram-hari-ok.png")
+        into("kr/ac/hallym/hcs/app/character")
+    }
 }
 
 tasks.withType<JavaCompile>().configureEach {
@@ -100,6 +105,9 @@ tasks.test {
     systemProperty("hcs.mipsJar", mipsJar.get().archiveFile.get().asFile.absolutePath)
     systemProperty("hcs.refMips", rootProject.file("tests/mips/ref-mips.circ").absolutePath)
     systemProperty("java.awt.headless", "true")
+    // Logisim은 언어 등을 Java 환경설정에 저장한다. 테스트가 개발자 PC의 설정을 바꾸지 않게 따로 둔다.
+    systemProperty("java.util.prefs.userRoot", layout.buildDirectory.dir("test-prefs").get().asFile.absolutePath)
+    systemProperty("hcs.configDir", layout.buildDirectory.dir("test-config").get().asFile.absolutePath)
     systemProperty("hcs.forkJar", tasks.jar.get().archiveFile.get().asFile.absolutePath)
     systemProperty("hcs.logisimJar", logisimJar.absolutePath)
     systemProperty("hcs.circDir", rootProject.file("tests/circ").absolutePath)

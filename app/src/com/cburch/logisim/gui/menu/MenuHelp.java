@@ -22,6 +22,7 @@ import javax.swing.JOptionPane;
 class MenuHelp extends JMenu implements ActionListener {
 	private LogisimMenuBar menubar;
 	private JMenuItem tutorial = new JMenuItem();
+	private JMenuItem quickStart = new JMenuItem(); // HCS: #23
 	private JMenuItem guide = new JMenuItem();
 	private JMenuItem library = new JMenuItem();
 	private JMenuItem about = new JMenuItem();
@@ -34,10 +35,12 @@ class MenuHelp extends JMenu implements ActionListener {
 		this.menubar = menubar;
 
 		tutorial.addActionListener(this);
+		quickStart.addActionListener(this);
 		guide.addActionListener(this);
 		library.addActionListener(this);
 		about.addActionListener(this);
 
+		add(quickStart);
 		add(tutorial);
 		add(guide);
 		add(library);
@@ -53,6 +56,7 @@ class MenuHelp extends JMenu implements ActionListener {
 			helpFrame.setTitle(Strings.get("helpWindowTitle"));
 		}
 		tutorial.setText(Strings.get("helpTutorialItem"));
+		quickStart.setText(kr.ac.hallym.hcs.app.Messages.get("quickstart.menu")); // HCS: #23
 		guide.setText(Strings.get("helpGuideItem"));
 		library.setText(Strings.get("helpLibraryItem"));
 		about.setText(Strings.get("helpAboutItem"));
@@ -66,6 +70,8 @@ class MenuHelp extends JMenu implements ActionListener {
 		Object src = e.getSource();
 		if (src == guide) {
 			showHelp("guide");
+		} else if (src == quickStart) { // HCS: #23
+			kr.ac.hallym.hcs.app.tutorial.QuickStart.show(menubar.getParentWindow());
 		} else if (src == tutorial) {
 			showHelp("tutorial");
 		} else if (src == library) {
