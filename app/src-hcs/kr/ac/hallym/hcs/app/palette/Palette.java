@@ -190,6 +190,31 @@ public final class Palette {
         }
     }
 
+    /** 목록에 보일 이름: 부품은 원조 표시 이름(한국어 UI면 한국어), 서브회로는 회로 이름. */
+    public static String displayName(Item it) {
+        ComponentFactory f = factory(it);
+        return f == null ? it.name : f.getDisplayName();
+    }
+
+    /** 목록에 보일 속성: 원조 속성 표시 이름과 값(예: "데이터 비트 32", "입력 수 3"). */
+    public static String attrText(Item it) {
+        ComponentFactory f = factory(it);
+        List<String> parts = new ArrayList<>();
+        for (Map.Entry<String, String> e : it.attrs.entrySet()) {
+            com.cburch.logisim.data.Attribute<?> a = f == null ? null : f.createAttributeSet().getAttribute(e.getKey());
+            parts.add((a == null ? e.getKey() : a.getDisplayName()) + " " + e.getValue());
+        }
+        return String.join(", ", parts);
+    }
+
+    private static ComponentFactory factory(Item it) {
+        if (it.kind != Kind.COMPONENT || it.library == null) {
+            return null;
+        }
+        Tool t = it.library.getTool(it.name);
+        return t instanceof AddTool ? ((AddTool) t).getFactory() : null;
+    }
+
     /** 이름 맞춤 점수: 정확 100, 앞이 같음 80, 포함 50, 없음 0. */
     static int match(String q, List<String> names) {
         int best = 0;

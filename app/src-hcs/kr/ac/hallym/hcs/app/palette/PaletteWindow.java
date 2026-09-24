@@ -128,8 +128,10 @@ public final class PaletteWindow extends JWindow {
 
     static String label(Palette.Item it) {
         String kind = Messages.get("palette.kind." + it.kind.name());
-        String name = it.kind == Palette.Kind.COMMAND ? Messages.get("palette.cmd." + it.command) : it.name;
-        String attrs = it.attrs.isEmpty() ? "" : "  " + it.attrs.toString().replace("{", "").replace("}", "");
+        String name = it.kind == Palette.Kind.COMMAND ? Messages.get("palette.cmd." + it.command)
+                : Palette.displayName(it);
+        String attrs = Palette.attrText(it);
+        attrs = attrs.isEmpty() ? "" : "  " + attrs;
         return "<html><b>" + name + "</b>" + attrs + "  <span style='color:#"
                 + String.format("%06X", Tokens.TEXT_2.getRGB() & 0xFFFFFF) + "'>" + kind + "</span></html>";
     }

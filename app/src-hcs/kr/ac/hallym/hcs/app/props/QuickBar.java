@@ -83,6 +83,9 @@ public final class QuickBar implements Selection.Listener, ProjectListener {
         canvas.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
+                if (!hidesWhilePressed(e)) {
+                    return;
+                }
                 q.pressed = true; // 끌어 옮기는 동안은 숨긴다
                 q.bar.setVisible(false);
             }
@@ -100,6 +103,14 @@ public final class QuickBar implements Selection.Listener, ProjectListener {
             }
         });
         return q;
+    }
+
+    /**
+     * 누른 동안 숨길지: 왼쪽 단추(끌어 옮기기)만. 우클릭은 메뉴가 떠서 놓기가 캔버스로 오지 않으므로, 숨기면 다시
+     * 나타나지 않는다.
+     */
+    static boolean hidesWhilePressed(MouseEvent e) {
+        return SwingUtilities.isLeftMouseButton(e);
     }
 
     @Override
