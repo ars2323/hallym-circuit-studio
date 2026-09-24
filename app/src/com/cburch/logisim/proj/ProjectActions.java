@@ -256,8 +256,9 @@ public class ProjectActions {
 		Loader loader = proj.getLogisimFile().getLoader();
 		JFileChooser chooser = loader.createChooser();
 		chooser.setFileFilter(Loader.LOGISIM_FILTER);
-		if (loader.getMainFile() != null) {
-			chooser.setSelectedFile(loader.getMainFile());
+		File preselect = kr.ac.hallym.hcs.app.autosave.AutoSave.get().saveAsTarget(proj); // HCS: #70
+		if (preselect != null) {
+			chooser.setSelectedFile(preselect);
 		}
 		int returnVal = chooser.showSaveDialog(proj.getFrame());
 		if (returnVal != JFileChooser.APPROVE_OPTION) return false;
@@ -306,6 +307,8 @@ public class ProjectActions {
 	public static boolean doSave(Project proj) {
 		Loader loader = proj.getLogisimFile().getLoader();
 		File f = loader.getMainFile();
+		// HCS: a window recovered from autosave asks where to save (#70)
+		if (kr.ac.hallym.hcs.app.autosave.AutoSave.get().isRecovered(proj)) return doSaveAs(proj);
 		if (f == null) return doSaveAs(proj);
 		else return doSave(proj, f);
 	}
@@ -316,6 +319,7 @@ public class ProjectActions {
 		proj.setTool(null);
 		boolean ret = loader.save(proj.getLogisimFile(), f);
 		if (ret) ret = saveExtension(proj, f); // HCS
+		if (ret) kr.ac.hallym.hcs.app.autosave.AutoSave.get().saved(proj); // HCS: #70
 		if (ret) {
 			AppPreferences.updateRecentFile(f);
 			proj.setFileAsClean();
