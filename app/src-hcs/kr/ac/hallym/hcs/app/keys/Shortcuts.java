@@ -234,11 +234,24 @@ public final class Shortcuts {
             JOptionPane.showMessageDialog(canvas.getProject().getFrame(), Messages.get("keys.badValue", s));
             return;
         }
-        CircuitState state = canvas.getProject().getCircuitState();
-        InstanceState is = state.getInstanceState(pin);
-        Pin.FACTORY.setValue(is, Value.createKnown(BitWidth.create(width), (int) (long) v));
+        setPinValue(canvas.getProject().getCircuitState(), pin, v);
         canvas.getProject().getSimulator().requestPropagate();
         canvas.repaint();
+    }
+
+    /**
+     * 입력 핀에 값을 넣는다. 원조 찌르기 도구가 핀을 누를 때와 같은 경로(Pin.setValue)라 시뮬레이션 상태만 바뀌고
+     * .circ에는 남지 않는다.
+     */
+    public static void setPinValue(CircuitState state, Component pin, long v) {
+        int width = pin.getEnds().get(0).getWidth().getWidth();
+        InstanceState is = state.getInstanceState(pin);
+        Pin.FACTORY.setValue(is, Value.createKnown(BitWidth.create(width), (int) v));
+    }
+
+    /** 지금 입력 핀이 내는 값(테스트용). */
+    static Value pinValue(CircuitState state, Component pin) {
+        return Pin.FACTORY.getValue(state.getInstanceState(pin));
     }
 
     /** 값 해석: 0x·0b 접두사, 10진(음수는 2의 보수). 폭을 넘으면 null. */

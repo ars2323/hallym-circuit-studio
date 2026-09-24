@@ -77,6 +77,27 @@ class ShortcutsTest {
         assertNull(Shortcuts.parseValue("", 8));
     }
 
+    /** 값 넣기: 시뮬레이션 상태의 핀 값만 바뀌고 저장 파일은 그대로다. */
+    @Test
+    void typedValueGoesToTheSimulationOnly() throws Exception {
+        LogisimFile file = CircuitBuilder.newFile(new Loader(null), tmp.toFile());
+        CircuitBuilder b = new CircuitBuilder(file, file.getMainCircuit());
+        Component pin = b.add("Wiring", "Pin", 100, 100, "width", "8", "label", "in");
+        b.commit();
+        java.io.File before = tmp.resolve("before.circ").toFile();
+        CircuitBuilder.save(file, before);
+        com.cburch.logisim.proj.Project proj = new com.cburch.logisim.proj.Project(file);
+        com.cburch.logisim.circuit.CircuitState state = proj.getCircuitState();
+        Shortcuts.setPinValue(state, pin, Shortcuts.parseValue("0x2A", 8));
+        assertEquals(0x2A, Shortcuts.pinValue(state, pin).toIntValue());
+        Shortcuts.setPinValue(state, pin, Shortcuts.parseValue("-1", 8));
+        assertEquals(0xFF, Shortcuts.pinValue(state, pin).toIntValue());
+        java.io.File after = tmp.resolve("after.circ").toFile();
+        CircuitBuilder.save(file, after);
+        assertEquals(new String(java.nio.file.Files.readAllBytes(before.toPath()), "UTF-8"),
+                new String(java.nio.file.Files.readAllBytes(after.toPath()), "UTF-8"), "nothing about the value is saved");
+    }
+
     @Test
     void portTipNamesThePortAndWidth() throws Exception {
         LogisimFile file = CircuitBuilder.newFile(new Loader(null), tmp.toFile());
