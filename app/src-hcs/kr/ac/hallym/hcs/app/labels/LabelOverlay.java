@@ -216,6 +216,7 @@ public final class LabelOverlay {
         double z = zoom();
         tunnels(g, circuit, hidden);
         subcircuits(g, circuit, hidden, z);
+        splitterArms(g, circuit, hidden, z);
         chips(g, circuit, hidden, z);
     }
 
@@ -296,6 +297,81 @@ public final class LabelOverlay {
         @Override
         public int hashCode() {
             return System.identityHashCode(comp) * 7;
+        }
+    }
+
+    // ---- 스플리터 팔 라벨 ----
+
+    /** 팔 라벨 하나: 팔 끝 위치, 글자({@code [31:26] op}), 팔이 뻗는 방향. */
+    static final class ArmLabel {
+        final Location end;
+        final String text;
+        final com.cburch.logisim.data.Direction facing;
+
+        ArmLabel(Location end, String text, com.cburch.logisim.data.Direction facing) {
+            this.end = end;
+            this.text = text;
+            this.facing = facing;
+        }
+    }
+
+    /** 스플리터의 팔 라벨들(팔 순서). 팔 이름은 .circ 확장 정보(D-032)에서 읽는다. */
+    static List<ArmLabel> armLabels(com.cburch.logisim.file.LogisimFile file, Circuit circuit, Component s) {
+        List<ArmLabel> ret = new ArrayList<>();
+        kr.ac.hallym.hcs.app.splitter.SplitterSpec spec;
+        try {
+            spec = kr.ac.hallym.hcs.app.splitter.SplitterEdits.specOf(file, circuit, s);
+        } catch (RuntimeException e) {
+            return ret;
+        }
+        com.cburch.logisim.data.Direction facing = s.getAttributeSet()
+                .getValue(com.cburch.logisim.instance.StdAttr.FACING);
+        List<kr.ac.hallym.hcs.app.splitter.SplitterSpec.Arm> arms = spec.arms();
+        for (int i = 0; i < arms.size() && i + 1 < s.getEnds().size(); i++) {
+            if (arms.get(i).width() == 0) {
+                continue;
+            }
+            ret.add(new ArmLabel(s.getEnds().get(i + 1).getLocation(), arms.get(i).label(),
+                    facing == null ? com.cburch.logisim.data.Direction.EAST : facing));
+        }
+        return ret;
+    }
+
+    /**
+     * 스플리터 팔 끝 옆에 {@code [31:26] op}(이름이 없으면 범위만). 원조 스플리터는 팔에 아무것도 적지 않는다.
+     * 밀도 "전부"에서, 또는 마우스를 올린 스플리터에. 그릴 때만 적용한다.
+     */
+    private void splitterArms(Graphics2D g, Circuit circuit, java.util.Set<Component> hidden, double z) {
+        float px = 7f;
+        if (px * z < 5) {
+            return;
+        }
+        Density d = density();
+        com.cburch.logisim.file.LogisimFile file = canvas.getProject().getLogisimFile();
+        g.setFont(new Font(Tokens.UI_FONT, Font.PLAIN, 1).deriveFont(px));
+        FontMetrics fm = g.getFontMetrics();
+        for (Component c : circuit.getNonWires()) {
+            if (!c.getFactory().getName().equals("Splitter") || hidden.contains(c)
+                    || (d != Density.ALL && c != hovered)) {
+                continue;
+            }
+            for (ArmLabel a : armLabels(file, circuit, c)) {
+                int w = fm.stringWidth(a.text);
+                int x;
+                int y;
+                if (a.facing == com.cburch.logisim.data.Direction.NORTH
+                        || a.facing == com.cburch.logisim.data.Direction.SOUTH) {
+                    x = a.end.getX() + 3; // 세로로 뻗는 팔: 오른쪽
+                    y = a.end.getY() + (a.facing == com.cburch.logisim.data.Direction.NORTH ? -3 : fm.getAscent() + 2);
+                } else {
+                    x = a.facing == com.cburch.logisim.data.Direction.WEST ? a.end.getX() - w - 2 : a.end.getX() + 2;
+                    y = a.end.getY() - 2; // 가로로 뻗는 팔: 선 위
+                }
+                g.setColor(new Color(255, 255, 255, 200));
+                g.fillRect(x - 1, y - fm.getAscent(), w + 2, fm.getAscent() + fm.getDescent());
+                g.setColor(Tokens.TEAL_TEXT);
+                g.drawString(a.text, x, y);
+            }
         }
     }
 
