@@ -14,7 +14,7 @@ Logisim 2.7.1을 포크한 한림대학교 Micro-architecture 실습도구다. �
 - 결정은 `docs/DECISIONS.md`에 한 항목씩 남긴다(날짜, 결정, 이유, 대안). PLAN.md의 미결정 사항을 풀면 PLAN.md도 함께 고친다.
 - 멈추는 경우는 **되돌릴 수 없고 어느 쪽이든 그럴듯한 결정**뿐이다. 예: 저장소를 public으로 바꾸기, 학생에게 배포하기, 사용자가 둔 원본 파일 삭제. 이때는 준비 작업까지 하고 결정만 남긴다.
 - 사람이 해야 하는 일은 모두 **GitHub 이슈 하나**(`needs-human` 라벨)에 체크리스트로 모은다. 예: sudo가 필요한 패키지 설치, 교수님 확인, 실습실 PC 실행 확인. 정확한 명령 한 줄을 적는다. 그동안 다른 일은 계속한다.
-- 작업 세션이 끝날 때는 한국어로 짧게 보고한다. 끝난 것, 머지한 PR, 다음 할 일, `needs-human` 변경 사항을 적는다.
+- 작업 세션이 끝날 때는 한국어로 짧게 보고한다. 끝난 것, 머지한 PR, 다음 할 일, `needs-human` 변경 사항을 적는다. UI가 바뀌었으면 끝에 "스크린샷" 절을 둔다(4절, `docs/SCREENSHOTS.md`).
 
 ## 2. 절대 규칙
 
@@ -71,6 +71,10 @@ git과 gh는 설치·로그인돼 있다. 저장소 관리는 전부 직접 한�
 - **CI (GitHub Actions):** Linux에서 빌드, 단위 테스트, 엔진 회귀, 어셈블 일치를 매 push·PR마다 돌린다. Windows 러너 작업(`hcs-asm.exe`, jpackage zip/MSI)은 1단계 배포 전에 추가한다.
 - **릴리스:** 단계 산출물은 태그(`v0.1.0` = 1단계 라이브러리)와 GitHub Release로 만든다. 첨부물은 `hcs-mips.jar`, `hcs-asm`(Linux), `hcs-asm.exe`, 사용 안내다. 학생 배포는 사용자 결정이므로 Release는 draft로 둔다.
 - **.gitignore:** `resources/`, `ref/`, `build/`, `.gradle/`, `native/**/build/`, IDE 파일.
+- **스크린샷 보고(`docs/SCREENSHOTS.md`):** UI가 바뀌는 작업은 스크린샷을 올리고 링크를 단다.
+  - `tools/screenshots/run.sh`로 가상 화면(1920×1080, 배율 100%, Pretendard)에서 스크립트로 찍는다. 앱 창만 찍고, 개인 경로가 보이지 않게 한다. 이미지는 1MB 이하다.
+  - 이미지는 orphan 브랜치 `review-shots`의 `<YYYY-MM-DD>-<주제>/`에 올린다. 한 번 올린 폴더는 고치지 않는다. `INDEX.md` 맨 위에 날짜, 기준 main 커밋, PR·이슈, 폴더 링크를 더한다.
+  - 세션 보고서 끝 "스크린샷" 절과 UI PR 본문에 `https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/<폴더>/<파일>` 전체 URL을 적는다.
 
 ## 5. 빌드 환경
 
