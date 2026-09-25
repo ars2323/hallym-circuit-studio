@@ -2,6 +2,12 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-26 영향 경로(P-01)
+
+- 기준: feat/influence-paths `14ea7f3`
+- 관련 이슈: P-01 #193
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-p01-influence/README.md
+
 ## 2026-09-25 연결점과 점프(W-04) 재촬영
 
 - 기준: feat/junctions-jumps `a9c2a6d`
