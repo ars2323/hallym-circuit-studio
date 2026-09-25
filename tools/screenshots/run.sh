@@ -26,7 +26,7 @@ xvfb-run -a -s "$screen" "$JAVA" "${opts[@]}" -Djava.util.prefs.userRoot="$B/pre
 
 # 원조 2.7.1: 같은 회로, hcs-mips.jar를 회로 옆에 둔다(원조가 JAR 라이브러리를 찾는 방식)
 if [ $# -eq 0 ] || printf '%s\n' "$@" | grep -qx '0[23]'; then
-    cp tests/mips/ref-mips.circ "$B/orig/"
+    cp tests/circ/demo-datapath.circ "$B/orig/"
     cp lib-mips/build/libs/hcs-mips.jar "$B/orig/"
     (cd "$B/orig" && xvfb-run -a -s "$screen" "$JAVA" "${opts[@]}" -Djava.util.prefs.userRoot=prefs-orig \
         -cp "../classes:$root/vendor/logisim-2.7.1/logisim-generic-2.7.1.jar" Shots orig "$out")

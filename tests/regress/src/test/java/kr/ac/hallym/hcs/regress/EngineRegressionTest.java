@@ -63,7 +63,7 @@ class EngineRegressionTest {
                 assertEquals(committed, fresh, f.getName());
             }
         }
-        assertEquals(Engine.circuits(tmp.toFile()), Engine.circuits(DIR));
+        assertEquals(Engine.allCircuits(tmp.toFile()), Engine.circuits(DIR)); // 생성기가 만드는 회로 = 기대값 있는 회로
         assertTrue(generated.contains("memory.ram"));
     }
 }

@@ -72,6 +72,8 @@ public final class LabelOverlay {
     static final int BUS_MIN_LENGTH = 60;
     /** 포트가 상자의 어느 변에 있는지 볼 때의 여유(px). */
     static final int SIDE = 5;
+    /** 서브회로 상자 안 포트 이름의 가장 작은 글자(회로 좌표). */
+    static final float PORT_MIN_PX = 5f;
 
     private static final Map<Canvas, LabelOverlay> OVERLAYS = new WeakHashMap<>();
     private static Field fieldOfTextField;
@@ -332,18 +334,25 @@ public final class LabelOverlay {
      * 캡션으로 그린다({@link #chips}).
      */
     private static void subcircuits(Graphics2D g, Circuit circuit, java.util.Set<Component> hidden, double z) {
-        float portPx = 9f; // 검토 반영 1: 200%에서 또렷하게(포트 간격 10px 안)
-        if (portPx * z < 6) {
-            return;
-        }
-        g.setFont(new Font(Tokens.UI_FONT, Font.BOLD, 1).deriveFont(portPx));
-        FontMetrics fm = g.getFontMetrics();
+        float maxPx = 9f; // 검토 반영 1: 200%에서 또렷하게(포트 간격 10px 안)
         for (Component c : circuit.getNonWires()) {
             if (!defaultSubcircuit(c) || hidden.contains(c)) {
                 continue;
             }
             Bounds b = c.getBounds();
             int half = Math.max(6, b.getWidth() / 2 - 4);
+            // 상자마다 글자 크기: 가장 긴 이름이 상자 반 폭에 들어가게(9px에서 5px까지), 그래도 넘치면 끝을 줄인다
+            g.setFont(new Font(Tokens.UI_FONT, Font.BOLD, 1).deriveFont(maxPx));
+            int longest = 1;
+            for (int i = 0; i < c.getEnds().size(); i++) {
+                longest = Math.max(longest, g.getFontMetrics().stringWidth(Kinds.portName(c, i)));
+            }
+            float px = portPx(half, longest, maxPx);
+            if (px * z < 5) {
+                continue; // 너무 작아 읽을 수 없다
+            }
+            g.setFont(new Font(Tokens.UI_FONT, Font.BOLD, 1).deriveFont(px));
+            FontMetrics fm = g.getFontMetrics();
             g.setColor(Tokens.TEXT); // 검토 반영 1: 대비를 높인다
             int mid = (fm.getAscent() - fm.getDescent()) / 2;
             for (int i = 0; i < c.getEnds().size(); i++) {
@@ -362,6 +371,14 @@ public final class LabelOverlay {
                 }
             }
         }
+    }
+
+    /**
+     * 서브회로 상자 안 포트 이름 글자 크기: 가장 긴 이름(maxPx에서 잰 폭 longestAtMax)이 반 폭 half에 들어가는 크기.
+     * maxPx를 넘지 않고 {@link #PORT_MIN_PX}보다 작지 않다(그래도 넘치면 끝을 줄인다).
+     */
+    static float portPx(int half, int longestAtMax, float maxPx) {
+        return Math.max(PORT_MIN_PX, Math.min(maxPx, maxPx * half / Math.max(1, longestAtMax)));
     }
 
     private static boolean defaultSubcircuit(Component c) {

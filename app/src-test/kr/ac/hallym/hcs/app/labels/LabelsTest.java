@@ -313,4 +313,13 @@ class LabelsTest {
         assertEquals(a.get("pc"), b.get("four"));
         assertTrue(!b.get("pc").equals(b.get("four")));
     }
+
+    /** 서브회로 상자 포트 이름: 넓은 상자는 9px, 좁은 기본 상자는 맞는 만큼 줄이고 5px 아래로는 가지 않는다. */
+    @Test
+    void subcircuitPortNamesShrinkToFitTheBox() {
+        assertEquals(9f, LabelOverlay.portPx(60, 20, 9f), "fits at full size");
+        assertEquals(4.5f * 2, LabelOverlay.portPx(20, 20, 9f));
+        assertEquals(6.75f, LabelOverlay.portPx(15, 20, 9f), 1e-6, "30px default box, 20px name at 9px");
+        assertEquals(LabelOverlay.PORT_MIN_PX, LabelOverlay.portPx(11, 60, 9f), "long names stop at the minimum");
+    }
 }
