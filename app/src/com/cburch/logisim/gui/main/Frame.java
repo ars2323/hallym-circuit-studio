@@ -245,7 +245,10 @@ public class Frame extends LFrame implements LocaleListener {
 		hcsToolbar = hcsSim.toolbar();
 		JPanel hcsTop = new JPanel(new BorderLayout());
 		hcsTop.add(new kr.ac.hallym.hcs.app.tabs.FileTabBar(this), BorderLayout.CENTER);
-		hcsTop.add(hcsSim.banner(), BorderLayout.SOUTH);
+		JPanel hcsBanners = new JPanel(new BorderLayout()); // HCS: P-02 instance banner under the simulation banner
+		hcsBanners.add(hcsSim.banner(), BorderLayout.NORTH);
+		hcsBanners.add(kr.ac.hallym.hcs.app.instance.InstanceBanner.install(this), BorderLayout.SOUTH);
+		hcsTop.add(hcsBanners, BorderLayout.SOUTH);
 		mainPanelSuper.add(hcsTop, BorderLayout.NORTH);
 		// HCS: drop .circ files on the window to open them (#70)
 		kr.ac.hallym.hcs.app.dnd.DropOpen.install(this, layoutCanvas);
