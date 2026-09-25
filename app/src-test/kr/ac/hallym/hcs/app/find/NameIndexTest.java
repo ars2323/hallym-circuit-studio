@@ -6,6 +6,7 @@
 package kr.ac.hallym.hcs.app.find;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -110,13 +111,52 @@ class NameIndexTest {
         assertTrue(pc.size() >= 2, "different instance paths stay separate rows");
 
         java.util.Set<String> open = new java.util.HashSet<>();
+        java.util.function.Function<NameIndex.Entry, String> place = FindDialog::placeText;
         assertEquals(1, FindDialog.rows(g, open).size());
-        assertTrue(FindDialog.label(FindDialog.rows(g, open).get(0), false).contains(
+        assertTrue(FindDialog.label(FindDialog.rows(g, open).get(0), false, place).contains(
                 kr.ac.hallym.hcs.app.Messages.get("find.count", 3)));
         open.add(FindDialog.key(g.get(0)));
         List<FindDialog.Row> rows = FindDialog.rows(g, open);
         assertEquals(4, rows.size());
         assertTrue(rows.get(1).child);
-        assertTrue(FindDialog.label(rows.get(2), true).contains("(100, 200)"));
+        // 아무 데도 붙지 않은 터널: 좌표 대신 번호 이름(검토 2차 D)
+        String label = FindDialog.label(rows.get(2), true, place);
+        assertTrue(label.contains("main › Tunnel #2") && !label.contains("(100, 200)"), label);
+    }
+
+    /** 검토 2차 D: 위치 줄은 좌표가 아니라 붙은 포트와 부품(서브회로면 경로)이다. */
+    @Test
+    void placesNameTheAttachedPort() throws Exception {
+        LogisimFile file = CircuitBuilder.newFile(new Loader(null), tmp.toFile());
+        Circuit dp = new Circuit("datapath");
+        file.addCircuit(dp);
+        CircuitBuilder b = new CircuitBuilder(file, dp);
+        Component pc = b.add("Memory", "Register", 300, 300, "width", "32", "label", "PC");
+        Component add = b.add("Arithmetic", "Adder", 500, 300, "width", "32");
+        b.tunnel(pc, 1, "pcIn"); // Register: 0 = Q, 1 = D
+        b.tunnel(add, 2, "pcIn"); // Adder: 0 = a, 1 = b, 2 = sum
+        Component sp = b.add("Wiring", "Splitter", 300, 500, "incoming", "32", "fanout", "2");
+        b.tunnel(sp, 0, "pcIn");
+        b.commit();
+        CircuitBuilder mb = new CircuitBuilder(file, file.getMainCircuit());
+        mb.addSubcircuit(dp, 300, 100);
+        mb.commit();
+
+        NameIndex idx = NameIndex.of(file);
+        List<NameIndex.Group> g = NameIndex.group(idx.find("pcIn"));
+        assertEquals(1, g.size());
+        assertEquals(3, g.get(0).size());
+        List<String> places = new ArrayList<>();
+        for (NameIndex.Entry e : g.get(0).entries) {
+            places.add(FindDialog.placeText(e));
+        }
+        String near = kr.ac.hallym.hcs.app.Messages.get("find.near", "");
+        String path = "main › datapath #1 › ";
+        assertTrue(places.contains(near + path + "PC.D"), places.toString());
+        assertTrue(places.contains(near + path + "Add #1.sum"), places.toString());
+        assertTrue(places.stream().anyMatch(s -> s.startsWith(near + path + "Split #1")), places.toString());
+        for (String s : places) {
+            assertFalse(s.matches(".*\\(\\d+, \\d+\\).*"), "no coordinates: " + s);
+        }
     }
 }
