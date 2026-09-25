@@ -2,6 +2,12 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-26 진단 표시 굵기(S-13)
+
+- 기준: fix/mark-thickness `382908a`
+- 관련 이슈: S-13 #176
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-s13-mark-thickness/README.md
+
 ## 2026-09-26 기본 모양 서브회로 안내(S-08)
 
 - 기준: feat/default-appearance-help `42c428b`
