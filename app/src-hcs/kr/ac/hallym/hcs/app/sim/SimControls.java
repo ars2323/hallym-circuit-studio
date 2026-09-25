@@ -82,6 +82,7 @@ public final class SimControls {
             }
         };
         proj.getSimulator().addSimulatorListener(listener);
+        kr.ac.hallym.hcs.app.record.Recorder.of(proj); // C-01: 창이 열린 프로젝트는 시뮬레이션을 기록한다
     }
 
     public static SimControls install(Frame frame) {
@@ -174,7 +175,7 @@ public final class SimControls {
         }));
         tb.add(button("reset", "bar.reset", () -> {
             ticks = 0;
-            proj.getSimulator().requestReset();
+            kr.ac.hallym.hcs.app.record.Recorder.requestReset(proj);
         }));
         JComboBox<String> speed = new JComboBox<>(new String[] {"1 Hz", "4 Hz", "16 Hz", "64 Hz", "256 Hz",
             "1 kHz", "4 kHz"});

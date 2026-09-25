@@ -17,6 +17,11 @@ import com.cburch.logisim.proj.Project;
  * 단위로 읽고, 메모리 부품이 "어느 영역에도 없는 주소", "영역 겹침"을 알아낼 때 쓴다. 원조 2.7.1은 다른 부품의
  * 상태를 얻는 공개 API가 없어서, 메모리 부품이 전파될 때마다 스스로 등록한다. 부품(Instance)마다 가장 최근
  * 상태 하나만 둔다. 시뮬레이션을 리셋하면 새 상태가 옛 상태를 밀어낸다.
+ *
+ * <p>포크의 기록 엔진(C-01)은 지난 사이클을 회로 상태 복제본으로 다시 돌린다. 그 재실행은 이름이
+ * {@link #REPLAY_THREAD_PREFIX}로 시작하는 스레드에서 돌고, 그 스레드의 등록은 따로 둔다. 그래서 재실행이 실제
+ * 시뮬레이션의 등록을 덮어쓰지 않고, 재실행 안의 Console은 재실행의 메모리를 읽는다. 원조 2.7.1에는 이런 스레드가
+ * 없어 동작이 같다.
  */
 final class MemoryRegistry {
     interface View {
@@ -39,7 +44,18 @@ final class MemoryRegistry {
     private MemoryRegistry() {
     }
 
+    /** 포크 기록 엔진의 재실행 스레드 이름 앞부분(kr.ac.hallym.hcs.app.record.Recording과 같은 값). */
+    static final String REPLAY_THREAD_PREFIX = "hcs-replay";
+
+    /** 지금 스레드가 기록 엔진의 재실행인가. */
+    static boolean isReplay() {
+        return Thread.currentThread().getName().startsWith(REPLAY_THREAD_PREFIX);
+    }
+
     private static Object key(Project project) {
+        if (isReplay()) {
+            return Thread.currentThread(); // 재실행마다 새 스레드: 끝나면 등록도 함께 사라진다
+        }
         return project == null ? NO_PROJECT : project;
     }
 

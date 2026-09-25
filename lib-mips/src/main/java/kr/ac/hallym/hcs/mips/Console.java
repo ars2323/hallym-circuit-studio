@@ -192,7 +192,8 @@ final class Console extends InstanceFactory {
     }
 
     private static void stopClock(Project project) {
-        if (project != null && project.getSimulator() != null) {
+        // 기록 엔진의 재실행(복제본)이 실제 시뮬레이터의 클럭을 멈추지 않게
+        if (project != null && project.getSimulator() != null && !MemoryRegistry.isReplay()) {
             project.getSimulator().setIsTicking(false);
         }
     }

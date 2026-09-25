@@ -106,7 +106,7 @@ class MenuSimulate extends Menu {
 					proj.repaintCanvas();
 				}
 			} else if (src == reset) {
-				if (sim != null) sim.requestReset();
+				if (proj != null) kr.ac.hallym.hcs.app.record.Recorder.requestReset(proj); // HCS: C-01 record from step 0
 			} else if (src == step || src == LogisimMenuBar.SIMULATE_STEP) {
 				if (sim != null) sim.step();
 			} else if (src == tickOnce || src == LogisimMenuBar.TICK_STEP) {
