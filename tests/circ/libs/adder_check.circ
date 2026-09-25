@@ -56,58 +56,47 @@
     <a name="clabelup" val="east"/>
     <a name="clabelfont" val="SansSerif plain 12"/>
     <wire from="(640,300)" to="(700,300)"/>
+    <wire from="(340,100)" to="(340,120)"/>
+    <wire from="(340,240)" to="(340,260)"/>
+    <wire from="(340,380)" to="(340,400)"/>
+    <wire from="(340,520)" to="(340,540)"/>
+    <wire from="(340,130)" to="(340,150)"/>
+    <wire from="(340,270)" to="(340,290)"/>
+    <wire from="(340,410)" to="(340,430)"/>
+    <wire from="(340,550)" to="(340,570)"/>
     <wire from="(660,500)" to="(700,500)"/>
-    <wire from="(330,260)" to="(370,260)"/>
-    <wire from="(330,120)" to="(370,120)"/>
-    <wire from="(330,130)" to="(370,130)"/>
-    <wire from="(330,140)" to="(370,140)"/>
-    <wire from="(330,270)" to="(370,270)"/>
-    <wire from="(330,400)" to="(370,400)"/>
-    <wire from="(330,410)" to="(370,410)"/>
-    <wire from="(330,540)" to="(370,540)"/>
-    <wire from="(330,550)" to="(370,550)"/>
-    <comp lib="0" loc="(330,120)" name="Constant"/>
-    <comp lib="0" loc="(680,320)" name="Tunnel">
-      <a name="facing" val="east"/>
-      <a name="label" val="s1"/>
-    </comp>
-    <comp lib="0" loc="(330,130)" name="Constant">
-      <a name="value" val="0x0"/>
-    </comp>
-    <comp lib="0" loc="(400,270)" name="Tunnel">
-      <a name="facing" val="north"/>
-      <a name="label" val="c2"/>
-    </comp>
-    <comp lib="0" loc="(700,300)" name="Splitter">
-      <a name="facing" val="west"/>
-      <a name="fanout" val="5"/>
-      <a name="incoming" val="5"/>
-    </comp>
-    <comp lib="0" loc="(400,410)" name="Tunnel">
-      <a name="facing" val="north"/>
-      <a name="label" val="c3"/>
-    </comp>
-    <comp lib="0" loc="(400,550)" name="Tunnel">
-      <a name="facing" val="north"/>
-      <a name="label" val="c4"/>
-    </comp>
-    <comp lib="0" loc="(370,280)" name="Tunnel">
-      <a name="facing" val="north"/>
-      <a name="label" val="c1"/>
-    </comp>
-    <comp lib="0" loc="(680,340)" name="Tunnel">
-      <a name="facing" val="east"/>
-      <a name="label" val="s3"/>
-    </comp>
-    <comp lib="7" loc="(400,540)" name="1bit_adder">
-      <a name="label" val="fa3"/>
+    <wire from="(300,150)" to="(340,150)"/>
+    <wire from="(300,290)" to="(340,290)"/>
+    <wire from="(300,430)" to="(340,430)"/>
+    <wire from="(300,570)" to="(340,570)"/>
+    <wire from="(300,100)" to="(340,100)"/>
+    <wire from="(300,240)" to="(340,240)"/>
+    <wire from="(300,380)" to="(340,380)"/>
+    <wire from="(300,520)" to="(340,520)"/>
+    <wire from="(340,120)" to="(370,120)"/>
+    <wire from="(340,260)" to="(370,260)"/>
+    <wire from="(340,400)" to="(370,400)"/>
+    <wire from="(340,540)" to="(370,540)"/>
+    <wire from="(340,130)" to="(370,130)"/>
+    <wire from="(340,270)" to="(370,270)"/>
+    <wire from="(340,410)" to="(370,410)"/>
+    <wire from="(340,550)" to="(370,550)"/>
+    <wire from="(380,140)" to="(380,250)"/>
+    <wire from="(380,280)" to="(380,390)"/>
+    <wire from="(380,420)" to="(380,530)"/>
+    <wire from="(380,70)" to="(380,110)"/>
+    <comp lib="7" loc="(400,400)" name="1bit_adder">
+      <a name="label" val="fa2"/>
     </comp>
     <comp lib="0" loc="(400,260)" name="Tunnel">
       <a name="facing" val="north"/>
       <a name="label" val="s1"/>
     </comp>
-    <comp lib="0" loc="(400,120)" name="Tunnel">
-      <a name="facing" val="north"/>
+    <comp lib="0" loc="(300,380)" name="Constant">
+      <a name="value" val="0x0"/>
+    </comp>
+    <comp lib="0" loc="(680,310)" name="Tunnel">
+      <a name="facing" val="east"/>
       <a name="label" val="s0"/>
     </comp>
     <comp lib="0" loc="(640,300)" name="Pin">
@@ -115,63 +104,71 @@
       <a name="width" val="5"/>
       <a name="label" val="sum"/>
     </comp>
-    <comp lib="7" loc="(400,400)" name="1bit_adder">
-      <a name="label" val="fa2"/>
+    <comp lib="7" loc="(400,540)" name="1bit_adder">
+      <a name="label" val="fa3"/>
     </comp>
-    <comp lib="0" loc="(680,330)" name="Tunnel">
-      <a name="facing" val="east"/>
-      <a name="label" val="s2"/>
+    <comp lib="0" loc="(700,300)" name="Splitter">
+      <a name="facing" val="west"/>
+      <a name="fanout" val="5"/>
+      <a name="incoming" val="5"/>
     </comp>
-    <comp lib="0" loc="(330,550)" name="Constant">
+    <comp lib="0" loc="(300,150)" name="Constant">
       <a name="value" val="0x0"/>
     </comp>
-    <comp lib="0" loc="(330,400)" name="Constant">
-      <a name="value" val="0x0"/>
+    <comp lib="7" loc="(400,120)" name="1bit_adder">
+      <a name="label" val="fa0"/>
     </comp>
-    <comp lib="0" loc="(330,140)" name="Constant"/>
-    <comp lib="0" loc="(400,400)" name="Tunnel">
+    <comp lib="0" loc="(300,240)" name="Constant"/>
+    <comp lib="0" loc="(400,120)" name="Tunnel">
       <a name="facing" val="north"/>
-      <a name="label" val="s2"/>
+      <a name="label" val="s0"/>
     </comp>
+    <comp lib="0" loc="(380,560)" name="Tunnel">
+      <a name="facing" val="north"/>
+      <a name="label" val="s4"/>
+    </comp>
+    <comp lib="0" loc="(300,430)" name="Constant"/>
     <comp lib="0" loc="(700,500)" name="Pin">
       <a name="facing" val="west"/>
       <a name="output" val="true"/>
       <a name="label" val="halt"/>
     </comp>
-    <comp lib="7" loc="(400,120)" name="1bit_adder">
-      <a name="label" val="fa0"/>
+    <comp lib="0" loc="(680,320)" name="Tunnel">
+      <a name="facing" val="east"/>
+      <a name="label" val="s1"/>
     </comp>
-    <comp lib="0" loc="(330,540)" name="Constant"/>
+    <comp lib="0" loc="(400,400)" name="Tunnel">
+      <a name="facing" val="north"/>
+      <a name="label" val="s2"/>
+    </comp>
+    <comp lib="0" loc="(680,340)" name="Tunnel">
+      <a name="facing" val="east"/>
+      <a name="label" val="s3"/>
+    </comp>
+    <comp lib="0" loc="(660,500)" name="Constant"/>
+    <comp lib="7" loc="(400,260)" name="1bit_adder">
+      <a name="label" val="fa1"/>
+    </comp>
+    <comp lib="0" loc="(680,330)" name="Tunnel">
+      <a name="facing" val="east"/>
+      <a name="label" val="s2"/>
+    </comp>
+    <comp lib="0" loc="(680,350)" name="Tunnel">
+      <a name="facing" val="east"/>
+      <a name="label" val="s4"/>
+    </comp>
+    <comp lib="0" loc="(380,70)" name="Constant">
+      <a name="facing" val="south"/>
+    </comp>
+    <comp lib="0" loc="(300,570)" name="Constant">
+      <a name="value" val="0x0"/>
+    </comp>
     <comp lib="0" loc="(400,540)" name="Tunnel">
       <a name="facing" val="north"/>
       <a name="label" val="s3"/>
     </comp>
-    <comp lib="0" loc="(660,500)" name="Constant"/>
-    <comp lib="0" loc="(330,410)" name="Constant"/>
-    <comp lib="0" loc="(370,420)" name="Tunnel">
-      <a name="facing" val="north"/>
-      <a name="label" val="c2"/>
-    </comp>
-    <comp lib="0" loc="(680,350)" name="Tunnel">
-      <a name="facing" val="east"/>
-      <a name="label" val="c4"/>
-    </comp>
-    <comp lib="0" loc="(370,560)" name="Tunnel">
-      <a name="facing" val="north"/>
-      <a name="label" val="c3"/>
-    </comp>
-    <comp lib="0" loc="(330,260)" name="Constant"/>
-    <comp lib="7" loc="(400,260)" name="1bit_adder">
-      <a name="label" val="fa1"/>
-    </comp>
-    <comp lib="0" loc="(330,270)" name="Constant"/>
-    <comp lib="0" loc="(400,130)" name="Tunnel">
-      <a name="facing" val="north"/>
-      <a name="label" val="c1"/>
-    </comp>
-    <comp lib="0" loc="(680,310)" name="Tunnel">
-      <a name="facing" val="east"/>
-      <a name="label" val="s0"/>
-    </comp>
+    <comp lib="0" loc="(300,100)" name="Constant"/>
+    <comp lib="0" loc="(300,290)" name="Constant"/>
+    <comp lib="0" loc="(300,520)" name="Constant"/>
   </circuit>
 </project>

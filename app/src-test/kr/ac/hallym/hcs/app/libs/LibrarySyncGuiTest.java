@@ -67,6 +67,13 @@ class LibrarySyncGuiTest {
         return fr.get();
     }
 
+    /** Messages(정적 진단)에 label 인스턴스의 "연결되지 않은 서브회로 포트"가 있는가. */
+    static boolean portUnconnected(Project p, String label) {
+        return kr.ac.hallym.hcs.app.diag.StaticCheck.run(p.getLogisimFile()).stream().anyMatch(x -> x.kind
+                == kr.ac.hallym.hcs.app.diag.Diagnostic.Kind.SUBCIRCUIT_PORT_UNCONNECTED && x.components.stream()
+                        .anyMatch(c -> label.equals(kr.ac.hallym.hcs.app.model.Names.label(c))));
+    }
+
     static boolean updated(Project p) {
         return FileTabs.get().model().tabs().stream().anyMatch(t -> t.key() == p && t.updated());
     }
@@ -89,7 +96,7 @@ class LibrarySyncGuiTest {
             // 1bit_adder 탭을 ripple_carry 캔버스에 끌어 놓았다
             AtomicBoolean dropped = new AtomicBoolean();
             SwingUtilities.invokeAndWait(() -> dropped.set(PaletteActions.dropFile(ripple, adderFile, "1bit_adder",
-                    Location.create(302, 198))));
+                    Location.create(302, 598))));
             settle();
             assertTrue(dropped.get());
             LoadedLibrary lib = OpenFileLibraries.loaded(ripple, adderFile);
@@ -98,7 +105,7 @@ class LibrarySyncGuiTest {
             Component inst = main.getNonWires().stream().filter(c -> c.getFactory() instanceof SubcircuitFactory)
                     .findFirst().orElse(null);
             assertNotNull(inst, "the circuit was placed");
-            assertEquals(Location.create(300, 200), inst.getLocation(), "on the grid");
+            assertEquals(Location.create(300, 600), inst.getLocation(), "on the grid");
             Circuit before = ((SubcircuitFactory) inst.getFactory()).getSubcircuit();
             assertTrue(OpenFileLibraries.candidates(ripple).isEmpty());
 
@@ -135,6 +142,52 @@ class LibrarySyncGuiTest {
             assertSame(adder, went.get());
             assertSame(adderMain, adder.getCurrentCircuit());
             assertSame(adder, FileTabs.get().model().active());
+
+            // 포트가 바뀌는 저장(경고에서 Save Anyway를 고른 것과 같다)
+            AtomicReference<List<Component>> fas = new AtomicReference<>();
+            SwingUtilities.invokeAndWait(() -> {
+                fas.set(OpenFileLibrariesTest.placeAdders(ripple, OpenFileLibraries.loaded(ripple, adderFile)));
+                // 선 끝마다 핀을 달아 포트가 다른 포트와 이어지게 한다
+                CircuitBuilder pb = new CircuitBuilder(ripple.getLogisimFile(), main);
+                for (Component fa : fas.get()) {
+                    for (int i = 0; i < fa.getEnds().size(); i++) {
+                        Location p = fa.getEnd(i).getLocation();
+                        if (fa.getEnd(i).isOutput()) {
+                            pb.add("Wiring", "Pin", p.getX() + 30, p.getY(), "facing", "west", "output", "true");
+                        } else {
+                            pb.add("Wiring", "Pin", p.getX() - 30, p.getY(), "tristate", "false");
+                        }
+                    }
+                }
+                pb.commit();
+            });
+            settle();
+            assertTrue(!portUnconnected(ripple, "fa0"), "fa0's ports are wired before the change");
+            Component b = adderMain.getNonWires().stream().filter(c -> "b".equals(
+                    kr.ac.hallym.hcs.app.model.Names.label(c))).findFirst().get();
+            SwingUtilities.invokeAndWait(() -> {
+                com.cburch.logisim.circuit.CircuitMutation m = new com.cburch.logisim.circuit.CircuitMutation(
+                        adderMain);
+                m.remove(b);
+                m.execute();
+                List<LibrarySync.Cut> cuts = LibrarySync.impact(adder, adderFile);
+                assertEquals(1, cuts.size(), "the warning would show");
+                assertEquals(java.util.Arrays.asList("fa0", "fa1"), cuts.get(0).instances);
+                try {
+                    CircuitBuilder.save(adder.getLogisimFile(), adderFile);
+                } catch (java.io.IOException e) {
+                    throw new AssertionError(e);
+                }
+                LibrarySync.afterSave(adder, adderFile);
+            });
+            settle();
+            // 인스턴스가 새 모양(포트 4개)으로 바뀌었다. 남은 포트는 옛 a·b 자리로 당겨져 다른 핀과 이어진다:
+            // 정적 진단으로는 알 수 없는 끊김이라 저장 전 경고가 핀 이름으로 센다(D-065)
+            Component fa0 = main.getNonWires().stream().filter(c -> "fa0".equals(kr.ac.hallym.hcs.app.model.Names
+                    .label(c))).findFirst().get();
+            assertEquals(4, fa0.getEnds().size());
+            assertTrue(!portUnconnected(ripple, "fa0"), "no static message for a port pulled onto another wire");
+
         } finally {
             for (Frame f : frames) {
                 SwingUtilities.invokeAndWait(f::dispose);
