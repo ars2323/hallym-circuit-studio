@@ -18,7 +18,6 @@ import javax.swing.JOptionPane;
 
 import com.cburch.logisim.circuit.Circuit;
 import com.cburch.logisim.circuit.CircuitState;
-import com.cburch.logisim.circuit.ReplacementMap;
 import com.cburch.logisim.comp.Component;
 import com.cburch.logisim.comp.EndData;
 import com.cburch.logisim.data.BitWidth;
@@ -27,7 +26,6 @@ import com.cburch.logisim.data.Location;
 import com.cburch.logisim.data.Value;
 import com.cburch.logisim.gui.main.Canvas;
 import com.cburch.logisim.gui.main.Selection;
-import com.cburch.logisim.gui.main.SelectionActions;
 import com.cburch.logisim.instance.InstanceState;
 import com.cburch.logisim.proj.Project;
 import com.cburch.logisim.std.wiring.Pin;
@@ -152,8 +150,8 @@ public final class Shortcuts {
         }
         MoveGesture g = new MoveGesture((gesture, x, y) -> { }, canvas.getCircuit(),
                 sel.getAnchoredComponents());
-        ReplacementMap repl = g.forceRequest(dx, dy).getReplacementMap();
-        proj.doAction(SelectionActions.translate(sel, dx, dy, repl));
+        // 끌어 옮기기와 같은 기준으로 남긴다(#81): 다른 넷 불변, 새 선은 부록 A.4 규칙
+        kr.ac.hallym.hcs.app.wiring.SafeMove.move(proj, sel, dx, dy, g.forceRequest(dx, dy));
         return true;
     }
 

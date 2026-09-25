@@ -47,6 +47,12 @@ public final class SimControls {
     private final JLabel cycleLabel = new JLabel();
     private final JLabel pcLabel = new JLabel();
     private final JLabel programLabel = new JLabel();
+    /** 한 줄 알림(편집 결과 등). 몇 초 뒤 사라진다. */
+    private final JLabel notice = new JLabel();
+    private final javax.swing.Timer noticeTimer = new javax.swing.Timer(NOTICE_MS, e -> notice.setText(""));
+    /** 알림이 보이는 시간. */
+    static final int NOTICE_MS = 8000;
+    private static final java.util.Map<Project, SimControls> ALL = new java.util.WeakHashMap<>();
     private final kr.ac.hallym.hcs.app.zoom.ZoomStatus zoom = new kr.ac.hallym.hcs.app.zoom.ZoomStatus();
     private final JPanel banner = new JPanel(new FlowLayout(FlowLayout.LEFT, Tokens.SPACE_2, 2));
     private long ticks;
@@ -56,6 +62,11 @@ public final class SimControls {
     private SimControls(Frame frame) {
         this.frame = frame;
         this.proj = frame.getProject();
+        synchronized (ALL) {
+            ALL.put(proj, this);
+        }
+        noticeTimer.setRepeats(false);
+        notice.setForeground(Tokens.AMBER_TEXT);
         listener = new SimulatorListener() {
             public void propagationCompleted(SimulatorEvent e) {
                 SwingUtilities.invokeLater(SimControls.this::refresh);
@@ -193,6 +204,30 @@ public final class SimControls {
         t.start();
     }
 
+    /**
+     * 상태 표시줄에 한 줄 알림을 잠시 보인다(막지 않는다). 창이 없는 프로젝트(테스트)에서는 마지막 알림만 기억한다.
+     */
+    public static void notice(Project proj, String text) {
+        SimControls s;
+        synchronized (ALL) {
+            s = ALL.get(proj);
+            LAST.put(proj, text);
+        }
+        if (s != null) {
+            s.notice.setText(text);
+            s.noticeTimer.restart();
+        }
+    }
+
+    private static final java.util.Map<Project, String> LAST = new java.util.WeakHashMap<>();
+
+    /** 마지막 알림(테스트). */
+    public static String lastNotice(Project proj) {
+        synchronized (ALL) {
+            return LAST.get(proj);
+        }
+    }
+
     /** 상태 표시줄의 배율 단추. 창이 배율 모델을 붙인다. */
     public kr.ac.hallym.hcs.app.zoom.ZoomStatus zoomStatus() {
         return zoom;
@@ -213,6 +248,7 @@ public final class SimControls {
         legend.setToolTipText(Messages.get("bar.legendTip"));
         p.add(legend);
         p.add(kr.ac.hallym.hcs.app.labels.LabelOverlay.densityButton()); // #79
+        p.add(notice); // 편집 결과 한 줄 알림(#81)
         refresh();
         return p;
     }

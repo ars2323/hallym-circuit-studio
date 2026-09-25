@@ -348,6 +348,7 @@ public class SelectTool extends Tool {
 					boolean connect = shouldConnect(canvas, e.getModifiersEx());
 					drawConnections = false;
 					ReplacementMap repl;
+					MoveResult result = null; // HCS: #81
 					if (connect) {
 						MoveGesture gesture = moveGesture;
 						if (gesture == null) {
@@ -355,14 +356,15 @@ public class SelectTool extends Tool {
 									canvas.getCircuit(), canvas.getSelection().getAnchoredComponents());
 						}
 						canvas.setErrorMessage(new ComputingMessage(dx, dy), COLOR_COMPUTING);
-						MoveResult result = gesture.forceRequest(dx, dy);
+						result = gesture.forceRequest(dx, dy); // HCS: #81
 						clearCanvasMessage(canvas, dx, dy);
 						repl = result.getReplacementMap();
 					} else {
 						repl = null;
 					}
 					Selection sel = proj.getSelection();
-					proj.doAction(SelectionActions.translate(sel, dx, dy, repl));
+					// HCS: #81 keep the move only if other nets stay the same and new wires follow PLAN.md A.4
+					kr.ac.hallym.hcs.app.wiring.SafeMove.move(proj, sel, dx, dy, result);
 				}
 			}
 			moveGesture = null;
