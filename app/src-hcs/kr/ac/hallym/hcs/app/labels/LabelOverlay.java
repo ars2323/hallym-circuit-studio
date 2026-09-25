@@ -188,7 +188,10 @@ public final class LabelOverlay {
         LabelOverlay o = of(canvas);
         o.labels = labelFields(circuit, g);
         Density d = density();
-        return filter((Graphics2D) g, circuit, hidden, o.labels, c -> d == Density.ALL || c == o.hovered);
+        boolean readable = ARM_PX * o.zoom() >= ARM_MIN_SCREEN_PX; // splitterArms와 같은 조건
+        com.cburch.logisim.file.LogisimFile file = canvas.getProject().getLogisimFile();
+        return filter((Graphics2D) g, circuit, hidden, o.labels, c -> readable
+                && (d == Density.ALL || c == o.hovered) && !armLabels(file, circuit, c).isEmpty());
     }
 
     static FilterGraphics filter(Graphics2D g, Circuit circuit, java.util.Collection<Component> hidden,
@@ -376,6 +379,10 @@ public final class LabelOverlay {
         }
     }
 
+    /** 팔 라벨 글자 크기(회로 좌표)와, 이보다 작게 보이면 그리지 않는 화면 크기. */
+    static final float ARM_PX = 7f;
+    static final float ARM_MIN_SCREEN_PX = 5f;
+
     /** 스플리터의 팔 라벨들(팔 순서). 팔 이름은 .circ 확장 정보(D-032)에서 읽는다. */
     static List<ArmLabel> armLabels(com.cburch.logisim.file.LogisimFile file, Circuit circuit, Component s) {
         List<ArmLabel> ret = new ArrayList<>();
@@ -403,9 +410,9 @@ public final class LabelOverlay {
      * 밀도 "전부"에서, 또는 마우스를 올린 스플리터에. 그릴 때만 적용한다.
      */
     private void splitterArms(Graphics2D g, Circuit circuit, java.util.Set<Component> hidden, double z) {
-        float px = 7f;
-        if (px * z < 5) {
-            return;
+        float px = ARM_PX;
+        if (px * z < ARM_MIN_SCREEN_PX) {
+            return; // 원조 "0-5" 표시는 이때 빼지 않는다(wrap)
         }
         Density d = density();
         com.cburch.logisim.file.LogisimFile file = canvas.getProject().getLogisimFile();
