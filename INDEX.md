@@ -2,6 +2,12 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-26 읽는 포트 이름(S-09) 재촬영
+
+- 기준: fix/readable-port-names `2358d5b`
+- 관련 이슈: S-09 #172 (PR #251)
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-s09-readable-port-names-2/README.md
+
 ## 2026-09-26 Signal Flow(P-07) 재촬영 3
 
 - 기준: feat/signal-flow `0fb2d96`
