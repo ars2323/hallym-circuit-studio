@@ -214,6 +214,9 @@ public final class Shots {
         if (want(scenes, "19")) {
             instanceBanner(demo);
         }
+        if (want(scenes, "22")) {
+            defaultAppearanceHelp(demo);
+        }
         if (want(scenes, "20")) {
             crossTabLibraries(demo);
         }
@@ -598,6 +601,100 @@ public final class Shots {
     }
 
     /** 4: 우클릭 메뉴(포트, 게이트, 선, 빈 곳). 테스트 회로는 포트마다 터널이 붙어 있어 새 파일에 작은 회로를 만든다. */
+    /**
+     * 22: 기본 모양 서브회로(S-08). 새 파일에 포트 네 개짜리 회로 "blk"를 만들어 main에 놓고, 고르면 빠른 속성 창에
+     * Auto Appearance 단추, 마우스를 올리면 포트 이름 목록. 단추를 누른 뒤 모양.
+     */
+    void defaultAppearanceHelp(Project base) throws Exception {
+        Project p = newProject(base);
+        AtomicReference<com.cburch.logisim.comp.Component> inst = new AtomicReference<>();
+        edt(() -> {
+            com.cburch.logisim.file.LogisimFile f = p.getLogisimFile();
+            Circuit blk = new Circuit("blk");
+            f.addCircuit(blk);
+            Library wiring = f.getLoader().getBuiltin().getLibrary("Wiring");
+            com.cburch.logisim.comp.ComponentFactory pin =
+                    ((com.cburch.logisim.tools.AddTool) wiring.getTool("Pin")).getFactory();
+            com.cburch.logisim.circuit.CircuitMutation m = new com.cburch.logisim.circuit.CircuitMutation(blk);
+            String[][] pins = {{"A", "100", "100", "east", "false"}, {"B", "100", "140", "east", "false"},
+                {"Sel", "100", "180", "east", "false"}, {"Result", "300", "140", "west", "true"}};
+            for (String[] d : pins) {
+                com.cburch.logisim.data.AttributeSet as = pin.createAttributeSet();
+                set(as, "label", d[0]);
+                set(as, "facing", d[3]);
+                set(as, "output", d[4]);
+                m.add(pin.createComponent(Location.create(Integer.parseInt(d[1]), Integer.parseInt(d[2])), as));
+            }
+            m.execute();
+            com.cburch.logisim.circuit.CircuitMutation mm =
+                    new com.cburch.logisim.circuit.CircuitMutation(f.getMainCircuit());
+            com.cburch.logisim.comp.Component c = blk.getSubcircuitFactory().createComponent(Location.create(300, 200),
+                    blk.getSubcircuitFactory().createAttributeSet());
+            mm.add(c);
+            mm.execute();
+            inst.set(c);
+        });
+        sleep(900);
+        setZoom(p, 2.0);
+        Bounds b = inst.get().getBounds();
+        centerOn(p, b.expand(80));
+        useTool(p, "Edit Tool");
+        deselect(p);
+        edt(() -> p.getSelection().add(inst.get()));
+        sleep(1200);
+        Rectangle qb = screenRect(p, b.expand(40));
+        Component all = find(p.getFrame().getLayeredPane(), x -> x instanceof AbstractButton && x.isShowing()
+                && kr.ac.hallym.hcs.app.Messages.get("quick.all").equals(((AbstractButton) x).getText()));
+        if (all != null) {
+            qb.add(onScreen(all.getParent().getParent()));
+        }
+        snapCrop(pad(qb, 16), "22a-quick-bar-auto-appearance");
+        // 마우스를 올리면 포트 이름 목록(도움말은 750ms 뒤)
+        deselect(p);
+        Point at = screen(p, Location.create(b.getX() + b.getWidth() / 2, b.getY() + b.getHeight() / 2));
+        robot.mouseMove(at.x, at.y);
+        sleep(1800);
+        Rectangle hov = screenRect(p, b.expand(40));
+        for (Window w : Window.getWindows()) {
+            if (w.isShowing() && w != p.getFrame() && w.getClass().getName().contains("Popup")) {
+                hov.add(w.getBounds());
+            }
+        }
+        Component tip = null;
+        for (Window w : Window.getWindows()) {
+            Component t = find(w, x -> x instanceof javax.swing.JToolTip && x.isShowing());
+            if (t != null) {
+                tip = t;
+            }
+        }
+        if (tip != null) {
+            hov.add(onScreen(tip));
+        } else {
+            log.add("22b: no tooltip");
+        }
+        snapCrop(pad(hov, 16), "22b-hover-port-list");
+        robot.mouseMove(5, 5);
+        sleep(400);
+        // 단추를 누른 뒤: 포트 이름이 보이는 상자
+        edt(() -> p.getSelection().add(inst.get()));
+        sleep(900);
+        AbstractButton auto = (AbstractButton) find(p.getFrame().getLayeredPane(), x -> x instanceof AbstractButton
+                && x.isShowing() && kr.ac.hallym.hcs.app.Messages.get("menu.autoAppearance")
+                        .equals(((AbstractButton) x).getText()));
+        if (auto != null) {
+            edt(auto::doClick);
+            sleep(1200);
+            closeDialogs();
+            deselect(p);
+            com.cburch.logisim.comp.Component now = p.getCurrentCircuit().getNonWires().iterator().next();
+            centerOn(p, now.getBounds().expand(80));
+            snapLogical(p, now.getBounds().expand(40), "22c-after-auto-appearance");
+        } else {
+            log.add("22c: no Auto Appearance button");
+        }
+        setZoom(p, 1.0);
+    }
+
     void contextMenus(Project base) throws Exception {
         Project p = newProject(base);
         edt(() -> {

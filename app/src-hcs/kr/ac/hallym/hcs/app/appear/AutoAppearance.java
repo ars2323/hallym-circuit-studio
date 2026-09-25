@@ -293,15 +293,41 @@ public final class AutoAppearance {
                 CircuitAppearance appear = circuit.getAppearance();
                 wasDefault = appear.isDefaultAppearance();
                 old = new ArrayList<>(appear.getObjectsFromBottom());
-                appear.setDefaultAppearance(false); // 먼저 끈다: 켜진 채면 핀이 바뀔 때 기본 모양으로 돌아간다
-                appear.setObjectsForce(shapes);
+                inUsers(() -> {
+                    appear.setDefaultAppearance(false); // 먼저 끈다: 켜진 채면 핀이 바뀔 때 기본 모양으로 돌아간다
+                    appear.setObjectsForce(shapes);
+                });
             }
 
             @Override
             public void undo(Project proj) {
                 CircuitAppearance appear = circuit.getAppearance();
-                appear.setObjectsForce(old);
-                appear.setDefaultAppearance(wasDefault);
+                inUsers(() -> {
+                    appear.setObjectsForce(old);
+                    appear.setDefaultAppearance(wasDefault);
+                });
+            }
+
+            /**
+             * 모양이 바뀌면 이 회로를 쓰는 회로의 인스턴스 포트가 바뀐다. 원조 모양 편집기(CanvasActionAdapter)처럼 그
+             * 회로들을 잠근 거래 안에서 바꾼다. 거래 없이 바꾸면 인스턴스가 있을 때 "ends changed outside transaction".
+             */
+            private void inUsers(Runnable r) {
+                new com.cburch.logisim.circuit.CircuitTransaction() {
+                    @Override
+                    protected Map<Circuit, Integer> getAccessedCircuits() {
+                        Map<Circuit, Integer> m = new java.util.HashMap<>();
+                        for (Circuit sup : circuit.getCircuitsUsingThis()) {
+                            m.put(sup, READ_WRITE);
+                        }
+                        return m;
+                    }
+
+                    @Override
+                    protected void run(com.cburch.logisim.circuit.CircuitMutator mutator) {
+                        r.run();
+                    }
+                }.execute();
             }
         };
     }

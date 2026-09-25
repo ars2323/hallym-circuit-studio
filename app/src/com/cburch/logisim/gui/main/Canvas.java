@@ -867,6 +867,12 @@ public class Canvas extends JPanel
 		super.repaint(x + hcsOriginX, y + hcsOriginY, width, height); // HCS: S-10
 	}
 	
+	// HCS: S-08 hover info next to the part, not over it (the part, its caption and ports stay visible)
+	@Override
+	public java.awt.Point getToolTipLocation(MouseEvent event) {
+		return kr.ac.hallym.hcs.app.labels.HoverInfo.location(this, event.getX(), event.getY());
+	}
+
 	@Override
 	public String getToolTipText(MouseEvent event) {
 		boolean showTips = AppPreferences.COMPONENT_TIPS.getBoolean();
