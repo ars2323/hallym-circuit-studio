@@ -78,8 +78,10 @@ public final class StaticCheck {
         req("Decoder", "sel");
         req("BitSelector", "in", "sel");
         req("Instruction Memory", "Addr");
-        req("Data Memory", "Addr");
-        req("Stack", "Addr");
+        // MIPS 부품(PLAN.md 4.2·6.2, #28): 떠 있는 제어 입력은 쓰기·읽기·syscall을 하지 않는다
+        req("Data Memory", "Addr", "MemWrite", "MemRead");
+        req("Stack", "Addr", "MemWrite", "MemRead");
+        req("Console", "Syscall");
     }
 
     private static void req(String factory, String... ports) {
@@ -96,7 +98,67 @@ public final class StaticCheck {
         for (Circuit c : file.getCircuits()) {
             ret.addAll(new One(c, summaries).run());
         }
+        ret.addAll(memoryOverlaps(file));
         return ret;
+    }
+
+    /**
+     * Data Memory·Stack 영역 겹침(PLAN.md 4.2·6.2, #28). 두 부품은 한 주소 선을 나눠 쓰고 주소가 속한 쪽만 답하므로,
+     * 영역이 겹치면 어느 쪽이 답할지 정할 수 없다. 영역은 속성만으로 정해진다(Data: [base, base+size), Stack:
+     * [top+4−size, top+4)).
+     */
+    static List<Diagnostic> memoryOverlaps(LogisimFile file) {
+        List<Component> mems = new ArrayList<>();
+        Map<Component, Circuit> where = new IdentityHashMap<>();
+        for (Circuit c : file.getCircuits()) {
+            for (Component x : sorted(c.getNonWires())) {
+                String f = x.getFactory().getName();
+                if ((f.equals("Data Memory") || f.equals("Stack")) && region(x) != null) {
+                    mems.add(x);
+                    where.put(x, c);
+                }
+            }
+        }
+        List<Diagnostic> ret = new ArrayList<>();
+        for (int i = 0; i < mems.size(); i++) {
+            for (int j = i + 1; j < mems.size(); j++) {
+                long[] a = region(mems.get(i));
+                long[] b = region(mems.get(j));
+                long lo = Math.max(a[0], b[0]);
+                long hi = Math.min(a[1], b[1]);
+                if (lo < hi) {
+                    Component x = mems.get(i);
+                    Component y = mems.get(j);
+                    Circuit cx = where.get(x);
+                    Circuit cy = where.get(y);
+                    ret.add(new Diagnostic(Diagnostic.Kind.MEMORY_OVERLAP, cx, Arrays.asList(x, y),
+                            Collections.emptyList(), x.getLocation(),
+                            Names.path(cx.getName(), Names.name(cx, x)), Names.path(cy.getName(), Names.name(cy, y)),
+                            String.format("%08x-%08x", lo, hi - 1)));
+                }
+            }
+        }
+        return ret;
+    }
+
+    /** 속성으로 정한 영역 [low, high). 속성이 없으면 null. */
+    static long[] region(Component c) {
+        Object size = One.attr(c, "size");
+        Object top = One.attr(c, "top");
+        Object base = One.attr(c, "base");
+        if (!(size instanceof Integer)) {
+            return null;
+        }
+        long s = (Integer) size & 0xffffffffL;
+        if (top instanceof Integer) {
+            long high = ((Integer) top & 0xffffffffL) + 4;
+            return new long[] {Math.max(0, high - s), high};
+        }
+        if (base instanceof Integer) {
+            long low = (Integer) base & 0xffffffffL;
+            return new long[] {low, Math.min(low + s, 0x100000000L)};
+        }
+        return null;
     }
 
     /** 회로 하나. */

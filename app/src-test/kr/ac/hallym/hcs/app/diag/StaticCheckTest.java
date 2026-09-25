@@ -269,4 +269,71 @@ class StaticCheckTest {
         assertEquals(new ArrayList<Diagnostic>(), only(g).stream().filter(d -> d.kind
                 == Diagnostic.Kind.COMBINATIONAL_LOOP).collect(java.util.stream.Collectors.toList()));
     }
+
+    // ---- MIPS 부품(#28) ----
+
+    com.cburch.logisim.tools.Library mips;
+
+    LogisimFile mipsFile() throws Exception {
+        Path dir = Files.createTempDirectory(tmp, "m");
+        Path jar = dir.resolve("hcs-mips.jar");
+        Files.copy(MIPS_JAR.toPath(), jar, StandardCopyOption.REPLACE_EXISTING);
+        Loader loader = new Loader(null);
+        LogisimFile f = CircuitBuilder.newFile(loader, dir.toFile());
+        mips = loader.loadJarLibrary(jar.toFile(), "kr.ac.hallym.hcs.mips.MipsLibrary");
+        f.addLibrary(mips);
+        return f;
+    }
+
+    /** 메모리 하나를 놓고 skip을 뺀 포트를 모두 잇는다. */
+    Component memory(CircuitBuilder b, String kind, int x, int y, String skip, String... attrs) {
+        Component m = b.add(mips, kind, x, y, attrs);
+        String[] names = {"Addr", "WriteData", "MemWrite", "MemRead", "clk", "ReadData"};
+        String[] nets = {"addr", "wd", "we", "re", "clk", "rd"};
+        for (int i = 0; i < names.length; i++) {
+            if (!names[i].equals(skip)) {
+                b.tunnel(m, i, nets[i]);
+            }
+        }
+        return m;
+    }
+
+    void drivers(CircuitBuilder b) {
+        b.input("addr", 32, 100, 100);
+        b.input("wd", 32, 100, 150);
+        b.input("we", 1, 100, 200);
+        b.input("re", 1, 100, 250);
+        b.output("rd", 32, 900, 100);
+        Component clk = b.add("Wiring", "Clock", 100, 300);
+        b.tunnel(clk, 0, "clk");
+    }
+
+    @Test
+    void floatingMemWriteIsReported() throws Exception {
+        LogisimFile f = mipsFile();
+        CircuitBuilder b = new CircuitBuilder(f, f.getMainCircuit());
+        drivers(b);
+        memory(b, "Data Memory", 600, 300, "MemWrite");
+        b.commit();
+        one(only(f), Diagnostic.Kind.INPUT_UNCONNECTED, "main › DMem #1", "MemWrite");
+    }
+
+    @Test
+    void dataAndStackRegionsMustNotOverlap() throws Exception {
+        LogisimFile f = mipsFile();
+        CircuitBuilder b = new CircuitBuilder(f, f.getMainCircuit());
+        drivers(b);
+        memory(b, "Data Memory", 600, 300, null);
+        memory(b, "Stack", 600, 600, null);
+        b.commit();
+        assertEquals(new ArrayList<Diagnostic>(), only(f), "default regions are apart (SPIM layout)");
+
+        LogisimFile g = mipsFile();
+        CircuitBuilder gb = new CircuitBuilder(g, g.getMainCircuit());
+        drivers(gb);
+        memory(gb, "Data Memory", 600, 300, null, "base", "0x7ff80000");
+        memory(gb, "Stack", 600, 600, null);
+        gb.commit();
+        one(only(g), Diagnostic.Kind.MEMORY_OVERLAP, "main › DMem #1", "main › Stack #1", "7ff80000-7fffffff");
+    }
 }
