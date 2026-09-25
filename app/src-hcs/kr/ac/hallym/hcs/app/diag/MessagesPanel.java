@@ -144,6 +144,19 @@ public final class MessagesPanel {
         return ret;
     }
 
+    /** comp 탭을 고르고, 아래 패널이 height보다 낮으면 그만큼 편다(Cycle View 탭은 표가 들어갈 높이). */
+    public void openTab(java.awt.Component comp, int height) {
+        tabs.setSelectedComponent(comp);
+        if (split != null && split.getHeight() - split.getDividerLocation() < height) {
+            split.setDividerLocation(Math.max(split.getHeight() / 3, split.getHeight() - height));
+        }
+    }
+
+    /** 캔버스 아래 탭들(Cycle View 탭 등이 더해진다). */
+    public JTabbedPane tabs() {
+        return tabs;
+    }
+
     public JLabel statusLabel() {
         return status;
     }

@@ -205,6 +205,21 @@ public final class SimControls {
         return tb;
     }
 
+    /** 프로젝트의 도구 모음과 같은 방법으로 n 사이클을 실행한다(사이클 표의 Next Cycle). 창이 없으면 바로 틱한다. */
+    public static void runCycles(Project proj, int n) {
+        SimControls s;
+        synchronized (ALL) {
+            s = ALL.get(proj);
+        }
+        if (s != null) {
+            s.cycles(n);
+        } else {
+            for (int i = 0; i < 2 * n; i++) {
+                proj.getSimulator().tick();
+            }
+        }
+    }
+
     /** n 사이클: 원조 틱 2n번. */
     void cycles(int n) {
         Simulator sim = proj.getSimulator();
@@ -295,7 +310,11 @@ public final class SimControls {
         Simulator sim = proj.getSimulator();
         boolean running = sim.isRunning();
         simState.setText(Messages.get(running ? "bar.running" : "bar.stopped"));
-        cycleLabel.setText(Messages.get("bar.cycleCount", StatusModel.cycles(ticks)));
+        // 기록이 있으면 보고 있는 사이클(지난 사이클을 보면 그 번호, C-03)
+        kr.ac.hallym.hcs.app.record.Recorder rec = kr.ac.hallym.hcs.app.record.Recorder.peek(proj);
+        kr.ac.hallym.hcs.app.record.Recording r = rec == null ? null : rec.current();
+        long shown = r == null || r.isEmpty() ? ticks : r.cursor();
+        cycleLabel.setText(Messages.get("bar.cycleCount", StatusModel.cycles(shown)));
         String pc = StatusModel.pc(proj.getCircuitState());
         pcLabel.setText(pc == null ? "" : "PC " + pc);
         String prog = StatusModel.program(proj.getCurrentCircuit());

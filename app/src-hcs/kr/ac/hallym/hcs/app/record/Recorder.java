@@ -18,6 +18,7 @@ import com.cburch.logisim.circuit.CircuitState;
 import com.cburch.logisim.circuit.Simulator;
 import com.cburch.logisim.circuit.SimulatorEvent;
 import com.cburch.logisim.circuit.SimulatorListener;
+import com.cburch.logisim.comp.Component;
 import com.cburch.logisim.file.LibraryEvent;
 import com.cburch.logisim.file.LibraryListener;
 import com.cburch.logisim.proj.Project;
@@ -26,8 +27,11 @@ import com.cburch.logisim.proj.Project;
  * 프로젝트의 시뮬레이터에 붙어 {@link Recording}을 채운다(C-01). 원조 엔진은 고치지 않고 청취자로만 얹는다.
  * <ul>
  * <li><b>틱:</b> 원조 Simulator는 틱 하나마다 전파한 뒤 tickCompleted를 알린다. 이때 스텝을 하나 올리고 캡처한다.</li>
- * <li><b>틱 없는 전파:</b> 사용자가 입력을 바꿨다(Poke). 지금 스텝을 다시 캡처하고 체크포인트를 둔다. 지난 스텝을
- * 보고 있었으면 그 뒤 기록은 이미 버려졌다(C-03).</li>
+ * <li><b>틱 없는 전파:</b> 사용자가 입력을 바꿨다(Poke). 값이 바뀌었으면 지금 스텝을 다시 캡처하고 체크포인트를
+ * 둔다.</li>
+ * <li><b>지난 사이클 보기(C-03):</b> {@link #view}가 그 스텝의 회로 상태를 다시 만들어 프로젝트 상태로 바꿔 끼운다
+ * (서브회로 안을 보고 있으면 같은 인스턴스 안으로). 지금 상태는 떼어 두었다가 마지막 스텝으로 돌아오면 다시 쓴다.
+ * 지난 스텝에서 틱하거나 입력·회로를 바꾸면 그 뒤 기록을 버리고 거기서 다시 진행한다.</li>
  * <li><b>리셋:</b> 원조 리셋은 전파 완료만 알리므로, 리셋을 요청하는 곳이 {@link #requestReset}을 부른다. 다음 전파에서
  * 스텝 0부터 새로 기록한다.</li>
  * <li><b>회로 편집:</b> 넷 구조가 바뀌면 옛 기록과 체크포인트를 이어 쓸 수 없다. 편집 뒤 첫 전파에서 지금 스텝부터
@@ -38,7 +42,8 @@ import com.cburch.logisim.proj.Project;
 public final class Recorder {
     private static final Map<Project, Recorder> ALL = new WeakHashMap<>();
 
-    private final Project proj;
+    /** 약한 참조: 모든 기록기를 모은 ALL(WeakHashMap)의 값이 키인 프로젝트를 붙잡지 않게(닫은 파일의 기록이 풀린다). */
+    private final java.lang.ref.WeakReference<Project> projRef;
     private final Map<Circuit, Recording> recordings = new HashMap<>();
     private final List<Listener> listeners = new ArrayList<>();
     private volatile boolean resetPending = true;
@@ -80,7 +85,7 @@ public final class Recorder {
     };
 
     private Recorder(Project proj) {
-        this.proj = proj;
+        this.projRef = new java.lang.ref.WeakReference<>(proj);
     }
 
     /** 프로젝트의 기록기(없으면 만들어 붙인다). */
@@ -116,13 +121,15 @@ public final class Recorder {
     }
 
     private void attach() {
+        Project proj = projRef.get();
         proj.getSimulator().addSimulatorListener(simListener);
         proj.addLibraryListener(libraryListener);
         listenToCircuits();
     }
 
     private void listenToCircuits() {
-        if (proj.getLogisimFile() == null) {
+        Project proj = projRef.get();
+        if (proj == null || proj.getLogisimFile() == null) {
             return;
         }
         for (Circuit c : proj.getLogisimFile().getCircuits()) {
@@ -156,7 +163,8 @@ public final class Recorder {
     }
 
     private CircuitState root() {
-        Simulator sim = proj.getSimulator();
+        Project proj = projRef.get();
+        Simulator sim = proj == null ? null : proj.getSimulator();
         CircuitState s = sim == null ? null : sim.getCircuitState();
         return s;
     }
@@ -181,12 +189,15 @@ public final class Recorder {
             Recording r = recordingFor(root);
             if (r.isEmpty() || resetPending || edited) {
                 // 기록 없이 틱이 왔다: 지금 상태부터 시작한다
-                int step = r.isEmpty() || resetPending ? 0 : r.last() + 1;
+                int step = r.isEmpty() || resetPending ? 0 : r.cursor() + 1;
                 resetPending = false;
                 edited = false;
                 r.restart(root, step);
             } else {
-                r.capture(root, r.last() + 1, false);
+                if (r.isViewingPast()) {
+                    r.truncateAfter(r.cursor()); // 지난 사이클에서 다시 진행: 뒤 기록을 버린다
+                }
+                r.capture(root, r.cursor() + 1, false);
             }
             changed = r;
         }
@@ -211,14 +222,104 @@ public final class Recorder {
                 r.restart(root, 0);
             } else if (edited) {
                 edited = false;
-                r.restart(root, r.last());
+                r.restart(root, r.cursor());
+            } else if (r.differs(root, r.cursor())) {
+                // 입력을 바꿨다: 보던 스텝을 다시 적고 체크포인트를 둔다(지난 스텝이면 그 뒤를 버린다)
+                if (r.isViewingPast()) {
+                    r.truncateAfter(r.cursor());
+                }
+                r.capture(root, r.cursor(), true);
             } else {
-                // 입력을 바꿨다: 지금 스텝을 다시 적고 체크포인트를 둔다
-                r.capture(root, r.last(), true);
+                return; // 값이 그대로인 전파 알림
             }
             changed = r;
         }
         fire(changed);
+    }
+
+    /**
+     * 스텝 step의 회로 상태를 보인다(GUI 스레드). 지난 스텝이면 체크포인트에서 다시 만든 상태로 바꿔 끼우고 클럭
+     * 자동 진행을 멈춘다. 마지막 스텝이면 떼어 둔 지금 상태로 돌아온다. 보는 스텝을 돌려준다(기록이 없으면 -1).
+     */
+    public int view(int step) {
+        Recording r;
+        int at;
+        // 커서 옮기기와 상태 바꿔 끼우기를 한 번에: 그 사이에 시뮬레이터 스레드의 전파 알림이 옛 상태를 새 커서와
+        // 비교하면 "입력이 바뀌었다"로 보고 뒤 기록을 버린다(시뮬레이터는 락 없이 청취자를 부르므로 교착은 없다)
+        synchronized (this) {
+            Project proj = projRef.get();
+            r = current();
+            if (proj == null || r == null || r.isEmpty()) {
+                return -1;
+            }
+            at = Math.max(r.first(), Math.min(r.last(), step));
+            if (at == r.cursor()) {
+                return at;
+            }
+            CircuitState target;
+            if (at == r.last()) {
+                target = r.live();
+                r.setLive(null);
+            } else {
+                target = r.reconstruct(at);
+                if (target == null) {
+                    return r.cursor();
+                }
+                if (r.live() == null) {
+                    r.setLive(root());
+                }
+                proj.getSimulator().setIsTicking(false);
+            }
+            r.moveCursor(at);
+            if (target != null) {
+                swapTo(proj, target);
+            }
+        }
+        fire(r);
+        return at;
+    }
+
+    /** 지금 보는 곳(서브회로 인스턴스 안이면 그 경로)을 유지한 채 최상위 상태를 newRoot로 바꾼다. */
+    private static void swapTo(Project proj, CircuitState newRoot) {
+        CircuitState cur = proj.getCircuitState();
+        CircuitState target = newRoot;
+        if (cur != null) {
+            for (Component c : pathOf(cur)) {
+                Object d = target.getData(c);
+                if (!(d instanceof CircuitState)) {
+                    break;
+                }
+                target = (CircuitState) d;
+            }
+        }
+        proj.setCircuitState(target);
+        // 바꿔 끼운 상태의 부품이 실제 시뮬레이션 쪽에 다시 등록되게(MIPS 메모리) 한 번 다시 전파한다. 값은 그대로라
+        // 기록은 바뀌지 않는다(onPropagation이 걸러낸다)
+        Recording.prime(newRoot);
+        proj.getSimulator().requestPropagate();
+        proj.repaintCanvas();
+    }
+
+    /** 최상위에서 state까지 서브회로 인스턴스 경로. */
+    public static List<Component> pathOf(CircuitState state) {
+        java.util.LinkedList<Component> path = new java.util.LinkedList<>();
+        CircuitState s = state;
+        while (s.getParentState() != null) {
+            CircuitState parent = s.getParentState();
+            Component holder = null;
+            for (Component c : parent.getCircuit().getNonWires()) {
+                if (parent.getData(c) == s) {
+                    holder = c;
+                    break;
+                }
+            }
+            if (holder == null) {
+                break;
+            }
+            path.addFirst(holder);
+            s = parent;
+        }
+        return new ArrayList<>(path);
     }
 
     private void fire(Recording r) {

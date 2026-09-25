@@ -72,8 +72,8 @@ class RecordingPerformanceTest {
 
     @Test
     void recordingRefMipsStaysWithinLimits() throws Exception {
-        LogisimFile file = MipsPrograms.openRefMips(tmp);
-        MipsPrograms.load(file, MipsPrograms.program("record/busy-loop.s"));
+        LogisimFile file = RecordingTestSupport.openRefMips(tmp);
+        RecordingTestSupport.load(file, RecordingTestSupport.program("record/busy-loop.s"));
         Project proj = new Project(file);
         proj.getSimulator().setIsRunning(false);
         int steps = 4000;
