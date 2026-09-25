@@ -449,9 +449,16 @@ public final class Recording {
         }
     }
 
+    /** 재실행 스레드 이름 앞부분. lib-mips(MemoryRegistry)가 이 이름으로 재실행을 알아보고 등록을 따로 둔다. */
+    public static final String REPLAY_THREAD_PREFIX = "hcs-replay";
+    private static final java.util.concurrent.atomic.AtomicInteger REPLAYS = new java.util.concurrent.atomic.AtomicInteger();
+
     /**
      * step 때의 회로 상태를 새로 만든다: 가장 가까운 앞 체크포인트를 복제하고 원조 엔진으로 틱·전파를 되풀이한다.
      * 기록 범위 밖이면 null.
+     * <p>복제본은 실제 상태와 같은 프로젝트를 가리키므로, 프로젝트 전체에 무엇을 두는 부품(MIPS 메모리 등록, Console의
+     * 클럭 멈춤)이 실제 시뮬레이션을 건드리지 않게 이름이 {@link #REPLAY_THREAD_PREFIX}로 시작하는 새 스레드에서
+     * 돌린다. 틱하기 전에 모든 부품을 한 번 다시 전파해(값은 그대로) 메모리 부품이 재실행 쪽에 등록되게 한다.
      */
     public CircuitState reconstruct(int step) {
         CircuitState base;
@@ -467,12 +474,45 @@ public final class Recording {
             base = cp.getValue().cloneState();
             from = cp.getKey();
         }
-        Propagator p = base.getPropagator();
-        for (int s = from; s < step; s++) {
-            p.tick();
-            p.propagate();
+        final CircuitState state = base;
+        final int start = from;
+        Throwable[] failed = new Throwable[1];
+        Thread t = new Thread(() -> {
+            try {
+                prime(state);
+                Propagator p = state.getPropagator();
+                p.propagate();
+                for (int s = start; s < step; s++) {
+                    p.tick();
+                    p.propagate();
+                }
+            } catch (Throwable e) {
+                failed[0] = e;
+            }
+        }, REPLAY_THREAD_PREFIX + "-" + REPLAYS.incrementAndGet());
+        t.setDaemon(true);
+        t.start();
+        try {
+            t.join();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return null;
+        }
+        if (failed[0] != null) {
+            throw new IllegalStateException("replay to step " + step + " failed", failed[0]);
         }
         return base;
+    }
+
+    /**
+     * 상태 나무의 모든 부품을 다시 전파할 것으로 표시한다(전파는 부르는 쪽이). 값은 바뀌지 않고, 스스로 등록하는
+     * 부품(MIPS 메모리)이 이 상태로 다시 등록한다. 지난 상태를 실제 시뮬레이션에 바꿔 끼운 뒤에도 쓴다(C-03).
+     */
+    public static void prime(CircuitState state) {
+        state.markComponentsDirty(state.getCircuit().getNonWires());
+        for (CircuitState sub : state.getSubstates()) {
+            prime(sub);
+        }
     }
 
     public synchronized int checkpointCount() {
