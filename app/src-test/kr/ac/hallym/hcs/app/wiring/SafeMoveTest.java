@@ -287,7 +287,6 @@ class SafeMoveTest {
         LogisimFile f = new Loader(null).openLogisimFile(circ.toFile());
         open(f);
         Circuit c = f.getMainCircuit();
-        int moved = 0;
         List<String> outcomes = new ArrayList<>();
         String[] names = {"PC", "halt", "Zero", "regfile", "alu", "Data Memory"};
         for (String name : names) {
@@ -300,7 +299,6 @@ class SafeMoveTest {
                 if (o == SafeMove.Outcome.MOVED) {
                     assertEquals(before, netlist(c, List.of(now), d[0], d[1]), name + " moved by " + d[0] + ","
                             + d[1] + ": every net the same, its own connections kept");
-                    moved++;
                 } else {
                     // 선을 따라오게 할 수 없으면 선 없이 옮기거나 옮기지 않는다: 다른 넷은 그대로
                     String self = x.getFactory().getName() + x.getLocation() + "#";
@@ -320,19 +318,21 @@ class SafeMoveTest {
                 }
             }
         }
-        // 대부분 선이 따라온다(지금 24번 중 15번). 못 따라오는 경우:
-        // - 포트가 20px 간격으로 붙은 상자(regfile·alu)를 포트 줄 방향으로 옮길 때: 한 포트의 곧은 길이 옆 포트의
-        //   옛 선 끝에 닿아 두 넷을 잇게 된다
-        // - 아래 변 포트(PC clk, Data Memory 제어)가 있는 부품을 아래로 옮길 때: 옛 연결점이 옮긴 몸체 안에 들어가
-        //   어떤 선도 몸체를 지나야 한다
-        // 이때는 선 없이 옮기고 상태 표시줄에 알린다(다른 넷은 그대로, 위에서 확인)
-        assertTrue(moved >= 15, "most small moves keep the wires: " + moved + " " + outcomes);
-        for (String o : outcomes) {
-            if (o.startsWith("halt")) {
-                assertTrue(o.endsWith("=MOVED"), "a pin always follows: " + o);
-            }
-        }
+        // 이동마다 결과를 고정한다(W-01: 길 찾기가 결정적이다. 임계값 비교 금지). 선 없이 옮기는 경우와 까닭은
+        // D-055 표에 있다
+        assertEquals(EXPECTED, outcomes);
     }
+
+    static final List<String> EXPECTED = List.of(
+            "PC0,20=MOVED_WITHOUT_WIRES", "PC20,0=MOVED", "PC-20,-20=MOVED", "PC0,-20=MOVED",
+            "halt0,20=MOVED", "halt20,0=MOVED", "halt-20,-20=MOVED", "halt0,-20=MOVED",
+            "Zero0,20=MOVED", "Zero20,0=MOVED", "Zero-20,-20=MOVED_WITHOUT_WIRES", "Zero0,-20=MOVED",
+            "regfile0,20=MOVED_WITHOUT_WIRES", "regfile20,0=MOVED", "regfile-20,-20=MOVED_WITHOUT_WIRES",
+            "regfile0,-20=MOVED_WITHOUT_WIRES",
+            "alu0,20=MOVED_WITHOUT_WIRES", "alu20,0=MOVED", "alu-20,-20=MOVED_WITHOUT_WIRES",
+            "alu0,-20=MOVED_WITHOUT_WIRES",
+            "Data Memory0,20=MOVED_WITHOUT_WIRES", "Data Memory20,0=MOVED", "Data Memory-20,-20=MOVED",
+            "Data Memory0,-20=MOVED");
 
     static Set<Set<String>> without(Set<Set<String>> nets, String prefix) {
         Set<Set<String>> ret = new HashSet<>();
