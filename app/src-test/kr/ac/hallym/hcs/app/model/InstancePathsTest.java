@@ -231,10 +231,12 @@ class InstancePathsTest {
     /** 알림 문구: 되살린 것이 없으면 뒷문장을 빼고, 하나면 단수. */
     @Test
     void brokenNoticeWording() {
-        // 테스트는 한국어 환경(설명 문장은 한국어, 이름은 영어)
-        assertEquals("regfile의 핀을 바꿔 인스턴스 연결 1개가 끊겼습니다.",
+        // 설명 문장은 환경 언어를 따른다(개발 PC는 한국어, CI는 영어)
+        assertEquals(expect("regfile의 핀을 바꿔 인스턴스 연결 1개가 끊겼습니다.",
+                "Changing the pins of regfile cut 1 instance connection."),
                 kr.ac.hallym.hcs.app.Messages.get("instance.broken", "regfile", 1, 0));
-        assertEquals("regfile의 핀을 바꿔 인스턴스 연결 2개가 끊겼습니다. 1개는 선을 이어 되살렸습니다.",
+        assertEquals(expect("regfile의 핀을 바꿔 인스턴스 연결 2개가 끊겼습니다. 1개는 선을 이어 되살렸습니다.",
+                "Changing the pins of regfile cut 2 instance connections. 1 was reconnected with a wire."),
                 kr.ac.hallym.hcs.app.Messages.get("instance.broken", "regfile", 2, 1));
     }
 
@@ -243,9 +245,17 @@ class InstancePathsTest {
     void pinToolPreviewDependsOnTheAppearance() throws Exception {
         build();
         String def = kr.ac.hallym.hcs.app.instance.InstanceBanner.pinAddPreview(file, blk);
-        assertEquals("핀을 더하면 blk의 인스턴스 3개 모양이 바뀌어 이어진 포트 3개가 움직일 수 있습니다.", def);
+        assertEquals(expect("핀을 더하면 blk의 인스턴스 3개 모양이 바뀌어 이어진 포트 3개가 움직일 수 있습니다.",
+                "Adding a pin reshapes 3 instances of blk: 3 connected ports may move."), def);
         blk.getAppearance().setDefaultAppearance(false);
         String custom = kr.ac.hallym.hcs.app.instance.InstanceBanner.pinAddPreview(file, blk);
-        assertEquals("핀을 더하면 blk의 인스턴스 3개에 포트가 하나 생깁니다. 사용자 모양이라 기존 포트는 그대로입니다.", custom);
+        assertEquals(expect("핀을 더하면 blk의 인스턴스 3개에 포트가 하나 생깁니다. 사용자 모양이라 기존 포트는 그대로입니다.",
+                "Adding a pin adds a port to 3 instances of blk; its custom appearance keeps the existing ports in place."),
+                custom);
+    }
+
+    /** 지금 환경 언어의 기대값(설명 문장만 한국어·영어). */
+    static String expect(String ko, String en) {
+        return com.cburch.logisim.util.LocaleManager.getLocale().getLanguage().equals("ko") ? ko : en;
     }
 }
