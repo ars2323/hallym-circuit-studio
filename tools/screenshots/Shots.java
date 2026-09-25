@@ -200,6 +200,7 @@ public final class Shots {
         }
         if (want(scenes, "14")) {
             messages(demo);
+            gateUndefined(demo);
         }
     }
 
@@ -384,9 +385,75 @@ public final class Shots {
         Bounds focus = pc.getBounds().expand(90);
         centerOn(p, focus);
         snapLogical(p, focus, "14d-messages-pc");
+        // 14f: 누르지 않아도 보이는 표시(RegWrit 터널)와 누른 표시(PC)가 배율 25~400%에서 보이는지(2c 검토 반영)
+        Bounds both = pc.getBounds().add(rwT.getBounds()).expand(60);
+        for (double z : new double[] {0.25, 1.0}) {
+            setZoom(p, z);
+            centerOn(p, both);
+            snapLogical(p, both, "14f-marks-" + Math.round(z * 100));
+        }
+        setZoom(p, 4.0);
+        for (Object[] o : new Object[][] {{pc, "14f-marks-400-pc"}, {rwT, "14f-marks-400-tunnel"}}) {
+            Bounds b = ((com.cburch.logisim.comp.Component) o[0]).getBounds().expand(25);
+            centerOn(p, b);
+            snapLogical(p, b, (String) o[1]);
+        }
         edt(() -> p.undoAction());
         sleep(1500);
         setZoom(p, 1.0);
+    }
+
+    /**
+     * 14e: 프로젝트 옵션 gateUndefined = error인 회로(2c 검토 반영). 5입력 AND에 입력 둘만 잇고 출력은 핀으로. 빈
+     * 입력 in2·in3·in4가 Messages에 한 줄로 나온다. ignore(기본)이면 알리지 않는다.
+     */
+    void gateUndefined(Project base) throws Exception {
+        Project p = newProject(base);
+        edt(() -> {
+            Library gates = p.getLogisimFile().getLoader().getBuiltin().getLibrary("Gates");
+            Library wiring = p.getLogisimFile().getLoader().getBuiltin().getLibrary("Wiring");
+            com.cburch.logisim.comp.ComponentFactory and =
+                    ((com.cburch.logisim.tools.AddTool) gates.getTool("AND Gate")).getFactory();
+            com.cburch.logisim.data.AttributeSet as = and.createAttributeSet();
+            set(as, "inputs", "5");
+            com.cburch.logisim.comp.Component g = and.createComponent(Location.create(400, 300), as);
+            com.cburch.logisim.comp.ComponentFactory pin =
+                    ((com.cburch.logisim.tools.AddTool) wiring.getTool("Pin")).getFactory();
+            com.cburch.logisim.circuit.CircuitMutation m =
+                    new com.cburch.logisim.circuit.CircuitMutation(p.getCurrentCircuit());
+            m.add(g);
+            for (int i = 1; i <= 2; i++) {
+                Location in = g.getEnds().get(i).getLocation();
+                com.cburch.logisim.data.AttributeSet ps = pin.createAttributeSet();
+                set(ps, "label", i == 1 ? "a" : "b");
+                int y = in.getY() + (i == 1 ? -40 : 60); // 핀끼리 겹치지 않게 벌리고 꺾어 잇는다
+                int bend = in.getX() - (i == 1 ? 40 : 30);
+                m.add(pin.createComponent(Location.create(in.getX() - 160, y), ps));
+                m.add(Wire.create(Location.create(in.getX() - 160, y), Location.create(bend, y)));
+                m.add(Wire.create(Location.create(bend, y), Location.create(bend, in.getY())));
+                m.add(Wire.create(Location.create(bend, in.getY()), in));
+            }
+            Location out = g.getEnds().get(0).getLocation();
+            m.add(Wire.create(out, Location.create(out.getX() + 100, out.getY())));
+            com.cburch.logisim.data.AttributeSet ps = pin.createAttributeSet();
+            set(ps, "facing", "west");
+            set(ps, "output", "true");
+            set(ps, "label", "y");
+            m.add(pin.createComponent(Location.create(out.getX() + 100, out.getY()), ps));
+            p.doAction(m.toAction(null));
+            p.getLogisimFile().getOptions().getAttributeSet().setValue(
+                    com.cburch.logisim.file.Options.ATTR_GATE_UNDEFINED,
+                    com.cburch.logisim.file.Options.GATE_UNDEFINED_ERROR);
+            kr.ac.hallym.hcs.app.diag.Diagnostics.of(p).refresh();
+        });
+        sleep(1500);
+        setZoom(p, 1.5);
+        Bounds area = p.getCurrentCircuit().getBounds().expand(40); // 핀·게이트·출력 핀 모두
+        centerOn(p, area);
+        snapFull("14e-gate-undefined-error");
+        snapLogical(p, area, "14e-gate-undefined-error-crop");
+        setZoom(p, 1.0);
+        activate(base);
     }
 
     /** 5: 빠른 속성 창 + 오른쪽 속성 패널(펼침·접힘). */

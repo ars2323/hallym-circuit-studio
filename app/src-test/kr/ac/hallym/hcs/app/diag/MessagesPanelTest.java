@@ -61,6 +61,9 @@ class MessagesPanelTest {
         // 선택은 창의 캔버스에 있다(헤드리스 프로젝트에는 없다). 고를 부품은 원인 부품이다
         assertEquals("PC", kr.ac.hallym.hcs.app.model.Names.label(d.components.get(0)));
         assertSame(d, diags.focused(), "the canvas draws it strongly");
+        assertTrue(kr.ac.hallym.hcs.app.props.QuickBar.isQuiet(proj, d.components),
+                "no quick bar for a selection made from Messages");
+        assertFalse(kr.ac.hallym.hcs.app.props.QuickBar.isQuiet(proj, java.util.Collections.emptyList()));
         assertEquals(1, diags.in(d.circuit).size());
         assertEquals(0, diags.in(proj.getLogisimFile().getMainCircuit()).size());
     }
