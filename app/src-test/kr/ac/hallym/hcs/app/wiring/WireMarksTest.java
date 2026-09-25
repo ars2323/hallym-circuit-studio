@@ -207,13 +207,15 @@ class WireMarksTest {
     }
 
     @Test
-    void junctionDotIsAtLeastSevenScreenPixels() throws Exception {
+    void junctionDotIsVisibleButNeverReachesTheNextRow() throws Exception {
         Circuit c = crossAndTee(fresh());
         for (double z : new double[] {0.25, 0.5, 1.0, 2.0, 4.0}) {
             BufferedImage img = render(c, z, true);
-            float d = Math.max(WireMarks.DOT_MIN, WireMarks.px(WireMarks.DOT_PX, z));
-            assertTrue(d * z >= WireMarks.DOT_PX - 0.01, "z=" + z);
-            // T 위쪽(가로선보다 위)의 잉크 높이를 잰다: 선 반 굵기(1.5 회로 px)가 아니라 점 반지름만큼 올라와야 한다
+            float d = WireMarks.dotDiameter(z);
+            assertTrue(d / 2 < 10, "radius below one grid step, z=" + z);
+            assertTrue(d * z >= Math.min(WireMarks.DOT_PX, 16 * z) - 0.01, "z=" + z);
+            assertTrue(d * z > 8 * z || z >= 1, "bigger than the original dot below 100%, z=" + z);
+            // T 위쪽(가로선보다 위)의 잉크 높이를 잰다: 선 반 굵기가 아니라 점 반지름만큼 올라와야 한다
             int cx = (int) Math.round(300 * z);
             int cy = (int) Math.round(200 * z);
             int top = cy;
@@ -222,7 +224,7 @@ class WireMarksTest {
             }
             double extent = cy - top;
             assertTrue(extent >= d * z / 2 - 1.5, "dot radius on screen at z=" + z + ": " + extent);
-            assertTrue(extent >= 2, "dot visible above the wire at z=" + z);
+            assertTrue(extent < 10 * z, "the dot stays within one grid step, z=" + z);
         }
     }
 

@@ -40,7 +40,8 @@ import kr.ac.hallym.hcs.app.theme.Tokens;
  * 연결점과 점프(W-04, PLAN.md 11.9). 그릴 때만 적용하고 파일은 바꾸지 않는다.
  * <ul>
  * <li><b>연결점:</b> 선·포트가 셋 이상 만나는 점, 그리고 포트가 선 한가운데에 닿아 이어진 점에 큰 점을 그린다. 원조는
- * 회로 좌표 8px 점이라 25%에서 2px로 사라진다. 여기서는 화면 기준 최소 7px이다.</li>
+ * 회로 좌표 8px 점이라 25%에서 2px로 사라진다. 여기서는 화면 7px을 목표로 하되 옆 줄에 닿지 않게 회로 16을 넘지
+ * 않는다(25%에서 4px).</li>
  * <li><b>점프:</b> 가로선과 세로선이 끝점 없이 엇갈리는(이어지지 않은) 점에서 가로선을 끊고 위로 반원을 그린다.
  * 이어진 점(큰 점)과 이어지지 않은 점(반원)이 한눈에 구분된다.</li>
  * <li><b>넷 강조:</b> 우클릭 "Highlight Net"으로 고른 넷의 선 위에 옅은 강조 띠를 그린다. 회로를 고치면 지운다.</li>
@@ -52,6 +53,8 @@ public final class WireMarks {
     static final float DOT_PX = 7f;
     static final float JUMP_PX = 5f;
     static final int DOT_MIN = 8;
+    /** 연결점 지름 최대(회로 좌표): 반지름이 격자 한 칸보다 작아 옆 줄의 선에 닿아 보이지 않는다. */
+    static final int DOT_MAX = 16;
     static final int JUMP_MIN = 5;
     /** 점프 반지름 최대(회로 좌표): 격자 반 칸보다 작아 옆 연결점·포트에 닿지 않는다. */
     static final int JUMP_MAX = 8;
@@ -227,7 +230,7 @@ public final class WireMarks {
                 for (Location p : r <= 0 ? java.util.Collections.<Location>emptyList() : marks.get(1)) {
                     jump(g, p, r, colors.at(p, true), colors.at(p, false));
                 }
-                float d = Math.max(DOT_MIN, px(DOT_PX, z));
+                float d = dotDiameter(z);
                 for (Location p : marks.get(0)) {
                     g.setColor(colors.at(p, null));
                     g.fill(new Ellipse2D.Float(p.getX() - d / 2, p.getY() - d / 2, d, d));
@@ -353,6 +356,14 @@ public final class WireMarks {
     static float jumpRadius(double z) {
         float r = Math.min(JUMP_MAX, Math.max(JUMP_MIN, px(JUMP_PX, z)));
         return r * z < JUMP_VISIBLE_PX ? 0 : r;
+    }
+
+    /**
+     * 연결점 지름(회로 좌표): 화면 7px을 목표로 하되 회로 16(격자 1.6칸)을 넘지 않고, 원조 8보다 작지 않다. 25%에서
+     * 4px(원조 2px), 50% 이상에서 7px 이상.
+     */
+    static float dotDiameter(double z) {
+        return Math.max(DOT_MIN, Math.min(px(DOT_PX, z), DOT_MAX));
     }
 
     static float px(float screen, double zoom) {
