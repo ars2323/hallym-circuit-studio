@@ -2,6 +2,12 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-26 Run Until(C-04)
+
+- 기준: feat/run-until `db340ac`
+- 관련 이슈: C-04 #202
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-c04-run-until/README.md
+
 ## 2026-09-26 Cycle View 탭 재촬영(C-02, C-03)
 
 - 기준: feat/cycle-view `269f6a7`
