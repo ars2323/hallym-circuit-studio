@@ -446,6 +446,20 @@ public final class Shots {
                     com.cburch.logisim.file.Options.GATE_UNDEFINED_ERROR);
             kr.ac.hallym.hcs.app.diag.Diagnostics.of(p).refresh();
         });
+        sleep(800);
+        // 입력 a=1, b=1(2c 검토 반영 2): 출력 E의 원인이 빈 입력뿐인 상태
+        edt(() -> {
+            com.cburch.logisim.circuit.CircuitState cs = p.getCircuitState();
+            for (com.cburch.logisim.comp.Component x : p.getCurrentCircuit().getNonWires()) {
+                String l = x.getAttributeSet().getValue(com.cburch.logisim.instance.StdAttr.LABEL);
+                if (x.getFactory() instanceof com.cburch.logisim.std.wiring.Pin && ("a".equals(l) || "b".equals(l))) {
+                    ((com.cburch.logisim.std.wiring.Pin) x.getFactory()).setValue(cs.getInstanceState(x),
+                            com.cburch.logisim.data.Value.TRUE);
+                    cs.markComponentAsDirty(x); // 원조 Poke Tool처럼 핀을 다시 전파한다
+                }
+            }
+            p.getSimulator().requestPropagate();
+        });
         sleep(1500);
         setZoom(p, 1.5);
         Bounds area = p.getCurrentCircuit().getBounds().expand(40); // 핀·게이트·출력 핀 모두

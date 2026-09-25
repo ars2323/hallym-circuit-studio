@@ -12,8 +12,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Install bison and flex
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends bison flex
+      - name: Install bison, flex and Xvfb
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends bison flex xvfb
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -29,6 +29,8 @@ jobs:
         run: make -s -C native/hcs-asm -j"$(nproc)" test
       - name: Gradle build and tests
         run: ./gradlew --no-daemon build
+      - name: GUI tests (Xvfb)
+        run: xvfb-run -a ./gradlew --no-daemon :app:guiTest
       - name: Test reports
         if: failure()
         uses: actions/upload-artifact@v4
