@@ -2,6 +2,12 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-26 레지스터·메모리 패널(C-05, C-06)
+
+- 기준: feat/register-panel `a0595ee`
+- 관련 이슈: C-05 #203, C-06 #204
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-c05-registers-memory/README.md
+
 ## 2026-09-26 Run Until 재촬영(C-04)
 
 - 기준: feat/run-until `ff111fd`
