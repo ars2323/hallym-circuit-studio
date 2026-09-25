@@ -74,7 +74,7 @@ public final class FindDialog extends JDialog {
         super(frame, Messages.get("find.title"), ModalityType.MODELESS);
         this.proj = frame.getProject();
         list.setCellRenderer((l, r, i, sel, focus) -> {
-            javax.swing.JLabel lab = new javax.swing.JLabel(label(r, expanded.contains(key(r.group))));
+            javax.swing.JLabel lab = new javax.swing.JLabel(label(r, expanded.contains(key(r.group)), FindDialog::placeText));
             lab.setOpaque(true);
             lab.setBackground(sel ? Tokens.BLUE_TINT_2 : Tokens.WHITE);
             lab.setBorder(BorderFactory.createEmptyBorder(3, r.child ? 28 : 6, 3, 6));
@@ -107,6 +107,8 @@ public final class FindDialog extends JDialog {
                 }
                 if (e.getClickCount() == 1 && !r.child && r.group.size() > 1) {
                     toggle(r.group); // 묶음 줄은 눌러 펼치고 접는다
+                } else if (e.getClickCount() == 1 && r.child) {
+                    go(r.entry); // 위치 줄은 한 번 누르면 그곳으로 가 선택한다(검토 2차 D)
                 } else if (e.getClickCount() == 2) {
                     go(r.entry);
                 }
@@ -133,6 +135,12 @@ public final class FindDialog extends JDialog {
 
     static String esc(String s) {
         return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+    }
+
+    /** 위치 줄의 자리: {@code next to main › PC.D}(붙은 포트), 붙은 데가 없으면 {@code main › Tunnel #3}. */
+    static String placeText(NameIndex.Entry e) {
+        String p = NameIndex.place(e);
+        return NameIndex.attached(e) != null ? Messages.get("find.near", p) : p;
     }
 
     private void search() {
@@ -182,12 +190,14 @@ public final class FindDialog extends JDialog {
         return ret;
     }
 
-    /** 줄 글자. 묶음은 개수를, 위치 줄은 좌표를 보인다. */
-    static String label(Row r, boolean open) {
+    /**
+     * 줄 글자. 묶음은 개수를, 위치 줄은 붙은 포트({@code next to main › PC.D}, 검토 2차 D)를 보인다. 좌표는 쓰지
+     * 않는다.
+     */
+    static String label(Row r, boolean open, java.util.function.Function<NameIndex.Entry, String> place) {
         String gray = String.format("%06X", Tokens.TEXT_2.getRGB() & 0xFFFFFF);
         if (r.child) {
-            return "<html><span style='color:#" + gray + "'>" + esc(Messages.get("find.at",
-                    kr.ac.hallym.hcs.app.model.Names.at(r.entry.component.getLocation()))) + "</span></html>";
+            return "<html>" + esc(place.apply(r.entry)) + "</html>";
         }
         NameIndex.Entry e = r.entry;
         String count = r.group.size() > 1 ? "  (" + Messages.get("find.count", r.group.size()) + " · "

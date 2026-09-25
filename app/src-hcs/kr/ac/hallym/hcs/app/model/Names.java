@@ -75,6 +75,13 @@ public final class Names {
         return base + " #" + ordinal(circuit, c);
     }
 
+    /** 라벨과 상관없는 번호 이름: {@code Reg #2}, {@code alu #1}. 라벨이 같은 부품끼리 가를 때. */
+    public static String numbered(Circuit circuit, Component c) {
+        Kinds.Kind kind = Kinds.of(c);
+        String base = kind == Kinds.SUBCIRCUIT ? c.getFactory().getName() : kind.shortName();
+        return base + " #" + ordinal(circuit, c);
+    }
+
     /** 같은 종류(서브회로는 같은 회로) 부품 중 위치 순서 번호(1부터). */
     static int ordinal(Circuit circuit, Component c) {
         List<Component> same = new ArrayList<>();
