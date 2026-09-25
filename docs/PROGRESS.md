@@ -24,17 +24,17 @@
 | S-11 | 왼쪽 패널 빈 공간 | #174 | 완료 | (이 PR) | D-072, SidePanelTest(터널 목록, 미니맵 변환), SidePanelGuiTest(탭, 터널 누르기·다음, 편집 반영, 미니맵 누르기), 24a~24c |
 | S-12 | 제어 핀 라벨 중복 | #175 | 완료 | #255 | D-070, LabelsTest.pinNamedByItsOwnTunnelHasNoChip·demoChipsStayOffWires(칩 4개)·tunnelColorLeavesThePortClear, 23a |
 | S-13 | 400% 굵기 | #176 | 완료 | #254 | D-071, DiagMarksTest.borderWidthsAreExactOnScreen·wireHighlightWidthsAreExactOnScreen(25·100·400%, 2·4px와 3·6px), 14f |
-| S-20 | 회귀 확인: 원조 도구 모음·탐색기 아이콘 줄 숨김, 위쪽 네 줄 | #177 | 대기 |  |  |
-| S-21 | 회귀 확인: 배율 표시 하나와 실제 배율 동기화 | #178 | 대기 |  |  |
-| S-22 | 회귀 확인: 스플리터 원조 "0-7" 표시와 팔 라벨 이중 표시 없음 | #179 | 대기 |  |  |
-| S-23 | 회귀 확인: MIPS 부품 포트 이름 안쪽 14px, 콘솔 출력 영역 | #180 | 대기 |  |  |
-| S-24 | 회귀 확인: 터널 색 12색, 가까운 다른 이름은 다른 색 | #181 | 대기 |  |  |
-| S-25 | 회귀 확인: 우클릭 메뉴 순서와 요약 줄 단수·복수 | #182 | 대기 |  |  |
-| S-26 | 회귀 확인: UI 언어(D-049) | #183 | 대기 |  |  |
-| S-27 | 회귀 확인: Stack은 used N B (peak)만 | #184 | 대기 |  |  |
-| S-28 | 회귀 확인: 찾기 결과 묶음과 위치 표시 | #185 | 대기 |  |  |
-| S-29 | 회귀 확인: 메시지 클릭 뒤 속성 패널·빠른 속성 창·캔버스 표시 | #186 | 대기 |  |  |
-| S-30 | 회귀 확인: gateUndefined=error일 때만 빈 게이트 입력 알림 | #187 | 대기 |  |  |
+| S-20 | 회귀 확인: 원조 도구 모음·탐색기 아이콘 줄 숨김, 위쪽 네 줄 | #177 | 완료 | (이 PR) | TopRowsGuiTest(원조 Toolbar 둘 다 안 보임, 메뉴·도구 모음·파일 탭·회로 탭 네 줄 바로 아래 캔버스), ToolKeysTest.ctrlDigitsAreBoundOnTheRoot, 01·07a·10 |
+| S-21 | 회귀 확인: 배율 표시 하나와 실제 배율 동기화 | #178 | 완료 | 기존 | ZoomStatusTest.followsTheModelWhoeverChangesIt·menuOffersStepsFitAndGrid, 07b·07c |
+| S-22 | 회귀 확인: 스플리터 원조 "0-7" 표시와 팔 라벨 이중 표시 없음 | #179 | 완료 | 기존 | LabelFilterTest.splitterOriginalBitLabelsGoOnlyWhereArmLabelsAreDrawn, LabelsTest.filterRemovesOnlyTheOriginalLabels·splitterArmLabelsShowRangesAndNames, 03b·08a·08d |
+| S-23 | 회귀 확인: MIPS 부품 포트 이름 안쪽 14px, 콘솔 출력 영역 | #180 | 완료 | (이 PR) | MipsPortInsetTest(Instruction Memory·Data Memory·Stack·Console 포트 이름 14px 안쪽, 터널 글자와 안 겹침, Console 출력 칸과 떨어짐, 원조·캔버스 문맥 모두), 03e·11b~11e |
+| S-24 | 회귀 확인: 터널 색 12색, 가까운 다른 이름은 다른 색 | #181 | 완료 | 기존 | LabelsTest.paletteIsLargeAndDistinct(12색)·nearbyNamesGetDifferentColors·tunnelColorsAreDeterministic, TunnelColorStoreTest, 03a~03e |
+| S-25 | 회귀 확인: 우클릭 메뉴 순서와 요약 줄 단수·복수 | #182 | 완료 | (이 PR) | MenuLayoutTest.orderIsSummarySpecificCommonDelete·summariesNameTheTarget·originalItemsLandInTheirGroups, UiLanguageTest.bitWidthsUseSingularForOne(개수 말 전체에 choice 확인, input·component·place 단수 추가), 04a~04e |
+| S-26 | 회귀 확인: UI 언어(D-049) | #183 | 완료 | 기존 | UiLanguageTest 11개(appNameResourcesHaveNoHangul 등), MessagesPanelTest.namesAreEnglishWithSingularForOne, 06a·06b·11a·14c |
+| S-27 | 회귀 확인: Stack은 used N B (peak)만 | #184 | 완료 | 기존 | StackRegionTest.usedBytesStartAtSpimInitialStackPointerAndKeepThePeak·stackDepthFollowsPushesAndPops, 11d·11f |
+| S-28 | 회귀 확인: 찾기 결과 묶음과 위치 표시 | #185 | 완료 | 기존 | NameIndexTest.sameNamesAreGroupedWithCountsAndExpand·placesNameTheAttachedPort, 09a~09d |
+| S-29 | 회귀 확인: 메시지 클릭 뒤 속성 패널·빠른 속성 창·캔버스 표시 | #186 | 완료 | (이 PR) | AttrPanelGuiTest.attributePanelFollowsASelectionMadeFromMessages, QuickAttrsTest.quietSelectionHidesTheBarUntilTheUserClicks, LiveMarksGuiTest(실제 캔버스: 누르기 전·누른 뒤 굵게·선택 해제 뒤·25%·400%), DiagMarksTest, 14a~14f |
+| S-30 | 회귀 확인: gateUndefined=error일 때만 빈 게이트 입력 알림 | #187 | 완료 | 기존 | StaticCheckTest.emptyGateInputsAreQuietWhenIgnored·emptyGateInputsAreReportedWhenError·savedErrorOptionIsRead, 14e |
 
 ## W 배선
 

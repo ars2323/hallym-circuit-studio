@@ -258,7 +258,7 @@ class LabelsTest {
     @Test
     void paletteIsLargeAndDistinct() {
         Color[] p = TunnelColors.PALETTE;
-        assertTrue(p.length >= 10, "at least 10 colors");
+        assertEquals(12, p.length, "12 colors (S-24)");
         for (int i = 0; i < p.length; i++) {
             double lum = (0.2126 * p[i].getRed() + 0.7152 * p[i].getGreen() + 0.0722 * p[i].getBlue()) / 255;
             assertTrue(lum < 0.75, "visible on white: " + Integer.toHexString(p[i].getRGB()));

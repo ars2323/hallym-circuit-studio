@@ -360,12 +360,28 @@ class UiLanguageTest {
         List<String> plural = new ArrayList<>();
         for (Properties p : new Properties[] {loadQuiet("names.properties"), loadQuiet("messages.properties")}) {
             for (String k : p.stringPropertyNames()) {
-                if (p.getProperty(k).matches(".*\\{\\d+\\} bits.*") && !p.getProperty(k).contains("choice")) {
+                // 개수를 세는 말(S-25): 1이면 단수가 되도록 choice를 쓴다
+                if (p.getProperty(k).matches("(?i).*\\{\\d+\\} (bits|inputs|outputs|components|wires|places|cycles"
+                        + "|words|bytes|tunnels|messages|ports|instances|files|lines|items)\\b.*")
+                        && !p.getProperty(k).contains("choice")) {
                     plural.add(k);
                 }
             }
         }
-        assertEquals(new ArrayList<String>(), plural, "\"{n} bits\" without a choice for 1");
+        assertEquals(new ArrayList<String>(), plural, "\"{n} bits\" and other counts without a choice for 1");
+        // S-25: 메뉴 요약과 마우스 오버, 여러 부품 메뉴, 찾기 개수도 1이면 단수
+        Locale en = Locale.ENGLISH;
+        assertEquals("1 input", Messages.get(en, "menu.sum.inputs", 1));
+        assertEquals("5 inputs", Messages.get(en, "menu.sum.inputs", 5));
+        assertEquals("1 component", Messages.get(en, "menu.sum.many", 1));
+        assertEquals("3 components", Messages.get(en, "menu.sum.many", 3));
+        assertEquals("1 input", Messages.get(en, "hover.inputs", 1));
+        assertEquals("Change 1 Component", Messages.get(en, "menu.bulk", 1));
+        assertEquals("Change 2 Components", Messages.get(en, "menu.bulk", 2));
+        assertEquals("Edit Labels of 1 Component\u2026", Messages.get(en, "menu.bulkLabels", 1));
+        assertEquals("Combine 2 Wires into One Bus (in the order chosen)", Messages.get(en, "splitter.combine", 2));
+        assertEquals("1 place", Messages.get(en, "find.count", 1));
+        assertEquals("4 places", Messages.get(en, "find.count", 4));
     }
 
     private static Properties loadQuiet(String name) {
