@@ -14,6 +14,7 @@ import com.cburch.logisim.data.AttributeSet;
 import com.cburch.logisim.data.Attributes;
 import com.cburch.logisim.data.BitWidth;
 import com.cburch.logisim.data.Bounds;
+import com.cburch.logisim.data.Location;
 import com.cburch.logisim.data.Value;
 import com.cburch.logisim.instance.Instance;
 import com.cburch.logisim.instance.InstanceFactory;
@@ -128,7 +129,7 @@ abstract class MemoryFactory extends InstanceFactory {
         painter.drawLabel();
         g.setColor(Color.BLACK);
         g.setFont(TITLE_FONT);
-        GraphicsUtil.drawCenteredText(g, title.get(), cx, b.getY() + 10);
+        GraphicsUtil.drawCenteredText(g, getDisplayName(), cx, b.getY() + 10); // UI 언어의 이름(#133)
         g.setFont(BODY_FONT);
         String[] lines = bodyLines(painter);
         for (int i = 0; i < lines.length; i += 1) {
@@ -146,6 +147,40 @@ abstract class MemoryFactory extends InstanceFactory {
     }
 
     abstract void drawPorts(InstancePainter painter);
+
+    /** 포트 이름을 테두리에서 이만큼 안쪽에 적는다(포트에 붙은 터널 글자와 겹치지 않게). */
+    static final int PORT_INSET = 14;
+    static final Font PORT_FONT = new Font("SansSerif", Font.PLAIN, 9);
+
+    /**
+     * 포트와 그 이름. 원조 {@code drawPort(i, label, dir)}는 이름을 포트 바로 옆에 붙이는데, 포트에 이어 붙인 터널
+     * 글자와 겹친다. 여기서는 포트가 놓인 변에서 {@link #PORT_INSET}만큼 안쪽에 적는다.
+     */
+    static void drawPortInside(InstancePainter painter, int index, String label) {
+        painter.drawPort(index);
+        Location p = painter.getInstance().getPortLocation(index);
+        Bounds b = painter.getBounds();
+        Graphics g = painter.getGraphics();
+        Font old = g.getFont();
+        Color oldColor = g.getColor();
+        g.setFont(PORT_FONT);
+        g.setColor(Color.DARK_GRAY);
+        if (p.getX() <= b.getX()) {
+            GraphicsUtil.drawText(g, label, b.getX() + PORT_INSET, p.getY(), GraphicsUtil.H_LEFT,
+                    GraphicsUtil.V_CENTER);
+        } else if (p.getX() >= b.getX() + b.getWidth()) {
+            GraphicsUtil.drawText(g, label, b.getX() + b.getWidth() - PORT_INSET, p.getY(), GraphicsUtil.H_RIGHT,
+                    GraphicsUtil.V_CENTER);
+        } else if (p.getY() >= b.getY() + b.getHeight()) {
+            GraphicsUtil.drawText(g, label, p.getX(), b.getY() + b.getHeight() - PORT_INSET + 4,
+                    GraphicsUtil.H_CENTER, GraphicsUtil.V_BASELINE);
+        } else {
+            GraphicsUtil.drawText(g, label, p.getX(), b.getY() + PORT_INSET, GraphicsUtil.H_CENTER,
+                    GraphicsUtil.V_TOP);
+        }
+        g.setFont(old);
+        g.setColor(oldColor);
+    }
 
     static String region(InstancePainter painter) {
         long[] r = region(painter.getAttributeSet());

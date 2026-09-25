@@ -50,11 +50,14 @@ final class Console extends InstanceFactory {
     static final int EXIT = 4;
 
     static final int MAX_STRING = 4096;
-    static final int ROWS = 6;
-    static final int COLUMNS = 34;
+    static final int ROWS = 7;
+    static final int COLUMNS = 25;
+    /** 출력 칸의 왼쪽·오른쪽 여백(포트 이름 자리). */
+    static final int OUT_LEFT = 72;
+    static final int OUT_RIGHT = 48;
 
     private static final BitWidth W32 = BitWidth.create(32);
-    private static final Font TEXT_FONT = new Font("Monospaced", Font.PLAIN, 10);
+    private static final Font TEXT_FONT = new Font("Monospaced", Font.PLAIN, 9);
 
     /** 한 시뮬레이션의 출력. 바이트로 모아 UTF-8로 읽는다(.s의 한글 문자열). */
     static final class State implements InstanceData, Cloneable {
@@ -216,10 +219,17 @@ final class Console extends InstanceFactory {
         painter.drawLabel();
         g.setColor(Color.BLACK);
         g.setFont(MemoryFactory.TITLE_FONT);
-        GraphicsUtil.drawCenteredText(g, "Console", b.getX() + b.getWidth() / 2, b.getY() + 10);
+        GraphicsUtil.drawCenteredText(g, Text.of("Console", "콘솔").get(), b.getX() + b.getWidth() / 2,
+                b.getY() + 10);
         State st = painter.getShowState() ? (State) painter.getData() : null;
-        int x = b.getX() + 46;
-        int y = b.getY() + 30;
+        // 출력 칸: 왼쪽 포트 이름(Syscall·V0·A0)과 오른쪽 Exit에서 떨어진 안쪽
+        int x = b.getX() + OUT_LEFT;
+        int y = b.getY() + 32;
+        g.setColor(new Color(0xF4, 0xF6, 0xF8));
+        g.fillRect(x - 4, b.getY() + 20, b.getWidth() - OUT_LEFT - OUT_RIGHT + 8, 78);
+        g.setColor(Color.LIGHT_GRAY);
+        g.drawRect(x - 4, b.getY() + 20, b.getWidth() - OUT_LEFT - OUT_RIGHT + 8, 78);
+        g.setColor(Color.BLACK);
         g.setFont(TEXT_FONT);
         if (st != null) {
             for (String line : lastLines(st.text(), ROWS, COLUMNS)) {
@@ -230,16 +240,16 @@ final class Console extends InstanceFactory {
                     : st.syscallFloating ? Text.of("Syscall floating", "Syscall 떠 있음").get() : st.status;
             if (status != null) {
                 g.setColor(st.exited ? Color.GRAY : MemoryFactory.STATUS_COLOR);
-                GraphicsUtil.drawText(g, status, b.getX() + b.getWidth() / 2, b.getY() + 100,
+                GraphicsUtil.drawText(g, status, x + (b.getWidth() - OUT_LEFT - OUT_RIGHT) / 2, b.getY() + 110,
                         GraphicsUtil.H_CENTER, GraphicsUtil.V_BASELINE);
                 g.setColor(Color.BLACK);
             }
         }
-        painter.drawPort(SYSCALL, "Syscall", Direction.EAST);
-        painter.drawPort(V0, "V0", Direction.EAST);
-        painter.drawPort(A0, "A0", Direction.EAST);
+        MemoryFactory.drawPortInside(painter, SYSCALL, "Syscall");
+        MemoryFactory.drawPortInside(painter, V0, "V0");
+        MemoryFactory.drawPortInside(painter, A0, "A0");
         painter.drawClock(CLK, Direction.NORTH);
-        painter.drawPort(EXIT, "Exit", Direction.WEST);
+        MemoryFactory.drawPortInside(painter, EXIT, "Exit");
     }
 
     @Override

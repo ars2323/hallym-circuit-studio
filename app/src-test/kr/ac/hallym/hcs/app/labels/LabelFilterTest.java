@@ -175,4 +175,50 @@ class LabelFilterTest {
         assertEquals(6, dropped.size());
         assertOnlyLabelsDropped(orig, filt, dropped);
     }
+
+    /** 우리 팔 라벨을 그리는 스플리터는 원조 "0-3" 표시만 빠진다. 같은 글자의 텍스트 부품은 남는다(검토 반영 1). */
+    @Test
+    void splitterOriginalBitLabelsGoOnlyWhereArmLabelsAreDrawn() throws Exception {
+        LogisimFile file = CircuitBuilder.newFile(new Loader(null), tmp.toFile());
+        Circuit c = file.getMainCircuit();
+        CircuitBuilder b = new CircuitBuilder(file, c);
+        Component sp = b.add("Wiring", "Splitter", 300, 200, "fanout", "2", "incoming", "8");
+        Component other = b.add("Wiring", "Splitter", 300, 400, "fanout", "2", "incoming", "8");
+        b.add("Base", "Text", 500, 300, "text", "0-3");
+        b.commit();
+        assertEquals(new java.util.HashSet<>(java.util.Arrays.asList("0-3", "4-7")),
+                LabelOverlay.originalSplitterTexts(sp));
+        CircuitState state = new Project(file).getCircuitState();
+
+        List<String> orig = original(c, state, Collections.<Component>emptySet(), 1.0);
+        Recorder r = recorder(1.0);
+        List<LabelOverlay.LabelField> fields = LabelOverlay.labelFields(c, r);
+        FilterGraphics fg = LabelOverlay.filter(r, c, Collections.<Component>emptySet(), fields, x -> x == sp);
+        c.draw(new ComponentDrawContext(new javax.swing.JPanel(), c, state, r, fg),
+                Collections.<Component>emptySet());
+        List<String> filt = r.log;
+        assertEquals(countText(orig, "0-3") + countText(orig, "4-7") - 2,
+                countText(filt, "0-3") + countText(filt, "4-7"),
+                "only the two labels of the first splitter are gone: " + filt);
+        assertTrue(texts(filt).contains("0-3"), "the other splitter and the Text component keep theirs");
+        assertTrue(other != null);
+    }
+
+    private static int countText(List<String> log, String text) {
+        int n = 0;
+        for (String k : log) {
+            if (k.startsWith(text + "\u0000")) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    private static List<String> texts(List<String> log) {
+        List<String> ret = new ArrayList<>();
+        for (String k : log) {
+            ret.add(k.substring(0, k.indexOf('\u0000')));
+        }
+        return ret;
+    }
 }
