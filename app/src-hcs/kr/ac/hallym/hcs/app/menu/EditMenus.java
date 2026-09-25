@@ -66,6 +66,8 @@ public final class EditMenus implements ContextMenus.Provider {
         if (port >= 0) {
             port(t, c, port, menu);
         }
+        menu.add(duplicate(t, c));
+        menu.add(showAttributes(t, c));
         String f = c.getFactory().getName();
         if (f.equals("Pin")) {
             pin(t, c, menu);
@@ -76,6 +78,18 @@ public final class EditMenus implements ContextMenus.Provider {
         } else if (c.getFactory() instanceof SubcircuitFactory) {
             subcircuit(t, c, menu);
         }
+    }
+
+    /** 공통 "속성 패널에서 보기": 이 부품만 고르고 오른쪽 속성 패널을 편다(원조 "속성 보기"를 대신). */
+    static javax.swing.JMenuItem showAttributes(ContextMenus.Target t, Component c) {
+        return MenuLayout.group(item("menu.showAttrs", () -> {
+            t.project.doAction(SelectionActions.dropAll(t.project.getSelection()));
+            t.project.getSelection().add(c);
+            kr.ac.hallym.hcs.app.props.AttrDock dock = kr.ac.hallym.hcs.app.props.AttrDock.find(t.project.getFrame());
+            if (dock != null) {
+                dock.showAll();
+            }
+        }), MenuLayout.COMMON);
     }
 
     static List<Component> nonWires(List<Component> sel) {
@@ -99,7 +113,7 @@ public final class EditMenus implements ContextMenus.Provider {
         return -1;
     }
 
-    private static JMenuItem item(String key, Runnable r, Object... args) {
+    static JMenuItem item(String key, Runnable r, Object... args) {
         JMenuItem it = new JMenuItem(Messages.get(key, args));
         it.addActionListener(e -> r.run());
         return it;
@@ -302,11 +316,15 @@ public final class EditMenus implements ContextMenus.Provider {
             menu.add(kind);
         }
         menu.add(item("menu.label", () -> askLabel(t, one)));
-        menu.add(item("menu.duplicate", () -> {
+    }
+
+    /** 공통: 이 부품 하나를 복제(원조 선택 복제). 부품 종류와 무관하게 공통 묶음에 둔다. */
+    static javax.swing.JMenuItem duplicate(ContextMenus.Target t, Component c) {
+        return MenuLayout.group(item("menu.duplicate", () -> {
             t.project.doAction(SelectionActions.dropAll(t.project.getSelection()));
             t.project.getSelection().add(c);
             t.project.doAction(SelectionActions.duplicate(t.project.getSelection()));
-        }));
+        }), MenuLayout.COMMON);
     }
 
     // --- 선 ---
