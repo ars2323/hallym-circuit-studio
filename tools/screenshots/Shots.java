@@ -614,7 +614,8 @@ public final class Shots {
                 snapLogical(p, area, t[1]);
             }
         }
-        runCycles(p, 400);
+        int ran = runCycles(p, 400); // halt(= Console Exit)에서 멈춘다. 끝난 뒤에도 돌리면 exit 뒤 코드가 돈다
+        System.out.println("program halted after " + (45 + ran) + " cycles");
         for (String[] t : new String[][] {{"Stack", "11f-stack-end"}, {"Console", "11g-console-end"}}) {
             com.cburch.logisim.comp.Component x = byFactory(c, t[0]);
             if (x != null) {
@@ -627,12 +628,35 @@ public final class Shots {
         snapFull("11h-ref-mips-after-run");
     }
 
-    void runCycles(Project p, int n) throws Exception {
-        for (int i = 0; i < 2 * n; i++) {
+    /**
+     * 클럭을 최대 n 사이클 돌린다. 회로에 "halt" 출력 핀이 있으면 1이 되는 사이클에서 멈춘다(검토 2차 B: exit 뒤에도
+     * 돌리면 CPU가 syscall 10 다음 코드를 계속 실행해 Stack이 자란다). 돌린 사이클 수를 돌려준다.
+     */
+    int runCycles(Project p, int n) throws Exception {
+        com.cburch.logisim.comp.Component halt = null;
+        for (com.cburch.logisim.comp.Component x : p.getCurrentCircuit().getNonWires()) {
+            if (x.getFactory().getName().equals("Pin") && "halt".equals(x.getAttributeSet().getValue(com.cburch.logisim.instance.StdAttr.LABEL))) {
+                halt = x;
+            }
+        }
+        int cycles = 0;
+        while (cycles < n) {
             edt(() -> p.getSimulator().tick());
             sleep(8);
+            edt(() -> p.getSimulator().tick());
+            sleep(8);
+            cycles++;
+            if (halt != null) {
+                final com.cburch.logisim.data.Location at = halt.getEnd(0).getLocation();
+                final com.cburch.logisim.data.Value[] v = new com.cburch.logisim.data.Value[1];
+                edt(() -> v[0] = p.getCircuitState().getValue(at));
+                if (v[0] == com.cburch.logisim.data.Value.TRUE) {
+                    break;
+                }
+            }
         }
         sleep(1500);
+        return cycles;
     }
 
     // ---- 앱 ----

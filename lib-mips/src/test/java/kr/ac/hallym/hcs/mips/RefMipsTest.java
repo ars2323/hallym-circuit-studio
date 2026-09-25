@@ -197,8 +197,8 @@ class RefMipsTest {
         assertEquals(0x7fffeffc, r.regs[29]); // 복귀 후 $sp
         DataMemory.State st = (DataMemory.State) lastSim.data(lastCpu.stack);
         long lowest = 0x7fffeffcL - 7 * 8;
-        assertEquals(7 * 8, st.maxDepth()); // SPIM 시작 $sp에서 잰다(#134)
-        assertEquals(0x7fffeffcL - lowest, st.maxDepth());
+        assertEquals(7 * 8, st.usedBytes()); // SPIM 시작 $sp에서 잰다(#134)
+        assertEquals(0x7fffeffcL - lowest, st.usedBytes());
         assertNull(st.problem);
     }
 
@@ -219,7 +219,7 @@ class RefMipsTest {
         runCircuit(prog, RefMipsTest::smallStack, false);
         assertTrue(stackProblems.contains(DataMemory.Problem.STACK_LIMIT), stackProblems.toString());
         DataMemory.State st = (DataMemory.State) lastSim.data(lastCpu.stack);
-        assertEquals(0x100, st.maxDepth()); // 영역 안에서는 맨 아래까지 썼다
+        assertEquals(0x100, st.usedBytes()); // 영역 안에서는 맨 아래까지 썼다
         AssembledProgram ok = AssemblerIntegrationTest.assemble(PROGRAMS.resolve("factorial.s"));
         Result r = runCircuit(ok, RefMipsTest::smallStack);
         assertEquals("6! = 720", r.console);
