@@ -2,6 +2,12 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-26 원조 부품의 포트 이름(S-06, S-07) 재촬영 2
+
+- 기준: fix/port-name-overlay `2a58f44`
+- 관련 이슈: S-06 #169, S-07 #170 (PR #250)
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-s06-port-names-3/README.md
+
 ## 2026-09-26 Signal Flow(P-07) 재촬영 4
 
 - 기준: feat/signal-flow `d768f4e`
