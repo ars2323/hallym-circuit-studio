@@ -115,6 +115,10 @@ class NameIndexTest {
         assertEquals(1, FindDialog.rows(g, open).size());
         assertTrue(FindDialog.label(FindDialog.rows(g, open).get(0), false, place).contains(
                 kr.ac.hallym.hcs.app.Messages.get("find.count", 3)));
+        String closed = FindDialog.label(FindDialog.rows(g, open).get(0), false, place);
+        assertTrue(closed.startsWith("<html>+ "), "collapsed marker: " + closed);
+        assertFalse(closed.matches(".*[\\uAC00-\\uD7AF].*"), "result rows are names only (D-049): " + closed);
+        assertTrue(FindDialog.label(FindDialog.rows(g, open).get(0), true, place).startsWith("<html>\u2212 "));
         open.add(FindDialog.key(g.get(0)));
         List<FindDialog.Row> rows = FindDialog.rows(g, open);
         assertEquals(4, rows.size());
