@@ -198,6 +198,9 @@ public final class Shots {
             snapCrop(top, "10-file-tabs-top");
             activate(last);
         }
+        if (want(scenes, "14")) {
+            messages(demo);
+        }
     }
 
     // ---- 장면 ----
@@ -319,6 +322,71 @@ public final class Shots {
         }
         key(KeyEvent.VK_ESCAPE);
         sleep(300);
+    }
+
+    /**
+     * 14: Messages 탭(2c #27). 데모 회로를 일부러 두 곳 망가뜨린다(regfile 옆 RegWrite 터널 이름을 RegWrit로, PC의 clk
+     * 터널 지우기). 진단이 뜨면 첫 메시지를 누르고, 끝나면 되돌린다.
+     */
+    void messages(Project p) throws Exception {
+        activate(p);
+        Circuit c = p.getCurrentCircuit();
+        com.cburch.logisim.comp.Component pc = byLabel(c, "PC");
+        com.cburch.logisim.comp.Component rw = null;
+        com.cburch.logisim.comp.Component pcClk = null;
+        for (com.cburch.logisim.comp.Component x : c.getNonWires()) {
+            if (!x.getFactory().getName().equals("Tunnel")) {
+                continue;
+            }
+            String l = x.getAttributeSet().getValue(com.cburch.logisim.instance.StdAttr.LABEL);
+            if ("RegWrite".equals(l) && x.getLocation().getX() > 600) {
+                rw = x;
+            } else if ("clk".equals(l) && pc != null && x.getLocation().equals(pc.getEnd(2).getLocation())) {
+                pcClk = x;
+            }
+        }
+        if (rw == null || pcClk == null) {
+            log.add("14: demo tunnels not found");
+            return;
+        }
+        final com.cburch.logisim.comp.Component rwT = rw;
+        final com.cburch.logisim.comp.Component clkT = pcClk;
+        edt(() -> {
+            com.cburch.logisim.circuit.CircuitMutation m = new com.cburch.logisim.circuit.CircuitMutation(c);
+            m.set(rwT, com.cburch.logisim.instance.StdAttr.LABEL, "RegWrit");
+            m.remove(clkT);
+            p.doAction(m.toAction(null));
+        });
+        sleep(2000); // 편집이 멈추면 0.7초 뒤 진단
+        edt(() -> canvas(p).getHcsZoom().fitCircuit());
+        sleep(1000);
+        snapFull("14a-messages");
+        @SuppressWarnings("unchecked")
+        javax.swing.JList<Object> list = (javax.swing.JList<Object>) find(p.getFrame(),
+                x -> x instanceof javax.swing.JList && x.isShowing() && ((javax.swing.JList<?>) x).getModel().getSize() > 0
+                        && ((javax.swing.JList<?>) x).getModel().getElementAt(0)
+                                instanceof kr.ac.hallym.hcs.app.diag.Diagnostic);
+        if (list == null) {
+            log.add("14: no messages list");
+        } else {
+            Rectangle cell = list.getCellBounds(0, 0);
+            Point s = list.getLocationOnScreen();
+            robot.mouseMove(s.x + cell.x + 40, s.y + cell.y + cell.height / 2);
+            sleep(200);
+            robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+            robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+            sleep(1500);
+            snapFull("14b-messages-clicked");
+            Rectangle panel = onScreen(list.getParent().getParent().getParent());
+            snapCrop(pad(panel, 4), "14c-messages-list");
+        }
+        setZoom(p, 1.5);
+        Bounds focus = pc.getBounds().expand(90);
+        centerOn(p, focus);
+        snapLogical(p, focus, "14d-messages-pc");
+        edt(() -> p.undoAction());
+        sleep(1500);
+        setZoom(p, 1.0);
     }
 
     /** 5: 빠른 속성 창 + 오른쪽 속성 패널(펼침·접힘). */

@@ -171,6 +171,7 @@ class CanvasPainter implements PropertyChangeListener {
 		circ.draw(context, hidden);
 		sel.draw(context, hidden);
 		kr.ac.hallym.hcs.app.labels.LabelOverlay.paint(canvas, g, circ, circState, hidden); // HCS: #79
+		kr.ac.hallym.hcs.app.diag.DiagMarks.paint(canvas, g, circ); // HCS: #27 diagnostic marks
 
 		// draw tool
 		Tool tool = dragTool != null ? dragTool : proj.getTool();
