@@ -172,6 +172,9 @@ public class Frame extends LFrame implements LocaleListener {
 	private LayoutToolbarModel layoutToolbarModel;
 	private Canvas          layoutCanvas;
 	private ZoomModel       layoutZoomModel;
+	private kr.ac.hallym.hcs.app.sim.SimControls hcsSim; // HCS: review 1
+	private java.awt.Component hcsToolbar; // HCS: review 1
+	private JPanel hcsNorth; // HCS: review 1
 	private LayoutEditHandler layoutEditHandler;
 	private AttrTableSelectionModel attrTableSelectionModel;
 	
@@ -234,13 +237,13 @@ public class Frame extends LFrame implements LocaleListener {
 		mainPanelSuper.add(hcsDock.component(), BorderLayout.CENTER);
 		// HCS: file tabs, circuit tabs and simulation path above the canvas (#68);
 		// toolbar groups, simulation-off banner and status bar (#77)
-		kr.ac.hallym.hcs.app.sim.SimControls hcsSim = kr.ac.hallym.hcs.app.sim.SimControls.install(this);
+		// review 1: the toolbar and the status bar span the whole window (placeToolbar, below)
+		hcsSim = kr.ac.hallym.hcs.app.sim.SimControls.install(this);
+		hcsToolbar = hcsSim.toolbar();
 		JPanel hcsTop = new JPanel(new BorderLayout());
-		hcsTop.add(hcsSim.toolbar(), BorderLayout.NORTH);
 		hcsTop.add(new kr.ac.hallym.hcs.app.tabs.FileTabBar(this), BorderLayout.CENTER);
 		hcsTop.add(hcsSim.banner(), BorderLayout.SOUTH);
 		mainPanelSuper.add(hcsTop, BorderLayout.NORTH);
-		mainPanelSuper.add(hcsSim.statusBar(), BorderLayout.SOUTH);
 		// HCS: drop .circ files on the window to open them (#70)
 		kr.ac.hallym.hcs.app.dnd.DropOpen.install(this, layoutCanvas);
 		// HCS: context menus follow the order in which things were selected (#105)
@@ -262,14 +265,15 @@ public class Frame extends LFrame implements LocaleListener {
 		// on the right and a split pane on the left containing the
 		// explorer and attribute values.
 		JPanel explPanel = new JPanel(new BorderLayout());
-		explPanel.add(projectToolbar, BorderLayout.NORTH);
-		explPanel.add(explorerPane, BorderLayout.CENTER);
-		explPanel.add(zoom, BorderLayout.SOUTH); // HCS: #74 zoom control stays on the left
+		// HCS: review 1: no explorer icon row (same items in the Project menu), no old zoom box (status bar),
+		// a search box above the component tree
+		explPanel.add(new kr.ac.hallym.hcs.app.palette.ToolboxSearch(proj, explorerPane), BorderLayout.CENTER);
 
 		mainRegion = new VerticalSplitPane(explPanel, mainPanelSuper, // HCS: #74 attributes moved to the right dock
 				AppPreferences.WINDOW_MAIN_SPLIT.get().doubleValue());
 
 		getContentPane().add(mainRegion, BorderLayout.CENTER);
+		getContentPane().add(hcsSim.statusBar(), BorderLayout.SOUTH); // HCS: review 1 full-width status bar
 
 		computeTitle();
 
@@ -286,6 +290,9 @@ public class Frame extends LFrame implements LocaleListener {
 		layoutCanvas.setHcsZoom(kr.ac.hallym.hcs.app.zoom.ZoomController.install(proj, layoutCanvas,
 				canvasPane, layoutZoomModel, getRootPane(), () -> EDIT_LAYOUT.equals(getEditorView())));
 		KeyboardToolSelection.register(toolbar);
+		kr.ac.hallym.hcs.app.keys.ToolKeys.register(getRootPane(), toolbar); // HCS: Ctrl+2..9 with the toolbar hidden
+		hcsSim.zoomStatus().setModel(layoutZoomModel, layoutCanvas.getHcsZoom()::zoomTo, // HCS: review 1
+				layoutCanvas.getHcsZoom()::fitCircuit);
 
 		proj.setFrame(this);
 		if (proj.getTool() == null) {
@@ -305,6 +312,20 @@ public class Frame extends LFrame implements LocaleListener {
 		Container contents = getContentPane();
 		contents.remove(toolbar);
 		mainPanelSuper.remove(toolbar);
+		// HCS: review 1: the app toolbar across the window; the original toolbar only for appearance drawing tools
+		if (hcsToolbar != null) {
+			if (hcsNorth == null) hcsNorth = new JPanel(new BorderLayout());
+			hcsNorth.removeAll();
+			hcsNorth.add(hcsToolbar, BorderLayout.NORTH);
+			if (EDIT_APPEARANCE.equals(getEditorView())) {
+				toolbar.setOrientation(Toolbar.HORIZONTAL);
+				hcsNorth.add(toolbar, BorderLayout.SOUTH);
+			}
+			contents.remove(hcsNorth);
+			contents.add(hcsNorth, BorderLayout.NORTH);
+			contents.validate();
+			return;
+		}
 		if (AppPreferences.TOOLBAR_HIDDEN.equals(loc)) {
 			; // don't place value anywhere
 		} else if (AppPreferences.TOOLBAR_DOWN_MIDDLE.equals(loc)) {
@@ -382,17 +403,21 @@ public class Frame extends LFrame implements LocaleListener {
 			toolbar.setToolbarModel(app.getToolbarModel());
 			app.getAttrTableDrawManager(attrTable).attributesSelected();
 			zoom.setZoomModel(app.getZoomModel());
+			hcsSim.zoomStatus().setModel(app.getZoomModel(), app.getZoomModel()::setZoomFactor, null); // HCS: review 1
 			menuListener.setEditHandler(app.getEditHandler());
 			mainPanel.setView(view);
 			app.getCanvas().requestFocus();
 		} else { // layout view
 			toolbar.setToolbarModel(layoutToolbarModel);
 			zoom.setZoomModel(layoutZoomModel);
+			hcsSim.zoomStatus().setModel(layoutZoomModel, layoutCanvas.getHcsZoom()::zoomTo, // HCS: review 1
+					layoutCanvas.getHcsZoom()::fitCircuit);
 			menuListener.setEditHandler(layoutEditHandler);
 			viewAttributes(proj.getTool(), true);
 			mainPanel.setView(view);
 			layoutCanvas.requestFocus();
 		}
+		placeToolbar(); // HCS: review 1 drawing tools only while editing an appearance
 	}
 
 	public String getEditorView() {

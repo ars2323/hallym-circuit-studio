@@ -63,15 +63,21 @@ public final class PaletteActions {
         if (item.kind == Palette.Kind.SUBCIRCUIT && item.circuit == c) {
             return; // 자기 자신은 넣을 수 없다(원조도 막는다)
         }
-        proj.doAction(place(c, item, at).toAction(() -> Messages.get("palette.placeAction", item.name)));
+        proj.doAction(place(c, item, at).toAction(() -> Messages.get("palette.placeAction",
+                Palette.displayName(item))));
         if (item.kind == Palette.Kind.COMPONENT) {
-            Settings s = Settings.get();
-            s.setList(RECENT, Palette.touch(s.getList(RECENT), item.name));
-            try {
-                s.save();
-            } catch (java.io.IOException e) {
-                // 최근 목록만 잃는다
-            }
+            remember(item.name);
+        }
+    }
+
+    /** 최근 목록 맨 앞에(부품 저장 이름). */
+    public static void remember(String factory) {
+        Settings s = Settings.get();
+        s.setList(RECENT, Palette.touch(s.getList(RECENT), factory));
+        try {
+            s.save();
+        } catch (java.io.IOException e) {
+            // 최근 목록만 잃는다
         }
     }
 
