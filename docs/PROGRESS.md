@@ -66,8 +66,8 @@
 | C-02 | 사이클 표 | #200 | 완료 | #260 | D-074, CycleModelTest(PC·.s 원래 줄·디스어셈블·줄 값), MipsTextTest(tests/asm 원래 줄·분기 라벨), CycleViewGuiTest, 25a·25b |
 | C-03 | 열 클릭과 뒤로 가기 | #201 | 완료 | #260 | D-074, RecorderViewTest(지난 스텝 보기·지금으로 돌아오기·서브회로 안 시점·지난 스텝에서 진행·입력 바꿈·ref-mips factorial), CycleViewGuiTest(열 누르기·상태 표시줄·Next Cycle), 25c·25d |
 | C-04 | Run Until | #202 | 완료 | #261 | D-075, RunUntilTest(PC·다음 jr·exit·줄 바뀜·최대 사이클·E 발생·PC 글 읽기), CycleViewGuiTest.runUntilButtonRunsAndReports, 26a~26c |
-| C-05 | 레지스터 패널 | #203 | 완료 | (이 PR) | D-076, RegisterFileTest(라벨 숫자·이름·위치 추정, 수동 대응, 저장·다시 열기, 되돌리기, 표시 없을 때 나열), CycleViewGuiTest.registerPanelWithAMarkedRegisterFile, 27a~27c·27e |
-| C-06 | 메모리 패널(#98) | #204 | 완료 | (이 PR) | D-076, MachineStateTest(factorial $sp·깊이 56·복귀 0·Stack 화살표·최고 수위·Data 라벨), StackRegionTest.panelAccessorsReadWithoutChanging, CycleViewGuiTest.memoryPanelShowsTheStack, 27d·27f |
+| C-05 | 레지스터 패널 | #203 | 완료 | #262 | D-076, RegisterFileTest(라벨 숫자·이름·위치 추정, 수동 대응, 저장·다시 열기, 되돌리기, 표시 없을 때 나열), CycleViewGuiTest.registerPanelWithAMarkedRegisterFile, 27a~27c·27e |
+| C-06 | 메모리 패널(#98) | #204 | 완료 | #262 | D-076, MachineStateTest(factorial $sp·깊이 56·복귀 0·Stack 화살표·최고 수위·Data 라벨), StackRegionTest.panelAccessorsReadWithoutChanging, CycleViewGuiTest.memoryPanelShowsTheStack, 27d·27f |
 | C-07 | 명령어 필드 색 | #205 | 대기 |  |  |
 | C-08 | 버스 값 칩과 활성 경로 | #206 | 대기 |  |  |
 | C-09 | Console 탭과 .s 자동 재로드 | #207 | 대기 |  |  |
