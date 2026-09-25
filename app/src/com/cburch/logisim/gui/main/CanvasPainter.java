@@ -170,6 +170,7 @@ class CanvasPainter implements PropertyChangeListener {
 		context.setHighlightedWires(highlightedWires);
 		circ.draw(context, hidden);
 		kr.ac.hallym.hcs.app.wiring.WireMarks.paint(canvas, g, circ, circState, hidden); // HCS: W-04 junctions, jumps
+		kr.ac.hallym.hcs.app.influence.InfluenceOverlay.paint(canvas, context, g, circ); // HCS: P-01 influence
 		sel.draw(context, hidden);
 		kr.ac.hallym.hcs.app.labels.LabelOverlay.paint(canvas, g, circ, circState, hidden); // HCS: #79
 		kr.ac.hallym.hcs.app.diag.DiagMarks.paint(canvas, g, circ); // HCS: #27 diagnostic marks

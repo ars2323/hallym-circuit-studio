@@ -196,6 +196,29 @@ public final class LabelOverlay {
                 && (d == Density.ALL || c == o.hovered) && !armLabels(file, circuit, c).isEmpty());
     }
 
+    /**
+     * 부품 하나를 다시 그릴 때(영향 경로가 흐리게 한 뒤 닿은 부품을 선명하게, P-01): 원조 라벨 글자를 빼는 Graphics.
+     * 돌려준 Graphics의 첫 create()가 그 부품을 그릴 Graphics다(원조 그리기와 같은 방식).
+     */
+    public static Graphics filterOne(Canvas canvas, Graphics g, Circuit circuit, Component c) {
+        if (!(g instanceof Graphics2D) || circuit == null) {
+            return g;
+        }
+        List<LabelField> fields = labelFields(circuit, g);
+        Map<Component, String> keys = new HashMap<>();
+        for (LabelField f : fields) {
+            if (f.comp == c) {
+                keys.put(f.comp, FilterGraphics.key(f.text, f.drawX, f.drawY));
+            }
+        }
+        Map<Component, Set<String>> texts = new HashMap<>();
+        if (canvas != null && c.getFactory().getName().equals("Splitter")
+                && !armLabels(canvas.getProject().getLogisimFile(), circuit, c).isEmpty()) {
+            texts.put(c, originalSplitterTexts(c));
+        }
+        return new FilterGraphics((Graphics2D) g, java.util.Collections.singletonList(c).iterator(), keys, texts);
+    }
+
     static FilterGraphics filter(Graphics2D g, Circuit circuit, java.util.Collection<Component> hidden,
             List<LabelField> fields) {
         return filter(g, circuit, hidden, fields, c -> false);
