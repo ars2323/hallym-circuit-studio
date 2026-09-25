@@ -363,8 +363,8 @@ public class EditTool extends Tool {
 			}
 			break;
 		case KeyEvent.VK_INSERT:
-			Action act = SelectionActions.duplicate(canvas.getSelection());
-			canvas.getProject().doAction(act);
+			// HCS: W-05 사본이 옛 선에 닿지 않게
+			kr.ac.hallym.hcs.app.wiring.SafeDuplicate.run(canvas.getProject(), canvas.getSelection());
 			e.consume();
 			break;
 		case KeyEvent.VK_UP:
