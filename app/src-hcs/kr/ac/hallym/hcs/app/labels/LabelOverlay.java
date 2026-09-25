@@ -149,7 +149,8 @@ public final class LabelOverlay {
         if (c == null || !PortLabels.original(c)) {
             return;
         }
-        Bounds b = c.getBounds().expand(30);
+        // 이름은 부품 밖 화면 크기(최소 10px) 글자로 그려진다: 화면 60px만큼 넉넉히
+        Bounds b = c.getBounds().expand((int) Math.ceil(Math.max(30, 60 / z)));
         canvas.repaint((int) Math.floor(b.getX() * z), (int) Math.floor(b.getY() * z), (int) Math.ceil(b.getWidth() * z),
                 (int) Math.ceil(b.getHeight() * z));
     }

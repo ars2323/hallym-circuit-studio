@@ -329,14 +329,15 @@ public final class Shots {
             snapLogical(p, b, "21c-adder-hover-100");
             robot.mouseMove(5, 5);
             sleep(300);
-            // 25%에서 마우스를 올려도 이름이 읽힌다(화면 10px 이상)
+            // 25%에서 마우스를 올려도 이름이 읽힌다(화면 10px 이상). 가산기는 캔버스 맨 위라 PC 레지스터로
             setZoom(p, 0.25);
-            Bounds b25 = add.getBounds().expand(120);
+            Bounds pb = pc.getBounds();
+            Bounds b25 = pb.expand(160);
             centerOn(p, b25);
-            Point at25 = screen(p, Location.create(ab.getX() + 6, ab.getY() + 4));
+            Point at25 = screen(p, Location.create(pb.getX() + 4, pb.getY() + 4));
             robot.mouseMove(at25.x, at25.y);
             sleep(350);
-            snapLogical(p, b25, "21d-adder-hover-25");
+            snapLogical(p, b25, "21d-pc-hover-25");
             robot.mouseMove(5, 5);
             sleep(300);
         }

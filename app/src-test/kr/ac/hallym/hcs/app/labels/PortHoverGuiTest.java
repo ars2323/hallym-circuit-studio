@@ -81,6 +81,15 @@ class PortHoverGuiTest {
                     System.currentTimeMillis(), 0, sx / 2 - 60, sy / 2 - 60, 0, false)));
             settle();
             assertNull(o.hovered(), "empty space");
+            // 25%에서도
+            SwingUtilities.invokeAndWait(() -> canvas.getHcsZoom().zoomTo(0.25));
+            settle();
+            int qx = (int) Math.round((bb.getX() + bb.getWidth() / 2.0) * 0.25);
+            int qy = (int) Math.round((bb.getY() + bb.getHeight() / 2.0) * 0.25);
+            SwingUtilities.invokeAndWait(() -> canvas.dispatchEvent(new MouseEvent(canvas, MouseEvent.MOUSE_MOVED,
+                    System.currentTimeMillis(), 0, qx, qy, 0, false)));
+            settle();
+            assertSame(adder, o.hovered(), "screen point / zoom = the adder at 25%");
         } finally {
             SwingUtilities.invokeAndWait(frame::dispose);
         }
