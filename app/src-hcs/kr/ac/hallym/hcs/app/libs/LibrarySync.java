@@ -229,7 +229,7 @@ public final class LibrarySync {
             if (reloaded.add(u.library)) {
                 u.project.getLogisimFile().getLoader().reload(u.library); // 여러 파일이 같은 라이브러리를 나눠 쓴다
             }
-            u.project.getSimulator().requestReset();
+            kr.ac.hallym.hcs.app.record.Recorder.requestReset(u.project);
             kr.ac.hallym.hcs.app.tabs.FileTabs.get().model().markUpdated(u.project);
             kr.ac.hallym.hcs.app.sim.SimControls.notice(u.project, Messages.get("libs.updated", f.getName()));
             touched.add(u.project);

@@ -111,6 +111,9 @@ fun Test.hcsTestSetup(headless: Boolean) {
     systemProperty("hcs.forkJar", tasks.jar.get().archiveFile.get().asFile.absolutePath)
     systemProperty("hcs.logisimJar", logisimJar.absolutePath)
     systemProperty("hcs.circDir", rootProject.file("tests/circ").absolutePath)
+    systemProperty("hcs.testsDir", rootProject.file("tests").absolutePath)
+    // 기록 엔진 테스트가 .s를 어셈블한다(make -C native/hcs-asm 먼저, tools/ci-local.sh 순서)
+    systemProperty("hcs.asm", rootProject.file("native/hcs-asm/build/hcs-asm").absolutePath)
     // tests/circ/demo-datapath.circ 다시 쓰기: ./gradlew :app:test -Phcs.update=true
     systemProperty("hcs.update", (findProperty("hcs.update") ?: "false").toString())
     testLogging {

@@ -132,7 +132,7 @@ public final class PaletteActions {
         com.cburch.logisim.circuit.Simulator sim = proj.getSimulator();
         switch (id) {
         case "reset":
-            sim.requestReset();
+            kr.ac.hallym.hcs.app.record.Recorder.requestReset(proj);
             break;
         case "tick":
             sim.tick();
