@@ -175,6 +175,7 @@ public class Frame extends LFrame implements LocaleListener {
 	private kr.ac.hallym.hcs.app.sim.SimControls hcsSim; // HCS: review 1
 	private java.awt.Component hcsToolbar; // HCS: review 1
 	private JPanel hcsNorth; // HCS: review 1
+	private kr.ac.hallym.hcs.app.diag.MessagesPanel hcsMessages; // HCS: #27
 	private LayoutEditHandler layoutEditHandler;
 	private AttrTableSelectionModel attrTableSelectionModel;
 	
@@ -234,7 +235,9 @@ public class Frame extends LFrame implements LocaleListener {
 		attrPanel.add(attrTable, BorderLayout.CENTER);
 		kr.ac.hallym.hcs.app.props.AttrDock hcsDock = new kr.ac.hallym.hcs.app.props.AttrDock(mainPanel, attrPanel);
 		kr.ac.hallym.hcs.app.props.QuickBar.install(this, layoutCanvas, hcsDock);
-		mainPanelSuper.add(hcsDock.component(), BorderLayout.CENTER);
+		// HCS: Messages tab below the canvas, diagnostic count in the status bar (#27)
+		hcsMessages = kr.ac.hallym.hcs.app.diag.MessagesPanel.install(this);
+		mainPanelSuper.add(hcsMessages.around(hcsDock.component()), BorderLayout.CENTER);
 		// HCS: file tabs, circuit tabs and simulation path above the canvas (#68);
 		// toolbar groups, simulation-off banner and status bar (#77)
 		// review 1: the toolbar and the status bar span the whole window (placeToolbar, below)
@@ -273,7 +276,9 @@ public class Frame extends LFrame implements LocaleListener {
 				AppPreferences.WINDOW_MAIN_SPLIT.get().doubleValue());
 
 		getContentPane().add(mainRegion, BorderLayout.CENTER);
-		getContentPane().add(hcsSim.statusBar(), BorderLayout.SOUTH); // HCS: review 1 full-width status bar
+		JPanel hcsStatus = hcsSim.statusBar(); // HCS: review 1 full-width status bar
+		hcsStatus.add(hcsMessages.statusLabel(), 0); // HCS: #27 diagnostic count first (PLAN.md 11.7)
+		getContentPane().add(hcsStatus, BorderLayout.SOUTH);
 
 		computeTitle();
 
