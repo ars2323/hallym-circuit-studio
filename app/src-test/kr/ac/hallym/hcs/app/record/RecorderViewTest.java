@@ -184,4 +184,25 @@ class RecorderViewTest {
         ticks(rec, 2);
         assertEquals(5 + 5, liveQ(), "R was 5 at step 10, then +5");
     }
+
+    /** ref-mips + factorial(Stack·Console을 쓴다): 지난 사이클을 봐도 기록 뒤쪽이 그대로다(바꿔 끼운 뒤 다시 전파해도 값이 같다). */
+    @Test
+    void viewingRefMipsKeepsTheFuture() throws Exception {
+        LogisimFile file = RecordingTestSupport.openRefMips(tmp);
+        RecordingTestSupport.load(file, RecordingTestSupport.program("mips/factorial.s"));
+        proj = new Project(file);
+        Recorder rec = Recorder.of(proj);
+        Recorder.requestReset(proj);
+        waitFor(() -> rec.current() != null && rec.current().last() == 0, "start");
+        Thread.sleep(300);
+        ticks(rec, 60);
+        Recording r = rec.current();
+        for (int step : new int[] {24, 7, 40, 60, 0, 33}) {
+            rec.view(step);
+            Thread.sleep(300); // 바꿔 끼운 뒤의 다시 전파
+            assertEquals(60, r.last(), "viewing step " + step + " keeps the record: " + r.firstDifference(
+                    proj.getSimulator().getCircuitState(), r.cursor()));
+            assertEquals(step, r.cursor());
+        }
+    }
 }

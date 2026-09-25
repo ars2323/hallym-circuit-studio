@@ -42,7 +42,8 @@ import com.cburch.logisim.proj.Project;
 public final class Recorder {
     private static final Map<Project, Recorder> ALL = new WeakHashMap<>();
 
-    private final Project proj;
+    /** 약한 참조: 모든 기록기를 모은 ALL(WeakHashMap)의 값이 키인 프로젝트를 붙잡지 않게(닫은 파일의 기록이 풀린다). */
+    private final java.lang.ref.WeakReference<Project> projRef;
     private final Map<Circuit, Recording> recordings = new HashMap<>();
     private final List<Listener> listeners = new ArrayList<>();
     private volatile boolean resetPending = true;
@@ -84,7 +85,7 @@ public final class Recorder {
     };
 
     private Recorder(Project proj) {
-        this.proj = proj;
+        this.projRef = new java.lang.ref.WeakReference<>(proj);
     }
 
     /** 프로젝트의 기록기(없으면 만들어 붙인다). */
@@ -120,13 +121,15 @@ public final class Recorder {
     }
 
     private void attach() {
+        Project proj = projRef.get();
         proj.getSimulator().addSimulatorListener(simListener);
         proj.addLibraryListener(libraryListener);
         listenToCircuits();
     }
 
     private void listenToCircuits() {
-        if (proj.getLogisimFile() == null) {
+        Project proj = projRef.get();
+        if (proj == null || proj.getLogisimFile() == null) {
             return;
         }
         for (Circuit c : proj.getLogisimFile().getCircuits()) {
@@ -160,7 +163,8 @@ public final class Recorder {
     }
 
     private CircuitState root() {
-        Simulator sim = proj.getSimulator();
+        Project proj = projRef.get();
+        Simulator sim = proj == null ? null : proj.getSimulator();
         CircuitState s = sim == null ? null : sim.getCircuitState();
         return s;
     }
@@ -239,17 +243,20 @@ public final class Recorder {
      */
     public int view(int step) {
         Recording r;
-        CircuitState target;
         int at;
+        // 커서 옮기기와 상태 바꿔 끼우기를 한 번에: 그 사이에 시뮬레이터 스레드의 전파 알림이 옛 상태를 새 커서와
+        // 비교하면 "입력이 바뀌었다"로 보고 뒤 기록을 버린다(시뮬레이터는 락 없이 청취자를 부르므로 교착은 없다)
         synchronized (this) {
+            Project proj = projRef.get();
             r = current();
-            if (r == null || r.isEmpty()) {
+            if (proj == null || r == null || r.isEmpty()) {
                 return -1;
             }
             at = Math.max(r.first(), Math.min(r.last(), step));
             if (at == r.cursor()) {
                 return at;
             }
+            CircuitState target;
             if (at == r.last()) {
                 target = r.live();
                 r.setLive(null);
@@ -261,21 +268,19 @@ public final class Recorder {
                 if (r.live() == null) {
                     r.setLive(root());
                 }
+                proj.getSimulator().setIsTicking(false);
             }
             r.moveCursor(at);
-        }
-        if (at < r.last()) {
-            proj.getSimulator().setIsTicking(false);
-        }
-        if (target != null) {
-            swapTo(target);
+            if (target != null) {
+                swapTo(proj, target);
+            }
         }
         fire(r);
         return at;
     }
 
     /** 지금 보는 곳(서브회로 인스턴스 안이면 그 경로)을 유지한 채 최상위 상태를 newRoot로 바꾼다. */
-    private void swapTo(CircuitState newRoot) {
+    private static void swapTo(Project proj, CircuitState newRoot) {
         CircuitState cur = proj.getCircuitState();
         CircuitState target = newRoot;
         if (cur != null) {
@@ -288,6 +293,10 @@ public final class Recorder {
             }
         }
         proj.setCircuitState(target);
+        // 바꿔 끼운 상태의 부품이 실제 시뮬레이션 쪽에 다시 등록되게(MIPS 메모리) 한 번 다시 전파한다. 값은 그대로라
+        // 기록은 바뀌지 않는다(onPropagation이 걸러낸다)
+        Recording.prime(newRoot);
+        proj.getSimulator().requestPropagate();
         proj.repaintCanvas();
     }
 

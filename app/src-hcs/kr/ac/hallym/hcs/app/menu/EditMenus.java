@@ -166,6 +166,7 @@ public final class EditMenus implements ContextMenus.Provider {
         menu.add(widthMenu(t, Collections.singletonList(c)));
         boolean tri = "true".equals(value(c, "tristate"));
         menu.add(item(tri ? "menu.triOff" : "menu.triOn", () -> set(t, c, "tristate", Boolean.toString(!tri))));
+        menu.add(cycleRow(t, c));
         JMenu pull = optionMenu(t, c, "pull", "menu.pull");
         if (pull != null) {
             menu.add(pull);
@@ -347,6 +348,7 @@ public final class EditMenus implements ContextMenus.Provider {
             t.project.doAction(SelectionActions.dropAll(t.project.getSelection()));
             t.project.getSelection().addAll(net.wires());
         }));
+        menu.add(item("cycle.add", () -> kr.ac.hallym.hcs.app.cycle.CycleView.addWire(t.project, t.circuit, w)));
         boolean lit = WireMarks.highlighted(t.circuit).contains(w);
         menu.add(item(lit ? "menu.unhighlightNet" : "menu.highlightNet", () -> {
             WireMarks.highlight(t.circuit, lit ? null : net);
@@ -411,6 +413,13 @@ public final class EditMenus implements ContextMenus.Provider {
             t.project.getSelection().addAll(same);
         }, label, same.size()));
         menu.add(tunnelColorMenu(t, c));
+        menu.add(cycleRow(t, c));
+    }
+
+    /** C-02: 이 부품(터널·핀)의 넷을 사이클 표 줄로. 선이 없는 회로(터널로만 잇는)에서도 신호를 고를 수 있게. */
+    static javax.swing.JMenuItem cycleRow(ContextMenus.Target t, Component c) {
+        return item("cycle.add", () -> kr.ac.hallym.hcs.app.cycle.CycleView.addPort(t.project, t.circuit,
+                c.getEnd(0).getLocation()));
     }
 
     /** 터널 색 직접 지정(.circ 확장 정보에 저장, D-042). "자동"은 이름으로 정한 색(저장 안 함). */

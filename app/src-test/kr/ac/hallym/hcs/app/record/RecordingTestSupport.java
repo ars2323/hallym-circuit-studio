@@ -26,11 +26,11 @@ import com.cburch.logisim.file.LogisimFile;
  * 테스트 도우미: ref-mips.circ를 임시 폴더에 열고, .s를 hcs-asm으로 어셈블해 Instruction Memory·Data Memory의 초기
  * 내용 속성("contents", hcs-words 형식)에 넣는다. 메뉴의 .s 불러오기(파일 고르기 창)를 거치지 않는다.
  */
-final class MipsPrograms {
-    private MipsPrograms() {
+public final class RecordingTestSupport {
+    private RecordingTestSupport() {
     }
 
-    static LogisimFile openRefMips(Path tmp) throws Exception {
+    public static LogisimFile openRefMips(Path tmp) throws Exception {
         Path dir = Files.createTempDirectory(tmp, "ref");
         Files.copy(new File(System.getProperty("hcs.mipsJar")).toPath(), dir.resolve("hcs-mips.jar"),
                 StandardCopyOption.REPLACE_EXISTING);
@@ -39,7 +39,7 @@ final class MipsPrograms {
         return new Loader(null).openLogisimFile(to.toFile());
     }
 
-    static Path program(String relative) {
+    public static Path program(String relative) {
         return new File(System.getProperty("hcs.testsDir"), relative).toPath();
     }
 
@@ -66,7 +66,7 @@ final class MipsPrograms {
         return sb.toString();
     }
 
-    static String assemble(Path source) throws Exception {
+    public static String assemble(Path source) throws Exception {
         Process p = new ProcessBuilder(System.getProperty("hcs.asm"), source.toString()).redirectErrorStream(false)
                 .start();
         byte[] out = p.getInputStream().readAllBytes();
@@ -78,7 +78,7 @@ final class MipsPrograms {
 
     /** .s를 어셈블해 main 회로의 Instruction Memory와 Data Memory 초기 내용으로 둔다. */
     @SuppressWarnings("unchecked")
-    static void load(LogisimFile file, Path source) throws Exception {
+    public static void load(LogisimFile file, Path source) throws Exception {
         String json = assemble(source);
         Circuit main = file.getMainCircuit();
         CircuitMutation m = new CircuitMutation(main);

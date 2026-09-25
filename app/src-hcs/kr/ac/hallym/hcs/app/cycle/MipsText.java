@@ -12,6 +12,8 @@ import java.util.function.IntFunction;
  * 명령어 워드를 읽는 글(C-02 사이클 표 머리, C-07 필드 색). .s가 없을 때 디스어셈블로 쓴다. MIPS32 명세의 opcode·
  * funct 표를 보고 직접 썼다(SPIM 코드는 쓰지 않는다, CLAUDE.md 규칙 2.5). 기계어는 QtSpim 그대로이고 도구는 해석만
  * 한다(D-010). 분기·점프 목적지는 워드의 필드로 계산한 주소를 보일 뿐 학생 데이터패스의 계산과 비교하지 않는다.
+ * 분기 목적지는 QtSpim 기본 설정(지연 분기 끔)의 인코딩대로 PC + 오프셋×4다(D-010: 이 설정의 SPIM은 오프셋을 PC
+ * 기준으로 만든다). 그래야 학생이 쓴 라벨이 보인다.
  */
 public final class MipsText {
     private MipsText() {
@@ -179,20 +181,20 @@ public final class MipsText {
             return word(word);
         case 0x01: {
             String name = rt == 0 ? "bltz" : rt == 1 ? "bgez" : rt == 0x10 ? "bltzal" : rt == 0x11 ? "bgezal" : null;
-            return name == null ? word(word) : name + " " + reg(rs) + ", " + target(pc + 4 + (imm << 2), labels);
+            return name == null ? word(word) : name + " " + reg(rs) + ", " + target(branch(pc, imm), labels);
         }
         case 0x02:
             return "j " + target(((pc + 4) & 0xf0000000) | (ADDR.of(word) << 2), labels);
         case 0x03:
             return "jal " + target(((pc + 4) & 0xf0000000) | (ADDR.of(word) << 2), labels);
         case 0x04:
-            return "beq " + reg(rs) + ", " + reg(rt) + ", " + target(pc + 4 + (imm << 2), labels);
+            return "beq " + reg(rs) + ", " + reg(rt) + ", " + target(branch(pc, imm), labels);
         case 0x05:
-            return "bne " + reg(rs) + ", " + reg(rt) + ", " + target(pc + 4 + (imm << 2), labels);
+            return "bne " + reg(rs) + ", " + reg(rt) + ", " + target(branch(pc, imm), labels);
         case 0x06:
-            return "blez " + reg(rs) + ", " + target(pc + 4 + (imm << 2), labels);
+            return "blez " + reg(rs) + ", " + target(branch(pc, imm), labels);
         case 0x07:
-            return "bgtz " + reg(rs) + ", " + target(pc + 4 + (imm << 2), labels);
+            return "bgtz " + reg(rs) + ", " + target(branch(pc, imm), labels);
         case 0x08:
             return i3("addi", rt, rs, imm);
         case 0x09:
@@ -228,6 +230,11 @@ public final class MipsText {
         default:
             return word(word);
         }
+    }
+
+    /** 분기 목적지: QtSpim(지연 분기 끔) 인코딩 기준 PC + imm×4(D-010). */
+    public static int branch(int pc, int imm) {
+        return pc + (imm << 2);
     }
 
     private static String r3(String name, int rd, int rs, int rt) {

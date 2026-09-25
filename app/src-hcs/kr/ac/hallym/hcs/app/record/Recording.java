@@ -372,6 +372,35 @@ public final class Recording {
         }
     }
 
+    /** 테스트·진단: state와 step 기록이 처음 다른 넷(경로와 자리). 같으면 null. */
+    public synchronized String firstDifference(CircuitState state, int step) {
+        return firstDifference(root, state, step, "");
+    }
+
+    private String firstDifference(Node node, CircuitState s, int step, String path) {
+        if (node.probe == null || node.circuit != s.getCircuit()) {
+            return path + " (structure)";
+        }
+        for (int i = 0; i < node.probe.at.length; i++) {
+            Value v = node.tracks[i].at(step);
+            Value now = s.getValue(node.probe.at[i]);
+            if (v == null || !v.equals(now)) {
+                return path + " " + node.probe.at[i] + ": recorded " + v + ", now " + now;
+            }
+        }
+        for (Map.Entry<Component, Node> e : node.children.entrySet()) {
+            Object d = s.getData(e.getKey());
+            if (!(d instanceof CircuitState)) {
+                return path + "/" + e.getKey() + " (no state)";
+            }
+            String f = firstDifference(e.getValue(), (CircuitState) d, step, path + "/" + e.getKey());
+            if (f != null) {
+                return f;
+            }
+        }
+        return null;
+    }
+
     /** state의 값이 step 기록과 하나라도 다른가(값이 바뀌지 않은 전파 알림을 걸러낸다). */
     public synchronized boolean differs(CircuitState state, int step) {
         return differs(root, state, step);

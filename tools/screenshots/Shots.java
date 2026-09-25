@@ -192,6 +192,9 @@ public final class Shots {
         if (want(scenes, "11")) {
             program(ref);
         }
+        if (want(scenes, "25")) {
+            cycles(ref);
+        }
         if (want(scenes, "10")) {
             open("tests/circ/register.circ");
             open("tests/circ/values.circ");
@@ -1508,12 +1511,13 @@ public final class Shots {
     }
 
     /** 11: .s 불러오기(재귀 factorial) 뒤 MIPS 부품과 실행 중 스택. */
-    void program(Project p) throws Exception {
+    /** 우클릭 ".s 불러오기"와 같은 길로 path를 불러온다(파일 고르기 창을 스크립트가 고른다). summary: 결과 창 그림 이름. */
+    boolean chooseProgram(Project p, String path, String summary, String scene) throws Exception {
         Thread loader = new Thread(() -> {
             try {
                 SwingUtilities.invokeAndWait(() -> kr.ac.hallym.hcs.app.palette.PaletteActions.loadProgram(p));
             } catch (Exception e) {
-                log.add("11: " + e);
+                log.add(scene + ": " + e);
             }
         });
         loader.start();
@@ -1527,19 +1531,69 @@ public final class Shots {
             }
         }
         if (fc == null) {
-            log.add("11: no file chooser");
-            return;
+            log.add(scene + ": no file chooser");
+            return false;
         }
         final JFileChooser chooser = fc;
         SwingUtilities.invokeLater(() -> {
-            chooser.setSelectedFile(new File("tests/mips/factorial.s").getAbsoluteFile());
+            chooser.setSelectedFile(new File(path).getAbsoluteFile());
             chooser.approveSelection();
         });
         sleep(4000);
         Window msg = window(x -> x instanceof JDialog && x.isShowing());
         if (msg != null) {
-            snapCrop(pad(msg.getBounds(), 10), "11a-load-summary");
+            if (summary != null) {
+                snapCrop(pad(msg.getBounds(), 10), summary);
+            }
             edt(msg::dispose);
+        }
+        return true;
+    }
+
+    /** 25: 캔버스 아래 Cycles 탭(C-02, C-03). ref-mips에 factorial.s를 불러와 30사이클 돌리고 신호 줄 다섯, 지난 사이클 보기. */
+    void cycles(Project p) throws Exception {
+        activate(p);
+        if (!chooseProgram(p, "tests/mips/factorial.s", null, "25")) {
+            return;
+        }
+        edt(() -> kr.ac.hallym.hcs.app.record.Recorder.requestReset(p));
+        sleep(800);
+        runCycles(p, 30);
+        sleep(600);
+        Circuit c = p.getCurrentCircuit();
+        for (String name : new String[] {"clk", "regWrite", "aluResult", "writeData", "rsVal"}) {
+            com.cburch.logisim.comp.Component t = null;
+            for (com.cburch.logisim.comp.Component x : c.getNonWires()) {
+                if (x.getFactory().getName().equals("Tunnel")
+                        && name.equals(kr.ac.hallym.hcs.app.model.Names.label(x))) {
+                    t = x;
+                    break;
+                }
+            }
+            if (t == null) {
+                log.add("25: no tunnel " + name);
+                continue;
+            }
+            final com.cburch.logisim.comp.Component tt = t;
+            edt(() -> kr.ac.hallym.hcs.app.cycle.CycleView.addPort(p, c, tt.getEnd(0).getLocation()));
+        }
+        sleep(900);
+        kr.ac.hallym.hcs.app.cycle.CycleView v = kr.ac.hallym.hcs.app.cycle.CycleView.of(p);
+        edt(() -> canvas(p).getHcsZoom().fitCircuit());
+        sleep(900);
+        snapFull("25a-cycles-full");
+        snapCrop(onScreen(v.component()), "25b-cycles-table");
+        edt(() -> v.view(12));
+        sleep(1200);
+        snapFull("25c-past-cycle-full");
+        snapCrop(onScreen(v.component()), "25d-past-cycle-table");
+        edt(v::showLatest);
+        sleep(500);
+    }
+
+    void program(Project p) throws Exception {
+        if (!chooseProgram(p, "tests/mips/factorial.s", "11a-load-summary", "11")) {
+            return;
         }
         sleep(500);
         // 재귀가 깊어졌을 때와 끝났을 때

@@ -73,8 +73,8 @@ class ReplayIsolationTest {
 
     @Test
     void replayLeavesTheLiveSimulationAlone() throws Exception {
-        LogisimFile file = MipsPrograms.openRefMips(tmp);
-        MipsPrograms.load(file, MipsPrograms.program("record/overwrite-print.s"));
+        LogisimFile file = RecordingTestSupport.openRefMips(tmp);
+        RecordingTestSupport.load(file, RecordingTestSupport.program("record/overwrite-print.s"));
         for (Component c : file.getMainCircuit().getNonWires()) {
             if (c.getFactory().getName().equals("Console")) {
                 console = c;
