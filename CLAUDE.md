@@ -64,13 +64,14 @@ git과 gh는 설치·로그인돼 있다. 저장소 관리는 전부 직접 한�
 - **브랜치와 PR:** `main`에 직접 push하지 않는다. `feat/…`, `fix/…`, `docs/…`, `chore/…` 브랜치를 만들고, 작업 단위마다 PR을 연다. PR 본문은 한국어로 쓰고 `Closes #N`을 단다.
 - **머지 절차:**
   1. CI가 통과하는지 확인한다.
-  2. `gh pr merge` 전에 compat-reviewer 서브에이전트(`.claude/agents/compat-reviewer.md`)를 돌린다. 이 에이전트는 diff만 보고 2절 절대 규칙 위반과 테스트 없는 기능 변경을 보고한다.
+  2. `gh pr merge` 전에 compat-reviewer 서브에이전트(`.claude/agents/compat-reviewer.md`)를 돌린다. 이 에이전트는 diff만 보고 2절 절대 규칙 위반과 테스트 없는 기능 변경을 보고한다. **UI 변경 PR은 ui-reviewer(`.claude/agents/ui-reviewer.md`, `docs/UI-CHECKLIST.md`)도 돌리고, 두 검토 모두 위반 0건이어야 머지한다.**
   3. 위반이 있으면 고친 뒤 다시 돌린다. 위반 0건이 될 때까지 반복한다. "확인 필요" 항목은 PR 본문에 판단 근거를 적는다.
   4. `gh pr merge --squash --delete-branch`로 직접 머지한다.
 - **커밋:** 영어 명령형 한 줄 제목(`Add Data Memory component`)에 필요하면 본문을 단다. 작은 단위로 자주 커밋한다.
 - **CI (GitHub Actions):** Linux에서 빌드, 단위 테스트, 엔진 회귀, 어셈블 일치를 매 push·PR마다 돌린다. Windows 러너 작업(`hcs-asm.exe`, jpackage zip/MSI)은 1단계 배포 전에 추가한다.
-- **릴리스:** 단계 산출물은 태그(`v0.1.0` = 1단계 라이브러리)와 GitHub Release로 만든다. 첨부물은 `hcs-mips.jar`, `hcs-asm`(Linux), `hcs-asm.exe`, 사용 안내다. 학생 배포는 사용자 결정이므로 Release는 draft로 둔다.
+- **릴리스:** 단계 산출물은 태그와 GitHub Release로 만든다. 중간 단계 Release는 draft로 둔다. **v1.0.0은 사용자 확정(최종 완성 지시)에 따라 모든 품질 게이트(docs/PROGRESS.md Q-01~Q-05) 통과 뒤 공개 릴리스로 게시한다.**
 - **.gitignore:** `resources/`, `ref/`, `build/`, `.gradle/`, `native/**/build/`, IDE 파일.
+- **진행 추적:** 최종 완성 지시의 항목 ID(S-, W-, P-, C-, D-, E-, R-, Q-)는 이슈 하나씩이고, `docs/PROGRESS.md` 추적표(ID | 이슈 | 상태 | PR | 스크린샷)를 항목이 끝날 때마다 갱신한다. 컨텍스트가 끊기면 이 파일과 PLAN·CLAUDE·DECISIONS만 읽고 이어간다.
 - **스크린샷 보고(`docs/SCREENSHOTS.md`):** UI가 바뀌는 작업은 스크린샷을 올리고 링크를 단다.
   - `tools/screenshots/run.sh`로 가상 화면(1920×1080, 배율 100%, Pretendard)에서 스크립트로 찍는다. 앱 창만 찍고, 개인 경로가 보이지 않게 한다. 이미지는 1MB 이하다.
   - 이미지는 orphan 브랜치 `review-shots`의 `<YYYY-MM-DD>-<주제>/`에 올린다. 한 번 올린 폴더는 고치지 않는다. `INDEX.md` 맨 위에 날짜, 기준 main 커밋, PR·이슈, 폴더 링크를 더한다.
