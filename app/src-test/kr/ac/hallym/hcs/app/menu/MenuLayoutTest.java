@@ -93,4 +93,38 @@ class MenuLayoutTest {
         assertEquals(Messages.get("menu.sum.many", 3), MenuLayout.summary(c, and, Location.create(280, 200), 3));
         assertTrue(pin != null);
     }
+
+    /** 원조 MenuTool의 부품 메뉴와 같은 모양(클래스 이름, [삭제, 속성 보기, 부품 자체 항목…]). */
+    static final class MenuComponent extends JPopupMenu {
+        private static final long serialVersionUID = 1L;
+    }
+
+    /** 원조 MenuTool의 여러 부품 메뉴와 같은 모양([삭제, 잘라내기, 복사]). */
+    static final class MenuSelection extends JPopupMenu {
+        private static final long serialVersionUID = 1L;
+    }
+
+    /** 원조 메뉴 항목이 제 묶음으로 간다: 삭제는 맨 아래, 잘라내기·복사는 공통, 부품 자체 항목은 대상별. */
+    @Test
+    void originalItemsLandInTheirGroups() {
+        MenuComponent comp = new MenuComponent();
+        comp.add(new JMenuItem("삭제"));
+        comp.add(new JMenuItem("속성 보기"));
+        comp.addSeparator();
+        comp.add(new JMenuItem(".s 불러오기"));
+        List<java.awt.Component> o = ContextMenus.original(comp);
+        JPopupMenu m = MenuLayout.arrange("명령어 메모리", Arrays.asList(o,
+                Arrays.<java.awt.Component>asList(MenuLayout.group(new JMenuItem("복제"), MenuLayout.COMMON))));
+        assertEquals(Arrays.asList("[명령어 메모리]", "--", ".s 불러오기", "--", "복제", "--", "삭제"), texts(m),
+                "the original show-attributes item is replaced by ours");
+
+        MenuSelection sel = new MenuSelection();
+        sel.add(new JMenuItem("삭제"));
+        sel.add(new JMenuItem("잘라내기"));
+        sel.add(new JMenuItem("복사"));
+        JPopupMenu s = MenuLayout.arrange("부품 3개", Arrays.asList(ContextMenus.original(sel),
+                Arrays.<java.awt.Component>asList(new JMenuItem("속성 한 번에 바꾸기"))));
+        assertEquals(Arrays.asList("[부품 3개]", "--", "속성 한 번에 바꾸기", "--", "잘라내기", "복사", "--", "삭제"),
+                texts(s));
+    }
 }
