@@ -401,9 +401,9 @@ public final class EditMenus implements ContextMenus.Provider {
                 Component next = same.get((i + 1) % same.size());
                 t.project.doAction(SelectionActions.dropAll(t.project.getSelection()));
                 t.project.getSelection().add(next);
-                t.canvas.scrollRectToVisible(new java.awt.Rectangle(next.getBounds().getX() - 40,
-                        next.getBounds().getY() - 40, next.getBounds().getWidth() + 80,
-                        next.getBounds().getHeight() + 80));
+                t.canvas.scrollRectToVisible(t.canvas.hcsToScreen(new java.awt.Rectangle(
+                        next.getBounds().getX() - 40, next.getBounds().getY() - 40, next.getBounds().getWidth() + 80,
+                        next.getBounds().getHeight() + 80)));
             }, label));
         }
         menu.add(item("menu.selectTunnels", () -> {

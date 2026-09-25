@@ -73,6 +73,17 @@ public final class ZoomMath {
                 (int) Math.round(Math.max(0, cy - viewHeight / 2.0)));
     }
 
+    /**
+     * 화면 맞춤의 자리(S-10): 배율 z에서 회로 영역이 보이는 영역보다 작은 축은 원점을 옮겨 가운데 두고(스크롤 0),
+     * 큰 축은 원점 0에서 가운데로 스크롤한다. 돌려주는 값은 {원점 x, 원점 y, 스크롤 x, 스크롤 y}(화면 px).
+     */
+    public static int[] fitPlacement(Rectangle bounds, int viewWidth, int viewHeight, double z) {
+        int ox = (int) Math.round((viewWidth - bounds.width * z) / 2.0 - bounds.x * z);
+        int oy = (int) Math.round((viewHeight - bounds.height * z) / 2.0 - bounds.y * z);
+        Point c = center(bounds, viewWidth, viewHeight, z);
+        return new int[] {Math.max(0, ox), Math.max(0, oy), ox > 0 ? 0 : c.x, oy > 0 ? 0 : c.y};
+    }
+
     /** 상태 표시줄에 직접 넣은 비율. "150", "150%", " 75 % " 모두 받는다. 읽을 수 없으면 NaN. */
     public static double parsePercent(String text) {
         if (text == null) {

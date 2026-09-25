@@ -130,8 +130,8 @@ public class GridPainter {
 			paintGridOld(g, size, zoom, clip);
 			return;
 		}
-		int x0 = (clip.x / w) * w; // round down to multiple of w
-		int y0 = (clip.y / w) * w;
+		int x0 = Math.floorDiv(clip.x, w) * w; // round down to multiple of w // HCS: S-10 clip may be negative
+		int y0 = Math.floorDiv(clip.y, w) * w;
 		for (int x = 0; x < clip.width + w; x += w) {
 			for (int y = 0; y < clip.height + w; y += w) {
 				g.drawImage(img, x0 + x, y0 + y, dest);

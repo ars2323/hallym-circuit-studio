@@ -138,9 +138,8 @@ public final class Diagnostics {
             for (com.cburch.logisim.comp.Component c : d.components) {
                 b = b.add(c.getBounds());
             }
-            double z = canvas.getHcsZoom() == null ? 1.0 : canvas.getHcsZoom().zoomFactor();
-            canvas.scrollRectToVisible(new java.awt.Rectangle((int) ((b.getX() - 80) * z),
-                    (int) ((b.getY() - 80) * z), (int) ((b.getWidth() + 160) * z), (int) ((b.getHeight() + 160) * z)));
+            canvas.scrollRectToVisible(canvas.hcsToScreen(new java.awt.Rectangle(b.getX() - 80, b.getY() - 80,
+                    b.getWidth() + 160, b.getHeight() + 160)));
             canvas.repaint();
         }
         for (Runnable r : listeners) {

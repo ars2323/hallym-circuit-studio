@@ -47,8 +47,9 @@ public final class InlineEditor {
         double z = zoom(canvas);
         Bounds b = c.getBounds();
         int w = Math.max(96, (int) (b.getWidth() * z) + 16);
-        int cx = (int) ((b.getX() + b.getWidth() / 2.0) * z);
-        int cy = (int) ((b.getY() + b.getHeight() / 2.0) * z);
+        Rectangle sb = canvas.hcsToScreen(new Rectangle(b.getX(), b.getY(), b.getWidth(), b.getHeight()));
+        int cx = sb.x + sb.width / 2;
+        int cy = sb.y + sb.height / 2;
         JLayeredPane layer = frame.getLayeredPane();
         java.awt.Point p = SwingUtilities.convertPoint(canvas, cx - w / 2, cy - 12, layer);
         start(frame, canvas, Collections.singletonList(c), a, new Rectangle(p.x, p.y, w, 24));

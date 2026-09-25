@@ -59,6 +59,29 @@ class ZoomMathTest {
         assertEquals(new Point((int) Math.round(500 * 2.0 - 200), (int) Math.round(250 * 2.0 - 150)), c2);
     }
 
+    /** S-10: 작은 축은 원점을 옮겨 가운데(스크롤 0), 큰 축은 스크롤로 가운데. */
+    @Test
+    void fitPlacementCentersBothAxes() {
+        // 가로로 긴 회로(1000×300, (40, 50)에서 시작)를 1000×600에 맞춘다: 폭이 배율을 정한다
+        java.awt.Rectangle r = new java.awt.Rectangle(40, 50, 1000, 300);
+        double z = ZoomMath.fit(r, 1000, 600, 20);
+        int[] at = ZoomMath.fitPlacement(r, 1000, 600, z);
+        assertEquals(0, at[0], "the width fills the view: no x offset");
+        assertTrue(at[1] > 0, "the height does not: a y offset");
+        assertEquals(0, at[3], "no vertical scroll when there is an offset");
+        double left = at[0] + r.x * z - at[2];
+        double right = 1000 - (at[0] + (r.x + r.width) * z - at[2]);
+        assertEquals(left, right, 1.0, "horizontally centered by scrolling");
+        double top = at[1] + r.y * z - at[3];
+        double bottom = 600 - (at[1] + (r.y + r.height) * z - at[3]);
+        assertEquals(top, bottom, 1.0, "vertically centered by the offset");
+        // 작은 회로: 두 축 모두 원점 이동
+        int[] small = ZoomMath.fitPlacement(new java.awt.Rectangle(0, 0, 100, 100), 1000, 600, 1.0);
+        assertEquals(450, small[0]);
+        assertEquals(250, small[1]);
+        assertEquals(0, small[2] + small[3]);
+    }
+
     /**
      * 끌어 이동은 화면 좌표로 잰다. 원조 Canvas는 마우스 x·y를 배율로 나눠 넘기지만(zoomEvent의 translatePoint)
      * 화면 좌표는 그대로라, 200%에서 100px 끌면 보이는 영역도 100px 움직여야 한다.

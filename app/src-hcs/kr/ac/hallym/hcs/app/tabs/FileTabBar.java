@@ -141,8 +141,7 @@ public final class FileTabBar extends JPanel {
         if (!canvas.isShowing() || !vis.contains(p)) {
             return null;
         }
-        double z = canvas.getHcsZoom() == null ? 1.0 : canvas.getHcsZoom().zoomFactor();
-        return com.cburch.logisim.data.Location.create((int) Math.round(p.x / z), (int) Math.round(p.y / z));
+        return canvas.hcsToCircuit(p.x, p.y); // 배율과 화면 맞춤의 원점 이동(S-10)
     }
 
     /** 탭 other의 파일을 이 창 회로의 at에 놓는다. 같은 파일이면 아무것도 안 한다. */
