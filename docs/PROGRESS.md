@@ -18,7 +18,7 @@
 | S-05 | 출력 핀 라벨 칩이 선 위에 겹침 | #168 | 완료 | #242 | 칩 배치가 선을 피함, LabelsTest.demoChipsStayOffWires, 03d |
 | S-06 | 포트 이름 덧그림 과밀 | #169 | 완료 | #250 | D-066, PortLabelsTest(100% 숨김, 200%·마우스 오버에서 부품 바깥, 다른 글자 그대로, 원조 부품만, 캔버스 글꼴, 가운데에서 먼 쪽, 25% 읽힘), PortHoverGuiTest, 21a~21d |
 | S-07 | Register 값 표시 겹침 | #170 | 완료 | #250 | 원조 그림 확인(D-066, 21a-pc-400-orig와 같은 겹침), 포크는 S-06 규칙으로 en·0을 바깥에 |
-| S-08 | 기본 모양 서브회로의 포트 이름 | #171 | 대기 |  |  |
+| S-08 | 기본 모양 서브회로의 포트 이름 | #171 | 완료 | (이 PR) | D-069, DefaultAppearanceHelpTest(단추 조건, 포트 목록, 자동 모양 뒤, 인스턴스가 있을 때 거래), 22a~22c |
 | S-09 | 찾기 결과의 내부 포트 이름 | #172 | 완료 | #251 | D-067, KindsTest.readablePortTitles, NameIndexTest(Splitter #1 (combined end)), EditMenusTest, ShortcutsTest, 09b·09d |
 | S-10 | 화면 맞춤 여백 | #173 | 완료 | #252 | D-068, ZoomMathTest.fitPlacementCentersBothAxes, FitCenterGuiTest(가운데·누른 자리·원조 배율 조절·커서 배율), 02 |
 | S-11 | 왼쪽 패널 빈 공간 | #174 | 대기 |  |  |

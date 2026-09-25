@@ -108,6 +108,17 @@ public final class HoverInfo {
         if (!facts.isEmpty()) {
             ret.add(String.join(" · ", facts));
         }
+        // 기본 모양 서브회로: 상자가 작아 포트 이름이 잘 안 보이므로 포트 이름 목록(S-08)
+        if (c.getFactory() instanceof com.cburch.logisim.circuit.SubcircuitFactory
+                && ((com.cburch.logisim.circuit.SubcircuitFactory) c.getFactory()).getSubcircuit().getAppearance()
+                        .isDefaultAppearance()) {
+            List<String> in = new ArrayList<>();
+            List<String> out = new ArrayList<>();
+            for (int i = 0; i < c.getEnds().size(); i++) {
+                (c.getEnd(i).isOutput() ? out : in).add(Kinds.portName(c, i));
+            }
+            ret.add(Messages.get("hover.ports", String.join(", ", in), String.join(", ", out)));
+        }
         Netlist nl = Netlist.of(circuit);
         List<String> nets = new ArrayList<>();
         for (int i = 0; i < c.getEnds().size() && nets.size() < MAX_NETS; i++) {

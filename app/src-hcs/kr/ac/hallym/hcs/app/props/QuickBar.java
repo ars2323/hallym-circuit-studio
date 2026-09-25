@@ -177,6 +177,15 @@ public final class QuickBar implements Selection.Listener, ProjectListener {
         all.setForeground(Tokens.BLUE);
         all.addActionListener(ev -> dock.showAll());
         row.add(all);
+        // 기본 모양 서브회로(30px 상자에 포트 이름이 작다): 사용자 모양을 한 번에 만드는 단추(S-08)
+        com.cburch.logisim.circuit.Circuit plain = defaultAppearance(first, proj);
+        if (plain != null) {
+            JButton auto = small(Messages.get("menu.autoAppearance"));
+            auto.setForeground(Tokens.BLUE);
+            auto.setToolTipText(Messages.get("quick.autoAppearanceTip", plain.getName()));
+            auto.addActionListener(ev -> kr.ac.hallym.hcs.app.appear.AutoAppearance.run(proj, plain, canvas));
+            row.add(auto);
+        }
         row.setAlignmentX(0f);
         bar.add(row);
         String hint = hintText(first);
@@ -191,6 +200,22 @@ public final class QuickBar implements Selection.Listener, ProjectListener {
         bar.setSize(bar.getPreferredSize());
         bar.revalidate();
         place();
+    }
+
+    /**
+     * 이 파일의 서브회로이고 기본 모양이면 그 회로(자동 모양 단추를 보인다). 다른 파일(라이브러리)의 회로는 원본
+     * 파일에서 고치므로 빼고(P-03), 사용자 모양이면 null.
+     */
+    static com.cburch.logisim.circuit.Circuit defaultAppearance(Component c, Project proj) {
+        if (!(c.getFactory() instanceof com.cburch.logisim.circuit.SubcircuitFactory)) {
+            return null;
+        }
+        com.cburch.logisim.circuit.Circuit sub = ((com.cburch.logisim.circuit.SubcircuitFactory) c.getFactory())
+                .getSubcircuit();
+        if (!sub.getAppearance().isDefaultAppearance() || !proj.getLogisimFile().getCircuits().contains(sub)) {
+            return null;
+        }
+        return sub;
     }
 
     /** 숨은 단축키 줄: 원조 숫자 키, 그리고 우리 R(회전)·F2(라벨). */
