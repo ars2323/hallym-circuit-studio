@@ -2,6 +2,12 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-26 Cycle View 탭 재촬영(C-02, C-03)
+
+- 기준: feat/cycle-view `269f6a7`
+- 관련 이슈: C-02 #200, C-03 #201 (PR #260)
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-c02-cycle-view-2/README.md
+
 ## 2026-09-26 Cycles 탭(C-02, C-03)
 
 - 기준: feat/cycle-view `accb9f3`
