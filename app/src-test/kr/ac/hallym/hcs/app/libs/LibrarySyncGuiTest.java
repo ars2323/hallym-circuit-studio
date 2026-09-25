@@ -133,6 +133,23 @@ class LibrarySyncGuiTest {
             settle();
             assertTrue(!updated(ripple));
 
+            // 우클릭 메뉴: 라이브러리 회로에는 모양 편집 대신 Edit Original File
+            List<String> items = new ArrayList<>();
+            SwingUtilities.invokeAndWait(() -> {
+                com.cburch.logisim.gui.main.Canvas canvas = ripple.getFrame().getCanvas();
+                javax.swing.JPopupMenu m = kr.ac.hallym.hcs.app.menu.ContextMenus.extend(canvas,
+                        new javax.swing.JPopupMenu(), now.getLocation(), canvas.getGraphics());
+                for (java.awt.Component x : m.getComponents()) {
+                    if (x instanceof javax.swing.JMenuItem) {
+                        items.add(((javax.swing.JMenuItem) x).getText());
+                    }
+                }
+            });
+            assertTrue(items.contains(kr.ac.hallym.hcs.app.Messages.get("menu.editOriginal", "1bit_adder.circ")),
+                    items.toString());
+            assertTrue(!items.contains(kr.ac.hallym.hcs.app.Messages.get("menu.editAppearance", "1bit_adder")),
+                    items.toString());
+
             // Edit Original File: 열린 1bit_adder 탭으로 가서 그 회로를 보인다
             File origin = LibrarySync.originFile(ripple, after);
             assertTrue(OpenFileLibraries.same(adderFile, origin));

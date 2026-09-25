@@ -504,7 +504,8 @@ public final class Shots {
         setZoom(ripple, 1.0);
         com.cburch.logisim.comp.Component fa0 = byLabel(ripple.getLogisimFile().getMainCircuit(), "fa0");
         com.cburch.logisim.data.Bounds b = fa0.getBounds();
-        menuAt(ripple, Location.create(b.getX() + b.getWidth() / 2, b.getY() + b.getHeight() / 2),
+        // 오른쪽 아래 모서리 가까이 누른다: 메뉴가 아래·오른쪽으로 열려 부품을 덮지 않는다
+        menuAt(ripple, Location.create(b.getX() + b.getWidth() - 3, b.getY() + b.getHeight() - 3),
                 "20f-edit-original-menu");
     }
 

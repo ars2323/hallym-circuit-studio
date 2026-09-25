@@ -76,6 +76,33 @@ class DiagMarksTest {
         assertTrue(Math.abs(dots[0] - dots[2]) <= 12, "same screen size: " + java.util.Arrays.toString(dots));
     }
 
+    /** 라벨 칩 자리에는 테두리·점을 그리지 않는다(칩 글자를 가리지 않게, P-03 검토). */
+    @Test
+    void marksStayOffLabelChips() throws Exception {
+        LogisimFile f = CircuitBuilder.newFile(new Loader(null), tmp.toFile());
+        CircuitBuilder b = new CircuitBuilder(f, f.getMainCircuit());
+        Component and = b.add("Gates", "AND Gate", 200, 200, "inputs", "2");
+        b.commit();
+        Diagnostic d = new Diagnostic(Diagnostic.Kind.INPUT_UNCONNECTED, f.getMainCircuit(),
+                Collections.singletonList(and), Collections.emptyList(), and.getLocation(), "main › AND #1", "in1");
+        Bounds bb = and.getBounds();
+        // 부품 오른쪽 위(점 자리)를 덮는 칩
+        java.awt.Rectangle chip = new java.awt.Rectangle(bb.getX() + bb.getWidth() - 20, bb.getY() - 16, 40, 16);
+        BufferedImage img = new BufferedImage(400, 400, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = img.createGraphics();
+        g.setColor(java.awt.Color.WHITE);
+        g.fillRect(0, 0, 400, 400);
+        DiagMarks.paint(g, Collections.singletonList(d), null, 1.0, Collections.singletonList(chip));
+        g.dispose();
+        for (int y = chip.y; y < chip.y + chip.height; y++) {
+            for (int x = chip.x; x < chip.x + chip.width; x++) {
+                assertTrue((img.getRGB(x, y) & 0xFFFFFF) == 0xFFFFFF, "nothing drawn on the chip at " + x + "," + y);
+            }
+        }
+        int lx = bb.getX() - (int) DiagMarks.px(DiagMarks.GAP_PX, 1) - 1;
+        assertTrue(redAround(img, lx, bb.getY() + bb.getHeight() / 2, 3) > 0, "the border is still drawn elsewhere");
+    }
+
     @Test
     void screenPixelsBecomeCircuitUnits() {
         assertTrue(Math.abs(DiagMarks.px(2f, 0.25) - 8f) < 1e-6);
