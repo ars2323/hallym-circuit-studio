@@ -212,6 +212,14 @@ public final class Influence {
         for (Trace.Node n : r.nets) {
             if (n.circuit == shown && (!isTop || n.instances.isEmpty())) {
                 wires.addAll(n.net.wires());
+                // 서브회로 안에서는 닿은 넷의 경계 핀도 부품으로(경로가 경계에서 끊겨 보이지 않게, ui-reviewer #246)
+                if (!isTop) {
+                    for (Netlist.PortRef p : n.net.ports()) {
+                        if (Kinds.of(p.component).factory().equals("Pin")) {
+                            parts.add(p.component);
+                        }
+                    }
+                }
             }
         }
         Map<Component, Set<Component>> inside = new LinkedHashMap<>();

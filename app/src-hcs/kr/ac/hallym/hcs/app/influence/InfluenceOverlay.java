@@ -270,8 +270,11 @@ public final class InfluenceOverlay {
                     w.draw(context);
                     wg.dispose();
                 }
-                for (Component c : parts) {
-                    if (!circ.contains(c) || c instanceof Wire) {
+                // 원조와 같은 그리기 순서로(겹친 부품이 원조처럼 겹치게)
+                java.util.Set<Component> want = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+                want.addAll(parts);
+                for (Component c : circ.getNonWires()) {
+                    if (!want.contains(c)) {
                         continue;
                     }
                     Graphics base = canvas == null ? saved

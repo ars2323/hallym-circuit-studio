@@ -278,6 +278,8 @@ class InfluenceTest {
         // 서브회로 안을 보면 그 안의 경로
         Influence.View inside = inf.view(sub);
         assertEquals(1, inside.forwardParts.stream().filter(x -> x == na).count());
+        // 경계 핀도 닿은 부품이다(흐리게 두면 경로가 경계에서 끊긴 것처럼 보인다)
+        assertTrue(inside.forwardParts.stream().anyMatch(x -> "a".equals(Names.label(x))), "input pin a");
         assertFalse(inside.forwardParts.contains(nb));
     }
 
