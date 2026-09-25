@@ -321,6 +321,61 @@ class UiLanguageTest {
         assertNull(KoreanBundleTest.load("ko", "menu").getProperty("fileMenu"));
     }
 
+    /**
+     * 검토 3차: 이름인데 한국어로 남았던 네 곳(팔레트 아래 안내, 부품 검색 칸, 빠른 속성 창 안내, .s 불러오기 요약)이
+     * 한국어 설정에서도 영어다. 불러오기 요약의 실행 검사는 lib-mips LoadSummaryTest가 한다.
+     */
+    @Test
+    void formerlyKoreanNamesStayEnglish() throws Exception {
+        Properties names = load(app("names.properties"), true);
+        String[][] expected = {
+            {"palette.hint", "\u2191\u2193 Select \u00B7 Enter Place/Run \u00B7 Alt+Enter Favorite \u00B7 Esc Close"},
+            {"toolbox.search", "Search components (e.g. mux 32, register)"},
+            {"quick.hintLabel", "F2: Label"},
+            {"quick.hintRotate", "R: Rotate"},
+        };
+        for (String[] e : expected) {
+            assertTrue(names.containsKey(e[0]), e[0] + " is a name");
+            assertEquals(e[1], Messages.get(Locale.KOREAN, e[0]));
+        }
+        String loader = new String(Files.readAllBytes(new File(ROOT,
+                "lib-mips/src/main/java/kr/ac/hallym/hcs/mips/ProgramLoader.java").toPath()), StandardCharsets.UTF_8);
+        assertFalse(loader.contains("Text.of("), "the load summary is English (Text.name)");
+    }
+
+    /** 검토 3차: 폭 표시는 1이면 단수다(1 bit, 32 bits). */
+    @Test
+    void bitWidthsUseSingularForOne() {
+        for (Locale l : new Locale[] {Locale.KOREAN, Locale.ENGLISH}) {
+            assertEquals("1 bit", Messages.get(l, "menu.sum.bits", 1));
+            assertEquals("32 bits", Messages.get(l, "menu.sum.bits", 32));
+            assertEquals("1 bit", Messages.get(l, "hover.width", 1));
+            assertEquals("1 bit", Messages.get(l, "menu.bits", 1));
+            assertEquals("8 bits", Messages.get(l, "splitter.bits", 8));
+            assertEquals("Width: 1 bit", Messages.get(l, "net.width", 1));
+            assertEquals("clk \u00B7 1 bit", Messages.get(l, "keys.portTip", "clk", 1));
+        }
+        assertEquals("Value for A (1 bit):", Messages.get(Locale.ENGLISH, "keys.valuePrompt", "A", 1));
+        assertEquals("Value for A (32 bits):", Messages.get(Locale.ENGLISH, "keys.valuePrompt", "A", 32));
+        List<String> plural = new ArrayList<>();
+        for (Properties p : new Properties[] {loadQuiet("names.properties"), loadQuiet("messages.properties")}) {
+            for (String k : p.stringPropertyNames()) {
+                if (p.getProperty(k).matches(".*\\{\\d+\\} bits.*") && !p.getProperty(k).contains("choice")) {
+                    plural.add(k);
+                }
+            }
+        }
+        assertEquals(new ArrayList<String>(), plural, "\"{n} bits\" without a choice for 1");
+    }
+
+    private static Properties loadQuiet(String name) {
+        try {
+            return load(app(name), true);
+        } catch (IOException e) {
+            throw new AssertionError(e);
+        }
+    }
+
     static List<File> javaFiles(File dir) {
         List<File> out = new ArrayList<>();
         File[] fs = dir.listFiles();

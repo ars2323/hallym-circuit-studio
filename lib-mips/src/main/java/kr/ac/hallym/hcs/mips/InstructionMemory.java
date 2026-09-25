@@ -63,7 +63,7 @@ final class InstructionMemory extends MemoryFactory {
         String region = region(painter);
         WordImage image = painter.getAttributeValue(CONTENTS);
         String size = image.isEmpty() ? Text.name("no program").get()
-                : image.size() + Text.name(" words").get();
+                : Text.name(Text.count(image.size(), "word")).get();
         if (!painter.getShowState()) {
             return new String[] {region, size};
         }
