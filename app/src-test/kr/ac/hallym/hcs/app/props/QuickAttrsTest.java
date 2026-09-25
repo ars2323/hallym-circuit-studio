@@ -248,6 +248,60 @@ class QuickAttrsTest {
                 480 + 2 * QuickBar.WIRE_MARGIN, 2 * QuickBar.WIRE_MARGIN)), zoomed.toString());
     }
 
+    /**
+     * ui-reviewer(#242): 빈 자리가 없으면 부품(터널)을 덮느니 선을 지난다. 가까운 자리가 다 막히면 더 떨어뜨려 본다.
+     */
+    @Test
+    void quickBarPrefersCrossingAWireToCoveringAComponent() {
+        java.awt.Rectangle target = new java.awt.Rectangle(400, 300, 60, 40);
+        java.awt.Dimension bar = new java.awt.Dimension(300, 40);
+        java.awt.Rectangle vis = new java.awt.Rectangle(0, 0, 1200, 800);
+        // 위: 작은 터널, 아래: 가로선, 옆: 큰 부품
+        java.util.List<java.awt.Rectangle> hard = java.util.Arrays.asList(new java.awt.Rectangle(420, 270, 30, 20),
+                new java.awt.Rectangle(0, 250, 390, 150), new java.awt.Rectangle(470, 250, 700, 150));
+        java.util.List<java.awt.Rectangle> soft = java.util.Arrays.asList(new java.awt.Rectangle(300, 360, 500, 8));
+        java.awt.Rectangle p = QuickBar.placement(target, bar, hard, soft, vis, 6);
+        for (java.awt.Rectangle h : hard) {
+            assertFalse(p.intersects(h), p + " covers " + h);
+        }
+    }
+
+    /** demo-datapath의 PC(05a 장면): 창이 어떤 부품도 덮지 않는다(clk 터널 포함). */
+    @Test
+    void quickBarOnDemoPcCoversNoComponent() throws Exception {
+        java.nio.file.Path dir = java.nio.file.Files.createTempDirectory(tmp, "demo");
+        java.nio.file.Files.copy(new java.io.File(System.getProperty("hcs.mipsJar")).toPath(),
+                dir.resolve("hcs-mips.jar"), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        java.nio.file.Path circ = dir.resolve("demo-datapath.circ");
+        java.nio.file.Files.copy(new java.io.File(System.getProperty("hcs.circDir"), "demo-datapath.circ").toPath(),
+                circ);
+        LogisimFile f = new Loader(null).openLogisimFile(circ.toFile());
+        com.cburch.logisim.circuit.Circuit c = f.getMainCircuit();
+        Component pc = null;
+        for (Component x : c.getNonWires()) {
+            if ("PC".equals(x.getAttributeSet().getValue(com.cburch.logisim.instance.StdAttr.LABEL))
+                    && x.getFactory().getName().equals("Register")) {
+                pc = x;
+            }
+        }
+        java.util.List<Component> targets = java.util.Collections.singletonList(pc);
+        for (double z : new double[] {1.0, 1.5}) {
+            com.cburch.logisim.data.Bounds b = pc.getBounds();
+            java.awt.Rectangle self = new java.awt.Rectangle((int) (b.getX() * z), (int) (b.getY() * z),
+                    (int) Math.ceil(b.getWidth() * z), (int) Math.ceil(b.getHeight() * z));
+            self.grow(6, 6);
+            java.util.List<java.awt.Rectangle> hard = QuickBar.obstacles(new java.util.ArrayList<>(c.getNonWires()),
+                    targets, java.util.Collections.emptyList(), z);
+            java.util.List<java.awt.Rectangle> soft = QuickBar.obstacles(new java.util.ArrayList<>(c.getWires()),
+                    targets, java.util.Collections.emptyList(), z);
+            java.awt.Rectangle vis = new java.awt.Rectangle(0, 0, (int) (1100 * z), (int) (700 * z));
+            java.awt.Rectangle p = QuickBar.placement(self, new java.awt.Dimension(470, 52), hard, soft, vis, 6);
+            for (java.awt.Rectangle h : hard) {
+                assertFalse(p.intersects(h), "z=" + z + " " + p + " covers " + h);
+            }
+        }
+    }
+
     /** 2c 검토 반영: 프로그램이 고른 선택(Messages에서 누름)에는 창을 띄우지 않고, 사용자가 누르면 다시 띄운다. */
     @Test
     void quietSelectionHidesTheBarUntilTheUserClicks() throws Exception {
