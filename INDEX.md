@@ -2,6 +2,12 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-26 핀과 같은 이름의 터널(S-12) 재촬영 2
+
+- 기준: fix/pin-tunnel-label `7097f40`
+- 관련 이슈: S-12 #175 (PR #255)
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-s12-pin-tunnel-label-3/README.md
+
 ## 2026-09-26 왼쪽 칸 아래 탭(S-11)
 
 - 기준: feat/left-panel-tabs `18194eb`
