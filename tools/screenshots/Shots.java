@@ -129,6 +129,20 @@ public final class Shots {
             sleep(1500);
             closeDialogs();
             snapFull("01-first-screen");
+            // 부품 트리 위 검색창(검토 반영 1): "mux"를 치면 트리 자리에 걸러진 목록
+            Project first = project();
+            JTextField ts = (JTextField) find(first.getFrame(), x -> x instanceof JTextField && x.isShowing()
+                    && x.getParent() != null && x.getParent().getParent() != null
+                    && x.getParent().getParent().getClass().getSimpleName().equals("ToolboxSearch"));
+            if (ts != null) {
+                edt(() -> ts.setText("mux"));
+                sleep(900);
+                Rectangle r = onScreen(ts.getParent().getParent());
+                snapCrop(new Rectangle(r.x, r.y, r.width, Math.min(r.height, 360)), "01b-tree-search-mux");
+                edt(() -> ts.setText(""));
+            } else {
+                log.add("01b: no tree search field");
+            }
         } else {
             launch();
             closeDialogs();
@@ -321,8 +335,13 @@ public final class Shots {
         edt(() -> p.getSelection().add(target));
         sleep(1200);
         snapFull("05a-quick-attrs-dock-open");
-        Rectangle qb = screenRect(p, target.getBounds().expand(150));
-        snapCrop(qb, "05b-quick-attrs-crop");
+        Rectangle qb = screenRect(p, target.getBounds().expand(80));
+        Component bar = find(p.getFrame().getLayeredPane(), x -> x instanceof AbstractButton && x.isShowing()
+                && "모든 속성".equals(((AbstractButton) x).getText()));
+        if (bar != null) {
+            qb.add(onScreen(bar.getParent().getParent())); // 빠른 속성 창 전체
+        }
+        snapCrop(pad(qb, 16), "05b-quick-attrs-crop");
         AbstractButton collapse = (AbstractButton) find(p.getFrame(),
                 x -> x instanceof AbstractButton && tip(x).contains("접기"));
         if (collapse != null) {
@@ -375,6 +394,20 @@ public final class Shots {
         if (status != null) {
             Rectangle r = onScreen(status.getParent());
             snapCrop(new Rectangle(r.x, r.y, Math.min(r.width, 1300), r.height), "07b-status-bar");
+            // 상태 표시줄 배율 단추(옛 왼쪽 아래 배율 칸 대신): 누르면 단계·화면 맞춤·격자
+            AbstractButton zoomButton = (AbstractButton) find(status.getParent(), x -> x instanceof AbstractButton
+                    && ((AbstractButton) x).getText() != null && ((AbstractButton) x).getText().endsWith("%"));
+            if (zoomButton != null) {
+                SwingUtilities.invokeLater(zoomButton::doClick);
+                sleep(900);
+                Rectangle pop = popupBounds();
+                if (pop != null) {
+                    pop.add(onScreen(zoomButton));
+                    snapCrop(pad(pop, 12), "07c-zoom-menu");
+                }
+                key(KeyEvent.VK_ESCAPE);
+                sleep(300);
+            }
         }
     }
 
@@ -470,10 +503,21 @@ public final class Shots {
         edt(() -> q.setText("PC"));
         sleep(900);
         snapCrop(pad(d.getBounds(), 10), "09a-find-pc");
+        // 같은 이름 묶음을 펼친 모습(#135)
+        javax.swing.JList<?> list = (javax.swing.JList<?>) find(d, x -> x instanceof javax.swing.JList && x.isShowing());
+        if (list != null && list.getModel().getSize() > 0) {
+            Rectangle cell = list.getCellBounds(0, 0);
+            Point lp = list.getLocationOnScreen();
+            robot.mouseMove(lp.x + cell.x + 20, lp.y + cell.y + cell.height / 2);
+            robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+            robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+            sleep(900);
+            snapCrop(pad(d.getBounds(), 10), "09b-find-pc-expanded");
+        }
         JTabbedPane tabs = (JTabbedPane) find(d, x -> x instanceof JTabbedPane);
         edt(() -> tabs.setSelectedIndex(1));
         sleep(900);
-        snapCrop(pad(d.getBounds(), 10), "09b-tunnel-names");
+        snapCrop(pad(d.getBounds(), 10), "09c-tunnel-names");
         edt(d::dispose);
         sleep(300);
     }
