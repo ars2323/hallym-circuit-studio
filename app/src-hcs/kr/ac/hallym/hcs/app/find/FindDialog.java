@@ -258,9 +258,8 @@ public final class FindDialog extends JDialog {
         if (!comps.isEmpty() && proj.getFrame() != null) {
             Bounds b = comps.get(0).getBounds();
             com.cburch.logisim.gui.main.Canvas canvas = proj.getFrame().getCanvas();
-            double z = canvas.getHcsZoom() == null ? 1.0 : canvas.getHcsZoom().zoomFactor();
-            proj.getFrame().getCanvas().scrollRectToVisible(new java.awt.Rectangle((int) ((b.getX() - 60) * z),
-                    (int) ((b.getY() - 60) * z), (int) ((b.getWidth() + 120) * z), (int) ((b.getHeight() + 120) * z)));
+            canvas.scrollRectToVisible(canvas.hcsToScreen(new java.awt.Rectangle(b.getX() - 60, b.getY() - 60,
+                    b.getWidth() + 120, b.getHeight() + 120)));
         }
     }
 

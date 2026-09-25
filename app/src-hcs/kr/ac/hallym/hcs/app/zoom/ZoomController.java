@@ -58,6 +58,12 @@ public final class ZoomController {
         this.pane = pane;
         this.model = model;
         this.active = active;
+        this.switchListener = e -> {
+            if (e.getAction() == com.cburch.logisim.proj.ProjectEvent.ACTION_SET_CURRENT) {
+                canvas.setHcsOrigin(0, 0);
+                settled(); // 스크롤 자리가 그대로면 뷰포트 알림이 없다: 원점 0을 바로 기억한다
+            }
+        };
     }
 
     /** 창(Frame)을 만들 때 한 번. */
@@ -66,6 +72,11 @@ public final class ZoomController {
         ZoomController z = new ZoomController(proj, canvas, pane, model, layoutShown);
         z.bindKeys(keyRoot);
         z.bindMouse();
+        // 원점 이동(S-10)은 회로를 바꾸면 없앤다(편집 중에는 그대로라 그림이 움직이지 않는다). 원조 배율 조절로 배율이
+        // 바뀌면 보던 가운데를 새 배율에서 다시 가운데에 둔다(zoomedElsewhere)
+        model.addPropertyChangeListener(ZoomModel.ZOOM, z::zoomedElsewhere);
+        pane.getViewport().addChangeListener(e -> z.remember());
+        proj.addProjectListener(z.switchListener); // 원조 Project는 청취자를 약하게 잡는다: 필드로 붙잡아 둔다
         return z;
     }
 
@@ -143,6 +154,58 @@ public final class ZoomController {
         return spaceDown || SwingUtilities.isMiddleMouseButton(e) || dragFrom != null;
     }
 
+    /** 회로를 바꾸면 원점 이동을 없앤다(원조 Project는 청취자를 약하게 잡으므로 필드로 붙잡아 둔다). */
+    private final com.cburch.logisim.proj.ProjectListener switchListener;
+
+    /** 우리 코드(커서 배율, 화면 맞춤)가 배율을 바꾸는 중: 원조 배율 조절 처리를 건너뛴다. */
+    private boolean adjusting;
+    /** 마지막 스크롤 자리와 원점 이동(배율이 바뀌기 전 보던 가운데를 알기 위해). */
+    private Point lastView = new Point();
+    private int lastOx;
+    private int lastOy;
+
+    /** lastView를 잰 배율. 배율이 바뀐 뒤 원조 CanvasPane이 옮긴 자리는 기억하지 않는다. */
+    private double lastZoom = Double.NaN;
+
+    private void remember() {
+        double z = model.getZoomFactor();
+        if (!Double.isNaN(lastZoom) && z != lastZoom) {
+            return; // 배율이 막 바뀌었다: 바뀌기 전 자리를 그대로 둔다
+        }
+        lastZoom = z;
+        lastView = pane.getViewport().getViewPosition();
+        lastOx = canvas.getHcsOriginX();
+        lastOy = canvas.getHcsOriginY();
+    }
+
+    /**
+     * 원조 배율 조절이 배율을 바꿨다. 원조 CanvasPane은 원점 이동을 모르고, 스크롤 막대 범위가 새 크기로 바뀌기 전에
+     * 값을 넣어 가운데가 어긋날 수 있다. 바뀌기 전에 보던 가운데(원점을 뺀 회로 좌표)를 새 배율에서 다시 가운데에
+     * 둔다. 모자라는 만큼은 원점 이동으로(커서 배율과 같은 규칙).
+     */
+    private void zoomedElsewhere(java.beans.PropertyChangeEvent e) {
+        if (adjusting) {
+            return;
+        }
+        double oldZ = ((Number) e.getOldValue()).doubleValue();
+        double newZ = ((Number) e.getNewValue()).doubleValue();
+        Rectangle r = pane.getViewport().getViewRect();
+        double cx = (lastView.x + r.width / 2.0 - lastOx) / oldZ;
+        double cy = (lastView.y + r.height / 2.0 - lastOy) / oldZ;
+        int vx = (int) Math.round(cx * newZ - r.width / 2.0);
+        int vy = (int) Math.round(cy * newZ - r.height / 2.0);
+        canvas.setHcsOrigin(Math.max(0, -vx), Math.max(0, -vy));
+        pane.validate();
+        setView(new Point(Math.max(0, vx), Math.max(0, vy)));
+        settled();
+    }
+
+    /** 배율 변경을 다 처리했다: 지금 자리를 기억한다. */
+    private void settled() {
+        lastZoom = model.getZoomFactor();
+        remember();
+    }
+
     /** 캔버스 마우스 처리 앞에서 부른다. 이동으로 쓴 이벤트면 true. */
     public boolean handlePan(MouseEvent e) {
         switch (e.getID()) {
@@ -195,6 +258,11 @@ public final class ZoomController {
         e.consume();
     }
 
+    /** 배율 모델(테스트: 원조 배율 조절처럼 바로 바꾼다). */
+    ZoomModel model() {
+        return model;
+    }
+
     /** 지금 배율. */
     public double zoomFactor() {
         return model.getZoomFactor();
@@ -208,10 +276,21 @@ public final class ZoomController {
             return;
         }
         Point view = pane.getViewport().getViewPosition();
-        model.setZoomFactor(newZoom);
+        // 원점 이동(S-10)은 "0보다 작은 스크롤"이다: 옮긴 만큼 뺀 가상 스크롤로 커서 아래 점을 고정하고, 새 가상
+        // 스크롤이 0보다 작으면 그만큼을 다시 원점 이동으로 둔다(맨 위·왼쪽 가까이에서도 커서 아래 점이 그대로)
+        view = new Point(view.x - canvas.getHcsOriginX(), view.y - canvas.getHcsOriginY());
+        Point virtual = ZoomMath.anchor(view, inView, old, newZoom);
+        adjusting = true;
+        try {
+            model.setZoomFactor(newZoom);
+        } finally {
+            adjusting = false;
+        }
+        canvas.setHcsOrigin(Math.max(0, -virtual.x), Math.max(0, -virtual.y));
         pane.getViewport().validate();
         pane.validate();
-        setView(ZoomMath.anchor(view, inView, old, newZoom));
+        setView(new Point(Math.max(0, virtual.x), Math.max(0, virtual.y)));
+        settled();
     }
 
     /** 보이는 영역 가운데를 고정한 채 배율을 바꾼다(상태 표시줄 배율 단추). */
@@ -226,6 +305,12 @@ public final class ZoomController {
 
     public void fitCircuit() {
         Bounds b = proj.getCurrentCircuit() == null ? null : proj.getCurrentCircuit().getBounds();
+        // 라벨 칩(부품 밖에 붙은 이름)도 여백 안에 들어오게(S-10)
+        if (b != null && b != Bounds.EMPTY_BOUNDS) {
+            for (Rectangle r : kr.ac.hallym.hcs.app.labels.LabelOverlay.chipRects(canvas)) {
+                b = b.add(Bounds.create(r.x, r.y, r.width, r.height));
+            }
+        }
         fit(b);
     }
 
@@ -241,9 +326,19 @@ public final class ZoomController {
         Rectangle r = new Rectangle(b.getX(), b.getY(), b.getWidth(), b.getHeight());
         JViewport vp = pane.getViewport();
         double z = ZoomMath.fit(r, vp.getWidth(), vp.getHeight(), FIT_MARGIN);
-        model.setZoomFactor(z);
+        canvas.setHcsOrigin(0, 0);
+        adjusting = true;
+        try {
+            model.setZoomFactor(z);
+        } finally {
+            adjusting = false;
+        }
+        // 가로·세로 모두 가운데(S-10, 체크리스트 11): 작은 축은 원점을 옮긴다
+        int[] at = ZoomMath.fitPlacement(r, vp.getWidth(), vp.getHeight(), z);
+        canvas.setHcsOrigin(at[0], at[1]);
         pane.validate();
-        setView(ZoomMath.center(r, vp.getWidth(), vp.getHeight(), z));
+        setView(new Point(at[2], at[3]));
+        settled();
     }
 
     private void setView(Point p) {

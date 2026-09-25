@@ -266,7 +266,7 @@ public final class Shortcuts {
             return mouse;
         }
         java.awt.Rectangle r = canvas.getVisibleRect();
-        return Location.create(r.x + r.width / 2, r.y + r.height / 2);
+        return canvas.hcsToCircuit(r.x + r.width / 2, r.y + r.height / 2); // 캔버스 px → 회로 좌표
     }
 
     /** 캔버스 마우스 이동을 알려 준다. */

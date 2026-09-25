@@ -1355,8 +1355,8 @@ public final class Shots {
         edt(() -> {
             Canvas c = canvas(p);
             Rectangle vis = c.getVisibleRect();
-            int cx = (int) ((b.getX() + b.getWidth() / 2.0) * z);
-            int cy = (int) ((b.getY() + b.getHeight() / 2.0) * z);
+            int cx = (int) ((b.getX() + b.getWidth() / 2.0) * z) + (orig ? 0 : c.getHcsOriginX());
+            int cy = (int) ((b.getY() + b.getHeight() / 2.0) * z) + (orig ? 0 : c.getHcsOriginY());
             c.scrollRectToVisible(new Rectangle(Math.max(0, cx - vis.width / 2), Math.max(0, cy - vis.height / 2),
                     vis.width, vis.height));
         });
@@ -1367,7 +1367,10 @@ public final class Shots {
         double z = zoom(p);
         return call(() -> {
             Point o = canvas(p).getLocationOnScreen();
-            return new Point(o.x + (int) Math.round(l.getX() * z), o.y + (int) Math.round(l.getY() * z));
+            // 포크의 화면 맞춤 원점 이동(S-10). 원조에는 없다
+            int ox = orig ? 0 : canvas(p).getHcsOriginX();
+            int oy = orig ? 0 : canvas(p).getHcsOriginY();
+            return new Point(o.x + ox + (int) Math.round(l.getX() * z), o.y + oy + (int) Math.round(l.getY() * z));
         });
     }
 

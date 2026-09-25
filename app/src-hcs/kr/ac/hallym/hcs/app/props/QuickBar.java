@@ -254,8 +254,7 @@ public final class QuickBar implements Selection.Listener, ProjectListener {
             b = b.add(c.getBounds());
         }
         double z = InlineEditor.zoom(canvas);
-        Rectangle r = new Rectangle((int) (b.getX() * z), (int) (b.getY() * z), (int) Math.ceil(b.getWidth() * z),
-                (int) Math.ceil(b.getHeight() * z));
+        Rectangle r = canvas.hcsToScreen(new Rectangle(b.getX(), b.getY(), b.getWidth(), b.getHeight()));
         Rectangle vis = canvas.getVisibleRect();
         if (!vis.intersects(r)) {
             bar.setVisible(false);
@@ -270,6 +269,12 @@ public final class QuickBar implements Selection.Listener, ProjectListener {
                 kr.ac.hallym.hcs.app.labels.LabelOverlay.chipRects(canvas), z);
         List<Rectangle> soft = obstacles(new ArrayList<>(canvas.getCircuit().getWires()), targets,
                 java.util.Collections.emptyList(), z);
+        // 화면 맞춤의 원점 이동(S-10): 캔버스 좌표로 옮긴다
+        for (List<Rectangle> l : java.util.Arrays.asList(hard, soft)) {
+            for (Rectangle o : l) {
+                o.translate(canvas.getHcsOriginX(), canvas.getHcsOriginY());
+            }
+        }
         Rectangle at = placement(self, d, hard, soft, vis, 6);
         int x = at.x;
         int y = at.y;

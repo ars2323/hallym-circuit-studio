@@ -107,6 +107,9 @@ class CanvasPainter implements PropertyChangeListener {
 		}
 		g.setColor(Color.white);
 		g.fillRect(clip.x, clip.y, clip.width, clip.height);
+		// HCS: S-10 the circuit is drawn at the canvas origin offset (set by "fit")
+		g = g.create();
+		g.translate(canvas.getHcsOriginX(), canvas.getHcsOriginY());
 
 		grid.paintGrid(g);
 		g.setColor(Color.black);
@@ -128,6 +131,7 @@ class CanvasPainter implements PropertyChangeListener {
 		gScaled.setColor(Color.BLUE);
 		proj.getSimulator().drawStepPoints(ptContext);
 		gScaled.dispose();
+		g.dispose(); // HCS: S-10
 	}
 
 	private void drawWithUserState(Graphics base, Graphics g, Project proj) {

@@ -518,6 +518,37 @@ public class Canvas extends JPanel
 	private MouseMappings mappings;
 	private CanvasPane canvasPane;
 	private kr.ac.hallym.hcs.app.zoom.ZoomController hcsZoom; // HCS: #69
+	// HCS: S-10 origin offset in screen pixels, set only by "fit" so a circuit smaller than the view is centered
+	private int hcsOriginX = 0;
+	private int hcsOriginY = 0;
+
+	public int getHcsOriginX() { return hcsOriginX; } // HCS: S-10
+	public int getHcsOriginY() { return hcsOriginY; } // HCS: S-10
+
+	public void setHcsOrigin(int x, int y) { // HCS: S-10
+		if (x == hcsOriginX && y == hcsOriginY) return;
+		hcsOriginX = Math.max(0, x);
+		hcsOriginY = Math.max(0, y);
+		computeSize(true);
+		super.repaint();
+	}
+
+	/** HCS: S-10 canvas pixels to circuit coordinates (origin offset and zoom). */
+	public com.cburch.logisim.data.Location hcsToCircuit(int x, int y) {
+		double zoom = getZoomFactor();
+		return com.cburch.logisim.data.Location.create((int) Math.round((x - hcsOriginX) / zoom),
+				(int) Math.round((y - hcsOriginY) / zoom));
+	}
+
+	/** HCS: S-10 circuit rectangle to canvas pixels (zoom and origin offset). */
+	public Rectangle hcsToScreen(Rectangle r) {
+		double zoom = getZoomFactor();
+		int x0 = (int) Math.floor(r.x * zoom) + hcsOriginX;
+		int y0 = (int) Math.floor(r.y * zoom) + hcsOriginY;
+		int x1 = (int) Math.ceil((r.x + r.width) * zoom) + hcsOriginX;
+		int y1 = (int) Math.ceil((r.y + r.height) * zoom) + hcsOriginY;
+		return new Rectangle(x0, y0, x1 - x0, y1 - y0);
+	}
 
 	// HCS: #69
 	public void setHcsZoom(kr.ac.hallym.hcs.app.zoom.ZoomController value) {
@@ -663,6 +694,8 @@ public class Canvas extends JPanel
 			x = (int) Math.round(x * zoom);
 			y = (int) Math.round(y * zoom);
 		}
+		x += hcsOriginX; // HCS: S-10
+		y += hcsOriginY;
 		myListener.menu_on = true;
 		menu.addPopupMenuListener(myListener);
 		menu.show(this, x, y);
@@ -679,6 +712,9 @@ public class Canvas extends JPanel
 		Bounds bounds = proj.getCurrentCircuit().getBounds();
 		int width = bounds.getX() + bounds.getWidth() + BOUNDS_BUFFER;
 		int height = bounds.getY() + bounds.getHeight() + BOUNDS_BUFFER;
+		// HCS: S-10 room for the origin offset
+		width += (int) Math.ceil(hcsOriginX / getZoomFactor());
+		height += (int) Math.ceil(hcsOriginY / getZoomFactor());
 		Dimension dim;
 		if (canvasPane == null) {
 			dim = new Dimension(width, height);
@@ -749,6 +785,8 @@ public class Canvas extends JPanel
 			viewableBase = new Rectangle(0, 0, bds.getWidth(), bds.getHeight());
 		}
 		double zoom = getZoomFactor();
+		viewableBase = new Rectangle(viewableBase.x - hcsOriginX, viewableBase.y - hcsOriginY, // HCS: S-10
+				viewableBase.width, viewableBase.height);
 		if (zoom == 1.0) {
 			viewable = viewableBase;
 		} else {
@@ -803,7 +841,7 @@ public class Canvas extends JPanel
 	@Override
 	public void repaint(Rectangle r) {
 		double zoom = getZoomFactor();
-		if (zoom == 1.0) {
+		if (zoom == 1.0 && hcsOriginX == 0 && hcsOriginY == 0) { // HCS: S-10
 			super.repaint(r);
 		} else {
 			this.repaint(r.x, r.y, r.width, r.height);
@@ -826,7 +864,7 @@ public class Canvas extends JPanel
 			width = x1 - x;
 			height = y1 - y;
 		}
-		super.repaint(x, y, width, height);
+		super.repaint(x + hcsOriginX, y + hcsOriginY, width, height); // HCS: S-10
 	}
 	
 	@Override
@@ -875,6 +913,7 @@ public class Canvas extends JPanel
 	}
 
 	private void repairMouseEvent(MouseEvent e) {
+		e.translatePoint(-hcsOriginX, -hcsOriginY); // HCS: S-10
 		double zoom = getZoomFactor();
 		if (zoom != 1.0) zoomEvent(e, zoom);
 	}
@@ -882,6 +921,7 @@ public class Canvas extends JPanel
 	private void unrepairMouseEvent(MouseEvent e) {
 		double zoom = getZoomFactor();
 		if (zoom != 1.0) zoomEvent(e, 1.0 / zoom);
+		e.translatePoint(hcsOriginX, hcsOriginY); // HCS: S-10
 	}
 	
 	private void zoomEvent(MouseEvent e, double zoom) { 
