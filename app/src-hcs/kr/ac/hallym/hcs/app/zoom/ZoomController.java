@@ -214,6 +214,11 @@ public final class ZoomController {
         setView(ZoomMath.anchor(view, inView, old, newZoom));
     }
 
+    /** 보이는 영역 가운데를 고정한 채 배율을 바꾼다(상태 표시줄 배율 단추). */
+    public void zoomTo(double newZoom) {
+        zoomCentered(newZoom);
+    }
+
     private void zoomCentered(double newZoom) {
         Rectangle r = pane.getViewport().getViewRect();
         zoomAt(newZoom, new Point(r.width / 2, r.height / 2));

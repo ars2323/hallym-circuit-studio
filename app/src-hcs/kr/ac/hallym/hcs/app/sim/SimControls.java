@@ -47,7 +47,7 @@ public final class SimControls {
     private final JLabel cycleLabel = new JLabel();
     private final JLabel pcLabel = new JLabel();
     private final JLabel programLabel = new JLabel();
-    private final JLabel zoomLabel = new JLabel();
+    private final kr.ac.hallym.hcs.app.zoom.ZoomStatus zoom = new kr.ac.hallym.hcs.app.zoom.ZoomStatus();
     private final JPanel banner = new JPanel(new FlowLayout(FlowLayout.LEFT, Tokens.SPACE_2, 2));
     private long ticks;
     /** 원조 Simulator는 리스너를 약하게 두지 않지만 창이 사는 동안 붙잡아 둔다. */
@@ -126,6 +126,7 @@ public final class SimControls {
         tb.add(button("select", "bar.select", () -> use(baseTool("Edit Tool"))));
         tb.add(button("poke", "bar.poke", () -> use(baseTool("Poke Tool"))));
         tb.add(button("wire", "bar.wire", () -> use(baseTool("Wiring Tool"))));
+        tb.add(button("text", "bar.text", () -> use(baseTool("Text Tool")))); // 원조 도구 모음에만 있던 도구
         tb.addSeparator();
         tb.add(button("pin", "bar.input", () -> use(wiringTool("Pin"))));
         tb.add(button("tunnel", "bar.tunnel", () -> use(wiringTool("Tunnel"))));
@@ -192,15 +193,21 @@ public final class SimControls {
         t.start();
     }
 
+    /** 상태 표시줄의 배율 단추. 창이 배율 모델을 붙인다. */
+    public kr.ac.hallym.hcs.app.zoom.ZoomStatus zoomStatus() {
+        return zoom;
+    }
+
     /** 캔버스 아래 상태 표시줄. */
     public JPanel statusBar() {
         JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, Tokens.SPACE_4, 2));
         p.setBackground(Tokens.WINDOW);
         p.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, Tokens.BORDER));
-        for (JLabel l : new JLabel[] {simState, cycleLabel, pcLabel, programLabel, zoomLabel}) {
+        for (JLabel l : new JLabel[] {simState, cycleLabel, pcLabel, programLabel}) {
             l.setForeground(Tokens.TEXT_2);
             p.add(l);
         }
+        p.add(zoom.component()); // 옛 왼쪽 아래 배율 칸 대신(검토 반영 1)
         JLabel legend = new JLabel(Messages.get("bar.legend"));
         legend.setForeground(Tokens.BLUE);
         legend.setToolTipText(Messages.get("bar.legendTip"));
@@ -242,8 +249,6 @@ public final class SimControls {
         pcLabel.setText(pc == null ? "" : "PC " + pc);
         String prog = StatusModel.program(proj.getCurrentCircuit());
         programLabel.setText(prog == null ? "" : Messages.get("bar.programLoaded", prog));
-        double z = frame.getCanvas().getHcsZoom() == null ? 1 : frame.getCanvas().getHcsZoom().zoomFactor();
-        zoomLabel.setText(Math.round(z * 100) + "%");
         banner.setVisible(!running);
     }
 }
