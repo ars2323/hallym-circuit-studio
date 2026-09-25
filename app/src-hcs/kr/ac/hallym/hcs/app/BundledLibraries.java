@@ -44,6 +44,22 @@ public final class BundledLibraries {
         return home == null ? null : new File(new File(home, "lib"), MIPS_JAR);
     }
 
+    /**
+     * 번들된 hcs-asm(C-02 사이클 표가 .s 줄을 찾을 때). lib-mips와 같은 순서: 시스템 속성 {@code hcs.asm}, 환경
+     * 변수 {@code HCS_ASM}, 포크 jar 옆 {@code lib/}. 없으면 null.
+     */
+    public static File hcsAsm() {
+        String exe = System.getProperty("os.name", "").toLowerCase().startsWith("windows") ? "hcs-asm.exe" : "hcs-asm";
+        for (String p : new String[] {System.getProperty("hcs.asm"), System.getenv("HCS_ASM")}) {
+            if (p != null && !p.isEmpty() && new File(p).canExecute()) {
+                return new File(p);
+            }
+        }
+        File home = appHome();
+        File f = home == null ? null : new File(new File(home, "lib"), exe);
+        return f != null && f.canExecute() ? f : null;
+    }
+
     /** 포크 jar가 있는 폴더. 클래스 폴더에서 돌 때(개발 중)는 null. */
     static File appHome() {
         CodeSource src = BundledLibraries.class.getProtectionDomain().getCodeSource();

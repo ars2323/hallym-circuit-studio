@@ -194,6 +194,10 @@ public final class Recording {
     private Node root = new Node();
     private int first;
     private int last = -1;
+    /** 보고 있는 스텝(C-03). 보통 last이고, 지난 스텝을 보면 그보다 앞이다. */
+    private int cursor = -1;
+    /** 지난 스텝을 보는 동안 떼어 둔 지금 상태. 지금으로 돌아오면 이것을 다시 쓴다. */
+    private CircuitState live;
 
     public Recording(Circuit circuit) {
         this(circuit, DEFAULT_MAX_STEPS);
@@ -224,6 +228,30 @@ public final class Recording {
         return last;
     }
 
+    /** 보고 있는 스텝. 기록이 없으면 -1. */
+    public synchronized int cursor() {
+        return cursor;
+    }
+
+    /** 지난 스텝을 보고 있는가(그 뒤 기록이 있다). */
+    public synchronized boolean isViewingPast() {
+        return cursor >= 0 && cursor < last;
+    }
+
+    /** Recorder: 보는 스텝을 옮긴다(범위 안으로). */
+    synchronized int moveCursor(int step) {
+        cursor = Math.max(first, Math.min(last, step));
+        return cursor;
+    }
+
+    synchronized CircuitState live() {
+        return live;
+    }
+
+    synchronized void setLive(CircuitState s) {
+        live = s;
+    }
+
     public synchronized boolean isEmpty() {
         return last < 0;
     }
@@ -242,6 +270,7 @@ public final class Recording {
         thinnedUpTo = step;
         first = step;
         last = -1;
+        live = null;
         capture(state, step, true);
     }
 
@@ -255,6 +284,7 @@ public final class Recording {
         }
         captureNode(root, state, step);
         last = Math.max(last, step);
+        cursor = step;
         Integer prev = checkpoints.isEmpty() ? null : checkpoints.lastKey();
         if (checkpoint || prev == null || step - prev >= checkpointEvery) {
             checkpoints.put(step, state.cloneState());
@@ -265,6 +295,7 @@ public final class Recording {
         }
         if (last - first > maxSteps + maxSteps / 4) {
             trimTo(last - maxSteps);
+            cursor = Math.max(cursor, first);
         }
     }
 
@@ -341,6 +372,31 @@ public final class Recording {
         }
     }
 
+    /** state의 값이 step 기록과 하나라도 다른가(값이 바뀌지 않은 전파 알림을 걸러낸다). */
+    public synchronized boolean differs(CircuitState state, int step) {
+        return differs(root, state, step);
+    }
+
+    private boolean differs(Node node, CircuitState s, int step) {
+        if (node.probe == null || node.circuit != s.getCircuit()) {
+            return true;
+        }
+        Location[] at = node.probe.at;
+        for (int i = 0; i < at.length; i++) {
+            Value v = node.tracks[i].at(step);
+            if (v == null || !v.equals(s.getValue(at[i]))) {
+                return true;
+            }
+        }
+        for (Map.Entry<Component, Node> e : node.children.entrySet()) {
+            Object d = s.getData(e.getKey());
+            if (!(d instanceof CircuitState) || differs(e.getValue(), (CircuitState) d, step)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** step 뒤 기록을 버린다(지난 스텝에서 입력·회로를 바꿨을 때). */
     public synchronized void truncateAfter(int step) {
         if (last <= step) {
@@ -351,6 +407,8 @@ public final class Recording {
         pinned.removeIf(k -> k > step);
         thinnedUpTo = Math.min(thinnedUpTo, step);
         last = step;
+        cursor = Math.min(cursor, step);
+        live = null; // 지금이 바뀌었다: 떼어 둔 옛 지금은 버린다
     }
 
     private static void truncateNode(Node node, int step) {
