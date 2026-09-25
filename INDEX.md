@@ -2,6 +2,12 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-26 탭 간 라이브러리(P-03)
+
+- 기준: feat/cross-tab-libraries `b086d30`
+- 관련 이슈: P-03 #195
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/p03-cross-tab-libraries/README.md
+
 ## 2026-09-26 Signal Flow(P-07) 재촬영 2
 
 - 기준: feat/signal-flow `8453af4`
