@@ -121,6 +121,16 @@ public final class Recording {
             n++;
         }
 
+        /** step보다 앞 마지막 값. 없으면 null. */
+        Value before(int step) {
+            for (int i = n - 1; i >= 0; i--) {
+                if (steps[i] < step) {
+                    return values[i];
+                }
+            }
+            return null;
+        }
+
         /** step 때의 값(그 스텝 이하 마지막 변화). 기록 앞이면 null. */
         Value at(int step) {
             int lo = 0;
@@ -186,6 +196,8 @@ public final class Recording {
     private final int maxSteps;
     private final Map<Circuit, Probe> probes = new HashMap<>();
     private final TreeMap<Integer, CircuitState> checkpoints = new TreeMap<>();
+    /** 넷 하나라도 E(오류)가 되거나 정해져 있다가 X가 된 스텝(C-04 Run Until, D-03). */
+    private final java.util.TreeSet<Integer> problems = new java.util.TreeSet<>();
     /** 입력을 바꾼 스텝의 체크포인트(성기게 할 때도 남긴다). */
     private final java.util.Set<Integer> pinned = new java.util.HashSet<>();
     private final Map<Value, Value> canon = new HashMap<>();
@@ -266,6 +278,7 @@ public final class Recording {
         probes.clear();
         checkpoints.clear();
         pinned.clear();
+        problems.clear();
         canon.clear();
         thinnedUpTo = step;
         first = step;
@@ -357,7 +370,12 @@ public final class Recording {
         }
         Location[] at = node.probe.at;
         for (int i = 0; i < at.length; i++) {
-            node.tracks[i].put(step, canonical(s.getValue(at[i])));
+            Value v = canonical(s.getValue(at[i]));
+            Track t = node.tracks[i];
+            t.put(step, v);
+            if (isProblem(t.before(step), v)) {
+                problems.add(step);
+            }
         }
         for (Component comp : node.probe.subcircuits) {
             Object d = s.getData(comp);
@@ -370,6 +388,22 @@ public final class Recording {
                 captureNode(child, (CircuitState) d, step);
             }
         }
+    }
+
+    /** 넷 값이 before에서 v로 바뀐 것이 E·X 발생인가: E가 되었거나, 모든 비트가 정해져 있다가 X 비트가 생겼다. */
+    static boolean isProblem(Value before, Value v) {
+        if (v == null || before != null && before.equals(v)) {
+            return false;
+        }
+        if (v.isErrorValue()) {
+            return true;
+        }
+        return !v.isFullyDefined() && before != null && before.isFullyDefined();
+    }
+
+    /** from~to 사이에서 E·X가 생긴 스텝들. */
+    public synchronized java.util.SortedSet<Integer> problemSteps(int from, int to) {
+        return new java.util.TreeSet<>(problems.subSet(from, true, to, true));
     }
 
     /** 테스트·진단: state와 step 기록이 처음 다른 넷(경로와 자리). 같으면 null. */
@@ -434,6 +468,7 @@ public final class Recording {
         truncateNode(root, step);
         checkpoints.tailMap(step, false).clear();
         pinned.removeIf(k -> k > step);
+        problems.tailSet(step, false).clear();
         thinnedUpTo = Math.min(thinnedUpTo, step);
         last = step;
         cursor = Math.min(cursor, step);
@@ -457,6 +492,7 @@ public final class Recording {
         }
         checkpoints.headMap(cp, false).clear();
         pinned.removeIf(k -> k < cp);
+        problems.headSet(cp, false).clear();
         trimNode(root, cp);
         first = cp;
     }
