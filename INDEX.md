@@ -2,6 +2,12 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-25 연결점과 점프(W-04) 재촬영
+
+- 기준: feat/junctions-jumps `a9c2a6d`
+- 관련 이슈: W-04 #191 (PR #245)
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-25-w04-junctions-jumps-2/README.md
+
 ## 2026-09-25 연결점과 점프(W-04)
 
 - 기준: feat/junctions-jumps `5348bdf`
