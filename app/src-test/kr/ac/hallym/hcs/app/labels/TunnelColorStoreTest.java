@@ -67,7 +67,10 @@ class TunnelColorStoreTest {
         Circuit c = file.getMainCircuit();
         Project proj = new Project(file);
         assertNull(TunnelColorStore.get(file, c, "lo"));
-        assertEquals(TunnelColors.of("lo"), TunnelColorStore.display(file, c, "lo"));
+        // 지정하지 않은 색은 회로 안 자동 배정 색이다(해시에서 시작해 가까운 이름과 겹치면 다음 색, D-046)
+        Color auto = TunnelColorStore.colors(file, c).get("lo");
+        assertEquals(auto, TunnelColorStore.display(file, c, "lo"));
+        assertTrue(java.util.Arrays.asList(TunnelColors.PALETTE).contains(auto));
 
         proj.doAction(TunnelColorStore.action(file, c, "lo", TunnelColors.PALETTE[3]));
         assertEquals(TunnelColors.PALETTE[3], TunnelColorStore.get(file, c, "lo"));
@@ -75,6 +78,7 @@ class TunnelColorStoreTest {
         assertTrue(file.isDirty() || proj.isFileDirty(), "a chosen color is a change to the file");
         proj.undoAction();
         assertNull(TunnelColorStore.get(file, c, "lo"));
+        assertEquals(auto, TunnelColorStore.display(file, c, "lo"), "back to the automatic color");
         proj.doAction(TunnelColorStore.action(file, c, "lo", TunnelColors.PALETTE[3]));
 
         // 그 이름의 터널을 모두 지우면 저장 전에 항목도 지운다
