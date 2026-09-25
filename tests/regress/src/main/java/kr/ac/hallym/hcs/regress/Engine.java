@@ -34,8 +34,22 @@ public final class Engine {
         return new Engine(new File(new File(System.getProperty("java.home"), "bin"), "java"), jar);
     }
 
-    /** tests/circ/<name>.circ의 회로 목록(이름 순). */
+    /**
+     * tests/circ/<name>.circ의 회로 목록(이름 순). 기대값(<name>.expected)이 있는 회로만이다: 기대값 없는 회로(예:
+     * 스크린샷용 demo-datapath.circ)는 엔진 회귀 대상이 아니다.
+     */
     public static List<String> circuits(File dir) {
+        List<String> ret = new ArrayList<String>();
+        for (String n : allCircuits(dir)) {
+            if (new File(dir, n + ".expected").exists()) {
+                ret.add(n);
+            }
+        }
+        return ret;
+    }
+
+    /** dir의 모든 .circ 이름(이름 순, 기대값 유무와 무관). */
+    public static List<String> allCircuits(File dir) {
         List<String> names = new ArrayList<String>();
         File[] files = dir.listFiles();
         if (files != null) {

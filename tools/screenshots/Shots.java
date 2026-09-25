@@ -112,15 +112,15 @@ public final class Shots {
 
     void run(List<String> scenes) throws Exception {
         if (orig) {
-            // 원조 2.7.1: 참조 회로 전체와 200% 부분(라벨 칩 비교용)
-            launch("ref-mips.circ");
+            // 원조 2.7.1: 데모 회로를 포크가 "화면 맞춤"으로 정한 배율로, 그리고 200% 부분(라벨 칩 비교용)
+            launch("demo-datapath.circ");
             Project p = project();
-            setZoom(p, 1.0);
+            File zf = new File(out, "fit-zoom.txt");
+            double fit = zf.exists() ? Double.parseDouble(new String(java.nio.file.Files.readAllBytes(zf.toPath()),
+                    StandardCharsets.UTF_8).trim()) : 0.5;
+            setZoom(p, fit);
             scrollTo(p, 0, 0);
-            snapFull("02-ref-mips-100-orig");
-            setZoom(p, 0.25);
-            scrollTo(p, 0, 0);
-            snapFull("02b-ref-mips-25-orig");
+            snapFull("02-demo-fit-orig");
             zoomCrops(p, "orig");
             return;
         }
@@ -134,31 +134,27 @@ public final class Shots {
             closeDialogs();
         }
         Project ref = open("tests/mips/ref-mips.circ");
+        Project demo = open("tests/circ/demo-datapath.circ");
         if (want(scenes, "02")) {
-            setZoom(ref, 1.0);
-            scrollTo(ref, 0, 0);
-            snapFull("02-ref-mips-100");
-            setZoom(ref, 0.25); // 포크의 최소 배율(D-028), 원조도 같은 배율로
-            scrollTo(ref, 0, 0);
-            snapFull("02b-ref-mips-25");
-            setZoom(ref, 1.0);
+            edt(() -> canvas(demo).getHcsZoom().fitCircuit()); // 앱의 "화면 맞춤"(Ctrl+0)
+            sleep(1200);
+            snapFull("02-demo-fit");
+            java.nio.file.Files.write(new File(out, "fit-zoom.txt").toPath(),
+                    Double.toString(zoom(demo)).getBytes(StandardCharsets.UTF_8));
+            setZoom(demo, 1.0);
         }
         if (want(scenes, "03")) {
-            zoomCrops(ref, "");
-            Project sub = open("tests/circ/subcircuit.circ");
-            setZoom(sub, 2.0);
-            Bounds b = firstSubcircuit(sub);
-            if (b != null) {
-                centerOn(sub, b);
-                snapLogical(sub, b.expand(60), "03d-subcircuit-200");
-            }
-            activate(ref);
-        }
-        if (want(scenes, "04")) {
-            contextMenus(ref);
+            zoomCrops(demo, "");
         }
         if (want(scenes, "05")) {
-            quickAttrs(ref);
+            quickAttrs(demo);
+        }
+        if (want(scenes, "12")) {
+            hover(demo);
+        }
+        activate(ref);
+        if (want(scenes, "04")) {
+            contextMenus(ref);
         }
         if (want(scenes, "06")) {
             palette(ref);
@@ -171,9 +167,6 @@ public final class Shots {
         }
         if (want(scenes, "09")) {
             find(ref);
-        }
-        if (want(scenes, "12")) {
-            hover(ref);
         }
         if (want(scenes, "13")) {
             keysTable(ref);
@@ -201,10 +194,11 @@ public final class Shots {
         String s = suffix.isEmpty() ? "" : "-" + suffix;
         Circuit c = p.getCurrentCircuit();
         Object[][] targets = {
-            {byLabel(c, "$29"), "03a-register-sp-200"},
-            {byFactory(c, "Adder"), "03b-adder-200"},
-            {byFactory(c, "Instruction Memory"), "03c-imem-tunnels-200"},
-            {widestSplitter(c), "03e-splitter-bus-200"},
+            {byLabel(c, "PC"), "03a-pc-adder-200"},
+            {widestSplitter(c), "03b-splitter-arms-200"},
+            {firstSub(c, "regfile"), "03c-regfile-box-200"},
+            {firstSub(c, "alu"), "03d-alu-box-200"},
+            {byFactory(c, "Data Memory"), "03e-dmem-tunnels-200"},
         };
         for (Object[] t : targets) {
             com.cburch.logisim.comp.Component x = (com.cburch.logisim.comp.Component) t[0];
@@ -217,6 +211,16 @@ public final class Shots {
             snapLogical(p, area, t[1] + s);
         }
         setZoom(p, 1.0);
+    }
+
+    static com.cburch.logisim.comp.Component firstSub(Circuit c, String name) {
+        for (com.cburch.logisim.comp.Component x : c.getNonWires()) {
+            if (x.getFactory() instanceof com.cburch.logisim.circuit.SubcircuitFactory
+                    && x.getFactory().getName().equals(name)) {
+                return x;
+            }
+        }
+        return null;
     }
 
     static com.cburch.logisim.comp.Component widestSplitter(Circuit c) {
@@ -307,7 +311,7 @@ public final class Shots {
     void quickAttrs(Project p) throws Exception {
         setZoom(p, 1.5);
         useTool(p, "Edit Tool");
-        com.cburch.logisim.comp.Component reg = byLabel(p.getCurrentCircuit(), "$29");
+        com.cburch.logisim.comp.Component reg = byLabel(p.getCurrentCircuit(), "PC");
         if (reg == null) {
             reg = byFactory(p.getCurrentCircuit(), "Register");
         }
@@ -478,7 +482,7 @@ public final class Shots {
     void hover(Project p) throws Exception {
         setZoom(p, 1.5);
         useTool(p, "Edit Tool");
-        com.cburch.logisim.comp.Component gate = byFactory(p.getCurrentCircuit(), "AND Gate");
+        com.cburch.logisim.comp.Component gate = firstSub(p.getCurrentCircuit(), "regfile");
         centerOn(p, gate.getBounds().expand(120));
         clickCanvas(p, emptySpot(p)); // 창에 초점이 있어야 툴팁이 뜬다
         Bounds b = gate.getBounds();
