@@ -134,4 +134,78 @@ class InfluenceOverlayTest {
         o.widen(1);
         assertEquals(-1, o.depth(), "back to all steps");
     }
+
+    /** ui-reviewer #246: 터널 사이 점선은 사이에 놓인 부품 몸체(글자) 위를 지나지 않는다. */
+    @Test
+    void tunnelLinkSkipsPartBodies() throws Exception {
+        LogisimFile f = CircuitBuilder.newFile(new Loader(null), Files.createTempDirectory(tmp, "f").toFile());
+        CircuitBuilder b = new CircuitBuilder(f, f.getMainCircuit());
+        Component a = b.add("Wiring", "Pin", 100, 200, "label", "A");
+        b.add("Wiring", "Tunnel", 100, 200, "label", "t", "facing", "west");
+        Component t2 = b.add("Wiring", "Tunnel", 600, 200, "label", "t", "facing", "east");
+        // 두 터널을 잇는 직선 위에 관계없는 NOT 게이트
+        Component mid = b.add("Gates", "NOT Gate", 360, 200);
+        Component not = b.add("Gates", "NOT Gate", 700, 200);
+        b.wire(t2.getLocation(), not.getEnd(1).getLocation());
+        b.commit();
+        Circuit c = f.getMainCircuit();
+        Influence.View v = Influence.of(c, List.of(a), Influence.Mode.FORWARD, false, -1).view(c);
+        assertEquals(1, v.tunnelLinks.size(), v.tunnelLinks.toString());
+        BufferedImage img = new BufferedImage(800, 400, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = img.createGraphics();
+        g.setColor(Color.WHITE);
+        g.fillRect(0, 0, 800, 400);
+        g.setClip(0, 0, 800, 400);
+        InfluenceOverlay.paint(g, null, c, v, 1.0);
+        g.dispose();
+        com.cburch.logisim.data.Bounds mb = mid.getBounds();
+        int onLine = 0;
+        for (int x = 130; x < 570; x++) {
+            Color px = new Color(img.getRGB(x, 200));
+            boolean blue = px.getBlue() > px.getRed() + 60;
+            boolean inside = x > mb.getX() - 2 && x < mb.getX() + mb.getWidth() + 2;
+            if (inside) {
+                assertTrue(!blue, "no link over the NOT gate body at x=" + x + ": " + px);
+            } else if (blue) {
+                onLine++;
+            }
+        }
+        assertTrue(onLine > 20, "the link is drawn elsewhere: " + onLine);
+    }
+
+    /** ui-reviewer #246: 닿은 부품을 다시 그릴 때 원조 라벨 글자("Zero")는 그리지 않는다(라벨 칩이 대신한다). */
+    @Test
+    void redrawnPartsDoNotBringBackTheOriginalLabel() throws Exception {
+        LogisimFile f = CircuitBuilder.newFile(new Loader(null), Files.createTempDirectory(tmp, "f").toFile());
+        CircuitBuilder b = new CircuitBuilder(f, f.getMainCircuit());
+        Component pin = b.add("Wiring", "Pin", 200, 100, "label", "Zero", "output", "true", "facing", "west");
+        b.commit();
+        Circuit c = f.getMainCircuit();
+        Project proj = new Project(f);
+        proj.getSimulator().setIsRunning(false);
+        com.cburch.logisim.circuit.CircuitState st = proj.getCircuitState();
+        javax.swing.JPanel dest = new javax.swing.JPanel();
+        int[] dark = new int[2];
+        for (int k = 0; k < 2; k++) {
+            BufferedImage img = new BufferedImage(400, 200, BufferedImage.TYPE_INT_RGB);
+            Graphics2D g = img.createGraphics();
+            g.setColor(Color.WHITE);
+            g.fillRect(0, 0, 400, 200);
+            java.awt.Graphics base = k == 0 ? g
+                    : kr.ac.hallym.hcs.app.labels.LabelOverlay.filterOne(null, g, c, pin);
+            java.awt.Graphics cg = base.create();
+            pin.draw(new com.cburch.logisim.comp.ComponentDrawContext(dest, c, st, g, cg));
+            cg.dispose();
+            g.dispose();
+            for (int y = 0; y < 200; y++) {
+                for (int x = 0; x < 400; x++) {
+                    Color px = new Color(img.getRGB(x, y));
+                    if (px.getRed() + px.getGreen() + px.getBlue() < 300) {
+                        dark[k]++;
+                    }
+                }
+            }
+        }
+        assertTrue(dark[1] < dark[0], "the label text is left out: " + dark[0] + " vs " + dark[1]);
+    }
 }

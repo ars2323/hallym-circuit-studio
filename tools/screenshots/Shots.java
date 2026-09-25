@@ -347,8 +347,23 @@ public final class Shots {
         centerOn(p, ab);
         snapLogical(p, ab, "17f-inside-alu");
         edt(() -> p.setCurrentCircuit(c));
+        sleep(600);
+        // 배율 25%, 400%(체크리스트 4)
+        edt(() -> o.show(c, java.util.List.of(reg), kr.ac.hallym.hcs.app.model.Influence.Mode.FORWARD));
+        setZoom(p, 0.25);
+        Bounds all = Bounds.create(0, 0, 1500, 700);
+        centerOn(p, all);
+        snapLogical(p, all, "17g-forward-25");
+        setZoom(p, 4.0);
+        Bounds near = Bounds.create(850, 190, 200, 110); // regfile RD1·RD2 → alu A·B
+        centerOn(p, near);
+        snapLogical(p, near, "17h-forward-400");
+        // 지우면 강조 전과 같다(원조 덧그림 밖 영역 비교용)
+        setZoom(p, 1.0);
+        centerOn(p, area);
         edt(o::clear);
         sleep(600);
+        snapLogical(p, area, "17i-cleared");
         setZoom(p, 1.0);
     }
 

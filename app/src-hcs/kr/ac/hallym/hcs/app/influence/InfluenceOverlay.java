@@ -229,11 +229,17 @@ public final class InfluenceOverlay {
             return;
         }
         double z = canvas.getHcsZoom() == null ? 1.0 : canvas.getHcsZoom().zoomFactor();
-        paint((Graphics2D) g0, context, circ, v, z);
+        paint((Graphics2D) g0, context, circ, v, z, canvas);
     }
 
     /** 뷰 v를 그린다(회로 좌표의 Graphics, 배율 z). context가 null이면 부품은 다시 그리지 않는다(테스트). */
     public static void paint(Graphics2D g0, ComponentDrawContext context, Circuit circ, Influence.View v, double z) {
+        paint(g0, context, circ, v, z, null);
+    }
+
+    /** canvas가 있으면 다시 그리는 부품의 원조 라벨 글자를 뺀다(라벨 칩이 대신한다, ui-reviewer #246). */
+    static void paint(Graphics2D g0, ComponentDrawContext context, Circuit circ, Influence.View v, double z,
+            Canvas canvas) {
         Graphics2D g = (Graphics2D) g0.create();
         try {
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -268,7 +274,9 @@ public final class InfluenceOverlay {
                     if (!circ.contains(c) || c instanceof Wire) {
                         continue;
                     }
-                    Graphics2D cg = (Graphics2D) saved.create();
+                    Graphics base = canvas == null ? saved
+                            : kr.ac.hallym.hcs.app.labels.LabelOverlay.filterOne(canvas, g0, circ, c);
+                    Graphics2D cg = (Graphics2D) base.create();
                     context.setGraphics(cg);
                     c.draw(context);
                     cg.dispose();
@@ -282,12 +290,18 @@ public final class InfluenceOverlay {
             float lw = Math.max(1.5f, px(LINK_PX, z));
             g.setStroke(new BasicStroke(lw, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 1f,
                     new float[] {px(6, z), px(5, z)}, 0f));
-            for (List<Location> link : v.tunnelLinks) {
-                for (int i = 1; i < link.size(); i++) {
-                    Location a = link.get(i - 1);
-                    Location b = link.get(i);
-                    g.draw(new Line2D.Float(a.getX(), a.getY(), b.getX(), b.getY()));
+            if (!v.tunnelLinks.isEmpty()) {
+                // 점선은 부품 몸체(터널 이름 포함)와 라벨 칩 위를 지나지 않는다: 그 자리를 잘라 낸다(ui-reviewer #246)
+                Graphics2D lg = (Graphics2D) g.create();
+                lg.clip(linkArea(circ, clip, canvas, z));
+                for (List<Location> link : v.tunnelLinks) {
+                    for (int i = 1; i < link.size(); i++) {
+                        Location a = link.get(i - 1);
+                        Location b = link.get(i);
+                        lg.draw(new Line2D.Float(a.getX(), a.getY(), b.getX(), b.getY()));
+                    }
                 }
+                lg.dispose();
             }
             // 닿은 터널: 얇은 테두리(점선 대신, 터널이 셋 이상인 넷)
             for (Component c : v.tunnels) {
@@ -318,6 +332,23 @@ public final class InfluenceOverlay {
         } finally {
             g.dispose();
         }
+    }
+
+    /** 점선이 지나도 되는 곳: 보이는 영역에서 부품 몸체와 라벨 칩을 뺀 곳. */
+    static java.awt.geom.Area linkArea(Circuit circ, Rectangle clip, Canvas canvas, double z) {
+        java.awt.geom.Area a = new java.awt.geom.Area(clip);
+        for (Component c : circ.getNonWires()) {
+            Bounds b = c.getBounds();
+            a.subtract(new java.awt.geom.Area(new Rectangle(b.getX() - 2, b.getY() - 2, b.getWidth() + 4,
+                    b.getHeight() + 4)));
+        }
+        if (canvas != null) {
+            for (Rectangle r : kr.ac.hallym.hcs.app.labels.LabelOverlay.chipRects(canvas)) {
+                a.subtract(new java.awt.geom.Area(new java.awt.geom.Rectangle2D.Double(r.x / z - 2, r.y / z - 2,
+                        r.width / z + 4, r.height / z + 4)));
+            }
+        }
+        return a;
     }
 
     private static void band(Graphics2D g, java.util.Collection<Wire> wires, Color c, float w) {
