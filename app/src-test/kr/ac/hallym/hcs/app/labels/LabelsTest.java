@@ -322,4 +322,29 @@ class LabelsTest {
         assertEquals(6.75f, LabelOverlay.portPx(15, 20, 9f), 1e-6, "30px default box, 20px name at 9px");
         assertEquals(LabelOverlay.PORT_MIN_PX, LabelOverlay.portPx(11, 60, 9f), "long names stop at the minimum");
     }
+
+    /** 팔 라벨은 팔 간격(10px) 안에서 가장 크고, 흰 바탕 대비 7:1 이상이다(검토 2차 E). */
+    @Test
+    void splitterArmLabelsAreLargeAndDarkEnough() {
+        assertTrue(LabelOverlay.ARM_PX > 7f && LabelOverlay.ARM_PX <= 9f, "fits 10px arm spacing: " + LabelOverlay.ARM_PX);
+        assertTrue(LabelOverlay.ARM_PX * 2 >= 16f, "at 200% at least 16 screen px");
+        assertTrue(contrast(LabelOverlay.ARM_COLOR, java.awt.Color.WHITE) >= 7.0,
+                "contrast " + contrast(LabelOverlay.ARM_COLOR, java.awt.Color.WHITE));
+        assertTrue(LabelOverlay.ARM_BACKGROUND.getAlpha() >= 220);
+    }
+
+    /** WCAG 2 대비. */
+    static double contrast(java.awt.Color a, java.awt.Color b) {
+        double la = luminance(a);
+        double lb = luminance(b);
+        return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+    }
+
+    private static double luminance(java.awt.Color c) {
+        double[] v = {c.getRed() / 255.0, c.getGreen() / 255.0, c.getBlue() / 255.0};
+        for (int i = 0; i < 3; i++) {
+            v[i] = v[i] <= 0.03928 ? v[i] / 12.92 : Math.pow((v[i] + 0.055) / 1.055, 2.4);
+        }
+        return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+    }
 }
