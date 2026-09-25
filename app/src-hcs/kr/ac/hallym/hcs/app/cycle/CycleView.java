@@ -528,10 +528,10 @@ public final class CycleView {
             int hi = y + 5;
             int lo = y + ROW_H - 6;
             int mid = (hi + lo) / 2;
-            int first = m.recording().first();
-            Value prevV = valueOf(m, r, Math.max(first, CycleModel.stepOf(c) - 2));
+            int[] half = m.halfSteps(c);
+            Value prevV = valueOf(m, r, Math.max(m.recording().first(), half[0] - 1));
             for (int h = 0; h < 2; h++) {
-                int step = Math.max(first, CycleModel.stepOf(c) - 1 + h);
+                int step = half[h];
                 if (step > m.recording().last()) {
                     break;
                 }

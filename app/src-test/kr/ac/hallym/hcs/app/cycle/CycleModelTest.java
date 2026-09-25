@@ -124,6 +124,27 @@ class CycleModelTest {
             assertEquals(withSource.pc(c), withSource.value(sig, CycleModel.stepOf(c)));
         }
         assertTrue(withSource.changed(sig, 1));
+        // 한 열이 한 사이클(D-074): 앞 절반(상승 에지 뒤)은 clk 1, 뒤 절반(다음 상승 에지 앞)은 clk 0이고, 두 절반의
+        // PC가 그 열 머리의 PC와 같다
+        Component clkTunnel = null;
+        for (Component c : main.getNonWires()) {
+            if (c.getFactory().getName().equals("Tunnel") && "clk".equals(Names.label(c))) {
+                clkTunnel = c;
+            }
+        }
+        CycleModel.Signal clk = CycleModel.signalFor(main, Collections.<Component>emptyList(), main,
+                clkTunnel.getEnd(0).getLocation());
+        for (int c = 1; c <= 30; c++) {
+            int[] half = withSource.halfSteps(c);
+            assertEquals(CycleModel.stepOf(c) - 1, half[0]);
+            assertEquals(CycleModel.stepOf(c), half[1]);
+            assertEquals(com.cburch.logisim.data.Value.TRUE, withSource.value(clk, half[0]), "clk high after the edge");
+            assertEquals(com.cburch.logisim.data.Value.FALSE, withSource.value(clk, half[1]), "clk low before the next");
+            assertEquals(withSource.pc(c), withSource.value(sig, half[0]), "same PC in both halves of column " + c);
+            assertEquals(withSource.pc(c), withSource.value(sig, half[1]));
+        }
+        int[] first = withSource.halfSteps(0);
+        assertEquals(0, first[0], "the first column starts at the first recorded step");
         assertFalse(withSource.changed(sig, 0), "the first column has nothing before it");
     }
 }

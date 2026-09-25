@@ -114,6 +114,15 @@ public final class CycleModel {
         return Math.floorDiv(step, 2);
     }
 
+    /**
+     * 열 c의 1비트 파형 두 절반이 가리키는 스텝: 앞 절반은 사이클 c를 연 상승 에지 뒤(2c-1), 뒤 절반은 다음 상승
+     * 에지 앞(2c). 기록 맨 앞 열은 두 절반 모두 기록 첫 스텝. 한 열의 파형·값·명령어가 같은 사이클을 가리킨다(D-074).
+     */
+    public int[] halfSteps(int cycle) {
+        int first = rec.first();
+        return new int[] {Math.max(first, stepOf(cycle) - 1), Math.max(first, stepOf(cycle))};
+    }
+
     public int firstCycle() {
         return (rec.first() + 1) / 2;
     }
