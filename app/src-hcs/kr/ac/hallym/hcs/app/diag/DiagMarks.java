@@ -28,7 +28,7 @@ import kr.ac.hallym.hcs.app.theme.Tokens;
 public final class DiagMarks {
     /** 화면 px: 테두리, 누른 항목 테두리, 점 지름, 선 덧칠, 누른 선 덧칠, 부품과 테두리 사이. */
     static final float BORDER_PX = 2f;
-    static final float FOCUS_BORDER_PX = 3.5f;
+    static final float FOCUS_BORDER_PX = 4f;
     static final float DOT_PX = 7f;
     static final float WIRE_PX = 3f;
     static final float FOCUS_WIRE_PX = 6f;

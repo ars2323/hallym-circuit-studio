@@ -81,4 +81,52 @@ class DiagMarksTest {
         assertTrue(Math.abs(DiagMarks.px(2f, 0.25) - 8f) < 1e-6);
         assertTrue(Math.abs(DiagMarks.px(2f, 4.0) - 0.5f) < 1e-6);
     }
+
+    /** 테두리 두께(화면 px): 부품 왼쪽 가운데를 가로로 지나며 빨간 화소를 센다. */
+    static int borderWidth(BufferedImage img, int x, int y) {
+        int n = 0;
+        for (int dx = -8; dx <= 8; dx++) {
+            int xx = x + dx;
+            if (xx < 0 || xx >= img.getWidth()) {
+                continue;
+            }
+            java.awt.Color c = new java.awt.Color(img.getRGB(xx, y));
+            if (c.getRed() > 150 && c.getGreen() < 130 && c.getBlue() < 130) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    /** 2c 검토 반영 2: 누른 항목의 테두리는 배율과 무관하게 화면 3px 이상이고 누르지 않은 표시보다 확실히 굵다. */
+    @Test
+    void focusedBorderIsAtLeastThreeScreenPixelsAndThicker() throws Exception {
+        LogisimFile f = CircuitBuilder.newFile(new Loader(null), tmp.toFile());
+        CircuitBuilder b = new CircuitBuilder(f, f.getMainCircuit());
+        Component and = b.add("Gates", "AND Gate", 200, 200, "inputs", "2");
+        b.commit();
+        Diagnostic d = new Diagnostic(Diagnostic.Kind.INPUT_UNCONNECTED, f.getMainCircuit(),
+                Collections.singletonList(and), Collections.emptyList(), and.getLocation(), "main › AND #1", "in1");
+        Bounds bb = and.getBounds();
+        for (double z : new double[] {0.25, 0.5, 1.0, 2.0, 4.0}) {
+            int[] w = new int[2];
+            for (int k = 0; k < 2; k++) {
+                BufferedImage img = new BufferedImage((int) (400 * z) + 40, (int) (400 * z) + 40,
+                        BufferedImage.TYPE_INT_RGB);
+                Graphics2D g = img.createGraphics();
+                g.setColor(java.awt.Color.WHITE);
+                g.fillRect(0, 0, img.getWidth(), img.getHeight());
+                g.scale(z, z);
+                DiagMarks.paint(g, Collections.singletonList(d), k == 1 ? d : null, z);
+                g.dispose();
+                float gap = DiagMarks.px(DiagMarks.GAP_PX, z) + 1;
+                int lx = (int) Math.round((bb.getX() - gap) * z);
+                int ly = (int) Math.round((bb.getY() + bb.getHeight() / 2.0) * z);
+                w[k] = borderWidth(img, lx, ly);
+            }
+            assertTrue(w[1] >= 3, "focused border at " + z + ": " + w[1] + "px");
+            assertTrue(w[1] >= w[0] + 1, "focused thicker than unfocused at " + z + ": " + w[1] + " vs " + w[0]);
+            assertTrue(w[0] >= 1, "unfocused border visible at " + z);
+        }
+    }
 }

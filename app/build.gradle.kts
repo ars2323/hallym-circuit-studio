@@ -99,12 +99,12 @@ val stage by tasks.registering(Sync::class) {
     }
 }
 
-tasks.test {
-    useJUnitPlatform()
+// 단위 테스트와 GUI 테스트(@Tag("gui"), 화면이 필요)가 함께 쓰는 설정
+fun Test.hcsTestSetup(headless: Boolean) {
     dependsOn(tasks.jar, mipsJar)
     systemProperty("hcs.mipsJar", mipsJar.get().archiveFile.get().asFile.absolutePath)
     systemProperty("hcs.refMips", rootProject.file("tests/mips/ref-mips.circ").absolutePath)
-    systemProperty("java.awt.headless", "true")
+    systemProperty("java.awt.headless", headless.toString())
     // Logisim은 언어 등을 Java 환경설정에 저장한다. 테스트가 개발자 PC의 설정을 바꾸지 않게 따로 둔다.
     systemProperty("java.util.prefs.userRoot", layout.buildDirectory.dir("test-prefs").get().asFile.absolutePath)
     systemProperty("hcs.configDir", layout.buildDirectory.dir("test-config").get().asFile.absolutePath)
@@ -117,4 +117,20 @@ tasks.test {
         events("failed")
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
     }
+}
+
+tasks.test {
+    useJUnitPlatform { excludeTags("gui") }
+    hcsTestSetup(headless = true)
+}
+
+// GUI 스모크 테스트(PLAN.md 11.16): 실제 창을 만든다. 화면이 필요하다: xvfb-run -a ./gradlew :app:guiTest
+val guiTest by tasks.registering(Test::class) {
+    description = "Runs GUI tests (@Tag(\"gui\")); needs a display such as Xvfb."
+    group = "verification"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform { includeTags("gui") }
+    hcsTestSetup(headless = false)
+    systemProperty("java.util.prefs.userRoot", layout.buildDirectory.dir("gui-test-prefs").get().asFile.absolutePath)
 }

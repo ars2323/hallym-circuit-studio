@@ -98,6 +98,10 @@ class AttrTableSelectionModel extends AttributeSetTableModel
 	// Selection.Listener methods
 	public void selectionChanged(Event event) {
 		fireTitleChanged();
+		// HCS: rebuild the rows first. The model only listens to the selection attributes while the table shows it,
+		// so a selection made while the table showed another model (circuit attributes after switching circuits or
+		// an edit, then a programmatic selection from Messages or Find) left the old rows (2c review 2).
+		attributeListChanged(null);
 		frame.setAttrTableModel(this);
 	}
 }
