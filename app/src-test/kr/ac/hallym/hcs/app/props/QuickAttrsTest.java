@@ -219,4 +219,32 @@ class QuickAttrsTest {
         java.awt.Rectangle p = QuickBar.placement(topEdge, bar, none, vis, 6);
         assertFalse(p.intersects(topEdge), "never on top of the selection");
     }
+
+    /** 선도 피한다(검토 2차 E: 05b에서 가산기 출력선을 가렸다). 대상에 붙은 선도 피할 것에 든다. */
+    @Test
+    void quickBarAvoidsWires() {
+        java.awt.Rectangle target = new java.awt.Rectangle(400, 300, 60, 40);
+        java.awt.Dimension bar = new java.awt.Dimension(300, 40);
+        java.awt.Rectangle vis = new java.awt.Rectangle(0, 0, 1200, 800);
+        // 대상 위를 지나는 가로선(회로 좌표, 배율 1)과 대상 오른쪽에서 나가는 출력선
+        com.cburch.logisim.circuit.Wire over = com.cburch.logisim.circuit.Wire.create(
+                com.cburch.logisim.data.Location.create(300, 270), com.cburch.logisim.data.Location.create(800, 270));
+        com.cburch.logisim.circuit.Wire out = com.cburch.logisim.circuit.Wire.create(
+                com.cburch.logisim.data.Location.create(460, 320), com.cburch.logisim.data.Location.create(700, 320));
+        java.util.List<java.awt.Rectangle> avoid = QuickBar.obstacles(java.util.Arrays.asList(over, out),
+                java.util.Collections.emptyList(), java.util.Collections.emptyList(), 1.0);
+        assertEquals(2, avoid.size());
+        assertTrue(avoid.get(0).height >= 2 * QuickBar.WIRE_MARGIN, "wires get a margin");
+        java.awt.Rectangle p = QuickBar.placement(target, bar, avoid, vis, 6);
+        for (java.awt.Rectangle a : avoid) {
+            assertFalse(p.intersects(a), p + " covers " + a);
+        }
+        assertEquals(346, p.y, "below: the wire runs above and the output wire to the right");
+
+        // 두 배 확대에서도 선의 화면 좌표로 피한다
+        java.util.List<java.awt.Rectangle> zoomed = QuickBar.obstacles(java.util.Arrays.asList(out),
+                java.util.Collections.emptyList(), java.util.Collections.emptyList(), 2.0);
+        assertTrue(zoomed.get(0).contains(new java.awt.Rectangle(920 - QuickBar.WIRE_MARGIN, 640 - QuickBar.WIRE_MARGIN,
+                480 + 2 * QuickBar.WIRE_MARGIN, 2 * QuickBar.WIRE_MARGIN)), zoomed.toString());
+    }
 }

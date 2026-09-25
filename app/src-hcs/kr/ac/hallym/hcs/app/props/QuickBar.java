@@ -239,20 +239,13 @@ public final class QuickBar implements Selection.Listener, ProjectListener {
             return;
         }
         Dimension d = bar.getPreferredSize();
-        // 피할 것: 대상의 선택 테두리(손잡이 포함), 다른 부품, 라벨 칩(모두 캔버스 좌표로)
+        // 피할 것: 대상의 선택 테두리(손잡이 포함), 다른 부품, 선, 라벨 칩(모두 캔버스 좌표로)
         Rectangle self = new Rectangle(r);
         self.grow(6, 6);
-        List<Rectangle> avoid = new ArrayList<>();
-        for (Rectangle chip : kr.ac.hallym.hcs.app.labels.LabelOverlay.chipRects(canvas)) {
-            avoid.add(scale(chip, z));
-        }
-        for (Component c : canvas.getCircuit().getNonWires()) {
-            if (!targets.contains(c)) {
-                Bounds cb = c.getBounds();
-                avoid.add(new Rectangle((int) (cb.getX() * z), (int) (cb.getY() * z), (int) (cb.getWidth() * z),
-                        (int) (cb.getHeight() * z)));
-            }
-        }
+        List<Component> all = new ArrayList<>(canvas.getCircuit().getNonWires());
+        all.addAll(canvas.getCircuit().getWires());
+        List<Rectangle> avoid = obstacles(all, targets,
+                kr.ac.hallym.hcs.app.labels.LabelOverlay.chipRects(canvas), z);
         Rectangle at = placement(self, d, avoid, vis, 6);
         int x = at.x;
         int y = at.y;
@@ -266,21 +259,58 @@ public final class QuickBar implements Selection.Listener, ProjectListener {
         layer.repaint();
     }
 
+    /** 선 둘레에 더 비워 둘 폭(화면 px). 선 굵기(버스 4px)와 연결점이 가리지 않게. */
+    static final int WIRE_MARGIN = 4;
+
+    /**
+     * 빠른 속성 창이 피할 것(검토 2차 E): 라벨 칩(캔버스 좌표 그대로), 대상이 아닌 부품, 모든 선(대상에 붙은 선 포함).
+     * 부품·선은 회로 좌표라 배율 z를 곱한다. 선은 {@link #WIRE_MARGIN}만큼 넓힌다.
+     */
+    static List<Rectangle> obstacles(java.util.Collection<? extends Component> components,
+            java.util.Collection<? extends Component> targets, List<Rectangle> chips, double z) {
+        List<Rectangle> avoid = new ArrayList<>();
+        for (Rectangle chip : chips) {
+            avoid.add(scale(chip, z));
+        }
+        for (Component c : components) {
+            if (targets.contains(c)) {
+                continue;
+            }
+            Rectangle cr = scale(new Rectangle(c.getBounds().getX(), c.getBounds().getY(), c.getBounds().getWidth(),
+                    c.getBounds().getHeight()), z);
+            if (c instanceof com.cburch.logisim.circuit.Wire) {
+                cr.grow(WIRE_MARGIN, WIRE_MARGIN);
+            }
+            avoid.add(cr);
+        }
+        return avoid;
+    }
+
     private static Rectangle scale(Rectangle r, double z) {
         return new Rectangle((int) (r.x * z), (int) (r.y * z), (int) Math.ceil(r.width * z),
                 (int) Math.ceil(r.height * z));
     }
 
     /**
-     * 빠른 속성 창 자리(검토 반영 1): 대상(선택 테두리 포함) 위, 아래, 오른쪽, 왼쪽 순으로 놓아 보고, 보이는 영역
-     * 안이면서 피할 것(라벨 칩, 다른 부품)과 겹치지 않는 첫 자리. 없으면 겹침이 가장 적은 자리. 좌표는 캔버스 기준.
+     * 빠른 속성 창 자리(검토 반영 1, 2차 E): 대상(선택 테두리 포함) 위(왼쪽 맞춤, 오른쪽 맞춤), 아래(같은 둘),
+     * 오른쪽, 왼쪽(위 맞춤, 아래 맞춤) 순으로 놓아 보고, 보이는 영역 안이면서 피할 것(라벨 칩, 다른 부품, 선)과 겹치지
+     * 않는 첫 자리. 없으면 겹친 넓이가 가장 적은 자리. 좌표는 캔버스 기준.
      */
     static Rectangle placement(Rectangle target, Dimension bar, List<Rectangle> avoid, Rectangle visible, int gap) {
+        int above = target.y - gap - bar.height;
+        int below = target.y + target.height + gap;
+        int rightAligned = target.x + target.width - bar.width;
         Rectangle[] cands = {
-            new Rectangle(target.x, target.y - gap - bar.height, bar.width, bar.height),
-            new Rectangle(target.x, target.y + target.height + gap, bar.width, bar.height),
+            new Rectangle(target.x, above, bar.width, bar.height),
+            new Rectangle(rightAligned, above, bar.width, bar.height),
+            new Rectangle(target.x, below, bar.width, bar.height),
+            new Rectangle(rightAligned, below, bar.width, bar.height),
             new Rectangle(target.x + target.width + gap, target.y, bar.width, bar.height),
             new Rectangle(target.x - gap - bar.width, target.y, bar.width, bar.height),
+            new Rectangle(target.x + target.width + gap, target.y + target.height - bar.height, bar.width,
+                    bar.height),
+            new Rectangle(target.x - gap - bar.width, target.y + target.height - bar.height, bar.width,
+                    bar.height),
         };
         Rectangle best = null;
         long bestArea = Long.MAX_VALUE;

@@ -420,9 +420,16 @@ public final class LabelOverlay {
         }
     }
 
-    /** 팔 라벨 글자 크기(회로 좌표)와, 이보다 작게 보이면 그리지 않는 화면 크기. */
-    static final float ARM_PX = 7f;
+    /**
+     * 팔 라벨 글자 크기(회로 좌표)와, 이보다 작게 보이면 그리지 않는 화면 크기. 팔 간격(원조 기본 10px) 안에 들어가는
+     * 가장 큰 크기다(검토 2차 E: 7px은 200%에서도 흐렸다).
+     */
+    static final float ARM_PX = 8.5f;
     static final float ARM_MIN_SCREEN_PX = 5f;
+    /** 팔 라벨 글자 색: 청록 계열에서 흰 바탕 대비 7:1 이상(검토 2차 E: 더 진하게). */
+    static final Color ARM_COLOR = new Color(0x004D4A);
+    /** 팔 라벨 뒤 바탕(선이 글자를 지나가도 읽히게). */
+    static final Color ARM_BACKGROUND = new Color(255, 255, 255, 225);
 
     /** 스플리터의 팔 라벨들(팔 순서). 팔 이름은 .circ 확장 정보(D-032)에서 읽는다. */
     static List<ArmLabel> armLabels(com.cburch.logisim.file.LogisimFile file, Circuit circuit, Component s) {
@@ -457,7 +464,7 @@ public final class LabelOverlay {
         }
         Density d = density();
         com.cburch.logisim.file.LogisimFile file = canvas.getProject().getLogisimFile();
-        g.setFont(new Font(Tokens.UI_FONT, Font.PLAIN, 1).deriveFont(px));
+        g.setFont(new Font(Tokens.UI_FONT, Font.PLAIN, 1).deriveFont(Font.BOLD, px)); // Pretendard Bold
         FontMetrics fm = g.getFontMetrics();
         for (Component c : circuit.getNonWires()) {
             if (!c.getFactory().getName().equals("Splitter") || hidden.contains(c)
@@ -476,9 +483,9 @@ public final class LabelOverlay {
                     x = a.facing == com.cburch.logisim.data.Direction.WEST ? a.end.getX() - w - 2 : a.end.getX() + 2;
                     y = a.end.getY() - 2; // 가로로 뻗는 팔: 선 위
                 }
-                g.setColor(new Color(255, 255, 255, 200));
+                g.setColor(ARM_BACKGROUND);
                 g.fillRect(x - 1, y - fm.getAscent(), w + 2, fm.getAscent() + fm.getDescent());
-                g.setColor(Tokens.TEAL_TEXT);
+                g.setColor(ARM_COLOR);
                 g.drawString(a.text, x, y);
             }
         }
