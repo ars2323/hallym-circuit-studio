@@ -121,11 +121,14 @@ public final class Names {
     }
 
     /**
-     * 사람이 읽는 포트 이름: {@code Splitter #10 (combined end)}, {@code AND Gate #3 (input 2)}, {@code PC (D)}. 라벨로
-     * 이름이 붙는 포트 하나짜리 부품(핀·터널)은 {@code PC}처럼 한 번만 쓴다.
+     * 사람이 읽는 포트 이름: {@code Splitter #10 (combined end)}, {@code AND Gate #3 (input 2)}, {@code PC (D)}. 포트
+     * 하나짜리 부품(핀·터널·프로브)은 {@code PC}, {@code Pin #2}처럼 부품 이름만 쓴다.
      */
     public static String portTitle(Circuit circuit, Component c, int end) {
         String name = title(circuit, c);
+        if (c.getEnds().size() == 1) {
+            return name; // 포트 하나짜리(핀, 터널, 프로브, 클럭…): 부품 이름이 곧 포트 이름
+        }
         String port = Kinds.readablePort(c, end);
         return port.equals(name) || port.equals(Kinds.portName(c, end)) && port.equals(label(c)) ? name
                 : name + " (" + port + ")";

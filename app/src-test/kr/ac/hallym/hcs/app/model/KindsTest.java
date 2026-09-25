@@ -198,5 +198,16 @@ class KindsTest {
         assertEquals("PC", Names.portTitle(c, pin, 0), "a labelled pin is named once");
         assertEquals("R (D)", Names.portTitle(c, reg, 1));
         assertEquals("Register #1", Names.numberedTitle(c, reg));
+        com.cburch.logisim.comp.Component bare = null;
+        for (com.cburch.logisim.comp.Component x : c.getNonWires()) {
+            if (x != pin && x.getFactory().getName().equals("Pin")) {
+                bare = x;
+            }
+        }
+        assertEquals(null, bare, "only the labelled pin");
+        kr.ac.hallym.hcs.regress.CircuitBuilder pb = new kr.ac.hallym.hcs.regress.CircuitBuilder(f, c);
+        com.cburch.logisim.comp.Component probe = pb.add("Wiring", "Probe", 700, 400);
+        pb.commit();
+        assertEquals("Probe #1", Names.portTitle(c, probe, 0), "one-port parts: the part name only");
     }
 }

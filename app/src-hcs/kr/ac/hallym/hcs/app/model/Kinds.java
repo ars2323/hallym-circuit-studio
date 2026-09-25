@@ -255,30 +255,35 @@ public final class Kinds {
         String id = portName(c, end);
         Kind k = of(c);
         if (k.factory.equals("Splitter")) {
-            return end == 0 ? "combined end" : armBits(c, end - 1) + " end";
+            return end == 0 ? word("port.combinedEnd") : word("port.armEnd", armBits(c, end - 1));
         }
         if (k.category == Category.GATE || k.category == Category.PLEXER) {
             if (id.equals("out")) {
-                return "output";
+                return word("port.output");
             }
             if (id.equals("sel")) {
-                return "select";
+                return word("port.select");
             }
             if (id.equals("en")) {
-                return "enable";
+                return word("port.enable");
             }
             if (id.matches("in\\d+")) {
                 int n = Integer.parseInt(id.substring(2));
-                return "input " + (k.category == Category.GATE ? n + 1 : n);
+                return word("port.inputN", k.category == Category.GATE ? n + 1 : n);
             }
             if (id.matches("out\\d+")) {
-                return "output " + id.substring(3);
+                return word("port.outputN", Integer.parseInt(id.substring(3)));
             }
             if (id.equals("in")) {
-                return "input";
+                return word("port.input");
             }
         }
         return id;
+    }
+
+    /** 포트 이름 낱말(영어 이름, names.properties). */
+    private static String word(String key, Object... args) {
+        return kr.ac.hallym.hcs.app.Messages.get(key, args);
     }
 
     /** 스플리터 팔 arm(0부터)이 맡은 비트: [31:26], [5], 여러 구간이면 [31:26,3:0]. */
