@@ -106,7 +106,11 @@ public final class ContextMenus {
         return o;
     }
 
-    /** Menu Tool이 만든 menu(없으면 null)에 대상별 항목을 더한다. 더할 것도 없고 menu도 없으면 null. */
+    /**
+     * Menu Tool이 만든 menu(없으면 null)에 대상별 항목을 더하고 다시 짠다(검토 반영 1): 맨 위 대상 요약, 대상별
+     * 동작(부품 자체 항목·우리 항목), 공통(복제·속성 패널·잘라내기·복사), 맨 아래 삭제. 원조 "속성 보기"는 "속성
+     * 패널에서 보기"(그 부품을 고르고 오른쪽 속성 패널을 편다)로 바꾼다. 더할 것도 없으면 null.
+     */
     public static JPopupMenu extend(Canvas canvas, JPopupMenu menu, Location pt, Graphics g) {
         Project proj = canvas.getProject();
         Component comp = null;
@@ -116,21 +120,47 @@ public final class ContextMenus {
         }
         SelectionOrder<Component> sel = selectionOrder(proj);
         Target t = new Target(canvas, pt, comp, sel.order(), sel.known());
-        JPopupMenu m = menu != null ? menu : new JPopupMenu();
-        int before = m.getComponentCount();
+        List<List<java.awt.Component>> parts = new ArrayList<>();
+        if (menu != null) {
+            parts.add(original(menu));
+        }
         for (Provider p : PROVIDERS) {
-            int n = m.getComponentCount();
             JPopupMenu part = new JPopupMenu();
             p.contribute(t, part);
-            if (part.getComponentCount() > 0) {
-                if (n > 0) {
-                    m.addSeparator();
-                }
-                for (java.awt.Component c : part.getComponents()) {
-                    m.add(c);
-                }
+            parts.add(new ArrayList<>(java.util.Arrays.asList(part.getComponents())));
+        }
+        boolean any = false;
+        for (List<java.awt.Component> part : parts) {
+            any |= !part.isEmpty();
+        }
+        if (!any) {
+            return null;
+        }
+        int selected = EditMenus.nonWires(t.selection).size();
+        boolean inSelection = comp == null || t.selection.contains(comp);
+        return MenuLayout.arrange(MenuLayout.summary(t.circuit, comp, pt, inSelection ? selected : 1), parts);
+    }
+
+    /**
+     * 원조 Menu Tool 메뉴의 항목에 묶음을 단다. 부품 메뉴는 [삭제, 속성 보기, 부품 자체 항목…], 여러 부품 메뉴는 [삭제,
+     * 잘라내기, 복사] 순서로 만들어진다(원조 MenuTool). 원조 "속성 보기"는 우리 "속성 패널에서 보기"가 대신하므로 뺀다.
+     */
+    static List<java.awt.Component> original(JPopupMenu menu) {
+        List<java.awt.Component> ret = new ArrayList<>();
+        java.awt.Component[] items = menu.getComponents();
+        String kind = menu.getClass().getSimpleName();
+        for (int i = 0; i < items.length; i++) {
+            java.awt.Component c = items[i];
+            if (kind.equals("MenuComponent") && i == 0 || kind.equals("MenuSelection") && i == 0) {
+                ret.add(MenuLayout.group((javax.swing.JComponent) c, MenuLayout.DELETE));
+            } else if (kind.equals("MenuComponent") && i == 1) {
+                continue; // 원조 "속성 보기"
+            } else if (kind.equals("MenuSelection") && i <= 2) {
+                ret.add(MenuLayout.group((javax.swing.JComponent) c, MenuLayout.COMMON));
+            } else {
+                ret.add(c);
             }
         }
-        return m.getComponentCount() > 0 || before > 0 ? m : null;
+        return ret;
     }
 }

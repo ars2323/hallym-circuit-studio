@@ -50,6 +50,7 @@ public final class AttrDock {
     public AttrDock(JComponent center, JComponent body) {
         this.center = center;
         this.body = body;
+        root.putClientProperty(AttrDock.class, this);
         saver.setRepeats(false);
 
         JLabel title = new JLabel(Messages.get("dock.title"));
@@ -102,6 +103,22 @@ public final class AttrDock {
         });
         collapsed = Settings.get().getBoolean(COLLAPSED, false);
         layout();
+    }
+
+    /** 창 안의 속성 패널(없으면 null). */
+    public static AttrDock find(java.awt.Component root) {
+        if (root instanceof JComponent && ((JComponent) root).getClientProperty(AttrDock.class) instanceof AttrDock) {
+            return (AttrDock) ((JComponent) root).getClientProperty(AttrDock.class);
+        }
+        if (root instanceof java.awt.Container) {
+            for (java.awt.Component c : ((java.awt.Container) root).getComponents()) {
+                AttrDock d = find(c);
+                if (d != null) {
+                    return d;
+                }
+            }
+        }
+        return null;
     }
 
     /** 빠른 속성 창을 보일지(앱 환경설정, 기본 켬). */
