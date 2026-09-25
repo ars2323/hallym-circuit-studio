@@ -2,6 +2,12 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-26 원점 이동 한도(S-10 후속)
+
+- 기준: fix/origin-cap `c982ea0`
+- 관련 이슈: S-10 #173 후속
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-s10-origin-cap/README.md
+
 ## 2026-09-26 왼쪽 칸 아래 탭(S-11) 재촬영
 
 - 기준: feat/left-panel-tabs `510f407`
