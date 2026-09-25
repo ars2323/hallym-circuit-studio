@@ -224,6 +224,9 @@ public final class Shots {
         if (want(scenes, "23")) {
             controlPins(demo, "");
         }
+        if (want(scenes, "24")) {
+            sidePanel(demo);
+        }
         if (want(scenes, "20")) {
             crossTabLibraries(demo);
         }
@@ -369,6 +372,34 @@ public final class Shots {
             snapLogical(p, shot, "23a-control-pins-" + Math.round(z * 100) + s);
         }
         setZoom(p, 1.0);
+    }
+
+    /** 24: 왼쪽 칸 아래 탭(S-11). Tunnels 목록과 Minimap(보이는 영역 네모), 창 전체. */
+    void sidePanel(Project p) throws Exception {
+        activate(p);
+        deselect(p);
+        edt(() -> canvas(p).getHcsZoom().fitCircuit());
+        sleep(900);
+        kr.ac.hallym.hcs.app.side.SidePanel side = (kr.ac.hallym.hcs.app.side.SidePanel) find(p.getFrame(),
+                x -> x instanceof kr.ac.hallym.hcs.app.side.SidePanel);
+        if (side == null) {
+            log.add("24: no side panel");
+            return;
+        }
+        edt(() -> side.tabs().setSelectedIndex(0));
+        sleep(700);
+        snapFull("24a-full-window-tunnels");
+        snapCrop(onScreen(side), "24b-left-panel-tunnels");
+        edt(() -> side.tabs().setSelectedIndex(1));
+        sleep(700);
+        // 확대해 보이는 영역이 회로 일부일 때의 미니맵
+        setZoom(p, 1.5);
+        centerOn(p, Bounds.create(600, 200, 400, 300));
+        sleep(700);
+        snapCrop(onScreen(side), "24c-left-panel-minimap");
+        setZoom(p, 1.0);
+        edt(() -> side.tabs().setSelectedIndex(0));
+        sleep(300);
     }
 
     /** 16c: 우클릭 "Highlight Net"과 같은 강조(PC 출력 넷). */

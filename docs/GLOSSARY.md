@@ -64,6 +64,7 @@
 | Attach Probe, Attach to Pin, Net Information…, Select Whole Net | |
 | Replace Wire with Tunnels…, Tunnel Color | |
 | Auto Appearance | |
+| Minimap | 미니맵 |
 | Duplicate, Undo, Redo | |
 | Getting Started, Shortcuts | |
 
