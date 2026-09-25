@@ -2,6 +2,13 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-26 Signal Flow(P-07) 재촬영 4
+
+- 기준: feat/signal-flow `d768f4e`
+- 관련 이슈: P-07 #243 (PR #247)
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-p07-signal-flow-5/README.md
+- GIF: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-p07-signal-flow-5/18-pc-flow.gif
+
 ## 2026-09-26 원조 부품의 포트 이름(S-06, S-07) 재촬영
 
 - 기준: fix/port-name-overlay `0e3fb34`
