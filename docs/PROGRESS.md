@@ -65,7 +65,7 @@
 | C-01 | 기록 엔진 | #199 | 완료 | #259 | D-073, RecordingTest(실제 값·재실행·입력 바꿈·뒤 버리기·상한·체크포인트 줄이기), RecorderTest(원조 Simulator 틱·리셋·편집), RecordingPerformanceTest, PERFORMANCE.md |
 | C-02 | 사이클 표 | #200 | 완료 | #260 | D-074, CycleModelTest(PC·.s 원래 줄·디스어셈블·줄 값), MipsTextTest(tests/asm 원래 줄·분기 라벨), CycleViewGuiTest, 25a·25b |
 | C-03 | 열 클릭과 뒤로 가기 | #201 | 완료 | #260 | D-074, RecorderViewTest(지난 스텝 보기·지금으로 돌아오기·서브회로 안 시점·지난 스텝에서 진행·입력 바꿈·ref-mips factorial), CycleViewGuiTest(열 누르기·상태 표시줄·Next Cycle), 25c·25d |
-| C-04 | Run Until | #202 | 대기 |  |  |
+| C-04 | Run Until | #202 | 완료 | (이 PR) | D-075, RunUntilTest(PC·다음 jr·exit·줄 바뀜·최대 사이클·E 발생·PC 글 읽기), CycleViewGuiTest.runUntilButtonRunsAndReports, 26a~26c |
 | C-05 | 레지스터 패널 | #203 | 대기 |  |  |
 | C-06 | 메모리 패널(#98) | #204 | 대기 |  |  |
 | C-07 | 명령어 필드 색 | #205 | 대기 |  |  |
