@@ -2,6 +2,12 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-26 서브회로 인스턴스 안내(P-02) 재촬영
+
+- 기준: feat/instance-banner `5b8e7ba`
+- 관련 이슈: P-02 #194 (PR #248)
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-p02-instance-banner-2/README.md
+
 ## 2026-09-26 서브회로 인스턴스 안내(P-02)
 
 - 기준: feat/instance-banner `8c83925`
