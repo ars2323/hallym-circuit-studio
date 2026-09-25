@@ -127,21 +127,29 @@ class DiagMarksTest {
                 g.fillRect(0, 0, img.getWidth(), img.getHeight());
                 g.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
                         java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
-                g.translate(7, 5); // 캔버스 안 자리처럼 정수가 아닌 곳에서도
+                g.translate(7.5, 5); // 반 픽셀 이동에서도(캔버스 안 자리) 굵기와 자리가 맞는다
                 g.scale(z, z);
                 DiagMarks.paint(g, Collections.singletonList(d), strong ? d : null, z);
                 g.dispose();
                 int y = (int) Math.round((bb.getY() + bb.getHeight() / 2.0) * z) + 5;
                 int run = 0;
                 int best = 0;
-                for (int x = 0; x < (int) Math.round(bb.getX() * z) + 7; x++) {
+                int first = -1;
+                for (int x = 0; x < (int) Math.round(bb.getX() * z) + 8; x++) {
                     if ((img.getRGB(x, y) & 0xFFFFFF) == red) {
                         run++;
                         best = Math.max(best, run);
+                        if (first < 0) {
+                            first = x;
+                        }
                     } else {
                         run = 0;
                     }
                 }
+                // 테두리 자리: 부품 왼쪽에서 간격(화면 GAP_PX + 배율 1단위)만큼 바깥, 이동 7.5 포함(±2px)
+                double edge = 7.5 + (bb.getX() - DiagMarks.px(DiagMarks.GAP_PX, z) - 1) * z;
+                assertTrue(Math.abs(first - edge) <= 2 + (strong ? DiagMarks.FOCUS_BORDER_PX : DiagMarks.BORDER_PX),
+                        "border where it belongs at " + z + ": " + first + " vs " + edge);
                 int want = strong ? (int) DiagMarks.FOCUS_BORDER_PX : (int) DiagMarks.BORDER_PX;
                 assertEquals(want, best, (strong ? "focused" : "normal") + " border at " + z);
             }
