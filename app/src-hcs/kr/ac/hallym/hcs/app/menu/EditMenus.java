@@ -371,6 +371,14 @@ public final class EditMenus implements ContextMenus.Provider {
 
     void subcircuit(ContextMenus.Target t, Component c, JPopupMenu menu) {
         Circuit sub = ((SubcircuitFactory) c.getFactory()).getSubcircuit();
+        // 다른 파일(라이브러리)의 회로는 원본 파일에서 고친다(P-03): 여기서 모양을 바꾸면 그 파일에 저장되지 않고
+        // 다음 갱신 때 사라지므로 모양 편집 항목 대신 원본 파일로 가는 항목만 둔다
+        java.io.File origin = kr.ac.hallym.hcs.app.libs.LibrarySync.originFile(t.project, sub);
+        if (origin != null) {
+            menu.add(item("menu.editOriginal", () -> kr.ac.hallym.hcs.app.libs.LibrarySync.editOriginal(t.project,
+                    origin, sub.getName()), origin.getName()));
+            return;
+        }
         menu.add(item("menu.editAppearance", () -> {
             t.project.setCurrentCircuit(sub);
             t.project.getFrame().setEditorView(Frame.EDIT_APPEARANCE);

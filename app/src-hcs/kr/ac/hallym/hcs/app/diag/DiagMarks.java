@@ -52,13 +52,28 @@ public final class DiagMarks {
             return;
         }
         double z = canvas.getHcsZoom() == null ? 1.0 : canvas.getHcsZoom().zoomFactor();
-        paint((Graphics2D) g0, here, diags.focused(), z);
+        paint((Graphics2D) g0, here, diags.focused(), z, kr.ac.hallym.hcs.app.labels.LabelOverlay.chipRects(canvas));
     }
 
     /** 진단 목록을 그린다(회로 좌표의 Graphics, 배율 z). */
     static void paint(Graphics2D g0, java.util.List<Diagnostic> here, Diagnostic focus, double z) {
+        paint(g0, here, focus, z, java.util.Collections.emptyList());
+    }
+
+    /** chips: 라벨 칩 자리(회로 좌표). 테두리와 점은 칩 위에 그리지 않는다(칩 글자를 가리지 않게, P-03 검토). */
+    static void paint(Graphics2D g0, java.util.List<Diagnostic> here, Diagnostic focus, double z,
+            java.util.List<java.awt.Rectangle> chips) {
         Graphics2D g = (Graphics2D) g0.create();
         try {
+            if (!chips.isEmpty()) {
+                java.awt.Rectangle clip = g.getClipBounds();
+                java.awt.geom.Area a = new java.awt.geom.Area(clip != null ? clip
+                        : new java.awt.Rectangle(-100000, -100000, 200000, 200000));
+                for (java.awt.Rectangle r : chips) {
+                    a.subtract(new java.awt.geom.Area(r));
+                }
+                g.setClip(a);
+            }
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             // 선 덧칠을 먼저(부품 테두리가 위에 오게), 누른 것을 마지막에
             for (boolean strongPass : new boolean[] {false, true}) {

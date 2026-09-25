@@ -212,6 +212,9 @@ public final class Shots {
         if (want(scenes, "19")) {
             instanceBanner(demo);
         }
+        if (want(scenes, "20")) {
+            crossTabLibraries(demo);
+        }
         if (want(scenes, "14")) {
             messages(demo);
             gateUndefined(demo);
@@ -423,6 +426,87 @@ public final class Shots {
         sleep(600);
         edt(() -> p.setCurrentCircuit(main));
         sleep(600);
+    }
+
+    /**
+     * 20: 탭 간 라이브러리(P-03). 1bit_adder.circ와 ripple_carry.circ(tests/circ/libs의 복사본)를 열고, 새 파일에서
+     * 검색 "adder"의 Open Files 묶음으로 1bit_adder를 놓는다. 1bit_adder의 출력 핀을 지우고 저장하면 끊길 연결을
+     * 알리고(취소), 속만 고쳐 저장하면 ripple_carry 탭에 Updated가 붙는다. 인스턴스 우클릭의 Edit Original File.
+     */
+    void crossTabLibraries(Project base) throws Exception {
+        File dir = java.nio.file.Files.createTempDirectory("hcs-p03").toFile();
+        for (String n : new String[] {"1bit_adder", "ripple_carry"}) {
+            java.nio.file.Files.copy(new File("tests/circ/libs/" + n + ".circ").toPath(),
+                    new File(dir, n + ".circ").toPath());
+        }
+        Project adder = open(new File(dir, "1bit_adder.circ").getPath());
+        Project ripple = open(new File(dir, "ripple_carry.circ").getPath());
+        edt(() -> canvas(ripple).getHcsZoom().fitCircuit());
+        sleep(900);
+        snapFull("20a-ripple-uses-adder");
+        // 새 파일: 검색 "adder" → Open Files · 1bit_adder.circ
+        Project cpu = newProject(base);
+        useTool(cpu, "Edit Tool");
+        clickCanvas(cpu, Location.create(300, 200));
+        keyCombo(KeyEvent.VK_CONTROL, KeyEvent.VK_K);
+        sleep(900);
+        Window w = window(x -> x.getClass().getSimpleName().equals("PaletteWindow") && x.isShowing());
+        if (w == null) {
+            log.add("20b: no palette window");
+            return;
+        }
+        JTextField q = (JTextField) find(w, x -> x instanceof JTextField);
+        edt(() -> q.setText("adder"));
+        sleep(900);
+        // 기본 Adder가 먼저다: 한 칸 내려 Open Files 항목을 고른다
+        key(KeyEvent.VK_DOWN);
+        sleep(400);
+        snapCrop(pad(w.getBounds(), 16), "20b-open-files-search");
+        key(KeyEvent.VK_ENTER);
+        sleep(1500);
+        useTool(cpu, "Edit Tool");
+        deselect(cpu);
+        snapFull("20c-loaded-and-placed");
+        // 1bit_adder의 출력 핀 s를 지우고 저장: 끊길 연결 알림(취소)
+        activate(adder);
+        Circuit add = adder.getLogisimFile().getCircuit("1bit_adder");
+        com.cburch.logisim.comp.Component s = byLabel(add, "s");
+        edt(() -> {
+            com.cburch.logisim.circuit.CircuitMutation m = new com.cburch.logisim.circuit.CircuitMutation(add);
+            m.remove(s);
+            adder.doAction(m.toAction(() -> "Delete Pin"));
+        });
+        sleep(600);
+        SwingUtilities.invokeLater(() -> ProjectActions.doSave(adder));
+        sleep(1500);
+        Window dlg = window(x -> x instanceof JDialog && x.isShowing());
+        if (dlg != null) {
+            snapCrop(pad(dlg.getBounds(), 16), "20d-port-change-warning");
+        } else {
+            log.add("20d: no warning dialog");
+        }
+        closeDialogs();
+        edt(() -> adder.undoAction());
+        sleep(600);
+        // 속만 고쳐 저장: ripple_carry 탭에 Updated
+        edt(() -> {
+            com.cburch.logisim.comp.ComponentFactory not = ((com.cburch.logisim.tools.AddTool) adder.getLogisimFile()
+                    .getLoader().getBuiltin().getLibrary("Gates").getTool("NOT Gate")).getFactory();
+            com.cburch.logisim.circuit.CircuitMutation m = new com.cburch.logisim.circuit.CircuitMutation(add);
+            m.add(not.createComponent(Location.create(300, 420), not.createAttributeSet()));
+            adder.doAction(m.toAction(() -> "Add NOT Gate"));
+            ProjectActions.doSave(adder);
+        });
+        sleep(1500);
+        snapCrop(new Rectangle(0, 0, W, 120), "20e-updated-badge");
+        // ripple_carry의 fa0 우클릭: Edit Original File
+        activate(ripple);
+        setZoom(ripple, 1.0);
+        com.cburch.logisim.comp.Component fa0 = byLabel(ripple.getLogisimFile().getMainCircuit(), "fa0");
+        com.cburch.logisim.data.Bounds b = fa0.getBounds();
+        // 오른쪽 아래 모서리 가까이 누른다: 메뉴가 아래·오른쪽으로 열려 부품을 덮지 않는다
+        menuAt(ripple, Location.create(b.getX() + b.getWidth() - 3, b.getY() + b.getHeight() - 3),
+                "20f-edit-original-menu");
     }
 
     static com.cburch.logisim.comp.Component firstSub(Circuit c, String name) {

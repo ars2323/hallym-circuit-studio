@@ -314,6 +314,8 @@ public class ProjectActions {
 	}
 	
 	private static boolean doSave(Project proj, File f) {
+		// HCS: P-03 warn when other open files lose instance connections, then refresh them after saving
+		if (!kr.ac.hallym.hcs.app.libs.LibrarySync.beforeSave(proj, f)) return false;
 		Loader loader = proj.getLogisimFile().getLoader();
 		Tool oldTool = proj.getTool();
 		proj.setTool(null);
@@ -328,6 +330,7 @@ public class ProjectActions {
 		if (ret) {
 			AppPreferences.updateRecentFile(f);
 			proj.setFileAsClean();
+			kr.ac.hallym.hcs.app.libs.LibrarySync.afterSave(proj, f); // HCS: P-03
 		}
 		proj.setTool(oldTool);
 		return ret;

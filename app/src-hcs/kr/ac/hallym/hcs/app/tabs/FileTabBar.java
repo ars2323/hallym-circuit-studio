@@ -80,6 +80,37 @@ public final class FileTabBar extends JPanel {
             }
         });
         closable(files, (tabs, i) -> FileTabs.get().close(model.tabs().get(i).key()));
+        // 파일 탭을 캔버스로 끌어 놓으면 그 파일을 라이브러리로 불러와 main 회로를 놓는다(P-03)
+        MouseAdapter drag = new MouseAdapter() {
+            int from = -1;
+
+            @Override
+            public void mousePressed(MouseEvent e) {
+                from = files.indexAtLocation(e.getX(), e.getY());
+            }
+
+            @Override
+            public void mouseDragged(MouseEvent e) {
+                if (from >= 0) {
+                    files.setCursor(java.awt.Cursor.getPredefinedCursor(canvasPoint(e) != null
+                            ? java.awt.Cursor.HAND_CURSOR : java.awt.Cursor.DEFAULT_CURSOR));
+                }
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                int i = from;
+                from = -1;
+                files.setCursor(null);
+                com.cburch.logisim.data.Location at = canvasPoint(e);
+                if (i < 0 || at == null || i >= model.tabs().size()) {
+                    return;
+                }
+                dropTab(model.tabs().get(i).key(), at);
+            }
+        };
+        files.addMouseListener(drag);
+        files.addMouseMotionListener(drag);
 
         proj.addProjectListener(projectListener);
         circuits.addChangeListener(e -> {
@@ -100,6 +131,31 @@ public final class FileTabBar extends JPanel {
         });
         updateFiles();
         updateCircuits();
+    }
+
+    /** 탭 막대 위의 마우스 자리가 이 창 캔버스 위면 회로 좌표, 아니면 null. */
+    private com.cburch.logisim.data.Location canvasPoint(MouseEvent e) {
+        com.cburch.logisim.gui.main.Canvas canvas = frame.getCanvas();
+        java.awt.Point p = SwingUtilities.convertPoint(files, e.getPoint(), canvas);
+        java.awt.Rectangle vis = canvas.getVisibleRect();
+        if (!canvas.isShowing() || !vis.contains(p)) {
+            return null;
+        }
+        double z = canvas.getHcsZoom() == null ? 1.0 : canvas.getHcsZoom().zoomFactor();
+        return com.cburch.logisim.data.Location.create((int) Math.round(p.x / z), (int) Math.round(p.y / z));
+    }
+
+    /** 탭 other의 파일을 이 창 회로의 at에 놓는다. 같은 파일이면 아무것도 안 한다. */
+    boolean dropTab(Project other, com.cburch.logisim.data.Location at) {
+        java.io.File f = kr.ac.hallym.hcs.app.libs.OpenFileLibraries.fileOf(other);
+        if (other == proj || f == null) {
+            if (other != proj) {
+                kr.ac.hallym.hcs.app.sim.SimControls.notice(proj, Messages.get("libs.unsaved"));
+            }
+            return false;
+        }
+        return kr.ac.hallym.hcs.app.palette.PaletteActions.dropFile(proj, f,
+                other.getLogisimFile().getMainCircuit().getName(), at);
     }
 
     private static JTabbedPane strip() {
@@ -126,10 +182,14 @@ public final class FileTabBar extends JPanel {
             }
             for (int i = 0; i < tabs.size(); i++) {
                 TabModel.Tab<Project> t = tabs.get(i);
-                String title = (t.dirty() ? DIRTY : "") + t.title();
+                String title = (t.dirty() ? DIRTY : "") + t.title() + (t.updated() ? " · " + Messages.get(
+                        "tabs.updatedBadge") : "");
                 String tip = t.file() == null ? Messages.get("tabs.unsaved") : t.file().getPath();
                 if (t.dirty()) {
                     tip = tip + " (" + Messages.get("tabs.modified") + ")";
+                }
+                if (t.updated()) {
+                    tip = tip + " — " + Messages.get("tabs.updatedTip");
                 }
                 if (i >= files.getTabCount()) {
                     files.addTab(title, empty());

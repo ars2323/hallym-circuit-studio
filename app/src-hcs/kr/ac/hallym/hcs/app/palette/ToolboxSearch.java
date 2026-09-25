@@ -132,7 +132,8 @@ public final class ToolboxSearch extends JPanel {
             cards.show(body, "tree");
             return;
         }
-        for (Palette.Item it : results(q, proj.getLogisimFile())) {
+        for (Palette.Item it : results(q, proj.getLogisimFile(),
+                kr.ac.hallym.hcs.app.libs.OpenFileLibraries.candidates(proj))) {
             model.addElement(it);
         }
         if (!model.isEmpty()) {
@@ -143,10 +144,15 @@ public final class ToolboxSearch extends JPanel {
 
     /** 트리를 거른 결과: 팔레트 검색에서 명령을 뺀 부품·서브회로. */
     public static List<Palette.Item> results(String query, LogisimFile file) {
+        return results(query, file, java.util.Collections.emptyList());
+    }
+
+    public static List<Palette.Item> results(String query, LogisimFile file,
+            List<kr.ac.hallym.hcs.app.libs.OpenFileLibraries.OpenCircuit> openFiles) {
         List<Library> libs = new ArrayList<>(file.getLibraries());
         List<Palette.Item> ret = new ArrayList<>();
         for (Palette.Item it : Palette.search(query, libs, file.getCircuits(), PaletteActions.recent(),
-                PaletteActions.favorites())) {
+                PaletteActions.favorites(), openFiles)) {
             if (it.kind != Palette.Kind.COMMAND) {
                 ret.add(it);
             }
@@ -196,6 +202,14 @@ public final class ToolboxSearch extends JPanel {
     }
 
     private void choose(Palette.Item it) {
+        if (it.kind == Palette.Kind.OPEN_FILE) {
+            // 다른 탭의 회로: Load Library를 자동으로 한 뒤 그 회로 도구를 든다(P-03)
+            Tool t = PaletteActions.openFileTool(proj, it);
+            if (t != null) {
+                proj.setTool(t);
+            }
+            return;
+        }
         Tool t = toolFor(proj.getLogisimFile(), it);
         if (t == null) {
             return;

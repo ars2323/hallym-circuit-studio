@@ -27,6 +27,8 @@ public final class TabModel<K> {
         File file;
         String title;
         boolean dirty;
+        /** 이 파일이 쓰는 라이브러리 파일이 저장되어 새 버전을 불러왔다(P-03). 탭을 보면 지운다. */
+        boolean updated;
 
         Tab(K key, File file, String title) {
             this.key = key;
@@ -48,6 +50,10 @@ public final class TabModel<K> {
 
         public boolean dirty() {
             return dirty;
+        }
+
+        public boolean updated() {
+            return updated;
         }
     }
 
@@ -128,10 +134,24 @@ public final class TabModel<K> {
 
     public void activate(K key) {
         synchronized (this) {
-            if (indexOf(key) < 0 || Objects.equals(active, key)) {
+            int i = indexOf(key);
+            if (i < 0 || Objects.equals(active, key)) {
                 return;
             }
             active = key;
+            tabs.get(i).updated = false; // 본 탭은 "Updated"를 지운다
+        }
+        fire();
+    }
+
+    /** 라이브러리가 새로 불러와졌다는 표시(P-03). 지금 보는 탭이면 켜지 않는다. */
+    public void markUpdated(K key) {
+        synchronized (this) {
+            int i = indexOf(key);
+            if (i < 0 || Objects.equals(active, key) || tabs.get(i).updated) {
+                return;
+            }
+            tabs.get(i).updated = true;
         }
         fire();
     }
