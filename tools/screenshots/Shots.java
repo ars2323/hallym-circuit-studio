@@ -123,6 +123,7 @@ public final class Shots {
             snapFull("02-demo-fit-orig");
             zoomCrops(p, "orig");
             junctionsAndJumps(p, "orig");
+            portNames(p, "orig");
             return;
         }
         if (want(scenes, "01")) {
@@ -216,6 +217,9 @@ public final class Shots {
         if (want(scenes, "20")) {
             crossTabLibraries(demo);
         }
+        if (want(scenes, "21")) {
+            portNames(demo, "");
+        }
         if (want(scenes, "14")) {
             messages(demo);
             gateUndefined(demo);
@@ -275,6 +279,67 @@ public final class Shots {
         Bounds j = Bounds.create(100, 60, 900, 400);
         centerOn(p, j);
         snapLogical(p, j, "16b-junctions-25" + s);
+        setZoom(p, 1.0);
+    }
+
+    /**
+     * 21: 원조 부품의 포트 이름(S-06, S-07). PC 레지스터와 PC+4 가산기를 100·200·400%로, 원조와 같은 자리에서. 포크는
+     * 100%에서 이름을 숨기고(마우스를 올리면 보임, 21c) 200% 이상에서 부품 바깥에 그린다. 원조는 늘 안쪽에 그린다.
+     */
+    void portNames(Project p, String suffix) throws Exception {
+        String s = suffix.isEmpty() ? "" : "-" + suffix;
+        if (!orig) {
+            activate(p);
+            deselect(p);
+        }
+        Circuit c = p.getCurrentCircuit();
+        com.cburch.logisim.comp.Component pc = byLabel(c, "PC");
+        com.cburch.logisim.comp.Component add = null;
+        for (com.cburch.logisim.comp.Component x : c.getNonWires()) {
+            if (x.getFactory().getName().equals("Adder") && (add == null || x.getLocation().getY() < add
+                    .getLocation().getY())) {
+                add = x;
+            }
+        }
+        for (double z : new double[] {1.0, 2.0, 4.0}) {
+            setZoom(p, z);
+            int pct = (int) Math.round(z * 100);
+            com.cburch.logisim.comp.Component[] parts = {pc, add};
+            String[] names = {"21a-pc-", "21b-adder-"};
+            for (int i = 0; i < parts.length; i++) {
+                if (parts[i] == null) {
+                    log.add("21: no " + names[i]);
+                    continue;
+                }
+                Bounds b = parts[i].getBounds().expand(z >= 4 ? 16 : 30);
+                centerOn(p, b);
+                snapLogical(p, b, names[i] + pct + s);
+            }
+        }
+        if (!orig && add != null) {
+            // 100%에서 가산기에 마우스를 올리면 이름이 보인다
+            setZoom(p, 1.0);
+            Bounds b = add.getBounds().expand(40);
+            centerOn(p, b);
+            // 왼쪽 위 모서리 가까이: 마우스 오버 정보 창은 아래로 열려 포트 이름을 가리지 않는다
+            Bounds ab = add.getBounds();
+            Point at = screen(p, Location.create(ab.getX() + 6, ab.getY() + 4));
+            robot.mouseMove(at.x, at.y);
+            sleep(350); // 마우스 오버 정보(Swing 도움말, 750ms 뒤)가 뜨기 전
+            snapLogical(p, b, "21c-adder-hover-100");
+            robot.mouseMove(5, 5);
+            sleep(300);
+            // 25%에서 마우스를 올려도 이름이 읽힌다(화면 10px 이상)
+            setZoom(p, 0.25);
+            Bounds b25 = add.getBounds().expand(120);
+            centerOn(p, b25);
+            Point at25 = screen(p, Location.create(ab.getX() + 6, ab.getY() + 4));
+            robot.mouseMove(at25.x, at25.y);
+            sleep(350);
+            snapLogical(p, b25, "21d-adder-hover-25");
+            robot.mouseMove(5, 5);
+            sleep(300);
+        }
         setZoom(p, 1.0);
     }
 

@@ -559,6 +559,7 @@ public class Canvas extends JPanel
 		this.tickCounter = new TickCounter();
 
 		setBackground(Color.white);
+		setFont(new Font("Dialog", Font.PLAIN, 12)); // HCS: S-06 the original (Metal) canvas font, so parts keep their text width
 		addMouseListener(myListener);
 		addMouseMotionListener(myListener);
 		addKeyListener(myListener);

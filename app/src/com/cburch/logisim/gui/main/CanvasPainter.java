@@ -165,7 +165,8 @@ class CanvasPainter implements PropertyChangeListener {
 		boolean printerView = AppPreferences.PRINTER_VIEW.getBoolean();
 		// HCS: label chips take the place of the original label text on the editing canvas (#79)
 		Graphics hcsG = kr.ac.hallym.hcs.app.labels.LabelOverlay.wrap(canvas, g, circ, hidden);
-		ComponentDrawContext context = new ComponentDrawContext(canvas,
+		// HCS: S-06 original parts' port names only when hovered or at 200%+, outside the part
+		ComponentDrawContext context = kr.ac.hallym.hcs.app.labels.PortLabels.context(canvas,
 				circ, circState, base, hcsG, printerView);
 		context.setHighlightedWires(highlightedWires);
 		circ.draw(context, hidden);
