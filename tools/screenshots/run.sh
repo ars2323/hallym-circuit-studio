@@ -25,7 +25,7 @@ xvfb-run -a -s "$screen" "$JAVA" "${opts[@]}" -Djava.util.prefs.userRoot="$B/pre
     -Dhcs.configDir="$B/config-fork" -cp "$B/classes:$jar" Shots fork "$out" "$@"
 
 # 원조 2.7.1: 같은 회로, hcs-mips.jar를 회로 옆에 둔다(원조가 JAR 라이브러리를 찾는 방식)
-if [ $# -eq 0 ] || printf '%s\n' "$@" | grep -qx '0[23]'; then
+if [ $# -eq 0 ] || printf '%s\n' "$@" | grep -qxE '0[23]|16'; then
     cp tests/circ/demo-datapath.circ "$B/orig/"
     cp lib-mips/build/libs/hcs-mips.jar "$B/orig/"
     (cd "$B/orig" && xvfb-run -a -s "$screen" "$JAVA" "${opts[@]}" -Djava.util.prefs.userRoot=prefs-orig \
