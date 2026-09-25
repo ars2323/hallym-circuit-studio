@@ -246,14 +246,14 @@ public final class NameIndex {
     }
 
     /**
-     * 위치 줄의 자리 이름(경로 포함): 붙은 포트 {@code main › datapath › PC.D}, 없으면 번호 이름
-     * ({@code main › Reg #2}, {@code main › Tunnel #3}).
+     * 위치 줄의 자리 이름(경로 포함, 사람이 읽는 꼴): 붙은 포트 {@code main › datapath › PC (D)}, 없으면 번호 이름
+     * ({@code main › Register #2}, {@code main › Tunnel #3}).
      */
     public static String place(Entry e) {
         String circuitPath = circuitPath(e.path);
         Port p = attached(e);
-        return p == null ? Names.path(circuitPath, Names.numbered(e.circuit, e.component))
-                : Names.path(circuitPath, Names.port(e.circuit, p.component, p.end));
+        return p == null ? Names.path(circuitPath, Names.numberedTitle(e.circuit, e.component))
+                : Names.path(circuitPath, Names.portTitle(e.circuit, p.component, p.end));
     }
 
     /** 이웃 포트의 순위: 작을수록 자리를 잘 알려 준다. */

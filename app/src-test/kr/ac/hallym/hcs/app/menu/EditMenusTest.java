@@ -47,8 +47,8 @@ class EditMenusTest {
 
         Netlist.Net net = Netlist.of(main).netOf(and, 0);
         Map<String, List<String>> info = EditMenus.netInfo(main, net);
-        assertEquals(Collections.singletonList("AND #1.out"), info.get("drivers"));
-        assertEquals(Collections.singletonList("R.D"), info.get("readers"));
+        assertEquals(Collections.singletonList("AND Gate #1 (output)"), info.get("drivers"));
+        assertEquals(Collections.singletonList("R (D)"), info.get("readers"));
         assertEquals(Arrays.asList("d", "d"), sorted(info.get("others")), "a tunnel is named once");
     }
 

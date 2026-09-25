@@ -390,7 +390,7 @@ public final class Shortcuts {
                 EndData end = c.getEnds().get(i);
                 Location e = end.getLocation();
                 if (Math.abs(e.getX() - p.getX()) <= 4 && Math.abs(e.getY() - p.getY()) <= 4) {
-                    return Messages.get("keys.portTip", Names.port(circuit, c, i), end.getWidth().getWidth(),
+                    return Messages.get("keys.portTip", Names.portTitle(circuit, c, i), end.getWidth().getWidth(),
                             Kinds.portName(c, i));
                 }
             }

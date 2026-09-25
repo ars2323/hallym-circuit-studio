@@ -107,7 +107,7 @@ class ShortcutsTest {
         Circuit main = file.getMainCircuit();
         Location q = reg.getEnds().get(0).getLocation();
         String tip = Shortcuts.portTip(main, q.translate(2, 1));
-        assertTrue(tip.startsWith("PC.Q · 8"), tip);
+        assertTrue(tip.startsWith("PC (Q) · 8"), tip);
         assertNull(Shortcuts.portTip(main, Location.create(10, 10)));
     }
 

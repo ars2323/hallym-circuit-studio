@@ -478,16 +478,16 @@ public final class EditMenus implements ContextMenus.Provider {
         Map<String, List<String>> m = new LinkedHashMap<>();
         List<String> drivers = new ArrayList<>();
         for (Netlist.PortRef p : net.drivers()) {
-            drivers.add(Names.port(circuit, p.component, p.end));
+            drivers.add(Names.portTitle(circuit, p.component, p.end));
         }
         List<String> readers = new ArrayList<>();
         for (Netlist.PortRef p : net.readers()) {
-            readers.add(Names.port(circuit, p.component, p.end));
+            readers.add(Names.portTitle(circuit, p.component, p.end));
         }
         List<String> others = new ArrayList<>();
         for (Netlist.PortRef p : net.ports()) {
             if (!net.drivers().contains(p) && !net.readers().contains(p)) {
-                others.add(Names.port(circuit, p.component, p.end));
+                others.add(Names.portTitle(circuit, p.component, p.end));
             }
         }
         m.put("drivers", drivers);

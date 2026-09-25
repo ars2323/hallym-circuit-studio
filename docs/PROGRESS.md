@@ -19,7 +19,7 @@
 | S-06 | 포트 이름 덧그림 과밀 | #169 | 대기 |  |  |
 | S-07 | Register 값 표시 겹침 | #170 | 대기 |  |  |
 | S-08 | 기본 모양 서브회로의 포트 이름 | #171 | 대기 |  |  |
-| S-09 | 찾기 결과의 내부 포트 이름 | #172 | 대기 |  |  |
+| S-09 | 찾기 결과의 내부 포트 이름 | #172 | 완료 | (이 PR) | D-067, KindsTest.readablePortTitles, NameIndexTest(Splitter #1 (combined end)), EditMenusTest, ShortcutsTest, 09b·09d |
 | S-10 | 화면 맞춤 여백 | #173 | 대기 |  |  |
 | S-11 | 왼쪽 패널 빈 공간 | #174 | 대기 |  |  |
 | S-12 | 제어 핀 라벨 중복 | #175 | 대기 |  |  |
@@ -53,7 +53,7 @@
 | P-01 | 영향 경로(#83) | #193 | 완료 | (이 PR) | D-062, InfluenceTest(레지스터 멈춤·통과·사이클, 뒤, 깊이, 두 부품 사이, 터널, 클럭 제외, 스플리터 비트, 서브회로 출력 선택, 고리, 100번 결정성), InfluenceOverlayTest, 17a~17f |
 | P-07 | Signal Flow 애니메이션(추가 지시, P-01 다음) | #243 | 대기 |  |  |
 | P-02 | 서브회로 인스턴스 안내(#84) | #194 | 완료 | #248 | D-064, InstancePathsTest(경로·상태·미리 보기·더하기·끼우기·순서 바꾸기·삭제·문구), InstanceBannerGuiTest, 19a~19e |
-| P-03 | 탭 간 라이브러리(#85) | #195 | 완료 | (이 PR) | D-065, OpenFileLibrariesTest(후보·자동 Load Library·되돌리기·순환 차단·끊길 연결·다시 열 때), LibraryFixturesTest(원조 jar가 상대 경로 라이브러리로 18 계산), LibrarySyncGuiTest(탭 끌어 놓기·저장 반영·Updated·Edit Original·포트 변경), 20a~20f |
+| P-03 | 탭 간 라이브러리(#85) | #195 | 완료 | #249 | D-065, OpenFileLibrariesTest(후보·자동 Load Library·되돌리기·순환 차단·끊길 연결·다시 열 때), LibraryFixturesTest(원조 jar가 상대 경로 라이브러리로 18 계산), LibrarySyncGuiTest(탭 끌어 놓기·저장 반영·Updated·Edit Original·포트 변경), 20a~20f |
 | P-04 | 서브회로 포트 순서 끌어 바꾸기 | #196 | 대기 |  |  |
 | P-05 | 다른 .circ에서 서브회로 가져오기 | #197 | 대기 |  |  |
 | P-06 | 나란히 보기·창 분리·탭 복원 | #198 | 대기 |  |  |

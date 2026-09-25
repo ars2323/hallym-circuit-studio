@@ -245,6 +245,65 @@ public final class Kinds {
         return k.ports.name(c, end);
     }
 
+    /**
+     * 사람이 읽는 포트 이름(S-09): 찾기 결과·넷 정보·도움말에 쓴다. 식별자({@link #portName})는 짧고 코드 같아서
+     * ("combined", "in1") 그대로 보이면 읽기 어렵다. 스플리터는 "combined end"·"[31:26] end", 게이트는 "input 2"·
+     * "output"(1부터), 선택기류는 "input 0"(선택 값과 같게 0부터)·"select"·"enable"·"output". 나머지는 원조 부품이
+     * 스스로 쓰는 짧은 이름(D, Q, A, sel…)이라 그대로 둔다.
+     */
+    public static String readablePort(Component c, int end) {
+        String id = portName(c, end);
+        Kind k = of(c);
+        if (k.factory.equals("Splitter")) {
+            return end == 0 ? word("port.combinedEnd") : word("port.armEnd", armBits(c, end - 1));
+        }
+        if (k.category == Category.GATE || k.category == Category.PLEXER) {
+            if (id.equals("out")) {
+                return word("port.output");
+            }
+            if (id.equals("sel")) {
+                return word("port.select");
+            }
+            if (id.equals("en")) {
+                return word("port.enable");
+            }
+            if (id.matches("in\\d+")) {
+                int n = Integer.parseInt(id.substring(2));
+                return word("port.inputN", k.category == Category.GATE ? n + 1 : n);
+            }
+            if (id.matches("out\\d+")) {
+                return word("port.outputN", Integer.parseInt(id.substring(3)));
+            }
+            if (id.equals("in")) {
+                return word("port.input");
+            }
+        }
+        return id;
+    }
+
+    /** 포트 이름 낱말(영어 이름, names.properties). */
+    private static String word(String key, Object... args) {
+        return kr.ac.hallym.hcs.app.Messages.get(key, args);
+    }
+
+    /** 스플리터 팔 arm(0부터)이 맡은 비트: [31:26], [5], 여러 구간이면 [31:26,3:0]. */
+    static String armBits(Component splitter, int arm) {
+        int[] bitArm = Netlist.splitterArms(splitter);
+        StringBuilder sb = new StringBuilder();
+        int hi = -1;
+        for (int b = bitArm.length - 1; b >= -1; b--) {
+            boolean in = b >= 0 && bitArm[b] == arm;
+            if (in && hi < 0) {
+                hi = b;
+            } else if (!in && hi >= 0) {
+                int lo = b + 1;
+                sb.append(sb.length() > 0 ? "," : "").append(hi == lo ? String.valueOf(hi) : hi + ":" + lo);
+                hi = -1;
+            }
+        }
+        return "[" + sb + "]";
+    }
+
     /** 등록표에 규칙이 없을 때: 방향별 번호(in0, out0, io0). */
     static String generic(Component c, int end) {
         List<EndData> ends = c.getEnds();

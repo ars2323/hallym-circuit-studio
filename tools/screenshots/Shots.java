@@ -181,7 +181,8 @@ public final class Shots {
             splitterEditor(ref);
         }
         if (want(scenes, "09")) {
-            find(ref);
+            activate(demo);
+            find(demo); // 사람이 그린 회로(체크리스트 10)
         }
         if (want(scenes, "13")) {
             keysTable(ref);
@@ -1007,6 +1008,18 @@ public final class Shots {
             robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
             sleep(900);
             snapCrop(pad(d.getBounds(), 10), "09b-find-pc-expanded");
+        }
+        // 선택기 입력에 붙은 이름: "Multiplexer #1 (select)"처럼 읽는 이름(S-09)
+        edt(() -> q.setText("MemtoReg"));
+        sleep(900);
+        if (list != null && list.getModel().getSize() > 0) {
+            Rectangle cell = list.getCellBounds(0, 0);
+            Point lp = list.getLocationOnScreen();
+            robot.mouseMove(lp.x + cell.x + 20, lp.y + cell.y + cell.height / 2);
+            robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+            robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+            sleep(900);
+            snapCrop(pad(d.getBounds(), 10), "09d-find-memtoreg-expanded");
         }
         JTabbedPane tabs = (JTabbedPane) find(d, x -> x instanceof JTabbedPane);
         edt(() -> tabs.setSelectedIndex(1));
