@@ -109,13 +109,17 @@ public final class InstancePaths {
         public final Component pin;
         public final Location at;
         public final boolean connected;
+        /** 같은 넷의 다른 포트들(부품과 포트 번호). 포트가 밀려 옆 넷에 닿아도 알아보기 위해 둔다. */
+        final java.util.Set<String> partners;
 
-        PortUse(Circuit parent, Component instance, Component pin, Location at, boolean connected) {
+        PortUse(Circuit parent, Component instance, Component pin, Location at, boolean connected,
+                java.util.Set<String> partners) {
             this.parent = parent;
             this.instance = instance;
             this.pin = pin;
             this.at = at;
             this.connected = connected;
+            this.partners = partners;
         }
     }
 
@@ -139,11 +143,25 @@ public final class InstancePaths {
                     }
                     Location at = inst.getEnd(end).getLocation();
                     out.add(new PortUse(parent, inst, Instance.getComponentFor(pin), at, connected(parent, nl, inst,
-                            end)));
+                            end), partners(nl, inst, end)));
                 }
             }
         }
         return out;
+    }
+
+    /** 같은 넷의 다른 포트들(이 인스턴스의 포트는 빼고, 부품 정체와 포트 번호). */
+    static java.util.Set<String> partners(Netlist nl, Component inst, int end) {
+        java.util.Set<String> ret = new java.util.TreeSet<>();
+        Netlist.Net n = nl.netOf(inst, end);
+        if (n != null) {
+            for (Netlist.PortRef p : n.ports()) {
+                if (p.component != inst) {
+                    ret.add(System.identityHashCode(p.component) + "#" + p.end);
+                }
+            }
+        }
+        return ret;
     }
 
     /** 포트가 무엇인가에 이어져 있는가: 넷에 다른 포트나 선이 있다. */
@@ -192,7 +210,10 @@ public final class InstancePaths {
         return m.size();
     }
 
-    /** 끊긴 연결: 바꾸기 전 이어져 있던 포트가, 바꾼 뒤 사라졌거나(핀 삭제) 자리가 바뀌어 이어지지 않는다. */
+    /**
+     * 끊긴 연결: 바꾸기 전 이어져 있던 포트가, 바꾼 뒤 사라졌거나(핀 삭제), 자리가 바뀌어 이어지지 않거나, 밀려서 다른
+     * 포트들과 이어졌다(옆 터널에 닿음 = 다른 신호).
+     */
     public static final class Broken {
         public final PortUse before;
         /** 바뀐 뒤 같은 핀의 포트 자리. 핀이 없어졌으면 null. */
@@ -217,7 +238,8 @@ public final class InstancePaths {
             PortUse a = now.get(key(b.instance, b.pin));
             if (a == null) {
                 out.add(new Broken(b, null));
-            } else if (!a.connected) {
+            } else if (!a.connected || !b.partners.isEmpty() && !a.partners.equals(b.partners)) {
+                // 떨어졌거나, 밀려서 다른 넷(옆 터널 등)에 닿았다
                 out.add(new Broken(b, a.at));
             }
         }
@@ -231,6 +253,26 @@ public final class InstancePaths {
     private static String key(Component inst, Component pin) {
         String l = Names.label(pin);
         return System.identityHashCode(inst) + "/" + (l != null ? "label:" + l : "id:" + System.identityHashCode(pin));
+    }
+
+    /** at에 inst 말고 다른 것(선, 다른 부품의 포트)이 닿아 있는가. */
+    public static boolean touchesAnything(Circuit parent, Component inst, Location at) {
+        for (Wire w : parent.getWires()) {
+            if (w.contains(at)) {
+                return true;
+            }
+        }
+        for (Component c : parent.getNonWires()) {
+            if (c == inst) {
+                continue;
+            }
+            for (int i = 0; i < c.getEnds().size(); i++) {
+                if (c.getEnd(i).getLocation().equals(at)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /** 끊긴 자리 옆에 옛 선 끝이 그대로 있는가(다시 이을 수 있는 경우). */

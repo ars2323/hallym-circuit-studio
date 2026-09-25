@@ -258,7 +258,9 @@ public final class InstanceBanner implements ProjectListener {
     public static int reconnect(Project proj, List<InstancePaths.Broken> broken) {
         java.util.Map<Circuit, List<InstancePaths.Broken>> byParent = new java.util.LinkedHashMap<>();
         for (InstancePaths.Broken x : broken) {
-            if (x.now != null && InstancePaths.wireEndsAt(x.before.parent, x.before.at)) {
+            // 새 자리가 비어 있고(다른 것에 닿지 않음) 옛 자리에 선 끝이 남은 경우만 잇는다
+            if (x.now != null && InstancePaths.wireEndsAt(x.before.parent, x.before.at)
+                    && !InstancePaths.touchesAnything(x.before.parent, x.before.instance, x.now)) {
                 byParent.computeIfAbsent(x.before.parent, k -> new ArrayList<>()).add(x);
             }
         }

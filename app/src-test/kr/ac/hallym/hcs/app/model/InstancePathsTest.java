@@ -173,4 +173,68 @@ class InstancePathsTest {
         assertTrue(broken.stream().anyMatch(x -> x.now == null && "b".equals(Names.label(x.before.pin))),
                 "the b connection is gone");
     }
+
+    /** 인스턴스 포트에 터널을 바로 붙인 main(포트마다 제 터널). */
+    Component tunnelled() throws Exception {
+        file = CircuitBuilder.newFile(new Loader(null), Files.createTempDirectory(tmp, "t").toFile());
+        blk = new Circuit("blk");
+        file.addCircuit(blk);
+        CircuitBuilder sb = new CircuitBuilder(file, blk);
+        sb.add("Wiring", "Pin", 100, 100, "label", "a");
+        sb.add("Wiring", "Pin", 100, 200, "label", "b");
+        sb.add("Wiring", "Pin", 400, 150, "facing", "west", "output", "true", "label", "y");
+        sb.commit();
+        CircuitBuilder b = new CircuitBuilder(file, file.getMainCircuit());
+        Component inst = b.addSubcircuit(blk, 300, 100);
+        for (int i = 0; i < inst.getEnds().size(); i++) {
+            b.tunnel(inst, i, "t" + i);
+        }
+        b.commit();
+        return inst;
+    }
+
+    /** 사이에 핀을 끼우면 원조 기본 모양은 위로 자라서 끼운 자리 위의 포트(a)가 한 칸 올라가 제 터널에서 떨어진다. */
+    @Test
+    void aPinInsertedBetweenShiftsTheLowerPorts() throws Exception {
+        tunnelled();
+        List<InstancePaths.PortUse> before = InstancePaths.snapshot(file, blk);
+        assertTrue(before.stream().allMatch(u -> u.connected), "every port has its tunnel");
+        CircuitBuilder sb = new CircuitBuilder(file, blk);
+        sb.add("Wiring", "Pin", 100, 150, "label", "c");
+        sb.commit();
+        List<InstancePaths.Broken> broken = InstancePaths.broken(before, InstancePaths.snapshot(file, blk));
+        assertEquals(1, broken.size(), "one port moved away from its tunnel");
+        assertEquals("a", Names.label(broken.get(0).before.pin));
+    }
+
+    /** 핀 순서를 바꾸면 두 포트가 서로의 터널에 닿는다: 이어져 있어도 다른 신호라 끊긴 것으로 센다. */
+    @Test
+    void swappedPinsLandOnEachOthersTunnels() throws Exception {
+        tunnelled();
+        List<InstancePaths.PortUse> before = InstancePaths.snapshot(file, blk);
+        Component b = null;
+        for (Component c : blk.getNonWires()) {
+            if ("b".equals(Names.label(c))) {
+                b = c;
+            }
+        }
+        CircuitMutation m = new CircuitMutation(blk);
+        m.replace(b, b.getFactory().createComponent(Location.create(100, 50),
+                (com.cburch.logisim.data.AttributeSet) b.getAttributeSet().clone()));
+        m.execute();
+        List<InstancePaths.PortUse> after = InstancePaths.snapshot(file, blk);
+        assertTrue(after.stream().allMatch(u -> u.connected), "still touching a tunnel");
+        List<InstancePaths.Broken> broken = InstancePaths.broken(before, after);
+        assertEquals(2, broken.size(), "a and b are on each other's tunnels");
+    }
+
+    /** 알림 문구: 되살린 것이 없으면 뒷문장을 빼고, 하나면 단수. */
+    @Test
+    void brokenNoticeWording() {
+        // 테스트는 한국어 환경(설명 문장은 한국어, 이름은 영어)
+        assertEquals("regfile의 핀을 바꿔 인스턴스 연결 1개가 끊겼습니다.",
+                kr.ac.hallym.hcs.app.Messages.get("instance.broken", "regfile", 1, 0));
+        assertEquals("regfile의 핀을 바꿔 인스턴스 연결 2개가 끊겼습니다. 1개는 선을 이어 되살렸습니다.",
+                kr.ac.hallym.hcs.app.Messages.get("instance.broken", "regfile", 2, 1));
+    }
 }

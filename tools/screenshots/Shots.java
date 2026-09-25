@@ -209,6 +209,9 @@ public final class Shots {
         if (want(scenes, "17")) {
             influence(demo);
         }
+        if (want(scenes, "19")) {
+            instanceBanner(demo);
+        }
         if (want(scenes, "14")) {
             messages(demo);
             gateUndefined(demo);
@@ -365,6 +368,61 @@ public final class Shots {
         sleep(600);
         snapLogical(p, area, "17i-cleared");
         setZoom(p, 1.0);
+    }
+
+    /**
+     * 19: 서브회로 인스턴스 안내(P-02). 탐색기에서 regfile을 따로 열면 띠와 "Go to Instance in main", 이어진 입력 핀을
+     * 고르면 끊길 연결 수 미리 보기, 핀 도구를 들면 핀을 더할 때의 미리 보기, 인스턴스로 가면 띠가 사라진다. 핀을
+     * 더해 끊긴 연결을 되살리는 알림도 찍고 되돌린다.
+     */
+    void instanceBanner(Project p) throws Exception {
+        activate(p);
+        edt(() -> p.doAction(com.cburch.logisim.gui.main.SelectionActions.dropAll(p.getSelection())));
+        Circuit main = p.getCurrentCircuit();
+        com.cburch.logisim.comp.Component regInst = firstSub(main, "regfile");
+        Circuit reg = ((com.cburch.logisim.circuit.SubcircuitFactory) regInst.getFactory()).getSubcircuit();
+        edt(() -> p.setCurrentCircuit(reg)); // 탐색기에서 연 것과 같다(자기만의 상태)
+        sleep(900);
+        edt(() -> canvas(p).getHcsZoom().fitCircuit());
+        sleep(900);
+        snapFull("19a-standalone-banner");
+        Rectangle top = new Rectangle(0, 0, W, 260);
+        // 이어진 입력 핀(RR1)을 고르면 미리 보기
+        com.cburch.logisim.comp.Component rr1 = byLabel(reg, "RR1");
+        if (rr1 != null) {
+            edt(() -> p.getSelection().add(rr1));
+            sleep(700);
+            snapCrop(top, "19b-pin-preview");
+            edt(() -> p.doAction(com.cburch.logisim.gui.main.SelectionActions.dropAll(p.getSelection())));
+        } else {
+            log.add("19b: no RR1 pin");
+        }
+        // 핀 도구
+        edt(() -> p.setTool(p.getLogisimFile().getLoader().getBuiltin().getLibrary("Wiring").getTool("Pin")));
+        sleep(700);
+        snapCrop(top, "19c-pin-tool-preview");
+        useTool(p, "Edit Tool");
+        // Go to Instance in main
+        java.util.List<java.util.List<com.cburch.logisim.comp.Component>> paths =
+                kr.ac.hallym.hcs.app.model.InstancePaths.paths(main, reg);
+        edt(() -> p.setCircuitState(kr.ac.hallym.hcs.app.model.InstancePaths.stateFor(p.getCircuitState(main),
+                paths.get(0))));
+        sleep(900);
+        snapFull("19d-running-instance");
+        // 이어진 핀을 지운 뒤 알림(데모의 regfile은 사용자 모양이라 핀을 더해도 포트가 밀리지 않는다), 그리고 되돌리기
+        edt(() -> p.setCurrentCircuit(reg));
+        sleep(600);
+        edt(() -> {
+            com.cburch.logisim.circuit.CircuitMutation m = new com.cburch.logisim.circuit.CircuitMutation(reg);
+            m.remove(byLabel(reg, "RR1"));
+            p.doAction(m.toAction(() -> "Delete Pin"));
+        });
+        sleep(1500);
+        snapFull("19e-cut-connection-notice");
+        edt(() -> p.undoAction());
+        sleep(600);
+        edt(() -> p.setCurrentCircuit(main));
+        sleep(600);
     }
 
     static com.cburch.logisim.comp.Component firstSub(Circuit c, String name) {
