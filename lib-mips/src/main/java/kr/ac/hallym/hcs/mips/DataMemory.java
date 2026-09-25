@@ -59,9 +59,8 @@ class DataMemory extends MemoryFactory {
         Value lastClock = Value.UNKNOWN;
         long[] region = {0, 0};
         boolean growsDown;
-        /** 클럭 상승 에지에 읽거나 쓴 가장 낮은 주소와 마지막 주소(Stack 깊이). -1: 없음. */
+        /** 클럭 상승 에지에 읽거나 쓴 가장 낮은 주소(Stack 사용한 영역). -1: 없음. */
         long lowest = -1;
-        long last = -1;
         /** 가장 높은 접근 주소(깊이 기준을 정할 때). -1: 없음. */
         long highest = -1;
         Problem problem;
@@ -120,18 +119,17 @@ class DataMemory extends MemoryFactory {
             return spimStack ? SPIM_INITIAL_SP : region[1];
         }
 
-        /** Stack의 지금 깊이(바이트): 기준에서 마지막 접근 주소까지. 접근이 없으면 0. */
-        long depth() {
-            return last < 0 ? 0 : base() - last;
-        }
-
-        long maxDepth() {
+        /**
+         * Stack의 사용한 영역(바이트, 최고 수위): 기준에서 가장 낮은 접근 주소까지. 접근이 없으면 0.
+         * 지금 깊이는 보이지 않는다. Stack은 $sp를 모르고, 마지막 접근 주소는 $sp가 아니다(검토 2차 B). 지금 $sp는
+         * 3단계 레지스터 패널이 "레지스터 파일로 표시"한 서브회로의 $29로 보인다(PLAN.md 5장).
+         */
+        long usedBytes() {
             return lowest < 0 ? 0 : base() - lowest;
         }
 
         void accessed(int addr) {
             long a = addr & 0xfffffffcL;
-            last = a;
             if (a > highest) {
                 highest = a;
             }
@@ -321,7 +319,7 @@ class DataMemory extends MemoryFactory {
         List<String> lines = new ArrayList<String>();
         lines.add(region);
         if (st.growsDown) {
-            lines.add(Text.name("depth " + st.depth() + " B, max " + st.maxDepth() + " B").get());
+            lines.add(usageLine(st));
         }
         Value addr = painter.getPort(ADDR);
         if (addr.isFullyDefined() && st.contains(addr.toIntValue())) {
@@ -330,6 +328,11 @@ class DataMemory extends MemoryFactory {
             lines.add(WordImage.hex(a) + ": " + word);
         }
         return lines.toArray(new String[0]);
+    }
+
+    /** Stack 몸체의 사용량 줄: 사용한 영역(최고 수위)만. 지금 깊이는 적지 않는다(검토 2차 B). */
+    static String usageLine(State st) {
+        return Text.name("used " + st.usedBytes() + " B (peak)").get();
     }
 
     @Override

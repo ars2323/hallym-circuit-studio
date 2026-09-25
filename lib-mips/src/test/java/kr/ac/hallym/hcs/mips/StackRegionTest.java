@@ -77,16 +77,14 @@ class StackRegionTest {
         b.tunnel(stack, DataMemory.MEM_READ, "re");
         b.tunnel(stack, DataMemory.CLK, "clk");
         sim.start();
-        long[] depth = {4, 8, 12, 16, 12, 8, 4};
-        long[] max = {4, 8, 12, 16, 16, 16, 16};
+        long[] used = {4, 8, 12, 16, 16, 16, 16}; // 최고 수위: 팝해도 줄지 않는다
         for (int n = 0; n < 7; n += 1) {
             if (n >= 4) {
                 assertEquals((int) ADDRS[n], sim.port(stack, DataMemory.READ_DATA).toIntValue());
             }
             sim.cycle(); // 상승 에지에 n번째 접근이 기록된다
             DataMemory.State st = (DataMemory.State) sim.data(stack);
-            assertEquals(depth[n], st.depth(), "depth after step " + n);
-            assertEquals(max[n], st.maxDepth(), "max after step " + n);
+            assertEquals(used[n], st.usedBytes(), "used after step " + n);
             assertNull(st.problem);
         }
     }
@@ -175,25 +173,28 @@ class StackRegionTest {
         assertEquals(0xCAFEBABEL, (long) OriginalLogisim.value(rows.get(0)[0]));
     }
 
-    /** #134: SPIM 시작 $sp(0x7FFFEFFC) 아래만 쓰면 깊이는 그 $sp에서 잰다(위 4KB 제외). 그 위를 쓰면 영역 맨 위에서. */
+    /**
+     * #134: SPIM 시작 $sp(0x7FFFEFFC) 아래만 쓰면 사용한 영역은 그 $sp에서 잰다(위 4KB 제외). 그 위를 쓰면 영역 맨
+     * 위에서. 검토 2차 B: 최고 수위만 있고, 팝해도 줄지 않는다.
+     */
     @Test
-    void depthStartsAtSpimInitialStackPointer() {
+    void usedBytesStartAtSpimInitialStackPointerAndKeepThePeak() {
         DataMemory.State st = new DataMemory.State(WordImage.EMPTY);
         st.region = new long[] {0x7FF00000L, 0x80000000L};
         st.growsDown = true;
+        assertEquals(0, st.usedBytes());
         st.accessed(0x7FFFEFF8); // addi $sp,$sp,-4; sw $ra,0($sp)
-        assertEquals(4, st.depth());
+        assertEquals(4, st.usedBytes());
         st.accessed(0x7FFFEFF0);
-        assertEquals(12, st.depth());
-        assertEquals(12, st.maxDepth());
-        st.accessed(0x7FFFEFF8);
-        assertEquals(4, st.depth());
-        assertEquals(12, st.maxDepth());
+        assertEquals(12, st.usedBytes());
+        st.accessed(0x7FFFEFF8); // 팝
+        assertEquals(12, st.usedBytes());
+        assertEquals("used 12 B (peak)", DataMemory.usageLine(st), "only the peak on the body");
 
         DataMemory.State top = new DataMemory.State(WordImage.EMPTY);
         top.region = new long[] {0x7FF00000L, 0x80000000L};
         top.growsDown = true;
         top.accessed(0x7FFFFFFC); // 영역 맨 위부터 쓰는 회로(학생 설정): 예전처럼
-        assertEquals(4, top.depth());
+        assertEquals(4, top.usedBytes());
     }
 }
