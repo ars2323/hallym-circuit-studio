@@ -53,6 +53,10 @@ public final class WireMarks {
     static final float JUMP_PX = 5f;
     static final int DOT_MIN = 8;
     static final int JUMP_MIN = 5;
+    /** 점프 반지름 최대(회로 좌표): 격자 반 칸보다 작아 옆 연결점·포트에 닿지 않는다. */
+    static final int JUMP_MAX = 8;
+    /** 이보다 작게 보이면(화면 px) 점프를 그리지 않는다: 원조처럼 평범한 십자, 연결은 큰 점으로만 구분한다. */
+    static final float JUMP_VISIBLE_PX = 3.5f;
     static final float HIGHLIGHT_PX = 9f;
     static final Color HIGHLIGHT = new Color(Tokens.TEAL.getRed(), Tokens.TEAL.getGreen(), Tokens.TEAL.getBlue(), 90);
 
@@ -219,8 +223,8 @@ public final class WireMarks {
             }
             if (hidden == null || hidden.isEmpty()) {
                 List<List<Location>> marks = cached(circuit);
-                float r = Math.max(JUMP_MIN, px(JUMP_PX, z));
-                for (Location p : marks.get(1)) {
+                float r = jumpRadius(z);
+                for (Location p : r <= 0 ? java.util.Collections.<Location>emptyList() : marks.get(1)) {
                     jump(g, p, r, colors.at(p, true), colors.at(p, false));
                 }
                 float d = Math.max(DOT_MIN, px(DOT_PX, z));
@@ -340,6 +344,15 @@ public final class WireMarks {
             }
             return false;
         }
+    }
+
+    /**
+     * 점프 반지름(회로 좌표): 화면 5px 이상, 회로 5 이상이되 {@link #JUMP_MAX}를 넘지 않는다. 그러면 화면에서
+     * {@link #JUMP_VISIBLE_PX}보다 작아지는 배율(약 44% 아래)에서는 0(그리지 않음).
+     */
+    static float jumpRadius(double z) {
+        float r = Math.min(JUMP_MAX, Math.max(JUMP_MIN, px(JUMP_PX, z)));
+        return r * z < JUMP_VISIBLE_PX ? 0 : r;
     }
 
     static float px(float screen, double zoom) {

@@ -134,20 +134,43 @@ class WireMarksTest {
     }
 
     @Test
-    void jumpBreaksTheHorizontalWireAndArcsOverAtEveryZoom() throws Exception {
+    void jumpBreaksTheHorizontalWireAndArcsOverWhereItCanBeSeen() throws Exception {
         Circuit c = crossAndTee(fresh());
-        for (double z : new double[] {0.25, 1.0, 4.0}) {
+        for (double z : new double[] {0.5, 1.0, 2.0, 4.0}) {
             BufferedImage before = render(c, z, false);
             BufferedImage img = render(c, z, true);
-            float r = Math.max(WireMarks.JUMP_MIN, WireMarks.px(WireMarks.JUMP_PX, z));
+            float r = WireMarks.jumpRadius(z);
+            assertTrue(r > 0 && r <= WireMarks.JUMP_MAX, "z=" + z + " r=" + r);
             // 원조: 교차점 양옆 가로선이 이어져 있다
             assertTrue(dark(before, 200 - r / 2, 200, z), "z=" + z);
             // 점프: 가로선이 끊기고(세로선 옆 빈자리), 반원 꼭대기가 칠해진다
-            if (r * z >= 4) {
-                assertTrue(!dark(img, 200 - r / 2 - 1, 200, z), "gap left of the vertical wire, z=" + z);
-            }
+            assertTrue(!dark(img, 200 - r / 2 - 1, 200, z), "gap left of the vertical wire, z=" + z);
             assertTrue(dark(img, 200, 200 - r, z), "arc top, z=" + z);
             assertTrue(dark(img, 200, 200, z), "vertical wire stays, z=" + z);
+        }
+    }
+
+    /**
+     * ui-reviewer(#245): 25%에서는 반원이 옆 연결점(격자 두 칸 위)에 닿아 이어진 것처럼 보였다. 반지름은 격자 반 칸
+     * 미만이고, 작아서 안 보이는 배율에서는 원조처럼 평범한 십자로 둔다(연결은 큰 점으로만 구분).
+     */
+    @Test
+    void jumpNeverReachesTheNextGridPointAndIsLeftOutWhenTooSmall() throws Exception {
+        for (double z = 0.1; z <= 8; z += 0.05) {
+            float r = WireMarks.jumpRadius(z);
+            assertTrue(r < 10, "z=" + z);
+            if (r > 0) {
+                assertTrue(r * z >= WireMarks.JUMP_VISIBLE_PX, "visible when drawn, z=" + z);
+            }
+        }
+        assertEquals(0f, WireMarks.jumpRadius(0.25));
+        Circuit c = crossAndTee(fresh());
+        BufferedImage before = render(c, 0.25, false);
+        BufferedImage img = render(c, 0.25, true);
+        for (int y = (int) (180 * 0.25); y < (int) (220 * 0.25); y++) {
+            for (int x = (int) (180 * 0.25); x < (int) (220 * 0.25); x++) {
+                assertEquals(before.getRGB(x, y), img.getRGB(x, y), "plain cross at 25%: " + x + "," + y);
+            }
         }
     }
 
@@ -176,7 +199,7 @@ class WireMarksTest {
         g.scale(z, z);
         WireMarks.paint(g, c, st, null, z);
         g.dispose();
-        float r = Math.max(WireMarks.JUMP_MIN, WireMarks.px(WireMarks.JUMP_PX, z));
+        float r = WireMarks.jumpRadius(z);
         Color arc = new Color(img.getRGB((int) Math.round(200 * z), (int) Math.round((200 - r) * z)));
         Color stub = new Color(img.getRGB((int) Math.round(200 * z), (int) Math.round((200 - r / 2) * z)));
         assertEquals(com.cburch.logisim.data.Value.TRUE_COLOR, arc, "arc takes the horizontal wire's value color");
