@@ -24,7 +24,7 @@ public final class Diagnostic {
     /** 검사 종류(4.2 표 순서). */
     public enum Kind {
         CLOCK_UNCONNECTED, SHORT, WIDTH_MISMATCH, INPUT_UNCONNECTED, INPUT_UNDRIVEN, TUNNEL_UNPAIRED,
-        SUBCIRCUIT_PORT_UNCONNECTED, COMBINATIONAL_LOOP
+        SUBCIRCUIT_PORT_UNCONNECTED, COMBINATIONAL_LOOP, MEMORY_OVERLAP
     }
 
     public final Kind kind;
