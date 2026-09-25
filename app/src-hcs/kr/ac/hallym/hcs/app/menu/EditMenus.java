@@ -355,6 +355,8 @@ public final class EditMenus implements ContextMenus.Provider {
             t.project.setCurrentCircuit(sub);
             t.project.getFrame().setEditorView(Frame.EDIT_APPEARANCE);
         }, sub.getName()));
+        menu.add(item("menu.autoAppearance", () -> kr.ac.hallym.hcs.app.appear.AutoAppearance.run(t.project, sub,
+                t.canvas)));
     }
 
     // --- 터널 ---

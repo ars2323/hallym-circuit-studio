@@ -57,6 +57,11 @@ public final class DemoDatapath {
         DemoDatapath d = new DemoDatapath(file, mips);
         d.regfileCircuit = d.regfile();
         d.aluCircuit = d.alu();
+        // 서브회로 상자는 Auto Appearance(검토 2차 C): 포트 이름과 회로 이름이 상자 안에 보인다
+        for (Circuit sub : new Circuit[] {d.regfileCircuit, d.aluCircuit}) {
+            kr.ac.hallym.hcs.app.appear.AutoAppearance
+                    .action(sub, kr.ac.hallym.hcs.app.appear.AutoAppearance.build(sub)).doIt(null);
+        }
         d.main();
         return d;
     }
@@ -243,7 +248,9 @@ public final class DemoDatapath {
         path(b, rf.get("RD1"), al.get("A"));
         Location rd2 = rf.get("RD2");
         path(b, rd2, at(940, rd2.getY()), at(940, al.get("B").getY()), al.get("B"));
-        b.tunnelOutward(alu, index(alu, "ALUOp"), "ALUOp");
+        // ALUOp는 서쪽 변 맨 아래 포트다. 사용자 모양은 포트 표시가 상자 밖으로 나와 경계로 변을 가를 수 없어 직접 둔다
+        Location aluOp = al.get("ALUOp");
+        b.add("Wiring", "Tunnel", aluOp.getX(), aluOp.getY(), "width", "2", "label", "ALUOp", "facing", "east");
         Component zero = b.add("Wiring", "Pin", al.get("Zero").getX() + 60, al.get("Zero").getY(), "facing", "west",
                 "output", "true", "label", "Zero");
         path(b, al.get("Zero"), zero.getLocation());
