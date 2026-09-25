@@ -347,7 +347,7 @@ public final class LabelOverlay {
             for (int i = 0; i < c.getEnds().size(); i++) {
                 longest = Math.max(longest, g.getFontMetrics().stringWidth(Kinds.portName(c, i)));
             }
-            float px = Math.max(PORT_MIN_PX, Math.min(maxPx, maxPx * half / longest));
+            float px = portPx(half, longest, maxPx);
             if (px * z < 5) {
                 continue; // 너무 작아 읽을 수 없다
             }
@@ -371,6 +371,14 @@ public final class LabelOverlay {
                 }
             }
         }
+    }
+
+    /**
+     * 서브회로 상자 안 포트 이름 글자 크기: 가장 긴 이름(maxPx에서 잰 폭 longestAtMax)이 반 폭 half에 들어가는 크기.
+     * maxPx를 넘지 않고 {@link #PORT_MIN_PX}보다 작지 않다(그래도 넘치면 끝을 줄인다).
+     */
+    static float portPx(int half, int longestAtMax, float maxPx) {
+        return Math.max(PORT_MIN_PX, Math.min(maxPx, maxPx * half / Math.max(1, longestAtMax)));
     }
 
     private static boolean defaultSubcircuit(Component c) {
