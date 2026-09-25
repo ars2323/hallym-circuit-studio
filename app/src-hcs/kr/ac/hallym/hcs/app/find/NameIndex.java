@@ -128,6 +128,40 @@ public final class NameIndex {
     }
 
     /** 한 회로 안의 터널 이름과 개수(이름 순). */
+    /** 찾기 결과 한 줄: 종류·글자·경로가 같은 항목을 묶은 것(#135). 하나면 그 항목 줄이다. */
+    public static final class Group {
+        public final Entry first;
+        public final List<Entry> entries;
+
+        Group(List<Entry> entries) {
+            this.first = entries.get(0);
+            this.entries = Collections.unmodifiableList(entries);
+        }
+
+        public int size() {
+            return entries.size();
+        }
+    }
+
+    /**
+     * 같은 종류·글자·경로의 결과를 한 줄로 묶는다(순서는 처음 나온 순서, 묶음 안은 위→아래, 왼쪽→오른쪽). 같은 이름
+     * 터널 7개는 한 줄 "pc 터널 · main › pc (7곳)"이 되고, 펼치면 위치별 줄이 된다.
+     */
+    public static List<Group> group(List<Entry> found) {
+        java.util.LinkedHashMap<String, List<Entry>> by = new java.util.LinkedHashMap<>();
+        for (Entry e : found) {
+            by.computeIfAbsent(e.kind + "\u0000" + e.text + "\u0000" + e.path, k -> new ArrayList<>()).add(e);
+        }
+        List<Group> ret = new ArrayList<>();
+        for (List<Entry> es : by.values()) {
+            es.sort((a, b) -> a.component.getLocation().getY() != b.component.getLocation().getY()
+                    ? a.component.getLocation().getY() - b.component.getLocation().getY()
+                    : a.component.getLocation().getX() - b.component.getLocation().getX());
+            ret.add(new Group(es));
+        }
+        return ret;
+    }
+
     public static TreeMap<String, List<Component>> tunnels(Circuit c) {
         TreeMap<String, List<Component>> m = new TreeMap<>();
         for (Component comp : c.getNonWires()) {

@@ -91,4 +91,32 @@ class NameIndexTest {
         Component inst = pc.get(0).instances.get(0);
         assertEquals("alu", inst.getFactory().getName());
     }
+
+    /** #135: 같은 이름 터널 여러 개는 한 줄(개수)로 묶이고, 펼치면 위치별 줄이 된다. 경로가 다르면 따로 줄이다. */
+    @Test
+    void sameNamesAreGroupedWithCountsAndExpand() throws Exception {
+        LogisimFile file = build();
+        CircuitBuilder mb = new CircuitBuilder(file, file.getMainCircuit());
+        mb.add("Wiring", "Tunnel", 100, 200, "label", "bus");
+        mb.add("Wiring", "Tunnel", 100, 100, "label", "bus");
+        mb.commit();
+        NameIndex idx = NameIndex.of(file);
+        List<NameIndex.Group> g = NameIndex.group(idx.find("bus"));
+        assertEquals(1, g.size());
+        assertEquals(3, g.get(0).size());
+        assertEquals(100, g.get(0).entries.get(0).component.getLocation().getY(), "top to bottom");
+
+        List<NameIndex.Group> pc = NameIndex.group(idx.find("PC"));
+        assertTrue(pc.size() >= 2, "different instance paths stay separate rows");
+
+        java.util.Set<String> open = new java.util.HashSet<>();
+        assertEquals(1, FindDialog.rows(g, open).size());
+        assertTrue(FindDialog.label(FindDialog.rows(g, open).get(0), false).contains(
+                kr.ac.hallym.hcs.app.Messages.get("find.count", 3)));
+        open.add(FindDialog.key(g.get(0)));
+        List<FindDialog.Row> rows = FindDialog.rows(g, open);
+        assertEquals(4, rows.size());
+        assertTrue(rows.get(1).child);
+        assertTrue(FindDialog.label(rows.get(2), true).contains("(100, 200)"));
+    }
 }
