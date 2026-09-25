@@ -275,7 +275,9 @@ public class Frame extends LFrame implements LocaleListener {
 		JPanel explPanel = new JPanel(new BorderLayout());
 		// HCS: review 1: no explorer icon row (same items in the Project menu), no old zoom box (status bar),
 		// a search box above the component tree
-		explPanel.add(new kr.ac.hallym.hcs.app.palette.ToolboxSearch(proj, explorerPane), BorderLayout.CENTER);
+		// HCS: S-11 the lower part of the left panel holds Tunnels and Minimap tabs
+		explPanel.add(new kr.ac.hallym.hcs.app.side.SidePanel(proj, layoutCanvas,
+				new kr.ac.hallym.hcs.app.palette.ToolboxSearch(proj, explorerPane)), BorderLayout.CENTER);
 
 		mainRegion = new VerticalSplitPane(explPanel, mainPanelSuper, // HCS: #74 attributes moved to the right dock
 				AppPreferences.WINDOW_MAIN_SPLIT.get().doubleValue());
