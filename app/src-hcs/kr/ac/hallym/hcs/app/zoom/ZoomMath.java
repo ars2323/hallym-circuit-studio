@@ -84,6 +84,14 @@ public final class ZoomMath {
         return new int[] {Math.max(0, ox), Math.max(0, oy), ox > 0 ? 0 : c.x, oy > 0 ? 0 : c.y};
     }
 
+    /**
+     * 원점 이동의 한도(S-10 후속): 회로 영역을 가운데 두는 만큼까지만 옮긴다. 회로가 보이는 영역보다 넓거나 가운데
+     * 자리가 0보다 작으면 0이다. 커서 배율·원조 배율 조절이 이보다 많이 옮기면 회로 옆에 빈 띠가 남는다.
+     */
+    public static int originCap(int start, int length, int viewLength, double z) {
+        return Math.max(0, (int) Math.floor((viewLength - length * z) / 2.0 - start * z));
+    }
+
     /** 상태 표시줄에 직접 넣은 비율. "150", "150%", " 75 % " 모두 받는다. 읽을 수 없으면 NaN. */
     public static double parsePercent(String text) {
         if (text == null) {

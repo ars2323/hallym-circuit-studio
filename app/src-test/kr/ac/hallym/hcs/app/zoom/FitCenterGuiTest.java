@@ -155,6 +155,27 @@ class FitCenterGuiTest {
                 canvas.getHcsZoom().fitCircuit();
             });
             settle();
+
+            // S-10 후속(P-07 검토 18o): 왼쪽 게이트를 크게 본 뒤 원조 배율 조절로 100%로 돌아오면, 보던 가운데를
+            // 지키려는 원점 이동은 회로를 가운데 두는 만큼까지만이다. 100%의 이 회로는 보이는 영역보다 넓으므로
+            // 왼쪽에 빈 띠가 없다(원점 0)
+            Rectangle ls2 = canvas.hcsToScreen(new Rectangle(lb.getX(), lb.getY(), lb.getWidth(), lb.getHeight()));
+            Point at = new Point(ls2.x + ls2.width / 2 - vp.getViewPosition().x,
+                    ls2.y + ls2.height / 2 - vp.getViewPosition().y);
+            SwingUtilities.invokeAndWait(() -> canvas.getHcsZoom().zoomAt(4.0, at));
+            settle();
+            SwingUtilities.invokeAndWait(() -> canvas.getHcsZoom().model().setZoomFactor(1.0));
+            settle();
+            Bounds all = main.getBounds();
+            assertTrue(all.getWidth() > vp.getWidth(), "wider than the view at 100%: " + all + " " + vp.getSize());
+            assertEquals(0, canvas.getHcsOriginX(), "no blank strip left of a circuit wider than the view");
+            int capY = ZoomMath.originCap(all.getY(), all.getHeight(), vp.getHeight(), 1.0);
+            for (Rectangle r : kr.ac.hallym.hcs.app.labels.LabelOverlay.chipRects(canvas)) {
+                capY = Math.max(capY, ZoomMath.originCap(Math.min(all.getY(), r.y), Math.max(all.getY()
+                        + all.getHeight(), r.y + r.height) - Math.min(all.getY(), r.y), vp.getHeight(), 1.0));
+            }
+            assertTrue(canvas.getHcsOriginY() <= capY, "at most the centering amount (y): " + canvas.getHcsOriginY()
+                    + " > " + capY);
         } finally {
             SwingUtilities.invokeAndWait(frame::dispose);
         }

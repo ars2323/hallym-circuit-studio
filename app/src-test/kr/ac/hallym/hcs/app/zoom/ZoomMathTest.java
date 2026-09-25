@@ -45,6 +45,16 @@ class ZoomMathTest {
         }
     }
 
+    /** 원점 이동 한도: 회로를 가운데 두는 만큼. 넓은 회로나 가운데 자리가 0보다 작으면 0(S-10 후속). */
+    @Test
+    void originCapIsTheCenteringAmount() {
+        assertEquals(400, ZoomMath.originCap(0, 200, 1000, 1.0));
+        assertEquals(300, ZoomMath.originCap(100, 200, 1000, 1.0));
+        assertEquals(100, ZoomMath.originCap(100, 200, 1000, 2.0));
+        assertEquals(0, ZoomMath.originCap(0, 1200, 1000, 1.0), "wider than the view");
+        assertEquals(0, ZoomMath.originCap(900, 200, 1000, 1.0), "the centered spot is already scrolled to");
+    }
+
     @Test
     void fitAndCenter() {
         Rectangle circuit = new Rectangle(100, 50, 800, 400);

@@ -194,7 +194,7 @@ public final class ZoomController {
         double cy = (lastView.y + r.height / 2.0 - lastOy) / oldZ;
         int vx = (int) Math.round(cx * newZ - r.width / 2.0);
         int vy = (int) Math.round(cy * newZ - r.height / 2.0);
-        canvas.setHcsOrigin(Math.max(0, -vx), Math.max(0, -vy));
+        placeOrigin(vx, vy);
         pane.validate();
         setView(new Point(Math.max(0, vx), Math.max(0, vy)));
         settled();
@@ -286,6 +286,7 @@ public final class ZoomController {
         } finally {
             adjusting = false;
         }
+        // 커서 아래 점을 지키는 것이 먼저라 가운데 한도(placeOrigin)는 두지 않는다: 빈 띠는 커서 바로 옆에만 생긴다
         canvas.setHcsOrigin(Math.max(0, -virtual.x), Math.max(0, -virtual.y));
         pane.getViewport().validate();
         pane.validate();
@@ -304,14 +305,32 @@ public final class ZoomController {
     }
 
     public void fitCircuit() {
+        fit(contentBounds());
+    }
+
+    /** 지금 회로 영역. 라벨 칩(부품 밖에 붙은 이름)도 넣는다(S-10). 빈 회로면 null. */
+    private Bounds contentBounds() {
         Bounds b = proj.getCurrentCircuit() == null ? null : proj.getCurrentCircuit().getBounds();
-        // 라벨 칩(부품 밖에 붙은 이름)도 여백 안에 들어오게(S-10)
-        if (b != null && b != Bounds.EMPTY_BOUNDS) {
-            for (Rectangle r : kr.ac.hallym.hcs.app.labels.LabelOverlay.chipRects(canvas)) {
-                b = b.add(Bounds.create(r.x, r.y, r.width, r.height));
-            }
+        if (b == null || b == Bounds.EMPTY_BOUNDS) {
+            return null;
         }
-        fit(b);
+        for (Rectangle r : kr.ac.hallym.hcs.app.labels.LabelOverlay.chipRects(canvas)) {
+            b = b.add(Bounds.create(r.x, r.y, r.width, r.height));
+        }
+        return b;
+    }
+
+    /**
+     * 가상 스크롤(vx, vy)이 0보다 작은 만큼을 원점 이동으로 둔다. 다만 회로 영역을 가운데 두는 만큼까지만 옮긴다
+     * (S-10 후속: 원조 배율 조절로 작게 봤다가 다시 키웠을 때, 넓어진 회로 왼쪽·위에 빈 띠가 남지 않게).
+     */
+    private void placeOrigin(int vx, int vy) {
+        Bounds b = contentBounds();
+        JViewport vp = pane.getViewport();
+        double z = model.getZoomFactor();
+        int capX = b == null ? 0 : ZoomMath.originCap(b.getX(), b.getWidth(), vp.getWidth(), z);
+        int capY = b == null ? 0 : ZoomMath.originCap(b.getY(), b.getHeight(), vp.getHeight(), z);
+        canvas.setHcsOrigin(Math.min(capX, Math.max(0, -vx)), Math.min(capY, Math.max(0, -vy)));
     }
 
     void fitSelection() {
