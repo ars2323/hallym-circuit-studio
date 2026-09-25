@@ -2,6 +2,12 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-25 #81 따라오는 배선(최종)
+
+- 기준: feat/following-wires `8e12c6a`
+- 관련 이슈: #81
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-25-81-following-wires-2/README.md
+
 ## 2026-09-25 #81 따라오는 배선
 
 - 기준: feat/following-wires `be049bc`
