@@ -2,6 +2,12 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-25 3차 반영 + 2c 정적 진단·Messages 탭
+
+- 기준 main 커밋: `3190949`
+- 관련 PR·이슈: #155, #156, #157, #158 / #154, #25, #26, #27, #28
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-25-2c-messages/README.md
+
 ## 2026-09-25 스크린샷 검토 2차 반영 + 언어 방침
 
 - 기준 main 커밋: `84298fc`
