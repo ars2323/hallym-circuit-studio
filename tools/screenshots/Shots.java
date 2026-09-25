@@ -193,7 +193,7 @@ public final class Shots {
             program(ref);
         }
         if (want(scenes, "25")) {
-            cycles(ref);
+            cycles(demo);
         }
         if (want(scenes, "10")) {
             open("tests/circ/register.circ");
@@ -1550,18 +1550,23 @@ public final class Shots {
         return true;
     }
 
-    /** 25: 캔버스 아래 Cycles 탭(C-02, C-03). ref-mips에 factorial.s를 불러와 30사이클 돌리고 신호 줄 다섯, 지난 사이클 보기. */
+    /**
+     * 25: 캔버스 아래 Cycle View 탭(C-02, C-03). 사람이 그린 demo-datapath(체크리스트 10)를 리셋 뒤 6사이클 돌리고
+     * 신호 줄 다섯(clk, pc, halt, ALU Result 선, regfile RD1 선), 사이클 2 보기. 캔버스가 그 사이클 값이 되는 것은
+     * PC 둘레 확대 두 장(마지막, 사이클 2)으로 보인다.
+     */
     void cycles(Project p) throws Exception {
         activate(p);
-        if (!chooseProgram(p, "tests/mips/factorial.s", null, "25")) {
-            return;
-        }
+        deselect(p);
         edt(() -> kr.ac.hallym.hcs.app.record.Recorder.requestReset(p));
+        sleep(900);
+        for (int i = 0; i < 12; i++) {
+            edt(() -> p.getSimulator().tick());
+            sleep(40);
+        }
         sleep(800);
-        runCycles(p, 30);
-        sleep(600);
         Circuit c = p.getCurrentCircuit();
-        for (String name : new String[] {"clk", "regWrite", "aluResult", "writeData", "rsVal"}) {
+        for (String name : new String[] {"clk", "pc"}) {
             com.cburch.logisim.comp.Component t = null;
             for (com.cburch.logisim.comp.Component x : c.getNonWires()) {
                 if (x.getFactory().getName().equals("Tunnel")
@@ -1577,14 +1582,54 @@ public final class Shots {
             final com.cburch.logisim.comp.Component tt = t;
             edt(() -> kr.ac.hallym.hcs.app.cycle.CycleView.addPort(p, c, tt.getEnd(0).getLocation()));
         }
+        for (com.cburch.logisim.comp.Component x : c.getNonWires()) {
+            if (x.getFactory().getName().equals("Pin") && "halt".equals(kr.ac.hallym.hcs.app.model.Names.label(x))) {
+                edt(() -> kr.ac.hallym.hcs.app.cycle.CycleView.addPort(p, c, x.getEnd(0).getLocation()));
+            }
+        }
+        // 서브회로 alu의 Result, regfile의 RD1에 이어진 선
+        for (String[] want : new String[][] {{"alu", "Result"}, {"regfile", "RD1"}}) {
+            com.cburch.logisim.circuit.Wire found = null;
+            for (com.cburch.logisim.comp.Component x : c.getNonWires()) {
+                if (!(x.getFactory() instanceof com.cburch.logisim.circuit.SubcircuitFactory)
+                        || !x.getFactory().getName().equals(want[0])) {
+                    continue;
+                }
+                for (int e = 0; e < x.getEnds().size(); e++) {
+                    if (!want[1].equals(kr.ac.hallym.hcs.app.model.Kinds.portName(x, e))) {
+                        continue;
+                    }
+                    com.cburch.logisim.data.Location at = x.getEnd(e).getLocation();
+                    for (com.cburch.logisim.circuit.Wire w : c.getWires()) {
+                        if (w.getEnd0().equals(at) || w.getEnd1().equals(at)) {
+                            found = w;
+                        }
+                    }
+                }
+            }
+            if (found == null) {
+                log.add("25: no wire at " + want[0] + " " + want[1]);
+                continue;
+            }
+            final com.cburch.logisim.circuit.Wire w = found;
+            edt(() -> kr.ac.hallym.hcs.app.cycle.CycleView.addWire(p, c, w));
+        }
         sleep(900);
         kr.ac.hallym.hcs.app.cycle.CycleView v = kr.ac.hallym.hcs.app.cycle.CycleView.of(p);
         edt(() -> canvas(p).getHcsZoom().fitCircuit());
         sleep(900);
         snapFull("25a-cycles-full");
         snapCrop(onScreen(v.component()), "25b-cycles-table");
-        edt(() -> v.view(12));
+        Bounds pcArea = Bounds.create(250, 130, 420, 150);
+        setZoom(p, 2.0);
+        centerOn(p, pcArea);
+        snapLogical(p, pcArea, "25e-canvas-latest-200");
+        edt(() -> v.view(2));
         sleep(1200);
+        snapLogical(p, pcArea, "25f-canvas-cycle2-200");
+        setZoom(p, 1.0);
+        edt(() -> canvas(p).getHcsZoom().fitCircuit());
+        sleep(900);
         snapFull("25c-past-cycle-full");
         snapCrop(onScreen(v.component()), "25d-past-cycle-table");
         edt(v::showLatest);

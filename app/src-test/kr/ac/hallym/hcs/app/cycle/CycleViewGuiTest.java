@@ -40,7 +40,7 @@ import kr.ac.hallym.hcs.app.record.Recording;
 import kr.ac.hallym.hcs.app.record.RecordingTestSupport;
 
 /**
- * C-02·C-03 GUI({@code xvfb-run -a ./gradlew :app:guiTest}): 캔버스 아래 Cycles 탭. ref-mips가 busy-loop.s를 도는
+ * C-02·C-03 GUI({@code xvfb-run -a ./gradlew :app:guiTest}): 캔버스 아래 Cycle View 탭. ref-mips가 busy-loop.s를 도는
  * 동안 열이 사이클마다 쌓이고, 터널 우클릭 "Add to Cycle View"로 줄이 더해지고, 열을 누르면 회로도(프로젝트 상태)와
  * 상태 표시줄이 그 사이클로 바뀌며, Latest Cycle로 돌아온다.
  */

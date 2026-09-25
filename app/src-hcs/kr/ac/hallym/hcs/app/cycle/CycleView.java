@@ -52,7 +52,7 @@ import kr.ac.hallym.hcs.app.record.Recording;
 import kr.ac.hallym.hcs.app.theme.Tokens;
 
 /**
- * 캔버스 아래 Cycles 탭(C-02, C-03, PLAN.md 5.1·5.2). 조작 막대(이전·다음·마지막 사이클, 지금 사이클)와 사이클 표.
+ * 캔버스 아래 Cycle View 탭(C-02, C-03, PLAN.md 5.1·5.2). 조작 막대(이전·다음·마지막 사이클, 지금 사이클)와 사이클 표.
  * 표의 열 하나가 한 사이클이고, 머리는 사이클 번호·PC·명령어(.s 원래 줄, 없으면 디스어셈블)다. 줄은 회로도의 선을
  * 오른쪽 클릭해 "Add to Cycle View"로 더한 신호다(1비트는 반 사이클 단위 파형, 버스는 16진 값). 열을 누르면 회로도
  * 전체가 그 사이클 값으로 바뀐다({@link Recorder#view}).
@@ -179,7 +179,7 @@ public final class CycleView {
         return v;
     }
 
-    /** Cycles 탭을 앞으로 가져오고 표가 보일 만큼 아래 패널을 편다. */
+    /** Cycle View 탭을 앞으로 가져오고 표가 보일 만큼 아래 패널을 편다. */
     public void open() {
         if (bottom != null) {
             bottom.openTab(panel, OPEN_HEIGHT);
@@ -520,13 +520,18 @@ public final class CycleView {
             }
         }
 
+        /**
+         * 1비트 파형: 열 c의 앞 절반은 사이클 c를 연 상승 에지 뒤(스텝 2c-1), 뒤 절반은 다음 상승 에지 앞(스텝 2c)이다.
+         * 그래서 한 열의 파형·버스 값·머리 명령어가 모두 같은 사이클을 가리키고, 상승 에지는 열 경계에 온다.
+         */
         private void paintWave(Graphics2D g, CycleModel m, Row r, int c, int x, int y) {
             int hi = y + 5;
             int lo = y + ROW_H - 6;
             int mid = (hi + lo) / 2;
-            Value prevV = valueOf(m, r, CycleModel.stepOf(c) - 1);
+            int first = m.recording().first();
+            Value prevV = valueOf(m, r, Math.max(first, CycleModel.stepOf(c) - 2));
             for (int h = 0; h < 2; h++) {
-                int step = CycleModel.stepOf(c) + h;
+                int step = Math.max(first, CycleModel.stepOf(c) - 1 + h);
                 if (step > m.recording().last()) {
                     break;
                 }

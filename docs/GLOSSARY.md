@@ -65,7 +65,7 @@
 | Replace Wire with Tunnels…, Tunnel Color | |
 | Auto Appearance | |
 | Minimap | 미니맵 |
-| Cycles, Previous Cycle, Next Cycle, Latest Cycle, Add to Cycle View, Remove from Cycle View, Show Bits, Hide Bits | 사이클 뷰 |
+| Cycle View, Previous Cycle, Next Cycle, Latest Cycle, Add to Cycle View, Remove from Cycle View, Show Bits, Hide Bits | 사이클 뷰 |
 | Duplicate, Undo, Redo | |
 | Getting Started, Shortcuts | |
 
