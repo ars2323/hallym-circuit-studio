@@ -12,7 +12,7 @@ package kr.ac.hallym.hcs.mips;
  */
 final class StackMemory extends DataMemory {
     StackMemory() {
-        super("Stack", Text.of("Stack", "스택"), "Stack", true, 0x7FFFFFFC, 0x00100000);
+        super("Stack", Text.name("Stack"), "Stack", true, 0x7FFFFFFC, 0x00100000);
     }
 
     @Override

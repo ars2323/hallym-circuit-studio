@@ -45,12 +45,12 @@ final class LoadProgramMenu implements MenuExtender, ActionListener {
     public void configureMenu(JPopupMenu menu, Project proj) {
         this.proj = proj;
         menu.addSeparator();
-        load = new JMenuItem(Text.of("Load .s Program...", ".s 프로그램 불러오기...").get());
+        load = new JMenuItem(Text.name("Load .s...").get());
         load.addActionListener(this);
         menu.add(load);
         String source = instance.getAttributeValue(MemoryFactory.SOURCE);
         if (source != null && !source.isEmpty()) {
-            reload = new JMenuItem(Text.of("Reload ", "다시 불러오기: ").get() + new File(source).getName());
+            reload = new JMenuItem(Text.name("Reload ").get() + new File(source).getName());
             reload.addActionListener(this);
             menu.add(reload);
         }
@@ -68,8 +68,7 @@ final class LoadProgramMenu implements MenuExtender, ActionListener {
             return;
         }
         JFileChooser chooser = new JFileChooser(circ == null ? null : circ.getAbsoluteFile().getParentFile());
-        chooser.setFileFilter(new FileNameExtensionFilter(Text.of("MIPS assembly (*.s, *.asm)",
-                "MIPS 어셈블리 (*.s, *.asm)").get(), "s", "asm"));
+        chooser.setFileFilter(new FileNameExtensionFilter(Text.name("MIPS Assembly (*.s, *.asm)").get(), "s", "asm"));
         if (chooser.showOpenDialog(proj.getFrame()) == JFileChooser.APPROVE_OPTION) {
             load(chooser.getSelectedFile());
         }
@@ -119,7 +118,7 @@ final class LoadProgramMenu implements MenuExtender, ActionListener {
 
         Action action = null;
         for (Circuit c : circuitsOf(plan)) {
-            SetAttributeAction act = new SetAttributeAction(c, Text.of("Load .s Program", ".s 프로그램 불러오기"));
+            SetAttributeAction act = new SetAttributeAction(c, Text.name("Load .s"));
             for (ProgramLoader.Change ch : plan.changes) {
                 if (ch.target.circuit == c) {
                     act.set(ch.target.component, ch.attr, ch.value);
@@ -157,6 +156,6 @@ final class LoadProgramMenu implements MenuExtender, ActionListener {
 
     private void error(String message) {
         JOptionPane.showMessageDialog(proj.getFrame(), message,
-                Text.of("Load .s Program", ".s 프로그램 불러오기").get(), JOptionPane.ERROR_MESSAGE);
+                Text.name("Load .s").get(), JOptionPane.ERROR_MESSAGE);
     }
 }

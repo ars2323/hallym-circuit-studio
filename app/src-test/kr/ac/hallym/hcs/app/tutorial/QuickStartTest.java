@@ -36,15 +36,17 @@ class QuickStartTest {
     }
 
     @Test
-    void everyPageHasKoreanAndEnglishText() throws Exception {
+    void everyPageHasAnEnglishTitleAndKoreanAndEnglishBody() throws Exception {
         for (QuickStart.Page p : QuickStart.PAGES) {
-            for (String part : new String[] {".title", ".body"}) {
-                String ko = text(Locale.KOREAN, p.key + part);
-                String en = text(Locale.ENGLISH, p.key + part);
-                assertNotEquals(p.key + part, ko, "missing Korean text");
-                assertNotEquals(p.key + part, en, "missing English text");
-                assertNotEquals(ko, en);
-            }
+            // 제목은 이름(영어 고정), 본문은 설명 문장(D-049)
+            String title = text(Locale.KOREAN, p.key + ".title");
+            assertNotEquals(p.key + ".title", title, "missing title");
+            assertEquals(text(Locale.ENGLISH, p.key + ".title"), title);
+            String ko = text(Locale.KOREAN, p.key + ".body");
+            String en = text(Locale.ENGLISH, p.key + ".body");
+            assertNotEquals(p.key + ".body", ko, "missing Korean text");
+            assertNotEquals(p.key + ".body", en, "missing English text");
+            assertNotEquals(ko, en);
         }
     }
 

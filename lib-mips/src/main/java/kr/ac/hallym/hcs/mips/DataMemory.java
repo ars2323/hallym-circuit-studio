@@ -142,11 +142,11 @@ class DataMemory extends MemoryFactory {
     }
 
     DataMemory() {
-        this("Data Memory", Text.of("Data Memory", "데이터 메모리"), "Data Memory", false, 0x10010000, 0x00100000);
+        this("Data Memory", Text.name("Data Memory"), "Data Memory", false, 0x10010000, 0x00100000);
     }
 
     DataMemory(String name, Text displayName, String title, boolean growsDown, int start, int defaultSize) {
-        super(name, displayName, Text.of(title, title), growsDown, start, defaultSize);
+        super(name, displayName, Text.name(title), growsDown, start, defaultSize);
         setOffsetBounds(Bounds.create(-240, -60, 240, 120));
         Port addr = new Port(-240, -40, Port.INPUT, W32);
         addr.setToolTip(Text.of("Addr: byte address", "Addr: 바이트 주소"));
@@ -157,7 +157,7 @@ class DataMemory extends MemoryFactory {
         Port memRead = new Port(-70, 60, Port.INPUT, 1);
         memRead.setToolTip(Text.of("MemRead: drive ReadData", "MemRead: ReadData 출력"));
         Port clk = new Port(-200, 60, Port.INPUT, 1);
-        clk.setToolTip(Text.of("clk", "clk"));
+        clk.setToolTip(Text.name("clk"));
         Port readData = new Port(0, 0, Port.OUTPUT, W32);
         readData.setToolTip(Text.of("ReadData: word at Addr", "ReadData: Addr의 워드"));
         setPorts(new Port[] {addr, writeData, memWrite, memRead, clk, readData});
@@ -278,7 +278,7 @@ class DataMemory extends MemoryFactory {
                 MemoryRegistry.View stack = stackBelow(s, (int) st.problemAddr);
                 String limit = bytes(stack == null ? 0 : stack.region()[1] - stack.region()[0]);
                 return Text.of("Stack use exceeds its limit (" + limit + ")",
-                        "스택 사용량이 한계(" + limit + ")를 넘었습니다").get();
+                        "Stack 사용량이 한계(" + limit + ")를 넘었습니다").get();
             }
             case OVERLAP:
                 return Text.of("Memory regions overlap at " + at, "메모리 영역이 " + at + "에서 겹침").get();
@@ -297,7 +297,7 @@ class DataMemory extends MemoryFactory {
         return n + "B";
     }
 
-    /** 우클릭 메뉴 ".s 프로그램 불러오기"(PLAN.md 6.3). Stack은 .data를 받지 않는다. */
+    /** 우클릭 메뉴 "Load .s..."(PLAN.md 6.3). Stack은 .data를 받지 않는다. */
     @Override
     protected Object getInstanceFeature(Instance instance, Object key) {
         if (key == MenuExtender.class && !(this instanceof StackMemory)) {
@@ -321,8 +321,7 @@ class DataMemory extends MemoryFactory {
         List<String> lines = new ArrayList<String>();
         lines.add(region);
         if (st.growsDown) {
-            lines.add(Text.of("depth " + st.depth() + " B, max " + st.maxDepth() + " B",
-                    "깊이 " + st.depth() + " B, 최대 " + st.maxDepth() + " B").get());
+            lines.add(Text.name("depth " + st.depth() + " B, max " + st.maxDepth() + " B").get());
         }
         Value addr = painter.getPort(ADDR);
         if (addr.isFullyDefined() && st.contains(addr.toIntValue())) {

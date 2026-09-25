@@ -18,7 +18,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
-import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -27,8 +26,9 @@ import org.junit.jupiter.api.Test;
 import com.cburch.logisim.util.LocaleManager;
 
 /**
- * #23: 원조 문구의 한국어 번들(resources/logisim/ko). 영어 번들과 키·자리표시자·끝 공백이 같고, 원조처럼
- * ASCII(\\u 이스케이프)로 저장되어 있다.
+ * #23: 원조 문구의 한국어 번들(resources/logisim/ko). 설명 문장만 담고(D-049, UiLanguageTest) 나머지 키는 영어
+ * 번들로 넘어간다. 담은 키는 영어 번들에 있고 자리표시자·끝 공백이 같으며, 원조처럼 ASCII(\\u 이스케이프)로 저장되어
+ * 있다.
  */
 class KoreanBundleTest {
     static final String[] NAMES = {"analyze", "circuit", "data", "draw", "file", "gui", "hex", "log", "menu",
@@ -55,12 +55,12 @@ class KoreanBundleTest {
     }
 
     @Test
-    void sameKeysPlaceholdersAndTrailingSpaces() throws Exception {
+    void keysPlaceholdersAndTrailingSpacesMatchEnglish() throws Exception {
         for (String name : NAMES) {
             Properties en = load("en", name);
             Properties ko = load("ko", name);
-            assertEquals(new TreeSet<>(en.stringPropertyNames()), new TreeSet<>(ko.stringPropertyNames()), name);
-            for (String k : en.stringPropertyNames()) {
+            assertTrue(en.stringPropertyNames().containsAll(ko.stringPropertyNames()), name);
+            for (String k : ko.stringPropertyNames()) {
                 String e = en.getProperty(k);
                 String v = ko.getProperty(k);
                 assertEquals(placeholders(e), placeholders(v), name + ":" + k);
@@ -86,8 +86,15 @@ class KoreanBundleTest {
     /** 저장 파일에 들어가는 문구는 영어 그대로(규칙 2.3). 새 회로 이름은 템플릿 없이 새로 만들 때 쓰인다. */
     @Test
     void stringsThatGoIntoSavedFilesStayEnglish() throws Exception {
-        assertEquals("main", load("ko", "proj").getProperty("newCircuitName"));
-        assertEquals("doc/doc_en.hs", load("ko", "menu").getProperty("helpsetUrl"), "no Korean help set");
+        Locale old = LocaleManager.getLocale();
+        try {
+            LocaleManager.setLocale(new Locale("ko"));
+            assertEquals("main", new LocaleManager("resources/logisim", "proj").get("newCircuitName"));
+            assertEquals("doc/doc_en.hs", new LocaleManager("resources/logisim", "menu").get("helpsetUrl"),
+                    "no Korean help set");
+        } finally {
+            LocaleManager.setLocale(old);
+        }
     }
 
     @Test
@@ -101,9 +108,11 @@ class KoreanBundleTest {
             }
             assertTrue(offered, "settings.properties lists ko");
             LocaleManager.setLocale(new Locale("ko"));
-            assertEquals("파일", menu.get("fileMenu"));
+            assertEquals("File", menu.get("fileMenu")); // 이름은 영어(D-049)
+            assertEquals("\uB3C4\uC6C0\uB9D0 \uB370\uC774\uD130\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.",
+                    menu.get("helpNotFoundError"));
             LocaleManager.setLocale(Locale.ENGLISH);
-            assertEquals("File", menu.get("fileMenu"));
+            assertEquals("Help data not found.", menu.get("helpNotFoundError"));
         } finally {
             LocaleManager.setLocale(old);
         }

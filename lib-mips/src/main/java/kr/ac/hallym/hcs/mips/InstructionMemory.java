@@ -23,8 +23,8 @@ final class InstructionMemory extends MemoryFactory {
     static final int INSTR = 1;
 
     InstructionMemory() {
-        super("Instruction Memory", Text.of("Instruction Memory", "명령어 메모리"),
-                Text.of("Instruction Memory", "Instruction Memory"), false, 0x00400000, 0x00100000);
+        super("Instruction Memory", Text.name("Instruction Memory"),
+                Text.name("Instruction Memory"), false, 0x00400000, 0x00100000);
         setOffsetBounds(Bounds.create(-200, -40, 200, 80));
         Port addr = new Port(-200, 0, Port.INPUT, W32);
         addr.setToolTip(Text.of("Addr: byte address (PC)", "Addr: 바이트 주소(PC)"));
@@ -62,8 +62,8 @@ final class InstructionMemory extends MemoryFactory {
     String[] bodyLines(InstancePainter painter) {
         String region = region(painter);
         WordImage image = painter.getAttributeValue(CONTENTS);
-        String size = image.isEmpty() ? Text.of("no program", "프로그램 없음").get()
-                : image.size() + Text.of(" words", " 워드").get();
+        String size = image.isEmpty() ? Text.name("no program").get()
+                : image.size() + Text.name(" words").get();
         if (!painter.getShowState()) {
             return new String[] {region, size};
         }

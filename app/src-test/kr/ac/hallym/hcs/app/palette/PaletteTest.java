@@ -145,20 +145,24 @@ class PaletteTest {
         assertEquals(32, byName.get("Register").getEnds().get(0).getWidth().getWidth());
     }
 
-    /** 목록에는 저장 이름(Multiplexer)이 아니라 원조 표시 이름과 속성 표시 이름이 보인다(한국어 UI). */
+    /**
+     * 목록에는 원조 표시 이름과 속성 표시 이름이 보인다. 이름은 한국어 UI에서도 영어다(D-049). 저장용 속성 이름
+     * (width=)은 보이지 않는다.
+     */
     @Test
-    void listShowsDisplayNamesInTheUiLanguage() throws Exception {
+    void listShowsEnglishDisplayNamesEvenInKorean() throws Exception {
         start();
         java.util.Locale before = com.cburch.logisim.util.LocaleManager.getLocale();
         com.cburch.logisim.util.LocaleManager.setLocale(java.util.Locale.KOREAN);
         try {
             Palette.Item mux = first("mux 32");
             assertEquals("Multiplexer", mux.name, "storage name for placing");
-            assertEquals("멀티플렉서", Palette.displayName(mux));
-            assertEquals("데이터 비트 32", Palette.attrText(mux));
+            assertEquals("Multiplexer", Palette.displayName(mux));
+            assertEquals("Data Bits 32", Palette.attrText(mux));
             String label = PaletteWindow.label(mux);
-            assertTrue(label.contains("멀티플렉서") && !label.contains("Multiplexer") && !label.contains("width="),
+            assertTrue(label.contains("Multiplexer") && label.contains("Data Bits 32") && !label.contains("width="),
                     label);
+            assertEquals("Multiplexer", first("먹스").name, "Korean aliases still find it");
         } finally {
             com.cburch.logisim.util.LocaleManager.setLocale(before);
         }
