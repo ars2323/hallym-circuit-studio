@@ -49,6 +49,9 @@ class DataMemory extends MemoryFactory {
         CONTROL_FLOATING, UNALIGNED, NOT_IN_ANY_REGION, STACK_LIMIT, OVERLAP
     }
 
+    /** SPIM(QtSpim)이 시작할 때 두는 $sp. D-010에 따라 기계어와 함께 그대로 따른다. */
+    static final long SPIM_INITIAL_SP = 0x7FFFEFFCL;
+
     /** 한 시뮬레이션에서 이 부품의 내용. */
     static final class State implements InstanceData, Cloneable, MemoryRegistry.View {
         SparseMemory memory;
@@ -59,6 +62,8 @@ class DataMemory extends MemoryFactory {
         /** 클럭 상승 에지에 읽거나 쓴 가장 낮은 주소와 마지막 주소(Stack 깊이). -1: 없음. */
         long lowest = -1;
         long last = -1;
+        /** 가장 높은 접근 주소(깊이 기준을 정할 때). -1: 없음. */
+        long highest = -1;
         Problem problem;
         long problemAddr;
 
@@ -104,18 +109,32 @@ class DataMemory extends MemoryFactory {
             return memory.readByte(addr);
         }
 
-        /** Stack의 지금 깊이(바이트): 영역 맨 위에서 마지막 접근 주소까지. 접근이 없으면 0. */
+        /**
+         * 깊이를 재는 기준(#134). SPIM은 프로그램을 시작할 때 $sp를 {@link #SPIM_INITIAL_SP}에 둔다(그 위 4KB는
+         * 시작 코드 몫이다). 그래서 접근이 모두 그 아래이고 영역이 그 주소를 품으면 거기서 잰다. 그 밖(학생이 영역
+         * 맨 위부터 쓰는 경우)은 영역 맨 위에서 잰다.
+         */
+        long base() {
+            boolean spimStack = highest >= 0 && highest < SPIM_INITIAL_SP && region[0] <= SPIM_INITIAL_SP
+                    && region[1] > SPIM_INITIAL_SP + 4; // 영역이 $sp 위까지 있어 그 사이가 비어 있을 때만
+            return spimStack ? SPIM_INITIAL_SP : region[1];
+        }
+
+        /** Stack의 지금 깊이(바이트): 기준에서 마지막 접근 주소까지. 접근이 없으면 0. */
         long depth() {
-            return last < 0 ? 0 : region[1] - last;
+            return last < 0 ? 0 : base() - last;
         }
 
         long maxDepth() {
-            return lowest < 0 ? 0 : region[1] - lowest;
+            return lowest < 0 ? 0 : base() - lowest;
         }
 
         void accessed(int addr) {
             long a = addr & 0xfffffffcL;
             last = a;
+            if (a > highest) {
+                highest = a;
+            }
             if (lowest < 0 || a < lowest) {
                 lowest = a;
             }
@@ -322,11 +341,11 @@ class DataMemory extends MemoryFactory {
 
     @Override
     void drawPorts(InstancePainter painter) {
-        painter.drawPort(ADDR, "Addr", Direction.EAST);
-        painter.drawPort(WRITE_DATA, "WriteData", Direction.EAST);
-        painter.drawPort(MEM_WRITE, "MemWrite", Direction.SOUTH);
-        painter.drawPort(MEM_READ, "MemRead", Direction.SOUTH);
+        drawPortInside(painter, ADDR, "Addr");
+        drawPortInside(painter, WRITE_DATA, "WriteData");
+        drawPortInside(painter, MEM_WRITE, "MemWrite");
+        drawPortInside(painter, MEM_READ, "MemRead");
         painter.drawClock(CLK, Direction.NORTH);
-        painter.drawPort(READ_DATA, "ReadData", Direction.WEST);
+        drawPortInside(painter, READ_DATA, "ReadData");
     }
 }

@@ -239,11 +239,23 @@ public final class QuickBar implements Selection.Listener, ProjectListener {
             return;
         }
         Dimension d = bar.getPreferredSize();
-        int y = r.y - d.height - 8;
-        if (y < vis.y) {
-            y = r.y + r.height + 8;
+        // 피할 것: 대상의 선택 테두리(손잡이 포함), 다른 부품, 라벨 칩(모두 캔버스 좌표로)
+        Rectangle self = new Rectangle(r);
+        self.grow(6, 6);
+        List<Rectangle> avoid = new ArrayList<>();
+        for (Rectangle chip : kr.ac.hallym.hcs.app.labels.LabelOverlay.chipRects(canvas)) {
+            avoid.add(scale(chip, z));
         }
-        int x = Math.max(vis.x, Math.min(r.x, vis.x + vis.width - d.width));
+        for (Component c : canvas.getCircuit().getNonWires()) {
+            if (!targets.contains(c)) {
+                Bounds cb = c.getBounds();
+                avoid.add(new Rectangle((int) (cb.getX() * z), (int) (cb.getY() * z), (int) (cb.getWidth() * z),
+                        (int) (cb.getHeight() * z)));
+            }
+        }
+        Rectangle at = placement(self, d, avoid, vis, 6);
+        int x = at.x;
+        int y = at.y;
         JLayeredPane layer = frame.getLayeredPane();
         Point p = SwingUtilities.convertPoint(canvas, x, y, layer);
         Point top = SwingUtilities.convertPoint(canvas, vis.x, vis.y, layer);
@@ -252,6 +264,49 @@ public final class QuickBar implements Selection.Listener, ProjectListener {
         bar.setVisible(true);
         bar.revalidate();
         layer.repaint();
+    }
+
+    private static Rectangle scale(Rectangle r, double z) {
+        return new Rectangle((int) (r.x * z), (int) (r.y * z), (int) Math.ceil(r.width * z),
+                (int) Math.ceil(r.height * z));
+    }
+
+    /**
+     * 빠른 속성 창 자리(검토 반영 1): 대상(선택 테두리 포함) 위, 아래, 오른쪽, 왼쪽 순으로 놓아 보고, 보이는 영역
+     * 안이면서 피할 것(라벨 칩, 다른 부품)과 겹치지 않는 첫 자리. 없으면 겹침이 가장 적은 자리. 좌표는 캔버스 기준.
+     */
+    static Rectangle placement(Rectangle target, Dimension bar, List<Rectangle> avoid, Rectangle visible, int gap) {
+        Rectangle[] cands = {
+            new Rectangle(target.x, target.y - gap - bar.height, bar.width, bar.height),
+            new Rectangle(target.x, target.y + target.height + gap, bar.width, bar.height),
+            new Rectangle(target.x + target.width + gap, target.y, bar.width, bar.height),
+            new Rectangle(target.x - gap - bar.width, target.y, bar.width, bar.height),
+        };
+        Rectangle best = null;
+        long bestArea = Long.MAX_VALUE;
+        for (Rectangle c : cands) {
+            Rectangle in = new Rectangle(c);
+            in.x = Math.max(visible.x, Math.min(in.x, visible.x + visible.width - in.width));
+            in.y = Math.max(visible.y, Math.min(in.y, visible.y + visible.height - in.height));
+            if (in.intersects(target)) {
+                continue; // 보이는 영역에 맞추다 대상 위로 올라왔다
+            }
+            long area = 0;
+            for (Rectangle a : avoid) {
+                Rectangle i = in.intersection(a);
+                if (!i.isEmpty()) {
+                    area += (long) i.width * i.height;
+                }
+            }
+            if (area == 0) {
+                return in;
+            }
+            if (area < bestArea) {
+                bestArea = area;
+                best = in;
+            }
+        }
+        return best != null ? best : cands[0];
     }
 
     private static JButton small(String text) {

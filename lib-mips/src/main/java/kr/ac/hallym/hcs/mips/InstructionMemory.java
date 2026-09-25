@@ -90,7 +90,7 @@ final class InstructionMemory extends MemoryFactory {
 
     @Override
     void drawPorts(InstancePainter painter) {
-        painter.drawPort(ADDR, "Addr", Direction.EAST);
-        painter.drawPort(INSTR, "Instr", Direction.WEST);
+        drawPortInside(painter, ADDR, "Addr");
+        drawPortInside(painter, INSTR, "Instr");
     }
 }

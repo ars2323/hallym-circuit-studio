@@ -145,6 +145,27 @@ public final class CircuitBuilder {
                 "width", Integer.toString(width(c, index)), "label", label);
     }
 
+    /**
+     * 포트 위에 라벨 터널을 놓되, 터널 몸체가 부품 바깥으로 향하게 한다(부품 안쪽 글자와 겹치지 않게). 연결은
+     * {@link #tunnel}과 같다(터널은 끝점과 이름으로만 잇는다).
+     */
+    public void tunnelOutward(Component c, int index, String label) {
+        Location at = port(c, index);
+        com.cburch.logisim.data.Bounds b = c.getBounds();
+        String facing;
+        if (at.getX() <= b.getX()) {
+            facing = "east"; // 왼쪽 변: 몸체는 왼쪽으로
+        } else if (at.getX() >= b.getX() + b.getWidth()) {
+            facing = "west";
+        } else if (at.getY() <= b.getY()) {
+            facing = "south";
+        } else {
+            facing = "north";
+        }
+        add("Wiring", "Tunnel", at.getX(), at.getY(),
+                "width", Integer.toString(width(c, index)), "label", label, "facing", facing);
+    }
+
     /** 출력 핀을 만들고 라벨 터널로 연결한다. */
     public Component output(String label, int width, int x, int y) {
         Component pin = add("Wiring", "Pin", x, y,

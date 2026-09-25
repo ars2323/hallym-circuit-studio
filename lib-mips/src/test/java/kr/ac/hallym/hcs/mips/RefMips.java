@@ -86,7 +86,7 @@ final class RefMips {
     }
 
     private void t(Component c, int port, String label) {
-        b.tunnel(c, port, label);
+        b.tunnelOutward(c, port, label); // 부품 안쪽 글자(포트 이름)와 겹치지 않게
     }
 
     private void konst(String label, int width, long value) {

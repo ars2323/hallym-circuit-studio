@@ -174,4 +174,26 @@ class StackRegionTest {
         List<String[]> rows = o.run("stacktop");
         assertEquals(0xCAFEBABEL, (long) OriginalLogisim.value(rows.get(0)[0]));
     }
+
+    /** #134: SPIM 시작 $sp(0x7FFFEFFC) 아래만 쓰면 깊이는 그 $sp에서 잰다(위 4KB 제외). 그 위를 쓰면 영역 맨 위에서. */
+    @Test
+    void depthStartsAtSpimInitialStackPointer() {
+        DataMemory.State st = new DataMemory.State(WordImage.EMPTY);
+        st.region = new long[] {0x7FF00000L, 0x80000000L};
+        st.growsDown = true;
+        st.accessed(0x7FFFEFF8); // addi $sp,$sp,-4; sw $ra,0($sp)
+        assertEquals(4, st.depth());
+        st.accessed(0x7FFFEFF0);
+        assertEquals(12, st.depth());
+        assertEquals(12, st.maxDepth());
+        st.accessed(0x7FFFEFF8);
+        assertEquals(4, st.depth());
+        assertEquals(12, st.maxDepth());
+
+        DataMemory.State top = new DataMemory.State(WordImage.EMPTY);
+        top.region = new long[] {0x7FF00000L, 0x80000000L};
+        top.growsDown = true;
+        top.accessed(0x7FFFFFFC); // 영역 맨 위부터 쓰는 회로(학생 설정): 예전처럼
+        assertEquals(4, top.depth());
+    }
 }

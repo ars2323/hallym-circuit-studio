@@ -188,7 +188,7 @@ class RefMipsTest {
         }));
     }
 
-    /** 재귀 팩토리얼: $sp가 내려갔다가 제자리로 돌아오고, Stack 최대 깊이는 호출 7번 × 8바이트다. */
+    /** 재귀 팩토리얼: $sp가 내려갔다가 제자리로 돌아오고, Stack 최대 깊이는 호출 7번 × 8바이트다(시작 $sp 기준). */
     @Test
     void recursionMovesTheStackAndReturns() throws Exception {
         AssembledProgram prog = AssemblerIntegrationTest.assemble(PROGRAMS.resolve("factorial.s"));
@@ -197,7 +197,8 @@ class RefMipsTest {
         assertEquals(0x7fffeffc, r.regs[29]); // 복귀 후 $sp
         DataMemory.State st = (DataMemory.State) lastSim.data(lastCpu.stack);
         long lowest = 0x7fffeffcL - 7 * 8;
-        assertEquals(0x80000000L - lowest, st.maxDepth());
+        assertEquals(7 * 8, st.maxDepth()); // SPIM 시작 $sp에서 잰다(#134)
+        assertEquals(0x7fffeffcL - lowest, st.maxDepth());
         assertNull(st.problem);
     }
 

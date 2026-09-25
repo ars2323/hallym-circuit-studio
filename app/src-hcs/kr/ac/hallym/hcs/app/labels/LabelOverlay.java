@@ -122,6 +122,21 @@ public final class LabelOverlay {
         return OVERLAYS.computeIfAbsent(canvas, LabelOverlay::new);
     }
 
+    /** 지금 그려진 라벨 칩들의 자리(회로 좌표). 빠른 속성 창이 칩을 덮지 않게 쓴다. */
+    public static List<Rectangle> chipRects(Canvas canvas) {
+        List<Rectangle> ret = new ArrayList<>();
+        LabelOverlay o;
+        synchronized (LabelOverlay.class) {
+            o = OVERLAYS.get(canvas);
+        }
+        if (o != null) {
+            for (LabelLayout.Placed p : o.cached) {
+                ret.add(new Rectangle(p.rect));
+            }
+        }
+        return ret;
+    }
+
     public static Density density() {
         String s = Settings.get().getString(DENSITY, "all");
         for (Density d : Density.values()) {
@@ -172,12 +187,27 @@ public final class LabelOverlay {
         }
         LabelOverlay o = of(canvas);
         o.labels = labelFields(circuit, g);
-        return filter((Graphics2D) g, circuit, hidden, o.labels);
+        Density d = density();
+        return filter((Graphics2D) g, circuit, hidden, o.labels, c -> d == Density.ALL || c == o.hovered);
     }
 
-    /** 원조 그리기 순서(선 한 번, 그다음 가려지지 않은 부품)에 맞춘 거르기 Graphics. */
     static FilterGraphics filter(Graphics2D g, Circuit circuit, java.util.Collection<Component> hidden,
             List<LabelField> fields) {
+        return filter(g, circuit, hidden, fields, c -> false);
+    }
+
+    /**
+     * 원조 그리기 순서(선 한 번, 그다음 가려지지 않은 부품)에 맞춘 거르기 Graphics. armLabels가 참인 스플리터는
+     * 우리 팔 라벨이 원조 "0-7" 표시를 대신하므로 그 글자를 뺀다(라벨 한 벌만).
+     */
+    static FilterGraphics filter(Graphics2D g, Circuit circuit, java.util.Collection<Component> hidden,
+            List<LabelField> fields, java.util.function.Predicate<Component> armLabels) {
+        Map<Component, Set<String>> texts = new HashMap<>();
+        for (Component c : circuit.getNonWires()) {
+            if (c.getFactory().getName().equals("Splitter") && armLabels.test(c)) {
+                texts.put(c, originalSplitterTexts(c));
+            }
+        }
         Map<Component, String> keys = new HashMap<>();
         for (LabelField f : fields) {
             keys.put(f.comp, FilterGraphics.key(f.text, f.drawX, f.drawY));
@@ -189,7 +219,38 @@ public final class LabelOverlay {
                 order.add(c);
             }
         }
-        return new FilterGraphics(g, order.iterator(), keys);
+        return new FilterGraphics(g, order.iterator(), keys, texts);
+    }
+
+    /**
+     * 원조 스플리터가 팔 옆에 그리는 글자들(원조 {@code SplitterPainter.drawLabels}와 같은 식): 팔마다 이어진 비트
+     * 구간을 "0-5", 한 비트면 "7", 여러 구간이면 쉼표로 잇는다.
+     */
+    static Set<String> originalSplitterTexts(Component s) {
+        int[] arm = Netlist.splitterArms(s); // 비트마다 팔 번호(0부터), 없으면 -1
+        int fanout = s.getEnds().size() - 1;
+        String[] ends = new String[fanout + 1];
+        int curEnd = -1;
+        int cur0 = 0;
+        for (int i = 0, n = arm.length; i <= n; i++) {
+            int bit = i == n ? -1 : arm[i] + 1;
+            if (bit != curEnd) {
+                int cur1 = i - 1;
+                String add = curEnd <= 0 ? null : cur0 == cur1 ? "" + cur0 : cur0 + "-" + cur1;
+                if (add != null && curEnd < ends.length) {
+                    ends[curEnd] = ends[curEnd] == null ? add : ends[curEnd] + "," + add;
+                }
+                curEnd = bit;
+                cur0 = i;
+            }
+        }
+        Set<String> ret = new HashSet<>();
+        for (int i = 1; i < ends.length; i++) {
+            if (ends[i] != null) {
+                ret.add(ends[i]);
+            }
+        }
+        return ret;
     }
 
     /** 원조 회로 그리기 뒤에 부른다. */
@@ -244,11 +305,11 @@ public final class LabelOverlay {
      * 캡션으로 그린다({@link #chips}).
      */
     private static void subcircuits(Graphics2D g, Circuit circuit, java.util.Set<Component> hidden, double z) {
-        float portPx = 7f;
-        if (portPx * z < 5) {
+        float portPx = 9f; // 검토 반영 1: 200%에서 또렷하게(포트 간격 10px 안)
+        if (portPx * z < 6) {
             return;
         }
-        g.setFont(new Font(Tokens.UI_FONT, Font.PLAIN, 1).deriveFont(portPx));
+        g.setFont(new Font(Tokens.UI_FONT, Font.BOLD, 1).deriveFont(portPx));
         FontMetrics fm = g.getFontMetrics();
         for (Component c : circuit.getNonWires()) {
             if (!defaultSubcircuit(c) || hidden.contains(c)) {
@@ -256,7 +317,7 @@ public final class LabelOverlay {
             }
             Bounds b = c.getBounds();
             int half = Math.max(6, b.getWidth() / 2 - 4);
-            g.setColor(Tokens.TEXT_2);
+            g.setColor(Tokens.TEXT); // 검토 반영 1: 대비를 높인다
             int mid = (fm.getAscent() - fm.getDescent()) / 2;
             for (int i = 0; i < c.getEnds().size(); i++) {
                 Location p = c.getEnds().get(i).getLocation();

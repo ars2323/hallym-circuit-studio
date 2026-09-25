@@ -190,4 +190,33 @@ class QuickAttrsTest {
         assertTrue(QuickBar.hidesWhilePressed(left));
         assertFalse(QuickBar.hidesWhilePressed(right));
     }
+
+    /** 빠른 속성 창은 라벨 칩·다른 부품·선택 테두리를 덮지 않는 자리(위→아래→오른쪽→왼쪽)에 놓인다(검토 반영 1). */
+    @Test
+    void quickBarAvoidsChipsAndComponents() {
+        java.awt.Rectangle target = new java.awt.Rectangle(400, 300, 60, 40);
+        java.awt.Dimension bar = new java.awt.Dimension(300, 40);
+        java.awt.Rectangle vis = new java.awt.Rectangle(0, 0, 1200, 800);
+        java.util.List<java.awt.Rectangle> none = new java.util.ArrayList<>();
+        assertEquals(new java.awt.Rectangle(400, 254, 300, 40), QuickBar.placement(target, bar, none, vis, 6),
+                "above when free");
+
+        java.util.List<java.awt.Rectangle> chipAbove = new java.util.ArrayList<>();
+        chipAbove.add(new java.awt.Rectangle(410, 270, 40, 16)); // 레지스터 라벨 칩
+        java.awt.Rectangle below = QuickBar.placement(target, bar, chipAbove, vis, 6);
+        assertEquals(346, below.y, "below when the label chip sits above");
+        assertFalse(below.intersects(chipAbove.get(0)));
+
+        java.util.List<java.awt.Rectangle> both = new java.util.ArrayList<>(chipAbove);
+        both.add(new java.awt.Rectangle(380, 350, 200, 60)); // 아래 부품
+        java.awt.Rectangle right = QuickBar.placement(target, bar, both, vis, 6);
+        assertEquals(466, right.x, "to the right when above and below are taken");
+        for (java.awt.Rectangle a : both) {
+            assertFalse(right.intersects(a));
+        }
+
+        java.awt.Rectangle topEdge = new java.awt.Rectangle(400, 10, 60, 40);
+        java.awt.Rectangle p = QuickBar.placement(topEdge, bar, none, vis, 6);
+        assertFalse(p.intersects(topEdge), "never on top of the selection");
+    }
 }
