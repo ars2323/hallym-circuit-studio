@@ -154,4 +154,18 @@ class RunUntilTest {
                 .isEmpty());
         assertTrue(model.recording().problemSteps(0, CycleModel.stepOf(o.cycle) - 2).isEmpty(), "nothing before");
     }
+
+    @Test
+    void pcTextIsHexOrALabel() throws Exception {
+        java.util.Map<Integer, Integer> lines = new java.util.HashMap<>();
+        lines.put(0x00400000, 1);
+        java.util.Map<Integer, String> labels = new java.util.HashMap<>();
+        labels.put(0x00400034, "fact");
+        ProgramSource src = new ProgramSource(null, lines, labels, java.util.Collections.singletonList("main:"));
+        assertEquals(Integer.valueOf(0x00400034), RunUntil.parsePc("0x00400034", src));
+        assertEquals(Integer.valueOf(0x00400034), RunUntil.parsePc(" 400034 ", src));
+        assertEquals(Integer.valueOf(0x00400034), RunUntil.parsePc("fact", src));
+        assertEquals(null, RunUntil.parsePc("nowhere", src));
+        assertEquals(null, RunUntil.parsePc("", src));
+    }
 }
