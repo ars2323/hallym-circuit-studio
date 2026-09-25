@@ -80,6 +80,7 @@ public final class FindDialog extends JDialog {
             lab.setBorder(BorderFactory.createEmptyBorder(3, r.child ? 28 : 6, 3, 6));
             return lab;
         });
+        list.setToolTipText(Messages.get("find.expand"));
         query.getDocument().addDocumentListener(new DocumentListener() {
             public void insertUpdate(DocumentEvent e) {
                 search();
@@ -200,9 +201,10 @@ public final class FindDialog extends JDialog {
             return "<html>" + esc(place.apply(r.entry)) + "</html>";
         }
         NameIndex.Entry e = r.entry;
-        String count = r.group.size() > 1 ? "  (" + Messages.get("find.count", r.group.size()) + " · "
-                + Messages.get(open ? "find.collapse" : "find.expand") + ")" : "";
-        return "<html><b>" + esc(e.text) + "</b>  <span style='color:#" + gray + "'>"
+        // 묶음은 +/−(펼침)과 개수. 누르면 펼친다는 안내 문장은 목록의 마우스 오버 설명이다(D-049: 결과 줄은 이름만)
+        String count = r.group.size() > 1 ? "  (" + Messages.get("find.count", r.group.size()) + ")" : "";
+        String arrow = r.group.size() > 1 ? (open ? "\u2212 " : "+ ") : ""; // Pretendard에 있는 글자만
+        return "<html>" + arrow + "<b>" + esc(e.text) + "</b>  <span style='color:#" + gray + "'>"
                 + Messages.get("find.kind." + e.kind.name()) + " · " + esc(e.path) + esc(count) + "</span></html>";
     }
 

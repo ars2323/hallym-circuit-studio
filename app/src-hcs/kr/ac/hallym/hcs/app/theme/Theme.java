@@ -45,6 +45,7 @@ public final class Theme {
             return;
         }
         installed = true;
+        swingNamesInEnglish();
         String family = registerFonts();
         FlatLaf.setGlobalExtraDefaults(defaults());
         if (!FlatLightLaf.setup()) {
@@ -52,6 +53,16 @@ public final class Theme {
         }
         UIManager.put("defaultFont", new FontUIResource(family, Font.PLAIN, Tokens.FONT_UI));
         FlatLaf.updateUI();
+    }
+
+    /**
+     * Swing이 스스로 그리는 이름(대화 상자 버튼 OK·Cancel, 파일 고르기 창의 버튼·칸 이름)도 영어로 한다(D-049: 이름은
+     * 영어). Swing은 OS 언어를 따라 "확인"·"취소"를 내므로 컴포넌트 기본 로캘을 영어로 둔다. 앱 문구는 이와 상관없이
+     * Logisim 언어 설정(LocaleManager)을 따른다.
+     */
+    static void swingNamesInEnglish() {
+        // ROOT: Swing의 기본(영어) 번들을 바로 고른다. ENGLISH는 영어 번들이 따로 없어 OS 언어(한국어)로 넘어간다
+        javax.swing.JComponent.setDefaultLocale(java.util.Locale.ROOT);
     }
 
     /** Pretendard를 등록하고 UI 글꼴 이름을 돌려준다. */

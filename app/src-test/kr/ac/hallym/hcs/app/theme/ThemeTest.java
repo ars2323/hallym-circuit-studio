@@ -82,4 +82,23 @@ class ThemeTest {
         assertEquals(13, font.getSize());
         assertEquals("Pretendard", UIManager.getFont("Label.font").getFamily());
     }
+
+    /** D-049: Swing이 그리는 버튼 이름도 한국어 OS에서 영어다(스크린샷 13의 "확인"). */
+    @Test
+    void swingButtonNamesAreEnglish() {
+        java.util.Locale os = java.util.Locale.getDefault();
+        java.util.Locale before = javax.swing.JComponent.getDefaultLocale();
+        try {
+            java.util.Locale.setDefault(java.util.Locale.KOREA);
+            javax.swing.JComponent.setDefaultLocale(java.util.Locale.KOREA);
+            Theme.swingNamesInEnglish();
+            java.util.Locale l = new javax.swing.JOptionPane().getLocale();
+            org.junit.jupiter.api.Assertions.assertEquals("OK", javax.swing.UIManager.getString("OptionPane.okButtonText", l));
+            org.junit.jupiter.api.Assertions.assertEquals("Cancel",
+                    javax.swing.UIManager.getString("OptionPane.cancelButtonText", l));
+        } finally {
+            java.util.Locale.setDefault(os);
+            javax.swing.JComponent.setDefaultLocale(before);
+        }
+    }
 }
