@@ -146,7 +146,47 @@ public final class AttrDock {
         collapsed = c;
         Settings.get().set(COLLAPSED, c);
         saver.restart();
+        // 캔버스 쪽을 떼었다 다시 붙이면 Swing이 초점을 다음 칸(부품 검색)으로 넘긴다. 그러면 빠른 속성 창의
+        // 단축키(Alt+0-9, F2)가 캔버스에 닿지 않는다(ui-reviewer #242). 초점이 캔버스 쪽이나 접기 단추에 있었으면
+        // 캔버스로 되돌린다.
+        java.awt.Component owner = java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+        java.awt.Component back = focusAfter(owner, center, panel, strip);
         layout();
+        if (back != null) {
+            back.requestFocusInWindow();
+        }
+    }
+
+    /**
+     * 접기·펴기 뒤 초점을 줄 곳: 캔버스 쪽(center)에 있던 초점은 그대로, 속성 패널·접힌 띠(접기 단추)에 있었거나 초점이
+     * 없었으면 캔버스. 그 밖(부품 검색 등 학생이 고른 칸)이면 null(건드리지 않음).
+     */
+    static java.awt.Component focusAfter(java.awt.Component owner, java.awt.Component center,
+            java.awt.Component panel, java.awt.Component strip) {
+        if (owner != null && javax.swing.SwingUtilities.isDescendingFrom(owner, center)) {
+            return owner;
+        }
+        if (owner == null || javax.swing.SwingUtilities.isDescendingFrom(owner, panel)
+                || javax.swing.SwingUtilities.isDescendingFrom(owner, strip)) {
+            return canvasIn(center);
+        }
+        return null;
+    }
+
+    /** center 안의 캔버스(없으면 null). */
+    static java.awt.Component canvasIn(java.awt.Component root) {
+        if (root instanceof com.cburch.logisim.gui.main.Canvas) {
+            return root;
+        }
+        if (root instanceof java.awt.Container) {
+            for (java.awt.Component c : ((java.awt.Container) root).getComponents()) {
+                java.awt.Component found = canvasIn(c);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
     }
 
     /** "모든 속성": 펴고 속성 표로 초점을 옮긴다. */
