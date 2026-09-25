@@ -318,15 +318,13 @@ class SafeMoveTest {
                 x = now;
             }
         }
-        assertTrue(moved >= 5, "most small moves keep the wires: " + moved);
+        assertEquals(9, moved, "every small move keeps the wires");
         // 서브회로 인스턴스와 MIPS 부품도
         for (String factory : new String[] {"regfile", "Data Memory"}) {
             Component x = byFactory(c, factory);
             Set<Set<String>> before = netlist(c, List.of(), 0, 0);
-            SafeMove.Outcome o = move(List.of(x), 0, 20);
-            if (o == SafeMove.Outcome.MOVED) {
-                assertEquals(before, netlist(c, List.of(byFactory(c, factory)), 0, 20), factory);
-            }
+            assertEquals(SafeMove.Outcome.MOVED, move(List.of(x), 0, 20), factory);
+            assertEquals(before, netlist(c, List.of(byFactory(c, factory)), 0, 20), factory);
         }
     }
 

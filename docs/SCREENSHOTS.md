@@ -50,6 +50,7 @@ tools/screenshots/run.sh <출력 폴더> [장면 번호 ...]
 | 11 | .s 불러오기 요약, Instruction Memory·Data Memory·Stack·Console 부품(재귀 factorial 실행 중과 끝) |
 | 12 | 마우스 오버 정보(부품, 포트) |
 | 13 | ? 단축키 표 |
+| 15 | 따라오는 배선: 데모의 PC를 끌어 옮기기 전후, rs 선의 가운데 세로 선분을 끌기 전후(끝나면 되돌림) |
 | 14 | Messages 탭: 데모 회로를 두 곳 망가뜨린 뒤(터널 이름 틀림, PC 클럭 지움) 목록, 메시지를 눌러 강조한 캔버스, 표시가 배율 25·100·400%에서 보이는지(14f), 끝나면 되돌림. gateUndefined = error 회로의 빈 게이트 입력(14e) |
 
 ## 올리기와 보고

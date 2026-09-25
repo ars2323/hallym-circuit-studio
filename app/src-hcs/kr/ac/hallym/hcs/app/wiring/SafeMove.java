@@ -54,18 +54,26 @@ public final class SafeMove {
                 seg.select(sel);
                 return Outcome.MOVED;
             }
-            // 원조는 선만 늘리고 꺾는다. 포트끼리 바로 닿아 있던 연결(선 없음)은 곧은 선을 더해 잇는다
-            List<Wire> direct = directWires(circuit, before, dx, dy);
-            Action follow = SelectionActions.translate(sel, dx, dy, result.getReplacementMap());
-            if (!direct.isEmpty()) {
-                com.cburch.logisim.circuit.CircuitMutation m = new com.cburch.logisim.circuit.CircuitMutation(circuit);
-                m.addAll(direct);
-                follow = new Both(follow, m.toAction(null));
-            }
-            List<Wire> added = new ArrayList<>(result.getWiresToAdd());
-            added.addAll(direct);
-            if (tryCommit(proj, follow, circuit, sel, before, sig, all, dx, dy, added)) {
-                return Outcome.MOVED;
+            // 원조는 선으로 이어진 것만 길을 찾아 늘리고 꺾는다. 길을 못 찾고 남긴 점과, 포트끼리 바로 닿아 있던
+            // 연결(선 없음)은 옮긴 포트에서 원래 자리까지 곧은 선(ㄱ자는 가로 먼저, 안 되면 세로 먼저)으로 잇는다
+            java.util.Set<com.cburch.logisim.data.Location> open = openEnds(circuit, before, result);
+            for (boolean horizontalFirst : new boolean[] {true, false}) {
+                List<Wire> extra = connectors(open, dx, dy, horizontalFirst);
+                Action follow = SelectionActions.translate(sel, dx, dy, result.getReplacementMap());
+                if (!extra.isEmpty()) {
+                    com.cburch.logisim.circuit.CircuitMutation m =
+                            new com.cburch.logisim.circuit.CircuitMutation(circuit);
+                    m.addAll(extra);
+                    follow = new Both(follow, m.toAction(null));
+                }
+                List<Wire> added = new ArrayList<>(result.getWiresToAdd());
+                added.addAll(extra);
+                if (tryCommit(proj, follow, circuit, sel, before, sig, all, dx, dy, added)) {
+                    return Outcome.MOVED;
+                }
+                if (extra.isEmpty() || dx == 0 || dy == 0) {
+                    break; // ㄱ자가 없으면 다른 방향도 같다
+                }
             }
         }
         Action plain = SelectionActions.translate(sel, dx, dy, null);
@@ -103,30 +111,42 @@ public final class SafeMove {
     }
 
     /**
-     * 옮길 부품의 포트가 선 없이 다른 부품의 포트에 바로 닿아 있던 곳: 옮긴 포트에서 원래 자리까지 곧은 선(가로 또는
-     * 세로가 아니면 ㄱ자 두 조각).
+     * 옮긴 뒤 이어야 할 옛 포트 자리: 원조가 길을 못 찾고 남긴 점(선 끝이 남음)과, 선 없이 옮기지 않는 부품의 포트에 바로
+     * 닿아 있던 점.
      */
-    static List<Wire> directWires(Circuit circuit, List<Component> moved, int dx, int dy) {
-        java.util.Set<com.cburch.logisim.data.Location> done = new java.util.HashSet<>();
-        List<Wire> ret = new ArrayList<>();
+    static java.util.Set<com.cburch.logisim.data.Location> openEnds(Circuit circuit, List<Component> moved,
+            MoveResult result) {
+        java.util.Set<com.cburch.logisim.data.Location> ports = new java.util.LinkedHashSet<>();
         for (Component c : moved) {
-            if (c instanceof Wire) {
-                continue;
+            if (!(c instanceof Wire)) {
+                for (int i = 0; i < c.getEnds().size(); i++) {
+                    ports.add(c.getEnd(i).getLocation());
+                }
             }
-            for (int i = 0; i < c.getEnds().size(); i++) {
-                com.cburch.logisim.data.Location at = c.getEnd(i).getLocation();
-                if (!done.add(at) || !touchesStayingPort(circuit, moved, at)) {
-                    continue;
-                }
-                com.cburch.logisim.data.Location to = at.translate(dx, dy);
-                if (dx == 0 || dy == 0) {
-                    ret.add(Wire.create(at, to));
-                } else {
-                    com.cburch.logisim.data.Location bend = com.cburch.logisim.data.Location.create(to.getX(),
-                            at.getY());
-                    ret.add(Wire.create(at, bend));
-                    ret.add(Wire.create(bend, to));
-                }
+        }
+        java.util.Set<com.cburch.logisim.data.Location> ret = new java.util.LinkedHashSet<>();
+        for (com.cburch.logisim.data.Location at : ports) {
+            if (result.getUnconnectedLocations().contains(at) || touchesStayingPort(circuit, moved, at)) {
+                ret.add(at);
+            }
+        }
+        return ret;
+    }
+
+    /** 옛 자리 at에서 옮긴 포트(at + (dx, dy))까지 곧은 선, 가로·세로가 아니면 ㄱ자 두 조각. */
+    static List<Wire> connectors(java.util.Set<com.cburch.logisim.data.Location> open, int dx, int dy,
+            boolean horizontalFirst) {
+        List<Wire> ret = new ArrayList<>();
+        for (com.cburch.logisim.data.Location at : open) {
+            com.cburch.logisim.data.Location to = at.translate(dx, dy);
+            if (dx == 0 || dy == 0) {
+                ret.add(Wire.create(at, to));
+            } else {
+                com.cburch.logisim.data.Location bend = horizontalFirst
+                        ? com.cburch.logisim.data.Location.create(to.getX(), at.getY())
+                        : com.cburch.logisim.data.Location.create(at.getX(), to.getY());
+                ret.add(Wire.create(at, bend));
+                ret.add(Wire.create(bend, to));
             }
         }
         return ret;

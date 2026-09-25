@@ -198,6 +198,9 @@ public final class Shots {
             snapCrop(top, "10-file-tabs-top");
             activate(last);
         }
+        if (want(scenes, "15")) {
+            followingWires(demo);
+        }
         if (want(scenes, "14")) {
             messages(demo);
             gateUndefined(demo);
@@ -400,6 +403,65 @@ public final class Shots {
         }
         edt(() -> p.undoAction());
         sleep(1500);
+        setZoom(p, 1.0);
+    }
+
+    /** 마우스로 끌기: 누르고 조금씩 움직여 놓는다. */
+    void drag(Project p, Location from, Location to) throws Exception {
+        Point a = screen(p, from);
+        Point b = screen(p, to);
+        robot.mouseMove(a.x, a.y);
+        sleep(200);
+        robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+        for (int i = 1; i <= 10; i++) {
+            robot.mouseMove(a.x + (b.x - a.x) * i / 10, a.y + (b.y - a.y) * i / 10);
+            sleep(60);
+        }
+        sleep(300);
+        robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+        sleep(1200);
+    }
+
+    /**
+     * 15: 따라오는 배선(#81). PC를 오른쪽 아래로 끌면 붙은 선이 늘고 꺾인다. regfile로 가는 rs 선의 가운데 세로
+     * 선분을 끌면 양쪽 다리가 따라온다. 끝나면 되돌린다.
+     */
+    void followingWires(Project p) throws Exception {
+        activate(p);
+        useTool(p, "Edit Tool");
+        setZoom(p, 1.5);
+        Circuit c = p.getCurrentCircuit();
+        com.cburch.logisim.comp.Component pc = byLabel(c, "PC");
+        Bounds area = pc.getBounds().expand(120);
+        centerOn(p, area);
+        snapLogical(p, area, "15a-move-before");
+        Location mid = Location.create(pc.getBounds().getX() + pc.getBounds().getWidth() / 2,
+                pc.getBounds().getY() + pc.getBounds().getHeight() / 2);
+        drag(p, mid, mid.translate(20, 40));
+        snapLogical(p, area, "15b-move-after");
+        edt(() -> p.undoAction());
+        sleep(800);
+        // rs 선의 가운데 세로 선분(x = 710)
+        com.cburch.logisim.circuit.Wire seg = null;
+        for (com.cburch.logisim.circuit.Wire w : c.getWires()) {
+            if (w.isVertical() && w.getEnd0().getX() == 710) {
+                seg = w;
+            }
+        }
+        if (seg == null) {
+            log.add("15: no rs segment");
+            return;
+        }
+        Bounds sa = seg.getBounds().expand(90);
+        centerOn(p, sa);
+        clickCanvas(p, Location.create(160, 900)); // 빈 곳: 선택 비우기
+        snapLogical(p, sa, "15c-segment-before");
+        Location on = Location.create(710, (seg.getEnd0().getY() + seg.getEnd1().getY()) / 2);
+        clickCanvas(p, on); // 선분 고르기
+        drag(p, on, on.translate(-30, 0));
+        snapLogical(p, sa, "15d-segment-after");
+        edt(() -> p.undoAction());
+        sleep(800);
         setZoom(p, 1.0);
     }
 
