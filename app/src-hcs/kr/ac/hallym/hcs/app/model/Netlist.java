@@ -33,7 +33,7 @@ public final class Netlist {
         public final Component component;
         public final int end;
 
-        PortRef(Component component, int end) {
+        public PortRef(Component component, int end) {
             this.component = component;
             this.end = end;
         }
