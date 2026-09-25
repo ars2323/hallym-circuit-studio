@@ -58,6 +58,33 @@ public final class HoverInfo {
         return html(l);
     }
 
+    /**
+     * 도움말 자리(캔버스 px, S-08): 마우스 아래 부품이 있으면 그 부품(과 둘레 칩 여유) 오른쪽 위에 둔다. 오른쪽에 자리가
+     * 없으면 왼쪽 위. 부품이 없으면 null(Swing 기본 자리, 마우스 아래). 원조 도움말은 마우스 바로 아래에 떠 부품과
+     * 캡션 칩을 가렸다.
+     */
+    public static java.awt.Point location(com.cburch.logisim.gui.main.Canvas canvas, int x, int y) {
+        if (canvas.getCircuit() == null) {
+            return null;
+        }
+        Location p = canvas.hcsToCircuit(x, y);
+        Component hit = hit(canvas.getCircuit(), p);
+        if (hit == null) {
+            return null;
+        }
+        com.cburch.logisim.data.Bounds b = hit.getBounds();
+        java.awt.Rectangle r = canvas.hcsToScreen(new java.awt.Rectangle(b.getX(), b.getY(), b.getWidth(),
+                b.getHeight()));
+        java.awt.Rectangle vis = canvas.getVisibleRect();
+        int gap = 16; // 포트 이름·칩이 부품 옆에 붙어 있어 조금 띄운다
+        int tx = r.x + r.width + gap;
+        if (tx + 200 > vis.x + vis.width && r.x - gap - 200 > vis.x) {
+            tx = r.x - gap - 200; // 오른쪽이 모자라면 왼쪽(도움말 폭 약 200px)
+        }
+        int ty = Math.max(vis.y, r.y - 8);
+        return new java.awt.Point(tx, ty);
+    }
+
     /** 점 p를 덮는 부품(선 제외). 없으면 null. */
     static Component hit(Circuit circuit, Location p) {
         for (Component c : circuit.getAllContaining(p)) {

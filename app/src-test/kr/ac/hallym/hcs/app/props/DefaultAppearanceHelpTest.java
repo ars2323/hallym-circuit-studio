@@ -70,4 +70,25 @@ class DefaultAppearanceHelpTest {
                 Location.create(nb.getX() + nb.getWidth() / 2, nb.getY() + nb.getHeight() / 2));
         assertTrue(!after.contains(ports), after.toString());
     }
+
+    /** 도움말은 부품 옆에 뜬다(부품·캡션 칩을 가리지 않게). 오른쪽이 모자라면 왼쪽, 빈 곳이면 Swing 기본 자리. */
+    @Test
+    void hoverInfoSitsBesideThePart() throws Exception {
+        LogisimFile f = CircuitBuilder.newFile(new Loader(null), tmp.toFile());
+        CircuitBuilder mb = new CircuitBuilder(f, f.getMainCircuit());
+        Component and = mb.add("Gates", "AND Gate", 300, 200, "inputs", "2");
+        Component far = mb.add("Gates", "AND Gate", 960, 400, "inputs", "2");
+        mb.commit();
+        Project proj = new Project(f);
+        proj.getSimulator().setIsRunning(false);
+        com.cburch.logisim.gui.main.Canvas canvas = new com.cburch.logisim.gui.main.Canvas(proj);
+        canvas.setSize(1000, 800);
+        com.cburch.logisim.data.Bounds b = and.getBounds();
+        java.awt.Point at = HoverInfo.location(canvas, b.getX() + 5, b.getY() + b.getHeight() / 2);
+        assertTrue(at != null && at.x >= b.getX() + b.getWidth(), "right of the part: " + at + " " + b);
+        com.cburch.logisim.data.Bounds fb = far.getBounds();
+        java.awt.Point left = HoverInfo.location(canvas, fb.getX() + 5, fb.getY() + fb.getHeight() / 2);
+        assertTrue(left != null && left.x + 200 <= fb.getX(), "near the right edge: to the left " + left + " " + fb);
+        assertNull(HoverInfo.location(canvas, 700, 700), "empty space: the default spot");
+    }
 }
