@@ -325,6 +325,14 @@ public final class Shots {
     void quickAttrs(Project p) throws Exception {
         setZoom(p, 1.5);
         useTool(p, "Edit Tool");
+        // 04e: 서브회로 우클릭(Auto Appearance, 검토 2차 C). 데모 회로가 필요해 여기서 찍는다
+        com.cburch.logisim.comp.Component rf = byFactory(p.getCurrentCircuit(), "regfile");
+        if (rf != null) {
+            Bounds rb = rf.getBounds();
+            centerOn(p, rb.expand(150));
+            menuAt(p, Location.create(rb.getX() + rb.getWidth() / 2, rb.getY() + rb.getHeight() / 2),
+                    "04e-menu-subcircuit");
+        }
         com.cburch.logisim.comp.Component reg = byLabel(p.getCurrentCircuit(), "PC");
         if (reg == null) {
             reg = byFactory(p.getCurrentCircuit(), "Register");
@@ -337,19 +345,19 @@ public final class Shots {
         snapFull("05a-quick-attrs-dock-open");
         Rectangle qb = screenRect(p, target.getBounds().expand(80));
         Component bar = find(p.getFrame().getLayeredPane(), x -> x instanceof AbstractButton && x.isShowing()
-                && "모든 속성".equals(((AbstractButton) x).getText()));
+                && kr.ac.hallym.hcs.app.Messages.get("quick.all").equals(((AbstractButton) x).getText()));
         if (bar != null) {
             qb.add(onScreen(bar.getParent().getParent())); // 빠른 속성 창 전체
         }
         snapCrop(pad(qb, 16), "05b-quick-attrs-crop");
         AbstractButton collapse = (AbstractButton) find(p.getFrame(),
-                x -> x instanceof AbstractButton && tip(x).contains("접기"));
+                x -> x instanceof AbstractButton && tip(x).equals(kr.ac.hallym.hcs.app.Messages.get("dock.collapse")));
         if (collapse != null) {
             edt(collapse::doClick);
             sleep(900);
             snapFull("05c-dock-collapsed");
             AbstractButton expand = (AbstractButton) find(p.getFrame(),
-                    x -> x instanceof AbstractButton && tip(x).contains("펴기") && x.isShowing());
+                    x -> x instanceof AbstractButton && tip(x).equals(kr.ac.hallym.hcs.app.Messages.get("dock.expand")) && x.isShowing());
             if (expand != null) {
                 edt(expand::doClick);
                 sleep(600);
@@ -390,7 +398,7 @@ public final class Shots {
             snapCrop(new Rectangle(r.x, r.y, Math.min(r.width, 1300), r.height), "07a-toolbar");
         }
         Component status = find(f, x -> x instanceof javax.swing.JLabel && ((javax.swing.JLabel) x).getText() != null
-                && ((javax.swing.JLabel) x).getText().startsWith("사이클"));
+                && ((javax.swing.JLabel) x).getText().startsWith(kr.ac.hallym.hcs.app.Messages.get("bar.cycleCount", "").trim()));
         if (status != null) {
             Rectangle r = onScreen(status.getParent());
             snapCrop(new Rectangle(r.x, r.y, Math.min(r.width, 1300), r.height), "07b-status-bar");
@@ -436,7 +444,7 @@ public final class Shots {
         robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
         robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
         sleep(900);
-        JMenuItem item = menuItem(x -> x.getText() != null && x.getText().startsWith("스플리터 편집"));
+        JMenuItem item = menuItem(x -> x.getText() != null && x.getText().equals(kr.ac.hallym.hcs.app.Messages.get("splitter.edit")));
         if (item == null) {
             log.add("08: no editor item");
             key(KeyEvent.VK_ESCAPE);
@@ -459,11 +467,11 @@ public final class Shots {
         snapCrop(pad(d.getBounds(), 10), "08b-splitter-editor-ranges");
         @SuppressWarnings("unchecked")
         JComboBox<Object> preset = (JComboBox<Object>) find(d, x -> x instanceof JComboBox
-                && comboContains((JComboBox<?>) x, "R형"));
+                && comboContains((JComboBox<?>) x, "R-type"));
         if (preset != null) {
             edt(() -> {
                 for (int i = 0; i < preset.getItemCount(); i++) {
-                    if (String.valueOf(preset.getItemAt(i)).contains("R형")) {
+                    if (String.valueOf(preset.getItemAt(i)).contains("R-type")) {
                         preset.setSelectedIndex(i);
                     }
                 }
@@ -471,7 +479,7 @@ public final class Shots {
             sleep(900);
             snapCrop(pad(d.getBounds(), 10), "08c-splitter-editor-r-type");
         }
-        JButton apply = (JButton) find(d, x -> x instanceof JButton && "적용".equals(((JButton) x).getText()));
+        JButton apply = (JButton) find(d, x -> x instanceof JButton && kr.ac.hallym.hcs.app.Messages.get("splitter.apply").equals(((JButton) x).getText()));
         if (apply != null) {
             SwingUtilities.invokeLater(apply::doClick);
             sleep(1500);
