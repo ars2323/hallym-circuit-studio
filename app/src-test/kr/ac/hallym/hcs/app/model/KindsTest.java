@@ -174,4 +174,29 @@ class KindsTest {
         assertEquals("main › PC", Names.path("main", "", null, "PC"));
         assertEquals("", Names.path());
     }
+
+    /** S-09: 화면 글자용 포트 이름은 읽을 수 있다(식별자는 그대로). */
+    @Test
+    void readablePortTitles(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir) throws Exception {
+        com.cburch.logisim.file.LogisimFile f = kr.ac.hallym.hcs.regress.CircuitBuilder.newFile(
+                new com.cburch.logisim.file.Loader(null), dir.toFile());
+        kr.ac.hallym.hcs.regress.CircuitBuilder b = new kr.ac.hallym.hcs.regress.CircuitBuilder(f, f.getMainCircuit());
+        com.cburch.logisim.comp.Component sp = b.add("Wiring", "Splitter", 200, 200, "fanout", "3", "incoming",
+                "32", "bit0", "2", "bit1", "2", "bit2", "2", "bit3", "2", "bit4", "2", "bit5", "2");
+        com.cburch.logisim.comp.Component and = b.add("Gates", "AND Gate", 400, 200, "inputs", "3");
+        com.cburch.logisim.comp.Component mux = b.add("Plexers", "Multiplexer", 600, 200, "select", "1");
+        com.cburch.logisim.comp.Component pin = b.add("Wiring", "Pin", 100, 400, "label", "PC");
+        com.cburch.logisim.comp.Component reg = b.add("Memory", "Register", 300, 400, "label", "R");
+        b.commit();
+        com.cburch.logisim.circuit.Circuit c = f.getMainCircuit();
+        assertEquals("Split #1.combined", Names.port(c, sp, 0), "the identifier stays");
+        assertEquals("Splitter #1 (combined end)", Names.portTitle(c, sp, 0));
+        assertEquals("[31:22,5:0] end", Kinds.readablePort(sp, 3), "bits 0-5 and the default upper bits");
+        assertEquals("AND Gate #1 (input 1)", Names.portTitle(c, and, 1), "gate inputs count from 1");
+        assertEquals("AND Gate #1 (output)", Names.portTitle(c, and, 0));
+        assertEquals("Multiplexer #1 (input 0)", Names.portTitle(c, mux, 0), "a MUX input is its select value");
+        assertEquals("PC", Names.portTitle(c, pin, 0), "a labelled pin is named once");
+        assertEquals("R (D)", Names.portTitle(c, reg, 1));
+        assertEquals("Register #1", Names.numberedTitle(c, reg));
+    }
 }

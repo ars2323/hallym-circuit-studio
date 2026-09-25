@@ -105,6 +105,32 @@ public final class Names {
         return port.equals(name) ? name : name + "." + port;
     }
 
+    /**
+     * 사람이 읽는 부품 이름(S-09): 라벨이 있으면 라벨, 서브회로는 회로 이름 + 번호, 그 밖은 원조 부품 이름 + 번호
+     * ({@code Splitter #10}, {@code AND Gate #3}). 식별자({@link #name})의 짧은 이름({@code Split #10})은 경로·열쇠에
+     * 쓰고, 화면 글자에는 이것을 쓴다.
+     */
+    public static String title(Circuit circuit, Component c) {
+        String label = label(c);
+        return label != null ? label : numberedTitle(circuit, c);
+    }
+
+    /** 라벨과 상관없는 번호 이름의 읽는 꼴: {@code Register #2}. */
+    public static String numberedTitle(Circuit circuit, Component c) {
+        return c.getFactory().getName() + " #" + ordinal(circuit, c);
+    }
+
+    /**
+     * 사람이 읽는 포트 이름: {@code Splitter #10 (combined end)}, {@code AND Gate #3 (input 2)}, {@code PC (D)}. 라벨로
+     * 이름이 붙는 포트 하나짜리 부품(핀·터널)은 {@code PC}처럼 한 번만 쓴다.
+     */
+    public static String portTitle(Circuit circuit, Component c, int end) {
+        String name = title(circuit, c);
+        String port = Kinds.readablePort(c, end);
+        return port.equals(name) || port.equals(Kinds.portName(c, end)) && port.equals(label(c)) ? name
+                : name + " (" + port + ")";
+    }
+
     /** 시뮬레이션 상태의 회로 경로: 맨 위 회로부터 지금 회로까지. */
     public static List<String> circuitPath(CircuitState state) {
         List<String> ret = new ArrayList<>();

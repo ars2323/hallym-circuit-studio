@@ -156,9 +156,10 @@ class NameIndexTest {
         }
         String near = kr.ac.hallym.hcs.app.Messages.get("find.near", "");
         String path = "main › datapath #1 › ";
-        assertTrue(places.contains(near + path + "PC.D"), places.toString());
-        assertTrue(places.contains(near + path + "Add #1.sum"), places.toString());
-        assertTrue(places.stream().anyMatch(s -> s.startsWith(near + path + "Split #1")), places.toString());
+        assertTrue(places.contains(near + path + "PC (D)"), places.toString());
+        assertTrue(places.contains(near + path + "Adder #1 (sum)"), places.toString());
+        // S-09: 내부 이름("Split #1.combined") 대신 읽는 이름
+        assertTrue(places.contains(near + path + "Splitter #1 (combined end)"), places.toString());
         for (String s : places) {
             assertFalse(s.matches(".*\\(\\d+, \\d+\\).*"), "no coordinates: " + s);
         }

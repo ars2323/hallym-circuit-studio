@@ -19,7 +19,7 @@
 | S-06 | 포트 이름 덧그림 과밀 | #169 | 대기 |  |  |
 | S-07 | Register 값 표시 겹침 | #170 | 대기 |  |  |
 | S-08 | 기본 모양 서브회로의 포트 이름 | #171 | 대기 |  |  |
-| S-09 | 찾기 결과의 내부 포트 이름 | #172 | 대기 |  |  |
+| S-09 | 찾기 결과의 내부 포트 이름 | #172 | 완료 | (이 PR) | D-067, KindsTest.readablePortTitles, NameIndexTest(Splitter #1 (combined end)), EditMenusTest, ShortcutsTest, 09b |
 | S-10 | 화면 맞춤 여백 | #173 | 대기 |  |  |
 | S-11 | 왼쪽 패널 빈 공간 | #174 | 대기 |  |  |
 | S-12 | 제어 핀 라벨 중복 | #175 | 대기 |  |  |
