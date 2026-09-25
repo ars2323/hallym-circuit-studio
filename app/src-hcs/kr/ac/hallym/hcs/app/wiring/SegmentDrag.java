@@ -99,6 +99,17 @@ public final class SegmentDrag {
         return m.toAction(() -> Messages.get("move.segmentAction"));
     }
 
+    /** 지우는 선: 옮기는 선분과 두 다리. */
+    List<Wire> removed() {
+        List<Wire> ret = new ArrayList<>();
+        ret.add(moved);
+        ret.add(legs[0]);
+        if (legs[1] != legs[0]) {
+            ret.add(legs[1]);
+        }
+        return ret;
+    }
+
     /** 새로 그은 선(규칙 검사 대상). */
     List<Wire> added() {
         List<Wire> ret = new ArrayList<>(newLegs);

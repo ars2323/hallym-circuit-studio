@@ -423,7 +423,7 @@ public final class Shots {
     }
 
     /**
-     * 15: 따라오는 배선(#81). PC를 오른쪽 아래로 끌면 붙은 선이 늘고 꺾인다. regfile로 가는 rs 선의 가운데 세로
+     * 15: 따라오는 배선(#81). PC를 왼쪽 위로 끌면 붙은 선이 늘고 꺾인다. regfile로 가는 rs 선의 가운데 세로
      * 선분을 끌면 양쪽 다리가 따라온다. 끝나면 되돌린다.
      */
     void followingWires(Project p) throws Exception {
@@ -437,7 +437,7 @@ public final class Shots {
         snapLogical(p, area, "15a-move-before");
         Location mid = Location.create(pc.getBounds().getX() + pc.getBounds().getWidth() / 2,
                 pc.getBounds().getY() + pc.getBounds().getHeight() / 2);
-        drag(p, mid, mid.translate(20, 40));
+        drag(p, mid, mid.translate(-20, -20)); // 왼쪽 위: 선이 늘고 꺾여 따라온다
         snapLogical(p, area, "15b-move-after");
         edt(() -> p.undoAction());
         sleep(800);
