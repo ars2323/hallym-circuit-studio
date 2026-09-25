@@ -256,6 +256,7 @@ public class Frame extends LFrame implements LocaleListener {
 		kr.ac.hallym.hcs.app.menu.ContextMenus.install(this);
 		kr.ac.hallym.hcs.app.libs.LibrarySync.install(this); // HCS: P-03 library changed or moved since last save
 		kr.ac.hallym.hcs.app.probe.ProbeMenu.installKey(layoutCanvas); // HCS: P puts a probe on a wire (#75)
+		kr.ac.hallym.hcs.app.flow.FlowController.install(layoutCanvas); // HCS: P-07 signal flow on click
 		kr.ac.hallym.hcs.app.keys.Shortcuts hcsKeys = new kr.ac.hallym.hcs.app.keys.Shortcuts(layoutCanvas); // HCS: #78
 		layoutCanvas.setHcsKeys(hcsKeys); // HCS: #78
 		layoutCanvas.addMouseMotionListener(new java.awt.event.MouseMotionAdapter() { // HCS: #76 cursor for palette

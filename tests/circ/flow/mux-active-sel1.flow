@@ -1,0 +1,10 @@
+direction: forward
+endpoints:
+passes:
+jumps: 1
+segments: 0
+next-cycle segments: 0
+next-cycle passes: 0
+loops: []
+undetermined: []
+total: 0

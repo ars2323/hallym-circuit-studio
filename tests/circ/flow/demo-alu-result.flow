@@ -1,0 +1,16 @@
+direction: forward
+endpoints:
+  STATE Data Memory (Addr) @260
+  STATE regfile › $1 (D) @2200
+  STATE regfile › $2 (D) @2200
+  STATE regfile › $3 (D) @2200
+passes:
+  Multiplexer @650
+  regfile (boundary) @2150
+jumps: 3
+segments: 12
+next-cycle segments: 0
+next-cycle passes: 0
+loops: []
+undetermined: []
+total: 2200

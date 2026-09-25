@@ -211,6 +211,9 @@ public final class Shots {
         if (want(scenes, "17")) {
             influence(demo);
         }
+        if (want(scenes, "18")) {
+            signalFlow(demo);
+        }
         if (want(scenes, "19")) {
             instanceBanner(demo);
         }
@@ -577,6 +580,220 @@ public final class Shots {
         // 오른쪽 아래 모서리 가까이 누른다: 메뉴가 아래·오른쪽으로 열려 부품을 덮지 않는다
         menuAt(ripple, Location.create(b.getX() + b.getWidth() - 3, b.getY() + b.getHeight() - 3),
                 "20f-edit-original-menu");
+    }
+
+    /**
+     * 18: Signal Flow(P-07). demo에서 PC 출력을 눌렀을 때의 프레임 6장과 GIF, 터널 점프, 서브회로 경계, Active Path
+     * Only(MemtoReg 0·1), Backward, Reduce Motion, 어두운 바탕 대비 확인 렌더.
+     */
+    void signalFlow(Project p) throws Exception {
+        activate(p);
+        edt(() -> p.doAction(com.cburch.logisim.gui.main.SelectionActions.dropAll(p.getSelection())));
+        Circuit c = p.getCurrentCircuit();
+        Canvas cv = canvas(p);
+        kr.ac.hallym.hcs.app.flow.FlowController f = kr.ac.hallym.hcs.app.flow.FlowController.of(cv);
+        com.cburch.logisim.comp.Component pc = byLabel(c, "PC");
+        setZoom(p, 1.0);
+        edt(() -> f.start(pc, 0, false));
+        edt(() -> f.freeze(0.0));
+        double total = call(() -> f.path().total);
+        java.awt.Rectangle box = call(() -> kr.ac.hallym.hcs.app.flow.FlowPainter.bounds(f.path(), c));
+        Bounds area = Bounds.create(box.x, box.y, box.width, box.height);
+        centerOn(p, area);
+        double[] ts = {0, total * 0.2, total * 0.45, total * 0.75, total + 10, total + 260};
+        String[] names = {"18a-pc-t0", "18b-pc-front-1", "18c-pc-front-2", "18d-pc-front-3", "18e-pc-reached",
+            "18f-pc-continuous"};
+        for (int i = 0; i < ts.length; i++) {
+            double t = ts[i];
+            edt(() -> f.freeze(t));
+            sleep(300);
+            snapLogical(p, area, names[i]);
+        }
+        // GIF: 12fps로 앞단이 퍼져 끝까지 닿은 뒤 연속 흐름 1초
+        java.util.List<BufferedImage> frames = new java.util.ArrayList<>();
+        Rectangle r = screenRect(p, area);
+        double step = kr.ac.hallym.hcs.app.flow.FlowSettings.speed().pxPerSecond / 12.0; // 화면 px = 회로 단위(100%)
+        for (double t = 0; t <= total + kr.ac.hallym.hcs.app.flow.FlowSettings.speed().pxPerSecond; t += step) {
+            double tt = t;
+            edt(() -> f.freeze(tt));
+            sleep(120);
+            frames.add(robot.createScreenCapture(r));
+        }
+        writeGif(frames, 1000 / 12, "18-pc-flow");
+        edt(() -> {
+            f.freeze(null);
+            f.stop();
+        });
+        // 터널 점프: MemtoReg 핀에서(같은 이름 터널로 MUX 선택 입력까지 멀리 건너뛴다)
+        com.cburch.logisim.comp.Component memtoRegPin = null;
+        for (com.cburch.logisim.comp.Component x : c.getNonWires()) {
+            if (x.getFactory().getName().equals("Pin") && "MemtoReg".equals(x.getAttributeSet().getValue(
+                    com.cburch.logisim.instance.StdAttr.LABEL))) {
+                memtoRegPin = x;
+            }
+        }
+        com.cburch.logisim.comp.Component mtr = memtoRegPin;
+        edt(() -> f.start(mtr, -1, false));
+        edt(() -> f.freeze(100000.0));
+        Bounds wide = Bounds.create(100, 60, 1500, 460);
+        setZoom(p, 0.75);
+        centerOn(p, wide);
+        snapLogical(p, wide, "18g-tunnel-jumps");
+        // 서브회로 경계: Instruction Memory Instr 출력 → 스플리터 → regfile(안으로)
+        com.cburch.logisim.comp.Component im = byFactory(c, "Instruction Memory");
+        int instr = -1;
+        for (int i = 0; i < im.getEnds().size(); i++) {
+            if (im.getEnds().get(i).isOutput()) {
+                instr = i;
+            }
+        }
+        int ins = instr;
+        edt(() -> f.start(im, ins, false));
+        edt(() -> f.freeze(100000.0));
+        snapLogical(p, wide, "18h-subcircuit-boundary");
+        // Active Path Only: MemtoReg 0과 1에서 Data Memory ReadData 흐름
+        com.cburch.logisim.comp.Component dm = byFactory(c, "Data Memory");
+        int readData = -1;
+        for (int i = 0; i < dm.getEnds().size(); i++) {
+            if (kr.ac.hallym.hcs.app.model.Kinds.portName(dm, i).equals("ReadData")) {
+                readData = i;
+            }
+        }
+        int rd = readData;
+        com.cburch.logisim.comp.Component memtoReg = null;
+        for (com.cburch.logisim.comp.Component x : c.getNonWires()) {
+            if (x.getFactory().getName().equals("Pin") && "MemtoReg".equals(x.getAttributeSet().getValue(
+                    com.cburch.logisim.instance.StdAttr.LABEL))) {
+                memtoReg = x;
+            }
+        }
+        com.cburch.logisim.comp.Component sel = memtoReg;
+        kr.ac.hallym.hcs.app.flow.FlowSettings.setActivePathOnly(true);
+        for (int v = 0; v <= 1; v++) {
+            int val = v;
+            edt(() -> {
+                com.cburch.logisim.circuit.CircuitState st = p.getCircuitState();
+                com.cburch.logisim.instance.InstanceState is = st.getInstanceState(sel);
+                ((com.cburch.logisim.std.wiring.Pin) sel.getFactory()).setValue(is,
+                        val == 1 ? com.cburch.logisim.data.Value.TRUE : com.cburch.logisim.data.Value.FALSE);
+                is.fireInvalidated(); // 조작 도구처럼: 핀이 새 값을 내보내게
+                p.getSimulator().requestPropagate();
+            });
+            sleep(900);
+            com.cburch.logisim.comp.Component mux = byFactory(c, "Multiplexer");
+            log.add("18i: MemtoReg=" + v + " mux select=" + call(() -> p.getCircuitState().getValue(
+                    mux.getEnd(2).getLocation())));
+            edt(() -> f.start(dm, rd, false));
+            edt(() -> f.freeze(100000.0));
+            snapLogical(p, wide, "18i-active-memtoreg-" + v);
+        }
+        kr.ac.hallym.hcs.app.flow.FlowSettings.setActivePathOnly(false);
+        // Backward: regfile WD 입력에서
+        com.cburch.logisim.comp.Component reg = firstSub(c, "regfile");
+        int wd = -1;
+        for (int i = 0; i < reg.getEnds().size(); i++) {
+            if (kr.ac.hallym.hcs.app.model.Kinds.portName(reg, i).equals("WD")) {
+                wd = i;
+            }
+        }
+        int w = wd;
+        edt(() -> f.start(reg, w, true));
+        edt(() -> f.freeze(100000.0));
+        snapLogical(p, wide, "18j-backward-regfile-wd");
+        // Reduce Motion
+        kr.ac.hallym.hcs.app.flow.FlowSettings.setReduceMotion(true);
+        edt(() -> f.start(pc, 0, false));
+        sleep(400);
+        snapLogical(p, wide, "18k-reduce-motion");
+        kr.ac.hallym.hcs.app.flow.FlowSettings.setReduceMotion(false);
+        // 배율 25%, 400%(체크리스트 4), 창 전체(빠른 속성 창이 새로 뜨지 않고 Messages가 가려지지 않는다)
+        edt(() -> f.start(pc, 0, false));
+        edt(() -> f.freeze(100000.0));
+        setZoom(p, 0.25);
+        Bounds all = Bounds.create(0, 0, 1500, 700);
+        centerOn(p, all);
+        snapLogical(p, all, "18m-pc-25");
+        setZoom(p, 4.0);
+        Bounds near = Bounds.create(pc.getLocation().getX() - 60, pc.getLocation().getY() - 50, 200, 110);
+        centerOn(p, near);
+        snapLogical(p, near, "18n-pc-400");
+        setZoom(p, 1.0);
+        centerOn(p, area);
+        edt(() -> f.start(pc, 0, false)); // 우클릭 "Show Signal Flow"와 같다(선택은 그대로)
+        edt(() -> f.freeze(100000.0));
+        sleep(400);
+        snapFull("18o-full-window");
+        // 어두운 바탕 대비(앱에는 다크 테마가 없다: 강조색 대비만 확인하는 렌더)
+        BufferedImage dark = call(() -> {
+            kr.ac.hallym.hcs.app.flow.SignalFlowPath path = kr.ac.hallym.hcs.app.flow.SignalFlowPath.fromComponent(c,
+                    pc, 0, new kr.ac.hallym.hcs.app.flow.SignalFlowPath.Options());
+            BufferedImage img = new BufferedImage(1200, 480, BufferedImage.TYPE_INT_RGB);
+            java.awt.Graphics2D g = img.createGraphics();
+            g.setColor(new java.awt.Color(0x1F2933));
+            g.fillRect(0, 0, 1200, 480);
+            g.translate(-100, -60);
+            g.setColor(new java.awt.Color(0x9AA5B1));
+            g.setStroke(new java.awt.BasicStroke(Wire.WIDTH));
+            for (Wire x : c.getWires()) {
+                g.drawLine(x.getEnd0().getX(), x.getEnd0().getY(), x.getEnd1().getX(), x.getEnd1().getY());
+            }
+            kr.ac.hallym.hcs.app.flow.FlowPainter.paint(g, path, c, path.total + 120, 1.0, false, null);
+            g.dispose();
+            return img;
+        });
+        write(dark, "18l-contrast-dark-background");
+        edt(f::stop);
+        setZoom(p, 1.0);
+    }
+
+    /** ImageIO GIF(외부 의존성 없이): 프레임 사이 delayMs, 무한 반복. */
+    void writeGif(java.util.List<BufferedImage> frames, int delayMs, String name) throws IOException {
+        javax.imageio.ImageWriter w = ImageIO.getImageWritersByFormatName("gif").next();
+        File out = new File(this.out, name + ".gif");
+        try (javax.imageio.stream.ImageOutputStream ios = ImageIO.createImageOutputStream(out)) {
+            w.setOutput(ios);
+            w.prepareWriteSequence(null);
+            for (int i = 0; i < frames.size(); i++) {
+                BufferedImage src = frames.get(i);
+                BufferedImage rgb = new BufferedImage(src.getWidth(), src.getHeight(), BufferedImage.TYPE_INT_RGB);
+                rgb.getGraphics().drawImage(src, 0, 0, null);
+                javax.imageio.ImageTypeSpecifier type = javax.imageio.ImageTypeSpecifier.createFromRenderedImage(rgb);
+                javax.imageio.metadata.IIOMetadata meta = w.getDefaultImageMetadata(type, null);
+                String fmt = meta.getNativeMetadataFormatName();
+                javax.imageio.metadata.IIOMetadataNode root = (javax.imageio.metadata.IIOMetadataNode) meta.getAsTree(fmt);
+                javax.imageio.metadata.IIOMetadataNode gce = child(root, "GraphicControlExtension");
+                gce.setAttribute("disposalMethod", "none");
+                gce.setAttribute("userInputFlag", "FALSE");
+                gce.setAttribute("transparentColorFlag", "FALSE");
+                gce.setAttribute("delayTime", Integer.toString(Math.max(2, delayMs / 10)));
+                gce.setAttribute("transparentColorIndex", "0");
+                if (i == 0) {
+                    javax.imageio.metadata.IIOMetadataNode apps = child(root, "ApplicationExtensions");
+                    javax.imageio.metadata.IIOMetadataNode app = new javax.imageio.metadata.IIOMetadataNode(
+                            "ApplicationExtension");
+                    app.setAttribute("applicationID", "NETSCAPE");
+                    app.setAttribute("authenticationCode", "2.0");
+                    app.setUserObject(new byte[] {1, 0, 0}); // 무한 반복
+                    apps.appendChild(app);
+                }
+                meta.setFromTree(fmt, root);
+                w.writeToSequence(new javax.imageio.IIOImage(rgb, null, meta), null);
+            }
+            w.endWriteSequence();
+        }
+        log.add(name + ".gif " + frames.size() + " frames " + out.length() + "B"
+                + (out.length() > MAX_BYTES ? " TOO BIG" : ""));
+    }
+
+    static javax.imageio.metadata.IIOMetadataNode child(javax.imageio.metadata.IIOMetadataNode root, String name) {
+        for (int i = 0; i < root.getLength(); i++) {
+            if (root.item(i).getNodeName().equalsIgnoreCase(name)) {
+                return (javax.imageio.metadata.IIOMetadataNode) root.item(i);
+            }
+        }
+        javax.imageio.metadata.IIOMetadataNode n = new javax.imageio.metadata.IIOMetadataNode(name);
+        root.appendChild(n);
+        return n;
     }
 
     static com.cburch.logisim.comp.Component firstSub(Circuit c, String name) {

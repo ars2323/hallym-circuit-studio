@@ -1,0 +1,12 @@
+direction: forward
+endpoints:
+  OUTPUT Y @90
+passes:
+  Multiplexer @30
+jumps: 2
+segments: 0
+next-cycle segments: 0
+next-cycle passes: 0
+loops: []
+undetermined: [Multiplexer]
+total: 90

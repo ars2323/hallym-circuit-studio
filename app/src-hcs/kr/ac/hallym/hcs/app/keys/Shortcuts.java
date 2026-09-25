@@ -68,6 +68,7 @@ public final class Shortcuts {
         TABLE.put("I / Shift+I", "keys.influence");
         TABLE.put("[ / ]", "keys.influenceDepth");
         TABLE.put("Esc", "keys.influenceClear");
+        TABLE.put("Ctrl+Shift+F", "keys.flowToggle");
         TABLE.put("Ctrl+F", "keys.find");
         TABLE.put("Ctrl+K", "keys.palette");
         TABLE.put("?", "keys.help");
@@ -90,6 +91,11 @@ public final class Shortcuts {
     public boolean keyPressed(KeyEvent e) {
         if (e.getKeyChar() == '?' && !(canvas.getProject().getTool() instanceof com.cburch.logisim.tools.TextTool)) {
             showTable();
+            return true;
+        }
+        if (e.getKeyCode() == KeyEvent.VK_F && e.getModifiersEx() == (KeyEvent.CTRL_DOWN_MASK
+                | KeyEvent.SHIFT_DOWN_MASK)) {
+            kr.ac.hallym.hcs.app.flow.FlowMenu.toggleOnClick(canvas); // Signal Flow on Click(P-07)
             return true;
         }
         Selection sel = canvas.getSelection();

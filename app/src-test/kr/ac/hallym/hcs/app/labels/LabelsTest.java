@@ -436,6 +436,8 @@ class LabelsTest {
         LabelOverlay.paint(canvas, g, f.getMainCircuit(), proj.getCircuitState(), none);
         g.dispose();
         java.util.List<java.awt.Rectangle> chips = LabelOverlay.chipRects(canvas);
+        // 흐름 등 다른 덧그림이 피할 글자 자리에는 스플리터 팔 라벨도 들어간다(P-07)
+        assertTrue(LabelOverlay.textRects(canvas).size() > chips.size(), "arm labels are in the text rects");
         assertEquals(9, chips.size(), "chips"); // 제어 핀 5, PC, halt, Zero, 버스 이름 pc[31:0]
         java.util.List<String> over = new java.util.ArrayList<>();
         for (java.awt.Rectangle r : chips) {

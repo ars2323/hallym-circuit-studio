@@ -1,0 +1,46 @@
+direction: forward
+endpoints:
+  UNCONNECTED Splitter [31:26] @70
+  UNCONNECTED Splitter [10:6] @70
+  UNCONNECTED Splitter [5:0] @70
+  UNCONNECTED regfile › Splitter [4:2] @340
+  UNCONNECTED regfile › Splitter [4:2] @350
+  UNCONNECTED regfile › Splitter [4:2] @360
+  UNCONNECTED regfile › Decoder (out0) @420
+  STATE regfile › $1 (en) @510
+  STATE regfile › $2 (en) @510
+  STATE regfile › $3 (en) @510
+  UNCONNECTED alu › Subtractor (bout) @670
+  UNCONNECTED alu › Comparator (gt) @790
+  UNCONNECTED alu › Comparator (lt) @790
+  OUTPUT Zero @900
+  STATE Data Memory (WriteData) @980
+  STATE Data Memory (Addr) @1040
+  STATE regfile › $1 (D) @2980
+  STATE regfile › $2 (D) @2980
+  STATE regfile › $3 (D) @2980
+passes:
+  regfile (boundary) @280
+  Multiplexer @370
+  Multiplexer @380
+  Decoder @390
+  regfile (boundary) @430
+  AND Gate @450
+  AND Gate @450
+  AND Gate @450
+  alu (boundary) @590
+  Adder @640
+  Subtractor @640
+  AND Gate @640
+  OR Gate @640
+  Multiplexer @700
+  alu (boundary) @760
+  Comparator @760
+  Multiplexer @1430
+jumps: 32
+segments: 28
+next-cycle segments: 0
+next-cycle passes: 0
+loops: []
+undetermined: []
+total: 2980

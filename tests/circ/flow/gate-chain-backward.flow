@@ -1,0 +1,16 @@
+direction: backward
+endpoints:
+  SOURCE A @0
+  SOURCE B @60
+  SOURCE C @120
+passes:
+  n1 @30
+  g1 @90
+  g2 @150
+jumps: 6
+segments: 0
+next-cycle segments: 0
+next-cycle passes: 0
+loops: []
+undetermined: []
+total: 210

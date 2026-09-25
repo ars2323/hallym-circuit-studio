@@ -1,0 +1,14 @@
+direction: forward
+endpoints:
+  OUTPUT Y @210
+passes:
+  o @30
+  nx @90
+  bf @150
+jumps: 5
+segments: 0
+next-cycle segments: 0
+next-cycle passes: 0
+loops: [o]
+undetermined: []
+total: 210

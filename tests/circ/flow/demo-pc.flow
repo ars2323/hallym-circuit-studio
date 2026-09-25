@@ -1,0 +1,17 @@
+direction: forward
+endpoints:
+  STATE Instruction Memory (Addr) @60
+  UNCONNECTED Comparator (gt) @400
+  UNCONNECTED Comparator (lt) @400
+  OUTPUT halt @460
+  STATE PC (D) @570
+passes:
+  Comparator @370
+  Adder @390
+jumps: 1
+segments: 10
+next-cycle segments: 0
+next-cycle passes: 0
+loops: []
+undetermined: []
+total: 570
