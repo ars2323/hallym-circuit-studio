@@ -253,4 +253,64 @@ class LabelsTest {
         assertEquals("[15:0] imm", named.get(0).text);
         assertEquals("[31:16] upper", named.get(1).text);
     }
+
+    /** 팔레트는 10색 이상이고, 흰 바탕에서 보이며 서로 떨어져 있다(검토 반영 1). */
+    @Test
+    void paletteIsLargeAndDistinct() {
+        Color[] p = TunnelColors.PALETTE;
+        assertTrue(p.length >= 10, "at least 10 colors");
+        for (int i = 0; i < p.length; i++) {
+            double lum = (0.2126 * p[i].getRed() + 0.7152 * p[i].getGreen() + 0.0722 * p[i].getBlue()) / 255;
+            assertTrue(lum < 0.75, "visible on white: " + Integer.toHexString(p[i].getRGB()));
+            for (int j = i + 1; j < p.length; j++) {
+                double d = Math.sqrt(Math.pow(p[i].getRed() - p[j].getRed(), 2)
+                        + Math.pow(p[i].getGreen() - p[j].getGreen(), 2) + Math.pow(p[i].getBlue() - p[j].getBlue(), 2));
+                assertTrue(d > 60, i + " vs " + j + " too close: " + d);
+            }
+        }
+    }
+
+    private static java.util.List<java.awt.Point> at(int... xy) {
+        java.util.List<java.awt.Point> ret = new ArrayList<>();
+        for (int i = 0; i < xy.length; i += 2) {
+            ret.add(new java.awt.Point(xy[i], xy[i + 1]));
+        }
+        return ret;
+    }
+
+    /** 가까운 다른 이름(03b의 pc·four·pc4)은 다른 색, 같은 이름은 같은 색, 결과는 입력 순서와 무관(검토 반영 1). */
+    @Test
+    void nearbyNamesGetDifferentColors() {
+        Map<String, java.util.List<java.awt.Point>> t = new java.util.LinkedHashMap<>();
+        t.put("pc", at(100, 100, 3000, 3000));
+        t.put("four", at(160, 100));
+        t.put("pc4", at(220, 100));
+        t.put("far", at(5000, 100));
+        Map<String, Integer> a = TunnelColors.assign(t, new java.util.HashMap<>());
+        assertEquals(3, new HashSet<>(java.util.Arrays.asList(a.get("pc"), a.get("four"), a.get("pc4"))).size());
+
+        // 12개가 한 화면에 모여도 모두 다른 색
+        Map<String, java.util.List<java.awt.Point>> crowd = new java.util.HashMap<>();
+        for (int i = 0; i < TunnelColors.PALETTE.length; i++) {
+            crowd.put("s" + i, at(100 + 20 * i, 100));
+        }
+        assertEquals(TunnelColors.PALETTE.length,
+                new HashSet<>(TunnelColors.assign(crowd, new java.util.HashMap<>()).values()).size());
+
+        // 입력 순서가 달라도 같은 결과
+        Map<String, java.util.List<java.awt.Point>> rev = new java.util.LinkedHashMap<>();
+        java.util.List<String> keys = new ArrayList<>(t.keySet());
+        Collections.reverse(keys);
+        for (String k : keys) {
+            rev.put(k, t.get(k));
+        }
+        assertEquals(a, TunnelColors.assign(rev, new java.util.HashMap<>()));
+
+        // 직접 지정한 색은 그대로이고 이웃은 그 색을 피한다
+        Map<String, Integer> fixed = new java.util.HashMap<>();
+        fixed.put("four", a.get("pc"));
+        Map<String, Integer> b = TunnelColors.assign(t, fixed);
+        assertEquals(a.get("pc"), b.get("four"));
+        assertTrue(!b.get("pc").equals(b.get("four")));
+    }
 }

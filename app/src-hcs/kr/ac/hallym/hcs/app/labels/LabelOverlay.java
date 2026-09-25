@@ -286,17 +286,41 @@ public final class LabelOverlay {
 
     // ---- 터널 색 ----
 
+    private long tunnelSig;
+    private Map<String, Color> tunnelColors = new HashMap<>();
+
     private void tunnels(Graphics2D g, Circuit circuit, java.util.Set<Component> hidden) {
         com.cburch.logisim.file.LogisimFile file = canvas.getProject().getLogisimFile();
+        long sig = System.identityHashCode(circuit) + 31L * CircExtensionsSig.of(file, circuit);
+        for (Component c : circuit.getNonWires()) {
+            String n = TunnelColorStore.name(c);
+            if (n != null) {
+                sig = sig * 31 + System.identityHashCode(c) + n.hashCode();
+            }
+        }
+        if (sig != tunnelSig) {
+            tunnelColors = TunnelColorStore.colors(file, circuit); // 이름 배정은 회로가 바뀔 때만
+            tunnelSig = sig;
+        }
         for (Component c : circuit.getNonWires()) {
             String name = TunnelColorStore.name(c);
             if (name == null || hidden.contains(c)) {
                 continue;
             }
-            Color col = TunnelColorStore.display(file, circuit, name);
+            Color col = tunnelColors.getOrDefault(name, TunnelColors.of(name));
             Bounds b = c.getBounds();
-            g.setColor(new Color(col.getRed(), col.getGreen(), col.getBlue(), 70));
+            g.setColor(new Color(col.getRed(), col.getGreen(), col.getBlue(), 110));
             g.fillRect(b.getX() + 1, b.getY() + 1, b.getWidth() - 1, b.getHeight() - 1);
+            g.setColor(col);
+            g.setStroke(new BasicStroke(1.5f));
+            g.drawRect(b.getX() + 1, b.getY() + 1, b.getWidth() - 2, b.getHeight() - 2);
+        }
+    }
+
+    /** 직접 지정한 터널 색이 바뀌면 배정을 다시 하도록 서명에 넣는다. */
+    static final class CircExtensionsSig {
+        static int of(com.cburch.logisim.file.LogisimFile file, Circuit circuit) {
+            return file == null ? 0 : kr.ac.hallym.hcs.app.ext.CircExtensions.of(file).items(circuit.getName()).hashCode();
         }
     }
 

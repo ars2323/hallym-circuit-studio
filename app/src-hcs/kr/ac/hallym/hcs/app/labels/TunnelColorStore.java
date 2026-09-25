@@ -74,10 +74,39 @@ public final class TunnelColorStore {
         return null;
     }
 
-    /** 그릴 색: 직접 지정한 색, 없으면 이름 해시 색. */
+    /** 그릴 색: 직접 지정한 색, 없으면 회로 안 자동 배정 색({@link TunnelColors#assign}). */
     public static Color display(LogisimFile file, Circuit circuit, String label) {
-        Color c = file == null ? null : get(file, circuit, label);
+        Color c = colors(file, circuit).get(label);
         return c != null ? c : TunnelColors.of(label);
+    }
+
+    /**
+     * 회로의 모든 터널 이름과 그릴 색. 직접 지정한 색이 먼저이고, 나머지는 가까운 이름끼리 겹치지 않게 자동 배정한다.
+     */
+    public static java.util.Map<String, Color> colors(LogisimFile file, Circuit circuit) {
+        java.util.Map<String, java.util.List<java.awt.Point>> where = new java.util.HashMap<>();
+        for (Component c : circuit.getNonWires()) {
+            String n = name(c);
+            if (n != null) {
+                where.computeIfAbsent(n, k -> new java.util.ArrayList<>())
+                        .add(new java.awt.Point(c.getLocation().getX(), c.getLocation().getY()));
+            }
+        }
+        java.util.Map<String, Integer> fixed = new java.util.HashMap<>();
+        java.util.Map<String, Color> custom = new java.util.HashMap<>();
+        for (String n : where.keySet()) {
+            Color u = file == null ? null : get(file, circuit, n);
+            if (u != null) {
+                custom.put(n, u);
+                fixed.put(n, java.util.Arrays.asList(TunnelColors.PALETTE).indexOf(u));
+            }
+        }
+        java.util.Map<String, Color> ret = new java.util.HashMap<>();
+        for (java.util.Map.Entry<String, Integer> e : TunnelColors.assign(where, fixed).entrySet()) {
+            Color u = custom.get(e.getKey());
+            ret.put(e.getKey(), u != null ? u : TunnelColors.PALETTE[e.getValue()]);
+        }
+        return ret;
     }
 
     /** 색을 둔다(null이면 지정 해제 = 이름 해시 색). */
