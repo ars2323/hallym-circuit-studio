@@ -72,6 +72,7 @@ class AttrPanelGuiTest {
     @Test
     void attributePanelFollowsASelectionMadeFromMessages() throws Exception {
         assumeFalse(GraphicsEnvironment.isHeadless(), "needs a display (xvfb-run)");
+        GuiTestSupport.keepAlive(); // 창을 닫아도 JVM이 끝나지 않게
         LogisimFile f = CircuitBuilder.newFile(new Loader(null), tmp.toFile());
         CircuitBuilder b = new CircuitBuilder(f, f.getMainCircuit());
         Component reg = b.add("Memory", "Register", 300, 200, "width", "8", "label", "PC");
