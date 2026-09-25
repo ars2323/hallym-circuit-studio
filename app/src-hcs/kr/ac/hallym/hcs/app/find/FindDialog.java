@@ -51,20 +51,33 @@ public final class FindDialog extends JDialog {
 
     private final Project proj;
     private final JTextField query = new JTextField(24);
-    private final DefaultListModel<NameIndex.Entry> results = new DefaultListModel<>();
-    private final JList<NameIndex.Entry> list = new JList<>(results);
+    /** 목록 한 줄: 묶음 줄 또는 펼친 묶음의 위치 줄(#135). */
+    static final class Row {
+        final NameIndex.Group group;
+        final NameIndex.Entry entry;
+        final boolean child;
+
+        Row(NameIndex.Group group, NameIndex.Entry entry, boolean child) {
+            this.group = group;
+            this.entry = entry;
+            this.child = child;
+        }
+    }
+
+    private final DefaultListModel<Row> results = new DefaultListModel<>();
+    private final JList<Row> list = new JList<>(results);
+    private final java.util.Set<String> expanded = new java.util.HashSet<>();
+    private List<NameIndex.Group> groups = new ArrayList<>();
     private NameIndex index;
 
     private FindDialog(Frame frame) {
         super(frame, Messages.get("find.title"), ModalityType.MODELESS);
         this.proj = frame.getProject();
-        list.setCellRenderer((l, e, i, sel, focus) -> {
-            javax.swing.JLabel lab = new javax.swing.JLabel("<html><b>" + esc(e.text) + "</b>  <span style='color:#"
-                    + String.format("%06X", Tokens.TEXT_2.getRGB() & 0xFFFFFF) + "'>"
-                    + Messages.get("find.kind." + e.kind.name()) + " · " + esc(e.path) + "</span></html>");
+        list.setCellRenderer((l, r, i, sel, focus) -> {
+            javax.swing.JLabel lab = new javax.swing.JLabel(label(r, expanded.contains(key(r.group))));
             lab.setOpaque(true);
             lab.setBackground(sel ? Tokens.BLUE_TINT_2 : Tokens.WHITE);
-            lab.setBorder(BorderFactory.createEmptyBorder(3, 6, 3, 6));
+            lab.setBorder(BorderFactory.createEmptyBorder(3, r.child ? 28 : 6, 3, 6));
             return lab;
         });
         query.getDocument().addDocumentListener(new DocumentListener() {
@@ -82,14 +95,20 @@ public final class FindDialog extends JDialog {
         });
         query.addActionListener(e -> {
             if (!results.isEmpty()) {
-                go(list.getSelectedIndex() >= 0 ? list.getSelectedValue() : results.get(0));
+                go((list.getSelectedIndex() >= 0 ? list.getSelectedValue() : results.get(0)).entry);
             }
         });
         list.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                if (e.getClickCount() == 2 && list.getSelectedValue() != null) {
-                    go(list.getSelectedValue());
+                Row r = list.getSelectedValue();
+                if (r == null) {
+                    return;
+                }
+                if (e.getClickCount() == 1 && !r.child && r.group.size() > 1) {
+                    toggle(r.group); // 묶음 줄은 눌러 펼치고 접는다
+                } else if (e.getClickCount() == 2) {
+                    go(r.entry);
                 }
             }
         });
@@ -112,7 +131,7 @@ public final class FindDialog extends JDialog {
         setLocationRelativeTo(frame);
     }
 
-    private static String esc(String s) {
+    static String esc(String s) {
         return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
 
@@ -120,13 +139,61 @@ public final class FindDialog extends JDialog {
         if (index == null) {
             index = NameIndex.of(proj.getLogisimFile());
         }
-        results.clear();
-        for (NameIndex.Entry e : index.find(query.getText())) {
-            results.addElement(e);
-        }
+        groups = NameIndex.group(index.find(query.getText()));
+        expanded.clear();
+        rebuild();
         if (!results.isEmpty()) {
             list.setSelectedIndex(0);
         }
+    }
+
+    private void toggle(NameIndex.Group g) {
+        String k = key(g);
+        if (!expanded.remove(k)) {
+            expanded.add(k);
+        }
+        int sel = list.getSelectedIndex();
+        rebuild();
+        list.setSelectedIndex(Math.min(sel, results.size() - 1));
+    }
+
+    private void rebuild() {
+        results.clear();
+        for (Row r : rows(groups, expanded)) {
+            results.addElement(r);
+        }
+    }
+
+    static String key(NameIndex.Group g) {
+        return g.first.kind + "\u0000" + g.first.text + "\u0000" + g.first.path;
+    }
+
+    /** 목록 줄: 묶음마다 한 줄, 펼친 묶음은 그 아래 위치별 줄. */
+    static List<Row> rows(List<NameIndex.Group> groups, java.util.Set<String> expanded) {
+        List<Row> ret = new ArrayList<>();
+        for (NameIndex.Group g : groups) {
+            ret.add(new Row(g, g.first, false));
+            if (g.size() > 1 && expanded.contains(key(g))) {
+                for (NameIndex.Entry e : g.entries) {
+                    ret.add(new Row(g, e, true));
+                }
+            }
+        }
+        return ret;
+    }
+
+    /** 줄 글자. 묶음은 개수를, 위치 줄은 좌표를 보인다. */
+    static String label(Row r, boolean open) {
+        String gray = String.format("%06X", Tokens.TEXT_2.getRGB() & 0xFFFFFF);
+        if (r.child) {
+            return "<html><span style='color:#" + gray + "'>" + esc(Messages.get("find.at",
+                    kr.ac.hallym.hcs.app.model.Names.at(r.entry.component.getLocation()))) + "</span></html>";
+        }
+        NameIndex.Entry e = r.entry;
+        String count = r.group.size() > 1 ? "  (" + Messages.get("find.count", r.group.size()) + " · "
+                + Messages.get(open ? "find.collapse" : "find.expand") + ")" : "";
+        return "<html><b>" + esc(e.text) + "</b>  <span style='color:#" + gray + "'>"
+                + Messages.get("find.kind." + e.kind.name()) + " · " + esc(e.path) + esc(count) + "</span></html>";
     }
 
     private JPanel tunnelsPanel() {
