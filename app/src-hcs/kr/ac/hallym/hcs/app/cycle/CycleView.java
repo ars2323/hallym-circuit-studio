@@ -82,6 +82,8 @@ public final class CycleView {
     private final JButton prev = new JButton(Messages.get("cycle.prev"));
     private final JButton next = new JButton(Messages.get("cycle.next"));
     private final JButton latest = new JButton(Messages.get("cycle.latest"));
+    private final JButton runUntil = new JButton(Messages.get("cycle.runUntil"));
+    private RunUntilRunner runner;
     private boolean follow = true;
     // Recorder는 청취자를 강하게 잡지만, 창이 닫히면 함께 사라지도록 필드로 둔다
     private final Recorder.Listener recListener = r -> SwingUtilities.invokeLater(this::refresh);
@@ -109,11 +111,20 @@ public final class CycleView {
         prev.addActionListener(e -> step(-1));
         next.addActionListener(e -> step(+1));
         latest.addActionListener(e -> showLatest());
+        runUntil.setToolTipText(Messages.get("runUntil.tip"));
+        runUntil.addActionListener(e -> {
+            if (runner != null && runner.isRunning()) {
+                runner.stop();
+            } else {
+                askRunUntil();
+            }
+        });
         position.setForeground(Tokens.TEXT_2);
         notice.setForeground(Tokens.AMBER_TEXT);
         bar.add(prev);
         bar.add(next);
         bar.add(latest);
+        bar.add(runUntil);
         bar.add(position);
         bar.add(notice);
         empty.setForeground(Tokens.TEXT_2);
@@ -302,6 +313,45 @@ public final class CycleView {
         }
     }
 
+    /** Run Until(C-04): 조건을 묻고 한 사이클씩 돌린다. 도는 동안 단추는 Stop이다. */
+    public void askRunUntil() {
+        Project proj = projRef.get();
+        CycleModel m = model();
+        if (proj == null || m == null || m.isEmpty()) {
+            return;
+        }
+        if (!proj.getSimulator().isRunning()) {
+            kr.ac.hallym.hcs.app.sim.SimControls.notice(proj, Messages.get("runUntil.simOff"));
+            return;
+        }
+        RunUntil until = RunUntilDialog.ask(panel, m, signals);
+        if (until != null) {
+            start(until);
+        }
+    }
+
+    /** 조건으로 돌리기 시작한다(테스트도 부른다). */
+    RunUntilRunner start(RunUntil until) {
+        Project proj = projRef.get();
+        CycleModel m = model();
+        if (proj == null || m == null || m.isEmpty() || runner != null && runner.isRunning()) {
+            return null;
+        }
+        follow = true;
+        runUntil.setText(Messages.get("cycle.stop"));
+        runner = RunUntilRunner.start(proj, m, until, o -> SwingUtilities.invokeLater(() -> {
+            runUntil.setText(Messages.get("cycle.runUntil"));
+            kr.ac.hallym.hcs.app.sim.SimControls.notice(proj, RunUntilDialog.outcomeText(until, o));
+            follow = true;
+            refresh();
+        }));
+        return runner;
+    }
+
+    boolean isRunningUntil() {
+        return runner != null && runner.isRunning();
+    }
+
     // ---- 그리기 도움 ----
 
     static int x(CycleModel m, int cycle) {
@@ -387,15 +437,18 @@ public final class CycleView {
         if (has) {
             position.setText(Messages.get("cycle.position", m.cursorCycle(), m.lastCycle()));
             notice.setVisible(m.recording().isViewingPast());
-            prev.setEnabled(m.cursorCycle() > m.firstCycle());
-            latest.setEnabled(m.cursorCycle() < m.lastCycle());
+            boolean busy = isRunningUntil();
+            prev.setEnabled(!busy && m.cursorCycle() > m.firstCycle());
+            latest.setEnabled(!busy && m.cursorCycle() < m.lastCycle());
+            runUntil.setEnabled(true);
         } else {
             position.setText("");
             notice.setVisible(false);
             prev.setEnabled(false);
             latest.setEnabled(false);
+            runUntil.setEnabled(false);
         }
-        next.setEnabled(true);
+        next.setEnabled(!isRunningUntil());
         java.awt.Component center = ((BorderLayout) panel.getLayout()).getLayoutComponent(BorderLayout.CENTER);
         java.awt.Component want = has || !signals.isEmpty() ? scroll : empty;
         if (center != want) {
@@ -499,6 +552,15 @@ public final class CycleView {
             paintColumns(g, m, clip, getHeight());
             List<Row> rows = rows();
             FontMetrics fm = g.getFontMetrics();
+            if (rows.isEmpty()) {
+                // 줄이 없을 때: 더하는 방법(보이는 영역 왼쪽에)
+                Rectangle vis = getVisibleRect();
+                g.setFont(new Font(Tokens.UI_FONT, Font.PLAIN, Tokens.FONT_SMALL));
+                g.setColor(Tokens.TEXT_2);
+                g.drawString(Messages.get("cycle.noRowsHint"), vis.x + 8,
+                        (ROW_H + g.getFontMetrics().getAscent() - g.getFontMetrics().getDescent()) / 2);
+                return;
+            }
             int c0 = Math.max(m.firstCycle(), m.firstCycle() + clip.x / COL_W);
             int c1 = Math.min(m.lastCycle(), m.firstCycle() + (clip.x + clip.width) / COL_W);
             for (int i = 0; i < rows.size(); i++) {

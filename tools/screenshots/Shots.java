@@ -195,6 +195,9 @@ public final class Shots {
         if (want(scenes, "25")) {
             cycles(demo);
         }
+        if (want(scenes, "26")) {
+            runUntil(demo);
+        }
         if (want(scenes, "10")) {
             open("tests/circ/register.circ");
             open("tests/circ/values.circ");
@@ -1634,6 +1637,61 @@ public final class Shots {
         snapCrop(onScreen(v.component()), "25d-past-cycle-table");
         edt(v::showLatest);
         sleep(500);
+    }
+
+    /**
+     * 26: Run Until(C-04). demo-datapath를 리셋하고 Cycle View 탭의 Run Until…에서 "PC Is" 0x10을 고른 창, 그리고 멈춘
+     * 뒤의 표와 상태 표시줄 알림.
+     */
+    void runUntil(Project p) throws Exception {
+        activate(p);
+        deselect(p);
+        edt(() -> kr.ac.hallym.hcs.app.record.Recorder.requestReset(p));
+        sleep(900);
+        kr.ac.hallym.hcs.app.cycle.CycleView v = kr.ac.hallym.hcs.app.cycle.CycleView.of(p);
+        Circuit c = p.getCurrentCircuit();
+        for (com.cburch.logisim.comp.Component x : c.getNonWires()) {
+            String label = kr.ac.hallym.hcs.app.model.Names.label(x);
+            if (x.getFactory().getName().equals("Tunnel") && ("clk".equals(label) || "pc".equals(label))
+                    || x.getFactory().getName().equals("Pin") && "halt".equals(label)) {
+                edt(() -> kr.ac.hallym.hcs.app.cycle.CycleView.addPort(p, c, x.getEnd(0).getLocation()));
+            }
+        }
+        edt(v::open);
+        sleep(500);
+        SwingUtilities.invokeLater(v::askRunUntil);
+        Window w = null;
+        for (int i = 0; i < 40 && w == null; i++) {
+            sleep(250);
+            w = window(x -> x instanceof JDialog && x.isShowing() && find(x, y -> y instanceof JComboBox) != null);
+        }
+        if (w == null) {
+            log.add("26: no Run Until dialog");
+            return;
+        }
+        final Window dialog = w;
+        edt(() -> {
+            @SuppressWarnings("unchecked")
+            JComboBox<Object> kind = (JComboBox<Object>) find(dialog, y -> y instanceof JComboBox);
+            kind.setSelectedIndex(0); // PC Is
+            javax.swing.JTextField f = (javax.swing.JTextField) find(dialog, y -> y instanceof javax.swing.JTextField
+                    && y.isShowing());
+            f.setText("0x10");
+        });
+        sleep(500);
+        snapCrop(dialog.getBounds(), "26a-run-until-dialog");
+        edt(() -> {
+            javax.swing.JButton ok = (javax.swing.JButton) find(dialog, y -> y instanceof javax.swing.JButton
+                    && ("OK".equals(((javax.swing.JButton) y).getText())
+                    || "확인".equals(((javax.swing.JButton) y).getText())));
+            ok.doClick();
+        });
+        sleep(2500);
+        snapCrop(onScreen(v.component()), "26b-run-until-stopped");
+        snapFull("26d-full-window");
+        Rectangle status = onScreen(p.getFrame().getContentPane());
+        status = new Rectangle(status.x, status.y + status.height - 34, status.width, 34);
+        snapCrop(status, "26c-status-notice");
     }
 
     void program(Project p) throws Exception {

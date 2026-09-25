@@ -196,6 +196,44 @@ class CycleViewGuiTest {
         }
     }
 
+    /** Run Until 단추(C-04): 도는 동안 Stop, 끝나면 되돌아오고 상태 표시줄 알림에 멈춘 사이클과 이유. */
+    @Test
+    void runUntilButtonRunsAndReports() throws Exception {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "needs a display (xvfb-run)");
+        GuiTestSupport.keepAlive();
+        LogisimFile file = RecordingTestSupport.openRefMips(tmp);
+        RecordingTestSupport.load(file, RecordingTestSupport.program("mips/factorial.s"));
+        Project proj = new Project(file);
+        AtomicReference<Frame> fr = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            Frame f = new Frame(proj);
+            proj.setFrame(f);
+            f.setVisible(true);
+            f.setBounds(0, 0, 1400, 900);
+            fr.set(f);
+        });
+        Frame frame = fr.get();
+        try {
+            CycleView view = CycleView.of(proj);
+            Recorder.requestReset(proj);
+            waitFor(() -> Recorder.of(proj).current() != null && Recorder.of(proj).current().last() == 0, "reset");
+            Thread.sleep(400);
+            AtomicReference<RunUntilRunner> run = new AtomicReference<>();
+            SwingUtilities.invokeAndWait(() -> run.set(view.start(RunUntil.instruction("jal", 1000))));
+            assertNotNull(run.get());
+            waitFor(() -> !view.isRunningUntil(), "finished");
+            Recording r = Recorder.of(proj).current();
+            CycleModel m = view.model();
+            int c = m.cursorCycle();
+            assertEquals("jal", MipsText.mnemonic(m.instruction(c).toIntValue()));
+            waitFor(() -> String.valueOf(kr.ac.hallym.hcs.app.sim.SimControls.lastNotice(proj)).equals(
+                    Messages.get("runUntil.met", c, Messages.get("runUntil.why.INSTRUCTION", "jal"))), "notice");
+            assertEquals(CycleModel.stepOf(c), r.last());
+        } finally {
+            SwingUtilities.invokeAndWait(frame::dispose);
+        }
+    }
+
     /** GUI 스레드에서 부른다: 보이는 모든 라벨 글. */
     static String statusNow(Frame frame) {
         StringBuilder sb = new StringBuilder();

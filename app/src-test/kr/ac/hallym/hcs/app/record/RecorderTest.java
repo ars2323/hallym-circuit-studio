@@ -29,11 +29,11 @@ import kr.ac.hallym.hcs.regress.CircuitBuilder;
  * C-01 기록기: 실제 원조 Simulator 스레드의 틱을 스텝으로 적는다(틱마다 한 스텝, 한 사이클은 두 스텝). 리셋하면
  * 스텝 0부터, 회로를 고치면 지금 스텝부터 새로 적는다.
  */
-class RecorderTest {
+public class RecorderTest {
     @TempDir
     Path tmp;
 
-    static void waitFor(BooleanSupplier ok, String what) throws Exception {
+    public static void waitFor(BooleanSupplier ok, String what) throws Exception {
         long end = System.currentTimeMillis() + 10_000;
         while (!ok.getAsBoolean()) {
             if (System.currentTimeMillis() > end) {
