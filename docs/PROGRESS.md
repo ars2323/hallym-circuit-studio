@@ -20,8 +20,8 @@
 | S-07 | Register 값 표시 겹침 | #170 | 완료 | #250 | 원조 그림 확인(D-066, 21a-pc-400-orig와 같은 겹침), 포크는 S-06 규칙으로 en·0을 바깥에 |
 | S-08 | 기본 모양 서브회로의 포트 이름 | #171 | 완료 | #253 | D-069, DefaultAppearanceHelpTest(단추 조건, 포트 목록, 자동 모양 뒤, 인스턴스가 있을 때 거래, 도움말 자리), 22a~22c |
 | S-09 | 찾기 결과의 내부 포트 이름 | #172 | 완료 | #251 | D-067, KindsTest.readablePortTitles, NameIndexTest(Splitter #1 (combined end)), EditMenusTest, ShortcutsTest, 09b·09d |
-| S-10 | 화면 맞춤 여백 | #173 | 완료 | #252 | D-068, ZoomMathTest.fitPlacementCentersBothAxes, FitCenterGuiTest(가운데·누른 자리·원조 배율 조절·커서 배율), 02 |
-| S-11 | 왼쪽 패널 빈 공간 | #174 | 완료 | (이 PR) | D-072, SidePanelTest(터널 목록, 미니맵 변환), SidePanelGuiTest(탭, 터널 누르기·다음, 편집 반영, 미니맵 누르기), 24a~24c |
+| S-10 | 화면 맞춤 여백 | #173 | 완료 | #252, 후속 #257 | D-068, ZoomMathTest.fitPlacementCentersBothAxes·originCapIsTheCenteringAmount, FitCenterGuiTest(가운데·누른 자리·원조 배율 조절·커서 배율·원점 한도), 02, 18o |
+| S-11 | 왼쪽 패널 빈 공간 | #174 | 완료 | #256 | D-072, SidePanelTest(터널 목록, 미니맵 변환), SidePanelGuiTest(탭, 터널 누르기·다음, 편집 반영, 미니맵 누르기), 24a~24c |
 | S-12 | 제어 핀 라벨 중복 | #175 | 완료 | #255 | D-070, LabelsTest.pinNamedByItsOwnTunnelHasNoChip·demoChipsStayOffWires(칩 4개)·tunnelColorLeavesThePortClear, 23a |
 | S-13 | 400% 굵기 | #176 | 완료 | #254 | D-071, DiagMarksTest.borderWidthsAreExactOnScreen·wireHighlightWidthsAreExactOnScreen(25·100·400%, 2·4px와 3·6px), 14f |
 | S-20 | 회귀 확인: 원조 도구 모음·탐색기 아이콘 줄 숨김, 위쪽 네 줄 | #177 | 완료 | #258 | TopRowsGuiTest(원조 Toolbar 둘 다 안 보임, 메뉴·도구 모음·파일 탭·회로 탭 네 줄 바로 아래 캔버스), ToolKeysTest.ctrlDigitsAreBoundOnTheRoot, 01·07a·10 |
