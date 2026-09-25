@@ -118,7 +118,7 @@ class DiagMarksTest {
                 Collections.singletonList(and), Collections.emptyList(), and.getLocation(), "main › AND #1", "in1");
         Bounds bb = and.getBounds();
         int red = DiagMarks.MARK.getRGB() & 0xFFFFFF;
-        for (double z : new double[] {0.25, 1.0, 4.0}) {
+        for (double z : new double[] {0.25, 0.5, 0.7654, 1.0, 1.5, 4.0}) {
             for (boolean strong : new boolean[] {false, true}) {
                 BufferedImage img = new BufferedImage((int) (400 * z) + 60, (int) (400 * z) + 60,
                         BufferedImage.TYPE_INT_RGB);
@@ -166,7 +166,7 @@ class DiagMarksTest {
         com.cburch.logisim.circuit.Wire w = f.getMainCircuit().getWires().iterator().next();
         Diagnostic d = new Diagnostic(Diagnostic.Kind.INPUT_UNDRIVEN, f.getMainCircuit(), Collections.emptyList(),
                 Collections.singletonList(w), w.getEnd0(), "main", "x");
-        for (double z : new double[] {0.25, 1.0, 4.0}) {
+        for (double z : new double[] {0.25, 0.5, 0.7654, 1.0, 1.5, 4.0}) {
             for (boolean strong : new boolean[] {false, true}) {
                 BufferedImage img = new BufferedImage((int) (400 * z) + 60, (int) (400 * z) + 60,
                         BufferedImage.TYPE_INT_RGB);
