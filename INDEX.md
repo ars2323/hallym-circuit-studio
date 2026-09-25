@@ -2,6 +2,12 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-26 읽는 포트 이름(S-09)
+
+- 기준: fix/readable-port-names `7a59b81`
+- 관련 이슈: S-09 #172
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/s09-readable-port-names/README.md
+
 ## 2026-09-26 원조 부품의 포트 이름(S-06, S-07)
 
 - 기준: fix/port-name-overlay `b0179f4`
