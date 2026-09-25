@@ -504,6 +504,10 @@
   - 전부 한국어(D-043까지의 방식): 원조·교재와 이름이 달라진다.
   - 전부 영어: 오류·안내 문장을 이해하기 어렵다.
 
+- **보강(2026-09-25, 스크린샷 검토 3차):**
+  - 이름인데 한국어로 남았던 네 곳을 영어로 옮겼다: 팔레트 아래 키 안내(`↑↓ Select · Enter Place/Run …`), 부품 검색 칸(`Search components (e.g. mux 32, register)`), 빠른 속성 창 안내(`F2: Label`, `R: Rotate`), .s 불러오기 요약(`27 words .text → …`, `Instructions used: …`). 요약은 정보 표시라 이름으로 본다. `UiLanguageTest`와 lib-mips `LoadSummaryTest`가 확인한다.
+  - 단수·복수: 폭은 `1 bit`/`32 bits`, 워드 수는 `1 word`/`27 words`다. 앱 문구는 MessageFormat choice(`{0,choice,0#{0} bits|1#{0} bit|1<{0} bits}`), lib-mips는 `Text.count`를 쓴다. "{n} bits"를 choice 없이 쓰면 테스트가 실패한다.
+
 ## D-050 Stack 몸체는 사용한 영역(최고 수위)만 보인다(스크린샷 검토 2차 B)
 
 - **날짜:** 2026-09-25

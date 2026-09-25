@@ -31,6 +31,11 @@ final class Text implements StringGetter {
         return new Text(en, en);
     }
 
+    /** 개수와 단위(영어 이름): {@code 1 word}, {@code 27 words}(검토 3차: 단수·복수). */
+    static String count(long n, String unit) {
+        return n + " " + unit + (n == 1 ? "" : "s");
+    }
+
     static boolean korean() {
         return "ko".equals(LocaleManager.getLocale().getLanguage());
     }

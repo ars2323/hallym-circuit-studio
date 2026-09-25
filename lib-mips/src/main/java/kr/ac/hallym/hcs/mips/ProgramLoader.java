@@ -104,13 +104,14 @@ final class ProgramLoader {
                     outside += 1;
                 }
             }
-            plan.notes.add(p.text.size() + Text.of(" words of .text → ", " 워드 .text → ").get() + text.describe());
+            // 요약은 정보 표시라 영어다(검토 3차, D-049): 27 words .text → main › Instruction Memory (…)
+            plan.notes.add(Text.name(Text.count(p.text.size(), "word") + " .text → ").get() + text.describe());
             if (outside > 0) {
-                plan.notes.add(outside + Text.of(" .text words lie outside that memory's region",
-                        " 워드가 그 메모리 영역 밖에 있음").get());
+                plan.notes.add(Text.name(Text.count(outside, "word") + " of .text outside that memory's region")
+                        .get());
             }
         } else if (!p.text.isEmpty()) {
-            plan.notes.add(Text.of("No Instruction Memory for .text", ".text를 넣을 Instruction Memory가 없음").get());
+            plan.notes.add(Text.name("No Instruction Memory for .text").get());
         }
         if (data != null) {
             plan.changes.add(new Change(data, MemoryFactory.CONTENTS, p.dataImage()));
@@ -121,18 +122,18 @@ final class ProgramLoader {
                     outside += 1;
                 }
             }
-            plan.notes.add(p.data.size() + Text.of(" words of .data → ", " 워드 .data → ").get() + data.describe());
+            plan.notes.add(Text.name(Text.count(p.data.size(), "word") + " .data → ").get() + data.describe());
             if (outside > 0) {
-                plan.notes.add(outside + Text.of(" .data words lie outside that memory's region",
-                        " 워드가 그 메모리 영역 밖에 있음").get());
+                plan.notes.add(Text.name(Text.count(outside, "word") + " of .data outside that memory's region")
+                        .get());
             }
         } else if (!p.data.isEmpty()) {
-            plan.notes.add(Text.of("No Data Memory for .data", ".data를 넣을 Data Memory가 없음").get());
+            plan.notes.add(Text.name("No Data Memory for .data").get());
         }
         for (AssembledProgram.Message w : p.warnings) {
-            plan.notes.add(Text.of("hcs-asm: ", "hcs-asm: ").get() + w);
+            plan.notes.add(Text.name("hcs-asm: ").get() + w);
         }
-        plan.notes.add(Text.of("Instructions used: ", "쓰는 명령어: ").get() + String.join(", ", p.usedInstructions()));
+        plan.notes.add(Text.name("Instructions used: ").get() + String.join(", ", p.usedInstructions()));
         return plan;
     }
 

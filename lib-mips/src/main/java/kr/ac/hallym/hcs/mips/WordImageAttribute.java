@@ -19,7 +19,7 @@ final class WordImageAttribute extends Attribute<WordImage> {
         if (value == null || value.isEmpty()) {
             return Text.name("(empty)").get();
         }
-        return value.size() + " words from 0x" + WordImage.hex(value.firstAddress());
+        return Text.count(value.size(), "word") + " from 0x" + WordImage.hex(value.firstAddress());
     }
 
     @Override
