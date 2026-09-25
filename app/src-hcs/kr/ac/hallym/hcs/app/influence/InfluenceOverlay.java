@@ -343,9 +343,9 @@ public final class InfluenceOverlay {
                     b.getHeight() + 4)));
         }
         if (canvas != null) {
+            // 라벨 칩 자리는 회로 좌표다(QuickBar도 배율을 곱해 캔버스 좌표로 쓴다)
             for (Rectangle r : kr.ac.hallym.hcs.app.labels.LabelOverlay.chipRects(canvas)) {
-                a.subtract(new java.awt.geom.Area(new java.awt.geom.Rectangle2D.Double(r.x / z - 2, r.y / z - 2,
-                        r.width / z + 4, r.height / z + 4)));
+                a.subtract(new java.awt.geom.Area(new Rectangle(r.x - 2, r.y - 2, r.width + 4, r.height + 4)));
             }
         }
         return a;
