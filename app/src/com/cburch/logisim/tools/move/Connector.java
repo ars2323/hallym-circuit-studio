@@ -61,20 +61,23 @@ class Connector {
 		case 3: tries = 8; break;
 		default: tries = MAX_ORDERING_TRIES;
 		}
-		long stopTime = System.currentTimeMillis() + MAX_SECONDS * 1000;
+		// HCS: W-01 no wall-clock limit: the same move gives the same wires on every PC (the search is bounded by
+		// MAX_SEARCH_ITERATIONS and the number of tries)
+		long stopTime = Long.MAX_VALUE;
 		for (int tryNum = 0; tryNum < tries && stopTime - System.currentTimeMillis() > 0; tryNum++) {
 			if (ConnectorThread.isOverrideRequested()) {
 				return null;
 			}
 			ArrayList<ConnectionData> connects;
 			connects = new ArrayList<ConnectionData>(baseConnects);
+			sortByPlace(connects); // HCS: W-01 fixed base order (baseConnects comes from a HashSet)
 			if (tryNum < 2) {
 				sortConnects(connects, dx, dy);
 				if (tryNum == 1) {
 					Collections.reverse(connects);
 				}
 			} else {
-				Collections.shuffle(connects);
+				Collections.shuffle(connects, new java.util.Random(0x4843530000L + tryNum)); // HCS: W-01 seeded
 			}
 			
 			MoveResult candidate = tryList(req, gesture, connects, dx, dy,
@@ -142,6 +145,19 @@ class Connector {
 	 * other - but if we are moving that gate northeast, we prefer to connect
 	 * the inputs from the bottom up.
 	 */
+	// HCS: W-01 total order by location and direction, used before the original orderings
+	private static void sortByPlace(ArrayList<ConnectionData> connects) {
+		Collections.sort(connects, new Comparator<ConnectionData>() {
+			public int compare(ConnectionData a, ConnectionData b) {
+				int c = a.getLocation().compareTo(b.getLocation());
+				if (c != 0) return c;
+				String da = String.valueOf(a.getDirection());
+				String db = String.valueOf(b.getDirection());
+				return da.compareTo(db);
+			}
+		});
+	}
+
 	private static void sortConnects(ArrayList<ConnectionData> connects,
 			final int dx, final int dy) {
 		Collections.sort(connects, new Comparator<ConnectionData>() {
