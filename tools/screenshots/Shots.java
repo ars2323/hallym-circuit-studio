@@ -723,6 +723,11 @@ public final class Shots {
             robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
             sleep(1500);
             snapFull("14b-messages-clicked");
+            // 원래 크기 자르기(S-13): snapFull은 1600px로 줄여 굵기를 잴 수 없다. 누른 PC(4px)와 누르지 않은 터널(2px)
+            com.cburch.logisim.comp.Component pcReg = byLabel(p.getCurrentCircuit(), "PC");
+            if (pcReg != null) {
+                snapLogical(p, pcReg.getBounds().expand(24), "14g-focused-fit-zoom-native");
+            }
             Rectangle panel = onScreen(list.getParent().getParent().getParent());
             snapCrop(pad(panel, 4), "14c-messages-list");
         }
