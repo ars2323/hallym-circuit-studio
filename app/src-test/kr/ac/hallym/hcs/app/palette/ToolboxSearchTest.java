@@ -50,4 +50,24 @@ class ToolboxSearchTest {
         Tool st = ToolboxSearch.toolFor(file, s);
         assertTrue(st instanceof AddTool && ((AddTool) st).getFactory() == alu.getSubcircuitFactory());
     }
+
+    /** mux 32를 고르면 원조 속성 표와 같은 ToolAttributeAction으로 도구 속성을 바꾼다(되돌리기 가능). */
+    @Test
+    void numbersBecomeUndoableToolAttributeActions() throws Exception {
+        LogisimFile file = CircuitBuilder.newFile(new Loader(null), tmp.toFile());
+        com.cburch.logisim.proj.Project proj = new com.cburch.logisim.proj.Project(file);
+        Palette.Item mux = ToolboxSearch.results("mux 32", file).get(0);
+        Tool t = ToolboxSearch.toolFor(file, mux);
+        com.cburch.logisim.data.Attribute<?> width = t.getAttributeSet().getAttribute("width");
+        Object before = t.getAttributeSet().getValue(width);
+        List<com.cburch.logisim.proj.Action> acts = ToolboxSearch.attributeActions(t, mux);
+        assertEquals(1, acts.size());
+        assertTrue(acts.get(0) instanceof com.cburch.logisim.gui.main.ToolAttributeAction);
+        proj.doAction(acts.get(0));
+        assertEquals("32", t.getAttributeSet().getValue(width).toString());
+        assertTrue(proj.isFileDirty(), "a tool default is part of the .circ, so the file is modified");
+        proj.undoAction();
+        assertEquals(before, t.getAttributeSet().getValue(width));
+        assertTrue(ToolboxSearch.attributeActions(t, ToolboxSearch.results("mux", file).get(0)).isEmpty());
+    }
 }

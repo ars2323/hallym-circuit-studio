@@ -170,20 +170,38 @@ public final class ToolboxSearch extends JPanel {
         return null;
     }
 
+    /**
+     * 뒤 숫자(예: {@code mux 32})를 도구 속성으로: 원조 {@link com.cburch.logisim.gui.main.ToolAttributeAction}.
+     * 원조는 도구 기본값과 다른 속성을 .circ의 {@code <lib>} 안 {@code <tool>}에 저장하므로, 속성 표에서 바꿀 때와
+     * 같은 동작이어야 되돌리기와 "바뀜" 표시가 맞는다. 이미 같은 값이면 동작을 만들지 않는다.
+     */
+    static List<com.cburch.logisim.proj.Action> attributeActions(Tool t, Palette.Item it) {
+        List<com.cburch.logisim.proj.Action> ret = new ArrayList<>();
+        AttributeSet as = t.getAttributeSet();
+        if (as == null) {
+            return ret;
+        }
+        for (Map.Entry<String, String> e : it.attrs.entrySet()) {
+            @SuppressWarnings("unchecked")
+            Attribute<Object> a = (Attribute<Object>) as.getAttribute(e.getKey());
+            if (a == null) {
+                continue;
+            }
+            Object v = a.parse(e.getValue());
+            if (!v.equals(as.getValue(a))) {
+                ret.add(com.cburch.logisim.gui.main.ToolAttributeAction.create(t, a, v));
+            }
+        }
+        return ret;
+    }
+
     private void choose(Palette.Item it) {
         Tool t = toolFor(proj.getLogisimFile(), it);
         if (t == null) {
             return;
         }
-        if (!it.attrs.isEmpty()) {
-            AttributeSet as = t.getAttributeSet();
-            for (Map.Entry<String, String> e : it.attrs.entrySet()) {
-                @SuppressWarnings("unchecked")
-                Attribute<Object> a = as == null ? null : (Attribute<Object>) as.getAttribute(e.getKey());
-                if (a != null) {
-                    as.setValue(a, a.parse(e.getValue()));
-                }
-            }
+        for (com.cburch.logisim.proj.Action act : attributeActions(t, it)) {
+            proj.doAction(act); // 원조 속성 표로 도구 속성을 바꿀 때와 같은 동작(되돌리기, 파일 바뀜 표시)
         }
         proj.setTool(t);
         if (it.kind == Palette.Kind.COMPONENT) {
