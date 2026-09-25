@@ -67,6 +67,7 @@
 | Minimap | 미니맵 |
 | Cycle View, Previous Cycle, Next Cycle, Latest Cycle, Add to Cycle View, Remove from Cycle View, Show Bits, Hide Bits | 사이클 뷰 |
 | Run Until…, Stop, Condition, Value, Max Cycles, PC Is, Next Instruction Is, Row Changes, E or X Appears, Halt or Exit | 여기까지 실행 |
+| Registers, Memory, Signed Decimal, Mark as Register File, Unmark Register File, Register Mapping… | 레지스터 파일로 표시 |
 | Duplicate, Undo, Redo | |
 | Getting Started, Shortcuts | |
 

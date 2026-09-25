@@ -76,6 +76,11 @@ public final class CycleView {
     private final Head head = new Head();
     private final RowNames rowNames = new RowNames();
     private final JScrollPane scroll = new JScrollPane(body);
+    // C-05·C-06: 오른쪽 Registers | Memory 탭
+    private final RegisterPanel registers = new RegisterPanel(this::machine);
+    private final MemoryPanel memory = new MemoryPanel(this::memories);
+    private final JTabbedPane side = new JTabbedPane();
+    private final javax.swing.JSplitPane split;
     private final JLabel position = new JLabel();
     private final JLabel notice = new JLabel(Messages.get("cycle.pastNotice"));
     private final JLabel empty = new JLabel(Messages.get("cycle.empty"));
@@ -87,11 +92,21 @@ public final class CycleView {
     private boolean follow = true;
     // Recorder는 청취자를 강하게 잡지만, 창이 닫히면 함께 사라지도록 필드로 둔다
     private final Recorder.Listener recListener = r -> SwingUtilities.invokeLater(this::refresh);
+    // 편집 동작(레지스터 파일 표시·대응 등) 뒤에도 패널을 다시 모은다. 원조 Project는 청취자를 약하게 잡는다
+    private final com.cburch.logisim.proj.ProjectListener projListener = e -> {
+        int a = e.getAction();
+        if (a == com.cburch.logisim.proj.ProjectEvent.ACTION_COMPLETE
+                || a == com.cburch.logisim.proj.ProjectEvent.UNDO_COMPLETE
+                || a == com.cburch.logisim.proj.ProjectEvent.ACTION_SET_STATE) {
+            SwingUtilities.invokeLater(this::refresh);
+        }
+    };
 
     private CycleView(Project proj) {
         this.projRef = new java.lang.ref.WeakReference<>(proj);
         this.recorder = Recorder.of(proj);
         recorder.addListener(recListener);
+        proj.addProjectListener(projListener);
         Font mono = new Font(Font.MONOSPACED, Font.PLAIN, Tokens.FONT_SMALL);
         body.setFont(mono);
         head.setFont(mono);
@@ -131,7 +146,14 @@ public final class CycleView {
         empty.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
         empty.setVerticalAlignment(SwingConstants.TOP);
         panel.add(bar, BorderLayout.NORTH);
-        panel.add(scroll, BorderLayout.CENTER);
+        side.addTab(Messages.get("regs.tab"), new JScrollPane(registers));
+        side.addTab(Messages.get("mem.tab"), new JScrollPane(memory));
+        side.setMinimumSize(new Dimension(0, 0));
+        split = new javax.swing.JSplitPane(javax.swing.JSplitPane.HORIZONTAL_SPLIT, scroll, side);
+        split.setResizeWeight(0.6);
+        split.setBorder(null);
+        split.setContinuousLayout(true);
+        panel.add(split, BorderLayout.CENTER);
 
         MouseAdapter pick = new MouseAdapter() {
             @Override
@@ -178,7 +200,7 @@ public final class CycleView {
     }
 
     /** 표가 보일 아래 패널 높이: 조작 막대, 머리 세 줄, 신호 다섯 줄. */
-    static final int OPEN_HEIGHT = 40 + (HEAD_ROWS + 5) * ROW_H + 44;
+    static final int OPEN_HEIGHT = 40 + (HEAD_ROWS + 7) * ROW_H + 44;
 
     private kr.ac.hallym.hcs.app.diag.MessagesPanel bottom;
 
@@ -431,7 +453,42 @@ public final class CycleView {
         return s.substring(0, n) + dots;
     }
 
+    /** 레지스터·메모리 패널 모델(보고 있는 사이클). 기록이 없으면 null. */
+    MachineState machine() {
+        CycleModel m = model();
+        Project proj = projRef.get();
+        return m == null || proj == null ? null : new MachineState(m, proj.getLogisimFile());
+    }
+
+    /** 지금 보고 있는 회로 상태(지난 사이클이면 다시 만든 상태)의 메모리 내용. */
+    List<MachineState.Memory> memories() {
+        MachineState ms = machine();
+        Project proj = projRef.get();
+        if (ms == null || ms.model().isEmpty() || proj == null || proj.getCircuitState() == null) {
+            return null;
+        }
+        com.cburch.logisim.circuit.CircuitState root = proj.getCircuitState();
+        while (root.getParentState() != null) {
+            root = root.getParentState();
+        }
+        return ms.memories(root, ms.model().cursorCycle());
+    }
+
+    RegisterPanel registerPanel() {
+        return registers;
+    }
+
+    MemoryPanel memoryPanel() {
+        return memory;
+    }
+
+    JTabbedPane sideTabs() {
+        return side;
+    }
+
     void refresh() {
+        registers.refresh();
+        memory.refresh();
         CycleModel m = model();
         boolean has = m != null && !m.isEmpty();
         if (has) {
@@ -450,7 +507,7 @@ public final class CycleView {
         }
         next.setEnabled(!isRunningUntil());
         java.awt.Component center = ((BorderLayout) panel.getLayout()).getLayoutComponent(BorderLayout.CENTER);
-        java.awt.Component want = has || !signals.isEmpty() ? scroll : empty;
+        java.awt.Component want = has || !signals.isEmpty() ? split : empty;
         if (center != want) {
             if (center != null) {
                 panel.remove(center);

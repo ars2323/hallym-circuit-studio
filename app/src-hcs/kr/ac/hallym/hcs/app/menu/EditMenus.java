@@ -387,6 +387,15 @@ public final class EditMenus implements ContextMenus.Provider {
         }, sub.getName()));
         menu.add(item("menu.autoAppearance", () -> kr.ac.hallym.hcs.app.appear.AutoAppearance.run(t.project, sub,
                 t.canvas)));
+        // C-05: 레지스터 파일 표시(파일에 저장, 조교가 템플릿에 해 둘 수도 있다)
+        com.cburch.logisim.file.LogisimFile file = t.project.getLogisimFile();
+        boolean marked = kr.ac.hallym.hcs.app.cycle.RegisterFile.marked(file) == sub;
+        menu.add(item(marked ? "regfile.unmark" : "regfile.mark", () -> t.project.doAction(
+                kr.ac.hallym.hcs.app.cycle.RegisterFile.markAction(file, sub, !marked))));
+        if (marked) {
+            menu.add(item("regfile.mapping", () -> kr.ac.hallym.hcs.app.cycle.RegisterMappingDialog.show(t.project,
+                    sub)));
+        }
     }
 
     // --- 터널 ---
