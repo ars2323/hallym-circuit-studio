@@ -265,11 +265,12 @@ public final class QuickBar implements Selection.Listener, ProjectListener {
         // 피할 것: 대상의 선택 테두리(손잡이 포함), 다른 부품, 선, 라벨 칩(모두 캔버스 좌표로)
         Rectangle self = new Rectangle(r);
         self.grow(6, 6);
-        List<Component> all = new ArrayList<>(canvas.getCircuit().getNonWires());
-        all.addAll(canvas.getCircuit().getWires());
-        List<Rectangle> avoid = obstacles(all, targets,
+        // 가리면 안 되는 것(부품, 라벨 칩)과 지나가도 되는 것(선)을 나눈다(ui-reviewer: clk 터널을 덮음)
+        List<Rectangle> hard = obstacles(new ArrayList<>(canvas.getCircuit().getNonWires()), targets,
                 kr.ac.hallym.hcs.app.labels.LabelOverlay.chipRects(canvas), z);
-        Rectangle at = placement(self, d, avoid, vis, 6);
+        List<Rectangle> soft = obstacles(new ArrayList<>(canvas.getCircuit().getWires()), targets,
+                java.util.Collections.emptyList(), z);
+        Rectangle at = placement(self, d, hard, soft, vis, 6);
         int x = at.x;
         int y = at.y;
         JLayeredPane layer = frame.getLayeredPane();
@@ -314,29 +315,41 @@ public final class QuickBar implements Selection.Listener, ProjectListener {
                 (int) Math.ceil(r.height * z));
     }
 
-    /**
-     * 빠른 속성 창 자리(검토 반영 1, 2차 E): 대상(선택 테두리 포함) 위(왼쪽 맞춤, 오른쪽 맞춤), 아래(같은 둘),
-     * 오른쪽, 왼쪽(위 맞춤, 아래 맞춤) 순으로 놓아 보고, 보이는 영역 안이면서 피할 것(라벨 칩, 다른 부품, 선)과 겹치지
-     * 않는 첫 자리. 없으면 겹친 넓이가 가장 적은 자리. 좌표는 캔버스 기준.
-     */
+    /** 부품·칩 한 칸을 가리는 것은 선 한 칸을 지나는 것보다 이만큼 나쁘다. */
+    static final long HARD_WEIGHT = 1000;
+    /** 가까운 자리에 빈 곳이 없을 때 더 떨어뜨려 볼 거리(화면 px). */
+    static final int[] FARTHER = {0, 20, 40, 60};
+
     static Rectangle placement(Rectangle target, Dimension bar, List<Rectangle> avoid, Rectangle visible, int gap) {
-        int above = target.y - gap - bar.height;
-        int below = target.y + target.height + gap;
-        int rightAligned = target.x + target.width - bar.width;
-        Rectangle[] cands = {
-            new Rectangle(target.x, above, bar.width, bar.height),
-            new Rectangle(rightAligned, above, bar.width, bar.height),
-            new Rectangle(target.x, below, bar.width, bar.height),
-            new Rectangle(rightAligned, below, bar.width, bar.height),
-            new Rectangle(target.x + target.width + gap, target.y, bar.width, bar.height),
-            new Rectangle(target.x - gap - bar.width, target.y, bar.width, bar.height),
-            new Rectangle(target.x + target.width + gap, target.y + target.height - bar.height, bar.width,
-                    bar.height),
-            new Rectangle(target.x - gap - bar.width, target.y + target.height - bar.height, bar.width,
-                    bar.height),
-        };
+        return placement(target, bar, avoid, java.util.Collections.emptyList(), visible, gap);
+    }
+
+    /**
+     * 빠른 속성 창 자리(검토 반영 1, 2차 E, S-04): 대상(선택 테두리 포함) 위(왼쪽 맞춤, 오른쪽 맞춤), 아래(같은 둘),
+     * 오른쪽, 왼쪽(위 맞춤, 아래 맞춤) 순으로 놓아 보고, 다음에는 같은 순서로 20·40·60px 더 떨어뜨려 본다. 보이는 영역
+     * 안이면서 아무것도 겹치지 않는 첫 자리. 없으면 겹친 넓이(부품·라벨 칩 hard는 {@link #HARD_WEIGHT}배, 선 soft는
+     * 1배)가 가장 적은 자리(같으면 앞 순서). 좌표는 캔버스 기준.
+     */
+    static Rectangle placement(Rectangle target, Dimension bar, List<Rectangle> hard, List<Rectangle> soft,
+            Rectangle visible, int gap) {
+        List<Rectangle> cands = new ArrayList<>();
+        for (int far : FARTHER) {
+            int above = target.y - gap - far - bar.height;
+            int below = target.y + target.height + gap + far;
+            int rightAligned = target.x + target.width - bar.width;
+            int right = target.x + target.width + gap + far;
+            int left = target.x - gap - far - bar.width;
+            cands.add(new Rectangle(target.x, above, bar.width, bar.height));
+            cands.add(new Rectangle(rightAligned, above, bar.width, bar.height));
+            cands.add(new Rectangle(target.x, below, bar.width, bar.height));
+            cands.add(new Rectangle(rightAligned, below, bar.width, bar.height));
+            cands.add(new Rectangle(right, target.y, bar.width, bar.height));
+            cands.add(new Rectangle(left, target.y, bar.width, bar.height));
+            cands.add(new Rectangle(right, target.y + target.height - bar.height, bar.width, bar.height));
+            cands.add(new Rectangle(left, target.y + target.height - bar.height, bar.width, bar.height));
+        }
         Rectangle best = null;
-        long bestArea = Long.MAX_VALUE;
+        long bestScore = Long.MAX_VALUE;
         for (Rectangle c : cands) {
             Rectangle in = new Rectangle(c);
             in.x = Math.max(visible.x, Math.min(in.x, visible.x + visible.width - in.width));
@@ -344,22 +357,27 @@ public final class QuickBar implements Selection.Listener, ProjectListener {
             if (in.intersects(target)) {
                 continue; // 보이는 영역에 맞추다 대상 위로 올라왔다
             }
-            long area = 0;
-            for (Rectangle a : avoid) {
-                Rectangle i = in.intersection(a);
-                if (!i.isEmpty()) {
-                    area += (long) i.width * i.height;
-                }
-            }
-            if (area == 0) {
+            long score = HARD_WEIGHT * overlap(in, hard) + overlap(in, soft);
+            if (score == 0) {
                 return in;
             }
-            if (area < bestArea) {
-                bestArea = area;
+            if (score < bestScore) {
+                bestScore = score;
                 best = in;
             }
         }
-        return best != null ? best : cands[0];
+        return best != null ? best : cands.get(0);
+    }
+
+    private static long overlap(Rectangle in, List<Rectangle> rects) {
+        long area = 0;
+        for (Rectangle a : rects) {
+            Rectangle i = in.intersection(a);
+            if (!i.isEmpty()) {
+                area += (long) i.width * i.height;
+            }
+        }
+        return area;
     }
 
     private static JButton small(String text) {

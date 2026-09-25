@@ -268,7 +268,7 @@ public final class LabelOverlay {
         try {
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-            of(canvas).paintAll(g, circuit, hidden);
+            of(canvas).paintAll(g, circuit, hidden, state);
         } finally {
             g.dispose();
         }
@@ -278,12 +278,45 @@ public final class LabelOverlay {
         return canvas.getHcsZoom() == null ? 1.0 : canvas.getHcsZoom().zoomFactor();
     }
 
-    private void paintAll(Graphics2D g, Circuit circuit, java.util.Set<Component> hidden) {
+    private void paintAll(Graphics2D g, Circuit circuit, java.util.Set<Component> hidden, CircuitState state) {
         double z = zoom();
         tunnels(g, circuit, hidden);
         subcircuits(g, circuit, hidden, z);
-        splitterArms(g, circuit, hidden, z);
+        List<Rectangle> covered = new ArrayList<>(splitterArms(g, circuit, hidden, z));
         chips(g, circuit, hidden, z);
+        for (LabelLayout.Placed p : cached) {
+            covered.add(p.rect);
+        }
+        redrawWires(g, canvas, circuit, state, covered);
+    }
+
+    /**
+     * 칩(라벨, 팔 라벨, 캡션, 버스 이름) 밑을 지나는 선을 칩 위에 한 번 더 그린다(S-01, 체크리스트 2: 이어진 선이
+     * 끊겨 보이지 않게). 칩 영역으로만 잘라 그리므로 글자는 선 옆에 그대로 보인다.
+     */
+    static void redrawWires(Graphics2D g, java.awt.Component canvas, Circuit circuit, CircuitState state,
+            List<Rectangle> covered) {
+        if (covered.isEmpty()) {
+            return;
+        }
+        java.awt.geom.Area area = new java.awt.geom.Area();
+        for (Rectangle r : covered) {
+            area.add(new java.awt.geom.Area(r));
+        }
+        Graphics2D gc = (Graphics2D) g.create();
+        try {
+            gc.clip(area);
+            com.cburch.logisim.comp.ComponentDrawContext ctx =
+                    new com.cburch.logisim.comp.ComponentDrawContext(canvas, circuit, state, gc, gc);
+            for (Wire w : circuit.getWires()) {
+                Bounds b = w.getBounds();
+                if (area.intersects(b.getX(), b.getY(), Math.max(1, b.getWidth()), Math.max(1, b.getHeight()))) {
+                    w.draw(ctx);
+                }
+            }
+        } finally {
+            gc.dispose();
+        }
     }
 
     // ---- 터널 색 ----
@@ -457,10 +490,11 @@ public final class LabelOverlay {
      * 스플리터 팔 끝 옆에 {@code [31:26] op}(이름이 없으면 범위만). 원조 스플리터는 팔에 아무것도 적지 않는다.
      * 밀도 "전부"에서, 또는 마우스를 올린 스플리터에. 그릴 때만 적용한다.
      */
-    private void splitterArms(Graphics2D g, Circuit circuit, java.util.Set<Component> hidden, double z) {
+    private List<Rectangle> splitterArms(Graphics2D g, Circuit circuit, java.util.Set<Component> hidden, double z) {
+        List<Rectangle> drawn = new ArrayList<>();
         float px = ARM_PX;
         if (px * z < ARM_MIN_SCREEN_PX) {
-            return; // 원조 "0-5" 표시는 이때 빼지 않는다(wrap)
+            return drawn; // 원조 "0-5" 표시는 이때 빼지 않는다(wrap)
         }
         Density d = density();
         com.cburch.logisim.file.LogisimFile file = canvas.getProject().getLogisimFile();
@@ -471,24 +505,69 @@ public final class LabelOverlay {
                     || (d != Density.ALL && c != hovered)) {
                 continue;
             }
-            for (ArmLabel a : armLabels(file, circuit, c)) {
-                int w = fm.stringWidth(a.text);
-                int x;
-                int y;
-                if (a.facing == com.cburch.logisim.data.Direction.NORTH
-                        || a.facing == com.cburch.logisim.data.Direction.SOUTH) {
-                    x = a.end.getX() + 3; // 세로로 뻗는 팔: 오른쪽
-                    y = a.end.getY() + (a.facing == com.cburch.logisim.data.Direction.NORTH ? -3 : fm.getAscent() + 2);
-                } else {
-                    x = a.facing == com.cburch.logisim.data.Direction.WEST ? a.end.getX() - w - 2 : a.end.getX() + 2;
-                    y = a.end.getY() - 2; // 가로로 뻗는 팔: 선 위
-                }
+            List<ArmLabel> arms = armLabels(file, circuit, c);
+            boolean opposite = oppositeSideFree(circuit, c, arms, fm);
+            for (ArmLabel a : arms) {
+                Rectangle r = armRect(c, a, fm, opposite);
                 g.setColor(ARM_BACKGROUND);
-                g.fillRect(x - 1, y - fm.getAscent(), w + 2, fm.getAscent() + fm.getDescent());
+                g.fillRect(r.x, r.y, r.width, r.height);
                 g.setColor(ARM_COLOR);
-                g.drawString(a.text, x, y);
+                g.drawString(a.text, r.x + 1, r.y + fm.getAscent());
+                drawn.add(r);
             }
         }
+        return drawn;
+    }
+
+    /**
+     * 팔 라벨 자리. 가로로 뻗는 팔은 opposite면 스플리터 막대 반대쪽(팔 선과 이어지는 선을 피한다, S-02), 아니면 팔 끝
+     * 옆 선 위. 세로로 뻗는 팔은 팔 끝 오른쪽.
+     */
+    static Rectangle armRect(Component s, ArmLabel a, FontMetrics fm, boolean opposite) {
+        int w = fm.stringWidth(a.text);
+        int h = fm.getAscent() + fm.getDescent();
+        int x;
+        int base;
+        if (a.facing == com.cburch.logisim.data.Direction.NORTH || a.facing == com.cburch.logisim.data.Direction.SOUTH) {
+            x = a.end.getX() + 3;
+            base = a.end.getY() + (a.facing == com.cburch.logisim.data.Direction.NORTH ? -3 : fm.getAscent() + 2);
+        } else {
+            boolean west = a.facing == com.cburch.logisim.data.Direction.WEST;
+            Bounds b = s.getBounds();
+            if (opposite) {
+                x = west ? b.getX() + b.getWidth() + 3 : b.getX() - w - 4; // 막대 반대쪽
+                base = a.end.getY() + fm.getAscent() / 2 - 1; // 팔 높이 가운데
+            } else {
+                x = west ? a.end.getX() - w - 2 : a.end.getX() + 2;
+                base = a.end.getY() - 2; // 선 위
+            }
+        }
+        return new Rectangle(x - 1, base - fm.getAscent(), w + 2, h);
+    }
+
+    /** 막대 반대쪽 자리들이 선·부품에 닿지 않는가(가로로 뻗는 스플리터만). */
+    static boolean oppositeSideFree(Circuit circuit, Component s, List<ArmLabel> arms, FontMetrics fm) {
+        if (arms.isEmpty() || arms.get(0).facing == com.cburch.logisim.data.Direction.NORTH
+                || arms.get(0).facing == com.cburch.logisim.data.Direction.SOUTH) {
+            return false;
+        }
+        for (ArmLabel a : arms) {
+            Rectangle r = armRect(s, a, fm, true);
+            r.grow(1, 0);
+            for (Wire w : circuit.getWires()) {
+                Bounds b = w.getBounds();
+                if (r.intersects(b.getX(), b.getY(), Math.max(1, b.getWidth()), Math.max(1, b.getHeight()))) {
+                    return false;
+                }
+            }
+            for (Component o : circuit.getNonWires()) {
+                Bounds b = o.getBounds();
+                if (o != s && r.intersects(b.getX(), b.getY(), b.getWidth(), b.getHeight())) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     /** 폭에 맞게 줄인 글자(넘치면 끝을 …로). */
@@ -566,6 +645,12 @@ public final class LabelOverlay {
             sig = sig * 31 + System.identityHashCode(c);
             Bounds b = c.getBounds();
             obstacles.add(new Rectangle(b.getX(), b.getY(), b.getWidth(), b.getHeight()));
+        }
+        // 선도 피한다(S-05: 칩이 옆 선 위에 놓이지 않게). 피할 수 없으면 칩 위에 선을 다시 그린다(redrawWires)
+        for (Wire w : circuit.getWires()) {
+            sig = sig * 31 + w.hashCode();
+            Bounds b = w.getBounds();
+            obstacles.add(new Rectangle(b.getX() - 1, b.getY() - 1, b.getWidth() + 2, b.getHeight() + 2));
         }
         if (sig != cachedSig || !texts.equals(cachedText)) {
             cached = LabelLayout.layout(reqs, obstacles, Math.max(3, Math.round(px / 3)), 14);

@@ -252,6 +252,8 @@ class SafeMoveTest {
         Set<String> geo = geometry(c);
         Set<Set<Netlist.PortRef>> all = NetSignature.of(c, List.of());
         assertEquals(SafeMove.Outcome.MOVED, move(List.of(middle(c)), 40, 0));
+        assertTrue(kr.ac.hallym.hcs.app.props.QuickBar.isQuiet(proj, sel.getComponents()),
+                "no quick bar right after a move (S-04)");
         assertTrue(geometry(c).containsAll(List.of("W" + Location.create(100, 100) + Location.create(240, 100),
                 "W" + Location.create(240, 100) + Location.create(240, 200),
                 "W" + Location.create(240, 200) + Location.create(300, 200))), geometry(c).toString());
@@ -273,6 +275,24 @@ class SafeMoveTest {
         b.commit();
         open(f);
         checkMove(List.of(middle(f.getMainCircuit())), 40, 0);
+    }
+
+    /** 붙여 넣거나 복제해 떠 있는 선택은 원조 이동 그대로 옮긴다(놓을 때 원조가 합친다). */
+    @Test
+    void floatingSelectionUsesTheOriginalMove() throws Exception {
+        LogisimFile f = fresh();
+        CircuitBuilder b = new CircuitBuilder(f, f.getMainCircuit());
+        Component not = b.add("Gates", "NOT Gate", 300, 200);
+        b.commit();
+        open(f);
+        sel.addAll(List.of(not));
+        proj.doAction(com.cburch.logisim.gui.main.SelectionActions.duplicate(sel)); // 복제는 떠 있다
+        assertTrue(!sel.getFloatingComponents().isEmpty());
+        assertEquals(SafeMove.Outcome.MOVED, SafeMove.move(proj, sel, 0, 60, null));
+        proj.doAction(com.cburch.logisim.gui.main.SelectionActions.dropAll(sel));
+        Set<String> geo = geometry(f.getMainCircuit());
+        // 복제는 (10, 10) 옆에 떠 있고, 그것을 (0, 60) 옮겨 놓았다
+        assertTrue(geo.contains("NOT Gate" + Location.create(310, 270)), geo.toString());
     }
 
     // ---- 데모 회로 ----

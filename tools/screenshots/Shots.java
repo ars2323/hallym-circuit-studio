@@ -452,7 +452,7 @@ public final class Shots {
             log.add("15: no rs segment");
             return;
         }
-        Bounds sa = seg.getBounds().expand(90);
+        Bounds sa = seg.getBounds().expand(90).add(seg.getBounds().getX() - 190, seg.getBounds().getY()); // 팔 라벨(막대 왼쪽)까지
         centerOn(p, sa);
         clickCanvas(p, Location.create(160, 900)); // 빈 곳: 선택 비우기
         snapLogical(p, sa, "15c-segment-before");

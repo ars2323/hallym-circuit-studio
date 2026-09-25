@@ -11,11 +11,11 @@
 
 | ID | 제목 | 이슈 | 상태 | PR | 스크린샷·근거 |
 | --- | --- | --- | --- | --- | --- |
-| S-01 | 칩이 선을 가림 | #164 | 대기 |  |  |
-| S-02 | 팔 라벨과 선 겹침 | #165 | 대기 |  |  |
+| S-01 | 칩이 선을 가림 | #164 | 완료 | (이 PR) | LabelOverlay.redrawWires, LabelsTest.wiresUnderChipsAreDrawnAgainOnTop |
+| S-02 | 팔 라벨과 선 겹침 | #165 | 완료 | (이 PR) | 막대 반대쪽 팔 라벨, LabelsTest.armLabelsGoToTheFreeSideAwayFromTheArmWires, 15d |
 | S-03 | 따라온 선의 군더더기 | #166 | 완료 | (이 PR) | D-057, 남는 이동은 clutter 0(테스트) |
-| S-04 | 끌기 직후 빠른 속성 창이 칩을 가림 | #167 | 대기 |  |  |
-| S-05 | 출력 핀 라벨 칩이 선 위에 겹침 | #168 | 대기 |  |  |
+| S-04 | 끌기 직후 빠른 속성 창이 칩을 가림 | #167 | 완료 | (이 PR) | 이동 뒤 조용한 선택, SafeMoveTest(S-04 단언), 15b |
+| S-05 | 출력 핀 라벨 칩이 선 위에 겹침 | #168 | 완료 | (이 PR) | 칩 배치가 선을 피함, LabelsTest.demoChipsStayOffWires, 03d |
 | S-06 | 포트 이름 덧그림 과밀 | #169 | 대기 |  |  |
 | S-07 | Register 값 표시 겹침 | #170 | 대기 |  |  |
 | S-08 | 기본 모양 서브회로의 포트 이름 | #171 | 대기 |  |  |

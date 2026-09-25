@@ -54,8 +54,17 @@ public final class SafeMove {
     private SafeMove() {
     }
 
-    /** 선택을 (dx, dy)만큼 옮긴다. result는 원조 연결 유지 계산 결과(없으면 선을 잇지 않는 이동). */
+    /**
+     * 선택을 (dx, dy)만큼 옮긴다. result는 원조 연결 유지 계산 결과(없으면 선을 잇지 않는 이동). 옮긴 뒤에는 빠른 속성
+     * 창을 띄우지 않는다(S-04: 끌기 직후 창이 칩을 가렸다. 다음에 누르면 다시 뜬다).
+     */
     public static Outcome move(Project proj, Selection sel, int dx, int dy, MoveResult result) {
+        Outcome o = moveInner(proj, sel, dx, dy, result);
+        kr.ac.hallym.hcs.app.props.QuickBar.markQuiet(proj, sel.getComponents());
+        return o;
+    }
+
+    static Outcome moveInner(Project proj, Selection sel, int dx, int dy, MoveResult result) {
         Circuit circuit = proj.getCurrentCircuit();
         if (!sel.getFloatingComponents().isEmpty()) {
             // 붙여 넣어 아직 회로에 놓이지 않은(떠 있는) 것: 원조 이동 그대로(놓을 때 원조가 합친다)
