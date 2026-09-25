@@ -38,11 +38,12 @@ import kr.ac.hallym.hcs.app.model.Names;
 import kr.ac.hallym.hcs.app.model.Netlist;
 import kr.ac.hallym.hcs.app.wiring.SafeDuplicate;
 import kr.ac.hallym.hcs.app.wiring.WireGuard;
+import kr.ac.hallym.hcs.app.wiring.WireMarks;
 
 /**
  * 대상별 우클릭 항목(#72, #73): 포트(핀·상수·프로브·터널 붙이기, 입력 부정), 핀(방향·폭·3상태·풀·라벨),
  * 빈 곳(붙여넣기·화면 맞춤), 여러 부품(속성·라벨 일괄), 게이트(입력 수·크기·방향·폭·종류 바꾸기·복제),
- * 선(넷 정보·넷 선택·터널로 바꾸기), 서브회로(모양 편집), 터널(같은 이름으로 이동·모두 선택). 모든 항목은
+ * 선(넷 정보·넷 선택·넷 강조·넷 선 지우기·터널로 바꾸기), 서브회로(모양 편집), 터널(같은 이름으로 이동·모두 선택). 모든 항목은
  * 원조 부품·속성만 바꾸고 되돌리기 한 번으로 취소된다.
  */
 public final class EditMenus implements ContextMenus.Provider {
@@ -345,6 +346,15 @@ public final class EditMenus implements ContextMenus.Provider {
         menu.add(item("menu.selectNet", () -> {
             t.project.doAction(SelectionActions.dropAll(t.project.getSelection()));
             t.project.getSelection().addAll(net.wires());
+        }));
+        boolean lit = WireMarks.highlighted(t.circuit).contains(w);
+        menu.add(item(lit ? "menu.unhighlightNet" : "menu.highlightNet", () -> {
+            WireMarks.highlight(t.circuit, lit ? null : net);
+            t.project.getFrame().getCanvas().repaint();
+        }));
+        menu.add(item("menu.deleteNet", () -> {
+            t.project.doAction(SelectionActions.dropAll(t.project.getSelection()));
+            run(t.project, CircuitEdits.deleteNetWires(t.circuit, net), "menu.deleteNetAction");
         }));
         menu.add(item("menu.toTunnels", () -> {
             Object s = JOptionPane.showInputDialog(t.project.getFrame(), Messages.get("menu.tunnelPrompt"),

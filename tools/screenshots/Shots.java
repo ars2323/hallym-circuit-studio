@@ -122,6 +122,7 @@ public final class Shots {
             scrollTo(p, 0, 0);
             snapFull("02-demo-fit-orig");
             zoomCrops(p, "orig");
+            junctionsAndJumps(p, "orig");
             return;
         }
         if (want(scenes, "01")) {
@@ -201,6 +202,10 @@ public final class Shots {
         if (want(scenes, "15")) {
             followingWires(demo);
         }
+        if (want(scenes, "16")) {
+            junctionsAndJumps(demo, "");
+            netHighlight(demo);
+        }
         if (want(scenes, "14")) {
             messages(demo);
             gateUndefined(demo);
@@ -232,6 +237,61 @@ public final class Shots {
             snapLogical(p, area, t[1] + s);
         }
         setZoom(p, 1.0);
+    }
+
+    /**
+     * 16: 연결점과 점프(W-04). 이어지지 않은 교차(1140, 260)를 25·100·400%로, PC 출력 연결점이 있는 영역을 25%로
+     * 찍는다. 원조 모드도 같은 자리를 찍는다(원조 API만 쓴다).
+     */
+    void junctionsAndJumps(Project p, String suffix) throws Exception {
+        String s = suffix.isEmpty() ? "" : "-" + suffix;
+        if (!orig) {
+            activate(p);
+            // 앞 장면(15)의 선택 손잡이가 남지 않게 비운다
+            edt(() -> p.doAction(com.cburch.logisim.gui.main.SelectionActions.dropAll(p.getSelection())));
+        }
+        Location x = Location.create(1140, 260);
+        for (double z : new double[] {0.25, 1.0, 4.0}) {
+            setZoom(p, z);
+            int half = (int) Math.max(40, 120 / z);
+            // 캔버스 밖(탭 줄)이 찍히지 않게 회로 좌표 0 위로 자른다
+            int ax = Math.max(0, x.getX() - 2 * half);
+            int ay = Math.max(0, x.getY() - half);
+            Bounds area = Bounds.create(ax, ay, 4 * half, 2 * half);
+            centerOn(p, area);
+            snapLogical(p, area, "16a-crossing-" + Math.round(z * 100) + s);
+        }
+        setZoom(p, 0.25);
+        Bounds j = Bounds.create(100, 60, 900, 400);
+        centerOn(p, j);
+        snapLogical(p, j, "16b-junctions-25" + s);
+        setZoom(p, 1.0);
+    }
+
+    /** 16c: 우클릭 "Highlight Net"과 같은 강조(PC 출력 넷). */
+    void netHighlight(Project p) throws Exception {
+        activate(p);
+        Circuit c = p.getCurrentCircuit();
+        com.cburch.logisim.circuit.Wire w = null;
+        for (com.cburch.logisim.circuit.Wire x : c.getWires()) {
+            if (x.endsAt(Location.create(330, 200))) {
+                w = x;
+            }
+        }
+        if (w == null) {
+            log.add("16c: no wire at the PC output");
+            return;
+        }
+        final com.cburch.logisim.circuit.Wire hw = w;
+        edt(() -> kr.ac.hallym.hcs.app.wiring.WireMarks.highlight(c,
+                kr.ac.hallym.hcs.app.model.Netlist.of(c).netOf(hw)));
+        edt(() -> canvas(p).repaint());
+        setZoom(p, 1.0);
+        Bounds area = Bounds.create(100, 60, 700, 320);
+        centerOn(p, area);
+        snapLogical(p, area, "16c-net-highlight");
+        edt(() -> kr.ac.hallym.hcs.app.wiring.WireMarks.clearHighlight(c));
+        edt(() -> canvas(p).repaint());
     }
 
     static com.cburch.logisim.comp.Component firstSub(Circuit c, String name) {

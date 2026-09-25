@@ -229,6 +229,13 @@ public final class CircuitEdits {
         return f.createComponent(at, as);
     }
 
+    /** 넷의 선만 지운다(W-04 "Delete Net Wires"). 터널·부품은 그대로다. 되돌리기 한 번. */
+    public static CircuitMutation deleteNetWires(Circuit circuit, kr.ac.hallym.hcs.app.model.Netlist.Net net) {
+        CircuitMutation m = new CircuitMutation(circuit);
+        m.removeAll(new ArrayList<>(net.wires()));
+        return m;
+    }
+
     /** from에서 to를 향하는 방향. */
     public static Direction towards(Location from, Location to) {
         if (to.getX() > from.getX()) {
