@@ -2,6 +2,12 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-25 2c 검토 반영 2
+
+- 기준 main 커밋: `7ba28f0`
+- 관련 PR·이슈: #162 / #161
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-25-2c-review2/README.md
+
 ## 2026-09-25 2c 검토 반영
 
 - 기준 main 커밋: `0797924`
