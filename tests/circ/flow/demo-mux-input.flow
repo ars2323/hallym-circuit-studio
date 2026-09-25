@@ -1,0 +1,11 @@
+direction: backward
+endpoints:
+  STATE Data Memory (ReadData) @0
+passes:
+jumps: 0
+segments: 1
+next-cycle segments: 0
+next-cycle passes: 0
+loops: []
+undetermined: []
+total: 70

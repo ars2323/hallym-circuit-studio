@@ -43,15 +43,15 @@
 | W-01 | 결정적 길 찾기 | #188 | 완료 | #240 | D-056, SafeMoveTest 고정 표(3회 실행 동일) |
 | W-02 | 따라온 선 정리 단계 | #189 | 완료 | #241 | D-057, SafeMoveTest(이동마다 clutter 0) |
 | W-03 | 묶음 재배선 | #190 | 완료 | #241 | D-057 고무줄 후보와 선 없이 옮기는 9가지 표 |
-| W-04 | 연결점과 넷(#82) | #191 | 완료 | (이 PR) | D-061, WireMarksTest(교차·T·포트 위, 25~400% 화소, 값 색, 넷 강조·지우기), 16a~16c·15d |
-| W-05 | 새 선 A.4 검사기 통일 | #192 | 완료 | (이 PR) | WireGuardTest(기능별 통과·막힘, 모든 호출이 검사기 경유), D-059 |
+| W-04 | 연결점과 넷(#82) | #191 | 완료 | #245 | D-061, WireMarksTest(교차·T·포트 위, 25~400% 화소, 값 색, 넷 강조·지우기), 16a~16c·15d |
+| W-05 | 새 선 A.4 검사기 통일 | #192 | 완료 | #244 | WireGuardTest(기능별 통과·막힘, 모든 호출이 검사기 경유), D-059 |
 
 ## P 편집 흐름·서브회로·파일
 
 | ID | 제목 | 이슈 | 상태 | PR | 스크린샷·근거 |
 | --- | --- | --- | --- | --- | --- |
-| P-01 | 영향 경로(#83) | #193 | 완료 | (이 PR) | D-062, InfluenceTest(레지스터 멈춤·통과·사이클, 뒤, 깊이, 두 부품 사이, 터널, 클럭 제외, 스플리터 비트, 서브회로 출력 선택, 고리, 100번 결정성), InfluenceOverlayTest, 17a~17f |
-| P-07 | Signal Flow 애니메이션(추가 지시, P-01 다음) | #243 | 대기 |  |  |
+| P-01 | 영향 경로(#83) | #193 | 완료 | #246 | D-062, InfluenceTest(레지스터 멈춤·통과·사이클, 뒤, 깊이, 두 부품 사이, 터널, 클럭 제외, 스플리터 비트, 서브회로 출력 선택, 고리, 100번 결정성), InfluenceOverlayTest, 17a~17f |
+| P-07 | Signal Flow 애니메이션(추가 지시, P-01 다음) | #243 | 완료 | (이 PR) | D-063, SignalFlowPathTest(tests/circ/flow 고정 기대값, 데모 PC·ALU·MUX, 100번 결정성), FlowPainterTest, FlowGuiTest(멈춤 조건·잔상·클릭 지연·일시정지·Reduce Motion), FlowPerformanceTest(docs/PERFORMANCE.md), 18a~18l·GIF |
 | P-02 | 서브회로 인스턴스 안내(#84) | #194 | 완료 | #248 | D-064, InstancePathsTest(경로·상태·미리 보기·더하기·끼우기·순서 바꾸기·삭제·문구), InstanceBannerGuiTest, 19a~19e |
 | P-03 | 탭 간 라이브러리(#85) | #195 | 완료 | #249 | D-065, OpenFileLibrariesTest(후보·자동 Load Library·되돌리기·순환 차단·끊길 연결·다시 열 때), LibraryFixturesTest(원조 jar가 상대 경로 라이브러리로 18 계산), LibrarySyncGuiTest(탭 끌어 놓기·저장 반영·Updated·Edit Original·포트 변경), 20a~20f |
 | P-04 | 서브회로 포트 순서 끌어 바꾸기 | #196 | 대기 |  |  |

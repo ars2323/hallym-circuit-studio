@@ -53,6 +53,7 @@ tools/screenshots/run.sh <출력 폴더> [장면 번호 ...]
 | 15 | 따라오는 배선: 데모의 PC를 끌어 옮기기 전후, rs 선의 가운데 세로 선분을 끌기 전후(끝나면 되돌림) |
 | 16 | 연결점과 점프(W-04): 이어지지 않은 교차(1140, 260)를 25·100·400%, 연결점이 있는 영역 25%, PC 출력 넷 강조. 원조 비교(-orig) 포함 |
 | 17 | 영향 경로(P-01): regfile에서 앞으로(alu 안 칩, Data Memory에서 멈춤), 한 단계로 좁힘, Data Memory에서 뒤로, PC에서 Through Registers, regfile–Data Memory 사이 경로, alu 안으로 들어가 본 모습 |
+| 18 | Signal Flow(P-07): demo PC 출력의 프레임 6장(t=0, 앞단 셋, 닿은 직후, 연속)과 GIF(ImageIO), 터널 점프, 서브회로 경계, Active Path Only(MemtoReg 0·1), Backward(regfile WD), Reduce Motion, 어두운 바탕 대비 그림 |
 | 19 | 서브회로 인스턴스 안내(P-02): 탐색기에서 따로 연 regfile의 띠, 이어진 핀 미리 보기, 핀 도구 미리 보기, 실행 중 인스턴스로 간 뒤, 이어진 핀을 지운 뒤 알림 |
 | 20 | 탭 간 라이브러리(P-03): 1bit_adder를 쓰는 ripple_carry, 새 파일에서 검색 "adder"의 Open Files 항목, 불러와 놓은 뒤, 출력 핀을 지우고 저장할 때 경고, 속만 고쳐 저장한 뒤 ripple_carry 탭의 Updated, 인스턴스 우클릭의 Edit Original File |
 | 21 | 원조 부품의 포트 이름(S-06, S-07): PC 레지스터와 PC+4 가산기를 100·200·400%로(원조 비교 -orig 포함), 100%에서 가산기에 마우스를 올린 모습 |

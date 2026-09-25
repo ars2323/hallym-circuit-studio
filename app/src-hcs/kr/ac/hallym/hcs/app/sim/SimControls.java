@@ -143,6 +143,20 @@ public final class SimControls {
         tb.add(button("tunnel", "bar.tunnel", () -> use(wiringTool("Tunnel"))));
         tb.add(button("probe", "bar.probe", () -> use(wiringTool("Probe"))));
         tb.addSeparator();
+        // Signal Flow on Click(P-07): 켜 두면 부품·선을 누를 때 신호 흐름을 보인다(Ctrl+Shift+F)
+        javax.swing.JToggleButton flow = new javax.swing.JToggleButton(Messages.get("bar.flow"),
+                kr.ac.hallym.hcs.app.flow.FlowSettings.onClick());
+        flow.setToolTipText(Messages.get("bar.flowTip"));
+        flow.setFocusable(false);
+        flow.addActionListener(e -> {
+            if (flow.isSelected() != kr.ac.hallym.hcs.app.flow.FlowSettings.onClick()) {
+                kr.ac.hallym.hcs.app.flow.FlowMenu.toggleOnClick(frame.getCanvas());
+            }
+        });
+        kr.ac.hallym.hcs.app.flow.FlowMenu.ALL_TOGGLES.add(() -> flow.setSelected(
+                kr.ac.hallym.hcs.app.flow.FlowSettings.onClick()));
+        tb.add(flow);
+        tb.addSeparator();
         tb.add(button("run", "bar.run", () -> {
             proj.getSimulator().setIsRunning(!proj.getSimulator().isRunning());
         }));

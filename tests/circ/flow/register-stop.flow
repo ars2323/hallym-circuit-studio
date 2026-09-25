@@ -1,0 +1,12 @@
+direction: forward
+endpoints:
+  STATE R (D) @90
+passes:
+  n1 @30
+jumps: 2
+segments: 0
+next-cycle segments: 0
+next-cycle passes: 0
+loops: []
+undetermined: []
+total: 90

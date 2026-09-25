@@ -156,6 +156,24 @@ public final class LabelOverlay {
     }
 
     /** 지금 그려진 라벨 칩들의 자리(회로 좌표). 빠른 속성 창이 칩을 덮지 않게 쓴다. */
+    /** 지난번에 그린 스플리터 팔 라벨 자리(회로 좌표). 흐름 라벨·링이 피할 곳(P-07). */
+    private List<Rectangle> armRects = new ArrayList<>();
+
+    /** 라벨 칩과 스플리터 팔 라벨 자리(회로 좌표): 다른 덧그림이 가리면 안 되는 글자. */
+    public static List<Rectangle> textRects(Canvas canvas) {
+        List<Rectangle> ret = chipRects(canvas);
+        LabelOverlay o;
+        synchronized (LabelOverlay.class) {
+            o = OVERLAYS.get(canvas);
+        }
+        if (o != null) {
+            for (Rectangle r : o.armRects) {
+                ret.add(new Rectangle(r));
+            }
+        }
+        return ret;
+    }
+
     public static List<Rectangle> chipRects(Canvas canvas) {
         List<Rectangle> ret = new ArrayList<>();
         LabelOverlay o;
@@ -337,6 +355,7 @@ public final class LabelOverlay {
         tunnels(g, circuit, hidden);
         subcircuits(g, circuit, hidden, z);
         List<Rectangle> covered = new ArrayList<>(splitterArms(g, circuit, hidden, z));
+        armRects = new ArrayList<>(covered);
         chips(g, circuit, hidden, z);
         for (LabelLayout.Placed p : cached) {
             covered.add(p.rect);

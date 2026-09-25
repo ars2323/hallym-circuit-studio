@@ -50,6 +50,8 @@ public final class InfluenceOverlay {
     static final float ORIGIN_PX = 3f;
     static final float STOP_PX = 2f;
     static final float LINK_PX = 2f;
+    /** Signal Flow가 흐르는 동안 영향 경로의 불투명도. */
+    static final float FADED = 0.4f;
 
     private static final Map<Project, InfluenceOverlay> ALL = Collections.synchronizedMap(new WeakHashMap<>());
 
@@ -229,7 +231,22 @@ public final class InfluenceOverlay {
             return;
         }
         double z = canvas.getHcsZoom() == null ? 1.0 : canvas.getHcsZoom().zoomFactor();
-        paint((Graphics2D) g0, context, circ, v, z, canvas);
+        // Signal Flow가 흐르는 동안에는 영향 경로를 옅게(띠·테두리 투명도를 낮추고 흐리게 하기는 그대로) 그린다(D-063)
+        Graphics2D g = (Graphics2D) g0;
+        float alpha = opacity(canvas);
+        if (alpha < 1f) {
+            g = (Graphics2D) g0.create();
+            g.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, alpha));
+        }
+        paint(g, context, circ, v, z, canvas);
+        if (g != g0) {
+            g.dispose();
+        }
+    }
+
+    /** 영향 경로의 불투명도: Signal Flow가 이 캔버스에서 흐르는 동안은 {@link #FADED}, 아니면 1. */
+    public static float opacity(Canvas canvas) {
+        return kr.ac.hallym.hcs.app.flow.FlowController.of(canvas).running() ? FADED : 1f;
     }
 
     /** 뷰 v를 그린다(회로 좌표의 Graphics, 배율 z). context가 null이면 부품은 다시 그리지 않는다(테스트). */
