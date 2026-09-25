@@ -1679,7 +1679,7 @@ public final class Shots {
             f.setText("0x10");
         });
         sleep(500);
-        snapCrop(pad(dialog.getBounds(), 10), "26a-run-until-dialog");
+        snapCrop(dialog.getBounds(), "26a-run-until-dialog");
         edt(() -> {
             javax.swing.JButton ok = (javax.swing.JButton) find(dialog, y -> y instanceof javax.swing.JButton
                     && ("OK".equals(((javax.swing.JButton) y).getText())
@@ -1688,6 +1688,7 @@ public final class Shots {
         });
         sleep(2500);
         snapCrop(onScreen(v.component()), "26b-run-until-stopped");
+        snapFull("26d-full-window");
         Rectangle status = onScreen(p.getFrame().getContentPane());
         status = new Rectangle(status.x, status.y + status.height - 34, status.width, 34);
         snapCrop(status, "26c-status-notice");
