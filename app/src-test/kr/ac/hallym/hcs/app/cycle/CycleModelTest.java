@@ -111,6 +111,15 @@ class CycleModelTest {
         assertEquals(32, sig.width);
         assertTrue(withSource.add(sig));
         assertFalse(withSource.add(sig), "no duplicate rows");
+        // 같은 이름의 다른 터널(같은 넷)도 같은 줄이다
+        for (Component c : main.getNonWires()) {
+            if (c != pcTunnel && c.getFactory().getName().equals("Tunnel") && "pc".equals(Names.label(c))) {
+                CycleModel.Signal other = CycleModel.signalFor(main, Collections.<Component>emptyList(), main,
+                        c.getEnd(0).getLocation());
+                assertEquals(sig, other, "same net, same row");
+                assertFalse(withSource.add(other));
+            }
+        }
         for (int c = 0; c <= 30; c++) {
             assertEquals(withSource.pc(c), withSource.value(sig, CycleModel.stepOf(c)));
         }

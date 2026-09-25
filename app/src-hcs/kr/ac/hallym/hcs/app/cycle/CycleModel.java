@@ -286,6 +286,9 @@ public final class CycleModel {
                     + Names.SEP + name;
         }
         int width = net != null ? net.width() : circuit.getWidth(at).getWidth();
-        return new Signal(path, at, name, Math.max(1, width));
+        // 같은 넷(같은 이름 터널 여럿 등)은 한 줄: 기록 엔진과 같은 대표 자리로 맞춘다
+        Location rep = net == null ? at : !net.ports().isEmpty() ? net.ports().get(0).location()
+                : !net.wires().isEmpty() ? net.wires().get(0).getEnd0() : at;
+        return new Signal(path, rep, name, Math.max(1, width));
     }
 }
