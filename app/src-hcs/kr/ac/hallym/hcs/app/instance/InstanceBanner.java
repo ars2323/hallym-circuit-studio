@@ -153,14 +153,25 @@ public final class InstanceBanner implements ProjectListener {
         Tool t = proj.getTool();
         if (t instanceof AddTool && ((AddTool) t).getFactory() != null
                 && ((AddTool) t).getFactory().getName().equals("Pin")) {
-            List<InstancePaths.PortUse> all = InstancePaths.snapshot(file, cur);
-            int connected = 0;
-            for (InstancePaths.PortUse u : all) {
-                connected += u.connected ? 1 : 0;
-            }
-            return Messages.get("instance.pinAddPreview", cur.getName(), countInstances(all), connected);
+            return pinAddPreview(file, cur);
         }
         return null;
+    }
+
+    /**
+     * 핀 도구 미리 보기: 원조 기본 모양이면 모양이 바뀌어 이어진 포트가 움직일 수 있고, 사용자 모양이면 새 포트만
+     * 생기고 기존 포트는 그대로다(ui-reviewer #248: 사실만 말한다).
+     */
+    public static String pinAddPreview(LogisimFile file, Circuit sub) {
+        List<InstancePaths.PortUse> all = InstancePaths.snapshot(file, sub);
+        int connected = 0;
+        for (InstancePaths.PortUse u : all) {
+            connected += u.connected ? 1 : 0;
+        }
+        if (sub.getAppearance().isDefaultAppearance()) {
+            return Messages.get("instance.pinAddPreview", sub.getName(), countInstances(all), connected);
+        }
+        return Messages.get("instance.pinAddPreviewCustom", sub.getName(), countInstances(all));
     }
 
     static boolean hasInstances(LogisimFile file, Circuit sub) {

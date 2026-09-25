@@ -237,4 +237,15 @@ class InstancePathsTest {
         assertEquals("regfile의 핀을 바꿔 인스턴스 연결 2개가 끊겼습니다. 1개는 선을 이어 되살렸습니다.",
                 kr.ac.hallym.hcs.app.Messages.get("instance.broken", "regfile", 2, 1));
     }
+
+    /** 핀 도구 미리 보기는 모양에 따라 사실만: 기본 모양은 움직일 수 있다, 사용자 모양은 새 포트만(ui-reviewer #248). */
+    @Test
+    void pinToolPreviewDependsOnTheAppearance() throws Exception {
+        build();
+        String def = kr.ac.hallym.hcs.app.instance.InstanceBanner.pinAddPreview(file, blk);
+        assertEquals("핀을 더하면 blk의 인스턴스 3개 모양이 바뀌어 이어진 포트 3개가 움직일 수 있습니다.", def);
+        blk.getAppearance().setDefaultAppearance(false);
+        String custom = kr.ac.hallym.hcs.app.instance.InstanceBanner.pinAddPreview(file, blk);
+        assertEquals("핀을 더하면 blk의 인스턴스 3개에 포트가 하나 생깁니다. 사용자 모양이라 기존 포트는 그대로입니다.", custom);
+    }
 }
