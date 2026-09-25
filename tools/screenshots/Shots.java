@@ -123,6 +123,7 @@ public final class Shots {
             snapFull("02-demo-fit-orig");
             zoomCrops(p, "orig");
             junctionsAndJumps(p, "orig");
+            controlPins(p, "orig");
             portNames(p, "orig");
             return;
         }
@@ -219,6 +220,9 @@ public final class Shots {
         }
         if (want(scenes, "22")) {
             defaultAppearanceHelp(demo);
+        }
+        if (want(scenes, "23")) {
+            controlPins(demo, "");
         }
         if (want(scenes, "20")) {
             crossTabLibraries(demo);
@@ -346,6 +350,23 @@ public final class Shots {
             snapLogical(p, b25, "21d-pc-hover-25");
             robot.mouseMove(5, 5);
             sleep(300);
+        }
+        setZoom(p, 1.0);
+    }
+
+    /** 23: 제어 핀과 같은 이름의 터널(S-12). 핀 라벨 칩 없이 터널 이름만(포크), 원조는 핀 라벨과 터널 글자. */
+    void controlPins(Project p, String suffix) throws Exception {
+        String s = suffix.isEmpty() ? "" : "-" + suffix;
+        if (!orig) {
+            activate(p);
+            deselect(p);
+        }
+        Bounds area = Bounds.create(60, 380, 140, 300);
+        for (double z : new double[] {1.0, 2.0, 4.0}) {
+            setZoom(p, z);
+            Bounds shot = z >= 4 ? Bounds.create(60, 390, 140, 90) : area;
+            centerOn(p, shot); // 찍는 곳을 가운데에(400%에서 큰 영역을 맞추면 위가 캔버스 밖으로 잘린다)
+            snapLogical(p, shot, "23a-control-pins-" + Math.round(z * 100) + s);
         }
         setZoom(p, 1.0);
     }
