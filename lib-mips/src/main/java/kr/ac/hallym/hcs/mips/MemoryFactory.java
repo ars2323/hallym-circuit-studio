@@ -35,16 +35,16 @@ abstract class MemoryFactory extends InstanceFactory {
     static final int DELAY = 10; // 원조 RAM·ROM과 같다
 
     static final Attribute<Integer> BASE =
-            Attributes.forHexInteger("base", Text.of("Start Address", "시작 주소"));
+            Attributes.forHexInteger("base", Text.name("Start Address"));
     static final Attribute<Integer> SIZE =
-            Attributes.forHexInteger("size", Text.of("Limit (bytes)", "한계(바이트)"));
+            Attributes.forHexInteger("size", Text.name("Limit (bytes)"));
     /** Stack의 맨 위 워드 주소. Stack은 여기서 아래로 자란다. */
     static final Attribute<Integer> TOP =
-            Attributes.forHexInteger("top", Text.of("Top Word Address", "맨 위 워드 주소"));
+            Attributes.forHexInteger("top", Text.name("Top Word Address"));
     static final WordImageAttribute CONTENTS =
-            new WordImageAttribute("contents", Text.of("Initial Contents", "초기 내용"));
+            new WordImageAttribute("contents", Text.name("Initial Contents"));
     static final Attribute<String> SOURCE =
-            Attributes.forString("source", Text.of("Program (.s)", "프로그램(.s)"));
+            Attributes.forString("source", Text.name("Program (.s)"));
 
     static final Font TITLE_FONT = new Font("SansSerif", Font.BOLD, 11);
     static final Font BODY_FONT = new Font("Monospaced", Font.PLAIN, 10);
@@ -129,7 +129,7 @@ abstract class MemoryFactory extends InstanceFactory {
         painter.drawLabel();
         g.setColor(Color.BLACK);
         g.setFont(TITLE_FONT);
-        GraphicsUtil.drawCenteredText(g, getDisplayName(), cx, b.getY() + 10); // UI 언어의 이름(#133)
+        GraphicsUtil.drawCenteredText(g, getDisplayName(), cx, b.getY() + 10); // 부품 이름은 늘 영어(D-049)
         g.setFont(BODY_FONT);
         String[] lines = bodyLines(painter);
         for (int i = 0; i < lines.length; i += 1) {

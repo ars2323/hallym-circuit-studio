@@ -43,7 +43,7 @@ cat > "$out/RELEASE_NOTES.md" <<NOTES
 원조 Logisim 2.7.1에서 Project › Load Library › JAR Library로 불러 쓰는 MIPS 부품 라이브러리입니다.
 
 - 부품: Instruction Memory, Data Memory, Stack, Console, Radix Probe
-- 우클릭 ".s 프로그램 불러오기": QtSpim(Hallym MIPS)과 같은 기계어
+- 우클릭 "Load .s...": QtSpim(Hallym MIPS)과 같은 기계어
 - \`hcs-mips-$version-windows.zip\`을 풀어 \`hcs-mips.jar\`와 \`hcs-asm.exe\`를 같은 폴더에 두고 씁니다. 자세한 내용은 zip 안의 \`사용안내.md\`. 같은 문서를 \`hcs-mips-guide-ko.md\`로도 따로 올렸습니다.
 
 학생 배포 여부는 담당자가 정합니다(draft).

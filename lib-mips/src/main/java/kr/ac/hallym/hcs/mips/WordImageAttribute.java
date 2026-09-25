@@ -17,10 +17,9 @@ final class WordImageAttribute extends Attribute<WordImage> {
     @Override
     public String toDisplayString(WordImage value) {
         if (value == null || value.isEmpty()) {
-            return Text.of("(empty)", "(비어 있음)").get();
+            return Text.name("(empty)").get();
         }
-        return value.size() + Text.of(" words from 0x", "워드, 0x").get()
-                + WordImage.hex(value.firstAddress()) + (Text.korean() ? "부터" : "");
+        return value.size() + " words from 0x" + WordImage.hex(value.firstAddress());
     }
 
     @Override

@@ -61,7 +61,8 @@ class TtyLocaleTest {
     @Test
     void explicitKoreanLocaleIsHonouredAndDoesNotStick() throws Exception {
         String ko = run(FORK, "-locale", "ko");
-        assertTrue(ko.contains("합계"), ko);
+        // 표 머리(TOTAL 등)는 이름이라 한국어 설정에서도 영어다(D-049)
+        assertTrue(ko.startsWith("exit=0") && ko.contains("TOTAL"), ko);
         // -locale ko가 환경설정에 남아도 다음 -tty는 영어다(원조와 같다)
         assertEquals(run(ORIGINAL), run(FORK));
     }

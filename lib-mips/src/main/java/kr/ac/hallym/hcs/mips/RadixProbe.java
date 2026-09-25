@@ -38,14 +38,14 @@ final class RadixProbe extends InstanceFactory {
     static final int BIN = 2;
 
     static final AttributeOption[] RADIXES = {
-        new AttributeOption("hex", "hex", Text.of("Hexadecimal", "16진수")),
-        new AttributeOption("dec", "dec", Text.of("Decimal", "10진수")),
-        new AttributeOption("bin", "bin", Text.of("Binary", "2진수")),
+        new AttributeOption("hex", "hex", Text.name("Hexadecimal")),
+        new AttributeOption("dec", "dec", Text.name("Decimal")),
+        new AttributeOption("bin", "bin", Text.name("Binary")),
     };
     static final Attribute<AttributeOption> RADIX =
-            Attributes.forOption("radix", Text.of("Primary Radix", "주 진법"), RADIXES);
+            Attributes.forOption("radix", Text.name("Primary Radix"), RADIXES);
     static final Attribute<Boolean> SIGNED =
-            Attributes.forBoolean("signed", Text.of("Signed Decimal", "부호 있는 10진수"));
+            Attributes.forBoolean("signed", Text.name("Signed Decimal"));
 
     private static final Font PRIMARY_FONT = new Font("Monospaced", Font.BOLD, 11);
     private static final Font SECONDARY_FONT = new Font("Monospaced", Font.PLAIN, 10);
@@ -80,7 +80,7 @@ final class RadixProbe extends InstanceFactory {
     }
 
     RadixProbe() {
-        super("Radix Probe", Text.of("Radix Probe", "다중 진법 프로브"));
+        super("Radix Probe", Text.name("Radix Probe"));
         setAttributes(new Attribute<?>[] {StdAttr.WIDTH, RADIX, SIGNED, StdAttr.LABEL, StdAttr.LABEL_FONT},
                 new Object[] {BitWidth.create(32), RADIXES[HEX], Boolean.TRUE, "", StdAttr.DEFAULT_LABEL_FONT});
         setPorts(new Port[] {new Port(0, 0, Port.INPUT, StdAttr.WIDTH)});

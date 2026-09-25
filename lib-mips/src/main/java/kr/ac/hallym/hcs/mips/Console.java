@@ -90,7 +90,7 @@ final class Console extends InstanceFactory {
     }
 
     Console() {
-        super("Console", Text.of("Console", "콘솔"));
+        super("Console", Text.name("Console"));
         setAttributes(new Attribute<?>[] {StdAttr.LABEL, StdAttr.LABEL_FONT},
                 new Object[] {"", StdAttr.DEFAULT_LABEL_FONT});
         setOffsetBounds(Bounds.create(-260, -60, 260, 120));
@@ -101,7 +101,7 @@ final class Console extends InstanceFactory {
         Port a0 = new Port(-260, 40, Port.INPUT, W32);
         a0.setToolTip(Text.of("A0: $a0 (argument)", "A0: $a0 (인자)"));
         Port clk = new Port(-220, 60, Port.INPUT, 1);
-        clk.setToolTip(Text.of("clk", "clk"));
+        clk.setToolTip(Text.name("clk"));
         Port exit = new Port(0, 0, Port.OUTPUT, 1);
         exit.setToolTip(Text.of("Exit: 1 after exit (syscall 10)", "Exit: exit(syscall 10) 뒤 1"));
         setPorts(new Port[] {syscall, v0, a0, clk, exit});
@@ -219,7 +219,7 @@ final class Console extends InstanceFactory {
         painter.drawLabel();
         g.setColor(Color.BLACK);
         g.setFont(MemoryFactory.TITLE_FONT);
-        GraphicsUtil.drawCenteredText(g, Text.of("Console", "콘솔").get(), b.getX() + b.getWidth() / 2,
+        GraphicsUtil.drawCenteredText(g, Text.name("Console").get(), b.getX() + b.getWidth() / 2,
                 b.getY() + 10);
         State st = painter.getShowState() ? (State) painter.getData() : null;
         // 출력 칸: 왼쪽 포트 이름(Syscall·V0·A0)과 오른쪽 Exit에서 떨어진 안쪽
@@ -236,7 +236,7 @@ final class Console extends InstanceFactory {
                 GraphicsUtil.drawText(g, line, x, y, GraphicsUtil.H_LEFT, GraphicsUtil.V_BASELINE);
                 y += 11;
             }
-            String status = st.exited ? Text.of("-- exit --", "-- 종료 --").get()
+            String status = st.exited ? Text.name("-- exit --").get()
                     : st.syscallFloating ? Text.of("Syscall floating", "Syscall 떠 있음").get() : st.status;
             if (status != null) {
                 g.setColor(st.exited ? Color.GRAY : MemoryFactory.STATUS_COLOR);
