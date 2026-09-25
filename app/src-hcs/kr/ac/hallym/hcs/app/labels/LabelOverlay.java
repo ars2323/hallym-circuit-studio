@@ -155,7 +155,6 @@ public final class LabelOverlay {
                 (int) Math.ceil(b.getHeight() * z));
     }
 
-    /** 지금 그려진 라벨 칩들의 자리(회로 좌표). 빠른 속성 창이 칩을 덮지 않게 쓴다. */
     /** 지난번에 그린 스플리터 팔 라벨 자리(회로 좌표). 흐름 라벨·링이 피할 곳(P-07). */
     private List<Rectangle> armRects = new ArrayList<>();
 
@@ -174,6 +173,7 @@ public final class LabelOverlay {
         return ret;
     }
 
+    /** 지금 그려진 라벨 칩들의 자리(회로 좌표). 빠른 속성 창이 칩을 덮지 않게 쓴다. */
     public static List<Rectangle> chipRects(Canvas canvas) {
         List<Rectangle> ret = new ArrayList<>();
         LabelOverlay o;

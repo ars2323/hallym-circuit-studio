@@ -192,6 +192,40 @@ class FlowGuiTest {
         }
     }
 
+    /** 우클릭 메뉴의 Signal Flow 묶음: Show Signal Flow가 흐름을 켜고 Stop Signal Flow가 끈다. */
+    @Test
+    void contextMenuStartsAndStopsTheFlow() throws Exception {
+        open();
+        java.util.function.Function<String, javax.swing.JMenuItem> item = name -> {
+            javax.swing.JPopupMenu menu = kr.ac.hallym.hcs.app.menu.ContextMenus.extend(canvas,
+                    new javax.swing.JPopupMenu(), a.getLocation(), canvas.getGraphics());
+            for (java.awt.Component c : menu.getComponents()) {
+                if (c instanceof javax.swing.JMenu
+                        && ((javax.swing.JMenu) c).getText().equals(kr.ac.hallym.hcs.app.Messages.get("flow.menu"))) {
+                    for (java.awt.Component x : ((javax.swing.JMenu) c).getMenuComponents()) {
+                        if (x instanceof javax.swing.JMenuItem && ((javax.swing.JMenuItem) x).getText().equals(
+                                kr.ac.hallym.hcs.app.Messages.get(name))) {
+                            return (javax.swing.JMenuItem) x;
+                        }
+                    }
+                }
+            }
+            return null;
+        };
+        AtomicReference<javax.swing.JMenuItem> show = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> show.set(item.apply("flow.show")));
+        assertTrue(show.get() != null, "Signal Flow › Show Signal Flow");
+        SwingUtilities.invokeAndWait(() -> show.get().doClick());
+        settle();
+        assertTrue(flow.running(), "started from the menu");
+        AtomicReference<javax.swing.JMenuItem> stop = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> stop.set(item.apply("flow.stop")));
+        assertTrue(stop.get() != null && stop.get().isEnabled(), "Stop Signal Flow while running");
+        SwingUtilities.invokeAndWait(() -> stop.get().doClick());
+        settle();
+        assertFalse(flow.running(), "stopped from the menu");
+    }
+
     /** 200%에서 누른 화면 자리(원조 캔버스가 회로 좌표로 바꿔 준다)의 선에서 시작한다. */
     @Test
     void clickStartsOnTheWireUnderTheMouseWhenZoomed() throws Exception {
