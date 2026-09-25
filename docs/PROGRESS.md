@@ -22,7 +22,7 @@
 | S-09 | 찾기 결과의 내부 포트 이름 | #172 | 완료 | #251 | D-067, KindsTest.readablePortTitles, NameIndexTest(Splitter #1 (combined end)), EditMenusTest, ShortcutsTest, 09b·09d |
 | S-10 | 화면 맞춤 여백 | #173 | 완료 | #252 | D-068, ZoomMathTest.fitPlacementCentersBothAxes, FitCenterGuiTest(가운데·누른 자리·원조 배율 조절·커서 배율), 02 |
 | S-11 | 왼쪽 패널 빈 공간 | #174 | 대기 |  |  |
-| S-12 | 제어 핀 라벨 중복 | #175 | 대기 |  |  |
+| S-12 | 제어 핀 라벨 중복 | #175 | 완료 | (이 PR) | D-070, LabelsTest.pinNamedByItsOwnTunnelHasNoChip·demoChipsStayOffWires(칩 4개)·tunnelColorLeavesThePortClear, 23a |
 | S-13 | 400% 굵기 | #176 | 완료 | #254 | D-071, DiagMarksTest.borderWidthsAreExactOnScreen·wireHighlightWidthsAreExactOnScreen(25·100·400%, 2·4px와 3·6px), 14f |
 | S-20 | 회귀 확인: 원조 도구 모음·탐색기 아이콘 줄 숨김, 위쪽 네 줄 | #177 | 대기 |  |  |
 | S-21 | 회귀 확인: 배율 표시 하나와 실제 배율 동기화 | #178 | 대기 |  |  |

@@ -417,13 +417,44 @@ public final class LabelOverlay {
             }
             Color col = tunnelColors.getOrDefault(name, TunnelColors.of(name));
             Bounds b = c.getBounds();
-            g.setColor(new Color(col.getRed(), col.getGreen(), col.getBlue(), 110));
-            g.fillRect(b.getX() + 1, b.getY() + 1, b.getWidth() - 1, b.getHeight() - 1);
-            g.setColor(col);
-            g.setStroke(new BasicStroke(1.5f));
-            g.drawRect(b.getX() + 1, b.getY() + 1, b.getWidth() - 2, b.getHeight() - 2);
+            // 터널 끝(포트) 둘레는 칠하지 않는다(S-12 검토): 붙은 핀·부품의 포트 점과 테두리를 덮지 않게
+            Graphics2D tg = (Graphics2D) g.create();
+            try {
+                java.awt.geom.Area area = new java.awt.geom.Area(new Rectangle(b.getX(), b.getY(), b.getWidth() + 1,
+                        b.getHeight() + 1));
+                Location port = c.getEnd(0).getLocation();
+                area.subtract(new java.awt.geom.Area(new Rectangle(port.getX() - PORT_CLEAR, port.getY() - PORT_CLEAR,
+                        2 * PORT_CLEAR, 2 * PORT_CLEAR)));
+                // 포트가 있는 변 전체도 조금 비운다: 맞닿은 부품의 테두리(굵기 2)를 칩 테두리가 덮지 않게
+                if (port.getX() <= b.getX() + 1) {
+                    area.subtract(new java.awt.geom.Area(new Rectangle(b.getX() - 1, b.getY() - 1, EDGE_CLEAR + 1,
+                            b.getHeight() + 3)));
+                } else if (port.getX() >= b.getX() + b.getWidth() - 1) {
+                    area.subtract(new java.awt.geom.Area(new Rectangle(b.getX() + b.getWidth() - EDGE_CLEAR,
+                            b.getY() - 1, EDGE_CLEAR + 2, b.getHeight() + 3)));
+                } else if (port.getY() <= b.getY() + 1) {
+                    area.subtract(new java.awt.geom.Area(new Rectangle(b.getX() - 1, b.getY() - 1, b.getWidth() + 3,
+                            EDGE_CLEAR + 1)));
+                } else {
+                    area.subtract(new java.awt.geom.Area(new Rectangle(b.getX() - 1, b.getY() + b.getHeight()
+                            - EDGE_CLEAR, b.getWidth() + 3, EDGE_CLEAR + 2)));
+                }
+                tg.clip(area);
+                tg.setColor(new Color(col.getRed(), col.getGreen(), col.getBlue(), 110));
+                tg.fillRect(b.getX() + 1, b.getY() + 1, b.getWidth() - 1, b.getHeight() - 1);
+                tg.setColor(col);
+                tg.setStroke(new BasicStroke(1.5f));
+                tg.drawRect(b.getX() + 1, b.getY() + 1, b.getWidth() - 2, b.getHeight() - 2);
+            } finally {
+                tg.dispose();
+            }
         }
     }
+
+    /** 터널 색 칩이 비워 둘 포트 둘레 반 폭(회로 좌표): 포트 점(지름 약 4)과 붙은 부품 테두리까지. */
+    static final int PORT_CLEAR = 4;
+    /** 포트가 있는 변에서 칩이 비워 둘 폭(회로 좌표): 맞닿은 부품 테두리 굵기(2)와 칩 테두리(1.5)가 겹치지 않게. */
+    static final int EDGE_CLEAR = 3;
 
     /** 직접 지정한 터널 색이 바뀌면 배정을 다시 하도록 서명에 넣는다. */
     static final class CircExtensionsSig {
@@ -672,7 +703,7 @@ public final class LabelOverlay {
         Map<Object, String> texts = new HashMap<>();
         long sig = 17L * circuit.hashCode() + Double.hashCode(z) * 31L + d.ordinal();
         for (LabelField f : labels) {
-            if (hidden.contains(f.comp) || !shown(d, f.comp)) {
+            if (hidden.contains(f.comp) || !shown(d, f.comp) || namedByTunnel(circuit, f.comp, f.text)) {
                 continue;
             }
             reqs.add(new LabelLayout.Req(f.comp, f.bounds, fm.stringWidth(f.text) + 2 * padX, h, 0));
@@ -767,6 +798,23 @@ public final class LabelOverlay {
         default:
             return true;
         }
+    }
+
+    /**
+     * 포트 하나짜리 부품(핀·프로브 등)의 포트에 같은 이름의 터널이 바로 붙어 있는가(S-12). 그러면 터널이 이름을
+     * 보이므로 부품의 라벨 칩은 그리지 않는다(원조 라벨 글자도 칩과 함께 빠진다): 같은 이름이 두 번 보이지 않게.
+     */
+    static boolean namedByTunnel(Circuit circuit, Component c, String text) {
+        if (c.getEnds().size() != 1 || text == null || c.getFactory().getName().equals("Tunnel")) {
+            return false;
+        }
+        Location at = c.getEnd(0).getLocation();
+        for (Component t : circuit.getNonWires(at)) {
+            if (t != c && t.getFactory().getName().equals("Tunnel") && text.equals(Names.label(t))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** 이름 있는 버스(폭 2 이상)의 가장 긴 선과 그 표시 글자: {@code 이름[w-1:0]}. */

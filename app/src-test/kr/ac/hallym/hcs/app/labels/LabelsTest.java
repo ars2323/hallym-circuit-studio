@@ -438,7 +438,8 @@ class LabelsTest {
         java.util.List<java.awt.Rectangle> chips = LabelOverlay.chipRects(canvas);
         // 흐름 등 다른 덧그림이 피할 글자 자리에는 스플리터 팔 라벨도 들어간다(P-07)
         assertTrue(LabelOverlay.textRects(canvas).size() > chips.size(), "arm labels are in the text rects");
-        assertEquals(9, chips.size(), "chips"); // 제어 핀 5, PC, halt, Zero, 버스 이름 pc[31:0]
+        // PC, halt, Zero, 버스 이름 pc[31:0]. 제어 핀 5개는 같은 이름의 터널이 붙어 있어 칩이 없다(S-12)
+        assertEquals(4, chips.size(), "chips");
         java.util.List<String> over = new java.util.ArrayList<>();
         for (java.awt.Rectangle r : chips) {
             for (com.cburch.logisim.circuit.Wire w : f.getMainCircuit().getWires()) {
@@ -449,5 +450,56 @@ class LabelsTest {
             }
         }
         assertEquals(new java.util.ArrayList<String>(), over);
+    }
+
+    /** S-12: 핀 포트에 같은 이름의 터널이 붙어 있으면 핀 라벨 칩은 그리지 않는다(이름이 두 번 보이지 않게). */
+    @Test
+    void pinNamedByItsOwnTunnelHasNoChip() throws Exception {
+        LogisimFile f = CircuitBuilder.newFile(new Loader(null), tmp.toFile());
+        CircuitBuilder b = new CircuitBuilder(f, f.getMainCircuit());
+        Component a = b.add("Wiring", "Pin", 100, 100, "label", "RegWrite");
+        b.add("Wiring", "Tunnel", 100, 100, "label", "RegWrite");
+        Component other = b.add("Wiring", "Pin", 100, 200, "label", "MemRead");
+        b.add("Wiring", "Tunnel", 100, 200, "label", "MemWrite"); // 다른 이름
+        Component lone = b.add("Wiring", "Pin", 100, 300, "label", "ALUOp");
+        b.commit();
+        com.cburch.logisim.circuit.Circuit c = f.getMainCircuit();
+        assertTrue(LabelOverlay.namedByTunnel(c, a, "RegWrite"), "same-name tunnel on the port");
+        assertFalse(LabelOverlay.namedByTunnel(c, other, "MemRead"), "a different tunnel name");
+        assertFalse(LabelOverlay.namedByTunnel(c, lone, "ALUOp"), "no tunnel");
+    }
+
+    /** S-12 검토: 터널 색 칩은 터널 끝(포트) 둘레를 칠하지 않아 붙은 핀의 포트 점과 테두리가 보인다. */
+    @Test
+    void tunnelColorLeavesThePortClear() throws Exception {
+        LogisimFile f = CircuitBuilder.newFile(new Loader(null), tmp.toFile());
+        CircuitBuilder b = new CircuitBuilder(f, f.getMainCircuit());
+        b.add("Wiring", "Pin", 100, 100, "label", "RegWrite");
+        Component t = b.add("Wiring", "Tunnel", 100, 100, "label", "RegWrite");
+        b.commit();
+        com.cburch.logisim.proj.Project proj = new com.cburch.logisim.proj.Project(f);
+        proj.getSimulator().setIsRunning(false);
+        com.cburch.logisim.gui.main.Canvas canvas = new com.cburch.logisim.gui.main.Canvas(proj);
+        java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(300, 200,
+                java.awt.image.BufferedImage.TYPE_INT_RGB);
+        java.awt.Graphics2D g = img.createGraphics();
+        g.setColor(java.awt.Color.WHITE);
+        g.fillRect(0, 0, 300, 200);
+        LabelOverlay.paint(canvas, g, f.getMainCircuit(), proj.getCircuitState(), java.util.Collections.emptySet());
+        g.dispose();
+        com.cburch.logisim.data.Location port = t.getEnd(0).getLocation();
+        for (int y = port.getY() - LabelOverlay.PORT_CLEAR + 1; y < port.getY() + LabelOverlay.PORT_CLEAR; y++) {
+            for (int x = port.getX() - LabelOverlay.PORT_CLEAR + 1; x < port.getX() + LabelOverlay.PORT_CLEAR; x++) {
+                assertEquals(0xFFFFFF, img.getRGB(x, y) & 0xFFFFFF, "nothing painted at the port " + x + "," + y);
+            }
+        }
+        com.cburch.logisim.data.Bounds tb = t.getBounds();
+        assertTrue((img.getRGB(tb.getX() + tb.getWidth() - 4, tb.getY() + tb.getHeight() / 2) & 0xFFFFFF) != 0xFFFFFF,
+                "the rest of the tunnel is colored");
+        // 포트가 있는 변 전체도 칠하지 않는다(맞닿은 핀 테두리를 덮지 않게)
+        int edgeX = port.getX() <= tb.getX() + 1 ? tb.getX() + 1 : tb.getX() + tb.getWidth() - 2;
+        for (int y = tb.getY(); y <= tb.getY() + tb.getHeight(); y++) {
+            assertEquals(0xFFFFFF, img.getRGB(edgeX, y) & 0xFFFFFF, "port side edge clear at " + edgeX + "," + y);
+        }
     }
 }
