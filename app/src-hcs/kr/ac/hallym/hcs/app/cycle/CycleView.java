@@ -353,7 +353,7 @@ public final class CycleView {
     }
 
     /** 조건으로 돌리기 시작한다(테스트도 부른다). */
-    RunUntilRunner start(RunUntil until) {
+    public RunUntilRunner start(RunUntil until) {
         Project proj = projRef.get();
         CycleModel m = model();
         if (proj == null || m == null || m.isEmpty() || runner != null && runner.isRunning()) {
@@ -370,7 +370,7 @@ public final class CycleView {
         return runner;
     }
 
-    boolean isRunningUntil() {
+    public boolean isRunningUntil() {
         return runner != null && runner.isRunning();
     }
 
@@ -472,6 +472,15 @@ public final class CycleView {
             root = root.getParentState();
         }
         return ms.memories(root, ms.model().cursorCycle());
+    }
+
+    /** 오른쪽 탭을 고른다(0 Registers, 1 Memory). 스크린샷·테스트. */
+    public void showSide(int index) {
+        side.setSelectedIndex(index);
+    }
+
+    public JComponent sideComponent() {
+        return side;
     }
 
     RegisterPanel registerPanel() {

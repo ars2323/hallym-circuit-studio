@@ -63,6 +63,7 @@ final class RegisterPanel extends JComponent implements Scrollable {
     private final Map<String, Radix> radix = new HashMap<>();
     private boolean signed = true;
     private List<Line> lines = new ArrayList<>();
+    private boolean listMode;
 
     RegisterPanel(Supplier<MachineState> state) {
         this.state = state;
@@ -138,7 +139,8 @@ final class RegisterPanel extends JComponent implements Scrollable {
                     ? Messages.get("regs.spDepth", hex(sp), depth) : Messages.get("regs.sp", hex(sp))));
         }
         List<MachineState.Reg> regs = ms.registers(c);
-        if (ms.hasRegisterFile()) {
+        listMode = !ms.hasRegisterFile();
+        if (!listMode) {
             out.add(new Line(Messages.get("regs.group.special"), null, null));
             Value pc = ms.model().pc(c);
             Value pcBefore = c > ms.model().firstCycle() ? ms.model().pc(c - 1) : null;
@@ -263,12 +265,12 @@ final class RegisterPanel extends JComponent implements Scrollable {
                 g.setColor(Tokens.TEAL_TINT);
                 g.fillRect(0, y, getWidth(), ROW_H);
             }
-            boolean named = r.number >= 0 || "PC".equals(r.name);
+            // 표시한 레지스터 파일은 $name 칸이 좁고, 모두 나열할 때는 경로가 든 이름 칸이 넓다(한 목록 안에서는 같은 폭)
+            int nameW = listMode ? 200 : 60;
             int x = 18;
             g.setColor(r.changed ? Tokens.TEAL_TEXT : Tokens.TEXT);
-            String name = r.name;
-            g.drawString(CycleView.fit(fm, name, named ? 60 : 200), x, y + base);
-            x += named ? 64 : 204;
+            g.drawString(CycleView.fit(fm, r.name, nameW), x, y + base);
+            x += nameW + 4;
             if (r.number >= 0 && r.name.startsWith("$")) {
                 g.setColor(Tokens.TEXT_2);
                 g.drawString("R" + r.number, x, y + base);

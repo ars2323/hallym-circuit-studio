@@ -65,6 +65,15 @@ final class MemoryPanel extends JComponent implements Scrollable {
         lines = out;
         revalidate();
         repaint();
+        // $sp가 가리키는 칸이 보이게(스택이 깊으면 목록 아래쪽에 있다)
+        for (int i = 0; i < lines.size(); i++) {
+            if (lines.get(i).word != null && lines.get(i).word.sp) {
+                int row = i;
+                javax.swing.SwingUtilities.invokeLater(() -> scrollRectToVisible(new Rectangle(0,
+                        Math.max(0, row - 2) * ROW_H, 1, 5 * ROW_H)));
+                break;
+            }
+        }
     }
 
     List<Line> lines() {
