@@ -288,6 +288,8 @@ class SafeMoveTest {
         open(f);
         Circuit c = f.getMainCircuit();
         List<String> outcomes = new ArrayList<>();
+        List<String> clutterBefore = WireRules.clutter(c);
+        assertEquals(List.of(), clutterBefore, "the demo circuit itself is tidy");
         String[] names = {"PC", "halt", "Zero", "regfile", "alu", "Data Memory"};
         for (String name : names) {
             for (int[] d : new int[][] {{0, 20}, {20, 0}, {-20, -20}, {0, -20}}) {
@@ -305,6 +307,12 @@ class SafeMoveTest {
                     boolean refused = o == SafeMove.Outcome.REFUSED;
                     assertEquals(without(before, self), without(netlist(c, refused ? List.of() : List.of(now),
                             refused ? 0 : d[0], refused ? 0 : d[1]), self), name + " fallback keeps the other nets");
+                }
+                if (o == SafeMove.Outcome.MOVED) { // 도구가 그은 선만(선 없이 옮기면 옛 선이 일부러 끊긴 채 남는다)
+                    List<String> clutterNow = WireRules.clutter(c);
+                    clutterNow.removeAll(clutterBefore);
+                    assertEquals(List.of(), clutterNow, name + " " + d[0] + "," + d[1]
+                            + ": no loops, dead ends or split lines");
                 }
                 if (o != SafeMove.Outcome.REFUSED) {
                     proj.undoAction(); // 한 번에 이동과 선 변경이 함께 취소된다
@@ -324,11 +332,11 @@ class SafeMoveTest {
     }
 
     static final List<String> EXPECTED = List.of(
-            "PC0,20=MOVED_WITHOUT_WIRES", "PC20,0=MOVED", "PC-20,-20=MOVED", "PC0,-20=MOVED",
+            "PC0,20=MOVED_WITHOUT_WIRES", "PC20,0=MOVED", "PC-20,-20=MOVED_WITHOUT_WIRES", "PC0,-20=MOVED",
             "halt0,20=MOVED", "halt20,0=MOVED", "halt-20,-20=MOVED", "halt0,-20=MOVED",
             "Zero0,20=MOVED", "Zero20,0=MOVED", "Zero-20,-20=MOVED_WITHOUT_WIRES", "Zero0,-20=MOVED",
             "regfile0,20=MOVED_WITHOUT_WIRES", "regfile20,0=MOVED", "regfile-20,-20=MOVED_WITHOUT_WIRES",
-            "regfile0,-20=MOVED_WITHOUT_WIRES",
+            "regfile0,-20=MOVED",
             "alu0,20=MOVED_WITHOUT_WIRES", "alu20,0=MOVED", "alu-20,-20=MOVED_WITHOUT_WIRES",
             "alu0,-20=MOVED_WITHOUT_WIRES",
             "Data Memory0,20=MOVED_WITHOUT_WIRES", "Data Memory20,0=MOVED", "Data Memory-20,-20=MOVED",

@@ -57,10 +57,16 @@ public final class SafeMove {
     /** 선택을 (dx, dy)만큼 옮긴다. result는 원조 연결 유지 계산 결과(없으면 선을 잇지 않는 이동). */
     public static Outcome move(Project proj, Selection sel, int dx, int dy, MoveResult result) {
         Circuit circuit = proj.getCurrentCircuit();
+        if (!sel.getFloatingComponents().isEmpty()) {
+            // 붙여 넣어 아직 회로에 놓이지 않은(떠 있는) 것: 원조 이동 그대로(놓을 때 원조가 합친다)
+            proj.doAction(SelectionActions.translate(sel, dx, dy, result == null ? null : result.getReplacementMap()));
+            return Outcome.MOVED;
+        }
         List<Component> before = new ArrayList<>(sel.getComponents());
         Set<Set<Netlist.PortRef>> sig = NetSignature.of(circuit, before);
         Set<Set<Object>> all = NetSignature.full(circuit, before, 0, 0);
         WireRules.Before nets = new WireRules.Before(circuit);
+        nets.clutter = WireRules.clutter(circuit);
         if (result != null) {
             SegmentDrag seg = SegmentDrag.plan(circuit, sel, dx, dy);
             if (seg != null) {
@@ -68,10 +74,16 @@ public final class SafeMove {
                 p.removed.addAll(seg.removed());
                 p.added.addAll(seg.added());
                 if (p.check(circuit, sig, all, nets)) {
-                    proj.doAction(seg.action());
+                    proj.doAction(p.action(sel, circuit));
                     seg.select(sel);
                     return Outcome.MOVED;
                 }
+            }
+            // W-03 고무줄: 포트에 붙은 선을 부품과 함께 끌고 가고, 그 끝의 다리를 늘린다(선 묶음이 나란히 유지된다)
+            Plan rubber = rubber(circuit, before, dx, dy);
+            if (rubber != null && rubber.check(circuit, sig, all, nets)) {
+                proj.doAction(rubber.action(sel, circuit));
+                return Outcome.MOVED;
             }
             Set<Location> open = openEnds(circuit, before, result);
             for (boolean horizontalFirst : new boolean[] {true, false}) {
@@ -120,6 +132,8 @@ public final class SafeMove {
         ReplacementMap repl;
         final List<Wire> removed = new ArrayList<>();
         final List<Wire> added = new ArrayList<>();
+        /** 정리 단계(W-02)에서 지울 선(모양으로 찾는다). check가 채운다. */
+        final List<Wire> cleanup = new ArrayList<>();
 
         Plan(List<Component> moved, int dx, int dy) {
             this.moved = moved;
@@ -163,13 +177,50 @@ public final class SafeMove {
             build.addAll(news);
             try {
                 build.execute();
-                if (!mappedOthers(scratch, movedCopies, original).equals(sig)) {
+                if (!same(scratch, movedCopies, original, sig, all)) {
                     return false;
                 }
-                if (all != null && !mappedFull(scratch, movedCopies, original).equals(all)) {
+                // W-02 정리: 새로 생긴 선을 짧은 것부터 하나씩 빼 보고, 넷이 그대로면 뺀 채로 둔다
+                // (같은 넷 안 고리, 막다른 짧은 선, 겹친 조각이 사라진다. 원래 있던 선과 옮긴 선은 건드리지 않는다)
+                Set<Wire> kept = new HashSet<>(real.getWires());
+                for (Component c : moved) {
+                    if (c instanceof Wire) {
+                        Wire w = (Wire) c;
+                        kept.add(Wire.create(w.getEnd0().translate(dx, dy), w.getEnd1().translate(dx, dy)));
+                    }
+                }
+                cleanup.clear();
+                for (Wire w : byLength(scratch.getWires())) {
+                    if (kept.contains(w) || !scratch.getWires().contains(w)) {
+                        continue;
+                    }
+                    List<String> deadBefore = deadEnds(scratch);
+                    CircuitMutation drop = new CircuitMutation(scratch);
+                    drop.remove(w);
+                    com.cburch.logisim.circuit.CircuitTransactionResult res = drop.execute();
+                    // 넷이 그대로이고 새 막다른 끝이 생기지 않을 때만(옛 선이 매달려 남지 않게)
+                    if (same(scratch, movedCopies, original, sig, all) && deadBefore.containsAll(deadEnds(scratch))) {
+                        cleanup.add(w);
+                    } else {
+                        res.getReverseTransaction().execute();
+                    }
+                }
+                List<Wire> remaining = new ArrayList<>();
+                for (Wire w : scratch.getWires()) {
+                    if (!kept.contains(w)) {
+                        remaining.add(w);
+                    }
+                }
+                if (!WireRules.violations(scratch, remaining, nets).isEmpty()) {
                     return false;
                 }
-                return WireRules.violations(scratch, news, nets).isEmpty();
+                if (all == null) {
+                    return true; // 선 없이 옮기기: 옛 선이 일부러 끊긴 채 남는다
+                }
+                // 체크리스트 7: 정리한 뒤에도 고리·막다른 끝·쪼개진 일직선이 새로 남으면 이 후보는 쓰지 않는다
+                List<String> left = WireRules.clutter(scratch);
+                left.removeAll(nets.clutter);
+                return left.isEmpty();
             } finally {
                 // 서브회로 인스턴스 복사본은 서브회로의 사용처 목록에 올라간다. 비워서 지운다
                 CircuitMutation clear = new CircuitMutation(scratch);
@@ -177,6 +228,31 @@ public final class SafeMove {
                 clear.removeAll(new ArrayList<>(scratch.getWires()));
                 clear.execute();
             }
+        }
+
+        boolean same(Circuit scratch, List<Component> movedCopies, Map<Component, Component> original,
+                Set<Set<Netlist.PortRef>> sig, Set<Set<Object>> all) {
+            return mappedOthers(scratch, movedCopies, original).equals(sig)
+                    && (all == null || mappedFull(scratch, movedCopies, original).equals(all));
+        }
+
+        static List<String> deadEnds(Circuit c) {
+            List<String> ret = new ArrayList<>();
+            for (String s : WireRules.clutter(c)) {
+                if (s.startsWith("dead end")) {
+                    ret.add(s);
+                }
+            }
+            return ret;
+        }
+
+        /** 짧은 선부터, 같은 길이면 위치 순(결정적). */
+        static List<Wire> byLength(Collection<Wire> wires) {
+            List<Wire> ret = new ArrayList<>(wires);
+            ret.sort((a, b) -> a.getLength() != b.getLength() ? Integer.compare(a.getLength(), b.getLength())
+                    : a.getEnd0().compareTo(b.getEnd0()) != 0 ? a.getEnd0().compareTo(b.getEnd0())
+                    : a.getEnd1().compareTo(b.getEnd1()));
+            return ret;
         }
 
         /** 옮긴 것의 포트를 뺀 넷 모양(복사본을 실제 부품으로 바꿔 적는다). */
@@ -211,16 +287,107 @@ public final class SafeMove {
             return ret;
         }
 
-        /** 실제 회로에 적용할 한 동작(원조 옮기기 + 더할 선). */
+        /** 실제 회로에 적용할 한 동작: 원조 옮기기 + 지우고 더할 선 + 정리(W-02). 되돌리기 한 번에 모두 취소된다. */
         Action action(Selection sel, Circuit circuit) {
-            Action move = SelectionActions.translate(sel, dx, dy, repl);
-            if (added.isEmpty()) {
-                return move;
-            }
+            List<Action> steps = new ArrayList<>();
+            // 옮기기와 선 바꾸기를 한 변경으로(복사한 회로처럼 선 합치기가 한 번에 일어난다). 선택은 원조 선택이
+            // 바꿔치기를 따라 새 부품으로 옮긴다
             CircuitMutation m = new CircuitMutation(circuit);
+            if (dx != 0 || dy != 0) {
+                for (Component c : moved) {
+                    Component copy = c instanceof Wire
+                            ? Wire.create(((Wire) c).getEnd0().translate(dx, dy), ((Wire) c).getEnd1().translate(dx, dy))
+                            : c.getFactory().createComponent(c.getLocation().translate(dx, dy),
+                                    (AttributeSet) c.getAttributeSet().clone());
+                    m.replace(c, copy);
+                }
+            }
+            if (repl != null) {
+                m.replace(repl);
+            }
+            m.removeAll(removed);
             m.addAll(added);
-            return new Both(move, m.toAction(null));
+            steps.add(m.toAction(() -> Messages.get("move.action")));
+            if (!cleanup.isEmpty()) {
+                steps.add(new RemoveEqual(circuit, cleanup));
+            }
+            return new Seq(steps);
         }
+    }
+
+    /**
+     * 고무줄 후보(W-03). 가로·세로 이동만. 옮기는 부품의 포트 P에 끝이 닿은(옮기지 않는) 선 w마다:
+     * <ul>
+     * <li>w가 이동 방향과 나란하면 w를 늘이거나 줄인다(먼 끝 → P + d).</li>
+     * <li>w가 이동 방향과 수직이면 w를 d만큼 옮긴다. w의 먼 끝에 이동 방향으로 뻗은 다리가 하나뿐이면 그 다리를
+     * 늘이거나 줄이고, 아니면 먼 끝에서 옮긴 끝까지 곧은 선을 더한다.</li>
+     * </ul>
+     * 선 없이 옮기지 않는 부품 포트에 바로 닿던 포트는 곧은 선으로 잇는다. 쓸 수 없으면 null.
+     */
+    static Plan rubber(Circuit circuit, List<Component> moved, int dx, int dy) {
+        if ((dx == 0) == (dy == 0)) {
+            return null; // 가로 또는 세로 한 방향만
+        }
+        boolean moveVertical = dx == 0;
+        Plan p = new Plan(moved, dx, dy);
+        Set<Wire> touched = new HashSet<>();
+        for (Location at : portsOf(moved)) {
+            List<Wire> attached = new ArrayList<>();
+            for (Wire w : circuit.getWires()) {
+                if (!moved.contains(w) && w.endsAt(at)) {
+                    attached.add(w);
+                }
+            }
+            if (attached.isEmpty()) {
+                if (touchesStayingPort(circuit, moved, at)) {
+                    p.added.add(Wire.create(at, at.translate(dx, dy)));
+                }
+                continue;
+            }
+            for (Wire w : attached) {
+                if (!touched.add(w)) {
+                    return null; // 두 포트에 걸친 선: 단순하지 않다
+                }
+                Location far = w.getOtherEnd(at);
+                Location to = at.translate(dx, dy);
+                p.removed.add(w);
+                if (w.isVertical() == moveVertical) { // 나란함
+                    if (!far.equals(to)) {
+                        p.added.add(Wire.create(far, to));
+                    }
+                    continue;
+                }
+                Location farTo = far.translate(dx, dy);
+                p.added.add(Wire.create(farTo, to));
+                Wire leg = null;
+                int others = 0;
+                for (Wire o : circuit.getWires()) {
+                    if (o != w && !o.equals(w) && o.contains(far)) {
+                        others++;
+                        if (o.endsAt(far) && o.isVertical() == moveVertical) {
+                            leg = o;
+                        }
+                    }
+                }
+                boolean portAtFar = false;
+                for (Component c : circuit.getNonWires()) {
+                    for (int i = 0; i < c.getEnds().size(); i++) {
+                        portAtFar |= c.getEnd(i).getLocation().equals(far);
+                    }
+                }
+                if (leg != null && others == 1 && !portAtFar && !touched.contains(leg)) {
+                    touched.add(leg);
+                    p.removed.add(leg);
+                    Location legFar = leg.getOtherEnd(far);
+                    if (!legFar.equals(farTo)) {
+                        p.added.add(Wire.create(legFar, farTo));
+                    }
+                } else {
+                    p.added.add(Wire.create(far, farTo));
+                }
+            }
+        }
+        return p.added.isEmpty() && p.removed.isEmpty() ? null : p;
     }
 
     static List<Wire> asWires(Collection<? extends Component> comps) {
@@ -311,36 +478,73 @@ public final class SafeMove {
         return false;
     }
 
-    /** 두 동작을 한 동작으로(옮기기 + 선 더하기). 되돌리기 한 번에 함께 취소된다. */
-    static final class Both extends Action {
-        private final Action a;
-        private final Action b;
+    /** 여러 동작을 한 동작으로(옮기기 + 선 바꾸기 + 정리). 되돌리기 한 번에 거꾸로 모두 취소된다. */
+    static final class Seq extends Action {
+        private final List<Action> steps;
 
-        Both(Action a, Action b) {
-            this.a = a;
-            this.b = b;
+        Seq(List<Action> steps) {
+            this.steps = new ArrayList<>(steps);
         }
 
         @Override
         public String getName() {
-            return a.getName();
+            return steps.isEmpty() ? Messages.get("move.segmentAction") : steps.get(0).getName();
         }
 
         @Override
         public void doIt(Project proj) {
-            a.doIt(proj);
-            b.doIt(proj);
+            for (Action a : steps) {
+                a.doIt(proj);
+            }
         }
 
         @Override
         public void undo(Project proj) {
-            b.undo(proj);
-            a.undo(proj);
+            for (int i = steps.size() - 1; i >= 0; i--) {
+                steps.get(i).undo(proj);
+            }
         }
 
         @Override
         public boolean shouldAppendTo(Action other) {
-            return a.shouldAppendTo(other);
+            return !steps.isEmpty() && steps.get(0).shouldAppendTo(other);
+        }
+    }
+
+    /** 모양이 같은 선을 지운다(정리 단계). 복사한 회로와 실제 회로는 같은 선 합치기를 거쳐 같은 모양이 된다. */
+    static final class RemoveEqual extends Action {
+        private final Circuit circuit;
+        private final List<Wire> wires;
+        private com.cburch.logisim.circuit.CircuitTransaction reverse;
+
+        RemoveEqual(Circuit circuit, List<Wire> wires) {
+            this.circuit = circuit;
+            this.wires = new ArrayList<>(wires);
+        }
+
+        @Override
+        public String getName() {
+            return Messages.get("move.segmentAction");
+        }
+
+        @Override
+        public void doIt(Project proj) {
+            List<Wire> found = new ArrayList<>();
+            for (Wire w : circuit.getWires()) {
+                if (wires.contains(w)) {
+                    found.add(w);
+                }
+            }
+            CircuitMutation m = new CircuitMutation(circuit);
+            m.removeAll(found);
+            reverse = m.execute().getReverseTransaction();
+        }
+
+        @Override
+        public void undo(Project proj) {
+            if (reverse != null) {
+                reverse.execute();
+            }
         }
     }
 }

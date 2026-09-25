@@ -132,9 +132,101 @@ public final class WireRules {
         return hi - lo;
     }
 
+    /**
+     * 군더더기(체크리스트 7): 같은 넷 안 고리, 막다른 끝(선 끝이 다른 선·포트에 닿지 않음), 끝이 이어진 채 일직선으로
+     * 쪼개진 두 조각(그 점에 다른 것이 없음). 사람이 읽는 설명 목록.
+     */
+    public static List<String> clutter(Circuit circuit) {
+        List<String> out = new ArrayList<>();
+        List<Wire> wires = new ArrayList<>(circuit.getWires());
+        java.util.Set<Location> ports = new java.util.HashSet<>();
+        for (Component c : circuit.getNonWires()) {
+            for (int i = 0; i < c.getEnds().size(); i++) {
+                ports.add(c.getEnd(i).getLocation());
+            }
+        }
+        // 점: 선 끝, 그리고 다른 선 끝이나 포트가 선 한가운데에 닿는 점(그 선을 거기서 나눈다)
+        java.util.Map<Location, Integer> id = new java.util.HashMap<>();
+        java.util.List<int[]> edges = new ArrayList<>();
+        java.util.List<Location> at = new ArrayList<>();
+        for (Wire w : wires) {
+            java.util.TreeSet<Location> cuts = new java.util.TreeSet<>();
+            cuts.add(w.getEnd0());
+            cuts.add(w.getEnd1());
+            for (Wire o : wires) {
+                for (Location e : new Location[] {o.getEnd0(), o.getEnd1()}) {
+                    if (w.contains(e)) {
+                        cuts.add(e);
+                    }
+                }
+            }
+            for (Location q : ports) {
+                if (w.contains(q)) {
+                    cuts.add(q);
+                }
+            }
+            Location prev = null;
+            for (Location q : cuts) {
+                if (!id.containsKey(q)) {
+                    id.put(q, id.size());
+                    at.add(q);
+                }
+                if (prev != null) {
+                    edges.add(new int[] {id.get(prev), id.get(q)});
+                }
+                prev = q;
+            }
+        }
+        int[] parent = new int[id.size()];
+        for (int k = 0; k < parent.length; k++) {
+            parent[k] = k;
+        }
+        for (int[] e : edges) {
+            int a = root(parent, e[0]);
+            int b = root(parent, e[1]);
+            if (a == b) {
+                out.add("loop at " + at.get(e[0]) + "-" + at.get(e[1]));
+            } else {
+                parent[a] = b;
+            }
+        }
+        for (Wire w : wires) {
+            for (Location e : new Location[] {w.getEnd0(), w.getEnd1()}) {
+                boolean touches = ports.contains(e);
+                int straight = 0;
+                int others = 0;
+                for (Wire o : wires) {
+                    if (o != w && o.contains(e)) {
+                        touches = true;
+                        others++;
+                        if (o.endsAt(e) && o.isVertical() == w.isVertical()) {
+                            straight++;
+                        }
+                    }
+                }
+                if (!touches) {
+                    out.add("dead end at " + e);
+                } else if (straight == 1 && others == 1 && !ports.contains(e)) {
+                    out.add("straight line split at " + e);
+                }
+            }
+        }
+        return out;
+    }
+
+    private static int root(int[] parent, int x) {
+        while (parent[x] != x) {
+            parent[x] = parent[parent[x]];
+            x = parent[x];
+        }
+        return x;
+    }
+
     /** 옮기기 전 회로의 넷(선별, 점별). */
     public static final class Before {
         private final java.util.Map<Wire, Integer> wireNet = new java.util.IdentityHashMap<>();
+        /** 옮기기 전 회로의 군더더기(원래 있던 것은 탓하지 않는다). */
+        public List<String> clutter = new ArrayList<>();
         private final java.util.Map<Location, java.util.Set<Integer>> pointNets = new java.util.HashMap<>();
 
         public Before(Circuit circuit) {
