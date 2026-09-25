@@ -2,6 +2,12 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-26 왼쪽 칸 아래 탭(S-11)
+
+- 기준: feat/left-panel-tabs `18194eb`
+- 관련 이슈: S-11 #174
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-s11-left-panel-tabs/README.md
+
 ## 2026-09-26 Signal Flow(P-07) 최종
 
 - 기준: feat/signal-flow `5eda54d`
