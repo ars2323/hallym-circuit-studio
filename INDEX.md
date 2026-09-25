@@ -2,6 +2,12 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-26 기본 모양 서브회로 안내(S-08) 재촬영
+
+- 기준: feat/default-appearance-help `fceda2b`
+- 관련 이슈: S-08 #171 (PR #253)
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-s08-default-appearance-2/README.md
+
 ## 2026-09-26 진단 표시 굵기(S-13) 재촬영
 
 - 기준: fix/mark-thickness `6bdb689`
