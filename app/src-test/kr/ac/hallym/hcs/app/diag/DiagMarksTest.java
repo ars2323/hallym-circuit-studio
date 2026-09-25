@@ -5,6 +5,7 @@
  */
 package kr.ac.hallym.hcs.app.diag;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Graphics2D;
@@ -101,6 +102,112 @@ class DiagMarksTest {
         }
         int lx = bb.getX() - (int) DiagMarks.px(DiagMarks.GAP_PX, 1) - 1;
         assertTrue(redAround(img, lx, bb.getY() + bb.getHeight() / 2, 3) > 0, "the border is still drawn elsewhere");
+    }
+
+    /**
+     * S-13: 테두리 굵기를 화면에서 잰다. 누르지 않은 항목은 꽉 찬 빨간 픽셀 2px, 누른 항목은 4px(25·100·400%).
+     * 부품 왼쪽 가운데 줄에서 테두리를 가로질러 연속한 빨간 픽셀 수를 센다.
+     */
+    @Test
+    void borderWidthsAreExactOnScreen() throws Exception {
+        LogisimFile f = CircuitBuilder.newFile(new Loader(null), tmp.toFile());
+        CircuitBuilder b = new CircuitBuilder(f, f.getMainCircuit());
+        Component and = b.add("Gates", "AND Gate", 200, 200, "inputs", "2");
+        b.commit();
+        Diagnostic d = new Diagnostic(Diagnostic.Kind.INPUT_UNCONNECTED, f.getMainCircuit(),
+                Collections.singletonList(and), Collections.emptyList(), and.getLocation(), "main › AND #1", "in1");
+        Bounds bb = and.getBounds();
+        int red = DiagMarks.MARK.getRGB() & 0xFFFFFF;
+        for (double z : new double[] {0.25, 1.0, 4.0}) {
+            for (boolean strong : new boolean[] {false, true}) {
+                BufferedImage img = new BufferedImage((int) (400 * z) + 60, (int) (400 * z) + 60,
+                        BufferedImage.TYPE_INT_RGB);
+                Graphics2D g = img.createGraphics();
+                g.setColor(java.awt.Color.WHITE);
+                g.fillRect(0, 0, img.getWidth(), img.getHeight());
+                g.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
+                        java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+                g.translate(7, 5); // 캔버스 안 자리처럼 정수가 아닌 곳에서도
+                g.scale(z, z);
+                DiagMarks.paint(g, Collections.singletonList(d), strong ? d : null, z);
+                g.dispose();
+                int y = (int) Math.round((bb.getY() + bb.getHeight() / 2.0) * z) + 5;
+                int run = 0;
+                int best = 0;
+                for (int x = 0; x < (int) Math.round(bb.getX() * z) + 7; x++) {
+                    if ((img.getRGB(x, y) & 0xFFFFFF) == red) {
+                        run++;
+                        best = Math.max(best, run);
+                    } else {
+                        run = 0;
+                    }
+                }
+                int want = strong ? (int) DiagMarks.FOCUS_BORDER_PX : (int) DiagMarks.BORDER_PX;
+                assertEquals(want, best, (strong ? "focused" : "normal") + " border at " + z);
+            }
+        }
+    }
+
+    /** S-13: 선 덧칠 굵기도 화면에서 3px(누르지 않음)·6px(누름). 가로선을 세로로 가로질러 센다. */
+    @Test
+    void wireHighlightWidthsAreExactOnScreen() throws Exception {
+        LogisimFile f = CircuitBuilder.newFile(new Loader(null), tmp.toFile());
+        CircuitBuilder b = new CircuitBuilder(f, f.getMainCircuit());
+        b.wire(com.cburch.logisim.data.Location.create(100, 200), com.cburch.logisim.data.Location.create(300, 200));
+        b.commit();
+        com.cburch.logisim.circuit.Wire w = f.getMainCircuit().getWires().iterator().next();
+        Diagnostic d = new Diagnostic(Diagnostic.Kind.INPUT_UNDRIVEN, f.getMainCircuit(), Collections.emptyList(),
+                Collections.singletonList(w), w.getEnd0(), "main", "x");
+        for (double z : new double[] {0.25, 1.0, 4.0}) {
+            for (boolean strong : new boolean[] {false, true}) {
+                BufferedImage img = new BufferedImage((int) (400 * z) + 60, (int) (400 * z) + 60,
+                        BufferedImage.TYPE_INT_RGB);
+                Graphics2D g = img.createGraphics();
+                g.setColor(java.awt.Color.WHITE);
+                g.fillRect(0, 0, img.getWidth(), img.getHeight());
+                g.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
+                        java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+                g.translate(3, 9);
+                g.scale(z, z);
+                DiagMarks.paint(g, Collections.singletonList(d), strong ? d : null, z);
+                g.dispose();
+                int x = (int) Math.round(200 * z) + 3;
+                int want = (int) (strong ? DiagMarks.FOCUS_WIRE_PX : DiagMarks.WIRE_PX);
+                int color = (strong ? DiagMarks.FOCUS_WIRE : DiagMarks.WIRE).getRGB();
+                int run = 0;
+                int best = 0;
+                int first = -1;
+                for (int y = 0; y < img.getHeight(); y++) {
+                    int c = img.getRGB(x, y);
+                    boolean full = near(c, blendOnWhite(color), 3);
+                    if (full) {
+                        run++;
+                        best = Math.max(best, run);
+                    } else {
+                        run = 0;
+                    }
+                }
+                assertEquals(want, best, (strong ? "focused" : "normal") + " wire at " + z);
+            }
+        }
+    }
+
+    static boolean near(int c, int want, int tol) {
+        for (int sh = 0; sh <= 16; sh += 8) {
+            if (Math.abs(((c >> sh) & 255) - ((want >> sh) & 255)) > tol) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** 반투명 색을 흰 바탕에 칠한 결과(ARGB → RGB). */
+    static int blendOnWhite(int argb) {
+        int a = argb >>> 24;
+        int r = ((argb >> 16) & 255) * a / 255 + 255 * (255 - a) / 255;
+        int gg = ((argb >> 8) & 255) * a / 255 + 255 * (255 - a) / 255;
+        int bl = (argb & 255) * a / 255 + 255 * (255 - a) / 255;
+        return (r << 16) | (gg << 8) | bl;
     }
 
     @Test

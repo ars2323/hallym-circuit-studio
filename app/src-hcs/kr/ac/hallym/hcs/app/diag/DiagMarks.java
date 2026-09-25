@@ -93,31 +93,70 @@ public final class DiagMarks {
         }
     }
 
+    /** 선 덧칠. 테두리처럼 화면 좌표에서 픽셀에 맞춰(S-13) 3px·6px이 그대로 보이게. */
     static void wires(Graphics2D g, Diagnostic d, boolean strong, double z) {
-        g.setColor(strong ? FOCUS_WIRE : WIRE);
-        g.setStroke(new BasicStroke(px(strong ? FOCUS_WIRE_PX : WIRE_PX, z), BasicStroke.CAP_ROUND,
-                BasicStroke.JOIN_ROUND));
-        for (Wire w : d.wires) {
-            g.drawLine(w.getEnd0().getX(), w.getEnd0().getY(), w.getEnd1().getX(), w.getEnd1().getY());
+        if (d.wires.isEmpty()) {
+            return;
+        }
+        java.awt.geom.AffineTransform t = g.getTransform();
+        double ds = Math.abs(t.getScaleX()) / (z <= 0 ? 1.0 : z);
+        float w = strong ? FOCUS_WIRE_PX : WIRE_PX;
+        double half = (Math.round(w) % 2 == 1) ? 0.5 : 0;
+        Graphics2D s = (Graphics2D) g.create();
+        try {
+            s.setTransform(java.awt.geom.AffineTransform.getScaleInstance(ds, ds));
+            s.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+            s.setColor(strong ? FOCUS_WIRE : WIRE);
+            s.setStroke(new BasicStroke(w, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            java.awt.geom.Point2D a = new java.awt.geom.Point2D.Double();
+            java.awt.geom.Point2D b = new java.awt.geom.Point2D.Double();
+            for (Wire wire : d.wires) {
+                t.transform(new java.awt.geom.Point2D.Double(wire.getEnd0().getX(), wire.getEnd0().getY()), a);
+                t.transform(new java.awt.geom.Point2D.Double(wire.getEnd1().getX(), wire.getEnd1().getY()), b);
+                s.draw(new java.awt.geom.Line2D.Double(Math.round(a.getX() / ds) + half, Math.round(a.getY() / ds)
+                        + half, Math.round(b.getX() / ds) + half, Math.round(b.getY() / ds) + half));
+            }
+        } finally {
+            s.dispose();
         }
     }
 
-    /** 부품 둘레 테두리와 오른쪽 위 점. */
+    /**
+     * 부품 둘레 테두리와 오른쪽 위 점. 테두리는 화면 좌표에서 픽셀에 맞춰 그린다(S-13): 배율을 곱한 좌표에 원조 Java2D가
+     * 기본으로 반 픽셀 보정을 하면 2px 선이 세 픽셀에 걸쳐 흐려져 꽉 찬 픽셀은 1px만 남는다. 그래서 가장자리를 정수
+     * 픽셀(홀수 굵기는 픽셀 가운데)에 두고 보정 없이(STROKE_PURE) 그려 누른 항목 4px·누르지 않은 항목 2px이 그대로
+     * 보이게 한다.
+     */
     static void mark(Graphics2D g, Bounds b, boolean strong, double z) {
         float gap = px(GAP_PX, z) + 1;
-        java.awt.geom.RoundRectangle2D box = new java.awt.geom.RoundRectangle2D.Float(b.getX() - gap,
-                b.getY() - gap, b.getWidth() + 2 * gap, b.getHeight() + 2 * gap, px(6, z), px(6, z));
-        g.setColor(MARK);
-        g.setStroke(new BasicStroke(px(strong ? FOCUS_BORDER_PX : BORDER_PX, z)));
-        g.draw(box);
-        float r = px(DOT_PX, z) / 2;
-        float cx = (float) (box.getMaxX());
-        float cy = (float) (box.getY());
-        g.setColor(Tokens.WHITE);
-        g.fill(new java.awt.geom.Ellipse2D.Float(cx - r - px(1, z), cy - r - px(1, z), 2 * (r + px(1, z)),
-                2 * (r + px(1, z))));
-        g.setColor(MARK);
-        g.fill(new java.awt.geom.Ellipse2D.Float(cx - r, cy - r, 2 * r, 2 * r));
+        java.awt.geom.AffineTransform t = g.getTransform();
+        // 화면(논리) 좌표: 기기 배율(HiDPI)은 남기고 회로 배율과 이동만 푼다
+        double ds = Math.abs(t.getScaleX()) / (z <= 0 ? 1.0 : z);
+        java.awt.geom.Rectangle2D dev = t.createTransformedShape(new java.awt.geom.Rectangle2D.Double(b.getX() - gap,
+                b.getY() - gap, b.getWidth() + 2 * gap, b.getHeight() + 2 * gap)).getBounds2D();
+        double x0 = Math.round(dev.getX() / ds);
+        double y0 = Math.round(dev.getY() / ds);
+        double x1 = Math.round(dev.getMaxX() / ds);
+        double y1 = Math.round(dev.getMaxY() / ds);
+        float w = strong ? FOCUS_BORDER_PX : BORDER_PX;
+        double half = (Math.round(w) % 2 == 1) ? 0.5 : 0; // 홀수 굵기는 픽셀 가운데
+        Graphics2D s = (Graphics2D) g.create();
+        try {
+            s.setTransform(java.awt.geom.AffineTransform.getScaleInstance(ds, ds));
+            s.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+            s.setColor(MARK);
+            s.setStroke(new BasicStroke(w));
+            s.draw(new java.awt.geom.RoundRectangle2D.Double(x0 + half, y0 + half, x1 - x0, y1 - y0, 6, 6));
+            float r = DOT_PX / 2;
+            float cx = (float) x1;
+            float cy = (float) y0;
+            s.setColor(Tokens.WHITE);
+            s.fill(new java.awt.geom.Ellipse2D.Float(cx - r - 1, cy - r - 1, 2 * (r + 1), 2 * (r + 1)));
+            s.setColor(MARK);
+            s.fill(new java.awt.geom.Ellipse2D.Float(cx - r, cy - r, 2 * r, 2 * r));
+        } finally {
+            s.dispose();
+        }
     }
 
     /** 화면 px을 회로 좌표로(배율로 나눈다). */
