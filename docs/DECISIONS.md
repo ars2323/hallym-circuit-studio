@@ -466,7 +466,7 @@
 - **날짜:** 2026-09-25
 - **결정:**
   - **회로:** `tests/circ/demo-datapath.circ`는 화면 검토용이다. 학생이 그린 것 같은 single-cycle MIPS 일부다: PC, +4 가산기, 명령어 메모리, R형 스플리터(팔 이름 op·rs·rt·rd·shamt·funct), 레지스터 파일 서브회로, ALU 서브회로, MemtoReg 멀티플렉서, 데이터 메모리.
-    - 부품 사이는 선으로 잇는다(PLAN 부록 A.4 출력 규칙). 터널은 제어선(RegWrite·MemtoReg·MemWrite·MemRead·ALUOp)과 clk에만 쓴다.
+    - 부품 사이는 선으로 잇는다(PLAN 부록 A.4 출력 규칙). 터널은 제어선(RegWrite·MemtoReg·MemWrite·MemRead·ALUOp)과 clk, 그리고 테스트용 halt 비교기로 가는 pc에만 쓴다.
     - 테스트 편의로 PC가 0x10이면 1이 되는 halt 출력을 둔다.
   - **생성기:** `DemoDatapath`(app 테스트 코드)가 원조 API로 만든다. 다시 쓰기: `./gradlew :app:test -Phcs.update=true`.
   - **`DemoDatapathTest`가 확인하는 것:**
