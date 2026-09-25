@@ -2,6 +2,12 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-26 핀과 같은 이름의 터널(S-12)
+
+- 기준: fix/pin-tunnel-label `db49f3a`
+- 관련 이슈: S-12 #175
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-s12-pin-tunnel-label/README.md
+
 ## 2026-09-26 진단 표시 굵기(S-13)
 
 - 기준: fix/mark-thickness `382908a`
