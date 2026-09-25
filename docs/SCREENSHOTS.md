@@ -55,6 +55,7 @@ tools/screenshots/run.sh <출력 폴더> [장면 번호 ...]
 | 17 | 영향 경로(P-01): regfile에서 앞으로(alu 안 칩, Data Memory에서 멈춤), 한 단계로 좁힘, Data Memory에서 뒤로, PC에서 Through Registers, regfile–Data Memory 사이 경로, alu 안으로 들어가 본 모습 |
 | 19 | 서브회로 인스턴스 안내(P-02): 탐색기에서 따로 연 regfile의 띠, 이어진 핀 미리 보기, 핀 도구 미리 보기, 실행 중 인스턴스로 간 뒤, 이어진 핀을 지운 뒤 알림 |
 | 20 | 탭 간 라이브러리(P-03): 1bit_adder를 쓰는 ripple_carry, 새 파일에서 검색 "adder"의 Open Files 항목, 불러와 놓은 뒤, 출력 핀을 지우고 저장할 때 경고, 속만 고쳐 저장한 뒤 ripple_carry 탭의 Updated, 인스턴스 우클릭의 Edit Original File |
+| 21 | 원조 부품의 포트 이름(S-06, S-07): PC 레지스터와 PC+4 가산기를 100·200·400%로(원조 비교 -orig 포함), 100%에서 가산기에 마우스를 올린 모습 |
 | 14 | Messages 탭: 데모 회로를 두 곳 망가뜨린 뒤(터널 이름 틀림, PC 클럭 지움) 목록, 메시지를 눌러 강조한 캔버스, 표시가 배율 25·100·400%에서 보이는지(14f), 끝나면 되돌림. gateUndefined = error 회로의 빈 게이트 입력(14e) |
 
 ## 올리기와 보고

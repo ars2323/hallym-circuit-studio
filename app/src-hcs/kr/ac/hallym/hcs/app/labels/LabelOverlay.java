@@ -108,10 +108,18 @@ public final class LabelOverlay {
         canvas.addMouseMotionListener(new MouseAdapter() {
             @Override
             public void mouseMoved(MouseEvent e) {
+                // 원조 캔버스는 마우스 좌표를 회로 좌표로 바꿔 넘긴다(Canvas.repairMouseEvent)
+                double z = zoom();
+                Component now = componentAt(canvas.getCircuit(), Location.create(e.getX(), e.getY()));
+                // 원조 부품의 포트 이름(S-06)은 라벨 밀도와 상관없이 마우스를 올린 부품에 보인다
+                if (now != portHover) {
+                    repaintPart(portHover, z);
+                    portHover = now;
+                    repaintPart(portHover, z);
+                }
                 if (density() != Density.HOVER) {
                     return;
                 }
-                Component now = componentAt(canvas.getCircuit(), Location.create(e.getX(), e.getY()));
                 if (now != hovered) {
                     hovered = now;
                     canvas.repaint();
@@ -122,6 +130,29 @@ public final class LabelOverlay {
 
     static synchronized LabelOverlay of(Canvas canvas) {
         return OVERLAYS.computeIfAbsent(canvas, LabelOverlay::new);
+    }
+
+    /** 이미 만든 덧그림(없으면 null). */
+    static synchronized LabelOverlay peek(Canvas canvas) {
+        return OVERLAYS.get(canvas);
+    }
+
+    /** 마우스가 올라가 있는 부품(라벨 밀도와 상관없이, 없으면 null). */
+    Component hovered() {
+        return portHover;
+    }
+
+    private Component portHover;
+
+    /** 포트 이름이 부품 바깥에 그려지므로 둘레를 넉넉히 다시 그린다. */
+    private void repaintPart(Component c, double z) {
+        if (c == null || !PortLabels.original(c)) {
+            return;
+        }
+        // 이름은 부품 밖 화면 크기(최소 10px) 글자로 그려진다: 화면 60px만큼 넉넉히
+        Bounds b = c.getBounds().expand((int) Math.ceil(Math.max(30, 60 / z)));
+        canvas.repaint((int) Math.floor(b.getX() * z), (int) Math.floor(b.getY() * z), (int) Math.ceil(b.getWidth() * z),
+                (int) Math.ceil(b.getHeight() * z));
     }
 
     /** 지금 그려진 라벨 칩들의 자리(회로 좌표). 빠른 속성 창이 칩을 덮지 않게 쓴다. */
