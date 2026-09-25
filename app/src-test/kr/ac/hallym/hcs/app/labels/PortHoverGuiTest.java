@@ -70,8 +70,10 @@ class PortHoverGuiTest {
             LabelOverlay o = LabelOverlay.peek(canvas);
             assertNotNull(o, "the overlay exists after painting");
             Bounds bb = adder.getBounds();
-            int sx = (int) Math.round((bb.getX() + bb.getWidth() / 2.0) * 2);
-            int sy = (int) Math.round((bb.getY() + bb.getHeight() / 2.0) * 2);
+            java.awt.Rectangle sr = canvas.hcsToScreen(new java.awt.Rectangle(bb.getX(), bb.getY(), bb.getWidth(),
+                    bb.getHeight()));
+            int sx = sr.x + sr.width / 2;
+            int sy = sr.y + sr.height / 2;
             SwingUtilities.invokeAndWait(() -> canvas.dispatchEvent(new MouseEvent(canvas, MouseEvent.MOUSE_MOVED,
                     System.currentTimeMillis(), 0, sx, sy, 0, false)));
             settle();
@@ -84,8 +86,11 @@ class PortHoverGuiTest {
             // 25%에서도
             SwingUtilities.invokeAndWait(() -> canvas.getHcsZoom().zoomTo(0.25));
             settle();
-            int qx = (int) Math.round((bb.getX() + bb.getWidth() / 2.0) * 0.25);
-            int qy = (int) Math.round((bb.getY() + bb.getHeight() / 2.0) * 0.25);
+            // 커서 배율은 원점 이동을 둘 수 있다(S-10): 캔버스 px는 hcsToScreen으로
+            java.awt.Rectangle q = canvas.hcsToScreen(new java.awt.Rectangle(bb.getX(), bb.getY(), bb.getWidth(),
+                    bb.getHeight()));
+            int qx = q.x + q.width / 2;
+            int qy = q.y + q.height / 2;
             SwingUtilities.invokeAndWait(() -> canvas.dispatchEvent(new MouseEvent(canvas, MouseEvent.MOUSE_MOVED,
                     System.currentTimeMillis(), 0, qx, qy, 0, false)));
             settle();
