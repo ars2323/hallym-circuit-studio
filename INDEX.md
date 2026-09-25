@@ -2,6 +2,13 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-26 Signal Flow(P-07) 최종
+
+- 기준: feat/signal-flow `5eda54d`
+- 관련 이슈: P-07 #243 (PR #247)
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-p07-signal-flow-6/README.md
+- GIF: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-p07-signal-flow-6/18-pc-flow.gif
+
 ## 2026-09-26 핀과 같은 이름의 터널(S-12) 재촬영
 
 - 기준: fix/pin-tunnel-label `b6a5e18`
