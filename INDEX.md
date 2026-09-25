@@ -2,6 +2,12 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-25 칩과 선: 속성 패널 접기 뒤 초점
+
+- 기준: fix/chips-wires `f9011a0`
+- 관련 이슈: S-04 #167 (PR #242)
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-25-chips-wires-3/README.md
+
 ## 2026-09-25 칩과 선: 빠른 속성 창 재촬영
 
 - 기준: fix/chips-wires `a919ea9`
