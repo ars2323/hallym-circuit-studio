@@ -83,6 +83,7 @@ public final class QuickBar implements Selection.Listener, ProjectListener {
         canvas.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
+                clearQuiet(canvas.getProject()); // 사용자가 직접 누른 선택부터는 다시 띄운다
                 if (!hidesWhilePressed(e)) {
                     return;
                 }
@@ -113,6 +114,27 @@ public final class QuickBar implements Selection.Listener, ProjectListener {
         return SwingUtilities.isLeftMouseButton(e);
     }
 
+    /** 프로그램이 고른 선택(빠른 속성 창을 띄우지 않는다). 사용자가 캔버스를 누르면 지운다. */
+    private static final java.util.Map<Project, java.util.Set<Component>> QUIET = new java.util.WeakHashMap<>();
+
+    /**
+     * 곧 고를 부품들을 "조용한 선택"으로 표시한다(2c 검토 반영: Messages에서 눌러 고른 원인 부품에는 빠른 속성 창을
+     * 띄우지 않는다). 선택이 이 집합과 같은 동안 창을 숨긴다.
+     */
+    public static synchronized void markQuiet(Project proj, java.util.Collection<? extends Component> comps) {
+        QUIET.put(proj, new java.util.HashSet<>(comps));
+    }
+
+    static synchronized void clearQuiet(Project proj) {
+        QUIET.remove(proj);
+    }
+
+    /** 지금 선택이 조용한 선택인가. */
+    public static synchronized boolean isQuiet(Project proj, java.util.Collection<? extends Component> selection) {
+        java.util.Set<Component> q = QUIET.get(proj);
+        return q != null && !selection.isEmpty() && q.equals(new java.util.HashSet<>(selection));
+    }
+
     @Override
     public void selectionChanged(Selection.Event event) {
         SwingUtilities.invokeLater(this::refresh);
@@ -137,6 +159,7 @@ public final class QuickBar implements Selection.Listener, ProjectListener {
         Project proj = canvas.getProject();
         List<Component> now = QuickAttrs.targets(canvas.getSelection().getComponents());
         if (pressed || now.isEmpty() || !editing() || !AttrDock.quickBarShown() || proj.getFrame() != frame
+                || isQuiet(proj, canvas.getSelection().getComponents())
                 || !proj.getLogisimFile().contains(canvas.getCircuit())) {
             targets = now;
             bar.setVisible(false);

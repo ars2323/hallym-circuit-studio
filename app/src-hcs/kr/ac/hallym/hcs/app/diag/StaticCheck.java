@@ -96,7 +96,7 @@ public final class StaticCheck {
         List<Diagnostic> ret = new ArrayList<>();
         Map<Circuit, boolean[][]> summaries = new IdentityHashMap<>();
         for (Circuit c : file.getCircuits()) {
-            ret.addAll(new One(c, summaries).run());
+            ret.addAll(new One(c, summaries, gateUndefinedIsError(file)).run());
         }
         ret.addAll(memoryOverlaps(file));
         return ret;
@@ -161,9 +161,15 @@ public final class StaticCheck {
         return null;
     }
 
-    /** 회로 하나. */
+    /** 프로젝트 옵션(Project › Options › Simulation "Gate Output When Undefined")이 error인가. 기본은 ignore. */
+    static boolean gateUndefinedIsError(LogisimFile file) {
+        return file.getOptions() != null && com.cburch.logisim.file.Options.GATE_UNDEFINED_ERROR.equals(
+                file.getOptions().getAttributeSet().getValue(com.cburch.logisim.file.Options.ATTR_GATE_UNDEFINED));
+    }
+
+    /** 회로 하나(옵션은 기본 ignore로 본다). */
     public static List<Diagnostic> run(Circuit circuit) {
-        return new One(circuit, new IdentityHashMap<>()).run();
+        return new One(circuit, new IdentityHashMap<>(), false).run();
     }
 
     /** 한 회로의 검사. */
@@ -171,6 +177,8 @@ public final class StaticCheck {
         final Circuit circuit;
         final Netlist nl;
         final Map<Circuit, boolean[][]> summaries;
+        /** 프로젝트 옵션 gateUndefined = error: 게이트의 빈 입력이 출력을 E로 만든다(검토 반영, D-052). */
+        final boolean gateError;
         /** 넷 id → 첫 비트 마디 번호. */
         final int[] base;
         final int[] parent;
@@ -180,9 +188,10 @@ public final class StaticCheck {
         /** 이미 말한 포트(원인 한 곳만). */
         final Set<Netlist.PortRef> told = new HashSet<>();
 
-        One(Circuit circuit, Map<Circuit, boolean[][]> summaries) {
+        One(Circuit circuit, Map<Circuit, boolean[][]> summaries, boolean gateError) {
             this.circuit = circuit;
             this.summaries = summaries;
+            this.gateError = gateError;
             this.nl = Netlist.of(circuit);
             base = new int[nl.nets().size() + 1];
             for (Netlist.Net n : nl.nets()) {
@@ -500,6 +509,10 @@ public final class StaticCheck {
 
         /** 입력이 하나도 없는데 출력은 쓰이는 게이트(쓰지 않는 입력은 원조가 무시하므로 알리지 않는다). */
         void gate(Component c) {
+            if (gateError) {
+                gateAllInputs(c);
+                return;
+            }
             boolean any = false;
             int first = -1;
             for (int i = 0; i < c.getEnds().size(); i++) {
@@ -520,6 +533,31 @@ public final class StaticCheck {
             if (!inLoneTunnelNet(p) && told.add(p)) {
                 add(Diagnostic.Kind.INPUT_UNCONNECTED, Collections.singletonList(c), Collections.emptyList(),
                         p.location(), name(c), Kinds.portName(c, first));
+            }
+        }
+
+        /**
+         * gateUndefined = error: 원조는 게이트의 빈 입력 하나만 있어도 출력을 E로 낸다. 그래서 출력이 쓰이는 게이트의 빈
+         * 입력을 모두 한 메시지로 알린다(원인 한 곳 = 그 게이트).
+         */
+        void gateAllInputs(Component c) {
+            Netlist.Net outNet = nl.netOf(c, 0);
+            if (outNet == null || outNet.ports().size() < 2 && outNet.wires().isEmpty()) {
+                return; // 놓아만 둔 게이트
+            }
+            List<String> ports = new ArrayList<>();
+            Location at = null;
+            for (int i = 0; i < c.getEnds().size(); i++) {
+                EndData d = c.getEnd(i);
+                Netlist.PortRef p = new Netlist.PortRef(c, i);
+                if (d.isInput() && !d.isOutput() && undriven(p) && !inLoneTunnelNet(p) && told.add(p)) {
+                    ports.add(Kinds.portName(c, i));
+                    at = at == null ? p.location() : at;
+                }
+            }
+            if (!ports.isEmpty()) {
+                add(Diagnostic.Kind.INPUT_UNCONNECTED, Collections.singletonList(c), Collections.emptyList(), at,
+                        name(c), String.join(", ", ports));
             }
         }
 
@@ -652,7 +690,7 @@ public final class StaticCheck {
             boolean[][] pins = summaries.get(sub);
             if (pins == null) {
                 summaries.put(sub, new boolean[0][0]); // 순환 참조 방어
-                pins = new One(sub, summaries).reach();
+                pins = new One(sub, summaries, false).reach();
                 summaries.put(sub, pins);
             }
             // 인스턴스 끝 순서 = 모양의 포트 순서(Kinds.subcircuitPort와 같다)

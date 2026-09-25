@@ -125,6 +125,8 @@ public final class Diagnostics {
         if (proj.getCurrentCircuit() != d.circuit) {
             proj.setCurrentCircuit(d.circuit);
         }
+        // 프로그램이 고른 선택: 빠른 속성 창을 띄우지 않는다(2c 검토 반영). 사용자가 캔버스를 누르면 풀린다
+        kr.ac.hallym.hcs.app.props.QuickBar.markQuiet(proj, d.components);
         Selection sel = proj.getSelection(); // 창이 있을 때만 있다
         if (sel != null) {
             proj.doAction(SelectionActions.dropAll(sel));

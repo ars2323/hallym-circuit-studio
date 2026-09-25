@@ -336,4 +336,51 @@ class StaticCheckTest {
         gb.commit();
         one(only(g), Diagnostic.Kind.MEMORY_OVERLAP, "main › DMem #1", "main › Stack #1", "7ff80000-7fffffff");
     }
+
+    // ---- 게이트 빈 입력과 프로젝트 옵션 gateUndefined(2c 검토 반영) ----
+
+    /** 5입력 AND에 in0·in1만 잇고 출력은 핀으로. */
+    LogisimFile fiveInputAnd() throws Exception {
+        LogisimFile f = fresh();
+        CircuitBuilder b = new CircuitBuilder(f, f.getMainCircuit());
+        Component and = b.add("Gates", "AND Gate", 300, 200, "inputs", "5");
+        b.input("a", 1, 100, 100);
+        b.input("b", 1, 100, 150);
+        b.output("y", 1, 500, 100);
+        b.tunnel(and, 1, "a");
+        b.tunnel(and, 2, "b");
+        b.tunnel(and, 0, "y");
+        b.commit();
+        return f;
+    }
+
+    @Test
+    void emptyGateInputsAreQuietWhenIgnored() throws Exception {
+        LogisimFile f = fiveInputAnd();
+        assertEquals(com.cburch.logisim.file.Options.GATE_UNDEFINED_IGNORE, f.getOptions().getAttributeSet()
+                .getValue(com.cburch.logisim.file.Options.ATTR_GATE_UNDEFINED), "2.7.1 default");
+        assertEquals(new ArrayList<Diagnostic>(), only(f));
+    }
+
+    @Test
+    void emptyGateInputsAreReportedWhenError() throws Exception {
+        LogisimFile f = fiveInputAnd();
+        f.getOptions().getAttributeSet().setValue(com.cburch.logisim.file.Options.ATTR_GATE_UNDEFINED,
+                com.cburch.logisim.file.Options.GATE_UNDEFINED_ERROR);
+        one(only(f), Diagnostic.Kind.INPUT_UNCONNECTED, "main › AND #1", "in2, in3, in4");
+    }
+
+    /** 옵션이 error로 저장된 .circ(rules_test_v2처럼)를 다시 열어도 같다. */
+    @Test
+    void savedErrorOptionIsRead() throws Exception {
+        LogisimFile f = fiveInputAnd();
+        f.getOptions().getAttributeSet().setValue(com.cburch.logisim.file.Options.ATTR_GATE_UNDEFINED,
+                com.cburch.logisim.file.Options.GATE_UNDEFINED_ERROR);
+        File out = tmp.resolve("rules_error.circ").toFile();
+        CircuitBuilder.save(f, out);
+        assertTrue(new String(Files.readAllBytes(out.toPath()), java.nio.charset.StandardCharsets.UTF_8)
+                .contains("<a name=\"gateUndefined\" val=\"error\"/>"));
+        one(only(new Loader(null).openLogisimFile(out)), Diagnostic.Kind.INPUT_UNCONNECTED, "main › AND #1",
+                "in2, in3, in4");
+    }
 }

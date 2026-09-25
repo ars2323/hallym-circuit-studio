@@ -247,4 +247,22 @@ class QuickAttrsTest {
         assertTrue(zoomed.get(0).contains(new java.awt.Rectangle(920 - QuickBar.WIRE_MARGIN, 640 - QuickBar.WIRE_MARGIN,
                 480 + 2 * QuickBar.WIRE_MARGIN, 2 * QuickBar.WIRE_MARGIN)), zoomed.toString());
     }
+
+    /** 2c 검토 반영: 프로그램이 고른 선택(Messages에서 누름)에는 창을 띄우지 않고, 사용자가 누르면 다시 띄운다. */
+    @Test
+    void quietSelectionHidesTheBarUntilTheUserClicks() throws Exception {
+        LogisimFile file = CircuitBuilder.newFile(new Loader(null), tmp.toFile());
+        CircuitBuilder b = new CircuitBuilder(file, file.getMainCircuit());
+        Component reg = b.add("Memory", "Register", 300, 200);
+        Component other = b.add("Memory", "Register", 500, 200);
+        b.commit();
+        com.cburch.logisim.proj.Project proj = new com.cburch.logisim.proj.Project(file);
+        java.util.List<Component> sel = java.util.Collections.singletonList(reg);
+        assertFalse(QuickBar.isQuiet(proj, sel));
+        QuickBar.markQuiet(proj, sel);
+        assertTrue(QuickBar.isQuiet(proj, sel));
+        assertFalse(QuickBar.isQuiet(proj, java.util.Collections.singletonList(other)), "a different selection");
+        QuickBar.clearQuiet(proj); // 캔버스를 누르면
+        assertFalse(QuickBar.isQuiet(proj, sel));
+    }
 }
