@@ -65,6 +65,9 @@ public final class Shortcuts {
         TABLE.put("F", "keys.zoomSel");
         TABLE.put("Space+Drag", "keys.pan");
         TABLE.put("Ctrl+2 … Ctrl+9", "keys.tools");
+        TABLE.put("I / Shift+I", "keys.influence");
+        TABLE.put("[ / ]", "keys.influenceDepth");
+        TABLE.put("Esc", "keys.influenceClear");
         TABLE.put("Ctrl+F", "keys.find");
         TABLE.put("Ctrl+K", "keys.palette");
         TABLE.put("?", "keys.help");
@@ -111,6 +114,35 @@ public final class Shortcuts {
             return mods == 0 && nudge(sel, 0, -10);
         case KeyEvent.VK_DOWN:
             return mods == 0 && nudge(sel, 0, 10);
+        case KeyEvent.VK_I:
+            // 영향 경로(P-01): I 앞, Shift+I 뒤
+            if ((mods & ~KeyEvent.SHIFT_DOWN_MASK) == 0 && !sel.isEmpty()) {
+                kr.ac.hallym.hcs.app.influence.InfluenceOverlay.of(canvas.getProject()).show(canvas.getCircuit(),
+                        new ArrayList<>(sel.getComponents()), (mods & KeyEvent.SHIFT_DOWN_MASK) == 0
+                                ? kr.ac.hallym.hcs.app.model.Influence.Mode.FORWARD
+                                : kr.ac.hallym.hcs.app.model.Influence.Mode.BACKWARD);
+                return true;
+            }
+            return false;
+        case KeyEvent.VK_OPEN_BRACKET:
+        case KeyEvent.VK_CLOSE_BRACKET: {
+            kr.ac.hallym.hcs.app.influence.InfluenceOverlay o =
+                    kr.ac.hallym.hcs.app.influence.InfluenceOverlay.of(canvas.getProject());
+            if (mods == 0 && o.active()) {
+                o.widen(e.getKeyCode() == KeyEvent.VK_CLOSE_BRACKET ? 1 : -1);
+                return true;
+            }
+            return false;
+        }
+        case KeyEvent.VK_ESCAPE: {
+            kr.ac.hallym.hcs.app.influence.InfluenceOverlay o =
+                    kr.ac.hallym.hcs.app.influence.InfluenceOverlay.of(canvas.getProject());
+            if (o.active()) {
+                o.clear();
+                return true; // 영향 경로만 지운다(선택은 다음 Esc에서 원조대로)
+            }
+            return false;
+        }
         case KeyEvent.VK_R:
             if ((mods & ~KeyEvent.SHIFT_DOWN_MASK) == 0 && !sel.isEmpty()) {
                 rotate(sel.getComponents(), (mods & KeyEvent.SHIFT_DOWN_MASK) == 0);

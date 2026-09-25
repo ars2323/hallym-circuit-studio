@@ -241,6 +241,46 @@ public final class WireMarks {
         }
     }
 
+    /**
+     * 선 wires에 닿은 연결점·점프만 다시 그린다(영향 경로가 나머지를 흐리게 한 뒤, 강조한 선 위의 표시를 선명하게).
+     */
+    public static void paintAt(Graphics2D g0, Circuit circuit, CircuitState state, java.util.Collection<Wire> wires,
+            double z) {
+        if (wires.isEmpty()) {
+            return;
+        }
+        Graphics2D g = (Graphics2D) g0.create();
+        try {
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            Colors colors = new Colors(circuit, state);
+            List<List<Location>> marks = cached(circuit);
+            float r = jumpRadius(z);
+            for (Location p : r <= 0 ? java.util.Collections.<Location>emptyList() : marks.get(1)) {
+                if (onAny(p, wires)) {
+                    jump(g, p, r, colors.at(p, true), colors.at(p, false));
+                }
+            }
+            float d = dotDiameter(z);
+            for (Location p : marks.get(0)) {
+                if (onAny(p, wires)) {
+                    g.setColor(colors.at(p, null));
+                    g.fill(new Ellipse2D.Float(p.getX() - d / 2, p.getY() - d / 2, d, d));
+                }
+            }
+        } finally {
+            g.dispose();
+        }
+    }
+
+    private static boolean onAny(Location p, java.util.Collection<Wire> wires) {
+        for (Wire w : wires) {
+            if (w.contains(p)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** [연결점, 점프]. 선과 포트 자리의 모양이 같으면 지난 값. */
     static List<List<Location>> cached(Circuit circuit) {
         List<Object> key = new ArrayList<>();

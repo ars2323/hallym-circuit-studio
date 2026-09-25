@@ -206,6 +206,9 @@ public final class Shots {
             junctionsAndJumps(demo, "");
             netHighlight(demo);
         }
+        if (want(scenes, "17")) {
+            influence(demo);
+        }
         if (want(scenes, "14")) {
             messages(demo);
             gateUndefined(demo);
@@ -292,6 +295,61 @@ public final class Shots {
         snapLogical(p, area, "16c-net-highlight");
         edt(() -> kr.ac.hallym.hcs.app.wiring.WireMarks.clearHighlight(c));
         edt(() -> canvas(p).repaint());
+    }
+
+    /**
+     * 17: 영향 경로(P-01). regfile에서 앞으로(alu 안 칩, Data Memory에서 멈춤), 한 단계로 좁힘, Data Memory에서
+     * 뒤로, Through Registers, alu 안으로 들어가 본 모습, regfile과 Data Memory 사이 경로.
+     */
+    void influence(Project p) throws Exception {
+        activate(p);
+        edt(() -> p.doAction(com.cburch.logisim.gui.main.SelectionActions.dropAll(p.getSelection())));
+        Circuit c = p.getCurrentCircuit();
+        com.cburch.logisim.comp.Component reg = firstSub(c, "regfile");
+        com.cburch.logisim.comp.Component alu = firstSub(c, "alu");
+        com.cburch.logisim.comp.Component dm = byFactory(c, "Data Memory");
+        com.cburch.logisim.comp.Component pc = byLabel(c, "PC");
+        if (reg == null || alu == null || dm == null || pc == null) {
+            log.add("17: parts not found");
+            return;
+        }
+        kr.ac.hallym.hcs.app.influence.InfluenceOverlay o = kr.ac.hallym.hcs.app.influence.InfluenceOverlay.of(p);
+        setZoom(p, 1.0);
+        Bounds area = Bounds.create(560, 100, 820, 380);
+        centerOn(p, area);
+        edt(() -> o.show(c, java.util.List.of(reg), kr.ac.hallym.hcs.app.model.Influence.Mode.FORWARD));
+        sleep(600);
+        snapLogical(p, area, "17a-forward-regfile");
+        edt(() -> o.widen(-100));
+        sleep(600);
+        snapLogical(p, area, "17b-forward-one-step");
+        edt(() -> o.show(c, java.util.List.of(dm), kr.ac.hallym.hcs.app.model.Influence.Mode.BACKWARD));
+        sleep(600);
+        Bounds wide = Bounds.create(100, 60, 1300, 420);
+        setZoom(p, 0.8);
+        centerOn(p, wide);
+        snapLogical(p, wide, "17c-backward-dmem");
+        edt(() -> o.setThrough(true));
+        edt(() -> o.show(c, java.util.List.of(pc), kr.ac.hallym.hcs.app.model.Influence.Mode.FORWARD));
+        sleep(600);
+        snapLogical(p, wide, "17d-through-registers-pc");
+        edt(() -> o.setThrough(false));
+        edt(() -> o.between(c, reg, dm));
+        sleep(600);
+        snapLogical(p, wide, "17e-between-regfile-dmem");
+        // alu 안으로: 같은 강조가 이어진다
+        edt(() -> o.show(c, java.util.List.of(reg), kr.ac.hallym.hcs.app.model.Influence.Mode.FORWARD));
+        Circuit aluCircuit = ((com.cburch.logisim.circuit.SubcircuitFactory) alu.getFactory()).getSubcircuit();
+        edt(() -> p.setCurrentCircuit(aluCircuit));
+        sleep(800);
+        setZoom(p, 1.0);
+        Bounds ab = aluCircuit.getBounds().expand(30);
+        centerOn(p, ab);
+        snapLogical(p, ab, "17f-inside-alu");
+        edt(() -> p.setCurrentCircuit(c));
+        edt(o::clear);
+        sleep(600);
+        setZoom(p, 1.0);
     }
 
     static com.cburch.logisim.comp.Component firstSub(Circuit c, String name) {
