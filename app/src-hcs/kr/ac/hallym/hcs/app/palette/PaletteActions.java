@@ -46,6 +46,46 @@ public final class PaletteActions {
         return m;
     }
 
+    /**
+     * "Open Files" 항목: 그 파일을 라이브러리로 불러오고(이미 있으면 그대로, 순환이면 막고 알림) 그 회로의 도구.
+     * 불러오기는 되돌리기 한 번(원조 Load Library 동작)이다.
+     */
+    public static AddTool openFileTool(Project proj, Palette.Item item) {
+        java.io.File file = new java.io.File(item.command);
+        kr.ac.hallym.hcs.app.libs.OpenFileLibraries.Result r =
+                kr.ac.hallym.hcs.app.libs.OpenFileLibraries.ensureLoaded(proj, file);
+        if (r.library == null) {
+            if ("circular".equals(r.refused)) {
+                kr.ac.hallym.hcs.app.sim.SimControls.notice(proj, Messages.get("libs.circular"));
+            }
+            return null;
+        }
+        return kr.ac.hallym.hcs.app.libs.OpenFileLibraries.toolFor(r.library, item.name);
+    }
+
+    /**
+     * 다른 탭의 파일을 캔버스에 떨어뜨렸다: 그 파일을 라이브러리로 불러오고 회로 circuit을 at에 놓는다(P-03).
+     * 막히면(자기 자신, 순환, 저장 안 한 파일) 알림만 하고 false.
+     */
+    public static boolean dropFile(Project proj, java.io.File file, String circuit, Location at) {
+        Palette.Item it = new Palette.Item(Palette.Kind.OPEN_FILE, circuit, null, null, file.getPath(),
+                java.util.Collections.<String, String>emptyMap(), 0);
+        AddTool t = openFileTool(proj, it);
+        if (t == null) {
+            return false;
+        }
+        placeFactory(proj, t.getFactory(), at, circuit);
+        return true;
+    }
+
+    /** 부품 하나를 at(격자에 맞춤)에 놓는다. */
+    public static void placeFactory(Project proj, ComponentFactory f, Location at, String name) {
+        Location snapped = Location.create(Math.round(at.getX() / 10f) * 10, Math.round(at.getY() / 10f) * 10);
+        CircuitMutation m = new CircuitMutation(proj.getCurrentCircuit());
+        m.add(f.createComponent(snapped, f.createAttributeSet()));
+        proj.doAction(m.toAction(() -> Messages.get("palette.placeAction", name)));
+    }
+
     static ComponentFactory factory(Palette.Item item) {
         if (item.kind == Palette.Kind.SUBCIRCUIT) {
             return item.circuit.getSubcircuitFactory();
@@ -57,6 +97,13 @@ public final class PaletteActions {
     public static void run(Project proj, Palette.Item item, Location at) {
         if (item.kind == Palette.Kind.COMMAND) {
             command(proj, item.command);
+            return;
+        }
+        if (item.kind == Palette.Kind.OPEN_FILE) {
+            AddTool t = openFileTool(proj, item);
+            if (t != null) {
+                placeFactory(proj, t.getFactory(), at, Palette.displayName(item));
+            }
             return;
         }
         Circuit c = proj.getCurrentCircuit();

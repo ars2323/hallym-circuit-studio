@@ -377,6 +377,12 @@ public final class EditMenus implements ContextMenus.Provider {
         }, sub.getName()));
         menu.add(item("menu.autoAppearance", () -> kr.ac.hallym.hcs.app.appear.AutoAppearance.run(t.project, sub,
                 t.canvas)));
+        // 다른 파일(라이브러리)의 회로면 원본 파일 탭으로 간다(P-03)
+        java.io.File origin = kr.ac.hallym.hcs.app.libs.LibrarySync.originFile(t.project, sub);
+        if (origin != null) {
+            menu.add(item("menu.editOriginal", () -> kr.ac.hallym.hcs.app.libs.LibrarySync.editOriginal(t.project,
+                    origin, sub.getName()), origin.getName()));
+        }
     }
 
     // --- 터널 ---

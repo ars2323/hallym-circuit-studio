@@ -29,7 +29,8 @@ import kr.ac.hallym.hcs.app.model.Kinds;
  * 한 번 등)도 같은 목록에 있다. GUI 없이 테스트한다.
  */
 public final class Palette {
-    public enum Kind { COMPONENT, SUBCIRCUIT, COMMAND }
+    /** OPEN_FILE: 다른 탭에 열린 .circ의 회로(고르면 Load Library를 자동으로 한다, P-03). */
+    public enum Kind { COMPONENT, SUBCIRCUIT, COMMAND, OPEN_FILE }
 
     /** 목록 한 줄. */
     public static final class Item {
@@ -237,6 +238,13 @@ public final class Palette {
      */
     public static List<Item> search(String query, List<Library> libraries, List<Circuit> subcircuits,
             List<String> recent, List<String> favorites) {
+        return search(query, libraries, subcircuits, recent, favorites, Collections.emptyList());
+    }
+
+    /** openFiles: 다른 열린 파일의 회로("Open Files" 묶음). 항목의 command는 그 파일 경로다. */
+    public static List<Item> search(String query, List<Library> libraries, List<Circuit> subcircuits,
+            List<String> recent, List<String> favorites,
+            List<kr.ac.hallym.hcs.app.libs.OpenFileLibraries.OpenCircuit> openFiles) {
         String[] parts = split(query);
         String q = parts[0].toLowerCase(Locale.ROOT).replace(" ", "");
         List<Item> ret = new ArrayList<>();
@@ -270,6 +278,16 @@ public final class Palette {
             if (s > 0) {
                 ret.add(new Item(Kind.SUBCIRCUIT, c.getName(), null, c, null, Collections.<String, String>emptyMap(),
                         s + 15));
+            }
+        }
+        for (kr.ac.hallym.hcs.app.libs.OpenFileLibraries.OpenCircuit oc : openFiles) {
+            List<String> names = new ArrayList<>();
+            names.add(oc.circuit.getName().replace(" ", ""));
+            names.add(oc.fileName().replace(" ", ""));
+            int s = match(q, names);
+            if (s > 0) {
+                ret.add(new Item(Kind.OPEN_FILE, oc.circuit.getName(), null, oc.circuit, oc.file.getPath(),
+                        Collections.<String, String>emptyMap(), s + 10));
             }
         }
         for (Map.Entry<String, List<String>> e : COMMANDS.entrySet()) {

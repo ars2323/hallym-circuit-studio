@@ -254,6 +254,7 @@ public class Frame extends LFrame implements LocaleListener {
 		kr.ac.hallym.hcs.app.dnd.DropOpen.install(this, layoutCanvas);
 		// HCS: context menus follow the order in which things were selected (#105)
 		kr.ac.hallym.hcs.app.menu.ContextMenus.install(this);
+		kr.ac.hallym.hcs.app.libs.LibrarySync.install(this); // HCS: P-03 library changed or moved since last save
 		kr.ac.hallym.hcs.app.probe.ProbeMenu.installKey(layoutCanvas); // HCS: P puts a probe on a wire (#75)
 		kr.ac.hallym.hcs.app.keys.Shortcuts hcsKeys = new kr.ac.hallym.hcs.app.keys.Shortcuts(layoutCanvas); // HCS: #78
 		layoutCanvas.setHcsKeys(hcsKeys); // HCS: #78

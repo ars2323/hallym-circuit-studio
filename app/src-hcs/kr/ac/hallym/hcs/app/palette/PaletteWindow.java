@@ -128,6 +128,9 @@ public final class PaletteWindow extends JWindow {
 
     static String label(Palette.Item it) {
         String kind = Messages.get("palette.kind." + it.kind.name());
+        if (it.kind == Palette.Kind.OPEN_FILE) {
+            kind = Messages.get("palette.openFiles") + " · " + new java.io.File(it.command).getName();
+        }
         String name = it.kind == Palette.Kind.COMMAND ? Messages.get("palette.cmd." + it.command)
                 : Palette.displayName(it);
         String attrs = Palette.attrText(it);
@@ -143,7 +146,7 @@ public final class PaletteWindow extends JWindow {
         subs.remove(proj.getCurrentCircuit());
         model.clear();
         for (Palette.Item it : Palette.search(field.getText(), libs, subs, PaletteActions.recent(),
-                PaletteActions.favorites())) {
+                PaletteActions.favorites(), kr.ac.hallym.hcs.app.libs.OpenFileLibraries.candidates(proj))) {
             model.addElement(it);
         }
         if (!model.isEmpty()) {
