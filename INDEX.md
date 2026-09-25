@@ -2,6 +2,12 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-26 왼쪽 칸 아래 탭(S-11) 재촬영
+
+- 기준: feat/left-panel-tabs `510f407`
+- 관련 이슈: S-11 (PR #256)
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-s11-left-panel-tabs-2/README.md
+
 ## 2026-09-26 핀과 같은 이름의 터널(S-12) 재촬영 2
 
 - 기준: fix/pin-tunnel-label `7097f40`
