@@ -347,4 +347,105 @@ class LabelsTest {
         }
         return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
     }
+
+    /** S-01: 칩 밑을 지나는 선은 칩 위에 다시 그린다(이어진 선이 끊겨 보이지 않게). */
+    @Test
+    void wiresUnderChipsAreDrawnAgainOnTop() throws Exception {
+        LogisimFile f = CircuitBuilder.newFile(new Loader(null), tmp.toFile());
+        CircuitBuilder b = new CircuitBuilder(f, f.getMainCircuit());
+        b.wire(com.cburch.logisim.data.Location.create(100, 20), com.cburch.logisim.data.Location.create(100, 180));
+        b.commit();
+        com.cburch.logisim.proj.Project proj = new com.cburch.logisim.proj.Project(f);
+        proj.getSimulator().setIsRunning(false);
+        java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(200, 200,
+                java.awt.image.BufferedImage.TYPE_INT_RGB);
+        java.awt.Graphics2D g = img.createGraphics();
+        g.setColor(java.awt.Color.WHITE);
+        g.fillRect(0, 0, 200, 200);
+        g.setColor(java.awt.Color.WHITE); // 칩 흰 바탕이 선을 덮은 상태
+        java.awt.Rectangle chip = new java.awt.Rectangle(80, 80, 40, 20);
+        g.fill(chip);
+        assertEquals(0xFFFFFF, img.getRGB(100, 90) & 0xFFFFFF, "covered");
+        LabelOverlay.redrawWires(g, new com.cburch.logisim.gui.main.Canvas(proj), f.getMainCircuit(),
+                proj.getCircuitState(), java.util.List.of(chip));
+        g.dispose();
+        assertTrue((img.getRGB(100, 90) & 0xFFFFFF) != 0xFFFFFF, "the wire shows again inside the chip");
+        assertEquals(0xFFFFFF, img.getRGB(100, 40) & 0xFFFFFF, "only inside the chip area");
+    }
+
+    /** S-02: 팔 라벨은 막대 반대쪽이 비어 있으면 그쪽에 둔다(팔 선·이어진 선과 겹치지 않는다). */
+    @Test
+    void armLabelsGoToTheFreeSideAwayFromTheArmWires() throws Exception {
+        LogisimFile f = CircuitBuilder.newFile(new Loader(null), tmp.toFile());
+        CircuitBuilder b = new CircuitBuilder(f, f.getMainCircuit());
+        Component s = b.add("Wiring", "Splitter", 300, 200, "incoming", "8", "fanout", "2");
+        for (int i = 1; i < s.getEnds().size(); i++) {
+            com.cburch.logisim.data.Location e = s.getEnd(i).getLocation();
+            b.wire(e, e.translate(60, 0));
+        }
+        b.commit();
+        java.awt.FontMetrics fm = new java.awt.image.BufferedImage(1, 1, java.awt.image.BufferedImage.TYPE_INT_RGB)
+                .getGraphics().getFontMetrics(new java.awt.Font(kr.ac.hallym.hcs.app.theme.Tokens.UI_FONT,
+                        java.awt.Font.BOLD, 9));
+        java.util.List<LabelOverlay.ArmLabel> arms = LabelOverlay.armLabels(f, f.getMainCircuit(), s);
+        assertTrue(LabelOverlay.oppositeSideFree(f.getMainCircuit(), s, arms, fm));
+        for (LabelOverlay.ArmLabel a : arms) {
+            java.awt.Rectangle r = LabelOverlay.armRect(s, a, fm, true);
+            assertTrue(r.x + r.width <= s.getBounds().getX(), "left of the splitter: " + r);
+            for (com.cburch.logisim.circuit.Wire w : f.getMainCircuit().getWires()) {
+                com.cburch.logisim.data.Bounds wb = w.getBounds();
+                assertFalse(r.intersects(wb.getX(), wb.getY(), Math.max(1, wb.getWidth()), Math.max(1, wb.getHeight())),
+                        "label " + r + " clear of " + w);
+            }
+        }
+        // 막대 왼쪽에 선이 지나면 원래 자리(팔 끝 옆)
+        CircuitBuilder b2 = new CircuitBuilder(f, f.getMainCircuit());
+        com.cburch.logisim.data.Bounds sb = s.getBounds();
+        b2.wire(com.cburch.logisim.data.Location.create(sb.getX() - 10, sb.getY() - 20),
+                com.cburch.logisim.data.Location.create(sb.getX() - 10, sb.getY() + sb.getHeight() + 20));
+        b2.commit();
+        java.util.List<String> dbg = new java.util.ArrayList<>();
+        for (LabelOverlay.ArmLabel a : arms) {
+            dbg.add(LabelOverlay.armRect(s, a, fm, true).toString());
+        }
+        assertFalse(LabelOverlay.oppositeSideFree(f.getMainCircuit(), s, arms, fm), dbg + " " + sb + " "
+                + f.getMainCircuit().getWires());
+    }
+
+    /** S-05: 데모 회로의 라벨 칩은 선 위에 놓이지 않는다(출력 핀 "Zero" 칩이 옆 세로선을 덮던 것). */
+    @Test
+    void demoChipsStayOffWires() throws Exception {
+        java.nio.file.Path dir = java.nio.file.Files.createTempDirectory(tmp, "demo");
+        java.nio.file.Files.copy(new java.io.File(System.getProperty("hcs.mipsJar")).toPath(),
+                dir.resolve("hcs-mips.jar"));
+        java.nio.file.Path circ = dir.resolve("demo-datapath.circ");
+        java.nio.file.Files.copy(new java.io.File(System.getProperty("hcs.circDir"), "demo-datapath.circ").toPath(),
+                circ);
+        LogisimFile f = new Loader(null).openLogisimFile(circ.toFile());
+        com.cburch.logisim.proj.Project proj = new com.cburch.logisim.proj.Project(f);
+        proj.getSimulator().setIsRunning(false);
+        com.cburch.logisim.gui.main.Canvas canvas = new com.cburch.logisim.gui.main.Canvas(proj);
+        java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(1800, 1000,
+                java.awt.image.BufferedImage.TYPE_INT_RGB);
+        java.awt.Graphics2D g = img.createGraphics();
+        // CanvasPainter와 같은 순서: 라벨을 거두는 Graphics로 회로를 그린 뒤 덧그림
+        java.util.Set<Component> none = java.util.Collections.emptySet();
+        java.awt.Graphics hcsG = LabelOverlay.wrap(canvas, g, f.getMainCircuit(), none);
+        f.getMainCircuit().draw(new com.cburch.logisim.comp.ComponentDrawContext(canvas, f.getMainCircuit(),
+                proj.getCircuitState(), g, hcsG), none);
+        LabelOverlay.paint(canvas, g, f.getMainCircuit(), proj.getCircuitState(), none);
+        g.dispose();
+        java.util.List<java.awt.Rectangle> chips = LabelOverlay.chipRects(canvas);
+        assertEquals(9, chips.size(), "chips"); // 제어 핀 5, PC, halt, Zero, 버스 이름 pc[31:0]
+        java.util.List<String> over = new java.util.ArrayList<>();
+        for (java.awt.Rectangle r : chips) {
+            for (com.cburch.logisim.circuit.Wire w : f.getMainCircuit().getWires()) {
+                com.cburch.logisim.data.Bounds b = w.getBounds();
+                if (r.intersects(b.getX(), b.getY(), Math.max(1, b.getWidth()), Math.max(1, b.getHeight()))) {
+                    over.add(r + " / " + w);
+                }
+            }
+        }
+        assertEquals(new java.util.ArrayList<String>(), over);
+    }
 }
