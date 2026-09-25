@@ -71,8 +71,8 @@ public final class ProbeMenu implements ContextMenus.Provider {
             return;
         }
         String label = QuickProbe.netName(c, Netlist.of(c).netOf(w));
-        proj.doAction(QuickProbe.place(proj.getLogisimFile(), c, pl, radix, label)
-                .toAction(() -> Messages.get("probe.attachAction")));
+        kr.ac.hallym.hcs.app.wiring.WireGuard.run(proj, c, QuickProbe.place(proj.getLogisimFile(), c, pl, radix,
+                label), java.util.Collections.singletonList(pl.p), () -> Messages.get("probe.attachAction"));
     }
 
     /** 캔버스에서 P: 포인터 아래 선에 프로브. */

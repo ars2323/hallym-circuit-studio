@@ -94,7 +94,7 @@ public class LayoutEditHandler extends EditHandler
 	public void duplicate() {
 		Project proj = frame.getProject();
 		Selection sel = frame.getCanvas().getSelection();
-		proj.doAction(SelectionActions.duplicate(sel));
+		kr.ac.hallym.hcs.app.wiring.SafeDuplicate.run(proj, sel); // HCS: W-05 사본이 옛 선에 닿지 않게
 	}
 
 	@Override

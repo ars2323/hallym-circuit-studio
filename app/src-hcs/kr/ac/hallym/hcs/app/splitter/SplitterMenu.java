@@ -26,6 +26,7 @@ import kr.ac.hallym.hcs.app.Messages;
 import kr.ac.hallym.hcs.app.menu.ContextMenus;
 import kr.ac.hallym.hcs.app.model.Names;
 import kr.ac.hallym.hcs.app.model.Netlist;
+import kr.ac.hallym.hcs.app.wiring.WireGuard;
 
 /**
  * 스플리터 우클릭 항목(#105): 스플리터 "스플리터 편집…", 여러 비트 선 "비트 나누기…"와 "비트 하나 뽑기 [n]",
@@ -116,7 +117,8 @@ public final class SplitterMenu implements ContextMenus.Provider {
     static void extract(Project proj, Circuit circuit, Location at, int width, int bit) {
         SplitterSpec spec = SplitterSpec.extract(width, bit);
         CircuitMutation m = SplitterEdits.create(proj.getLogisimFile(), circuit, at, Direction.EAST, spec);
-        proj.doAction(m.toAction(() -> Messages.get("splitter.extractAction", bit)));
+        WireGuard.run(proj, circuit, m, java.util.Collections.singletonList(at),
+                () -> Messages.get("splitter.extractAction", bit));
     }
 
     /** 고른 순서대로 한 버스로. 새 스플리터는 고른 선들 오른쪽에 두고(팔이 왼쪽), 연결은 학생이 한다. */
@@ -137,6 +139,8 @@ public final class SplitterMenu implements ContextMenus.Provider {
         int y = (box.getY() + box.getHeight() / 2) / 10 * 10;
         Location at = Location.create(x, y);
         CircuitMutation m = SplitterEdits.create(proj.getLogisimFile(), circuit, at, Direction.WEST, spec);
-        proj.doAction(m.toAction(() -> Messages.get("splitter.combineAction")));
+        // 연결은 학생이 한다: 새 스플리터는 어디에도 닿지 않아야 한다
+        WireGuard.run(proj, circuit, m, java.util.Collections.emptyList(),
+                () -> Messages.get("splitter.combineAction"));
     }
 }

@@ -36,6 +36,8 @@ import kr.ac.hallym.hcs.app.edit.CircuitEdits;
 import kr.ac.hallym.hcs.app.model.Kinds;
 import kr.ac.hallym.hcs.app.model.Names;
 import kr.ac.hallym.hcs.app.model.Netlist;
+import kr.ac.hallym.hcs.app.wiring.SafeDuplicate;
+import kr.ac.hallym.hcs.app.wiring.WireGuard;
 
 /**
  * 대상별 우클릭 항목(#72, #73): 포트(핀·상수·프로브·터널 붙이기, 입력 부정), 핀(방향·폭·3상태·풀·라벨),
@@ -124,6 +126,12 @@ public final class EditMenus implements ContextMenus.Provider {
         proj.doAction(m.toAction(name));
     }
 
+    /** 새 부품·선을 자동으로 두는 편집: 검사기 하나(W-05)를 거친다. allowed는 옛 넷에 닿아도 되는 점. */
+    private static void guarded(Project proj, Circuit circuit, CircuitMutation m,
+            java.util.Collection<Location> allowed, String actionKey, Object... args) {
+        WireGuard.run(proj, circuit, m, allowed, () -> Messages.get(actionKey, args));
+    }
+
     // --- 포트 ---
 
     void port(ContextMenus.Target t, Component c, int end, JPopupMenu menu) {
@@ -134,9 +142,9 @@ public final class EditMenus implements ContextMenus.Provider {
             if (what == CircuitEdits.Attach.CONSTANT && !input) {
                 continue; // 상수는 입력에만
             }
-            attach.add(item("menu.attach." + what.name(), () -> run(t.project,
+            attach.add(item("menu.attach." + what.name(), () -> guarded(t.project, t.circuit,
                     CircuitEdits.attach(t.project.getLogisimFile(), t.circuit, c, end, what, name),
-                    "menu.attachAction", name)));
+                    Collections.singletonList(c.getEnd(end).getLocation()), "menu.attachAction", name)));
         }
         menu.add(attach);
         Attribute<?> negate = c.getAttributeSet().getAttribute("negate" + (end - 1));
@@ -308,8 +316,9 @@ public final class EditMenus implements ContextMenus.Provider {
             JMenu kind = new JMenu(Messages.get("menu.kind"));
             for (String g : CircuitEdits.swappableGates()) {
                 if (!g.equals(c.getFactory().getName())) {
-                    kind.add(item("menu.kind.item", () -> run(t.project, CircuitEdits.swapGate(t.circuit, c,
-                            CircuitEdits.builtin(t.project.getLogisimFile(), "Gates", g)), "menu.kindAction",
+                    kind.add(item("menu.kind.item", () -> guarded(t.project, t.circuit, CircuitEdits.swapGate(t.circuit,
+                            c, CircuitEdits.builtin(t.project.getLogisimFile(), "Gates", g)), WireGuard.ends(c),
+                            "menu.kindAction",
                             g.replace(" Gate", "")), g.replace(" Gate", "")));
                 }
             }
@@ -323,7 +332,7 @@ public final class EditMenus implements ContextMenus.Provider {
         return MenuLayout.group(item("menu.duplicate", () -> {
             t.project.doAction(SelectionActions.dropAll(t.project.getSelection()));
             t.project.getSelection().add(c);
-            t.project.doAction(SelectionActions.duplicate(t.project.getSelection()));
+            SafeDuplicate.run(t.project, t.project.getSelection());
         }), MenuLayout.COMMON);
     }
 
@@ -341,8 +350,9 @@ public final class EditMenus implements ContextMenus.Provider {
             Object s = JOptionPane.showInputDialog(t.project.getFrame(), Messages.get("menu.tunnelPrompt"),
                     Messages.get("menu.toTunnels"), JOptionPane.PLAIN_MESSAGE, null, null, "");
             if (s != null && !s.toString().trim().isEmpty()) {
-                run(t.project, CircuitEdits.wireToTunnels(t.project.getLogisimFile(), t.circuit, w,
-                        s.toString().trim(), Math.max(1, net.width())), "menu.toTunnelsAction");
+                guarded(t.project, t.circuit, CircuitEdits.wireToTunnels(t.project.getLogisimFile(), t.circuit, w,
+                        s.toString().trim(), Math.max(1, net.width())), java.util.Arrays.asList(w.getEnd0(),
+                        w.getEnd1()), "menu.toTunnelsAction");
             }
         }));
     }

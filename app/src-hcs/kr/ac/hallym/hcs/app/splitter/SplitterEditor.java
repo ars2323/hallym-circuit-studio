@@ -379,9 +379,17 @@ public final class SplitterEditor extends JDialog {
         boolean attrs = !s.toStandardAttrs().equals(cur.toStandardAttrs());
         boolean names = !s.names().equals(cur.names());
         if (attrs || names) {
-            com.cburch.logisim.proj.Action base = attrs
-                    ? SplitterEdits.change(circuit, splitter, s).toAction(() -> Messages.get("splitter.editAction"))
-                    : null;
+            com.cburch.logisim.proj.Action base = null;
+            if (attrs) {
+                // 팔 자리가 바뀌면 새 팔 끝은 옛 팔 끝·묶인 끝 자리에서만 옛 선에 닿아도 된다(W-05)
+                base = kr.ac.hallym.hcs.app.wiring.WireGuard.guarded(proj, circuit,
+                        SplitterEdits.change(circuit, splitter, s),
+                        kr.ac.hallym.hcs.app.wiring.WireGuard.ends(splitter),
+                        () -> Messages.get("splitter.editAction"));
+                if (base == null) {
+                    return;
+                }
+            }
             proj.doAction(SplitterEdits.withNames(base, Messages.get("splitter.editAction"), proj.getLogisimFile(),
                     circuit, at, s));
         }
@@ -403,7 +411,12 @@ public final class SplitterEditor extends JDialog {
             return;
         }
         CircuitMutation m = SplitterEdits.create(proj.getLogisimFile(), circuit, at, Direction.EAST, s);
-        proj.doAction(SplitterEdits.withNames(m.toAction(() -> Messages.get("splitter.createAction")),
+        com.cburch.logisim.proj.Action act = kr.ac.hallym.hcs.app.wiring.WireGuard.guarded(proj, circuit, m,
+                java.util.Collections.singletonList(at), () -> Messages.get("splitter.createAction"));
+        if (act == null) {
+            return;
+        }
+        proj.doAction(SplitterEdits.withNames(act,
                 Messages.get("splitter.createAction"), proj.getLogisimFile(), circuit, at, s));
     }
 }
