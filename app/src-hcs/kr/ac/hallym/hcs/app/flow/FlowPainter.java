@@ -19,6 +19,7 @@ import java.awt.geom.QuadCurve2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -341,9 +342,14 @@ public final class FlowPainter {
                 outline(g, x.component.getBounds(), new Color(ACCENT.getRed(), ACCENT.getGreen(), ACCENT.getBlue(),
                         alpha), z);
             }
+            List<Rectangle2D> avoid = new ArrayList<>(); // 서브회로 칩이 피할 것: 라벨 칩과 먼저 놓은 서브회로 칩(V-06)
+            if (obstacles != null) {
+                avoid.addAll(obstacles);
+            }
             for (Map.Entry<Component, Integer> e : inside.entrySet()) {
                 if (shown.contains(e.getKey())) {
-                    chip(g, e.getKey().getBounds(), places(e.getKey().getFactory().getName(), e.getValue()), z);
+                    avoid.add(chip(g, e.getKey().getBounds(), places(e.getKey().getFactory().getName(), e.getValue()),
+                            z, avoid));
                 }
             }
             // 5. 끝점: 링과 짧은 라벨(자리는 부품·라벨 칩·다른 끝점 라벨을 피해 한 번 정한다)
@@ -821,11 +827,47 @@ public final class FlowPainter {
 
     /** 서브회로 칩: 부품 오른쪽 위 바깥. */
     static void chip(Graphics2D g, Bounds b, String text, double z) {
+        chip(g, b, text, z, Collections.<Rectangle2D>emptyList());
+    }
+
+    /** 서브회로 칩을 라벨 칩·다른 서브회로 칩을 피해 놓고 그 자리를 돌려준다(V-06). */
+    static Rectangle2D chip(Graphics2D g, Bounds b, String text, double z, List<Rectangle2D> avoid) {
         java.awt.image.BufferedImage img = chipImage(g, text, true, z);
         double s = deviceScale(g);
         double w = img.getWidth() / s;
         double h = img.getHeight() / s;
-        drawChip(g, img, b.getX() + b.getWidth() - w, b.getY() - px(6, z) - h, s);
+        double[] at = chipPlace(b, w, h, z, avoid);
+        drawChip(g, img, at[0], at[1], s);
+        return new Rectangle2D.Double(at[0], at[1], w, h);
+    }
+
+    /**
+     * 서브회로 칩 자리 후보(결정적 순서): 부품 오른쪽 위 바깥(기본), 왼쪽 위, 오른쪽 아래, 왼쪽 아래, 위 가운데. avoid와
+     * 겹치지 않는 첫 자리, 모두 겹치면 기본 자리.
+     */
+    static double[] chipPlace(Bounds b, double w, double h, double z, List<Rectangle2D> avoid) {
+        double gap = px(6, z);
+        double[][] cands = {
+            {b.getX() + b.getWidth() - w, b.getY() - gap - h},
+            {b.getX(), b.getY() - gap - h},
+            {b.getX() + b.getWidth() - w, b.getY() + b.getHeight() + gap},
+            {b.getX(), b.getY() + b.getHeight() + gap},
+            {b.getX() + b.getWidth() / 2.0 - w / 2, b.getY() - gap - h},
+        };
+        for (double[] c : cands) {
+            Rectangle2D r = new Rectangle2D.Double(c[0], c[1], w, h);
+            boolean clear = true;
+            for (Rectangle2D o : avoid) {
+                if (o != null && o.intersects(r)) {
+                    clear = false;
+                    break;
+                }
+            }
+            if (clear) {
+                return c;
+            }
+        }
+        return cands[0];
     }
 
     /** 장치 화소 / 회로 단위(배율 × 화면 배율). */

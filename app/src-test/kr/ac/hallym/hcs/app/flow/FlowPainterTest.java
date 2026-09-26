@@ -449,4 +449,28 @@ class FlowPainterTest {
         assertTrue(unconnected, "the comparator outputs are unconnected ends: " + p.endpoints);
         g.dispose();
     }
+
+    /** V-06 (18h·18j 검토): 서브회로 "N places" 칩은 라벨 칩·다른 서브회로 칩과 겹치지 않는 자리를 고른다. */
+    @Test
+    void subcircuitChipsMoveOffLabelChips() {
+        Bounds b = Bounds.create(490, 100, 80, 120);
+        double w = 90;
+        double h = 20;
+        double[] free = FlowPainter.chipPlace(b, w, h, 1, List.of());
+        assertEquals(490 + 80 - 90, free[0], 1e-9, "default: right-aligned above the part");
+        assertTrue(free[1] + h < 100);
+        // 기본 자리에 값 칩("0x01")이 있다 → 다른 자리
+        java.awt.geom.Rectangle2D valueChip = new java.awt.geom.Rectangle2D.Double(470, 78, 40, 20);
+        double[] moved = FlowPainter.chipPlace(b, w, h, 1, List.of(valueChip));
+        assertFalse(valueChip.intersects(new java.awt.geom.Rectangle2D.Double(moved[0], moved[1], w, h)),
+                "off the value chip: " + moved[0] + "," + moved[1]);
+        // 두 서브회로 칩은 서로 피한다
+        java.awt.geom.Rectangle2D first = new java.awt.geom.Rectangle2D.Double(moved[0], moved[1], w, h);
+        double[] second = FlowPainter.chipPlace(b, w, h, 1, List.of(valueChip, first));
+        assertFalse(first.intersects(new java.awt.geom.Rectangle2D.Double(second[0], second[1], w, h)));
+        // 같은 입력이면 같은 자리(결정적)
+        double[] again = FlowPainter.chipPlace(b, w, h, 1, List.of(valueChip));
+        assertEquals(moved[0], again[0], 1e-9);
+        assertEquals(moved[1], again[1], 1e-9);
+    }
 }
