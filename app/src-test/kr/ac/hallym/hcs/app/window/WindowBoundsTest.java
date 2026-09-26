@@ -25,18 +25,19 @@ class WindowBoundsTest {
     @Test
     void firstRunIsNinetyPercentCenteredButNeverBelowTheMinimum() {
         Rectangle r = WindowBounds.firstRun(WORK);
-        assertEquals(new Rectangle(32, 36, 960, 655), r, "90% of 1024 is below the 960 minimum: minimum width, centered");
+        assertEquals(new Rectangle(51, 36, 922, 655), r, "90% of the work area, centered");
         Rectangle big = WindowBounds.firstRun(new Rectangle(0, 0, 1920, 1040));
         assertEquals(1728, big.width);
         assertEquals(936, big.height);
         Rectangle small = WindowBounds.firstRun(new Rectangle(0, 0, 800, 560));
-        assertEquals(new Dimension(800, 560), small.getSize(), "a work area below the minimum is used whole");
+        assertEquals(new Dimension(720, 560), small.getSize(), "90% wide; full height because 600 > 560");
     }
 
     @Test
     void minimumIsNineSixtyBySixHundredOrTheWorkArea() {
-        assertEquals(new Dimension(960, 600), WindowBounds.minimum(WORK));
-        assertEquals(new Dimension(640, 480), WindowBounds.minimum(new Rectangle(0, 0, 640, 480)));
+        assertEquals(new Dimension(512, 600), WindowBounds.minimum(WORK), "half of a 1024 work area");
+        assertEquals(new Dimension(960, 600), WindowBounds.minimum(new Rectangle(0, 0, 1920, 1040)));
+        assertEquals(new Dimension(320, 480), WindowBounds.minimum(new Rectangle(0, 0, 640, 480)));
     }
 
     @Test
@@ -49,7 +50,7 @@ class WindowBoundsTest {
         assertEquals(new Rectangle(720, 100, 1200, 700), moved);
         // 작업 영역보다 큰 창은 작업 영역 크기로, 위치는 안으로
         assertEquals(new Rectangle(0, 0, 1920, 1040), WindowBounds.fit(new Rectangle(-200, -100, 2600, 1500), works));
-        // 너무 작은 저장값은 최소 크기로 키운다
+        // 너무 작은 저장값은 최소 크기로 키운다(1920 작업 영역: 960×600)
         assertEquals(new Rectangle(0, 0, 960, 600), WindowBounds.fit(new Rectangle(0, 0, 640, 480), works));
         // 두 모니터에 걸친 창은 더 많이 겹치는 모니터(여기서는 주 모니터 700px 대 300px)로 들어간다
         Rectangle edge = WindowBounds.fit(new Rectangle(-300, 200, 1000, 600), works);

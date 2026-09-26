@@ -84,9 +84,12 @@ public final class WindowBounds {
         return out;
     }
 
-    /** 최소 창 크기: 960×600, 작업 영역이 더 작으면 작업 영역. */
+    /**
+     * 최소 창 크기: 960×600. 작업 영역이 작으면 가로는 작업 영역의 절반(나란히 보기의 반 폭 창이 늘 가능하게), 세로는
+     * 작업 영역 높이까지 내려간다.
+     */
     public static Dimension minimum(Rectangle work) {
-        return new Dimension(Math.min(MIN_W, work.width), Math.min(MIN_H, work.height));
+        return new Dimension(Math.min(MIN_W, Math.max(1, work.width / 2)), Math.min(MIN_H, work.height));
     }
 
     /** 첫 실행의 보통 크기: 작업 영역의 90%를 가운데에(최대화가 안 될 때 쓰는 값이자 최대화를 풀었을 때 크기). */

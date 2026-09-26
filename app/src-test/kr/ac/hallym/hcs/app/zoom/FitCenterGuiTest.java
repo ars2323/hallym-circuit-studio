@@ -77,13 +77,24 @@ class FitCenterGuiTest {
             // 창 배치가 끝난 뒤(도구 모음·Messages 칸이 자리를 잡은 뒤) 맞춘다: 사용자가 누르는 때와 같다.
             // 파일 탭은 새 창을 앞 창 자리·크기로 두므로(앞 테스트의 작은 창) 보인 뒤 크기를 다시 정한다
             Thread.sleep(500);
-            SwingUtilities.invokeAndWait(() -> {
-                frame.setBounds(0, 0, 1400, 900);
-                frame.validate();
-            });
-            settle();
-            SwingUtilities.invokeAndWait(() -> canvas.getHcsZoom().fitCircuit());
-            settle();
+            for (int i = 0; i < 10; i++) { // 탭 무리가 앞 창의 크기를 늦게 복사할 수 있다: 1400×900이 될 때까지
+                SwingUtilities.invokeAndWait(() -> {
+                    frame.setExtendedState(java.awt.Frame.NORMAL); // X-01: 첫 실행은 최대화로 열린다
+                    frame.setBounds(0, 0, 1400, 900);
+                    frame.validate();
+                });
+                settle();
+                if (frame.getWidth() == 1400 && frame.getHeight() == 900) {
+                    break;
+                }
+            }
+            for (int i = 0; i < 5; i++) { // 맞춘 뒤 보이는 영역이 또 바뀌면(늦은 창 배치) 다시 맞춘다
+                SwingUtilities.invokeAndWait(() -> canvas.getHcsZoom().fitCircuit());
+                settle();
+                if (vp.getViewRect().getSize().equals(vp.getViewSize())) {
+                    break;
+                }
+            }
             // 회로 영역이 보이는 영역 가운데(가로·세로)
             Bounds cb = main.getBounds();
             Rectangle on = canvas.hcsToScreen(new Rectangle(cb.getX(), cb.getY(), cb.getWidth(), cb.getHeight()));
@@ -95,7 +106,7 @@ class FitCenterGuiTest {
             String why = "z=" + canvas.getHcsZoom().zoomFactor() + " view=" + view + " on=" + on + " origin="
                     + canvas.getHcsOriginX() + "," + canvas.getHcsOriginY() + " chips="
                     + kr.ac.hallym.hcs.app.labels.LabelOverlay.chipRects(canvas) + " ext=" + vp.getViewSize()
-                    + " bounds=" + cb;
+                    + " bounds=" + cb + " frame=" + frame.getBounds() + " vpParent=" + vp.getParent().getBounds();
             assertEquals(left0, right0, 3, "horizontally centered: " + why);
             assertEquals(top0, bottom0, 3, "vertically centered");
             assertTrue(canvas.getHcsOriginY() > 0, "a wide circuit: the origin moved down");
@@ -120,7 +131,9 @@ class FitCenterGuiTest {
             };
             com.cburch.logisim.data.Location before = mid.get();
             double z0 = canvas.getHcsZoom().zoomFactor();
-            SwingUtilities.invokeAndWait(() -> canvas.getHcsZoom().model().setZoomFactor(z0 * 1.5));
+            // 정수 %가 아닌 배율로: 원조 배율 상자가 반올림해 되쓰는 안쪽 변경이 있어도 가운데를 지켜야 한다
+            double zNonRound = Math.floor(z0 * 150) / 100.0 + 0.003;
+            SwingUtilities.invokeAndWait(() -> canvas.getHcsZoom().model().setZoomFactor(zNonRound));
             settle();
             com.cburch.logisim.data.Location after0 = mid.get();
             assertEquals(before.getX(), after0.getX(), 4 / z0, "same point in the middle (x)");

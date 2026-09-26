@@ -64,13 +64,15 @@ class WindowBoundsGuiTest {
         try {
             Thread.sleep(500);
             Rectangle work = WindowBounds.workAreas().get(0);
-            Rectangle[] got = new Rectangle[1];
-            SwingUtilities.invokeAndWait(() -> got[0] = frame.getBounds());
-            Rectangle b = got[0];
+            // 첫 실행 배치(다른 테스트가 남긴 탭 무리의 창 크기 복사는 실제 첫 실행에는 없다): apply가 정한 자리를 본다
+            WindowBounds.Placement[] pl = new WindowBounds.Placement[1];
+            SwingUtilities.invokeAndWait(() -> pl[0] = WindowBounds.apply(frame));
+            Rectangle b = pl[0].bounds;
+            assertTrue(pl[0].firstRun, "no saved bounds: first run");
             // 최대화되면 작업 영역 전체, 아니면(Xvfb) 작업 영역 크기 그대로: 어느 쪽이든 90% 이상
             assertTrue(b.width >= work.width * 0.9 && b.height >= work.height * 0.9, "fills the work area: " + b
                     + " of " + work);
-            assertTrue(frame.getMinimumSize().width >= Math.min(960, work.width));
+            assertTrue(frame.getMinimumSize().width >= Math.min(960, work.width / 2));
             SwingUtilities.invokeAndWait(frame::savePreferences);
             assertEquals(origW, AppPreferences.WINDOW_WIDTH.get().intValue(), "original windowWidth untouched");
             assertEquals(origH, AppPreferences.WINDOW_HEIGHT.get().intValue());
