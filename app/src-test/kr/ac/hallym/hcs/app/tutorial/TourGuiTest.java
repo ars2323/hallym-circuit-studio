@@ -54,6 +54,13 @@ class TourGuiTest {
             AtomicReference<Tour.Overlay> ov = new AtomicReference<>();
             SwingUtilities.invokeAndWait(() -> ov.set(Tour.show(frame)));
             Tour.Overlay o = ov.get();
+            for (int i = 0; i < 100 && o.getWidth() == 0; i++) {
+                Thread.sleep(50); // 유리판이 창 크기로 놓일 때까지(CI 화면에서는 늦을 수 있다)
+            }
+            SwingUtilities.invokeAndWait(() -> {
+                frame.validate();
+                o.go(0);
+            });
             for (int i = 0; i < Tour.steps().size(); i++) {
                 final int step = i;
                 SwingUtilities.invokeAndWait(() -> o.go(step));
@@ -64,8 +71,9 @@ class TourGuiTest {
                     assertTrue(hole.width > 0 && hole.height > 0, s.key);
                     assertFalse(o.bubble.getBounds().intersects(hole) && hole.width < 1000, s.key + " bubble covers target");
                 }
-                assertTrue(new Rectangle(0, 0, frame.getWidth(), frame.getHeight()).contains(o.bubble.getBounds()),
-                        s.key + " bubble inside");
+                Rectangle pane = new Rectangle(0, 0, o.getWidth(), o.getHeight());
+                assertTrue(pane.contains(o.bubble.getBounds()), s.key + " bubble inside " + pane + " but "
+                        + o.bubble.getBounds() + " frame " + frame.getSize());
             }
             assertEquals(Tour.steps().size() - 1, o.step());
             SwingUtilities.invokeAndWait(o::end);

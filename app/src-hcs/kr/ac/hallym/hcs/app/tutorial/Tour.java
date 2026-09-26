@@ -337,7 +337,11 @@ public final class Tour {
             body.setSize(w - 2 * Tokens.SPACE_4 - 4 - (picture.isVisible() ? QuickStart.IMAGE_SIZE + Tokens.SPACE_4 : 0),
                     Integer.MAX_VALUE);
             Dimension pref = new Dimension(w, bubble.getPreferredSize().height);
-            Rectangle r = place(pref, hole, getSize().width == 0 ? frame.getSize() : getSize());
+            Dimension pane = getSize().width == 0 ? frame.getRootPane().getSize() : getSize();
+            if (pane.width == 0) {
+                pane = frame.getSize();
+            }
+            Rectangle r = place(pref, hole, pane);
             bubble.setBounds(r);
             bubble.validate();
         }
