@@ -1566,6 +1566,7 @@ public final class Shots {
 
     /** 13: ? 단축키 표. */
     void keysTable(Project p) throws Exception {
+        activate(p); // 탭이 숨긴 창이면 캔버스 자리를 잴 수 없다
         clickCanvas(p, emptySpot(p));
         robot.keyPress(KeyEvent.VK_SHIFT);
         robot.keyPress(KeyEvent.VK_SLASH);
