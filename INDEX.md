@@ -2,6 +2,60 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-26 E·X 출처 추적, X 쓰기 감지, 메시지에서 사이클로(D-01·D-03·D-05)
+
+- 기준: feat/signal-groups `d6fecfe`
+- 관련 이슈: D-01·D-03·D-05 #209 #211 #213 (PR #266)
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-d01-ex-origin/README.md
+
+## 2026-09-26 진동, MIPS 부품 값 검사(D-02·D-04·D-06)
+
+- 기준: feat/signal-groups `d6fecfe`
+- 관련 이슈: D-02·D-04·D-06 #210 #212 #214 (PR #267)
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-d02-dynamic-checks/README.md
+
+## 2026-09-26 사이클 뷰 테스트와 촬영 손질(C-10)
+
+- 기준: feat/signal-groups `d6fecfe`
+- 관련 이슈: C-10 #208 (PR #268)
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-c10-cycle-view-tests/README.md
+
+## 2026-09-26 About 창, 앱 아이콘, 창 제목(E-11·E-12)
+
+- 기준: feat/signal-groups `d6fecfe`
+- 관련 이슈: E-11·E-12 #225 #226 (PR #269)
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-e11-about-icon/README.md
+
+## 2026-09-26 Undo History와 단축키 설정(E-05·E-09)
+
+- 기준: feat/signal-groups `d6fecfe`
+- 관련 이슈: E-05·E-09 #219 #223 (PR #270)
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-e05-history-keys/README.md
+
+## 2026-09-26 N개 복제, 정렬·같은 간격, 선택 필터(E-01·E-02)
+
+- 기준: feat/signal-groups `d6fecfe`
+- 관련 이슈: E-01·E-02 #215 #216 (PR #271)
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-e01-arrange/README.md
+
+## 2026-09-26 제출 파일과 그림 내보내기(E-06·E-07)
+
+- 기준: feat/signal-groups `d6fecfe`
+- 관련 이슈: E-06·E-07 #220 #221 (PR #272)
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-e06-submit-export/README.md
+
+## 2026-09-26 굵은 버스, 비트 수, 선 색 범례(E-03)
+
+- 기준: feat/signal-groups `d6fecfe`
+- 관련 이슈: E-03 #217 (PR #273)
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-e03-bus-style/README.md
+
+## 2026-09-26 신호 그룹 색(E-04)
+
+- 기준: feat/signal-groups `d6fecfe`
+- 관련 이슈: E-04 #218 (PR #274)
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-e04-signal-groups/README.md
+
 ## 2026-09-26 버스 값 칩과 활성 경로 재촬영 2(C-08)
 
 - 기준: feat/bus-values `2fa5187`
