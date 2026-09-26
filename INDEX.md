@@ -2,6 +2,12 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-26 버스 값 칩과 활성 경로(C-08)
+
+- 기준: feat/bus-values `b82c4de`
+- 관련 이슈: C-08 #206
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-c08-bus-values/README.md
+
 ## 2026-09-26 명령어 필드 색 재촬영 2(C-07)
 
 - 기준: feat/field-colors `5be1d2f`
