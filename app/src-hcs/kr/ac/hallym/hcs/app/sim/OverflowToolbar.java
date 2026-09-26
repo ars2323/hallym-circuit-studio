@@ -73,7 +73,8 @@ public final class OverflowToolbar extends JToolBar {
 
     /** 항목을 더한다. key는 문구 열쇠(메뉴·테스트 이름), 글자가 있는 단추는 넘칠 때 글자를 숨긴다. */
     public Component addItem(Component c, String key, int priority) {
-        String text = c instanceof AbstractButton && !(c instanceof JToggleButton && key == null)
+        // 아이콘이 있는 단추만 글자를 숨길 수 있다(아이콘 없는 토글은 글자가 곧 이름)
+        String text = c instanceof AbstractButton && ((AbstractButton) c).getIcon() != null
                 ? ((AbstractButton) c).getText() : null;
         Item it = new Item(c, key, priority, text);
         items.add(it);
