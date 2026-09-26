@@ -70,6 +70,7 @@ tools/screenshots/run.sh <출력 폴더> [장면 번호 ...]
 | 32 | 진동과 MIPS 부품 값(D-02·D-04): 고장 회로 모음의 NAND 되먹임 진동 메시지와 Reset 단추, 정렬 안 된 주소를 읽는 Data Memory 메시지와 몸체 빨간 글자 |
 | 33 | About 창(E-11): 엠블럼·이름·버전·설명·캐릭터, License·Notices 탭 |
 | 34 | Undo History(E-05)와 단축키(E-09): 기록 창(되돌릴 것·Now·다시 실행할 것), ? 표, Customize…로 연 설정 창 |
+| 35 | 배치 편집(E-01·E-02): 우클릭 Duplicate N…, 창, R0 → R1~R3, 여러 개 우클릭(Align·Distribute), Align › Left 결과 |
 | 14 | Messages 탭: 데모 회로를 두 곳 망가뜨린 뒤(터널 이름 틀림, PC 클럭 지움) 목록, 메시지를 눌러 강조한 캔버스, 표시가 배율 25·100·400%에서 보이는지(14f), 끝나면 되돌림. gateUndefined = error 회로의 빈 게이트 입력(14e) |
 
 ## 올리기와 보고
