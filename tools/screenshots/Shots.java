@@ -201,6 +201,9 @@ public final class Shots {
         if (want(scenes, "27")) {
             machinePanels(demo);
         }
+        if (want(scenes, "28")) {
+            consoleAndReload(demo);
+        }
         if (want(scenes, "10")) {
             open("tests/circ/register.circ");
             open("tests/circ/values.circ");
@@ -1759,6 +1762,58 @@ public final class Shots {
         edt(() -> sv.showSide(1));
         sleep(500);
         snapFull("27f-stack-demo-full");
+    }
+
+    /**
+     * 28: Console 탭과 .s 자동 재로드(C-09). 사람이 그린 작은 회로 console-demo(A0 = 'A' + count, V0 = 11, count 6에서
+     * exit)를 끝까지 돌린 뒤 Console 탭, 그리고 demo-datapath에 불러온 .s(임시 복사본)를 고쳐 저장했을 때의 상태
+     * 표시줄 알림.
+     */
+    void consoleAndReload(Project demo) throws Exception {
+        Project cd = open("tests/circ/console-demo.circ");
+        activate(cd);
+        deselect(cd);
+        edt(() -> kr.ac.hallym.hcs.app.record.Recorder.requestReset(cd));
+        sleep(900);
+        for (int i = 0; i < 20; i++) {
+            edt(() -> cd.getSimulator().tick());
+            sleep(40);
+        }
+        sleep(800);
+        edt(() -> canvas(cd).getHcsZoom().fitCircuit());
+        javax.swing.JTabbedPane tabs = (javax.swing.JTabbedPane) find(cd.getFrame(),
+                x -> x instanceof javax.swing.JTabbedPane
+                        && ((javax.swing.JTabbedPane) x).indexOfTab(kr.ac.hallym.hcs.app.Messages.get("console.tab")) >= 0);
+        if (tabs == null) {
+            log.add("28: no Console tab");
+            return;
+        }
+        edt(() -> {
+            tabs.setSelectedIndex(tabs.indexOfTab(kr.ac.hallym.hcs.app.Messages.get("console.tab")));
+            kr.ac.hallym.hcs.app.cycle.CycleView.of(cd).open();
+            tabs.setSelectedIndex(tabs.indexOfTab(kr.ac.hallym.hcs.app.Messages.get("console.tab")));
+        });
+        sleep(900);
+        snapFull("28a-console-full");
+        snapCrop(onScreen(tabs), "28b-console-tab");
+
+        // .s 자동 재로드: 임시 복사본을 불러와 고쳐 저장한다
+        File copy = new File(out, "reload-demo.s");
+        java.nio.file.Files.copy(new File("tests/mips/sum.s").toPath(), copy.toPath(),
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        activate(demo);
+        if (!chooseProgram(demo, copy.getAbsolutePath(), null, "28")) {
+            return;
+        }
+        sleep(2500); // 감시가 처음 한 번 본다
+        String text = new String(java.nio.file.Files.readAllBytes(copy.toPath()), StandardCharsets.UTF_8)
+                .replace("li    $t2, 11", "li    $t2, 5");
+        java.nio.file.Files.write(copy.toPath(), text.getBytes(StandardCharsets.UTF_8));
+        copy.setLastModified(System.currentTimeMillis() + 2000);
+        sleep(3000);
+        Rectangle all = onScreen(demo.getFrame().getContentPane());
+        snapCrop(new Rectangle(all.x, all.y + all.height - 34, all.width, 34), "28c-reload-notice");
+        copy.delete();
     }
 
     void program(Project p) throws Exception {

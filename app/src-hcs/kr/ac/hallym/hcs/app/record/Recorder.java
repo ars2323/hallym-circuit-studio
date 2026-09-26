@@ -108,8 +108,21 @@ public final class Recorder {
         }
     }
 
+    /** 리셋 전에 부를 일(C-09 .s 다시 불러오기). GUI 스레드에서 리셋할 때 불린다. */
+    private static final List<java.util.function.Consumer<Project>> BEFORE_RESET =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    public static void beforeReset(java.util.function.Consumer<Project> hook) {
+        BEFORE_RESET.add(hook);
+    }
+
     /** 원조 리셋 대신 이것을 부른다: 다음 전파에서 스텝 0부터 새로 기록한다. */
     public static void requestReset(Project proj) {
+        if (javax.swing.SwingUtilities.isEventDispatchThread()) {
+            for (java.util.function.Consumer<Project> h : BEFORE_RESET) {
+                h.accept(proj);
+            }
+        }
         Recorder r = peek(proj);
         if (r != null) {
             r.resetPending = true;

@@ -65,6 +65,19 @@ public final class CycleView {
 
     private static final Map<Project, CycleView> ALL = new WeakHashMap<>();
 
+    static {
+        // 리셋할 때도 바뀐 .s를 다시 불러온다(리셋은 이미 일어나므로 또 리셋하지 않는다)
+        Recorder.beforeReset(p -> {
+            CycleView v;
+            synchronized (ALL) {
+                v = ALL.get(p);
+            }
+            if (v != null) {
+                v.reloadPrograms(false, false);
+            }
+        });
+    }
+
     /** 약한 참조: ALL(WeakHashMap)의 값이 키인 프로젝트를 붙잡지 않게. */
     private final java.lang.ref.WeakReference<Project> projRef;
     private final Recorder recorder;
@@ -83,6 +96,9 @@ public final class CycleView {
     private final JLabel memSummary = new JLabel();
     /** 레지스터 파일 표시가 없을 때 안내(줄바꿈하는 글, C-05 검토: 한 줄로 그리면 좁은 칸에서 잘린다). */
     private final javax.swing.JTextArea regsHint = new javax.swing.JTextArea();
+    // C-09: Console 탭과 .s 자동 재로드(1.5초마다 수정 시각을 본다. 처음 한 번은 파일을 연 때의 확인이다)
+    private final ConsolePanel console = new ConsolePanel(this::rootState);
+    private final javax.swing.Timer watcher = new javax.swing.Timer(1500, e -> reloadPrograms(false));
     private final javax.swing.JSplitPane split;
     private final JLabel position = new JLabel();
     private final JLabel notice = new JLabel(Messages.get("cycle.pastNotice"));
@@ -239,7 +255,48 @@ public final class CycleView {
         CycleView v = of(frame.getProject());
         v.bottom = bottom;
         bottom.tabs().addTab(Messages.get("cycle.tab"), v.panel);
+        bottom.tabs().addTab(Messages.get("console.tab"), v.console.component()); // C-09
+        v.watcher.start();
         return v;
+    }
+
+    /** 보고 있는 사이클의 최상위 회로 상태(Console 탭, 메모리 패널). */
+    com.cburch.logisim.circuit.CircuitState rootState() {
+        Project proj = projRef.get();
+        com.cburch.logisim.circuit.CircuitState s = proj == null ? null : proj.getCircuitState();
+        while (s != null && s.getParentState() != null) {
+            s = s.getParentState();
+        }
+        return s;
+    }
+
+    /** .s 자동 재로드(C-09): 바뀐 .s를 다시 불러오고 리셋, 오류는 한 줄 알림. GUI 스레드에서 부른다. */
+    void reloadPrograms(boolean force) {
+        reloadPrograms(force, true);
+    }
+
+    void reloadPrograms(boolean force, boolean reset) {
+        Project proj = projRef.get();
+        if (proj == null) {
+            watcher.stop(); // 닫힌 파일
+            return;
+        }
+        ProgramReload.Result r = ProgramReload.check(proj, force);
+        for (java.util.Map.Entry<File, String> e : r.errors.entrySet()) {
+            kr.ac.hallym.hcs.app.sim.SimControls.notice(proj, Messages.get("reload.error", e.getKey().getName(),
+                    e.getValue()));
+        }
+        if (r.changed()) {
+            String names = String.join(", ", r.reloaded.stream().map(File::getName).toArray(String[]::new));
+            if (reset) {
+                Recorder.requestReset(proj);
+            }
+            kr.ac.hallym.hcs.app.sim.SimControls.notice(proj, Messages.get("reload.done", names));
+        }
+    }
+
+    ConsolePanel consolePanel() {
+        return console;
     }
 
     /** Cycle View 탭을 앞으로 가져오고 표가 보일 만큼 아래 패널을 편다. */
@@ -545,6 +602,7 @@ public final class CycleView {
     }
 
     void refresh() {
+        console.refresh();
         registers.refresh();
         memory.refresh();
         regsHint.setVisible(registers.isListMode() && !registers.lines().isEmpty());

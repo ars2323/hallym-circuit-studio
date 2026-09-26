@@ -354,6 +354,87 @@ class CycleViewGuiTest {
         }
     }
 
+    /** C-09: Console 탭은 exit까지 모든 출력, .s를 고쳐 저장하면 1.5초 안에 다시 불러오고 알린다. */
+    @Test
+    void consoleTabAndReloadWatcher() throws Exception {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "needs a display (xvfb-run)");
+        GuiTestSupport.keepAlive();
+        LogisimFile file = RecordingTestSupport.openRefMips(tmp);
+        java.io.File circ = file.getLoader().getMainFile();
+        java.io.File s = new java.io.File(circ.getParentFile(), "factorial.s");
+        java.nio.file.Files.copy(RecordingTestSupport.program("mips/factorial.s"), s.toPath());
+        RecordingTestSupport.load(file, s.toPath());
+        Circuit main = file.getMainCircuit();
+        com.cburch.logisim.circuit.CircuitMutation mut = new com.cburch.logisim.circuit.CircuitMutation(main);
+        for (Component c : main.getNonWires()) {
+            String f = c.getFactory().getName();
+            if (f.equals("Instruction Memory") || f.equals("Data Memory")) {
+                @SuppressWarnings("unchecked")
+                com.cburch.logisim.data.Attribute<Object> a = (com.cburch.logisim.data.Attribute<Object>) c
+                        .getAttributeSet().getAttribute("source");
+                mut.set(c, a, "factorial.s");
+            }
+        }
+        mut.execute();
+        Project proj = new Project(file);
+        Frame frame = show(proj);
+        try {
+            CycleView view = CycleView.of(proj);
+            JTabbedPane tabs = (JTabbedPane) SwingUtilities.getAncestorOfClass(JTabbedPane.class, view.component());
+            assertTrue(tabs.indexOfTab(Messages.get("console.tab")) >= 0, "Console tab below the canvas");
+            Recorder.requestReset(proj);
+            waitFor(() -> Recorder.of(proj).current() != null && Recorder.of(proj).current().last() == 0, "reset");
+            Thread.sleep(300);
+            SwingUtilities.invokeAndWait(() -> view.start(RunUntil.halt(2000)));
+            waitFor(() -> !view.isRunningUntil(), "until exit");
+            SwingUtilities.invokeAndWait(view::refresh);
+            assertEquals("6! = 720\n-- exit --\n", view.consolePanel().text());
+
+            // .s를 고쳐 저장: 감시가 다시 불러오고 알린다
+            String text = new String(java.nio.file.Files.readAllBytes(s.toPath()),
+                    java.nio.charset.StandardCharsets.UTF_8).replace("li    $a0, 6", "li    $a0, 5");
+            java.nio.file.Files.write(s.toPath(), text.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            s.setLastModified(s.lastModified() + 2000);
+            waitFor(() -> Messages.get("reload.done", "factorial.s").equals(
+                    kr.ac.hallym.hcs.app.sim.SimControls.lastNotice(proj)), "reload notice");
+            // 알림은 상태 표시줄 한 줄뿐, 모달 창은 없다
+            for (java.awt.Window w : java.awt.Window.getWindows()) {
+                assertFalse(w instanceof java.awt.Dialog && w.isShowing(), "no dialog: " + w);
+            }
+
+            // 리셋할 때도 다시 본다(리셋 전 훅): 파일을 고치고 같은 GUI 스레드 차례 안에서 리셋하면, 감시 타이머가
+            // 끼어들 틈 없이 곧바로 내용이 바뀐다
+            Component imem = null;
+            for (Component c : main.getNonWires()) {
+                if (c.getFactory().getName().equals("Instruction Memory")) {
+                    imem = c;
+                }
+            }
+            @SuppressWarnings("unchecked")
+            com.cburch.logisim.data.Attribute<Object> contents = (com.cburch.logisim.data.Attribute<Object>) imem
+                    .getAttributeSet().getAttribute("contents");
+            Component im = imem;
+            AtomicReference<String[]> seen = new AtomicReference<>();
+            SwingUtilities.invokeAndWait(() -> {
+                try {
+                    String before = contents.toStandardString(im.getAttributeSet().getValue(contents));
+                    String t = new String(java.nio.file.Files.readAllBytes(s.toPath()),
+                            java.nio.charset.StandardCharsets.UTF_8).replace("li    $a0, 5", "li    $a0, 4");
+                    java.nio.file.Files.write(s.toPath(), t.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    s.setLastModified(s.lastModified() + 4000);
+                    Recorder.requestReset(proj);
+                    seen.set(new String[] {before,
+                        contents.toStandardString(im.getAttributeSet().getValue(contents))});
+                } catch (java.io.IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            assertFalse(seen.get()[0].equals(seen.get()[1]), "reset reloads the changed .s at once");
+        } finally {
+            SwingUtilities.invokeAndWait(frame::dispose);
+        }
+    }
+
     /** GUI 스레드에서 부른다: 보이는 모든 라벨 글. */
     static String statusNow(Frame frame) {
         StringBuilder sb = new StringBuilder();
