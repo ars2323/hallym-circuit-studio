@@ -72,11 +72,77 @@ jobs:
         with:
           name: windows-build
           path: native/hcs-asm/build/hcs-asm.exe
+      # R-01: jpackage로 JRE 포함 zip과 MSI. R-02: 푼 zip의 런타임으로 실제 실행(100%·150%) 뒤 화면을 찍는다.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Stage the app
+        shell: pwsh
+        run: ./gradlew --no-daemon :app:stage :lib-mips:jar
+      - name: Package (zip + MSI)
+        shell: pwsh
+        run: |
+          $v = if ($env:GITHUB_REF_NAME -match '^v(\d+\.\d+\.\d+)') { $Matches[1] } else { "0.0.0" }
+          pwsh tools/package-windows.ps1 -Version $v -Dest dist
+      - name: Run the packaged app (tty engine check)
+        shell: pwsh
+        run: |
+          Expand-Archive dist/hallym-circuit-studio-*-windows.zip -DestinationPath smoke
+          $exe = Get-ChildItem smoke -Recurse -Filter HallymCircuitStudio.exe | Select-Object -First 1
+          & $exe.FullName tests/circ/demo-datapath.circ -tty table | Tee-Object -FilePath smoke/tty.txt
+          if (-not (Select-String -Path smoke/tty.txt -Pattern 'halt' -Quiet)) { throw "tty output has no halt column" }
+      - name: Run the packaged app (window, .s, 10 cycles, screenshots at 100% and 150%)
+        shell: pwsh
+        run: |
+          $app = Get-ChildItem smoke -Recurse -Filter HallymCircuitStudio.exe | Select-Object -First 1 | Split-Path
+          $jar = "$app/app/hallym-circuit-studio.jar"
+          javac -encoding UTF-8 -cp $jar -d smoke/classes tools/winsmoke/Smoke.java
+          $java = "$app/runtime/bin/java.exe"
+          & $java -Dsun.java2d.uiScale=1 -Dhcs.configDir=smoke/config100 -Djava.util.prefs.userRoot=smoke/prefs100 -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/mips/sum.s smoke/screenshot-100.png
+          if ($LASTEXITCODE -ne 0) { throw "smoke at 100% failed" }
+          & $java -Dsun.java2d.uiScale=1.5 -Dhcs.configDir=smoke/config150 -Djava.util.prefs.userRoot=smoke/prefs150 -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/mips/sum.s smoke/screenshot-150.png
+          if ($LASTEXITCODE -ne 0) { throw "smoke at 150% failed" }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-smoke
+          path: |
+            smoke/*.png
+            smoke/tty.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-package
+          path: |
+            dist/*.zip
+            dist/*.msi
+
+  # R-03: 트랙 A jar가 원조 2.7.1 + Java 8 런타임에서 불러와 도는지(tty로 demo-datapath를 돌린다)
+  track-a-java8:
+    needs: [linux]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-build
+          path: dist-in
+      - name: Original 2.7.1 on Java 8 loads hcs-mips.jar and runs demo-datapath
+        run: |
+          mkdir -p j8 && cp tests/circ/demo-datapath.circ j8/ && cp "$(find dist-in -name hcs-mips.jar | head -1)" j8/
+          java -version 2>&1 | head -1
+          (cd j8 && timeout 120 java -jar ../vendor/logisim-2.7.1/logisim-generic-2.7.1.jar demo-datapath.circ -tty table | tee tty.txt)
+          grep -q halt j8/tty.txt
 
   # v* 태그: 트랙 A 배포 zip을 만들어 draft Release에 올린다. 학생 배포는 사용자 결정이라 draft로 둔다.
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [linux, windows]
+    needs: [linux, windows, track-a-java8]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -94,4 +160,5 @@ jobs:
           gh release create "$GITHUB_REF_NAME" --draft --verify-tag \
             --title "Hallym Circuit Studio $GITHUB_REF_NAME (트랙 A: MIPS 부품 라이브러리)" \
             --notes-file dist/RELEASE_NOTES.md \
-            dist/*.zip dist/hcs-mips.jar dist/hcs-asm dist/hcs-asm.exe dist/hcs-mips-guide-ko.md
+            dist/*.zip dist/hcs-mips.jar dist/hcs-asm dist/hcs-asm.exe dist/hcs-mips-guide-ko.md \
+            dist-in/windows-package/*.zip dist-in/windows-package/*.msi
