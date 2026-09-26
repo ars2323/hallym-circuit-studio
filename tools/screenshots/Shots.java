@@ -1144,6 +1144,7 @@ public final class Shots {
             p.doAction(m.toAction(null));
         });
         sleep(2000); // 편집이 멈추면 0.7초 뒤 진단
+        messagesTab(p); // 앞 장면이 Cycle View 탭을 남겨 두었을 수 있다
         edt(() -> canvas(p).getHcsZoom().fitCircuit());
         sleep(1000);
         snapFull("14a-messages");
