@@ -74,7 +74,7 @@ public final class OriginText {
             return where(top, o);
         }
         Netlist.PortRef p = ports.get(0);
-        return Names.path(where(top, o), Names.port(o.node.circuit, p.component, p.end));
+        return Names.path(where(top, o), Names.portText(o.node.circuit, p.component, p.end));
     }
 
     /** 넷 하나를 가리키는 이름: 값을 내는 첫 포트, 없으면 읽는 첫 포트(학생이 붙인 이름으로). */
@@ -92,7 +92,35 @@ public final class OriginText {
         }
         ports.sort(java.util.Comparator.comparing(Netlist.PortRef::location));
         Netlist.PortRef p = ports.get(0);
-        return Names.path(where, Names.port(n.circuit, p.component, p.end));
+        return Names.path(where, Names.portText(n.circuit, p.component, p.end));
+    }
+
+    /**
+     * E의 원인 종류(V-02): (a) 한 선에 서로 다른 출력 → "충돌 값", (c) 비트 폭 불일치, (b) 정해지지 않은 입력이 게이트를
+     * 거친 것과 (d) 그 밖 → "오류 값". "충돌"은 (a)일 때만 쓴다.
+     */
+    static String errorLabel(OriginTrace.Origin o, kr.ac.hallym.hcs.app.model.Trace.Node at) {
+        if (o.cause == OriginTrace.Cause.CONFLICT) {
+            return Messages.get("diag.eConflict");
+        }
+        if (widthMismatch(at.net) || widthMismatch(o.node.net)) {
+            return Messages.get("diag.eWidth");
+        }
+        return Messages.get("diag.eValue");
+    }
+
+    static boolean widthMismatch(Netlist.Net n) {
+        int w = -1;
+        for (Netlist.PortRef p : n.ports()) {
+            if (p.width() <= 0) {
+                continue;
+            }
+            if (w >= 0 && p.width() != w) {
+                return true;
+            }
+            w = p.width();
+        }
+        return false;
     }
 
     static String valueName(Value v) {

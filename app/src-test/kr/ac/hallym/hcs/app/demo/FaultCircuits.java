@@ -199,6 +199,18 @@ public final class FaultCircuits {
             b.output("y", 1, 700, 100);
             b.commit();
         });
+        add("dynamic-e-undefined-input", Diagnostic.Kind.E_APPEARED, (f, mips) -> {
+            // V-02 (b): 정해지지 않은 입력 핀(RegWrite)이 AND를 거쳐 E가 된다. 충돌이 아니다
+            CircuitBuilder b = main(f);
+            clock(b);
+            Component and = b.add("Gates", "AND Gate", 400, 200);
+            b.input("RegWrite", 1, 100, 100);
+            b.tunnel(and, 1, "RegWrite");
+            b.tunnel(and, 2, "clk");
+            b.tunnel(and, 0, "we");
+            b.output("we", 1, 700, 100);
+            b.commit();
+        });
         add("dynamic-x-write-control", Diagnostic.Kind.X_WRITE_CONTROL, (f, mips) -> {
             // RegWrite 입력 핀을 3상태로 두어 값이 정해지지 않음(PLAN.md 4.4 예)
             CircuitBuilder b = main(f);

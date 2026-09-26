@@ -69,7 +69,7 @@ class StaticCheckTest {
         for (Diagnostic d : StaticCheck.run(open(new File(CIRC, "values.circ")))) {
             got.add(d.toString());
         }
-        assertEquals(List.of("SHORT [main, main › Const #1.out, main › Const #2.out]",
+        assertEquals(List.of("SHORT [main, main › Const #1, main › Const #2]",
                 "TUNNEL_UNPAIRED [main, floating, -]"), got);
     }
 
@@ -117,7 +117,7 @@ class StaticCheckTest {
         b.tunnel(g2, 0, "y");
         b.output("y", 1, 500, 100);
         b.commit();
-        one(only(f), Diagnostic.Kind.SHORT, "main", "main › NOT #1.out", "main › NOT #2.out");
+        one(only(f), Diagnostic.Kind.SHORT, "main", "main › NOT #1 output", "main › NOT #2 output");
     }
 
     @Test
@@ -159,7 +159,7 @@ class StaticCheckTest {
         Location in1 = and.getEnds().get(2).getLocation();
         b.wire(in1, Location.create(in1.getX() - 60, in1.getY())); // 끝이 아무 데도 닿지 않은 선
         b.commit();
-        one(only(f), Diagnostic.Kind.INPUT_UNDRIVEN, "main › AND #1.in1");
+        one(only(f), Diagnostic.Kind.INPUT_UNDRIVEN, "main › AND #1 input 2"); // V-02: 읽는 포트 이름
     }
 
     @Test

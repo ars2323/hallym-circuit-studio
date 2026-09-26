@@ -67,7 +67,13 @@ public final class DynamicCheck {
     // ---- E 발생 ----
 
     private void errors(int step, Map<String, Integer> seen, List<Diagnostic> out) {
-        for (Object[] e : rec.newErrors(step)) {
+        List<Object[]> errors = new ArrayList<>(rec.newErrors(step));
+        // 같은 원인의 E가 여러 넷에 있으면 늘 같은 넷을 말한다(V-02): 바깥 회로부터, 왼쪽 위부터
+        errors.sort((a, b) -> {
+            int d = ((List<?>) a[0]).size() - ((List<?>) b[0]).size();
+            return d != 0 ? d : ((Location) a[1]).compareTo((Location) b[1]);
+        });
+        for (Object[] e : errors) {
             @SuppressWarnings("unchecked")
             List<Component> path = (List<Component>) e[0];
             Location at = (Location) e[1];
@@ -83,7 +89,7 @@ public final class DynamicCheck {
             }
             out.add(new Diagnostic(Diagnostic.Kind.E_APPEARED, o.node.circuit, o.node.instances, o.step,
                     components(o), wires(o), location(o), cycleOf(o.step), OriginText.netLabel(top, en),
-                    Messages.get("diag.causePrefix", cause(o))));
+                    Messages.get("diag.causePrefix", cause(o)), OriginText.errorLabel(o, en)));
         }
     }
 

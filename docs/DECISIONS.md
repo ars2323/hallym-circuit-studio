@@ -1171,3 +1171,10 @@
 - **이유:** v1.0.0 검토에서 새 파일 부품 목록에 Hallym MIPS가 없어 학생이 설치 폴더의 jar를 찾아 Load Library를 해야 했고, 안내서(GUIDE-ko 4절)와도 어긋났다. 라이브러리를 늘 파일에 넣으면 MIPS 부품을 안 쓴 파일이 원조 저장 결과와 달라진다(D-006 위반). 원조에서 열리려면 설명자가 .circ 옆 jar를 가리켜야 한다.
 - **대안:** 새 파일 템플릿에 라이브러리 포함(원조 바이트 호환 깨짐), 내장 라이브러리로 등록(설명자 `#이름`이 원조에서 안 열림), 저장할 때 jar를 몰래 복사(D-007에서 거부), 라이브러리 추가를 별도 되돌리기 단계로(학생이 두 번 되돌려야 함).
 - **테스트:** `MipsShadowTest` — 새 파일 트리·검색에 있음, MIPS 부품 없이 저장하면 원조 새 파일의 라이브러리 목록과 같고 jar·확장 정보 없음, Instruction Memory를 놓고 저장하면 설명자 문자열 정확·설치 경로 없음, jar 옆에 두고 원조 2.7.1 jar `-tty`로 열림, jar 없이 포크로 열면 번들 연결·재저장 동일, Undo로 라이브러리 제거·Redo로 복귀, 알림은 파일당 한 번·복사는 요청 시만.
+## D-097 진단 문구: E의 원인 종류와 읽는 포트 이름(V-02)
+
+- **날짜:** 2026-09-26
+- **결정:** E가 생긴 진단(E_APPEARED)의 표기를 원인 종류로 가른다. (a) 한 선을 서로 다른 출력이 구동(OriginTrace CONFLICT) → "E(충돌 값)", (c) 그 넷 또는 원인 넷의 포트 폭이 서로 다름 → "E(오류 값, 비트 폭 불일치)", (b) 정해지지 않은 입력이 게이트를 거친 것과 (d) 그 밖 → "E(오류 값)". "충돌"은 (a)일 때만 쓴다. 문구 속 포트는 내부 식별자(`AND #3.out`) 대신 S-09의 읽는 포트 이름을 붙인 `Names.portText`(`AND #3 출력`, `R1 D`, 포트 하나짜리는 부품 이름만)로 쓰고, 포트 낱말(output·input N·select·enable·combined end)은 이제 언어별 번들(messages)에 둔다. INPUT_UNCONNECTED는 "{0}의 {1} 포트가 연결되지 않았습니다"로 바꿨다(게이트는 "입력 2", 그 밖은 원조 짧은 이름). E가 여러 넷에 동시에 생기면 바깥 회로·왼쪽 위 넷을 말하고, 충돌 구동자는 위치 순으로 적어 문구를 고정한다.
+- **이유:** v1.0.0 검토(31a)에서 정해지지 않은 입력 핀에서 나온 E를 "충돌 값"이라 불러 학생을 잘못된 곳으로 보냈고, "AND #3.out" 같은 내부 이름이 보였다. PLAN 4.4(원인 한 곳, 학생이 붙인 이름, 사실과 위치까지만).
+- **대안:** 원인 종류마다 문장 전체를 따로(원인 문장이 이미 종류를 말하므로 표기만 가른다), 포트 낱말을 영어로 고정(한국어 문장 안에 "output"이 섞임).
+- **테스트:** `FaultCollectionTest.messagesMatchTheExpectedTextAndShowNoInternalPortNames` — 고장 회로 모음 전체(새 회로 dynamic-e-undefined-input 포함)의 한국어·영어 문구를 `tests/circ/faults/messages.{ko,en}.expected`와 비교하고, `.<포트>` 꼴이 없으며 "충돌"은 dynamic-e-conflict에만 있음을 확인. `widthMismatchIsRecognisedOnTheNet`. 정상 회로 0건 테스트(StaticCheckTest·DynamicCheckTest)는 그대로. 테스트 JVM 언어를 영어로 고정하고 test-prefs를 매번 비운다(언어 설정이 실행 간에 새던 문제).
