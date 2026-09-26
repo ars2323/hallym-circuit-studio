@@ -1939,6 +1939,8 @@ public final class Shots {
             d.delete();
         }
         dir.delete();
+    }
+
     /** V-07: 새 파일의 빈 캔버스 안내, Help › Examples 메뉴, 예제를 열었을 때의 읽기 전용 알림. */
     void examplesMenu(Project base) throws Exception {
         Project p = newProject(base);
