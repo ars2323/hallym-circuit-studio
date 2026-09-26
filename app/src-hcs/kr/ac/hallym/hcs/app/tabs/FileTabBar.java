@@ -41,8 +41,8 @@ public final class FileTabBar extends JPanel {
     private static final long serialVersionUID = 1L;
     static final String DIRTY = "● ";
     static final String SEP = " › ";
-    /** 분리한 창 표시(P-06). */
-    static final String DETACHED = "\u29C9";
+    /** 분리한 창 표시(P-06): Updated 배지와 같은 글 배지(글꼴에 없는 기호를 쓰지 않는다). */
+    static final String DETACHED = "\u00B7 ";
 
     private final Frame frame;
     private final Project proj;
@@ -227,7 +227,7 @@ public final class FileTabBar extends JPanel {
                 TabModel.Tab<Project> t = tabs.get(i);
                 boolean det = FileTabs.get().model().isDetached(t.key());
                 String title = (t.dirty() ? DIRTY : "") + t.title() + (t.updated() ? " · " + Messages.get(
-                        "tabs.updatedBadge") : "") + (det ? " " + DETACHED : "");
+                        "tabs.updatedBadge") : "") + (det ? " " + DETACHED + Messages.get("tabs.detachedBadge") : "");
                 String tip = t.file() == null ? Messages.get("tabs.unsaved") : t.file().getPath();
                 if (det) {
                     tip = tip + " — " + Messages.get("tabs.detachedTip");

@@ -255,7 +255,7 @@ public final class Shots {
             tour(demo);
         }
         if (want(scenes, "41")) {
-            tabsLayout(demo, ref);
+            tabsLayout(demo, open("tests/circ/console-demo.circ")); // 사람이 그린 둘째 회로(체크리스트 10)
         }
         if (want(scenes, "10")) {
             open("tests/circ/register.circ");
@@ -1874,22 +1874,23 @@ public final class Shots {
     }
 
     /**
-     * 41: 창 분리·나란히 보기(P-06). demo-datapath 탭 우클릭 메뉴, ref-mips를 분리한 뒤 두 창(화면 전체), 나란히 보기.
+     * 41: 창 분리·나란히 보기(P-06). demo-datapath 탭 우클릭 메뉴, console-demo를 분리한 뒤 두 창(화면 전체), 나란히 보기.
      * 끝나면 되돌린다.
      */
     void tabsLayout(Project demo, Project ref) throws Exception {
+        edt(() -> canvas(ref).getHcsZoom().fitCircuit());
         activate(demo);
         deselect(demo);
         edt(() -> canvas(demo).getHcsZoom().fitCircuit());
         sleep(600);
         javax.swing.JTabbedPane files = (javax.swing.JTabbedPane) find(demo.getFrame(),
                 x -> x instanceof javax.swing.JTabbedPane && ((javax.swing.JTabbedPane) x).getTabCount() > 1
-                        && ((javax.swing.JTabbedPane) x).indexOfTab("ref-mips") >= 0);
+                        && ((javax.swing.JTabbedPane) x).indexOfTab("console-demo") >= 0);
         if (files == null) {
             log.add("41: no file tabs");
             return;
         }
-        int i = files.indexOfTab("ref-mips");
+        int i = files.indexOfTab("console-demo");
         Rectangle tr = files.getBoundsAt(i);
         Point s = files.getLocationOnScreen();
         robot.mouseMove(s.x + tr.x + tr.width / 2, s.y + tr.y + tr.height / 2);
