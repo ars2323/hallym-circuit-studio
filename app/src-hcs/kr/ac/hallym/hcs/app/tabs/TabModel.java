@@ -64,6 +64,8 @@ public final class TabModel<K> {
     private final List<Tab<K>> tabs = new ArrayList<>();
     private final List<Listener> listeners = new CopyOnWriteArrayList<>();
     private K active;
+    /** 창을 분리한 탭(P-06): 겹쳐 두는 무리에서 빠져 제 창으로 보인다. */
+    private final java.util.Set<K> detached = new java.util.LinkedHashSet<>();
 
     public void addListener(Listener l) {
         listeners.add(l);
@@ -119,6 +121,7 @@ public final class TabModel<K> {
 
     public void remove(K key) {
         synchronized (this) {
+            detached.remove(key);
             int i = indexOf(key);
             if (i < 0) {
                 return;
@@ -183,6 +186,41 @@ public final class TabModel<K> {
             tabs.add(to, tabs.remove(from));
         }
         fire();
+    }
+
+    /** 탭을 제 창으로 분리한다(P-06). */
+    public void detach(K key) {
+        synchronized (this) {
+            if (indexOf(key) < 0 || !detached.add(key)) {
+                return;
+            }
+        }
+        fire();
+    }
+
+    /** 분리한 창을 다시 겹치는 무리로 넣는다. */
+    public void attach(K key) {
+        synchronized (this) {
+            if (!detached.remove(key)) {
+                return;
+            }
+        }
+        fire();
+    }
+
+    public synchronized boolean isDetached(K key) {
+        return detached.contains(key);
+    }
+
+    /** 분리한 탭 가운데 저장된 파일의 경로(복원용). */
+    public synchronized List<String> detachedFiles() {
+        List<String> ret = new ArrayList<>();
+        for (Tab<K> t : tabs) {
+            if (t.file != null && detached.contains(t.key)) {
+                ret.add(t.file.getAbsolutePath());
+            }
+        }
+        return ret;
     }
 
     /** 다시 실행할 때 열 파일(탭 순서, 저장된 파일만). */

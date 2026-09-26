@@ -36,6 +36,9 @@ import kr.ac.hallym.hcs.app.Settings;
 public final class FileTabs {
     static final String OPEN = "tabs.open";
     static final String ACTIVE = "tabs.active";
+    /** 분리한 창(P-06): 경로 목록과 같은 차례의 창 자리 "x,y,w,h". */
+    static final String DETACHED = "tabs.detached";
+    static final String DETACHED_BOUNDS = "tabs.detachedBounds";
 
     private static final FileTabs INSTANCE = new FileTabs();
 
@@ -148,7 +151,7 @@ public final class FileTabs {
         return p.getLogisimFile() == null ? "" : p.getLogisimFile().getDisplayName();
     }
 
-    /** 활성 탭의 창만 보이게 한다. */
+    /** 활성 탭의 창만 보이게 한다. 분리한 창(P-06)은 늘 보이고 겹치는 무리에 끼지 않는다. */
     private void showActive() {
         SwingUtilities.invokeLater(() -> {
             Project active = model.active();
@@ -156,10 +159,17 @@ public final class FileTabs {
             if (show == null) {
                 return;
             }
+            if (model.isDetached(active)) {
+                if (!show.isVisible()) {
+                    show.setVisible(true);
+                }
+                show.toFront();
+                return;
+            }
             Frame from = null;
             for (TabModel.Tab<Project> t : model.tabs()) {
                 Frame f = t.key().getFrame();
-                if (f != null && f != show && f.isShowing()) {
+                if (f != null && f != show && f.isShowing() && !model.isDetached(t.key())) {
                     from = f;
                 }
             }
@@ -172,11 +182,117 @@ public final class FileTabs {
             show.toFront();
             for (TabModel.Tab<Project> t : model.tabs()) {
                 Frame f = t.key().getFrame();
-                if (f != null && f != show && f.isVisible()) {
+                if (f != null && f != show && f.isVisible() && !model.isDetached(t.key())) {
                     f.setVisible(false);
                 }
             }
         });
+    }
+
+    /** 겹치는 무리에서 지금 보이는 창(없으면 null). */
+    Frame groupFrame() {
+        for (TabModel.Tab<Project> t : model.tabs()) {
+            Frame f = t.key().getFrame();
+            if (f != null && f.isShowing() && !model.isDetached(t.key())) {
+                return f;
+            }
+        }
+        return null;
+    }
+
+    /** 탭을 제 창으로 분리한다(P-06): 무리 창에서 조금 비켜 둔 자리에 보인다. 무리는 이웃 탭을 보인다. */
+    public void detach(Project p) {
+        Frame f = p.getFrame();
+        if (f == null || model.isDetached(p)) {
+            return;
+        }
+        Frame group = groupFrame();
+        Rectangle r = group == null ? f.getBounds() : group.getBounds();
+        Rectangle screen = screenOf(f);
+        Rectangle at = new Rectangle(Math.min(r.x + 60, screen.x + screen.width - r.width),
+                Math.min(r.y + 60, screen.y + screen.height - r.height), r.width, r.height);
+        boolean wasActive = model.active() == p;
+        model.detach(p);
+        f.setExtendedState(Frame.NORMAL);
+        f.setBounds(at);
+        f.setVisible(true);
+        f.toFront();
+        if (wasActive) {
+            for (TabModel.Tab<Project> t : model.tabs()) {
+                if (t.key() != p && !model.isDetached(t.key())) {
+                    model.activate(t.key()); // 무리 창이 비지 않게
+                    break;
+                }
+            }
+            model.activate(p);
+        }
+        saveRestoreList();
+    }
+
+    /** 분리한 창을 무리로 되돌린다: 무리 창과 같은 자리·크기로 겹친다. */
+    public void attach(Project p) {
+        Frame f = p.getFrame();
+        if (f == null || !model.isDetached(p)) {
+            return;
+        }
+        Frame group = groupFrame();
+        model.attach(p);
+        if (group != null) {
+            copyBounds(group, f);
+        }
+        model.activate(p);
+        saveRestoreList();
+    }
+
+    /** 나란히 보기(P-06): p를 분리해 화면 오른쪽 반에, 무리 창을 왼쪽 반에 둔다. */
+    public void sideBySide(Project p) {
+        Frame f = p.getFrame();
+        if (f == null) {
+            return;
+        }
+        if (!model.isDetached(p)) {
+            detach(p);
+        }
+        Rectangle s = screenOf(f);
+        Rectangle left = new Rectangle(s.x, s.y, s.width / 2, s.height);
+        Rectangle right = new Rectangle(s.x + s.width / 2, s.y, s.width - s.width / 2, s.height);
+        for (TabModel.Tab<Project> t : model.tabs()) {
+            Frame g = t.key().getFrame();
+            if (g != null && !model.isDetached(t.key())) {
+                g.setExtendedState(Frame.NORMAL);
+                g.setBounds(left);
+            }
+        }
+        f.setExtendedState(Frame.NORMAL);
+        f.setBounds(right);
+        f.toFront();
+        saveRestoreList();
+    }
+
+    static Rectangle screenOf(Frame f) {
+        java.awt.GraphicsConfiguration gc = f.getGraphicsConfiguration();
+        if (gc == null) {
+            return new Rectangle(0, 0, 1920, 1080);
+        }
+        Rectangle b = gc.getBounds();
+        java.awt.Insets in = java.awt.Toolkit.getDefaultToolkit().getScreenInsets(gc);
+        return new Rectangle(b.x + in.left, b.y + in.top, b.width - in.left - in.right, b.height - in.top - in.bottom);
+    }
+
+    /** 창 자리 "x,y,w,h". */
+    static String bounds(Frame f) {
+        Rectangle r = f.getBounds();
+        return r.x + "," + r.y + "," + r.width + "," + r.height;
+    }
+
+    static Rectangle parseBounds(String s) {
+        try {
+            String[] a = s.split(",");
+            return new Rectangle(Integer.parseInt(a[0]), Integer.parseInt(a[1]), Integer.parseInt(a[2]),
+                    Integer.parseInt(a[3]));
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
 
     private static void copyBounds(Frame from, Frame to) {
@@ -192,6 +308,14 @@ public final class FileTabs {
         Settings s = Settings.get();
         s.setList(OPEN, model.restoreList());
         s.set(ACTIVE, model.restoreActive());
+        List<String> det = model.detachedFiles();
+        List<String> bounds = new ArrayList<>();
+        for (String path : det) {
+            Project p = model.find(new File(path));
+            bounds.add(p == null || p.getFrame() == null ? "" : bounds(p.getFrame()));
+        }
+        s.setList(DETACHED, det);
+        s.setList(DETACHED_BOUNDS, bounds);
         try {
             s.save();
         } catch (IOException e) {
@@ -254,6 +378,25 @@ public final class FileTabs {
         SwingUtilities.invokeLater(this::activateRestored);
     }
 
+    /** 지난번에 분리해 둔 창을 다시 분리하고 그 자리에 둔다(P-06). */
+    void restoreDetached() {
+        List<String> det = Settings.get().getList(DETACHED);
+        List<String> bounds = Settings.get().getList(DETACHED_BOUNDS);
+        for (int i = 0; i < det.size(); i++) {
+            Project p = model.find(new File(det.get(i)));
+            if (p == null || p.getFrame() == null) {
+                continue;
+            }
+            model.detach(p);
+            Rectangle r = i < bounds.size() ? parseBounds(bounds.get(i)) : null;
+            if (r != null && r.width > 100 && r.height > 100) {
+                p.getFrame().setExtendedState(Frame.NORMAL);
+                p.getFrame().setBounds(r);
+            }
+            p.getFrame().setVisible(true);
+        }
+    }
+
     private void activateRestored() {
         if (!restoreDone || restoreActive == null) {
             return;
@@ -266,6 +409,7 @@ public final class FileTabs {
         Project p = model.find(restoreActive);
         restoreActive = null;
         restoring.clear();
+        restoreDetached();
         if (p != null) {
             // 마지막에 연 창의 활성화 알림이 지나간 뒤에 바꾼다
             javax.swing.Timer t = new javax.swing.Timer(400, e -> model.activate(p));

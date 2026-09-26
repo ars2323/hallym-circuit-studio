@@ -56,7 +56,7 @@
 | P-03 | 탭 간 라이브러리(#85) | #195 | 완료 | #249 | D-065, OpenFileLibrariesTest(후보·자동 Load Library·되돌리기·순환 차단·끊길 연결·다시 열 때), LibraryFixturesTest(원조 jar가 상대 경로 라이브러리로 18 계산), LibrarySyncGuiTest(탭 끌어 놓기·저장 반영·Updated·Edit Original·포트 변경), 20a~20f |
 | P-04 | 서브회로 포트 순서 끌어 바꾸기 | #196 | 대기 |  |  |
 | P-05 | 다른 .circ에서 서브회로 가져오기 | #197 | 대기 |  |  |
-| P-06 | 나란히 보기·창 분리·탭 복원 | #198 | 대기 |  |  |
+| P-06 | 나란히 보기·창 분리·탭 복원 | #198 | 완료 | (이 PR) | D-090, TabLayoutTest(분리·되돌리기·닫으면 해제·복원 목록·자리 글), TabsLayoutGuiTest(분리하면 둘 다 보임·나란히 반씩·되돌리면 겹침·복원 설정), 41a~41c |
 
 ## C 사이클 뷰(3단계)
 
