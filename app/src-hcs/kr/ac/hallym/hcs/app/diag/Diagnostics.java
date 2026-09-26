@@ -281,8 +281,13 @@ public final class Diagnostics {
             for (com.cburch.logisim.comp.Component c : d.components) {
                 b = b.add(c.getBounds());
             }
-            canvas.scrollRectToVisible(canvas.hcsToScreen(new java.awt.Rectangle(b.getX() - 80, b.getY() - 80,
-                    b.getWidth() + 160, b.getHeight() + 160)));
+            // 이미 다 보이면 옮기지 않는다(화면 맞춤한 회로가 괜히 밀려 잘리지 않게, D-080)
+            java.awt.Rectangle cause = canvas.hcsToScreen(new java.awt.Rectangle(b.getX(), b.getY(), b.getWidth(),
+                    b.getHeight()));
+            if (!canvas.getVisibleRect().contains(cause)) {
+                canvas.scrollRectToVisible(canvas.hcsToScreen(new java.awt.Rectangle(b.getX() - 80, b.getY() - 80,
+                        b.getWidth() + 160, b.getHeight() + 160)));
+            }
             canvas.repaint();
         }
         for (Runnable r : listeners) {
