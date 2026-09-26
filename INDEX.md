@@ -2,6 +2,12 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-27 v1.0.2 패치(X-01~X-05 전후, 최종 세트, windows-smoke)
+
+- 기준: main `7aa51a9` (v1.0.2)
+- 관련 이슈: #305~#309 (마일스톤 v1.0.2)
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-27-v102/README.md
+
 ## 2026-09-26 v1.0.1 패치(V-01~V-09 전후, 최종 세트)
 
 - 기준: main `da7915f` (v1.0.1)
