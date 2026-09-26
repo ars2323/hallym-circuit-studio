@@ -19,6 +19,7 @@ import java.awt.geom.QuadCurve2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -87,9 +88,14 @@ public final class FlowPainter {
             if (inView(p, shown, j.circuit, j.instances)) {
                 r = add(r, j.from);
                 r = add(r, j.to);
-                // 호가 위로 부풀어 오른다
-                r = add(r, Location.create((j.from.getX() + j.to.getX()) / 2, Math.min(j.from.getY(), j.to.getY())
-                        - arcRise(j)));
+                // 호는 위·아래·옆 어느 쪽으로든 부풀 수 있다(V-06): 가장 큰 후보만큼 넓힌다
+                int rise = 2 * arcRise(j);
+                int mx = (j.from.getX() + j.to.getX()) / 2;
+                int my = (j.from.getY() + j.to.getY()) / 2;
+                r = add(r, Location.create(mx, Math.min(j.from.getY(), j.to.getY()) - rise));
+                r = add(r, Location.create(mx, Math.max(j.from.getY(), j.to.getY()) + rise));
+                r = add(r, Location.create(Math.min(j.from.getX(), j.to.getX()) - rise, my));
+                r = add(r, Location.create(Math.max(j.from.getX(), j.to.getX()) + rise, my));
             }
         }
         for (SignalFlowPath.Pass x : p.passes) {
@@ -280,7 +286,10 @@ public final class FlowPainter {
             // 3. 터널 점프: 두 터널을 잇는 점선 호(색마다 한 경로). 부품 몸체·터널 이름·라벨 칩 위는 잘라 낸다.
             //    잘라 낼 영역은 경로마다 한 번 만들고, 프레임마다 한 번만 잘라 호와 링을 모두 그 안에 그린다.
             Graphics2D cg = (Graphics2D) g.create();
-            cg.clip(arcAreaCached(p, shown, g, obstacles));
+            java.awt.geom.Area free = arcAreaCached(p, shown, g, obstacles);
+            cg.clip(free);
+            // 호의 모양은 부품 몸체·라벨 칩·끝점 칩을 가장 적게 가리는 후보로 한 번 정한다(V-06)
+            Map<SignalFlowPath.Jump, double[]> shapes = arcShapesCached(p, shown, g, z, obstacles);
             Map<Color, Path2D.Double> arcs = new LinkedHashMap<>();
             for (SignalFlowPath.Jump j : p.jumps) {
                 if (!inView(p, shown, j.circuit, j.instances) || time < j.start) {
@@ -288,12 +297,29 @@ public final class FlowPainter {
                 }
                 double f = Math.min(1, (time - j.start) / SignalFlowPath.JUMP);
                 Color c = tunnelColor != null ? tunnelColor.apply(j.from) : null;
-                arcs.computeIfAbsent(c != null ? c : ACCENT, k -> new Path2D.Double()).append(arc(j, f), false);
+                arcs.computeIfAbsent(c != null ? c : ACCENT, k -> new Path2D.Double()).append(arc(j, f, shapes.get(j)),
+                        false);
             }
             cg.setStroke(arcStroke(z));
             for (Map.Entry<Color, Path2D.Double> e : arcs.entrySet()) {
                 cg.setColor(e.getKey());
                 cg.draw(e.getValue());
+            }
+            // 피할 수 없어 부품 몸체·칩 위를 지나는 구간은 옅게(V-06)
+            if (!arcs.isEmpty()) {
+                Graphics2D fg = (Graphics2D) g.create();
+                Rectangle clip = g.getClipBounds();
+                java.awt.geom.Area covered = new java.awt.geom.Area(clip != null ? clip
+                        : new Rectangle(-100000, -100000, 200000, 200000));
+                covered.subtract(free);
+                fg.clip(covered);
+                fg.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, FAINT_ALPHA));
+                fg.setStroke(arcStroke(z));
+                for (Map.Entry<Color, Path2D.Double> e : arcs.entrySet()) {
+                    fg.setColor(e.getKey());
+                    fg.draw(e.getValue());
+                }
+                fg.dispose();
             }
             // 4. 부품을 지날 때 외곽선이 잠깐 빛난다(서브회로 경계 포함)
             Map<Component, Integer> inside = new LinkedHashMap<>();
@@ -316,9 +342,14 @@ public final class FlowPainter {
                 outline(g, x.component.getBounds(), new Color(ACCENT.getRed(), ACCENT.getGreen(), ACCENT.getBlue(),
                         alpha), z);
             }
+            List<Rectangle2D> avoid = new ArrayList<>(); // 서브회로 칩이 피할 것: 라벨 칩과 먼저 놓은 서브회로 칩(V-06)
+            if (obstacles != null) {
+                avoid.addAll(obstacles);
+            }
             for (Map.Entry<Component, Integer> e : inside.entrySet()) {
                 if (shown.contains(e.getKey())) {
-                    chip(g, e.getKey().getBounds(), places(e.getKey().getFactory().getName(), e.getValue()), z);
+                    avoid.add(chip(g, e.getKey().getBounds(), places(e.getKey().getFactory().getName(), e.getValue()),
+                            z, avoid));
                 }
             }
             // 5. 끝점: 링과 짧은 라벨(자리는 부품·라벨 칩·다른 끝점 라벨을 피해 한 번 정한다)
@@ -427,12 +458,131 @@ public final class FlowPainter {
                 from.getY() + dy * b);
     }
 
-    /** 터널 점프 호의 앞부분 [0, f](de Casteljau로 정확히 자른다). */
+    /** 터널 점프 호의 앞부분 [0, f](de Casteljau로 정확히 자른다). 기본 모양은 위로 부푼 호. */
     static QuadCurve2D arc(SignalFlowPath.Jump j, double f) {
+        return arc(j, f, control(j, 0));
+    }
+
+    /** 호의 조절점 후보(V-06, 결정적 순서): 위, 아래, 왼쪽, 오른쪽, 그리고 각각 두 배 높이. */
+    static final int CANDIDATES = 8;
+    /** 부품 몸체 위를 지나는 구간의 불투명도. */
+    static final float FAINT_ALPHA = 0.3f;
+
+    static double[] control(SignalFlowPath.Jump j, int candidate) {
+        double mx = (j.from.getX() + j.to.getX()) / 2.0;
+        double my = (j.from.getY() + j.to.getY()) / 2.0;
+        int rise = arcRise(j) * (candidate >= 4 ? 2 : 1);
+        switch (candidate % 4) {
+        case 0:
+            return new double[] {mx, Math.min(j.from.getY(), j.to.getY()) - rise};
+        case 1:
+            return new double[] {mx, Math.max(j.from.getY(), j.to.getY()) + rise};
+        case 2:
+            return new double[] {Math.min(j.from.getX(), j.to.getX()) - rise, my};
+        default:
+            return new double[] {Math.max(j.from.getX(), j.to.getX()) + rise, my};
+        }
+    }
+
+    /**
+     * 후보 중 부품 몸체(점프 양끝 터널 제외)·라벨 칩·끝점 칩을 가장 적게 가리는 조절점. 가리는 정도는 호 위 표본점 수로
+     * 재고, 같으면 앞 후보(위로 부푼 기본 모양)를 고른다.
+     */
+    static double[] chooseControl(SignalFlowPath.Jump j, List<Rectangle2D> blockers) {
+        double[] best = null;
+        int bestHits = Integer.MAX_VALUE;
+        for (int c = 0; c < CANDIDATES; c++) {
+            double[] ctrl = control(j, c);
+            int hits = 0;
+            for (int i = 1; i < 40; i++) {
+                double u = i / 40.0;
+                double x = (1 - u) * (1 - u) * j.from.getX() + 2 * (1 - u) * u * ctrl[0] + u * u * j.to.getX();
+                double y = (1 - u) * (1 - u) * j.from.getY() + 2 * (1 - u) * u * ctrl[1] + u * u * j.to.getY();
+                for (Rectangle2D r : blockers) {
+                    if (r.contains(x, y)) {
+                        hits++;
+                        break;
+                    }
+                }
+            }
+            if (hits < bestHits) {
+                bestHits = hits;
+                best = ctrl;
+            }
+            if (hits == 0) {
+                break;
+            }
+        }
+        return best;
+    }
+
+    /** 호가 피할 것: 보이는 회로의 부품 몸체(점프 양끝 터널 제외), 라벨 칩, 끝점 라벨 칩. */
+    static List<Rectangle2D> blockers(SignalFlowPath.Jump j, Circuit shown, List<Rectangle> obstacles,
+            java.util.Collection<Rectangle2D> chips) {
+        List<Rectangle2D> out = new ArrayList<>();
+        for (Component c : shown.getNonWires()) {
+            Bounds b = c.getBounds();
+            Rectangle r = new Rectangle(b.getX() - 2, b.getY() - 2, b.getWidth() + 4, b.getHeight() + 4);
+            if (r.contains(j.from.getX(), j.from.getY()) || r.contains(j.to.getX(), j.to.getY())) {
+                continue; // 양끝 터널 몸체는 어느 후보나 스친다
+            }
+            out.add(r);
+        }
+        if (obstacles != null) {
+            for (Rectangle r : obstacles) {
+                out.add(new Rectangle(r.x - 2, r.y - 2, r.width + 4, r.height + 4));
+            }
+        }
+        if (chips != null) {
+            out.addAll(chips);
+        }
+        return out;
+    }
+
+    /** 경로의 점프마다 고른 조절점(경로·회로·장애물마다 한 번). */
+    static Map<SignalFlowPath.Jump, double[]> arcShapes(SignalFlowPath p, Circuit shown, Graphics2D g, double z,
+            List<Rectangle> obstacles) {
+        Map<SignalFlowPath.Endpoint, double[]> places = layout(g, p, shown, z, obstacles);
+        List<Rectangle2D> chips = new ArrayList<>();
+        double s = deviceScale(g);
+        for (Map.Entry<SignalFlowPath.Endpoint, double[]> e : places.entrySet()) {
+            java.awt.image.BufferedImage ci = chipImage(g, e.getKey().label, false, z);
+            chips.add(new Rectangle2D.Double(e.getValue()[0], e.getValue()[1], ci.getWidth() / s, ci.getHeight() / s));
+        }
+        Map<SignalFlowPath.Jump, double[]> out = new java.util.HashMap<>();
+        for (SignalFlowPath.Jump j : p.jumps) {
+            if (inView(p, shown, j.circuit, j.instances)) {
+                out.put(j, chooseControl(j, blockers(j, shown, obstacles, chips)));
+            }
+        }
+        return out;
+    }
+
+    private static final Map<SignalFlowPath, Object[]> ARC_SHAPES = java.util.Collections.synchronizedMap(
+            new java.util.WeakHashMap<>());
+
+    static Map<SignalFlowPath.Jump, double[]> arcShapesCached(SignalFlowPath p, Circuit shown, Graphics2D g, double z,
+            List<Rectangle> obstacles) {
+        Object key = java.util.Arrays.asList(shown, Math.round(z * 1000), obstacles == null ? 0 : obstacles.hashCode());
+        Object[] hit = ARC_SHAPES.get(p);
+        if (hit != null && hit[0].equals(key)) {
+            @SuppressWarnings("unchecked")
+            Map<SignalFlowPath.Jump, double[]> m = (Map<SignalFlowPath.Jump, double[]>) hit[1];
+            return m;
+        }
+        Map<SignalFlowPath.Jump, double[]> m = arcShapes(p, shown, g, z, obstacles);
+        ARC_SHAPES.put(p, new Object[] {key, m});
+        return m;
+    }
+
+    static QuadCurve2D arc(SignalFlowPath.Jump j, double f, double[] ctrl) {
+        if (ctrl == null) {
+            ctrl = control(j, 0);
+        }
         double x0 = j.from.getX();
         double y0 = j.from.getY();
-        double x1 = (j.from.getX() + j.to.getX()) / 2.0;
-        double y1 = Math.min(j.from.getY(), j.to.getY()) - arcRise(j);
+        double x1 = ctrl[0];
+        double y1 = ctrl[1];
         double x2 = j.to.getX();
         double y2 = j.to.getY();
         double u = Math.max(0, Math.min(1, f));
@@ -521,6 +671,9 @@ public final class FlowPainter {
             if (!inView(p, shown, e.circuit, e.instances) || e.label.equals(kr.ac.hallym.hcs.app.model.Names.label(
                     e.component)) || e.component.getFactory().getName().equals("Splitter")) {
                 continue; // 핀·LED의 같은 라벨 칩이나 스플리터 팔 라벨이 이미 이름을 보인다: 링만
+            }
+            if (!labelled(e)) {
+                continue; // 연결 없는 출력 포트 등은 링만(V-06)
             }
             java.awt.image.BufferedImage img = chipImage(g, e.label, false, z);
             double w = img.getWidth() / s;
@@ -648,6 +801,21 @@ public final class FlowPainter {
         return area;
     }
 
+    /**
+     * 글자 라벨을 다는 끝점(V-06): 출력 Pin, 순차 부품 입력(STATE), 뒤로 갈 때의 출처, 서브회로 안(경계를 건넌 곳).
+     * 연결 없는 포트(Comparator lt 등)와 핀이 아닌 출력 끝은 링만.
+     */
+    static boolean labelled(SignalFlowPath.Endpoint e) {
+        switch (e.kind) {
+        case UNCONNECTED:
+            return false;
+        case OUTPUT:
+            return e.component.getFactory().getName().equals("Pin") || !e.instances.isEmpty();
+        default:
+            return true;
+        }
+    }
+
     /** 끝점 라벨: 링 오른쪽 위. */
     static void label(Graphics2D g, Location at, String text, double z) {
         java.awt.image.BufferedImage img = chipImage(g, text, false, z);
@@ -659,11 +827,47 @@ public final class FlowPainter {
 
     /** 서브회로 칩: 부품 오른쪽 위 바깥. */
     static void chip(Graphics2D g, Bounds b, String text, double z) {
+        chip(g, b, text, z, Collections.<Rectangle2D>emptyList());
+    }
+
+    /** 서브회로 칩을 라벨 칩·다른 서브회로 칩을 피해 놓고 그 자리를 돌려준다(V-06). */
+    static Rectangle2D chip(Graphics2D g, Bounds b, String text, double z, List<Rectangle2D> avoid) {
         java.awt.image.BufferedImage img = chipImage(g, text, true, z);
         double s = deviceScale(g);
         double w = img.getWidth() / s;
         double h = img.getHeight() / s;
-        drawChip(g, img, b.getX() + b.getWidth() - w, b.getY() - px(6, z) - h, s);
+        double[] at = chipPlace(b, w, h, z, avoid);
+        drawChip(g, img, at[0], at[1], s);
+        return new Rectangle2D.Double(at[0], at[1], w, h);
+    }
+
+    /**
+     * 서브회로 칩 자리 후보(결정적 순서): 부품 오른쪽 위 바깥(기본), 왼쪽 위, 오른쪽 아래, 왼쪽 아래, 위 가운데. avoid와
+     * 겹치지 않는 첫 자리, 모두 겹치면 기본 자리.
+     */
+    static double[] chipPlace(Bounds b, double w, double h, double z, List<Rectangle2D> avoid) {
+        double gap = px(6, z);
+        double[][] cands = {
+            {b.getX() + b.getWidth() - w, b.getY() - gap - h},
+            {b.getX(), b.getY() - gap - h},
+            {b.getX() + b.getWidth() - w, b.getY() + b.getHeight() + gap},
+            {b.getX(), b.getY() + b.getHeight() + gap},
+            {b.getX() + b.getWidth() / 2.0 - w / 2, b.getY() - gap - h},
+        };
+        for (double[] c : cands) {
+            Rectangle2D r = new Rectangle2D.Double(c[0], c[1], w, h);
+            boolean clear = true;
+            for (Rectangle2D o : avoid) {
+                if (o != null && o.intersects(r)) {
+                    clear = false;
+                    break;
+                }
+            }
+            if (clear) {
+                return c;
+            }
+        }
+        return cands[0];
     }
 
     /** 장치 화소 / 회로 단위(배율 × 화면 배율). */

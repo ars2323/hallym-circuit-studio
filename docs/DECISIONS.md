@@ -1201,3 +1201,11 @@
 - **이유:** v1.0.0 검토(40a): 다른 파일 둘이 탭에 똑같이 "demo-datapath"로 보였다.
 - **대안:** 늘 폴더를 붙이기(겹치지 않는 탭까지 길어짐), 전체 경로(탭이 지나치게 넓어짐), 번호 붙이기(어느 파일인지 알 수 없음).
 - **테스트:** `TabLayoutTest.sameTitlesGetTheShortestDistinguishingFolder`(겹치는 것만, 바로 위 폴더가 같으면 두 단계, 셋 중 하나만 짧게), `TabsLayoutGuiTest.sameNamedFilesShowTheirFolderAndReopeningGoesToTheExistingTab`(창 제목·덧말·재열기).
+## D-101 Signal Flow 터널 점프 호의 모양과 끝점 라벨(V-06)
+
+- **날짜:** 2026-09-26
+- **결정:** 터널 점프 호의 조절점은 후보 여덟 개(위·아래·왼쪽·오른쪽으로 부푼 것과 각각 두 배 높이) 가운데, 호 위 표본점 39개가 부품 몸체(점프 양끝 터널 제외)·라벨 칩·끝점 라벨 칩 안에 드는 수가 가장 적은 것을 고른다. 같으면 앞 후보(위로 부푼 기본 모양)라 결정적이다. 경로·회로·배율·장애물마다 한 번 계산해 둔다(`FlowPainter.arcShapes`). 그래도 남는 구간(예: 터널 바로 아래 부품)은 잘라 내지 않고 불투명도 0.3으로 옅게 그린다. 끝점 글자 라벨은 출력 Pin, 순차 부품 입력(STATE), 뒤로 갈 때의 출처, 서브회로 안 끝점에만 달고, 연결 없는 출력 포트(Comparator lt 등)와 핀이 아닌 출력 끝은 링만 둔다(`FlowPainter.labelled`).
+- **이유:** v1.0.0 검토(18e): pc 터널 사이 호가 PC 레지스터·clk 터널·"PC (D)" 라벨을 가로질렀고, 연결 없는 출력 포트마다 라벨이 붙어 어수선했다.
+- **대안:** 호를 부품 위에서 완전히 잘라 내기(이전 동작: 호가 끊겨 보임), 직선 점프(선과 구분되지 않음), 장애물을 피하는 자유 곡선(결정성과 성능이 나빠짐).
+- **보강(ui-reviewer 1차):** 서브회로 "N places" 칩도 라벨 칩·먼저 놓은 서브회로 칩을 피해 놓는다(오른쪽 위 → 왼쪽 위 → 오른쪽 아래 → 왼쪽 아래 → 위 가운데, `FlowPainter.chipPlace`). 18h·18j에서 regfile 칩이 값 칩 0x01과 겹쳤다.
+- **테스트:** `FlowPainterTest.tunnelArcsAvoidPartsAndLabelChips`(18e 장면: 고른 호가 후보 중 최소 겹침이고 PC 레지스터·clk 터널·끝점 칩을 지나지 않으며 기본 호보다 덜 가린다), `arcCandidatesAreChosenDeterministically`, `onlyOutputPinsAndStateInputsGetLabels`, `subcircuitChipsMoveOffLabelChips`.
