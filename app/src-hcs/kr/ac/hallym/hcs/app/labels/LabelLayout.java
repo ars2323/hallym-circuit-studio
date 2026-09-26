@@ -143,8 +143,10 @@ public final class LabelLayout {
                 return false;
             }
         }
+        // 부품 몸체와는 1px 이상 떨어뜨린다: 칩 테두리가 몸체 테두리와 같은 줄에 겹치지 않게(C-09 검토)
+        Rectangle apart = new Rectangle(r.x - 1, r.y - 1, r.width + 2, r.height + 2);
         for (Rectangle o : obstacles) {
-            if (r.intersects(o)) {
+            if (apart.intersects(o)) {
                 return false;
             }
         }

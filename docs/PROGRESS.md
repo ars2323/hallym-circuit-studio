@@ -71,7 +71,7 @@
 | C-07 | 명령어 필드 색 | #205 | 완료 | #264 | D-078, FieldPathsTest(rs→RR1, rt→RR2, 합친 버스·RD1/RD2로 안 번짐, 형식에 없는 필드), InstructionPanelTest, CycleViewGuiTest.instructionTabShowsFieldColors, 29a~29c |
 | C-08 | 버스 값 칩과 활성 경로 | #206 | 완료 | (이 PR) | D-079, BusValuesTest(진법·떠 있음·배치 폭·이름 없는 버스), ActivePathOverlayTest(MemtoReg 0/1/미확정), CycleViewGuiTest.activePathAndBusValues, 30a~30d. 함께: 사이클 표 빈 줄 안내 바탕(C-05 검토), 필드 띠가 부품 몸체를 칠하지 않게(C-07 검토) |
 | C-09 | Console 탭과 .s 자동 재로드 | #207 | 완료 | #263 | D-077, ProgramReloadTest(바뀐 때만·되돌리기·오류는 옛 내용, Console 글·exit), ConsoleDemoTest, CycleViewGuiTest.consoleTabAndReloadWatcher, 28a~28c |
-| C-10 | 사이클 뷰 테스트 | #208 | 대기 |  |  |
+| C-10 | 사이클 뷰 테스트 | #208 | 완료 | (이 PR) | docs/TESTING.md "사이클 뷰(C-10)" 절(재생=재실행·뒤로 가기 뒤 진행·Run Until·레지스터 대응·factorial $sp·halt에서 멈춤), LabelsTest.chipsKeepAPixelAwayFromBodies, 28a |
 
 ## D 동적 진단(4단계)
 
