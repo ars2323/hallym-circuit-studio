@@ -424,7 +424,7 @@ public final class WireMarks {
      */
     /** 연결점이 굵은 버스(E-03) 위에 있으면 점이 버스보다 넓어야 보인다(Q-03 검토: 200%에서 T자 연결점이 사라졌다). */
     static float dotFor(float base, boolean onBus) {
-        return onBus ? Math.max(base, BusStyle.BUS_WIDTH + 3f) : base;
+        return onBus ? Math.max(base, BusStyle.BUS_WIDTH + 5f) : base;
     }
 
     static boolean onBus(Location p, java.util.Map<Wire, Integer> buses) {
