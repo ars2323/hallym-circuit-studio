@@ -203,7 +203,13 @@ public final class WireMarks {
         }
         double z = canvas.getHcsZoom() == null ? 1.0 : canvas.getHcsZoom().zoomFactor();
         boolean showState = !AppPreferences.PRINTER_VIEW.getBoolean();
-        paint((Graphics2D) g0, circuit, showState ? state : null, hidden, z);
+        // 비트 수 숫자는 라벨 칩 자리도 피한다(E-03)
+        BusStyle.CHIPS.set(kr.ac.hallym.hcs.app.labels.LabelOverlay.chipRects(canvas));
+        try {
+            paint((Graphics2D) g0, circuit, showState ? state : null, hidden, z);
+        } finally {
+            BusStyle.CHIPS.remove();
+        }
     }
 
     /** state가 null이면 인쇄 보기처럼 검정으로 그린다. */
@@ -212,6 +218,12 @@ public final class WireMarks {
         try {
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             Colors colors = new Colors(circuit, state);
+            // E-03: 버스를 굵게(연결점·점프보다 먼저)
+            java.util.Map<Wire, Integer> buses = BusStyle.thick() || BusStyle.widths() ? BusStyle.buses(circuit)
+                    : java.util.Collections.<Wire, Integer>emptyMap();
+            if (BusStyle.thick()) {
+                BusStyle.paintThick(g, circuit, colors, hidden, buses);
+            }
             Set<Wire> hl = highlighted(circuit);
             if (!hl.isEmpty()) {
                 g.setColor(HIGHLIGHT);
@@ -235,6 +247,9 @@ public final class WireMarks {
                     g.setColor(colors.at(p, null));
                     g.fill(new Ellipse2D.Float(p.getX() - d / 2, p.getY() - d / 2, d, d));
                 }
+            }
+            if (BusStyle.widths()) {
+                BusStyle.paintWidths(g, circuit, hidden, buses, z);
             }
         } finally {
             g.dispose();

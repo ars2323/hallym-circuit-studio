@@ -121,6 +121,20 @@ public final class Shots {
             setZoom(p, fit);
             scrollTo(p, 0, 0);
             snapFull("02-demo-fit-orig");
+            snapFull("37a-bus-widths-full-orig"); // E-03 비교: 원조 선 굵기(버스도 3px)
+            com.cburch.logisim.data.Bounds span37 = null;
+            for (com.cburch.logisim.comp.Component x : p.getCurrentCircuit().getNonWires()) {
+                String f = x.getFactory().getName();
+                if (f.equals("Instruction Memory") || f.equals("regfile")) {
+                    span37 = span37 == null ? x.getBounds() : span37.add(x.getBounds());
+                }
+            }
+            setZoom(p, 1.5);
+            centerOn(p, span37);
+            sleep(700);
+            snapCrop(onScreen(canvas(p).getParent()), "37b-bus-widths-150-orig");
+            setZoom(p, fit);
+            scrollTo(p, 0, 0);
             zoomCrops(p, "orig");
             junctionsAndJumps(p, "orig");
             controlPins(p, "orig");
@@ -227,6 +241,9 @@ public final class Shots {
         }
         if (want(scenes, "36")) {
             submitAndExport(demo);
+        }
+        if (want(scenes, "37")) {
+            busStyle(demo);
         }
         if (want(scenes, "10")) {
             open("tests/circ/register.circ");
@@ -416,17 +433,20 @@ public final class Shots {
         deselect(p);
         edt(() -> canvas(p).getHcsZoom().fitCircuit());
         sleep(900);
-        kr.ac.hallym.hcs.app.side.SidePanel side = (kr.ac.hallym.hcs.app.side.SidePanel) find(p.getFrame(),
-                x -> x instanceof kr.ac.hallym.hcs.app.side.SidePanel);
+        // 원조 모드에서도 이 클래스가 검증되므로 포크 클래스를 지역 변수 타입으로 두지 않는다(NoClassDefFoundError)
+        java.awt.Component side = find(p.getFrame(),
+                x -> x.getClass().getName().equals("kr.ac.hallym.hcs.app.side.SidePanel"));
         if (side == null) {
             log.add("24: no side panel");
             return;
         }
-        edt(() -> side.tabs().setSelectedIndex(0));
+        javax.swing.JTabbedPane sideTabs = (javax.swing.JTabbedPane) find((java.awt.Container) side,
+                x -> x instanceof javax.swing.JTabbedPane);
+        edt(() -> sideTabs.setSelectedIndex(0));
         sleep(700);
         snapFull("24a-full-window-tunnels");
         snapCrop(onScreen(side), "24b-left-panel-tunnels");
-        edt(() -> side.tabs().setSelectedIndex(1));
+        edt(() -> sideTabs.setSelectedIndex(1));
         sleep(700);
         // 확대해 보이는 영역이 회로 일부일 때의 미니맵
         setZoom(p, 1.5);
@@ -434,7 +454,7 @@ public final class Shots {
         sleep(700);
         snapCrop(onScreen(side), "24c-left-panel-minimap");
         setZoom(p, 1.0);
-        edt(() -> side.tabs().setSelectedIndex(0));
+        edt(() -> sideTabs.setSelectedIndex(0));
         sleep(300);
     }
 
@@ -1786,6 +1806,59 @@ public final class Shots {
         edt(() -> sv.showSide(1));
         sleep(500);
         snapFull("27f-stack-demo-full");
+    }
+
+    /**
+     * 37: 버스 폭과 선 색 범례(E-03). demo-datapath에서 굵은 버스(기본)와 비트 수 표시를 켠 캔버스, 상태 표시줄 Wire
+     * Colors를 눌러 뜬 범례. 버스 값 칩은 이 장면에서 끈다.
+     */
+    void busStyle(Project p) throws Exception {
+        activate(p);
+        deselect(p);
+        kr.ac.hallym.hcs.app.labels.BusValues.Mode before = kr.ac.hallym.hcs.app.labels.BusValues.mode();
+        edt(() -> kr.ac.hallym.hcs.app.labels.BusValues.setMode(kr.ac.hallym.hcs.app.labels.BusValues.Mode.OFF));
+        edt(() -> kr.ac.hallym.hcs.app.wiring.BusStyle.setWidths(true));
+        edt(() -> canvas(p).getHcsZoom().fitCircuit());
+        sleep(900);
+        snapFull("37a-bus-widths-full");
+        // 원조 비교(체크리스트 5): 원조 모드가 같은 배율로 같은 장면을 찍는다
+        java.nio.file.Files.write(new File(out, "fit-zoom.txt").toPath(),
+                Double.toString(zoom(p)).getBytes(StandardCharsets.UTF_8));
+        com.cburch.logisim.data.Bounds span = null;
+        for (com.cburch.logisim.comp.Component x : p.getCurrentCircuit().getNonWires()) {
+            String f = x.getFactory().getName();
+            if (f.equals("Instruction Memory") || f.equals("regfile")) {
+                span = span == null ? x.getBounds() : span.add(x.getBounds());
+            }
+        }
+        setZoom(p, 1.5);
+        centerOn(p, span);
+        sleep(700);
+        snapCrop(onScreen(canvas(p).getParent()), "37b-bus-widths-150");
+        edt(() -> canvas(p).getHcsZoom().fitCircuit());
+        sleep(500);
+        javax.swing.JLabel legend = (javax.swing.JLabel) find(p.getFrame(), x -> x instanceof javax.swing.JLabel && x.isShowing()
+                && kr.ac.hallym.hcs.app.Messages.get("bar.legend").equals(((javax.swing.JLabel) x).getText()));
+        if (legend == null) {
+            log.add("37: no Wire Colors label");
+        } else {
+            Point at = legend.getLocationOnScreen();
+            robot.mouseMove(at.x + 10, at.y + legend.getHeight() / 2);
+            sleep(200);
+            robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+            robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+            sleep(900);
+            Rectangle r = popupBounds();
+            if (r == null) {
+                log.add("37: no legend popup");
+            } else {
+                snapCrop(pad(r, 12), "37c-wire-legend");
+            }
+            key(KeyEvent.VK_ESCAPE);
+            sleep(300);
+        }
+        edt(() -> kr.ac.hallym.hcs.app.wiring.BusStyle.setWidths(false));
+        edt(() -> kr.ac.hallym.hcs.app.labels.BusValues.setMode(before));
     }
 
     /**
