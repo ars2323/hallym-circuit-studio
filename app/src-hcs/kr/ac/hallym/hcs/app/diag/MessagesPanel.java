@@ -47,6 +47,8 @@ public final class MessagesPanel {
     private final JPanel resetBar = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 2));
     private final javax.swing.JButton reset = new javax.swing.JButton(Messages.get("messages.reset"));
     private JSplitPane split;
+    private boolean userClosed;
+    private boolean dragging;
 
     MessagesPanel(Project proj) {
         diags = Diagnostics.of(proj);
@@ -133,20 +135,85 @@ public final class MessagesPanel {
     /** 아래 패널을 펴고 Messages 탭을 고른다. */
     void open() {
         tabs.setSelectedIndex(0);
-        if (split != null && split.getHeight() - split.getDividerLocation() < HEIGHT / 2) {
-            split.setDividerLocation(Math.max(0, split.getHeight() - HEIGHT));
+        if (split != null && bottomHeight() < HEIGHT / 2) {
+            split.setDividerLocation(Math.max(split.getHeight() / 3, split.getHeight() - HEIGHT - split.getDividerSize()));
+            userClosed = false;
         }
     }
 
     /** 캔버스 영역 아래에 붙인다. */
     JComponent wrap(JComponent center) {
         split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, center, tabs);
+        split.putClientProperty(MessagesPanel.class, this);
         split.setResizeWeight(1.0);
         split.setBorder(null);
         split.setContinuousLayout(true);
         tabs.setMinimumSize(new java.awt.Dimension(0, 0));
         tabs.setPreferredSize(new java.awt.Dimension(100, HEIGHT));
+        // 창이 크기를 얻기 전(높이 0)에 먼저 배치되거나 나눔선이 창 밖으로 밀리면 resizeWeight 1.0 때문에 아래 칸이 0으로
+        // 굳는다(X-01 뒤 새 창에서 보였다). 학생이 직접 끌어 닫은 것이 아니면 창 크기가 바뀔 때 기본 높이로 되돌린다
+        javax.swing.plaf.basic.BasicSplitPaneUI ui = split.getUI() instanceof javax.swing.plaf.basic.BasicSplitPaneUI
+                ? (javax.swing.plaf.basic.BasicSplitPaneUI) split.getUI() : null;
+        if (ui != null) {
+            ui.getDivider().addMouseListener(new MouseAdapter() {
+                @Override
+                public void mousePressed(MouseEvent e) {
+                    dragging = true;
+                }
+
+                @Override
+                public void mouseReleased(MouseEvent e) {
+                    dragging = false;
+                    userClosed = bottomHeight() < HEIGHT / 2; // 직접 끌어 닫았다: 창 크기가 바뀌어도 그대로 둔다
+                }
+            });
+        }
+        // 프로그램이 나눔선을 아래로 밀어 아래 칸이 사라진 경우(끌기 중이 아닐 때)는 크기 변경 없이도 되돌린다
+        split.addPropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, e -> javax.swing.SwingUtilities
+                .invokeLater(() -> {
+                    int h = split.getHeight();
+                    if (h > 0 && !userClosed && !dragging && bottomHeight() < HEIGHT / 2) {
+                        split.setDividerLocation(Math.max(h / 3, h - HEIGHT - split.getDividerSize()));
+                    }
+                }));
+        split.addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override
+            public void componentResized(java.awt.event.ComponentEvent e) {
+                int h = split.getHeight();
+                if (h > 0 && !userClosed && bottomHeight() < HEIGHT / 2) {
+                    split.setDividerLocation(Math.max(h / 3, h - HEIGHT - split.getDividerSize()));
+                }
+            }
+        });
         return split;
+    }
+
+    /** 창 안의 Messages 패널(테스트). 없으면 null. */
+    public static MessagesPanel of(java.awt.Component root) {
+        if (root instanceof JComponent && ((JComponent) root).getClientProperty(MessagesPanel.class) instanceof MessagesPanel) {
+            return (MessagesPanel) ((JComponent) root).getClientProperty(MessagesPanel.class);
+        }
+        if (root instanceof java.awt.Container) {
+            for (java.awt.Component c : ((java.awt.Container) root).getComponents()) {
+                MessagesPanel m = of(c);
+                if (m != null) {
+                    return m;
+                }
+            }
+        }
+        return null;
+    }
+
+    /** 아래 탭 칸 높이를 직접 둔다(테스트: 잘못 굳은 상태를 만든다). */
+    public void setBottomHeight(int height) {
+        if (split != null) {
+            split.setDividerLocation(split.getHeight() - height - split.getDividerSize());
+        }
+    }
+
+    /** 아래 탭 칸의 지금 높이(테스트). */
+    public int bottomHeight() {
+        return split == null ? 0 : split.getHeight() - split.getDividerLocation() - split.getDividerSize();
     }
 
     /** 진동 Reset 단추가 보이는가(테스트). */
@@ -173,6 +240,7 @@ public final class MessagesPanel {
         tabs.setSelectedComponent(comp);
         if (split != null && split.getHeight() - split.getDividerLocation() < height) {
             split.setDividerLocation(Math.max(split.getHeight() / 3, split.getHeight() - height));
+            userClosed = false;
         }
     }
 
