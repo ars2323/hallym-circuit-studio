@@ -316,4 +316,137 @@ class FlowPainterTest {
         }
         g.dispose();
     }
+
+    /**
+     * V-06 (18e 장면): demo-datapath의 PC에서 시작한 흐름의 터널 점프 호는 부품 몸체(양끝 터널 제외)·끝점 라벨 칩 위를
+     * 지나지 않는 후보를 고른다. 원래(위로 부푼) 호는 PC 레지스터·clk 터널·"PC (D)" 칩을 가로질렀다.
+     */
+    @Test
+    void tunnelArcsAvoidPartsAndLabelChips() throws Exception {
+        Circuit c = SignalFlowPathTest.openDemo(tmp).getMainCircuit();
+        SignalFlowPath p = SignalFlowPath.fromComponent(c, SignalFlowPathTest.byLabel(c, "PC", "Register"), 0,
+                new SignalFlowPath.Options());
+        assertFalse(p.jumps.isEmpty(), "the pc tunnels make a jump");
+        BufferedImage img = new BufferedImage(10, 10, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = img.createGraphics();
+        java.util.Map<SignalFlowPath.Jump, double[]> shapes = FlowPainter.arcShapes(p, c, g, 1, null);
+        java.util.Map<SignalFlowPath.Endpoint, double[]> places = FlowPainter.layout(g, p, c, 1, null);
+        List<java.awt.geom.Rectangle2D> chips = new java.util.ArrayList<>();
+        for (java.util.Map.Entry<SignalFlowPath.Endpoint, double[]> e : places.entrySet()) {
+            BufferedImage ci = FlowPainter.chipImage(g, e.getKey().label, false, 1);
+            chips.add(new java.awt.geom.Rectangle2D.Double(e.getValue()[0], e.getValue()[1], ci.getWidth(),
+                    ci.getHeight()));
+        }
+        // 18e에서 문제였던 것들: PC 레지스터 몸체, clk 터널, "PC (D)" 등 끝점 칩
+        List<java.awt.geom.Rectangle2D> mustAvoid = new java.util.ArrayList<>(chips);
+        for (Component x : c.getNonWires()) {
+            String f = x.getFactory().getName();
+            String l = kr.ac.hallym.hcs.app.model.Names.label(x);
+            if (f.equals("Register") && "PC".equals(l) || f.equals("Tunnel") && "clk".equals(l)) {
+                Bounds bb = x.getBounds();
+                mustAvoid.add(new Rectangle(bb.getX() - 2, bb.getY() - 2, bb.getWidth() + 4, bb.getHeight() + 4));
+            }
+        }
+        assertTrue(mustAvoid.size() >= chips.size() + 2, "PC register and a clk tunnel found");
+        int crossedByDefault = 0;
+        int crossedNow = 0;
+        for (SignalFlowPath.Jump j : p.jumps) {
+            List<java.awt.geom.Rectangle2D> blockers = FlowPainter.blockers(j, c, null, chips);
+            double[] chosen = shapes.get(j);
+            int best = Integer.MAX_VALUE;
+            for (int k = 0; k < FlowPainter.CANDIDATES; k++) {
+                best = Math.min(best, hits(j, FlowPainter.control(j, k), blockers));
+            }
+            assertEquals(best, hits(j, chosen, blockers), "the least covering candidate: " + hitList(j, chosen, blockers));
+            assertEquals(0, hits(j, chosen, mustAvoid), "off the PC register, clk tunnel and label chips: "
+                    + hitList(j, chosen, mustAvoid));
+            crossedByDefault += hits(j, FlowPainter.control(j, 0), blockers);
+            crossedNow += hits(j, chosen, blockers);
+        }
+        assertTrue(crossedByDefault > crossedNow, "the default upward arc covered more: " + crossedByDefault + " > "
+                + crossedNow);
+        // 남는 겹침(pc 터널 바로 아래 상수)은 피할 수 없어 옅게 그린다: 표본 40개 중 한두 점뿐
+        assertTrue(crossedNow <= 2, "only the unavoidable spot next to the tunnel remains: " + crossedNow);
+        g.dispose();
+    }
+
+    static String hitList(SignalFlowPath.Jump j, double[] ctrl, List<java.awt.geom.Rectangle2D> blockers) {
+        java.util.Set<String> out = new java.util.LinkedHashSet<>();
+        for (int i = 1; i < 40; i++) {
+            double u = i / 40.0;
+            double x = (1 - u) * (1 - u) * j.from.getX() + 2 * (1 - u) * u * ctrl[0] + u * u * j.to.getX();
+            double y = (1 - u) * (1 - u) * j.from.getY() + 2 * (1 - u) * u * ctrl[1] + u * u * j.to.getY();
+            for (java.awt.geom.Rectangle2D r : blockers) {
+                if (r.contains(x, y)) {
+                    out.add(r + "@(" + Math.round(x) + "," + Math.round(y) + ")");
+                }
+            }
+        }
+        return out.toString();
+    }
+
+    static int hits(SignalFlowPath.Jump j, double[] ctrl, List<java.awt.geom.Rectangle2D> blockers) {
+        int n = 0;
+        for (int i = 1; i < 40; i++) {
+            double u = i / 40.0;
+            double x = (1 - u) * (1 - u) * j.from.getX() + 2 * (1 - u) * u * ctrl[0] + u * u * j.to.getX();
+            double y = (1 - u) * (1 - u) * j.from.getY() + 2 * (1 - u) * u * ctrl[1] + u * u * j.to.getY();
+            for (java.awt.geom.Rectangle2D r : blockers) {
+                if (r.contains(x, y)) {
+                    n++;
+                    break;
+                }
+            }
+        }
+        return n;
+    }
+
+    /** V-06: 위가 막히면 아래로, 둘 다 막히면 덜 가리는 쪽. 같은 입력이면 늘 같은 후보(결정적). */
+    @Test
+    void arcCandidatesAreChosenDeterministically() {
+        SignalFlowPath.Jump j = new SignalFlowPath.Jump(List.of(), null, Location.create(100, 200),
+                Location.create(300, 200), 0);
+        double[] up = FlowPainter.control(j, 0);
+        double[] down = FlowPainter.control(j, 1);
+        assertTrue(up[1] < 200 && down[1] > 200);
+        List<java.awt.geom.Rectangle2D> none = List.of();
+        assertEquals(up[1], FlowPainter.chooseControl(j, none)[1], 1e-9, "nothing in the way: the default");
+        java.awt.geom.Rectangle2D above = new java.awt.geom.Rectangle2D.Double(150, 100, 100, 95);
+        assertEquals(down[1], FlowPainter.chooseControl(j, List.of(above))[1], 1e-9, "blocked above: below");
+        java.awt.geom.Rectangle2D below = new java.awt.geom.Rectangle2D.Double(150, 205, 100, 100);
+        double[] pick = FlowPainter.chooseControl(j, List.of(above, below));
+        double[] again = FlowPainter.chooseControl(j, List.of(above, below));
+        assertEquals(pick[0], again[0], 1e-9);
+        assertEquals(pick[1], again[1], 1e-9);
+        assertTrue(hits(j, pick, List.of(above, below)) <= hits(j, up, List.of(above, below)));
+    }
+
+    /** V-06: 연결 없는 출력 포트와 핀이 아닌 출력 끝은 링만(라벨 없음); 출력 Pin·순차 입력은 라벨. */
+    @Test
+    void onlyOutputPinsAndStateInputsGetLabels() throws Exception {
+        LogisimFile f = CircuitBuilder.newFile(new Loader(null), Files.createTempDirectory(tmp, "l").toFile());
+        CircuitBuilder b = new CircuitBuilder(f, f.getMainCircuit());
+        Component in = b.add("Wiring", "Pin", 100, 200, "label", "A");
+        Component cmp = b.add("Arithmetic", "Comparator", 400, 200, "width", "1");
+        b.commit();
+        Location a = cmp.getEnd(0).getLocation();
+        b.wire(Location.create(100, 200), Location.create(a.getX() - 20, 200));
+        b.wire(Location.create(a.getX() - 20, 200), Location.create(a.getX() - 20, a.getY()));
+        b.wire(Location.create(a.getX() - 20, a.getY()), a);
+        b.commit();
+        SignalFlowPath p = SignalFlowPath.fromComponent(f.getMainCircuit(), in, -1, new SignalFlowPath.Options());
+        BufferedImage img = new BufferedImage(10, 10, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = img.createGraphics();
+        java.util.Map<SignalFlowPath.Endpoint, double[]> places = FlowPainter.layout(g, p, f.getMainCircuit(), 1, null);
+        boolean unconnected = false;
+        for (SignalFlowPath.Endpoint e : p.endpoints) {
+            if (e.kind == SignalFlowPath.EndKind.UNCONNECTED) {
+                unconnected = true;
+                assertFalse(FlowPainter.labelled(e), "comparator lt/eq/gt: ring only");
+                assertFalse(places.containsKey(e));
+            }
+        }
+        assertTrue(unconnected, "the comparator outputs are unconnected ends: " + p.endpoints);
+        g.dispose();
+    }
 }
