@@ -135,5 +135,5 @@
 | V-06 | Signal Flow 터널 호가 부품·라벨을 피함 | #288 | 완료 | #298 | D-101, FlowPainterTest(호 후보·라벨 규칙·서브회로 칩), 18e·18h·18j |
 | V-07 | 빈 캔버스 안내와 예제 메뉴 | #289 | 완료 | #299 | D-102, EmptyHintAndExamplesTest, 01·46a~46c |
 | V-08 | 상태 표시줄 PC·Mark as PC, Tunnels 외톨이 표시 | #290 | 완료 | #300 | D-103, StatusModelTest(순서·표시·저장 형식·ref-mips PC), SidePanelTest, 47a~47c |
-| V-09 | 스크린샷 실행기 위생과 데모 값 | #291 | 진행 |  |  |
-| V-10 | v1.0.1 공개 릴리스 | #292 | 대기 |  |  |
+| V-09 | 스크린샷 실행기 위생과 데모 값 | #291 | 완료 | #301, #303 | D-104, sceneStart/checkState(최종 세트 로그 FAILED 없음), TourGuiTest 판정 수정, 25·27 ref-mips+factorial.s |
+| V-10 | v1.0.1 공개 릴리스 | #292 | 완료 | #302 | 태그 v1.0.1(main da7915f), 게이트: main CI 성공, ui-reviewer 최종 세트(3인 분할 + 재검토) 위반 0, compat main 전체 위반 0, 진단 기대값 통과. https://github.com/ars2323/hallym-circuit-studio/releases/tag/v1.0.1 |
