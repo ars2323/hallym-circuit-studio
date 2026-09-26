@@ -198,6 +198,9 @@ public final class Shots {
         if (want(scenes, "26")) {
             runUntil(demo);
         }
+        if (want(scenes, "27")) {
+            machinePanels(demo);
+        }
         if (want(scenes, "10")) {
             open("tests/circ/register.circ");
             open("tests/circ/values.circ");
@@ -1692,6 +1695,70 @@ public final class Shots {
         Rectangle status = onScreen(p.getFrame().getContentPane());
         status = new Rectangle(status.x, status.y + status.height - 34, status.width, 34);
         snapCrop(status, "26c-status-notice");
+    }
+
+    /**
+     * 27: 레지스터·메모리 패널(C-05, C-06). demo-datapath(사람이 그린 회로)의 regfile을 "Mark as Register File"로
+     * 표시하고 6사이클 돈 뒤 Registers 탭과 Register Mapping 창. 스택은 작은 회로 stack-demo를 6사이클 돌린 뒤 Memory 탭과
+     * Registers 탭(표시 없음: 모든 레지스터 나열).
+     */
+    void machinePanels(Project demo) throws Exception {
+        activate(demo);
+        deselect(demo);
+        Circuit rf = demo.getLogisimFile().getCircuit("regfile");
+        edt(() -> demo.doAction(kr.ac.hallym.hcs.app.cycle.RegisterFile.markAction(demo.getLogisimFile(), rf,
+                true)));
+        edt(() -> kr.ac.hallym.hcs.app.record.Recorder.requestReset(demo));
+        sleep(900);
+        for (int i = 0; i < 12; i++) {
+            edt(() -> demo.getSimulator().tick());
+            sleep(40);
+        }
+        sleep(800);
+        kr.ac.hallym.hcs.app.cycle.CycleView v = kr.ac.hallym.hcs.app.cycle.CycleView.of(demo);
+        edt(v::open);
+        edt(() -> v.showSide(0));
+        sleep(700);
+        snapFull("27a-registers-full");
+        snapCrop(onScreen(v.sideComponent()), "27b-registers-panel");
+        SwingUtilities.invokeLater(() -> kr.ac.hallym.hcs.app.cycle.RegisterMappingDialog.show(demo, rf));
+        Window w = null;
+        for (int i = 0; i < 40 && w == null; i++) {
+            sleep(250);
+            w = window(x -> x instanceof JDialog && x.isShowing() && find(x, y -> y instanceof JComboBox) != null);
+        }
+        if (w != null) {
+            snapCrop(w.getBounds(), "27c-register-mapping");
+            final Window dialog = w;
+            edt(dialog::dispose);
+        } else {
+            log.add("27: no mapping dialog");
+        }
+        sleep(400);
+
+        // 스택: 사람이 그린 작은 회로 stack-demo(체크리스트 10). 사이클마다 $sp가 4 내려가고 그 칸에 count를 쓴다
+        Project sd = open("tests/circ/stack-demo.circ");
+        activate(sd);
+        deselect(sd);
+        edt(() -> kr.ac.hallym.hcs.app.record.Recorder.requestReset(sd));
+        sleep(900);
+        for (int i = 0; i < 12; i++) {
+            edt(() -> sd.getSimulator().tick());
+            sleep(40);
+        }
+        sleep(800);
+        kr.ac.hallym.hcs.app.cycle.CycleView sv = kr.ac.hallym.hcs.app.cycle.CycleView.of(sd);
+        edt(sv::open);
+        edt(() -> sv.showSide(1));
+        edt(() -> canvas(sd).getHcsZoom().fitCircuit());
+        sleep(900);
+        snapCrop(onScreen(sv.sideComponent()), "27d-stack");
+        edt(() -> sv.showSide(0));
+        sleep(500);
+        snapCrop(onScreen(sv.sideComponent()), "27e-registers-unmarked");
+        edt(() -> sv.showSide(1));
+        sleep(500);
+        snapFull("27f-stack-demo-full");
     }
 
     void program(Project p) throws Exception {

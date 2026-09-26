@@ -197,4 +197,26 @@ class StackRegionTest {
         top.accessed(0x7FFFFFFC); // 영역 맨 위부터 쓰는 회로(학생 설정): 예전처럼
         assertEquals(4, top.usedBytes());
     }
+
+    /** C-06: 포크의 메모리 패널이 읽는 공개 메서드(읽기만 한다). */
+    @Test
+    void panelAccessorsReadWithoutChanging() {
+        java.util.TreeMap<Long, Integer> init = new java.util.TreeMap<Long, Integer>();
+        init.put(0x10010000L, 0x3d202136);
+        init.put(0x10010004L, 0x20);
+        DataMemory.State st = new DataMemory.State(WordImage.of(init));
+        st.region = new long[] {0x10010000L, 0x10110000L};
+        assertEquals(0x3d202136, st.readWord(0x10010000));
+        assertEquals(0x20, st.readWord(0x10010006), "low two bits ignored");
+        assertEquals(0, st.readWord(0x10020000), "never written: 0 like SPIM");
+        assertEquals(java.util.Arrays.toString(new long[] {0x10010000L}), java.util.Arrays.toString(st.pageAddresses()));
+        assertEquals(-1, st.lowestAccess());
+        DataMemory.State stack = new DataMemory.State(WordImage.EMPTY);
+        stack.region = new long[] {0x7FF00000L, 0x80000000L};
+        stack.growsDown = true;
+        stack.accessed(0x7FFFEFF0);
+        assertEquals(0x7FFFEFF0L, stack.lowestAccess());
+        assertEquals(DataMemory.SPIM_INITIAL_SP, stack.depthBase());
+        assertEquals(0, stack.pageAddresses().length, "reading the accessors writes nothing");
+    }
 }

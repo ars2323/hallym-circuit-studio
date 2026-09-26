@@ -84,6 +84,17 @@ final class SparseMemory {
         return p;
     }
 
+    /** 쓴 적 있는 4KB 페이지의 시작 주소들(오름차순). */
+    long[] pageAddresses() {
+        long[] out = new long[pages.size()];
+        int i = 0;
+        for (Integer k : pages.keySet()) {
+            out[i++] = (k & 0xfffffL) << 12;
+        }
+        java.util.Arrays.sort(out);
+        return out;
+    }
+
     int pageCount() {
         return pages.size();
     }

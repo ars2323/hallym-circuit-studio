@@ -117,6 +117,12 @@ class CycleViewGuiTest {
             CycleModel m = view.model();
             assertEquals(12, m.lastCycle());
             assertEquals(Messages.get("cycle.position", 12, 12), view.positionLabel().getText());
+            // 마지막 사이클을 따라갈 때 표 왼쪽 끝은 열 경계(잘린 열 조각이 없다)
+            SwingUtilities.invokeAndWait(() -> { });
+            Thread.sleep(300);
+            AtomicReference<Integer> vx = new AtomicReference<>();
+            SwingUtilities.invokeAndWait(() -> vx.set(view.viewX()));
+            assertEquals(0, vx.get() % CycleView.COL_W, "view x " + vx.get());
             assertFalse(view.noticeLabel().isVisible());
             int pcNow = pcOf(proj, pcTunnel);
 
@@ -229,6 +235,120 @@ class CycleViewGuiTest {
             waitFor(() -> String.valueOf(kr.ac.hallym.hcs.app.sim.SimControls.lastNotice(proj)).equals(
                     Messages.get("runUntil.met", c, Messages.get("runUntil.why.INSTRUCTION", "jal"))), "notice");
             assertEquals(CycleModel.stepOf(c), r.last());
+        } finally {
+            SwingUtilities.invokeAndWait(frame::dispose);
+        }
+    }
+
+    Frame show(Project proj) throws Exception {
+        AtomicReference<Frame> fr = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            Frame f = new Frame(proj);
+            proj.setFrame(f);
+            f.setVisible(true);
+            f.setBounds(0, 0, 1400, 900);
+            fr.set(f);
+        });
+        return fr.get();
+    }
+
+    /** C-05: demo의 regfile을 표시하면 역할별 묶음과 $1~$3 값, 누르면 주 진법이 바뀐다. */
+    @Test
+    void registerPanelWithAMarkedRegisterFile() throws Exception {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "needs a display (xvfb-run)");
+        GuiTestSupport.keepAlive();
+        LogisimFile file = RecordingTestSupport.openCirc(tmp, "demo-datapath.circ");
+        Project proj = new Project(file);
+        Frame frame = show(proj);
+        try {
+            CycleView view = CycleView.of(proj);
+            Circuit rf = file.getCircuit("regfile");
+            SwingUtilities.invokeAndWait(() -> proj.doAction(RegisterFile.markAction(file, rf, true)));
+            Recorder.requestReset(proj);
+            waitFor(() -> Recorder.of(proj).current() != null && Recorder.of(proj).current().last() == 0, "reset");
+            kr.ac.hallym.hcs.app.sim.SimControls.runCycles(proj, 3);
+            waitFor(() -> Recorder.of(proj).current().last() == 6, "3 cycles");
+            SwingUtilities.invokeAndWait(view::refresh);
+            java.util.List<RegisterPanel.Line> lines = view.registerPanel().lines();
+            java.util.List<String> heads = new java.util.ArrayList<>();
+            java.util.List<String> regs = new java.util.ArrayList<>();
+            for (RegisterPanel.Line l : lines) {
+                if (l.head != null) {
+                    heads.add(l.head);
+                } else if (l.reg != null) {
+                    regs.add(l.reg.name);
+                }
+            }
+            assertEquals(java.util.Arrays.asList(Messages.get("regs.group.special"),
+                    Messages.get("regs.group.Return_values"), Messages.get("regs.group.Arguments"),
+                    Messages.get("regs.group.Temporaries"), Messages.get("regs.group.Saved"),
+                    Messages.get("regs.group.Pointers"), Messages.get("regs.group.Reserved")), heads);
+            assertEquals(33, regs.size(), "PC and $0..$31");
+            MachineState.Reg at = null;
+            for (RegisterPanel.Line l : lines) {
+                if (l.reg != null && "$at".equals(l.reg.name)) {
+                    at = l.reg;
+                }
+            }
+            assertNotNull(at.value, "$1 is the regfile register labelled $1");
+            MachineState.Reg zero = lines.stream().filter(l -> l.reg != null && "$zero".equals(l.reg.name))
+                    .findFirst().get().reg;
+            assertEquals(null, zero.value, "no register component for $0 in this regfile");
+            // 누를 때마다 주 진법이 16진 → 10진 → 2진
+            int row = lines.indexOf(lines.stream().filter(l -> l.reg != null && "$at".equals(l.reg.name))
+                    .findFirst().get());
+            for (RegisterPanel.Radix want : new RegisterPanel.Radix[] {RegisterPanel.Radix.DEC,
+                RegisterPanel.Radix.BIN, RegisterPanel.Radix.HEX}) {
+                SwingUtilities.invokeAndWait(() -> view.registerPanel().dispatchEvent(new MouseEvent(
+                        view.registerPanel(), MouseEvent.MOUSE_PRESSED, System.currentTimeMillis(),
+                        InputEvent.BUTTON1_DOWN_MASK, 40, row * RegisterPanel.ROW_H + 5, 1, false,
+                        MouseEvent.BUTTON1)));
+                assertEquals(want, view.registerPanel().radixOf("$at"));
+            }
+            // 표시를 되돌리면 모든 레지스터를 나열한다
+            SwingUtilities.invokeAndWait(proj::undoAction);
+            waitFor(() -> view.registerHintShown() && view.registerPanel().isListMode(), "unmarked list with the hint");
+        } finally {
+            SwingUtilities.invokeAndWait(frame::dispose);
+        }
+    }
+
+    /** C-06: factorial이 가장 깊을 때 Stack 칸에 $sp 화살표, 머리에 깊이. 레지스터 줄 머리에 $sp와 깊이. */
+    @Test
+    void memoryPanelShowsTheStack() throws Exception {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "needs a display (xvfb-run)");
+        GuiTestSupport.keepAlive();
+        LogisimFile file = RecordingTestSupport.openRefMips(tmp);
+        RecordingTestSupport.load(file, RecordingTestSupport.program("mips/factorial.s"));
+        Project proj = new Project(file);
+        Frame frame = show(proj);
+        try {
+            CycleView view = CycleView.of(proj);
+            Recorder.requestReset(proj);
+            waitFor(() -> Recorder.of(proj).current() != null && Recorder.of(proj).current().last() == 0, "reset");
+            Thread.sleep(300);
+            // fact의 첫 bne: $sp를 8 내리고 $ra, $a0를 쌓은 뒤(li는 의사 명령어라 기계어 이름이 아니다)
+            AtomicReference<RunUntilRunner> run = new AtomicReference<>();
+            SwingUtilities.invokeAndWait(() -> run.set(view.start(RunUntil.instruction("bne", 1000))));
+            waitFor(() -> !view.isRunningUntil(), "until bne");
+            SwingUtilities.invokeAndWait(view::refresh);
+            MemoryPanel.Line head = null;
+            MemoryPanel.Line arrow = null;
+            for (MemoryPanel.Line l : view.memoryPanel().lines()) {
+                if (l.word == null && l.memory.stack) {
+                    head = l;
+                }
+                if (l.word != null && l.word.sp) {
+                    arrow = l;
+                }
+            }
+            assertNotNull(head, "a Stack section");
+            assertEquals(8, head.memory.depth, "one frame of 8 bytes");
+            assertEquals(8, head.memory.peak);
+            assertNotNull(arrow, "the $sp arrow");
+            RegisterPanel.Line first = view.registerPanel().lines().get(0);
+            assertEquals(Messages.get("regs.spDepth", RegisterPanel.hex(view.machine().sp(view.model().cursorCycle())),
+                    head.memory.depth), first.text);
         } finally {
             SwingUtilities.invokeAndWait(frame::dispose);
         }

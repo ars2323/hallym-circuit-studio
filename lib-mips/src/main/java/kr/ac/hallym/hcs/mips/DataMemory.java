@@ -108,6 +108,29 @@ class DataMemory extends MemoryFactory {
             return memory.readByte(addr);
         }
 
+        // ---- 포크의 메모리 패널(C-06)이 읽는 값. lib-mips는 JAR 라이브러리로 따로 불려서 포크는 이 메서드들을 이름으로
+        // (반사) 부른다. 읽기만 한다.
+
+        /** addr 워드(하위 2비트 무시). 쓴 적 없으면 0. */
+        public int readWord(int addr) {
+            return memory.read(addr);
+        }
+
+        /** 쓴 적 있는 4KB 페이지 시작 주소들(오름차순). 초기 내용(.data)도 여기 든다. */
+        public long[] pageAddresses() {
+            return memory.pageAddresses();
+        }
+
+        /** 클럭 상승 에지에 읽거나 쓴 가장 낮은 워드 주소. 없으면 -1. */
+        public long lowestAccess() {
+            return lowest;
+        }
+
+        /** Stack 깊이를 재는 기준 주소(SPIM 시작 $sp 또는 영역 맨 위, {@link #base()}). */
+        public long depthBase() {
+            return base();
+        }
+
         /**
          * 깊이를 재는 기준(#134). SPIM은 프로그램을 시작할 때 $sp를 {@link #SPIM_INITIAL_SP}에 둔다(그 위 4KB는
          * 시작 코드 몫이다). 그래서 접근이 모두 그 아래이고 영역이 그 주소를 품으면 거기서 잰다. 그 밖(학생이 영역

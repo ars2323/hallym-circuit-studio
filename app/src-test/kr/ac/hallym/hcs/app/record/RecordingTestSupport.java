@@ -39,6 +39,16 @@ public final class RecordingTestSupport {
         return new Loader(null).openLogisimFile(to.toFile());
     }
 
+    /** tests/circ의 회로를 임시 폴더에 hcs-mips.jar와 함께 연다(예: demo-datapath.circ). */
+    public static LogisimFile openCirc(Path tmp, String name) throws Exception {
+        Path dir = Files.createTempDirectory(tmp, "circ");
+        Files.copy(new File(System.getProperty("hcs.mipsJar")).toPath(), dir.resolve("hcs-mips.jar"),
+                StandardCopyOption.REPLACE_EXISTING);
+        Path to = dir.resolve(name);
+        Files.copy(new File(System.getProperty("hcs.circDir"), name).toPath(), to);
+        return new Loader(null).openLogisimFile(to.toFile());
+    }
+
     public static Path program(String relative) {
         return new File(System.getProperty("hcs.testsDir"), relative).toPath();
     }
