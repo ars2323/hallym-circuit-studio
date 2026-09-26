@@ -2,6 +2,12 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-26 최종 스크린샷 세트 2차(Q-03, v1.0.0)
+
+- 기준: fix/release-polish 2a278cb
+- 관련 이슈: Q-03 #236
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-release-2/README.md
+
 ## 2026-09-26 최종 스크린샷 세트(Q-03, v1.0.0)
 
 - 기준: feat/windows-package `1c73cbe`
