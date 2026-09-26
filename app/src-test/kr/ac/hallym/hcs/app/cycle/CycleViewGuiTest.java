@@ -13,6 +13,8 @@ import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import java.awt.GraphicsEnvironment;
 import java.awt.event.InputEvent;
+
+import javax.swing.JComponent;
 import java.awt.event.MouseEvent;
 import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicReference;
@@ -349,6 +351,48 @@ class CycleViewGuiTest {
             RegisterPanel.Line first = view.registerPanel().lines().get(0);
             assertEquals(Messages.get("regs.spDepth", RegisterPanel.hex(view.machine().sp(view.model().cursorCycle())),
                     head.memory.depth), first.text);
+        } finally {
+            SwingUtilities.invokeAndWait(frame::dispose);
+        }
+    }
+
+    /** C-07: Instruction 줄을 누르면 Instruction 탭이 열리고, 보이는 동안만 캔버스에 그 명령어의 필드 색이 겹친다. */
+    @Test
+    void instructionTabShowsFieldColors() throws Exception {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "needs a display (xvfb-run)");
+        GuiTestSupport.keepAlive();
+        LogisimFile file = RecordingTestSupport.openCirc(tmp, "demo-datapath.circ");
+        // 스플리터 팔 이름은 hcs 확장에 있다(파일을 열 때처럼 읽는다)
+        kr.ac.hallym.hcs.app.ext.CircExtensions.afterOpen(file, file.getLoader().getMainFile());
+        Project proj = new Project(file);
+        Frame frame = show(proj);
+        try {
+            CycleView view = CycleView.of(proj);
+            SwingUtilities.invokeAndWait(view::open);
+            Recorder.requestReset(proj);
+            waitFor(() -> Recorder.of(proj).current() != null && Recorder.of(proj).current().last() == 0, "reset");
+            kr.ac.hallym.hcs.app.sim.SimControls.runCycles(proj, 2);
+            waitFor(() -> Recorder.of(proj).current().last() == 4, "2 cycles");
+            SwingUtilities.invokeAndWait(view::refresh);
+            Circuit main = file.getMainCircuit();
+            assertEquals(null, FieldOverlay.shown(proj, main), "no colors while Registers is shown");
+            SwingUtilities.invokeAndWait(() -> {
+                JComponent head = view.headComponent();
+                int x = (view.model().cursorCycle() - view.model().firstCycle()) * CycleView.COL_W + 6;
+                head.dispatchEvent(new MouseEvent(head, MouseEvent.MOUSE_PRESSED, System.currentTimeMillis(),
+                        InputEvent.BUTTON1_DOWN_MASK, x, 2 * CycleView.ROW_H + 5, 1, false, MouseEvent.BUTTON1));
+            });
+            assertEquals(CycleView.INSPECT_TAB, view.sideTabs().getSelectedIndex());
+            Integer word = view.instructionPanel().word();
+            assertNotNull(word, "an instruction in the viewed cycle");
+            java.util.Map<String, java.util.Set<com.cburch.logisim.circuit.Wire>> shown = FieldOverlay.shown(proj,
+                    main);
+            assertNotNull(shown, "overlay shown; panel showing=" + view.component().isShowing());
+            assertTrue(FieldPaths.fieldsOf(word).containsAll(shown.keySet()), shown.keySet().toString());
+            assertTrue(shown.containsKey("rs"), "the rs arm is named in demo-datapath");
+            assertEquals(FieldPaths.fieldsOf(word).size(), InstructionPanel.cells(word).size());
+            SwingUtilities.invokeAndWait(() -> view.showSide(0));
+            assertEquals(null, FieldOverlay.shown(proj, main), "colors go away with the tab");
         } finally {
             SwingUtilities.invokeAndWait(frame::dispose);
         }

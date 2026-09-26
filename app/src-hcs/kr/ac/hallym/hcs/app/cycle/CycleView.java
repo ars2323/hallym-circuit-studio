@@ -94,6 +94,9 @@ public final class CycleView {
     private final MemoryPanel memory = new MemoryPanel(this::memories);
     private final JTabbedPane side = new JTabbedPane();
     private final JLabel memSummary = new JLabel();
+    // C-07: Instruction 탭(보이는 동안 캔버스에 필드 색 덧그림)
+    static final int INSPECT_TAB = 2;
+    private final InstructionPanel instruction = new InstructionPanel(this::model);
     /** 레지스터 파일 표시가 없을 때 안내(줄바꿈하는 글, C-05 검토: 한 줄로 그리면 좁은 칸에서 잘린다). */
     private final javax.swing.JTextArea regsHint = new javax.swing.JTextArea();
     // C-09: Console 탭과 .s 자동 재로드(1.5초마다 수정 시각을 본다. 처음 한 번은 파일을 연 때의 확인이다)
@@ -117,7 +120,7 @@ public final class CycleView {
         if (a == com.cburch.logisim.proj.ProjectEvent.ACTION_COMPLETE
                 || a == com.cburch.logisim.proj.ProjectEvent.UNDO_COMPLETE
                 || a == com.cburch.logisim.proj.ProjectEvent.ACTION_SET_STATE) {
-            SwingUtilities.invokeLater(this::refresh);
+            SwingUtilities.invokeLater(this::afterEdit);
         }
     };
 
@@ -194,12 +197,20 @@ public final class CycleView {
         memTab.add(memSummary, BorderLayout.NORTH);
         memTab.add(new JScrollPane(memory), BorderLayout.CENTER);
         side.addTab(Messages.get("mem.tab"), memTab);
+        side.addTab(Messages.get("inspect.tab"), new JScrollPane(instruction));
+        side.addChangeListener(e -> updateFieldOverlay());
         side.setMinimumSize(new Dimension(0, 0));
         split = new javax.swing.JSplitPane(javax.swing.JSplitPane.HORIZONTAL_SPLIT, scroll, side);
         split.setResizeWeight(0.6);
         split.setBorder(null);
         split.setContinuousLayout(true);
         panel.add(split, BorderLayout.CENTER);
+        // 사이클 뷰가 가려지면(다른 아래 탭) 필드 색도 걷는다
+        panel.addHierarchyListener(e -> {
+            if ((e.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0) {
+                updateFieldOverlay();
+            }
+        });
 
         MouseAdapter pick = new MouseAdapter() {
             @Override
@@ -208,6 +219,10 @@ public final class CycleView {
                     int c = columnAt(e.getX());
                     if (c >= 0) {
                         view(c);
+                        // Instruction 줄을 누르면 그 명령어를 Instruction 탭에서 펼친다(C-07)
+                        if (e.getSource() == head && e.getY() >= 2 * ROW_H && e.getY() < 3 * ROW_H) {
+                            side.setSelectedIndex(INSPECT_TAB);
+                        }
                     }
                     body.requestFocusInWindow();
                 }
@@ -575,7 +590,7 @@ public final class CycleView {
         return ms.memories(root, ms.model().cursorCycle());
     }
 
-    /** 오른쪽 탭을 고른다(0 Registers, 1 Memory). 스크린샷·테스트. */
+    /** 오른쪽 탭을 고른다(0 Registers, 1 Memory, 2 Instruction). 스크린샷·테스트. */
     public void showSide(int index) {
         side.setSelectedIndex(index);
     }
@@ -601,8 +616,37 @@ public final class CycleView {
         return side;
     }
 
+    /** 편집 동작 뒤: 배선이 바뀌었을 수 있으니 필드 경로를 다시 찾고 패널을 다시 모은다. */
+    private void afterEdit() {
+        Project proj = projRef.get();
+        if (proj != null) {
+            FieldOverlay.invalidate(proj);
+        }
+        refresh();
+    }
+
+    JComponent headComponent() {
+        return head;
+    }
+
+    InstructionPanel instructionPanel() {
+        return instruction;
+    }
+
+    /** Instruction 탭이 보이면 보고 있는 사이클의 명령어 필드 색을 캔버스에 겹친다. 아니면 없앤다. */
+    void updateFieldOverlay() {
+        Project proj = projRef.get();
+        if (proj == null) {
+            return;
+        }
+        boolean on = side.getSelectedIndex() == INSPECT_TAB && panel.isShowing();
+        FieldOverlay.show(proj, on ? instruction.word() : null);
+    }
+
     void refresh() {
         console.refresh();
+        instruction.repaint();
+        updateFieldOverlay();
         registers.refresh();
         memory.refresh();
         regsHint.setVisible(registers.isListMode() && !registers.lines().isEmpty());

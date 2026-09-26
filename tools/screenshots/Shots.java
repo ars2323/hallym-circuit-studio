@@ -204,6 +204,9 @@ public final class Shots {
         if (want(scenes, "28")) {
             consoleAndReload(demo);
         }
+        if (want(scenes, "29")) {
+            instructionFields(demo);
+        }
         if (want(scenes, "10")) {
             open("tests/circ/register.circ");
             open("tests/circ/values.circ");
@@ -1762,6 +1765,31 @@ public final class Shots {
         edt(() -> sv.showSide(1));
         sleep(500);
         snapFull("27f-stack-demo-full");
+    }
+
+    /**
+     * 29: Instruction 탭과 필드 색(C-07). 사람이 그린 demo-datapath(스플리터 팔 op·rs·rt·rd·shamt·funct)에서 R 형식
+     * 명령어의 사이클을 고르면 캔버스의 필드 선이 필드 색 띠를 두른다.
+     */
+    void instructionFields(Project demo) throws Exception {
+        activate(demo);
+        deselect(demo);
+        edt(() -> kr.ac.hallym.hcs.app.record.Recorder.requestReset(demo));
+        sleep(900);
+        for (int i = 0; i < 4; i++) {
+            edt(() -> demo.getSimulator().tick());
+            sleep(40);
+        }
+        sleep(800);
+        kr.ac.hallym.hcs.app.cycle.CycleView v = kr.ac.hallym.hcs.app.cycle.CycleView.of(demo);
+        edt(v::open);
+        edt(() -> v.showSide(2));
+        edt(() -> canvas(demo).getHcsZoom().fitCircuit());
+        sleep(900);
+        snapFull("29a-instruction-fields-full");
+        snapCrop(onScreen(v.sideComponent()), "29b-instruction-tab");
+        snapCrop(onScreen(canvas(demo)), "29c-field-colors-canvas");
+        edt(() -> v.showSide(0));
     }
 
     /**

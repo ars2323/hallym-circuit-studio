@@ -43,6 +43,12 @@ public final class Tokens {
     public static final Color ERROR = new Color(0xC0392B);
     public static final Color ERROR_TINT = new Color(0xFBEAE8);
     public static final Color ERROR_TEXT = new Color(0x8E2A1F);
+    /**
+     * 명령어 필드 색(C-07, Instruction Inspector와 데이터패스 선). 색각 차이가 있어도 구분되는 Okabe-Ito 계열에서
+     * 흰 바탕 대비가 있는 것으로 골랐다. 순서: op, rs, rt, rd, shamt, funct, imm, addr.
+     */
+    public static final Color[] FIELD = {new Color(0xD55E00), new Color(0x0072B2), new Color(0x009E73),
+        new Color(0xCC79A7), new Color(0xB8860B), new Color(0x3A9AD9), new Color(0x8C6D31), new Color(0x6A3D9A)};
     /** 경고 아이콘에만(대비 3.6). 글자에는 쓰지 않는다. */
     public static final Color WARNING = new Color(0xB7791F);
 
