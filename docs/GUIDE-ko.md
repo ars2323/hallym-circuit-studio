@@ -19,15 +19,17 @@
 | 도구 모음 | Edit(고르기·옮기기), Poke(값 바꾸기), Wire, Text, Pin, Tunnel, Probe, Signal Flow / Run, 1 Cycle, N Cycles, Reset, 클럭 속도, Load .s |
 | 가운데 캔버스 | 회로. Ctrl+휠 확대·축소, Ctrl+0 전체 맞춤, Ctrl+1 100%, 스페이스+끌기 이동, 오른쪽 클릭으로 그 자리의 명령 |
 | 오른쪽 Attributes | 고른 부품의 속성(Data Bits, Facing, Label…). 값을 두 번 누르면 바로 고칩니다. 부품을 놓으면 뜨는 작은 창(Quick Attributes)으로도 고칩니다 |
-| 왼쪽 아래 Tunnels·Minimap | 터널 이름 목록(누르면 그 터널로), 회로 전체 축소판 |
+| 왼쪽 아래 Tunnels·Minimap | 터널 이름 목록(누르면 그 터널로; 같은 이름이 하나뿐이면 개수가 흐린 주황), 회로 전체 축소판 |
 | 아래 Messages | 동작하지 않는 연결만 알립니다. 줄을 누르면 그 자리로 갑니다 |
 | 아래 Cycle View | 사이클마다 PC·명령어·고른 선의 값. 열을 누르면 그 사이클의 회로, Previous Cycle로 뒤로 |
 | 아래 Console | Console 부품의 출력 |
-| 상태 표시줄 | 메시지 수, Simulation On/Off, Cycle, PC, 배율, Wire Colors(선 색 뜻), Colors(값/신호 그룹), Labels, Bus Values |
+| 상태 표시줄 | 메시지 수, Simulation On/Off, Cycle, PC, 배율, Wire Colors(선 색 뜻), Colors(값/신호 그룹), Labels, Bus Values. PC는 라벨이 PC(또는 pc)인 레지스터·터널, 없으면 Instruction Memory의 Addr에서 읽고, 레지스터를 오른쪽 클릭해 **Mark as PC**로 직접 정할 수도 있습니다 |
 
 파일은 **탭**으로 엽니다. 탭을 오른쪽 클릭하면 Detach Tab(제 창으로), View Side by Side(두 창을 나란히)가 있고, 다시 실행하면 열려 있던 탭이 돌아옵니다.
 
 ## 3. 회로 그리기
+
+빈 회로에는 캔버스 가운데에 할 일 셋이 흐리게 보입니다: Ctrl+K로 부품 검색, 왼쪽 목록에서 끌어 놓기, **Help › Examples**로 예제(demo-datapath, console-demo, stack-demo) 열기. 예제는 읽기 전용이라 저장하면 Save As…로 새 이름을 묻습니다.
 
 - **선 색은 값입니다.** 밝은 초록 1, 어두운 초록 0, 파랑 떠 있음(X, 값을 내는 곳이 없음), 빨강 오류(E, 서로 다른 값이 부딪힘), 주황 비트 폭 불일치, 검정 여러 비트(버스). 상태 표시줄 Wire Colors를 누르면 범례가 뜹니다.
 - 버스는 굵게 보이고, Show Bus Widths를 켜면 비트 수(`/32`)가 붙습니다. 시뮬레이션 중에는 버스 옆에 지금 값(Bus Values: Hex/Dec/Signed)이 보입니다.
