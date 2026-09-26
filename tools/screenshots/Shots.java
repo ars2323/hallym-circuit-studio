@@ -2052,7 +2052,6 @@ public final class Shots {
             sleep(40);
         }
         sleep(800);
-        edt(() -> canvas(cd).getHcsZoom().fitCircuit());
         javax.swing.JTabbedPane tabs = (javax.swing.JTabbedPane) find(cd.getFrame(),
                 x -> x instanceof javax.swing.JTabbedPane
                         && ((javax.swing.JTabbedPane) x).indexOfTab(kr.ac.hallym.hcs.app.Messages.get("console.tab")) >= 0);
@@ -2065,6 +2064,9 @@ public final class Shots {
             kr.ac.hallym.hcs.app.cycle.CycleView.of(cd).open();
             tabs.setSelectedIndex(tabs.indexOfTab(kr.ac.hallym.hcs.app.Messages.get("console.tab")));
         });
+        sleep(600);
+        // 아래 패널을 편 뒤에 화면 맞춤(C-09 검토: 맞춘 뒤 패널이 열리면 캔버스가 줄어 가운데에서 벗어난다)
+        edt(() -> canvas(cd).getHcsZoom().fitCircuit());
         sleep(900);
         snapFull("28a-console-full");
         snapCrop(onScreen(tabs), "28b-console-tab");

@@ -49,6 +49,19 @@ class LabelsTest {
         return a.intersects(b);
     }
 
+    /** 칩은 부품 몸체와 1px 이상 떨어진다: 테두리가 같은 줄에 겹치지 않게(C-09 검토). */
+    @Test
+    void chipsKeepAPixelAwayFromBodies() {
+        Rectangle body = new Rectangle(100, 120, 60, 40);
+        // 원래 자리가 몸체 바로 위(칩 아래 변 = 몸체 위 변)
+        List<LabelLayout.Req> one = Collections.singletonList(
+                new LabelLayout.Req("out", new Rectangle(110, 106, 30, 14), 30, 14, 0));
+        LabelLayout.Placed p = LabelLayout.layout(one, Collections.singletonList(body), 3, 10).get(0);
+        assertFalse(p.overlapped);
+        Rectangle apart = new Rectangle(p.rect.x - 1, p.rect.y - 1, p.rect.width + 2, p.rect.height + 2);
+        assertFalse(apart.intersects(body), p.rect + " touches " + body);
+    }
+
     @Test
     void chipsStayHomeWhenFreeAndNeverOverlap() {
         // 빈 자리면 원래 자리 그대로
