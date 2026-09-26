@@ -1789,7 +1789,27 @@ public final class Shots {
         snapFull("29a-instruction-fields-full");
         snapCrop(onScreen(v.sideComponent()), "29b-instruction-tab");
         snapCrop(onScreen(canvas(demo)), "29c-field-colors-canvas");
+        // 배율(체크리스트 4): 25%에서 띠가 뭉치지 않는지, 400%에서 포트 글자를 덮지 않는지. 스플리터 → regfile 구간
+        com.cburch.logisim.data.Bounds span = null;
+        for (com.cburch.logisim.comp.Component x : demo.getCurrentCircuit().getNonWires()) {
+            String f = x.getFactory().getName();
+            if (f.equals("Splitter") || f.equals("regfile")) {
+                span = span == null ? x.getBounds() : span.add(x.getBounds());
+            }
+        }
+        setZoom(demo, 0.25);
+        centerOn(demo, span);
+        sleep(700);
+        snapCrop(onScreen(canvas(demo).getParent()), "29d-field-colors-25");
+        setZoom(demo, 4.0);
+        centerOn(demo, span);
+        sleep(700);
+        snapCrop(onScreen(canvas(demo).getParent()), "29e-field-colors-400");
+        // 비교(체크리스트 5): 같은 장면에서 Registers 탭을 고르면 띠가 없다(원조에 없는 덧그림이라 -orig 대신)
+        edt(() -> canvas(demo).getHcsZoom().fitCircuit());
         edt(() -> v.showSide(0));
+        sleep(900);
+        snapCrop(onScreen(canvas(demo)), "29f-no-field-colors");
     }
 
     /**

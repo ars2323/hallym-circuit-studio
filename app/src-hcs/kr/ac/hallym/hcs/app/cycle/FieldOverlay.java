@@ -26,6 +26,8 @@ import com.cburch.logisim.proj.Project;
 public final class FieldOverlay {
     /** 띠 폭(화면 px). */
     static final float BAND_PX = 7f;
+    /** 띠의 최소 폭(회로 좌표). 원조 버스 선(3)보다 넓다. */
+    static final float BAND_MIN = 7f;
     static final float ALPHA = 0.45f;
 
     private static final Map<Project, State> ALL = new WeakHashMap<>();
@@ -98,12 +100,27 @@ public final class FieldOverlay {
         try {
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, ALPHA));
-            g.setStroke(new BasicStroke((float) (BAND_PX / z), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            // 화면에서 BAND_PX, 확대하면 선보다 굵게(회로 좌표 BAND_MIN): 400%에서도 선 둘레에 띠가 보이게
+            float band = (float) Math.max(BAND_PX / z, BAND_MIN);
+            // 끝은 자르고(부품 포트 글자에 닿지 않게) 선이 만나는 꺾임·갈림에만 둥근 마디를 채운다
+            g.setStroke(new BasicStroke(band, BasicStroke.CAP_BUTT, BasicStroke.JOIN_ROUND));
             for (Map.Entry<String, Set<Wire>> e : paths.entrySet()) {
                 g.setColor(FieldPaths.color(e.getKey()));
+                Map<com.cburch.logisim.data.Location, Integer> ends = new java.util.HashMap<>();
+                java.awt.geom.Area area = new java.awt.geom.Area();
                 for (Wire w : e.getValue()) {
-                    g.drawLine(w.getEnd0().getX(), w.getEnd0().getY(), w.getEnd1().getX(), w.getEnd1().getY());
+                    area.add(new java.awt.geom.Area(g.getStroke().createStrokedShape(new java.awt.geom.Line2D.Double(
+                            w.getEnd0().getX(), w.getEnd0().getY(), w.getEnd1().getX(), w.getEnd1().getY()))));
+                    ends.merge(w.getEnd0(), 1, Integer::sum);
+                    ends.merge(w.getEnd1(), 1, Integer::sum);
                 }
+                for (Map.Entry<com.cburch.logisim.data.Location, Integer> p : ends.entrySet()) {
+                    if (p.getValue() >= 2) {
+                        area.add(new java.awt.geom.Area(new java.awt.geom.Ellipse2D.Double(p.getKey().getX() - band / 2,
+                                p.getKey().getY() - band / 2, band, band)));
+                    }
+                }
+                g.fill(area); // 한 번에 채워 겹친 곳이 진해지지 않게
             }
         } finally {
             g.dispose();
