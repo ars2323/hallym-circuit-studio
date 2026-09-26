@@ -2,6 +2,12 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-26 포트 순서(P-04)
+
+- 기준: feat/port-order
+- 관련 이슈: P-04 #196 (PR #278)
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-p04-port-order/README.md
+
 ## 2026-09-26 영역 메모(E-08)
 
 - 기준: feat/tabs-layout
