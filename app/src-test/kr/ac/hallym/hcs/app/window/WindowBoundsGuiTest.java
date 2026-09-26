@@ -48,6 +48,9 @@ class WindowBoundsGuiTest {
         int origW = AppPreferences.WINDOW_WIDTH.get();
         int origH = AppPreferences.WINDOW_HEIGHT.get();
         String origLoc = AppPreferences.WINDOW_LOCATION.get();
+        int origState = AppPreferences.WINDOW_STATE.get();
+        double origSplit = AppPreferences.WINDOW_MAIN_SPLIT.get();
+        WindowBounds.saveMainSplit(0.3); // 포크 키의 분할 비율이 창에 적용된다
         LogisimFile file = CircuitBuilder.newFile(new Loader(null), tmp.toFile());
         Project proj = new Project(file);
         AtomicReference<Frame> fr = new AtomicReference<>();
@@ -72,6 +75,10 @@ class WindowBoundsGuiTest {
             assertEquals(origW, AppPreferences.WINDOW_WIDTH.get().intValue(), "original windowWidth untouched");
             assertEquals(origH, AppPreferences.WINDOW_HEIGHT.get().intValue());
             assertEquals(origLoc, AppPreferences.WINDOW_LOCATION.get());
+            assertEquals(origState, AppPreferences.WINDOW_STATE.get().intValue());
+            assertEquals(origSplit, AppPreferences.WINDOW_MAIN_SPLIT.get().doubleValue(), 1e-9,
+                    "original windowMainSplit untouched");
+            assertEquals(0.3, WindowBounds.mainSplit(), 0.05, "the fork's split was applied and saved back");
             assertTrue(WindowBounds.saved(s) != null, "the fork saved its own window keys");
         } finally {
             SwingUtilities.invokeAndWait(frame::dispose);

@@ -164,7 +164,7 @@ public final class WindowBounds {
         Settings s = Settings.get();
         int state = f.getExtendedState();
         boolean max = (state & Frame.MAXIMIZED_BOTH) != 0;
-        Rectangle b = max && f.getBounds() != null && !max ? f.getBounds() : f.getBounds();
+        Rectangle b = f.getBounds();
         if (!max) {
             s.set(X, b.x);
             s.set(Y, b.y);

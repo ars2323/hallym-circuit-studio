@@ -281,7 +281,7 @@ public class Frame extends LFrame implements LocaleListener {
 				new kr.ac.hallym.hcs.app.palette.ToolboxSearch(proj, explorerPane)), BorderLayout.CENTER);
 
 		mainRegion = new VerticalSplitPane(explPanel, mainPanelSuper, // HCS: #74 attributes moved to the right dock
-				AppPreferences.WINDOW_MAIN_SPLIT.get().doubleValue());
+				kr.ac.hallym.hcs.app.window.WindowBounds.mainSplit()); // HCS: X-01 fork-only panel width
 
 		getContentPane().add(mainRegion, BorderLayout.CENTER);
 		JPanel hcsStatus = hcsSim.statusBar(); // HCS: review 1 full-width status bar
