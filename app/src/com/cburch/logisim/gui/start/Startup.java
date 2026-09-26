@@ -217,8 +217,10 @@ public class Startup {
 		kr.ac.hallym.hcs.app.autosave.AutoSave.get().offerRecovery();
 		kr.ac.hallym.hcs.app.autosave.AutoSave.get().start();
 
-		// HCS: first-run quick start guide (#23)
-		kr.ac.hallym.hcs.app.tutorial.QuickStart.showOnFirstRun();
+		// HCS: first-run window tour (E-10); the quick start cards (#23) only if the tour did not show
+		if (!kr.ac.hallym.hcs.app.tutorial.Tour.showOnFirstRun()) {
+			kr.ac.hallym.hcs.app.tutorial.QuickStart.showOnFirstRun();
+		}
 	}
 
 	private static void setLocale(String lang) {

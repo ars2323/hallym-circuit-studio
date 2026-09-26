@@ -74,6 +74,7 @@ public final class ContextMenus {
         PROVIDERS.add(new kr.ac.hallym.hcs.app.probe.ProbeMenu());
         PROVIDERS.add(new kr.ac.hallym.hcs.app.influence.InfluenceMenu());
         PROVIDERS.add(new kr.ac.hallym.hcs.app.flow.FlowMenu());
+        PROVIDERS.add(new kr.ac.hallym.hcs.app.memo.MemoMenu());
         kr.ac.hallym.hcs.app.ext.CircExtensions.addPruner(kr.ac.hallym.hcs.app.splitter.SplitterEdits.PRUNER);
         kr.ac.hallym.hcs.app.ext.CircExtensions.addPruner(kr.ac.hallym.hcs.app.labels.TunnelColorStore.PRUNER);
         kr.ac.hallym.hcs.app.ext.CircExtensions.addPruner(kr.ac.hallym.hcs.app.groups.SignalGroups.PRUNER);

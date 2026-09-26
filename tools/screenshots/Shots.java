@@ -248,6 +248,12 @@ public final class Shots {
         if (want(scenes, "38")) {
             signalGroups(demo);
         }
+        if (want(scenes, "39")) {
+            areaMemos(demo);
+        }
+        if (want(scenes, "40")) {
+            tour(demo);
+        }
         if (want(scenes, "10")) {
             open("tests/circ/register.circ");
             open("tests/circ/values.circ");
@@ -1861,6 +1867,96 @@ public final class Shots {
             sleep(300);
         }
         edt(() -> kr.ac.hallym.hcs.app.wiring.BusStyle.setWidths(false));
+        edt(() -> kr.ac.hallym.hcs.app.labels.BusValues.setMode(before));
+    }
+
+    /**
+     * 40: 첫 실행 튜토리얼(E-10). demo-datapath 창 위에 Help › Tutorial을 열어 첫 장(캐릭터), 도구 모음 단계, Messages 탭
+     * 단계를 찍는다.
+     */
+    void tour(Project p) throws Exception {
+        activate(p);
+        deselect(p);
+        edt(() -> canvas(p).getHcsZoom().fitCircuit());
+        AtomicReference<kr.ac.hallym.hcs.app.tutorial.Tour.Overlay> ov = new AtomicReference<>();
+        edt(() -> ov.set(kr.ac.hallym.hcs.app.tutorial.Tour.show((com.cburch.logisim.gui.main.Frame) p.getFrame())));
+        sleep(900);
+        snapFull("40a-tour-welcome");
+        edt(() -> ov.get().go(3));
+        sleep(700);
+        snapFull("40b-tour-toolbar");
+        edt(() -> ov.get().go(8));
+        sleep(700);
+        snapFull("40c-tour-messages");
+        edt(() -> ov.get().end());
+        sleep(400);
+    }
+
+    /**
+     * 39: 영역 메모(E-08). demo-datapath에 IF(PC·+4·명령어 메모리)와 EX(alu) 영역을 두고 전체와 150%, 메모 안 빈 자리
+     * 우클릭 메뉴(Edit·Delete), 빈 자리 우클릭의 Add Area Memo… 창. 끝나면 되돌린다.
+     */
+    void areaMemos(Project p) throws Exception {
+        activate(p);
+        deselect(p);
+        Circuit c = p.getCurrentCircuit();
+        kr.ac.hallym.hcs.app.labels.BusValues.Mode before = kr.ac.hallym.hcs.app.labels.BusValues.mode();
+        edt(() -> kr.ac.hallym.hcs.app.labels.BusValues.setMode(kr.ac.hallym.hcs.app.labels.BusValues.Mode.OFF));
+        java.util.List<com.cburch.logisim.comp.Component> ifParts = new java.util.ArrayList<>();
+        java.util.List<com.cburch.logisim.comp.Component> exParts = new java.util.ArrayList<>();
+        for (com.cburch.logisim.comp.Component x : c.getNonWires()) {
+            String f = x.getFactory().getName();
+            if (f.equals("Instruction Memory") || f.equals("Adder")
+                    || (f.equals("Register") && "PC".equals(x.getAttributeSet().getValue(
+                            com.cburch.logisim.instance.StdAttr.LABEL)))
+                    || (f.equals("Tunnel") && x.getLocation().getY() < 250 && "pc".equals(
+                            x.getAttributeSet().getValue(com.cburch.logisim.instance.StdAttr.LABEL)))) {
+                ifParts.add(x); // 위쪽 pc 터널까지 넣어 상자 위 글이 선·칩과 겹치지 않게
+            } else if (f.equals("alu")) {
+                exParts.add(x);
+            }
+        }
+        kr.ac.hallym.hcs.app.memo.AreaMemos.Memo ifMemo = new kr.ac.hallym.hcs.app.memo.AreaMemos.Memo(
+                kr.ac.hallym.hcs.app.memo.AreaMemos.around(ifParts, Location.create(0, 0)), 1, "IF: 명령어 인출");
+        kr.ac.hallym.hcs.app.memo.AreaMemos.Memo exMemo = new kr.ac.hallym.hcs.app.memo.AreaMemos.Memo(
+                kr.ac.hallym.hcs.app.memo.AreaMemos.around(exParts, Location.create(0, 0)), 5, "EX");
+        edt(() -> {
+            p.doAction(kr.ac.hallym.hcs.app.memo.AreaMemos.action(p.getLogisimFile(), c, null, ifMemo));
+            p.doAction(kr.ac.hallym.hcs.app.memo.AreaMemos.action(p.getLogisimFile(), c, null, exMemo));
+        });
+        edt(() -> canvas(p).getHcsZoom().fitCircuit());
+        sleep(900);
+        snapFull("39a-area-memos-full");
+        setZoom(p, 1.5);
+        centerOn(p, ifMemo.bounds);
+        sleep(700);
+        snapCrop(onScreen(canvas(p).getParent()), "39b-area-memo-150");
+        // 메모 안 빈 자리 우클릭: Edit·Fit·Delete
+        Location inside = Location.create(ifMemo.bounds.getX() + 20, ifMemo.bounds.getY() + ifMemo.bounds.getHeight()
+                - 20);
+        menuAt(p, inside, "39c-menu-area-memo");
+        // 빈 자리 우클릭 → Add Area Memo… 창
+        SwingUtilities.invokeLater(() -> kr.ac.hallym.hcs.app.memo.MemoMenu.add(p, c,
+                java.util.Collections.<com.cburch.logisim.comp.Component>emptyList(), Location.create(700, 600)));
+        Window d = null;
+        for (int i = 0; i < 40 && d == null; i++) {
+            sleep(250);
+            d = window(x -> x instanceof JDialog && x.isShowing() && find(x, y -> y instanceof javax.swing.JSpinner)
+                    != null);
+        }
+        if (d == null) {
+            log.add("39: no Area Memo dialog");
+        } else {
+            sleep(500);
+            snapCrop(d.getBounds(), "39d-area-memo-dialog");
+            final Window dw = d;
+            edt(dw::dispose);
+            sleep(300);
+        }
+        edt(() -> {
+            p.undoAction();
+            p.undoAction();
+        });
         edt(() -> kr.ac.hallym.hcs.app.labels.BusValues.setMode(before));
     }
 

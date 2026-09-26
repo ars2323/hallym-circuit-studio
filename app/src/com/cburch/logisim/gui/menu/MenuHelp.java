@@ -58,7 +58,7 @@ class MenuHelp extends JMenu implements ActionListener {
 		if (helpFrame != null) {
 			helpFrame.setTitle(Strings.get("helpWindowTitle"));
 		}
-		tutorial.setText(Strings.get("helpTutorialItem"));
+		tutorial.setText(kr.ac.hallym.hcs.app.Messages.get("tour.menu")); // HCS: E-10 window tour
 		quickStart.setText(kr.ac.hallym.hcs.app.Messages.get("quickstart.menu")); // HCS: #23
 		shortcuts.setText(kr.ac.hallym.hcs.app.Messages.get("keys.menu")); // HCS: E-09
 		guide.setText(Strings.get("helpGuideItem"));
@@ -78,8 +78,13 @@ class MenuHelp extends JMenu implements ActionListener {
 			kr.ac.hallym.hcs.app.keys.Shortcuts.showTable(menubar.getParentWindow());
 		} else if (src == quickStart) { // HCS: #23
 			kr.ac.hallym.hcs.app.tutorial.QuickStart.show(menubar.getParentWindow());
-		} else if (src == tutorial) {
-			showHelp("tutorial");
+		} else if (src == tutorial) { // HCS: E-10 window tour instead of the JavaHelp tutorial (still in the guide)
+			java.awt.Window w = menubar.getParentWindow();
+			if (w instanceof com.cburch.logisim.gui.main.Frame) {
+				kr.ac.hallym.hcs.app.tutorial.Tour.show((com.cburch.logisim.gui.main.Frame) w);
+			} else {
+				showHelp("tutorial");
+			}
 		} else if (src == library) {
 			showHelp("libs");
 		} else if (src == about) {

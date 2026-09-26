@@ -173,6 +173,7 @@ class CanvasPainter implements PropertyChangeListener {
 		ComponentDrawContext context = kr.ac.hallym.hcs.app.labels.PortLabels.context(canvas,
 				circ, circState, base, hcsG, printerView);
 		context.setHighlightedWires(highlightedWires);
+		kr.ac.hallym.hcs.app.memo.MemoOverlay.paintBehind(canvas, g, circ); // HCS: E-08 area memos behind parts
 		circ.draw(context, hidden);
 		kr.ac.hallym.hcs.app.wiring.WireMarks.paint(canvas, g, circ, circState, hidden); // HCS: W-04 junctions, jumps
 		kr.ac.hallym.hcs.app.influence.InfluenceOverlay.paint(canvas, context, g, circ); // HCS: P-01 influence
