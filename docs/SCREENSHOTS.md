@@ -68,6 +68,7 @@ tools/screenshots/run.sh <출력 폴더> [장면 번호 ...]
 | 30 | 버스 값 칩과 활성 경로(C-08): demo-datapath 두 사이클 뒤 버스 값 칩(Hex, Signed), MemtoReg MUX가 고른 입력 진한 띠, 끈 모습 |
 | 31 | 동적 진단(D-01·D-03·D-05): demo-datapath의 RegWrite 핀을 3상태로 두고 돌린 뒤 Messages 한 줄, 누른 뒤 사이클 뷰와 원인 선택, 선 우클릭 Find E/X Origin과 알림 |
 | 32 | 진동과 MIPS 부품 값(D-02·D-04): 고장 회로 모음의 NAND 되먹임 진동 메시지와 Reset 단추, 정렬 안 된 주소를 읽는 Data Memory 메시지와 몸체 빨간 글자 |
+| 33 | About 창(E-11): 엠블럼·이름·버전·설명·캐릭터, License·Notices 탭 |
 | 14 | Messages 탭: 데모 회로를 두 곳 망가뜨린 뒤(터널 이름 틀림, PC 클럭 지움) 목록, 메시지를 눌러 강조한 캔버스, 표시가 배율 25·100·400%에서 보이는지(14f), 끝나면 되돌림. gateUndefined = error 회로의 빈 게이트 입력(14e) |
 
 ## 올리기와 보고

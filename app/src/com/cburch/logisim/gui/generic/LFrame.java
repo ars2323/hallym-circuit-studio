@@ -42,6 +42,11 @@ public class LFrame extends JFrame implements WindowClosable {
 		
 		boolean success = false;
 		try {
+			List<Image> hcs = kr.ac.hallym.hcs.app.about.AppIdentity.icons(); // HCS: E-12 app icon
+			if (!hcs.isEmpty()) {
+				frame.setIconImages(hcs);
+				return;
+			}
 			if (ICONS != null && !ICONS.isEmpty()) {
 				Method set = frame.getClass().getMethod("setIconImages", List.class);
 				set.invoke(frame, ICONS);

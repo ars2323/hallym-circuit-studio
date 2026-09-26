@@ -1021,3 +1021,13 @@
   - Reset 대신 자동 리셋: 학생이 모르는 사이 상태가 바뀐다. 단추 한 번으로 한다.
   - MIPS 문구를 포크에서 다시 쓰기: 몸체와 문구가 어긋날 수 있다. lib-mips가 만든 글자를 그대로 쓴다.
 
+## D-082 About 창, 앱 아이콘, 창 제목(E-11, E-12)
+
+- **날짜:** 2026-09-26
+- **결정:**
+  - **About(Help › About):** 원조 About 대신 우리 창이다. 학교 엠블럼(assets/hallym/logo의 원형 그대로 만든 PNG, 고해상도 화면에는 2배 원본), 이름·버전(jar의 Implementation-Version), 설명 세 문장(실습도구, Logisim 2.7.1 바탕·GPL, 학교 식별요소 소유와 상업적 사용 금지)을 둔다. 캐릭터는 기본형(하람과 하리) 한 장을 흰 바탕에 여백을 두고 크기만 줄여 둔다. 탭 License(GPL 원문)와 Notices(NOTICE 원문)도 있다. LICENSE·NOTICE는 jar에 넣는다.
+  - **앱 아이콘:** Hallym MIPS 선례대로 48px 이상은 원형 엠블럼, 그 아래는 심벌이다(assets/hallym/logo/app-16…256.png, 0단계에서 원본으로 만든 것). 원조 LFrame이 창마다 붙이는 아이콘 자리에서 우리 아이콘을 쓴다(`// HCS: E-12`).
+  - **창 제목:** `파일 — Hallym Circuit Studio`. 맨 위 회로가 아닌 회로를 보고 있으면 `파일 › 회로 — Hallym Circuit Studio`다. 원조의 "Logisim: main of 파일" 대신이다.
+- **이유:** PLAN.md 2장(학교 도구로서의 정체), CLAUDE.md 8절(로고·캐릭터는 원형 그대로, 정보 창에 캐릭터를 아껴 쓴다), NOTICE 요구.
+- **대안:** 원조 About을 두고 우리 창을 따로 두기: 메뉴가 둘이 되어 헷갈린다. 원조 크레딧(Carl Burch, GPL)은 우리 창의 설명과 License에 그대로 있다.
+
