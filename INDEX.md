@@ -2,6 +2,24 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-26 영역 메모(E-08)
+
+- 기준: feat/tabs-layout
+- 관련 이슈: E-08 #222 (PR #276)
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-e08-area-memo/README.md
+
+## 2026-09-26 첫 실행 튜토리얼(E-10)
+
+- 기준: feat/tabs-layout
+- 관련 이슈: E-10 #224 (PR #276)
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-e10-tutorial/README.md
+
+## 2026-09-26 창 분리·나란히 보기(P-06)
+
+- 기준: feat/tabs-layout
+- 관련 이슈: P-06 #198 (PR #277)
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-p06-tabs-layout/README.md
+
 ## 2026-09-26 E·X 출처 추적 재촬영(D-01·D-03·D-05)
 
 - 기준: feat/area-memo `adbe9e5`
