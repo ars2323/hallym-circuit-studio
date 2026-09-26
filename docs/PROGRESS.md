@@ -132,8 +132,8 @@
 | V-03 | 메시지를 누르면 원인이 사이클 표에 | #285 | 완료 | #295 | D-098, CycleViewGuiTest.clickingAMessagePinsTheCauseAndTheErrorSpot, 31c·31f |
 | V-04 | 활성 경로는 가지만 칠함 | #286 | 완료 | #296 | D-099, NetlistTest.branchFollowsOnlyTheWayToThePort, ActivePathOverlayTest 고정 기대값, 30b |
 | V-05 | 같은 이름 파일 탭 구분 | #287 | 완료 | #297 | D-100, TabLayoutTest.sameTitlesGetTheShortestDistinguishingFolder, TabsLayoutGuiTest, 45a·45b |
-| V-06 | Signal Flow 터널 호가 부품·라벨을 피함 | #288 | 진행 |  |  |
-| V-07 | 빈 캔버스 안내와 예제 메뉴 | #289 | 진행 |  |  |
-| V-08 | 상태 표시줄 PC·Mark as PC, Tunnels 외톨이 표시 | #290 | 진행 |  |  |
-| V-09 | 스크린샷 실행기 위생과 데모 값 | #291 | 대기 |  |  |
+| V-06 | Signal Flow 터널 호가 부품·라벨을 피함 | #288 | 완료 | #298 | D-101, FlowPainterTest(호 후보·라벨 규칙·서브회로 칩), 18e·18h·18j |
+| V-07 | 빈 캔버스 안내와 예제 메뉴 | #289 | 완료 | #299 | D-102, EmptyHintAndExamplesTest, 01·46a~46c |
+| V-08 | 상태 표시줄 PC·Mark as PC, Tunnels 외톨이 표시 | #290 | 완료 | #300 | D-103, StatusModelTest(순서·표시·저장 형식·ref-mips PC), SidePanelTest, 47a~47c |
+| V-09 | 스크린샷 실행기 위생과 데모 값 | #291 | 진행 |  |  |
 | V-10 | v1.0.1 공개 릴리스 | #292 | 대기 |  |  |

@@ -57,8 +57,11 @@ class TourGuiTest {
             for (int i = 0; i < 100 && o.getWidth() == 0; i++) {
                 Thread.sleep(50); // 유리판이 창 크기로 놓일 때까지(CI 화면에서는 늦을 수 있다)
             }
+            Thread.sleep(300); // 탭 무리(FileTabs)가 창 활성화 때 앞 테스트의 창 크기를 복사할 수 있다: 그 뒤에 다시 잡는다
             SwingUtilities.invokeAndWait(() -> {
+                frame.setBounds(0, 0, 1400, 900);
                 frame.validate();
+                o.setSize(frame.getRootPane().getSize());
                 o.go(0);
             });
             for (int i = 0; i < Tour.steps().size(); i++) {
@@ -79,13 +82,19 @@ class TourGuiTest {
                     assertNotNull(hole, s.key + " target not found");
                     assertTrue(hole.width > 0 && hole.height > 0, s.key);
                     // 대상 옆에 말풍선이 들어갈 자리가 있을 때만 가리지 않아야 한다(작은 CI 화면에서는 큰 패널이 대상이면 겹친다)
-                    boolean room = pane.width - hole.width >= bubble.width + 2 * Tour.GAP
-                            || pane.height - hole.height >= bubble.height + 2 * Tour.GAP;
+                    // 말풍선이 들어갈 자리는 대상의 한쪽에 이어져 있어야 한다(양쪽 남은 폭을 더하면 안 된다, V-09 CI 640px)
+                    boolean room = hole.x >= bubble.width + 2 * Tour.GAP
+                            || pane.width - (hole.x + hole.width) >= bubble.width + 2 * Tour.GAP
+                            || hole.y >= bubble.height + 2 * Tour.GAP
+                            || pane.height - (hole.y + hole.height) >= bubble.height + 2 * Tour.GAP;
                     assertFalse(room && bubble.intersects(hole), s.key + " bubble covers target " + hole + " bubble "
                             + bubble + " pane " + pane);
                 }
-                assertTrue(pane.contains(bubble), s.key + " bubble inside " + pane + " but " + bubble + " frame "
-                        + frame.getSize());
+                // 말풍선보다 큰 유리판에서만(작은 CI 창에서는 PAD로 잘려 들어간다)
+                if (pane.width >= bubble.width + 2 * Tour.PAD && pane.height >= bubble.height + 2 * Tour.PAD) {
+                    assertTrue(pane.contains(bubble), s.key + " bubble inside " + pane + " but " + bubble + " frame "
+                            + frame.getSize());
+                }
             }
             assertEquals(Tour.steps().size() - 1, o.step());
             SwingUtilities.invokeAndWait(o::end);
