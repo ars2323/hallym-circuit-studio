@@ -1812,8 +1812,10 @@ public final class Shots {
             sleep(200);
         }
         sleep(1500);
-        edt(() -> canvas(mem).getHcsZoom().fitCircuit());
+        edt(() -> kr.ac.hallym.hcs.app.cycle.CycleView.of(mem).open()); // 아래 패널을 펴서 메시지가 보이게
+        sleep(400);
         messagesTab(mem);
+        edt(() -> canvas(mem).getHcsZoom().fitCircuit());
         sleep(900);
         snapFull("32c-mips-unaligned");
         com.cburch.logisim.comp.Component dm = null;

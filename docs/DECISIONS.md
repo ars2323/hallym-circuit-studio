@@ -1009,7 +1009,7 @@
 
 - **날짜:** 2026-09-26
 - **결정:**
-  - **진동(D-02):** 원조 엔진은 값이 멈추지 않으면 전파를 그만두고 시뮬레이션을 끈다(Simulator, Propagator.isOscillating). 그때 원조가 캔버스에 동그라미로 그리는 진동 점(Propagator의 비공개 oscPoints)을 읽기만 해서(리플렉션, 엔진 수정 없음) 점이 가장 많은 인스턴스의 부품·선을 고리로 강조한다. 메시지는 한 줄(`사이클 n에 … 값이 멈추지 않고 계속 바뀝니다(진동). 고리: …`)이고, Messages 목록 아래 **Reset Simulation** 단추가 나온다(툴바 Reset과 같다). 진동 중에는 같은 고리를 말하는 정적 "조합 루프" 메시지를 이 한 줄로 바꾼다(원인 한 곳). 진동이 멈추면(리셋) 걷힌다.
+  - **진동(D-02):** 원조 엔진은 값이 멈추지 않으면 전파를 그만두고 시뮬레이션을 끈다(Simulator, Propagator.isOscillating). 그때 원조가 캔버스에 동그라미로 그리는 진동 점(Propagator의 비공개 oscPoints)을 읽기만 해서(리플렉션, 엔진 수정 없음) 점이 가장 많은 인스턴스의 부품·선을 고리로 강조한다. 메시지는 한 줄(`사이클 n에 … 값이 멈추지 않고 계속 바뀝니다(발진). 고리: …`; 원조 ko 번들이 캔버스에 쓰는 "발진"과 같은 말)이고, Messages 목록 아래 **Reset Simulation** 단추가 나온다(툴바 Reset과 같다). 진동 중에는 같은 고리를 말하는 정적 "조합 루프" 메시지를 이 한 줄로 바꾼다(원인 한 곳). 진동이 멈추면(리셋) 걷힌다.
   - **MIPS 부품 값 검사(D-04, #41):** 영역 밖 주소, 워드 정렬, 스택 한계, Console syscall 문제를 처음 생긴 사이클에 Messages로 말한다. 문구는 부품 몸체의 빨간 글자와 같다: lib-mips에 읽기 전용 접근자를 더했다(DataMemory.State.problemName·problemText, InstructionMemory.addressStatus, Console.State.statusText). lib-mips는 따로 불리는 JAR라 포크는 이름으로 부른다. 떠 있는 MemWrite·MemRead(CONTROL_FLOATING)는 X 쓰기 감지(D-03)와 정적 검사가, 영역 겹침(OVERLAP)은 정적 검사(MEMORY_OVERLAP)가 말하므로 뺀다. Console의 V0·A0가 정해지지 않았으면 에지 직전 기록값으로 출처를 붙인다.
   - **고장 회로 모음(D-06, Q-05):** `tests/circ/faults/`에 원인이 한 곳씩 있는 작은 회로 18개를 둔다(정적 9, 동적 4, MIPS 5). 생성기 `FaultCircuits`(테스트 코드)가 만들고, `FaultCollectionTest`가 커밋 파일 = 생성기 결과, 그리고 정적 검사 + 8스텝 시뮬레이션 뒤 Messages가 기대한 종류 한 줄뿐인지 본다. 정상 회로 0건은 StaticCheckTest·DynamicCheckTest가 본다.
   - 입력은 상수로 준다. 원조 입력 핀은 3상태가 기본이라 처음 값이 X이고, 그것도 원인이 되기 때문이다. 원인을 일부러 둔 곳에만 떠 있는 핀을 쓴다.
