@@ -20,15 +20,18 @@ import com.cburch.logisim.gui.main.Canvas;
 import com.cburch.logisim.proj.Project;
 
 /**
- * 명령어 필드 색 덧그림(C-07): Instruction 탭이 보이는 동안 이름 붙은 스플리터 팔에서 나가는 선 위에 필드 색 띠를
- * 반투명으로 겹쳐 그린다. 선의 값 색은 그 아래 그대로 보인다. 파일에 저장하지 않는다.
+ * 명령어 필드 색 덧그림(C-07): Instruction 탭이 보이는 동안 이름 붙은 스플리터 팔에서 나가는 선 둘레에 필드 색 띠를
+ * 그린다. 50% 이상에서는 선 자체를 비워 두어 선의 값 색(0·1·E·X)이 그대로 보인다. 파일에 저장하지 않는다.
  */
 public final class FieldOverlay {
-    /** 띠 폭(화면 px). */
-    static final float BAND_PX = 7f;
-    /** 띠의 최소 폭(회로 좌표). 원조 버스 선(3)보다 넓다. */
-    static final float BAND_MIN = 7f;
+    /** 띠 폭(회로 좌표): 격자 간격. 나란한 선의 띠끼리 겹치지 않는다. */
+    static final float BAND = 10f;
+    /** 비워 두는 선 폭(회로 좌표): 원조 선(굵은 표시 5)보다 조금 넓게. */
+    static final float HOLE = com.cburch.logisim.circuit.Wire.WIDTH + 3;
+    /** 이 배율 이상에서 선을 비우고 둘레만 칠한다. */
+    static final double HALO_ZOOM = 0.5;
     static final float ALPHA = 0.45f;
+    static final float HALO_ALPHA = 0.75f;
 
     private static final Map<Project, State> ALL = new WeakHashMap<>();
 
@@ -99,18 +102,24 @@ public final class FieldOverlay {
         Graphics2D g = (Graphics2D) g0.create();
         try {
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, ALPHA));
-            // 화면에서 BAND_PX, 확대하면 선보다 굵게(회로 좌표 BAND_MIN): 400%에서도 선 둘레에 띠가 보이게
-            float band = (float) Math.max(BAND_PX / z, BAND_MIN);
+            // 띠는 격자 간격(10) 폭: 나란한 선의 띠가 겹치지 않는다. 50% 이상에서는 선 자체(값 색)를 비워 둘레만
+            // 칠한다(선의 값 색 0·1·E·X를 가리지 않게). 그보다 작으면 선이 너무 가늘어 띠를 선 위에 그대로 칠한다
+            boolean halo = z >= HALO_ZOOM;
+            float band = BAND;
+            g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, halo ? HALO_ALPHA : ALPHA));
             // 끝은 자르고(부품 포트 글자에 닿지 않게) 선이 만나는 꺾임·갈림에만 둥근 마디를 채운다
-            g.setStroke(new BasicStroke(band, BasicStroke.CAP_BUTT, BasicStroke.JOIN_ROUND));
+            BasicStroke outer = new BasicStroke(band, BasicStroke.CAP_BUTT, BasicStroke.JOIN_ROUND);
+            BasicStroke inner = new BasicStroke(HOLE, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
             for (Map.Entry<String, Set<Wire>> e : paths.entrySet()) {
                 g.setColor(FieldPaths.color(e.getKey()));
                 Map<com.cburch.logisim.data.Location, Integer> ends = new java.util.HashMap<>();
                 java.awt.geom.Area area = new java.awt.geom.Area();
+                java.awt.geom.Area wires = new java.awt.geom.Area();
                 for (Wire w : e.getValue()) {
-                    area.add(new java.awt.geom.Area(g.getStroke().createStrokedShape(new java.awt.geom.Line2D.Double(
-                            w.getEnd0().getX(), w.getEnd0().getY(), w.getEnd1().getX(), w.getEnd1().getY()))));
+                    java.awt.geom.Line2D line = new java.awt.geom.Line2D.Double(w.getEnd0().getX(), w.getEnd0().getY(),
+                            w.getEnd1().getX(), w.getEnd1().getY());
+                    area.add(new java.awt.geom.Area(outer.createStrokedShape(line)));
+                    wires.add(new java.awt.geom.Area(inner.createStrokedShape(line)));
                     ends.merge(w.getEnd0(), 1, Integer::sum);
                     ends.merge(w.getEnd1(), 1, Integer::sum);
                 }
@@ -119,6 +128,9 @@ public final class FieldOverlay {
                         area.add(new java.awt.geom.Area(new java.awt.geom.Ellipse2D.Double(p.getKey().getX() - band / 2,
                                 p.getKey().getY() - band / 2, band, band)));
                     }
+                }
+                if (halo) {
+                    area.subtract(wires);
                 }
                 g.fill(area); // 한 번에 채워 겹친 곳이 진해지지 않게
             }
