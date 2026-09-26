@@ -76,19 +76,27 @@ public final class HoverInfo {
         java.awt.Rectangle r = canvas.hcsToScreen(new java.awt.Rectangle(b.getX(), b.getY(), b.getWidth(),
                 b.getHeight()));
         java.awt.Rectangle vis = canvas.getVisibleRect();
-        java.util.List<java.awt.Rectangle> chips = new java.util.ArrayList<>();
+        java.util.List<java.awt.Rectangle> avoid = new java.util.ArrayList<>();
         for (java.awt.Rectangle c : LabelOverlay.chipRects(canvas)) {
-            chips.add(canvas.hcsToScreen(c));
+            avoid.add(canvas.hcsToScreen(c));
         }
-        return choose(vis, r, chips);
+        // 선도 가리지 않는다(Q-03 2차 검토: 도움말이 regfile 아래 버스를 덮었다). 부품 자신의 선은 부품 옆에 붙어 있어
+        // 도움말과 gap만큼 떨어지므로 그대로 둔다
+        for (Wire w : canvas.getCircuit().getWires()) {
+            com.cburch.logisim.data.Bounds wb = w.getBounds();
+            java.awt.Rectangle sr = canvas.hcsToScreen(new java.awt.Rectangle(wb.getX(), wb.getY(),
+                    Math.max(1, wb.getWidth()), Math.max(1, wb.getHeight())));
+            avoid.add(new java.awt.Rectangle(sr.x - 2, sr.y - 2, sr.width + 4, sr.height + 4));
+        }
+        return choose(vis, r, avoid);
     }
 
     static final int TIP_W = 200; // 도움말 폭·높이 어림(px)
     static final int TIP_H = 60;
 
     /**
-     * 부품 r(화면 px) 둘레에서 라벨·값 칩(화면 px)을 가리지 않는 첫 자리: 오른쪽 위, 오른쪽 아래, 왼쪽 위, 왼쪽 아래,
-     * 위, 아래 차례. 모두 가리면 첫 자리(Q-03 검토: 도움말이 값 칩을 덮었다). GUI 없이 테스트한다.
+     * 부품 r(화면 px) 둘레에서 장애물(라벨·값 칩, 선; 화면 px)을 가리지 않는 첫 자리: 오른쪽 위, 오른쪽 아래, 왼쪽 위,
+     * 왼쪽 아래, 위, 아래 차례. 모두 가리면 첫 자리(Q-03 검토: 도움말이 값 칩·선을 덮었다). GUI 없이 테스트한다.
      */
     static java.awt.Point choose(java.awt.Rectangle vis, java.awt.Rectangle r, java.util.List<java.awt.Rectangle> chips) {
         int gap = 16; // 포트 이름·칩이 부품 옆에 붙어 있어 조금 띄운다

@@ -39,6 +39,17 @@ class HoverPlacementTest {
     }
 
     @Test
+    void avoidsWiresToo() {
+        Rectangle vis = new Rectangle(0, 0, 1200, 800);
+        Rectangle part = new Rectangle(400, 300, 100, 80);
+        Rectangle chipRightTop = new Rectangle(520, 280, 90, 20);
+        Rectangle busBelow = new Rectangle(540, 380, 5, 300); // 부품 오른쪽 아래로 내려가는 세로 버스(RD2)
+        Point p = HoverInfo.choose(vis, part, Arrays.asList(chipRightTop, busBelow));
+        assertFalse(box(p).intersects(chipRightTop) || box(p).intersects(busBelow), p.toString());
+        assertTrue(p.x + HoverInfo.TIP_W <= part.x, "goes to the left when the right is blocked above and below");
+    }
+
+    @Test
     void staysInsideTheViewAndFallsBackWhenEverythingIsCovered() {
         Rectangle vis = new Rectangle(0, 0, 700, 400);
         Rectangle part = new Rectangle(480, 100, 100, 80); // 오른쪽에 200px 자리가 없다
