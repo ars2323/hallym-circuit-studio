@@ -589,6 +589,81 @@ class CycleViewGuiTest {
     }
 
     /** GUI 스레드에서 부른다: 보이는 모든 라벨 글. */
+    /**
+     * V-03: 메시지를 누르면(31장면 흐름: demo-datapath의 RegWrite 핀을 3상태로 두면 regfile 안 AND에 E) 사이클 표 맨 위에
+     * 원인 신호(RegWrite)와 E가 생긴 자리의 임시 줄이 생기고 그 사이클 열이 선택된다. 임시 줄은 관찰 목록에 들어가지 않고
+     * ×로 걷힌다.
+     */
+    @Test
+    void clickingAMessagePinsTheCauseAndTheErrorSpot() throws Exception {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "needs a display (xvfb-run)");
+        GuiTestSupport.keepAlive();
+        LogisimFile file = RecordingTestSupport.openCirc(tmp, "demo-datapath.circ");
+        Project proj = new Project(file);
+        AtomicReference<Frame> fr = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            Frame f = new Frame(proj);
+            proj.setFrame(f);
+            f.setVisible(true);
+            f.setBounds(0, 0, 1400, 900);
+            fr.set(f);
+        });
+        Frame frame = fr.get();
+        try {
+            Circuit main = file.getMainCircuit();
+            Component pin = null;
+            for (Component c : main.getNonWires()) {
+                if (c.getFactory().getName().equals("Pin") && "RegWrite".equals(Names.label(c))) {
+                    pin = c;
+                }
+            }
+            assertNotNull(pin);
+            Component rw = pin;
+            SwingUtilities.invokeAndWait(() -> {
+                com.cburch.logisim.circuit.CircuitMutation m = new com.cburch.logisim.circuit.CircuitMutation(main);
+                m.set(rw, com.cburch.logisim.std.wiring.Pin.ATTR_TRISTATE, Boolean.TRUE);
+                proj.doAction(m.toAction(null));
+            });
+            Recorder.requestReset(proj);
+            waitFor(() -> Recorder.of(proj).current() != null && Recorder.of(proj).current().last() == 0, "reset");
+            kr.ac.hallym.hcs.app.sim.SimControls.runCycles(proj, 3);
+            waitFor(() -> Recorder.of(proj).current().last() == 6, "3 cycles recorded");
+            kr.ac.hallym.hcs.app.diag.Diagnostics diags = kr.ac.hallym.hcs.app.diag.Diagnostics.of(proj);
+            waitFor(() -> diags.list().stream().anyMatch(d -> d.kind == kr.ac.hallym.hcs.app.diag.Diagnostic.Kind.E_APPEARED),
+                    "an E message");
+            kr.ac.hallym.hcs.app.diag.Diagnostic d = diags.list().stream()
+                    .filter(x -> x.kind == kr.ac.hallym.hcs.app.diag.Diagnostic.Kind.E_APPEARED).findFirst().get();
+            assertNotNull(d.appeared(), "the message knows where the E appeared");
+
+            CycleView view = CycleView.of(proj);
+            assertEquals(0, view.signals().size());
+            SwingUtilities.invokeAndWait(() -> diags.go(d));
+            SwingUtilities.invokeAndWait(() -> { });
+            java.util.List<String> names = new java.util.ArrayList<>();
+            for (CycleModel.Signal s : view.pinnedSignals()) {
+                names.add(s.name);
+            }
+            assertEquals(2, names.size(), names.toString());
+            assertEquals("RegWrite", names.get(0), "the cause signal first");
+            assertTrue(names.get(1).startsWith("regfile › "), "then where the E appeared, inside regfile: " + names.get(1));
+            int cycle = kr.ac.hallym.hcs.app.diag.DynamicCheck.cycleOf(d.step);
+            assertEquals(cycle, view.pinnedCycle());
+            assertEquals(cycle, view.model().cursorCycle(), "the table shows the message's cycle");
+            assertTrue(view.rows().get(0).pinned && view.rows().get(1).pinned, "temporary rows sit on top");
+            assertEquals(0, view.signals().size(), "not in the saved observation list");
+
+            // ×를 누르면 걷힌다
+            int xClose = CycleView.NAME_W - 10;
+            SwingUtilities.invokeAndWait(() -> view.rowNames().dispatchEvent(new MouseEvent(view.rowNames(),
+                    MouseEvent.MOUSE_PRESSED, System.currentTimeMillis(), InputEvent.BUTTON1_DOWN_MASK, xClose, 5, 1,
+                    false, MouseEvent.BUTTON1)));
+            waitFor(() -> view.pinnedSignals().isEmpty(), "unpinned");
+            assertEquals(0, view.rows().size());
+        } finally {
+            SwingUtilities.invokeAndWait(frame::dispose);
+        }
+    }
+
     static String statusNow(Frame frame) {
         StringBuilder sb = new StringBuilder();
         collect(frame.getContentPane(), sb);

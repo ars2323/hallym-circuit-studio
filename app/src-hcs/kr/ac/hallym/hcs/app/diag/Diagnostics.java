@@ -176,9 +176,9 @@ public final class Diagnostics {
     }
 
     /** 동적 진단을 누르면 그 스텝을 보이는 쪽(사이클 뷰가 등록한다). */
-    private static volatile java.util.function.BiConsumer<Project, Integer> stepViewer;
+    private static volatile java.util.function.BiConsumer<Project, Diagnostic> stepViewer;
 
-    public static void setStepViewer(java.util.function.BiConsumer<Project, Integer> viewer) {
+    public static void setStepViewer(java.util.function.BiConsumer<Project, Diagnostic> viewer) {
         stepViewer = viewer;
     }
 
@@ -326,9 +326,9 @@ public final class Diagnostics {
     public void go(Diagnostic d) {
         focused = d;
         // 동적 진단: 사이클 뷰를 그 사이클로(D-05). 그다음 원인이 있는 서브회로 인스턴스로 들어간다
-        java.util.function.BiConsumer<Project, Integer> viewer = stepViewer;
+        java.util.function.BiConsumer<Project, Diagnostic> viewer = stepViewer;
         if (d.step >= 0 && viewer != null) {
-            viewer.accept(proj, d.step);
+            viewer.accept(proj, d);
         }
         com.cburch.logisim.circuit.CircuitState inst = d.instances.isEmpty() ? null : instanceState(d.instances);
         if (inst != null) {

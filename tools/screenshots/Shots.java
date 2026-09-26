@@ -2726,6 +2726,15 @@ public final class Shots {
             robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
             sleep(1500);
             snapFull("31c-message-clicked");
+            // V-03: 표 맨 위 임시 줄(원인 RegWrite, E가 생긴 자리)과 강조된 사이클 칸
+            Component cv = find(p.getFrame(), x -> x.getClass().getSimpleName().equals("RowNames") && x.isShowing());
+            if (cv != null) {
+                Rectangle names = onScreen(cv);
+                snapCrop(new Rectangle(names.x, names.y - 30, Math.min(W - names.x, 900), Math.min(names.height + 30, 150)),
+                        "31f-message-rows-pinned");
+            } else {
+                log.add("31: no cycle view rows");
+            }
         }
         // 파랑 X 선 우클릭: Find E/X Origin
         com.cburch.logisim.circuit.Wire blue = null;
