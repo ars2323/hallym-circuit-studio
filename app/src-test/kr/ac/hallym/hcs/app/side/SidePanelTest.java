@@ -39,6 +39,7 @@ class SidePanelTest {
         assertEquals(2, e.size());
         assertEquals("ALUOp (1)", e.get(0).toString(), "names in order, ignoring case");
         assertEquals("pc (2)", e.get(1).toString());
+        assertTrue(e.get(0).lone() && !e.get(1).lone(), "V-08: the only tunnel with its name is flagged (not judged)");
         assertEquals(Location.create(100, 100), e.get(1).tunnels.get(0).getLocation(), "top first");
         assertTrue(TunnelList.entries(null).isEmpty());
     }

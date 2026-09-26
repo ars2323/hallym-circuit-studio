@@ -84,6 +84,13 @@ public final class EditMenus implements ContextMenus.Provider {
         } else if (c.getFactory() instanceof SubcircuitFactory) {
             subcircuit(t, c, menu);
         }
+        if (kr.ac.hallym.hcs.app.sim.PcMark.markable(c)) {
+            // V-08: 상태 표시줄 PC로 쓸 레지스터를 직접 정한다(파일의 hcs:ext에 저장)
+            com.cburch.logisim.file.LogisimFile file = t.project.getLogisimFile();
+            boolean isPc = kr.ac.hallym.hcs.app.sim.PcMark.marked(file, t.circuit) == c;
+            menu.add(item(isPc ? "pc.unmark" : "pc.mark", () -> t.project.doAction(
+                    kr.ac.hallym.hcs.app.sim.PcMark.action(file, t.circuit, c, !isPc))));
+        }
     }
 
     /** 공통 "속성 패널에서 보기": 이 부품만 고르고 오른쪽 속성 패널을 편다(원조 "속성 보기"를 대신). */

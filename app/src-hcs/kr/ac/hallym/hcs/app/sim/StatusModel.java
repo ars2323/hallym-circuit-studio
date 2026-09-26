@@ -63,16 +63,50 @@ public final class StatusModel {
             return null;
         }
         Circuit c = state.getCircuit();
-        for (Component comp : c.getNonWires()) {
-            if ("PC".equals(Names.label(comp)) && !comp.getEnds().isEmpty()) {
-                Value v = state.getValue(comp.getEnds().get(0).getLocation());
-                if (v != null && v.isFullyDefined()) {
-                    return String.format("0x%08x", v.toIntValue());
+        Component pc = pcComponent(state.getProject() == null ? null : state.getProject().getLogisimFile(), c);
+        if (pc == null) {
+            return null;
+        }
+        Value v = state.getValue(pc.getEnds().get(0).getLocation());
+        return v != null && v.isFullyDefined() ? String.format("0x%08x", v.toIntValue()) : null;
+    }
+
+    /**
+     * PC로 읽을 부품(V-08, D-103): (1) 학생이 Mark as PC로 표시한 레지스터, (2) 라벨이 PC(대소문자 무관)인 부품 — 터널보다
+     * 다른 부품 먼저, 위→아래·왼쪽→오른쪽, (3) Instruction Memory(Addr 입력이 곧 PC 값), (4) 없으면 null. 값은 첫
+     * 포트(레지스터 Q, 터널·핀의 자리, Instruction Memory의 Addr)에서 읽는다.
+     */
+    public static Component pcComponent(com.cburch.logisim.file.LogisimFile file, Circuit c) {
+        if (c == null) {
+            return null;
+        }
+        Component marked = PcMark.marked(file, c);
+        if (marked != null) {
+            return marked;
+        }
+        java.util.List<Component> parts = new java.util.ArrayList<>(c.getNonWires());
+        parts.sort(java.util.Comparator.<Component>comparingInt(x -> x.getLocation().getY())
+                .thenComparingInt(x -> x.getLocation().getX()));
+        Component tunnel = null;
+        Component imem = null;
+        for (Component comp : parts) {
+            if (comp.getEnds().isEmpty()) {
+                continue;
+            }
+            String label = Names.label(comp);
+            if (label != null && label.equalsIgnoreCase("PC")) {
+                if (!comp.getFactory().getName().equals("Tunnel")) {
+                    return comp;
                 }
-                return null;
+                if (tunnel == null) {
+                    tunnel = comp;
+                }
+            }
+            if (imem == null && comp.getFactory().getName().equals("Instruction Memory")) {
+                imem = comp;
             }
         }
-        return null;
+        return tunnel != null ? tunnel : imem;
     }
 
     /** 이 회로의 Instruction Memory가 불러온 .s 파일 이름. 없으면 null. */
