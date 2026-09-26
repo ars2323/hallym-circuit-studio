@@ -106,9 +106,9 @@ jobs:
           javac -encoding UTF-8 -cp $jar -d smoke/classes tools/winsmoke/Smoke.java
           $java = Get-ChildItem smoke -Recurse -Filter java.exe | Select-Object -First 1
           $java = if ($java) { $java.FullName } else { "java" }
-          & $java -Dsun.java2d.uiScale=1 -Dhcs.configDir=smoke/config100 -Djava.util.prefs.userRoot=smoke/prefs100 -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/mips/sum.s smoke/screenshot-100.png
+          & $java "-Dsun.java2d.uiScale=1" "-Dhcs.configDir=smoke/config100" "-Djava.util.prefs.userRoot=smoke/prefs100" -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/mips/sum.s smoke/screenshot-100.png
           if ($LASTEXITCODE -ne 0) { throw "smoke at 100% failed" }
-          & $java -Dsun.java2d.uiScale=1.5 -Dhcs.configDir=smoke/config150 -Djava.util.prefs.userRoot=smoke/prefs150 -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/mips/sum.s smoke/screenshot-150.png
+          & $java "-Dsun.java2d.uiScale=1.5" "-Dhcs.configDir=smoke/config150" "-Djava.util.prefs.userRoot=smoke/prefs150" -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/mips/sum.s smoke/screenshot-150.png
           if ($LASTEXITCODE -ne 0) { throw "smoke at 150% failed" }
       - uses: actions/upload-artifact@v4
         if: always()
