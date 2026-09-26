@@ -32,7 +32,7 @@ public final class BusStyle {
     static final String THICK = "wires.thickBuses";
     static final String WIDTHS = "wires.busWidths";
     /** 굵은 버스 폭(회로 좌표). 원조 선은 3. */
-    static final float BUS_WIDTH = com.cburch.logisim.circuit.Wire.WIDTH + 2;
+    public static final float BUS_WIDTH = com.cburch.logisim.circuit.Wire.WIDTH + 2;
 
     /** 이번 그리기의 라벨 칩 자리(캔버스에서 그릴 때 WireMarks가 넣는다). */
     static final ThreadLocal<java.util.List<java.awt.Rectangle>> CHIPS = new ThreadLocal<>();

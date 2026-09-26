@@ -243,8 +243,9 @@ public final class WireMarks {
                 for (Location p : r <= 0 ? java.util.Collections.<Location>emptyList() : marks.get(1)) {
                     jump(g, p, r, colors.at(p, true), colors.at(p, false));
                 }
-                float d = dotDiameter(z);
+                float d0 = dotDiameter(z);
                 for (Location p : marks.get(0)) {
+                    float d = dotFor(d0, onBus(p, buses));
                     g.setColor(colors.at(p, null));
                     g.fill(new Ellipse2D.Float(p.getX() - d / 2, p.getY() - d / 2, d, d));
                 }
@@ -276,9 +277,12 @@ public final class WireMarks {
                     jump(g, p, r, colors.at(p, true), colors.at(p, false));
                 }
             }
-            float d = dotDiameter(z);
+            float d0 = dotDiameter(z);
+            java.util.Map<Wire, Integer> buses = BusStyle.thick() ? BusStyle.buses(circuit)
+                    : java.util.Collections.<Wire, Integer>emptyMap();
             for (Location p : marks.get(0)) {
                 if (onAny(p, wires)) {
+                    float d = dotFor(d0, onBus(p, buses));
                     g.setColor(colors.at(p, null));
                     g.fill(new Ellipse2D.Float(p.getX() - d / 2, p.getY() - d / 2, d, d));
                 }
@@ -418,6 +422,20 @@ public final class WireMarks {
      * 연결점 지름(회로 좌표): 화면 7px을 목표로 하되 회로 16(격자 1.6칸)을 넘지 않고, 원조 8보다 작지 않다. 25%에서
      * 4px(원조 2px), 50% 이상에서 7px 이상.
      */
+    /** 연결점이 굵은 버스(E-03) 위에 있으면 점이 버스보다 넓어야 보인다(Q-03 검토: 200%에서 T자 연결점이 사라졌다). */
+    static float dotFor(float base, boolean onBus) {
+        return onBus ? Math.max(base, BusStyle.BUS_WIDTH + 5f) : base;
+    }
+
+    static boolean onBus(Location p, java.util.Map<Wire, Integer> buses) {
+        for (Wire w : buses.keySet()) {
+            if (w.contains(p)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     static float dotDiameter(double z) {
         return Math.max(DOT_MIN, Math.min(px(DOT_PX, z), DOT_MAX));
     }

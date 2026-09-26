@@ -83,7 +83,7 @@ tools/screenshots/run.sh <출력 폴더> [장면 번호 ...]
 
 ## 올리기와 보고
 
-1. `tools/screenshots/run.sh build/screenshots/<폴더 이름>`으로 찍고, 이미지를 눈으로 본다. 글자가 안 읽히거나 장면이 잘못 잡힌 것은 올리지 않는다.
+1. `tools/screenshots/run.sh build/screenshots/<폴더 이름>`으로 찍고, 이미지를 눈으로 본다. 그 전에 `make -s -C native/hcs-asm`으로 `hcs-asm`을 빌드해 둔다(.s 장면 11·28이 쓴다). 글자가 안 읽히거나 장면이 잘못 잡힌 것은 올리지 않는다.
 2. `review-shots` worktree에 `<YYYY-MM-DD>-<주제>/`를 새로 만들어 이미지를 복사하고, README.md(이미지별 설명과 확인할 것, raw URL)를 쓴다. INDEX.md 맨 위에 한 항목을 더하고 커밋·push한다.
 3. 세션 보고서 끝의 "스크린샷" 절에 INDEX.md 링크, 이번 폴더 링크, 이미지별 한 줄 설명을 적는다.
 4. UI가 바뀐 PR 본문에도 해당 이미지 raw URL을 넣는다.

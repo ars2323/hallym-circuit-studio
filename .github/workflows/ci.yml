@@ -164,8 +164,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # 노트는 docs/RELEASE-NOTES.md(v1.0.0부터). 트랙 A만의 짧은 노트(dist/RELEASE_NOTES.md)는 zip 안 사용안내로 남는다.
           gh release create "$GITHUB_REF_NAME" --draft --verify-tag \
-            --title "Hallym Circuit Studio $GITHUB_REF_NAME (트랙 A: MIPS 부품 라이브러리)" \
-            --notes-file dist/RELEASE_NOTES.md \
+            --title "Hallym Circuit Studio $GITHUB_REF_NAME" \
+            --notes-file docs/RELEASE-NOTES.md \
             dist/*.zip dist/hcs-mips.jar dist/hcs-asm dist/hcs-asm.exe dist/hcs-mips-guide-ko.md \
             dist-in/windows-package/*.zip dist-in/windows-package/*.msi

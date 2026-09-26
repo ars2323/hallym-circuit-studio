@@ -1562,7 +1562,15 @@ public final class Shots {
         sleep(300);
         robot.mouseMove(s.x, s.y);
         sleep(2600);
-        snapCrop(new Rectangle(s.x - 260, s.y - 140, 700, 300), name);
+        Rectangle r = new Rectangle(s.x - 260, s.y - 140, 700, 300);
+        // 도움말이 칩·선을 피해 멀리 놓일 수 있으니(D-095) 도움말 상자까지 넣는다
+        for (Window w : Window.getWindows()) {
+            Component tip = w.isShowing() ? find(w, x -> x instanceof javax.swing.JToolTip && x.isShowing()) : null;
+            if (tip != null) {
+                r.add(pad(onScreen(tip), 16));
+            }
+        }
+        snapCrop(r, name);
     }
 
     /** 13: ? 단축키 표. */

@@ -117,8 +117,8 @@
 
 | ID | 제목 | 이슈 | 상태 | PR | 스크린샷·근거 |
 | --- | --- | --- | --- | --- | --- |
-| Q-01 | 게이트: 추적표 완료 | #234 | 대기 |  |  |
-| Q-02 | 게이트: 모든 CI 통과 | #235 | 대기 |  |  |
-| Q-03 | 게이트: 최종 스크린샷 세트 | #236 | 대기 |  |  |
-| Q-04 | 게이트: main 전체 compat 검토 | #237 | 대기 |  |  |
-| Q-05 | 게이트: 진단 기대값 | #238 | 대기 |  |  |
+| Q-01 | 게이트: 추적표 완료 | #234 | 완료 | (이 PR) | 모든 ID 완료(needs-human 대기 없음) |
+| Q-02 | 게이트: 모든 CI 통과 | #235 | 완료 | (이 PR) | main 5caaa69 CI 성공(linux: 전체 테스트·guiTest·엔진 회귀·어셈블 일치·성능 상한, windows: 패키지·실행 검증, track-a-java8) |
+| Q-03 | 게이트: 최종 스크린샷 세트 | #236 | 완료 | (이 PR) | https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-release-3/README.md — 장면 01~43 전체 + 원조 비교, ui-reviewer 3인 분할 검토 위반 0건(1차 위반 1건은 D-095로 고치고 재촬영) |
+| Q-04 | 게이트: main 전체 compat 검토 | #237 | 완료 | (이 PR) | compat-reviewer main 5caaa69 전체: 위반 0건, 확인 필요 0건(엔진 234파일 원본 일치·허용 패치 D-007 하나, vendor 269파일, 확장 정보 단일 경로, SPIM 프로세스 분리, 자산 49파일, 패키지 34개 모두 테스트) |
+| Q-05 | 게이트: 진단 기대값 | #238 | 완료 | (이 PR) | StaticCheckTest·DynamicCheckTest(정상 회로 0건), FaultCollectionTest(고장 회로 18개 각 기대 메시지 한 건) — main CI 통과 |
