@@ -178,6 +178,20 @@ public final class HoverInfo {
         if (!facts.isEmpty()) {
             ret.add(String.join(" · ", facts));
         }
+        // E-03: 선 색의 뜻
+        boolean widthError = false;
+        java.util.Set<com.cburch.logisim.circuit.WidthIncompatibilityData> bad = circuit.getWidthIncompatibilityData();
+        if (bad != null) {
+            for (com.cburch.logisim.circuit.WidthIncompatibilityData d : bad) {
+                for (int i = 0; i < d.size(); i++) {
+                    widthError |= w.contains(d.getPoint(i));
+                }
+            }
+        }
+        String meaning = kr.ac.hallym.hcs.app.wiring.WireLegend.meaningKey(state.getValue(w.getEnd0()), widthError);
+        if (meaning != null) {
+            ret.add(Messages.get("hover.color", Messages.get(meaning)));
+        }
         return ret;
     }
 

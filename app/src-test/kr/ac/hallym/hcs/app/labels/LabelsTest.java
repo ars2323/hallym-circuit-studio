@@ -238,6 +238,7 @@ class LabelsTest {
 
         List<String> w = HoverInfo.lines(state, Location.create(650, 100));
         assertEquals(2, w.get(0).split(" › ").length, w.toString());
+        assertEquals(1, w.size(), "no value, no color line (E-03): " + w);
         assertNull(HoverInfo.lines(state, Location.create(50, 50)));
         assertTrue(HoverInfo.html(gate).startsWith("<html><b>main › AND #1</b>"));
         assertTrue(HoverInfo.tip(state, Location.create(290, 200), null).contains("main › AND #1"));

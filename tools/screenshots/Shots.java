@@ -228,6 +228,9 @@ public final class Shots {
         if (want(scenes, "36")) {
             submitAndExport(demo);
         }
+        if (want(scenes, "37")) {
+            busStyle(demo);
+        }
         if (want(scenes, "10")) {
             open("tests/circ/register.circ");
             open("tests/circ/values.circ");
@@ -1786,6 +1789,56 @@ public final class Shots {
         edt(() -> sv.showSide(1));
         sleep(500);
         snapFull("27f-stack-demo-full");
+    }
+
+    /**
+     * 37: 버스 폭과 선 색 범례(E-03). demo-datapath에서 굵은 버스(기본)와 비트 수 표시를 켠 캔버스, 상태 표시줄 Wire
+     * Colors를 눌러 뜬 범례. 버스 값 칩은 이 장면에서 끈다.
+     */
+    void busStyle(Project p) throws Exception {
+        activate(p);
+        deselect(p);
+        kr.ac.hallym.hcs.app.labels.BusValues.Mode before = kr.ac.hallym.hcs.app.labels.BusValues.mode();
+        edt(() -> kr.ac.hallym.hcs.app.labels.BusValues.setMode(kr.ac.hallym.hcs.app.labels.BusValues.Mode.OFF));
+        edt(() -> kr.ac.hallym.hcs.app.wiring.BusStyle.setWidths(true));
+        edt(() -> canvas(p).getHcsZoom().fitCircuit());
+        sleep(900);
+        snapFull("37a-bus-widths-full");
+        com.cburch.logisim.data.Bounds span = null;
+        for (com.cburch.logisim.comp.Component x : p.getCurrentCircuit().getNonWires()) {
+            String f = x.getFactory().getName();
+            if (f.equals("Instruction Memory") || f.equals("regfile")) {
+                span = span == null ? x.getBounds() : span.add(x.getBounds());
+            }
+        }
+        setZoom(p, 1.5);
+        centerOn(p, span);
+        sleep(700);
+        snapCrop(onScreen(canvas(p).getParent()), "37b-bus-widths-150");
+        edt(() -> canvas(p).getHcsZoom().fitCircuit());
+        sleep(500);
+        javax.swing.JLabel legend = (javax.swing.JLabel) find(p.getFrame(), x -> x instanceof javax.swing.JLabel && x.isShowing()
+                && kr.ac.hallym.hcs.app.Messages.get("bar.legend").equals(((javax.swing.JLabel) x).getText()));
+        if (legend == null) {
+            log.add("37: no Wire Colors label");
+        } else {
+            Point at = legend.getLocationOnScreen();
+            robot.mouseMove(at.x + 10, at.y + legend.getHeight() / 2);
+            sleep(200);
+            robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+            robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+            sleep(900);
+            Rectangle r = popupBounds();
+            if (r == null) {
+                log.add("37: no legend popup");
+            } else {
+                snapCrop(pad(r, 12), "37c-wire-legend");
+            }
+            key(KeyEvent.VK_ESCAPE);
+            sleep(300);
+        }
+        edt(() -> kr.ac.hallym.hcs.app.wiring.BusStyle.setWidths(false));
+        edt(() -> kr.ac.hallym.hcs.app.labels.BusValues.setMode(before));
     }
 
     /**

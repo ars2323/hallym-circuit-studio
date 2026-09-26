@@ -291,10 +291,8 @@ public final class SimControls {
             p.add(l);
         }
         p.add(zoom.component()); // 옛 왼쪽 아래 배율 칸 대신(검토 반영 1)
-        JLabel legend = new JLabel(Messages.get("bar.legend"));
-        legend.setForeground(Tokens.BLUE);
-        legend.setToolTipText(Messages.get("bar.legendTip"));
-        p.add(legend);
+        // E-03: 누르면 범례와 버스 모양 선택
+        p.add(kr.ac.hallym.hcs.app.wiring.WireLegend.statusLabel(proj::repaintCanvas));
         p.add(kr.ac.hallym.hcs.app.labels.LabelOverlay.densityButton()); // #79
         p.add(kr.ac.hallym.hcs.app.labels.BusValues.button()); // C-08
         p.add(notice); // 편집 결과 한 줄 알림(#81)
