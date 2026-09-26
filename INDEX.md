@@ -2,6 +2,12 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-26 서브회로 가져오기(P-05)
+
+- 기준: feat/import-subcircuits
+- 관련 이슈: P-05 #197 (PR #279)
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-p05-import-subcircuits/README.md
+
 ## 2026-09-26 창 분리·나란히 보기 재촬영(P-06)
 
 - 기준: feat/tabs-layout
