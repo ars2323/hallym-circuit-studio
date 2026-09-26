@@ -110,6 +110,112 @@ public final class Shots {
         return scenes.isEmpty() || scenes.contains(id);
     }
 
+    // ---- 장면 위생(V-09): 장면마다 앱 상태를 기준으로 되돌리고, 어긋나면 실패시킨다 ----
+
+    /** 기준 상태: 시작 때 열린 프로젝트들(Untitled, ref-mips, demo-datapath)과 표시 모드. */
+    private java.util.Set<Project> baseline;
+    private kr.ac.hallym.hcs.app.labels.BusValues.Mode baseBus;
+    private kr.ac.hallym.hcs.app.labels.LabelOverlay.Density baseDensity;
+    private boolean baseGroups;
+    private boolean baseWidths;
+    private boolean baseActiveOnly;
+    private Project baseRef;
+    private Project baseDemo;
+
+    void takeBaseline(Project ref, Project demo) {
+        baseline = new java.util.LinkedHashSet<>(com.cburch.logisim.proj.Projects.getOpenProjects());
+        baseBus = kr.ac.hallym.hcs.app.labels.BusValues.mode();
+        baseDensity = kr.ac.hallym.hcs.app.labels.LabelOverlay.density();
+        baseGroups = kr.ac.hallym.hcs.app.groups.SignalGroups.showGroups();
+        baseWidths = kr.ac.hallym.hcs.app.wiring.BusStyle.widths();
+        baseActiveOnly = kr.ac.hallym.hcs.app.flow.FlowSettings.activePathOnly();
+        baseRef = ref;
+        baseDemo = demo;
+    }
+
+    /** 장면 시작: 앞 장면이 남긴 탭·모드·선택·배율·스크롤을 되돌린 뒤 기준과 같은지 검사한다. */
+    void sceneStart(String id) throws Exception {
+        if (baseline == null) {
+            return;
+        }
+        closeDialogs();
+        // 앞 장면이 연 탭(다른 파일, Untitled 2·3, 분리 창)을 닫는다: 저장 확인 없이 창을 버린다
+        for (Project p : new ArrayList<>(com.cburch.logisim.proj.Projects.getOpenProjects())) {
+            if (!baseline.contains(p) && p.getFrame() != null) {
+                final Project extra = p;
+                edt(() -> {
+                    extra.getFrame().setVisible(false);
+                    extra.getFrame().dispose();
+                });
+            }
+        }
+        sleep(400);
+        kr.ac.hallym.hcs.app.labels.BusValues.Mode bus = baseBus;
+        edt(() -> {
+            kr.ac.hallym.hcs.app.labels.BusValues.setMode(bus);
+            kr.ac.hallym.hcs.app.labels.LabelOverlay.setDensity(baseDensity);
+            kr.ac.hallym.hcs.app.groups.SignalGroups.setShowGroups(baseGroups);
+            kr.ac.hallym.hcs.app.wiring.BusStyle.setWidths(baseWidths);
+            kr.ac.hallym.hcs.app.flow.FlowSettings.setActivePathOnly(baseActiveOnly);
+        });
+        for (Project p : new Project[] {baseRef, baseDemo}) {
+            if (p == null || p.getFrame() == null) {
+                continue;
+            }
+            final Project q = p;
+            edt(() -> {
+                kr.ac.hallym.hcs.app.flow.FlowController.of(canvas(q)).stop();
+                if (q.getCurrentCircuit() != q.getLogisimFile().getMainCircuit()) {
+                    q.setCurrentCircuit(q.getLogisimFile().getMainCircuit());
+                }
+                q.getFrame().setBounds(0, 0, W, H);
+                q.getFrame().validate();
+            });
+            deselect(p);
+            setZoom(p, 1.0);
+            scrollTo(p, 0, 0);
+        }
+        checkState(id);
+    }
+
+    /** 기준 검사: 열린 탭 목록과 표시 모드가 기준과 같아야 한다. 어긋나면 촬영을 실패시킨다(새어 나온 상태로 찍지 않는다). */
+    void checkState(String id) throws Exception {
+        java.util.List<String> bad = new ArrayList<>();
+        java.util.Set<Project> open = new java.util.LinkedHashSet<>(com.cburch.logisim.proj.Projects.getOpenProjects());
+        if (!open.equals(baseline)) {
+            java.util.List<String> names = new ArrayList<>();
+            for (Project p : open) {
+                names.add(p.getLogisimFile().getDisplayName() + (baseline.contains(p) ? "" : "(extra)"));
+            }
+            bad.add("tabs " + names);
+        }
+        if (kr.ac.hallym.hcs.app.groups.SignalGroups.showGroups() != baseGroups) {
+            bad.add("Colors mode");
+        }
+        if (kr.ac.hallym.hcs.app.labels.BusValues.mode() != baseBus) {
+            bad.add("Bus Values mode");
+        }
+        if (kr.ac.hallym.hcs.app.labels.LabelOverlay.density() != baseDensity) {
+            bad.add("Labels density");
+        }
+        if (kr.ac.hallym.hcs.app.wiring.BusStyle.widths() != baseWidths) {
+            bad.add("Wire widths");
+        }
+        for (Project p : new Project[] {baseRef, baseDemo}) {
+            if (p != null && p.getFrame() != null) {
+                if (Math.abs(zoom(p) - 1.0) > 1e-6) {
+                    bad.add(p.getLogisimFile().getDisplayName() + " zoom " + zoom(p));
+                }
+                if (!p.getSelection().getComponents().isEmpty()) {
+                    bad.add(p.getLogisimFile().getDisplayName() + " selection");
+                }
+            }
+        }
+        if (!bad.isEmpty()) {
+            throw new AssertionError("scene " + id + " starts from a leaked state: " + bad);
+        }
+    }
+
     void run(List<String> scenes) throws Exception {
         if (orig) {
             // 원조 2.7.1: 데모 회로를 포크가 "화면 맞춤"으로 정한 배율로, 그리고 200% 부분(라벨 칩 비교용)
@@ -166,7 +272,9 @@ public final class Shots {
         }
         Project ref = open("tests/mips/ref-mips.circ");
         Project demo = open("tests/circ/demo-datapath.circ");
+        takeBaseline(ref, demo);
         if (want(scenes, "02")) {
+            sceneStart("02");
             edt(() -> canvas(demo).getHcsZoom().fitCircuit()); // 앱의 "화면 맞춤"(Ctrl+0)
             sleep(1200);
             snapFull("02-demo-fit");
@@ -175,107 +283,141 @@ public final class Shots {
             setZoom(demo, 1.0);
         }
         if (want(scenes, "03")) {
+            sceneStart("03");
             zoomCrops(demo, "");
         }
         if (want(scenes, "05")) {
+            sceneStart("05");
             quickAttrs(demo);
         }
         if (want(scenes, "12")) {
+            sceneStart("12");
             hover(demo);
         }
         activate(ref);
         if (want(scenes, "04")) {
+            sceneStart("04");
             contextMenus(ref);
         }
         if (want(scenes, "06")) {
+            sceneStart("06");
             palette(ref);
         }
         if (want(scenes, "07")) {
+            sceneStart("07");
             bars(ref);
         }
         if (want(scenes, "08")) {
+            sceneStart("08");
             splitterEditor(ref);
         }
         if (want(scenes, "09")) {
+            sceneStart("09");
             activate(demo);
             find(demo); // 사람이 그린 회로(체크리스트 10)
         }
         if (want(scenes, "13")) {
+            sceneStart("13");
             keysTable(ref);
         }
         if (want(scenes, "11")) {
+            sceneStart("11");
             program(ref);
         }
         if (want(scenes, "25")) {
-            cycles(demo);
+            sceneStart("25");
+            cycles(withFactorial(ref));
         }
         if (want(scenes, "26")) {
+            sceneStart("26");
             runUntil(demo);
         }
         if (want(scenes, "27")) {
-            machinePanels(demo);
+            sceneStart("27");
+            machinePanels(withFactorial(ref));
         }
         if (want(scenes, "28")) {
+            sceneStart("28");
             consoleAndReload(demo);
         }
         if (want(scenes, "29")) {
+            sceneStart("29");
             instructionFields(demo);
         }
         if (want(scenes, "30")) {
+            sceneStart("30");
             busValuesAndActivePath(demo);
         }
         if (want(scenes, "31")) {
+            sceneStart("31");
             dynamicMessages(demo);
         }
         if (want(scenes, "32")) {
+            sceneStart("32");
             oscillationAndMips();
         }
         if (want(scenes, "33")) {
+            sceneStart("33");
             about(demo);
         }
         if (want(scenes, "34")) {
+            sceneStart("34");
             historyAndKeys(demo);
         }
         if (want(scenes, "35")) {
+            sceneStart("35");
             arrange(demo);
         }
         if (want(scenes, "36")) {
+            sceneStart("36");
             submitAndExport(demo);
         }
         if (want(scenes, "37")) {
+            sceneStart("37");
             busStyle(demo);
         }
         if (want(scenes, "38")) {
+            sceneStart("38");
             signalGroups(demo);
         }
         if (want(scenes, "39")) {
+            sceneStart("39");
             areaMemos(demo);
         }
         if (want(scenes, "40")) {
+            sceneStart("40");
             tour(demo);
         }
         if (want(scenes, "41")) {
+            sceneStart("41");
             tabsLayout(demo, open("tests/circ/console-demo.circ")); // 사람이 그린 둘째 회로(체크리스트 10)
         }
         if (want(scenes, "42")) {
+            sceneStart("42");
             portOrder(demo);
         }
         if (want(scenes, "43")) {
+            sceneStart("43");
             importSubcircuits(open("tests/circ/console-demo.circ")); // demo-datapath(regfile·alu 딸림)를 가져온다
         }
         if (want(scenes, "44")) {
+            sceneStart("44");
             alwaysMips(project()); // V-01
         }
         if (want(scenes, "47")) {
+            sceneStart("47");
             pcAndLoneTunnels(ref, demo); // V-08
         }
         if (want(scenes, "45")) {
+            sceneStart("45");
             sameNameTabs(); // V-05
         }
         if (want(scenes, "46")) {
+            sceneStart("46");
             examplesMenu(project()); // V-07
         }
         if (want(scenes, "10")) {
+            sceneStart("10");
             open("tests/circ/register.circ");
             open("tests/circ/values.circ");
             Project last = open("tests/circ/gates.circ");
@@ -286,37 +428,48 @@ public final class Shots {
             activate(last);
         }
         if (want(scenes, "15")) {
+            sceneStart("15");
             followingWires(demo);
         }
         if (want(scenes, "16")) {
+            sceneStart("16");
             junctionsAndJumps(demo, "");
             netHighlight(demo);
         }
         if (want(scenes, "17")) {
+            sceneStart("17");
             influence(demo);
         }
         if (want(scenes, "18")) {
+            sceneStart("18");
             signalFlow(demo);
         }
         if (want(scenes, "19")) {
+            sceneStart("19");
             instanceBanner(demo);
         }
         if (want(scenes, "22")) {
+            sceneStart("22");
             defaultAppearanceHelp(demo);
         }
         if (want(scenes, "23")) {
+            sceneStart("23");
             controlPins(demo, "");
         }
         if (want(scenes, "24")) {
+            sceneStart("24");
             sidePanel(demo);
         }
         if (want(scenes, "20")) {
+            sceneStart("20");
             crossTabLibraries(demo);
         }
         if (want(scenes, "21")) {
+            sceneStart("21");
             portNames(demo, "");
         }
         if (want(scenes, "14")) {
+            sceneStart("14");
             messages(demo);
             gateUndefined(demo);
         }
@@ -1649,18 +1802,34 @@ public final class Shots {
      * 신호 줄 다섯(clk, pc, halt, ALU Result 선, regfile RD1 선), 사이클 2 보기. 캔버스가 그 사이클 값이 되는 것은
      * PC 둘레 확대 두 장(마지막, 사이클 2)으로 보인다.
      */
-    void cycles(Project p) throws Exception {
-        activate(p);
-        deselect(p);
+    /** factorial.s를 올린 ref-mips(V-09: 값이 0이 아닌 회로로 사이클·레지스터·버스 값 장면을 찍는다). 한 번만 올린다. */
+    private boolean factorialLoaded;
+
+    Project withFactorial(Project ref) throws Exception {
+        activate(ref);
+        if (!factorialLoaded) {
+            factorialLoaded = chooseProgram(ref, "tests/mips/factorial.s", null, "V-09");
+        }
+        return ref;
+    }
+
+    /** 리셋 뒤 n 사이클(클럭 두 틱씩) 돌린다. */
+    void resetAndRun(Project p, int n) throws Exception {
         edt(() -> kr.ac.hallym.hcs.app.record.Recorder.requestReset(p));
         sleep(900);
-        for (int i = 0; i < 12; i++) {
+        for (int i = 0; i < 2 * n; i++) {
             edt(() -> p.getSimulator().tick());
             sleep(40);
         }
         sleep(800);
+    }
+
+    void cycles(Project p) throws Exception {
+        activate(p);
+        deselect(p);
+        resetAndRun(p, 20);
         Circuit c = p.getCurrentCircuit();
-        for (String name : new String[] {"clk", "pc"}) {
+        for (String name : new String[] {"clk", "pc", "aluResult", "RegWrite"}) {
             com.cburch.logisim.comp.Component t = null;
             for (com.cburch.logisim.comp.Component x : c.getNonWires()) {
                 if (x.getFactory().getName().equals("Tunnel")
@@ -1794,24 +1963,22 @@ public final class Shots {
         activate(demo);
         deselect(demo);
         Circuit rf = demo.getLogisimFile().getCircuit("regfile");
-        edt(() -> demo.doAction(kr.ac.hallym.hcs.app.cycle.RegisterFile.markAction(demo.getLogisimFile(), rf,
-                true)));
-        edt(() -> kr.ac.hallym.hcs.app.record.Recorder.requestReset(demo));
-        sleep(900);
-        for (int i = 0; i < 12; i++) {
-            edt(() -> demo.getSimulator().tick());
-            sleep(40);
+        if (rf != null) { // ref-mips는 레지스터가 맨 위 회로에 있어 표시 없이 모두 나열된다(V-09)
+            edt(() -> demo.doAction(kr.ac.hallym.hcs.app.cycle.RegisterFile.markAction(demo.getLogisimFile(), rf,
+                    true)));
         }
-        sleep(800);
+        resetAndRun(demo, 20);
         kr.ac.hallym.hcs.app.cycle.CycleView v = kr.ac.hallym.hcs.app.cycle.CycleView.of(demo);
         edt(v::open);
         edt(() -> v.showSide(0));
         sleep(700);
         snapFull("27a-registers-full");
         snapCrop(onScreen(v.sideComponent()), "27b-registers-panel");
-        SwingUtilities.invokeLater(() -> kr.ac.hallym.hcs.app.cycle.RegisterMappingDialog.show(demo, rf));
         Window w = null;
-        for (int i = 0; i < 40 && w == null; i++) {
+        if (rf != null) {
+            SwingUtilities.invokeLater(() -> kr.ac.hallym.hcs.app.cycle.RegisterMappingDialog.show(demo, rf));
+        }
+        for (int i = 0; i < 40 && w == null && rf != null; i++) {
             sleep(250);
             w = window(x -> x instanceof JDialog && x.isShowing() && find(x, y -> y instanceof JComboBox) != null);
         }
@@ -1819,7 +1986,7 @@ public final class Shots {
             snapCrop(w.getBounds(), "27c-register-mapping");
             final Window dialog = w;
             edt(dialog::dispose);
-        } else {
+        } else if (rf != null) {
             log.add("27: no mapping dialog");
         }
         sleep(400);
@@ -2932,13 +3099,7 @@ public final class Shots {
         deselect(demo);
         kr.ac.hallym.hcs.app.labels.BusValues.Mode before = kr.ac.hallym.hcs.app.labels.BusValues.mode();
         edt(() -> kr.ac.hallym.hcs.app.labels.BusValues.setMode(kr.ac.hallym.hcs.app.labels.BusValues.Mode.HEX));
-        edt(() -> kr.ac.hallym.hcs.app.record.Recorder.requestReset(demo));
-        sleep(900);
-        for (int i = 0; i < 4; i++) {
-            edt(() -> demo.getSimulator().tick());
-            sleep(40);
-        }
-        sleep(800);
+        resetAndRun(demo, 6);
         kr.ac.hallym.hcs.app.cycle.CycleView v = kr.ac.hallym.hcs.app.cycle.CycleView.of(demo);
         edt(v::open);
         edt(() -> v.showSide(0));
@@ -2985,13 +3146,7 @@ public final class Shots {
         // 필드 색만 보이게 버스 값 칩은 이 장면에서 끈다(C-08 기본값은 켬)
         kr.ac.hallym.hcs.app.labels.BusValues.Mode busBefore = kr.ac.hallym.hcs.app.labels.BusValues.mode();
         edt(() -> kr.ac.hallym.hcs.app.labels.BusValues.setMode(kr.ac.hallym.hcs.app.labels.BusValues.Mode.OFF));
-        edt(() -> kr.ac.hallym.hcs.app.record.Recorder.requestReset(demo));
-        sleep(900);
-        for (int i = 0; i < 4; i++) {
-            edt(() -> demo.getSimulator().tick());
-            sleep(40);
-        }
-        sleep(800);
+        resetAndRun(demo, 6);
         kr.ac.hallym.hcs.app.cycle.CycleView v = kr.ac.hallym.hcs.app.cycle.CycleView.of(demo);
         edt(v::open);
         edt(() -> v.showSide(2));
@@ -3109,7 +3264,8 @@ public final class Shots {
                 snapLogical(p, area, t[1]);
             }
         }
-        setZoom(p, 1.0);
+        edt(() -> canvas(p).getHcsZoom().fitCircuit()); // 전체 보기는 화면 맞춤 뒤(V-09)
+        sleep(900);
         snapFull("11h-ref-mips-after-run");
     }
 
