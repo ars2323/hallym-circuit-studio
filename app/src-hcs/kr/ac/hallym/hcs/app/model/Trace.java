@@ -405,7 +405,7 @@ public final class Trace {
     }
 
     /** 서브회로 부품의 end번 포트로 들어가 안쪽 핀의 넷으로. */
-    private Node inward(Node n, Component inst, int end) {
+    Node inward(Node n, Component inst, int end) {
         Circuit sub = ((SubcircuitFactory) inst.getFactory()).getSubcircuit();
         Instance pin = pinFor(inst, end);
         if (pin == null) {
@@ -417,7 +417,7 @@ public final class Trace {
     }
 
     /** 안쪽 경계 핀에서 바깥 서브회로 부품의 해당 포트 넷으로. */
-    private Node outward(Node n, Component pin) {
+    Node outward(Node n, Component pin) {
         Component inst = n.instances.get(n.instances.size() - 1);
         Circuit parent = parentCircuit(n);
         int end = endFor(inst, pin);

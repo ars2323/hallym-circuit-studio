@@ -210,6 +210,8 @@ public final class Recording {
     private int cursor = -1;
     /** 지난 스텝을 보는 동안 떼어 둔 지금 상태. 지금으로 돌아오면 이것을 다시 쓴다. */
     private CircuitState live;
+    /** 마지막으로 {@link #takeDirtyFrom()}한 뒤 다시 쓰이거나 버려진 가장 이른 스텝(동적 진단, D-01). */
+    private int dirtyFrom = Integer.MAX_VALUE;
 
     public Recording(Circuit circuit) {
         this(circuit, DEFAULT_MAX_STEPS);
@@ -284,6 +286,7 @@ public final class Recording {
         first = step;
         last = -1;
         live = null;
+        dirtyFrom = Integer.MIN_VALUE; // 모두 새로
         capture(state, step, true);
     }
 
@@ -296,6 +299,7 @@ public final class Recording {
             truncateAfter(step);
         }
         captureNode(root, state, step);
+        dirtyFrom = Math.min(dirtyFrom, step);
         last = Math.max(last, step);
         cursor = step;
         Integer prev = checkpoints.isEmpty() ? null : checkpoints.lastKey();
@@ -401,6 +405,55 @@ public final class Recording {
         return !v.isFullyDefined() && before != null && before.isFullyDefined();
     }
 
+    /**
+     * 마지막으로 부른 뒤 새로 적히거나 버려진 가장 이른 스텝을 돌려주고 잊는다. 기록을 새로 시작했으면
+     * {@link Integer#MIN_VALUE}, 바뀐 것이 없으면 {@link Integer#MAX_VALUE}. 동적 진단(D-01)이 그 스텝부터 다시 본다.
+     */
+    public synchronized int takeDirtyFrom() {
+        int d = dirtyFrom;
+        dirtyFrom = Integer.MAX_VALUE;
+        return d;
+    }
+
+    /** step에 E(충돌 비트)가 새로 생긴 넷들: {경로, 대표 자리}. 앞 스텝에도 E였던 넷은 뺀다(D-01). */
+    public synchronized List<Object[]> newErrors(int step) {
+        List<Object[]> out = new ArrayList<>();
+        if (step < first || step > last || !problems.contains(step)) {
+            return out;
+        }
+        collectErrors(root, new ArrayList<Component>(), step, out);
+        return out;
+    }
+
+    private void collectErrors(Node n, List<Component> path, int step, List<Object[]> out) {
+        if (n.probe == null) {
+            return;
+        }
+        for (int i = 0; i < n.tracks.length; i++) {
+            Value v = n.tracks[i].at(step);
+            if (hasError(v) && (step <= first || !hasError(n.tracks[i].at(step - 1)))) {
+                out.add(new Object[] {new ArrayList<>(path), n.probe.at[i]});
+            }
+        }
+        for (Map.Entry<Component, Node> e : n.children.entrySet()) {
+            path.add(e.getKey());
+            collectErrors(e.getValue(), path, step, out);
+            path.remove(path.size() - 1);
+        }
+    }
+
+    static boolean hasError(Value v) {
+        if (v == null) {
+            return false;
+        }
+        for (Value b : v.getAll()) {
+            if (b == Value.ERROR) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** from~to 사이에서 E·X가 생긴 스텝들. */
     public synchronized java.util.SortedSet<Integer> problemSteps(int from, int to) {
         return new java.util.TreeSet<>(problems.subSet(from, true, to, true));
@@ -470,6 +523,7 @@ public final class Recording {
         pinned.removeIf(k -> k > step);
         problems.tailSet(step, false).clear();
         thinnedUpTo = Math.min(thinnedUpTo, step);
+        dirtyFrom = Math.min(dirtyFrom, step + 1);
         last = step;
         cursor = Math.min(cursor, step);
         live = null; // 지금이 바뀌었다: 떼어 둔 옛 지금은 버린다
@@ -554,6 +608,11 @@ public final class Recording {
         Node n = node(path);
         return n == null || n.probe == null ? Collections.<Location>emptyList()
                 : java.util.Arrays.asList(n.probe.at);
+    }
+
+    /** E·X 출처 추적(D-01)이 읽는 값: 이 기록의 스텝별 값. */
+    public kr.ac.hallym.hcs.app.model.OriginTrace.Values originValues() {
+        return this::value;
     }
 
     /** 기록된 인스턴스 경로들(최상위 = 빈 목록). */

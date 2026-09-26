@@ -210,6 +210,9 @@ public final class Shots {
         if (want(scenes, "30")) {
             busValuesAndActivePath(demo);
         }
+        if (want(scenes, "31")) {
+            dynamicMessages(demo);
+        }
         if (want(scenes, "10")) {
             open("tests/circ/register.circ");
             open("tests/circ/values.circ");
@@ -1768,6 +1771,95 @@ public final class Shots {
         edt(() -> sv.showSide(1));
         sleep(500);
         snapFull("27f-stack-demo-full");
+    }
+
+    /**
+     * 31: 동적 진단(D-01·D-03·D-05). 사람이 그린 demo-datapath에서 학생이 RegWrite 입력 핀을 3상태로 두어 값이 정해지지
+     * 않은 경우(파랑 X). 몇 사이클 돌리면 Messages에 그 사이클과 원인이 한 줄로 나오고, 누르면 사이클 뷰가 그 사이클로
+     * 가며 원인 핀을 고른다. 선 우클릭 Find E/X Origin과 그 알림. 끝나면 되돌린다.
+     */
+    void dynamicMessages(Project p) throws Exception {
+        activate(p);
+        deselect(p);
+        Circuit c = p.getCurrentCircuit();
+        com.cburch.logisim.comp.Component rw = null;
+        for (com.cburch.logisim.comp.Component x : c.getNonWires()) {
+            if (x.getFactory().getName().equals("Pin")
+                    && "RegWrite".equals(x.getAttributeSet().getValue(com.cburch.logisim.instance.StdAttr.LABEL))) {
+                rw = x;
+            }
+        }
+        if (rw == null) {
+            log.add("31: RegWrite pin not found");
+            return;
+        }
+        final com.cburch.logisim.comp.Component pin = rw;
+        edt(() -> {
+            com.cburch.logisim.circuit.CircuitMutation m = new com.cburch.logisim.circuit.CircuitMutation(c);
+            m.set(pin, com.cburch.logisim.std.wiring.Pin.ATTR_TRISTATE, Boolean.TRUE);
+            p.doAction(m.toAction(null));
+        });
+        sleep(1200);
+        edt(() -> kr.ac.hallym.hcs.app.record.Recorder.requestReset(p));
+        sleep(900);
+        for (int i = 0; i < 6; i++) {
+            edt(() -> p.getSimulator().tick());
+            sleep(60);
+        }
+        sleep(1500);
+        edt(() -> canvas(p).getHcsZoom().fitCircuit());
+        @SuppressWarnings("unchecked")
+        javax.swing.JList<Object> list = (javax.swing.JList<Object>) find(p.getFrame(),
+                x -> x instanceof javax.swing.JList && ((javax.swing.JList<?>) x).getModel().getSize() > 0
+                        && ((javax.swing.JList<?>) x).getModel().getElementAt(0)
+                                instanceof kr.ac.hallym.hcs.app.diag.Diagnostic);
+        if (list == null) {
+            log.add("31: no dynamic message");
+        } else {
+            edt(() -> {
+                JTabbedPane tabs = (JTabbedPane) SwingUtilities.getAncestorOfClass(JTabbedPane.class, list);
+                tabs.setSelectedIndex(0);
+            });
+            sleep(900);
+            snapFull("31a-dynamic-message");
+            Rectangle panel = onScreen(list.getParent().getParent().getParent());
+            snapCrop(pad(panel, 4), "31b-message-row");
+            Rectangle cell = list.getCellBounds(0, 0);
+            Point s = list.getLocationOnScreen();
+            robot.mouseMove(s.x + cell.x + 40, s.y + cell.y + cell.height / 2);
+            sleep(200);
+            robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+            robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+            sleep(1500);
+            snapFull("31c-message-clicked");
+        }
+        // 파랑 X 선 우클릭: Find E/X Origin
+        com.cburch.logisim.circuit.Wire blue = null;
+        for (com.cburch.logisim.circuit.Wire w : c.getWires()) {
+            com.cburch.logisim.data.Value v = p.getCircuitState().getValue(w.getEnd0());
+            if (v != null && !v.isFullyDefined() && w.getLength() >= 30) {
+                blue = w;
+                break;
+            }
+        }
+        if (blue == null) {
+            log.add("31: no blue wire");
+        } else {
+            deselect(p);
+            Location mid = Location.create((blue.getEnd0().getX() + blue.getEnd1().getX()) / 2,
+                    (blue.getEnd0().getY() + blue.getEnd1().getY()) / 2);
+            menuAt(p, mid, "31d-menu-find-origin");
+            final com.cburch.logisim.circuit.Wire bw = blue;
+            edt(() -> kr.ac.hallym.hcs.app.diag.FindOrigin.run(p, c, bw));
+            sleep(900);
+            Rectangle all = onScreen(p.getFrame().getContentPane());
+            snapCrop(new Rectangle(all.x, all.y + all.height - 34, all.width, 34), "31e-origin-notice");
+        }
+        edt(p::undoAction);
+        sleep(600);
+        edt(() -> kr.ac.hallym.hcs.app.record.Recorder.requestReset(p));
+        sleep(900);
+        deselect(p);
     }
 
     /**

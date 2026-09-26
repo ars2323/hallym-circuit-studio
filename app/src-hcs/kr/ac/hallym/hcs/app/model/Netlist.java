@@ -175,6 +175,21 @@ public final class Netlist {
         return byWire.get(w);
     }
 
+    /** 자리 at(포트 자리 또는 선 끝)이 속한 넷. 없으면 null. */
+    public Net netAt(com.cburch.logisim.data.Location at) {
+        for (Map.Entry<PortRef, Net> e : byPort.entrySet()) {
+            if (e.getKey().location().equals(at)) {
+                return e.getValue();
+            }
+        }
+        for (Map.Entry<Wire, Net> e : byWire.entrySet()) {
+            if (e.getKey().getEnd0().equals(at) || e.getKey().getEnd1().equals(at)) {
+                return e.getValue();
+            }
+        }
+        return null;
+    }
+
     /** 회로의 넷을 계산한다. */
     public static Netlist of(Circuit circuit) {
         Netlist n = new Netlist(circuit);

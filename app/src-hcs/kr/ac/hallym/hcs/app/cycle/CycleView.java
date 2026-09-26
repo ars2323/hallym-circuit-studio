@@ -333,6 +333,15 @@ public final class CycleView {
         }
     }
 
+    static {
+        // 동적 진단을 누르면 사이클 뷰가 그 사이클로(D-05)
+        kr.ac.hallym.hcs.app.diag.Diagnostics.setStepViewer((proj, step) -> {
+            CycleView v = of(proj);
+            v.open();
+            v.view(kr.ac.hallym.hcs.app.diag.DynamicCheck.cycleOf(step));
+        });
+    }
+
     public static CycleView of(Project proj) {
         synchronized (ALL) {
             CycleView v = ALL.get(proj);
