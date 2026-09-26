@@ -181,8 +181,25 @@ public final class ZoomController {
         if (adjusting) {
             return;
         }
-        double oldZ = ((Number) e.getOldValue()).doubleValue();
-        double newZ = ((Number) e.getNewValue()).doubleValue();
+        // 원조 배율 상자(ZoomControl의 스피너, 화면에는 없다)는 소수 배율을 정수 %로 반올림해 모델에 되쓴다. 그 안쪽
+        // 변경은 바깥 변경의 다른 청취자(원조 CanvasPane의 가운데 유지)보다 먼저 오므로, 안쪽 변경이면 바깥 청취자가
+        // 다 지나간 뒤에 자리를 잡는다. 어느 쪽이든 "바뀌기 전"은 마지막으로 자리를 잡아 둔 배율(lastZoom)이고 새
+        // 배율은 모델의 지금 값이다(X-01 검토: 0.3 분할에서 원조 배율 조절 뒤 가운데가 튐).
+        double evtOld = ((Number) e.getOldValue()).doubleValue();
+        if (!Double.isNaN(lastZoom) && evtOld != lastZoom) {
+            SwingUtilities.invokeLater(() -> recenterFromLast(evtOld));
+            return;
+        }
+        recenterFromLast(evtOld);
+    }
+
+    /** 마지막으로 자리를 잡아 둔 배율(없으면 fallbackOld)에서 보던 가운데를 지금 배율에서 다시 가운데에. */
+    private void recenterFromLast(double fallbackOld) {
+        double oldZ = Double.isNaN(lastZoom) ? fallbackOld : lastZoom;
+        double newZ = model.getZoomFactor();
+        if (newZ == oldZ) {
+            return;
+        }
         Rectangle r = pane.getViewport().getViewRect();
         double cx = (lastView.x + r.width / 2.0 - lastOx) / oldZ;
         double cy = (lastView.y + r.height / 2.0 - lastOy) / oldZ;

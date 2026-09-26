@@ -137,3 +137,13 @@
 | V-08 | 상태 표시줄 PC·Mark as PC, Tunnels 외톨이 표시 | #290 | 완료 | #300 | D-103, StatusModelTest(순서·표시·저장 형식·ref-mips PC), SidePanelTest, 47a~47c |
 | V-09 | 스크린샷 실행기 위생과 데모 값 | #291 | 완료 | #301, #303 | D-104, sceneStart/checkState(최종 세트 로그 FAILED 없음), TourGuiTest 판정 수정, 25·27 ref-mips+factorial.s |
 | V-10 | v1.0.1 공개 릴리스 | #292 | 완료 | #302 | 태그 v1.0.1(main da7915f), 게이트: main CI 성공, ui-reviewer 최종 세트(3인 분할 + 재검토) 위반 0, compat main 전체 위반 0, 진단 기대값 통과. https://github.com/ars2323/hallym-circuit-studio/releases/tag/v1.0.1 |
+
+## X v1.0.2 패치(v1.0.1 검토, 마일스톤 v1.0.2)
+
+| ID | 제목 | 이슈 | 상태 | PR | 스크린샷·근거 |
+| --- | --- | --- | --- | --- | --- |
+| X-01 | 첫 실행 창 크기, 포크 전용 창 설정 | #305 | 진행 |  |  |
+| X-02 | 도구 모음 넘침(Icons Only 자동 → » 메뉴) | #306 | 대기 |  |  |
+| X-03 | 좁은 창의 패널 비율(캔버스 최소 폭) | #307 | 대기 |  |  |
+| X-04 | Registers PC 줄 이름·안내 조건·칩과 강조 선 간격 | #308 | 대기 |  |  |
+| X-05 | windows-smoke 보강·Xvfb 첫 실행 장면·v1.0.2 릴리스 | #309 | 대기 |  |  |
