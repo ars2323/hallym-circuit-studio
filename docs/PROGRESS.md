@@ -111,7 +111,7 @@
 | R-04 | 자동 저장 복구 테스트 | #230 | 완료 | (이 PR) | D-094, RecoveryTest(강제 종료 뒤 목록·편집 복구·원조 로더·원본 불변) |
 | R-05 | 문서 | #231 | 완료 | (이 PR) | docs/GUIDE-ko.md, docs/TA-GUIDE-ko.md, README 다운로드·빠른 시작·스크린샷 |
 | R-06 | 릴리스 노트 | #232 | 완료 | (이 PR) | docs/RELEASE-NOTES.md(기능 요약·원조와의 차이·알려진 한계·설치) |
-| R-07 | v1.0.0 공개 릴리스 게시 | #233 | 대기 |  |  |
+| R-07 | v1.0.0 공개 릴리스 게시 | #233 | 완료 | (이 PR) | 태그 v1.0.0(main 1310ef5), CI release 잡이 만든 draft를 공개로 게시: Windows zip·MSI, 트랙 A zip(windows·linux), hcs-mips.jar, hcs-asm(.exe), 안내 md. v0.1.0 draft 삭제. https://github.com/ars2323/hallym-circuit-studio/releases/tag/v1.0.0 |
 
 ## Q 품질 게이트
 
