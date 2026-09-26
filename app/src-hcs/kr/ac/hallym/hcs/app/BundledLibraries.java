@@ -35,7 +35,7 @@ public final class BundledLibraries {
         return bundled != null && bundled.canRead() ? bundled : null;
     }
 
-    static File mipsJar() {
+    public static File mipsJar() {
         String prop = System.getProperty("hcs.bundledMips");
         if (prop != null && !prop.isEmpty()) {
             return new File(prop);

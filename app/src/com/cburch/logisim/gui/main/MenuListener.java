@@ -43,7 +43,7 @@ class MenuListener {
 			Object src = event.getSource();
 			Project proj = frame.getProject();
 			if (src == LogisimMenuBar.EXPORT_IMAGE) {
-				ExportImage.doExport(proj);
+				kr.ac.hallym.hcs.app.export.ImageExport.show(proj); // HCS: E-07 SVG, PDF, PNG export
 			} else if (src == LogisimMenuBar.PRINT) {
 				Print.doPrint(proj);
 			}
