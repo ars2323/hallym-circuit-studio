@@ -24,13 +24,20 @@ public final class LabelLayout {
         final int width;
         final int height;
         final int priority;
+        /** 버스 칩: 이 선에 지시선으로 매인다(지시선이 다른 선·부품을 가로지르는 자리는 쓰지 않는다, C-08 검토). */
+        final java.awt.geom.Line2D tether;
 
         public Req(Object key, Rectangle anchor, int width, int height, int priority) {
+            this(key, anchor, width, height, priority, null);
+        }
+
+        public Req(Object key, Rectangle anchor, int width, int height, int priority, java.awt.geom.Line2D tether) {
             this.key = key;
             this.anchor = new Rectangle(anchor);
             this.width = width;
             this.height = height;
             this.priority = priority;
+            this.tether = tether;
         }
     }
 
@@ -77,14 +84,14 @@ public final class LabelLayout {
             Rectangle home = new Rectangle(c.x - r.width / 2, c.y - r.height / 2, r.width, r.height);
             Rectangle found = null;
             int foundStep = 0;
-            if (free(home, taken, obstacles)) {
+            if (free(home, taken, obstacles) && clearLeader(r.tether, home, obstacles)) {
                 found = home;
             }
             for (int s = 1; found == null && s <= maxSteps; s++) {
                 for (int[] d : DIRS) {
                     Rectangle cand = new Rectangle(home);
                     cand.translate(d[0] * s * step, d[1] * s * step);
-                    if (free(cand, taken, obstacles)) {
+                    if (free(cand, taken, obstacles) && clearLeader(r.tether, cand, obstacles)) {
                         found = cand;
                         foundStep = s;
                         break;
@@ -100,6 +107,33 @@ public final class LabelLayout {
             ret.add(new Placed(r.key, found, c, leader, overlapped));
         }
         return ret;
+    }
+
+    /** 선 tether 위 가장 가까운 점에서 칩 r까지의 지시선이 다른 선·부품(장애물)을 가로지르지 않는가. */
+    static boolean clearLeader(java.awt.geom.Line2D tether, Rectangle r, List<Rectangle> obstacles) {
+        if (tether == null) {
+            return true;
+        }
+        double cx = r.getCenterX();
+        double cy = r.getCenterY();
+        double x0 = Math.min(tether.getX1(), tether.getX2());
+        double x1 = Math.max(tether.getX1(), tether.getX2());
+        double y0 = Math.min(tether.getY1(), tether.getY2());
+        double y1 = Math.max(tether.getY1(), tether.getY2());
+        double sx = Math.max(x0, Math.min(cx, x1));
+        double sy = Math.max(y0, Math.min(cy, y1));
+        double ex = Math.max(r.x, Math.min(sx, r.x + r.width));
+        double ey = Math.max(r.y, Math.min(sy, r.y + r.height));
+        java.awt.geom.Line2D lead = new java.awt.geom.Line2D.Double(sx, sy, ex, ey);
+        for (Rectangle o : obstacles) {
+            if (o.contains(sx, sy) || o.intersects(r)) {
+                continue; // 제 선(지시선의 시작)과, 칩이 이미 덮는 것은 따로 본다
+            }
+            if (o.intersectsLine(lead)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     static boolean free(Rectangle r, List<Rectangle> taken, List<Rectangle> obstacles) {

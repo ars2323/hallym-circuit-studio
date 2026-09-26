@@ -94,6 +94,23 @@ class BusValuesTest {
         assertEquals(new java.awt.Point(540, 240), LabelOverlay.nearestOnWire(v, new java.awt.Point(600, 300)));
     }
 
+    /** 지시선이 다른 선을 가로지르는 자리는 쓰지 않는다(C-08 검토 2차). */
+    @Test
+    void leaderDoesNotCrossAnotherWire() {
+        java.awt.geom.Line2D own = new java.awt.geom.Line2D.Double(430, 100, 430, 300);
+        java.awt.Rectangle other = new java.awt.Rectangle(464, 100, 3, 200); // 오른쪽의 이웃 세로선
+        java.util.List<java.awt.Rectangle> obstacles = java.util.Arrays.asList(new java.awt.Rectangle(429, 100, 3, 200),
+                other);
+        // 이웃 선 너머 오른쪽 자리: 지시선이 이웃 선을 가로지른다
+        assertTrue(!LabelLayout.clearLeader(own, new java.awt.Rectangle(480, 190, 40, 14), obstacles));
+        // 제 선 왼쪽 자리: 괜찮다
+        assertTrue(LabelLayout.clearLeader(own, new java.awt.Rectangle(380, 190, 40, 14), obstacles));
+        java.util.List<LabelLayout.Placed> placed = LabelLayout.layout(java.util.Collections.singletonList(
+                new LabelLayout.Req("rt", new java.awt.Rectangle(470, 190, 40, 14), 40, 14, 1, own)), obstacles, 5, 20);
+        java.awt.Rectangle r = placed.get(0).rect;
+        assertTrue(LabelLayout.clearLeader(own, r, obstacles), "placed where its leader is clear: " + r);
+    }
+
     @Test
     void unnamedBusesGetASpotToo() throws Exception {
         LogisimFile file = RecordingTestSupport.openCirc(tmp, "demo-datapath.circ");

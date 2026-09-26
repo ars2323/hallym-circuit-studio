@@ -739,6 +739,7 @@ public final class LabelOverlay {
         BusValues.Mode mode = BusValues.mode();
         boolean values = mode != BusValues.Mode.OFF && state != null && simulating();
         Map<Object, String> shownText = new HashMap<>();
+        Set<Object> valueChips = new HashSet<>();
         if (d != Density.HOVER || values) {
             for (Map.Entry<Wire, Bus> e : buses(circuit).entrySet()) {
                 Wire w = e.getKey();
@@ -752,13 +753,17 @@ public final class LabelOverlay {
                 String template = value == null ? null : BusValues.template(bus.width, mode, fm);
                 String text = value == null ? name : name == null ? template : name + " = " + template;
                 shownText.put(w, value == null ? name : name == null ? value : name + " = " + value);
+                if (value != null) {
+                    valueChips.add(w);
+                }
                 int tw = fm.stringWidth(text) + 2 * padX;
                 Location m = Location.create((w.getEnd0().getX() + w.getEnd1().getX()) / 2,
                         (w.getEnd0().getY() + w.getEnd1().getY()) / 2);
                 Rectangle anchor = w.getEnd0().getY() == w.getEnd1().getY()
                         ? new Rectangle(m.getX() - tw / 2, m.getY() - h - 3, tw, h)
                         : new Rectangle(m.getX() + 4, m.getY() - h / 2, tw, h);
-                reqs.add(new LabelLayout.Req(w, anchor, tw, h, 1));
+                reqs.add(new LabelLayout.Req(w, anchor, tw, h, 1, new java.awt.geom.Line2D.Double(w.getEnd0().getX(),
+                        w.getEnd0().getY(), w.getEnd1().getX(), w.getEnd1().getY())));
                 texts.put(w, text);
                 sig = sig * 31 + System.identityHashCode(w) + text.hashCode();
             }
@@ -787,6 +792,11 @@ public final class LabelOverlay {
             }
             boolean bus = p.key instanceof Wire;
             boolean caption = p.key instanceof Caption;
+            if (p.overlapped && valueChips.contains(p.key)) {
+                // 값 칩을 둘 빈 자리가 없다(촘촘한 버스 묶음): 다른 선 위에 얹거나 이웃 선을 가리키게 두지 않고 뺀다.
+                // 값은 마우스를 올리면 보인다(C-08 검토)
+                continue;
+            }
             Rectangle r = p.rect;
             if (shownText.containsKey(p.key)) {
                 // 값 칩: 자리는 가장 넓은 값으로 잡아 두고(움직이지 않게), 칩은 지금 글자 폭으로 그 가운데에 그린다
