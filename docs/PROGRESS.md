@@ -55,7 +55,7 @@
 | P-02 | 서브회로 인스턴스 안내(#84) | #194 | 완료 | #248 | D-064, InstancePathsTest(경로·상태·미리 보기·더하기·끼우기·순서 바꾸기·삭제·문구), InstanceBannerGuiTest, 19a~19e |
 | P-03 | 탭 간 라이브러리(#85) | #195 | 완료 | #249 | D-065, OpenFileLibrariesTest(후보·자동 Load Library·되돌리기·순환 차단·끊길 연결·다시 열 때), LibraryFixturesTest(원조 jar가 상대 경로 라이브러리로 18 계산), LibrarySyncGuiTest(탭 끌어 놓기·저장 반영·Updated·Edit Original·포트 변경), 20a~20f |
 | P-04 | 서브회로 포트 순서 끌어 바꾸기 | #196 | 완료 | (이 PR) | D-092, PortOrderTest(준 순서로 모양·격자·되돌리기, 순서 바꾸기 경계), 42a~42b |
-| P-05 | 다른 .circ에서 서브회로 가져오기 | #197 | 대기 |  |  |
+| P-05 | 다른 .circ에서 서브회로 가져오기 | #197 | 완료 | (이 PR) | D-093, CircuitImportTest(딸린 것 먼저·이름 번호·인스턴스가 사본을 가리킴·사용자 모양·저장 후 원조 로더로 다시 열기·되돌리기), 43a~43b |
 | P-06 | 나란히 보기·창 분리·탭 복원 | #198 | 완료 | (이 PR) | D-090, TabLayoutTest(분리·되돌리기·닫으면 해제·복원 목록·자리 글), TabsLayoutGuiTest(분리하면 둘 다 보임·나란히 반씩·되돌리면 겹침·복원 설정), 41a~41c |
 
 ## C 사이클 뷰(3단계)
