@@ -88,6 +88,8 @@ class SignalGroupsTest {
         Circuit main = f.getMainCircuit();
         assertEquals(SignalGroups.Group.CONTROL, SignalGroups.groupOf(f, main, w[0]), "control unit output");
         assertNull(SignalGroups.groupOf(f, main, w[1]));
+        File plain = new File(dir, "plain.circ");
+        CircuitBuilder.save(f, plain); // 그룹을 정하기 전 같은 파일(부품 차례가 같다)
         Project proj = new Project(f);
         proj.doAction(SignalGroups.action(f, main, w[1], SignalGroups.Group.DATA));
         assertEquals(SignalGroups.Group.DATA, SignalGroups.groupOf(f, main, w[1]));
@@ -95,17 +97,17 @@ class SignalGroupsTest {
         assertNull(SignalGroups.groupOf(f, main, w[1]));
         proj.doAction(SignalGroups.action(f, main, w[1], SignalGroups.Group.DATA));
 
-        File plain = new File(dir, "plain.circ");
         File ext = new File(dir, "ext.circ");
-        LogisimFile g = CircuitBuilder.newFile(new Loader(null), dir);
-        build(g);
-        CircuitBuilder.save(g, plain);
         CircuitBuilder.save(f, ext);
         CircExtensions.afterSave(f, ext);
         String xml = new String(Files.readAllBytes(ext.toPath()), StandardCharsets.UTF_8);
         assertTrue(xml.contains("group") && xml.contains("data"), "saved in the extension namespace");
         assertEquals(Collections.<String>emptyList(), CircEquivalence.compare(plain, ext),
                 "the circuit itself is the same for the original 2.7.1");
+        // 확장 블록(</project> 앞)을 빼면 그룹 없이 저장한 파일과 바이트가 같다
+        String stripped = xml.replaceAll("(?s)  <hcs:ext .*?</hcs:ext>\\r?\\n", "");
+        assertEquals(new String(Files.readAllBytes(plain.toPath()), StandardCharsets.UTF_8), stripped,
+                "byte-identical outside the extension block");
         LogisimFile again = new Loader(null).openLogisimFile(ext);
         CircExtensions.afterOpen(again, ext);
         Wire dataAgain = null;
