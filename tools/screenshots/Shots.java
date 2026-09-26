@@ -180,6 +180,19 @@ public final class Shots {
                 q.getFrame().setBounds(0, 0, W, H);
                 q.getFrame().validate();
             });
+            // 앞 장면의 편집(속성 변경·부품 삭제·프로그램 불러오기 등)을 되돌려 파일을 연 상태로
+            for (int i = 0; i < 200 && q.isFileDirty() && q.getLastAction() != null; i++) {
+                edt(q::undoAction);
+            }
+            // 스크롤·배율 뒤에 남은 빠른 속성 창(유리판 위 패널)을 감춘다
+            edt(() -> {
+                javax.swing.JLayeredPane lp = q.getFrame().getLayeredPane();
+                for (Component k : lp.getComponents()) {
+                    if (k instanceof javax.swing.JPanel && k != q.getFrame().getContentPane() && k.isVisible()) {
+                        k.setVisible(false);
+                    }
+                }
+            });
             deselect(p);
             setZoom(p, 1.0);
             scrollTo(p, 0, 0);
@@ -232,6 +245,9 @@ public final class Shots {
                 }
                 if (!p.getSelection().getComponents().isEmpty()) {
                     bad.add(p.getLogisimFile().getDisplayName() + " selection");
+                }
+                if (p.isFileDirty()) {
+                    bad.add(p.getLogisimFile().getDisplayName() + " still edited");
                 }
             }
         }
@@ -1907,7 +1923,10 @@ public final class Shots {
         sleep(900);
         snapFull("25a-cycles-full");
         snapCrop(onScreen(v.component()), "25b-cycles-table");
-        Bounds pcArea = Bounds.create(250, 130, 420, 150);
+        // 200% 캔버스: 사람이 그린 demo면 PC 둘레, ref-mips면 Instruction Memory 둘레(V-09)
+        com.cburch.logisim.comp.Component imem = byFactory(c, "Instruction Memory");
+        Bounds pcArea = p.getLogisimFile().getCircuit("regfile") != null || imem == null
+                ? Bounds.create(250, 130, 420, 150) : imem.getBounds().expand(120);
         setZoom(p, 2.0);
         centerOn(p, pcArea);
         snapLogical(p, pcArea, "25e-canvas-latest-200");
