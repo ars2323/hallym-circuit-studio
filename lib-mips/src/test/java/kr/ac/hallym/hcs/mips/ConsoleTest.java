@@ -116,6 +116,7 @@ class ConsoleTest {
             st = (Console.State) sim.data(console);
             if (n == 4) {
                 assertTrue(st.status.contains("5"), st.status); // 지원하지 않는 번호는 표시만
+                assertEquals(st.status, st.statusText(), "the fork's diagnostics read the same text (D-04)");
                 assertEquals("Hello\n-42A", st.text());
             }
             assertEquals(n >= 6, st.exited, "exit after step " + n);

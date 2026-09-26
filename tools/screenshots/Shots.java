@@ -213,6 +213,9 @@ public final class Shots {
         if (want(scenes, "31")) {
             dynamicMessages(demo);
         }
+        if (want(scenes, "32")) {
+            oscillationAndMips();
+        }
         if (want(scenes, "10")) {
             open("tests/circ/register.circ");
             open("tests/circ/values.circ");
@@ -1771,6 +1774,75 @@ public final class Shots {
         edt(() -> sv.showSide(1));
         sleep(500);
         snapFull("27f-stack-demo-full");
+    }
+
+    /**
+     * 32: 진동(D-02)과 MIPS 부품 값 문제(D-04). 고장 회로 모음(D-06)의 작은 회로 두 개: NAND 되먹임이 클럭 1에서
+     * 진동하면 Messages에 고리와 Reset 단추, 정렬 안 된 주소를 읽는 Data Memory는 몸체의 빨간 글자와 같은 문구.
+     */
+    void oscillationAndMips() throws Exception {
+        Project osc = open("tests/circ/faults/dynamic-oscillation.circ");
+        activate(osc);
+        deselect(osc);
+        edt(() -> kr.ac.hallym.hcs.app.record.Recorder.requestReset(osc));
+        sleep(900);
+        for (int i = 0; i < 2; i++) {
+            edt(() -> osc.getSimulator().tick());
+            sleep(300);
+        }
+        sleep(1500);
+        edt(() -> canvas(osc).getHcsZoom().fitCircuit());
+        messagesTab(osc);
+        sleep(900);
+        snapFull("32a-oscillation");
+        javax.swing.JList<?> list = diagList(osc);
+        if (list != null) {
+            snapCrop(pad(onScreen(list.getParent().getParent().getParent()), 4), "32b-oscillation-message");
+        } else {
+            log.add("32: no oscillation message");
+        }
+
+        Project mem = open("tests/circ/faults/mips-unaligned.circ");
+        activate(mem);
+        deselect(mem);
+        edt(() -> kr.ac.hallym.hcs.app.record.Recorder.requestReset(mem));
+        sleep(900);
+        for (int i = 0; i < 2; i++) {
+            edt(() -> mem.getSimulator().tick());
+            sleep(200);
+        }
+        sleep(1500);
+        edt(() -> canvas(mem).getHcsZoom().fitCircuit());
+        messagesTab(mem);
+        sleep(900);
+        snapFull("32c-mips-unaligned");
+        com.cburch.logisim.comp.Component dm = null;
+        for (com.cburch.logisim.comp.Component x : mem.getCurrentCircuit().getNonWires()) {
+            if (x.getFactory().getName().equals("Data Memory")) {
+                dm = x;
+            }
+        }
+        if (dm != null) {
+            snapLogical(mem, dm.getBounds().expand(20), "32d-mips-body");
+        }
+    }
+
+    /** 아래 Messages 탭을 고른다. */
+    void messagesTab(Project p) throws Exception {
+        javax.swing.JList<?> list = diagList(p);
+        if (list != null) {
+            edt(() -> {
+                JTabbedPane tabs = (JTabbedPane) SwingUtilities.getAncestorOfClass(JTabbedPane.class, list);
+                tabs.setSelectedIndex(0);
+            });
+        }
+    }
+
+    /** 진단이 든 Messages 목록(없으면 null). */
+    javax.swing.JList<?> diagList(Project p) {
+        return (javax.swing.JList<?>) find(p.getFrame(), x -> x instanceof javax.swing.JList
+                && ((javax.swing.JList<?>) x).getModel().getSize() > 0
+                && ((javax.swing.JList<?>) x).getModel().getElementAt(0) instanceof kr.ac.hallym.hcs.app.diag.Diagnostic);
     }
 
     /**

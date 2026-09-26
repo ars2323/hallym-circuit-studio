@@ -31,7 +31,11 @@ public final class Diagnostic {
         /** 클럭 에지에 쓰려는 값(D, WriteData, Addr)이 정해지지 않았다. */
         X_WRITE_DATA,
         /** 클럭 에지에 쓰기 허용 입력(en, MemWrite)이 정해지지 않았다. */
-        X_WRITE_CONTROL;
+        X_WRITE_CONTROL,
+        /** 값이 멈추지 않고 계속 바뀐다(원조가 전파를 그만두고 시뮬레이션을 껐다, D-02). */
+        OSCILLATION,
+        /** MIPS 부품의 값 의존 문제: 영역 밖 주소, 워드 정렬, 스택 한계, syscall(D-04). 문구는 몸체의 빨간 글자. */
+        MIPS_STATUS;
 
         /** 시뮬레이션 값으로 찾는 진단인가. */
         public boolean dynamic() {

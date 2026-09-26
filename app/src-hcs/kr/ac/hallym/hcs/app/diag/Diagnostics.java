@@ -47,6 +47,24 @@ public final class Diagnostics {
     private final java.util.Map<String, Integer> seen = new java.util.HashMap<>();
     private kr.ac.hallym.hcs.app.record.Recording dynRecording;
     private int scanned = Integer.MIN_VALUE;
+    /** 진동(D-02): 원조가 전파를 그만둔 동안의 진단 하나. 없으면 null. */
+    private volatile Diagnostic oscillation;
+    private final com.cburch.logisim.circuit.SimulatorListener simListener =
+            new com.cburch.logisim.circuit.SimulatorListener() {
+                @Override
+                public void propagationCompleted(com.cburch.logisim.circuit.SimulatorEvent e) {
+                    checkOscillation();
+                }
+
+                @Override
+                public void tickCompleted(com.cburch.logisim.circuit.SimulatorEvent e) {
+                }
+
+                @Override
+                public void simulatorStateChanged(com.cburch.logisim.circuit.SimulatorEvent e) {
+                    checkOscillation();
+                }
+            };
     /** 원조처럼 기록기는 청취자를 강하게 잡는다: 약한 참조로 이 객체를 가리키는 청취자를 필드로 둔다. */
     private final kr.ac.hallym.hcs.app.record.Recorder.Listener recListener;
 
@@ -70,6 +88,37 @@ public final class Diagnostics {
             }
         };
         kr.ac.hallym.hcs.app.record.Recorder.of(proj).addListener(recListener);
+        if (proj.getSimulator() != null) {
+            proj.getSimulator().addSimulatorListener(simListener);
+        }
+    }
+
+    /** 맨 위 회로의 지금 상태(시뮬레이터가 돌리는 것). */
+    private com.cburch.logisim.circuit.CircuitState liveRoot() {
+        com.cburch.logisim.circuit.CircuitState s = proj.getSimulator() == null ? null
+                : proj.getSimulator().getCircuitState();
+        while (s != null && s.getParentState() != null) {
+            s = s.getParentState();
+        }
+        return s;
+    }
+
+    /** 원조가 진동으로 전파를 그만뒀는지 본다(시뮬레이터 스레드). 바뀌면 알린다. */
+    void checkOscillation() {
+        boolean osc = proj.getSimulator() != null && proj.getSimulator().isOscillating();
+        Diagnostic before = oscillation;
+        if (osc && before == null) {
+            com.cburch.logisim.circuit.CircuitState root = liveRoot();
+            kr.ac.hallym.hcs.app.record.Recording r = kr.ac.hallym.hcs.app.record.Recorder.of(proj).current();
+            int step = r == null || r.isEmpty() ? 0 : r.last();
+            oscillation = root == null ? null
+                    : Oscillation.diagnose(root.getCircuit(), Oscillation.points(root), step);
+        } else if (!osc && before != null) {
+            oscillation = null;
+        }
+        if (oscillation != before) {
+            javax.swing.SwingUtilities.invokeLater(this::fire);
+        }
     }
 
     /** 기록이 바뀌었다(시뮬레이터 스레드): 다시 적힌 스텝부터 끝까지 동적 진단을 다시 본다. */
@@ -107,6 +156,15 @@ public final class Diagnostics {
                 for (Diagnostic d : check.step(s, seen)) {
                     dynamic.add(d);
                     dynamicAt.add(s);
+                    changed = true;
+                }
+            }
+            // MIPS 부품의 값 문제(D-04): 지금 상태가 마지막 스텝일 때만(지난 사이클을 보는 동안은 상태가 바뀌어 있다)
+            com.cburch.logisim.circuit.CircuitState root = liveRoot();
+            if (!r.isViewingPast() && root != null && root.getCircuit() == r.circuit() && !r.isEmpty()) {
+                for (Diagnostic d : MipsCheck.check(r.circuit(), root, r, r.last(), seen)) {
+                    dynamic.add(d);
+                    dynamicAt.add(r.last());
                     changed = true;
                 }
             }
@@ -199,10 +257,22 @@ public final class Diagnostics {
      */
     public List<Diagnostic> list() {
         List<Diagnostic> dyn = dynamic();
-        if (dyn.isEmpty()) {
+        Diagnostic osc = oscillation;
+        if (dyn.isEmpty() && osc == null) {
             return list;
         }
-        List<Diagnostic> ret = new ArrayList<>(list);
+        List<Diagnostic> ret = new ArrayList<>();
+        for (Diagnostic s : list) {
+            // 진동 중이면 같은 고리를 말하는 정적 "조합 루프"는 진동 한 줄로 바꾼다(원인 한 곳)
+            if (osc != null && s.kind == Diagnostic.Kind.COMBINATIONAL_LOOP && s.circuit == osc.circuit
+                    && !java.util.Collections.disjoint(s.components, osc.components)) {
+                continue;
+            }
+            ret.add(s);
+        }
+        if (osc != null) {
+            ret.add(osc);
+        }
         for (Diagnostic d : dyn) {
             if (!coveredByStatic(d)) {
                 ret.add(d);

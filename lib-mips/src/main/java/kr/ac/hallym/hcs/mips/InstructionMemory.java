@@ -81,8 +81,12 @@ final class InstructionMemory extends MemoryFactory {
         if (!painter.getShowState()) {
             return null;
         }
-        Value addr = painter.getPort(ADDR);
-        if (addr.isFullyDefined() && (addr.toIntValue() & 3) != 0) {
+        return addressStatus(painter.getPort(ADDR));
+    }
+
+    /** 주소 입력의 문제(몸체의 빨간 글자, 포크의 진단 D-04가 같은 문구를 쓴다). 없으면 null. */
+    public static String addressStatus(Value addr) {
+        if (addr != null && addr.isFullyDefined() && (addr.toIntValue() & 3) != 0) {
             return Text.of("Addr not word-aligned", "Addr가 워드 정렬 안 됨").get();
         }
         return null;
