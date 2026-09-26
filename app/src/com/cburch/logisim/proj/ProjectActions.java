@@ -309,6 +309,7 @@ public class ProjectActions {
 		File f = loader.getMainFile();
 		// HCS: a window recovered from autosave asks where to save (#70)
 		if (kr.ac.hallym.hcs.app.autosave.AutoSave.get().isRecovered(proj)) return doSaveAs(proj);
+		if (kr.ac.hallym.hcs.app.tutorial.Examples.interceptsSave(proj)) return doSaveAs(proj); // HCS: V-07 examples are read-only
 		if (f == null) return doSaveAs(proj);
 		else return doSave(proj, f);
 	}
@@ -328,6 +329,7 @@ public class ProjectActions {
 		if (ret) ret = saveExtension(proj, f); // HCS
 		if (ret) kr.ac.hallym.hcs.app.autosave.AutoSave.get().saved(proj); // HCS: #70
 		if (ret) kr.ac.hallym.hcs.app.libs.JarBesideNotice.afterSave(proj, f); // HCS: V-01
+		if (ret) kr.ac.hallym.hcs.app.tutorial.Examples.saved(proj, f); // HCS: V-07
 		if (ret) {
 			AppPreferences.updateRecentFile(f);
 			proj.setFileAsClean();

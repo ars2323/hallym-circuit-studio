@@ -268,6 +268,8 @@ public final class Shots {
         }
         if (want(scenes, "45")) {
             sameNameTabs(); // V-05
+        if (want(scenes, "46")) {
+            examplesMenu(project()); // V-07
         }
         if (want(scenes, "10")) {
             open("tests/circ/register.circ");
@@ -1936,6 +1938,52 @@ public final class Shots {
             d.delete();
         }
         dir.delete();
+    /** V-07: 새 파일의 빈 캔버스 안내, Help › Examples 메뉴, 예제를 열었을 때의 읽기 전용 알림. */
+    void examplesMenu(Project base) throws Exception {
+        Project p = newProject(base);
+        activate(p);
+        sleep(600);
+        snapCrop(onScreen(canvas(p)), "46a-empty-canvas-hint");
+        javax.swing.JMenuBar mb = p.getFrame().getJMenuBar();
+        for (int i = 0; i < mb.getMenuCount(); i++) {
+            javax.swing.JMenu m = mb.getMenu(i);
+            if (m != null && "Help".equals(m.getText())) {
+                final javax.swing.JMenu hm = m;
+                edt(hm::doClick);
+                sleep(600);
+                javax.swing.JMenu ex = null;
+                for (int k = 0; k < hm.getItemCount(); k++) {
+                    if (hm.getItem(k) instanceof javax.swing.JMenu && "Examples".equals(hm.getItem(k).getText())) {
+                        ex = (javax.swing.JMenu) hm.getItem(k);
+                    }
+                }
+                if (ex != null) {
+                    final javax.swing.JMenu exm = ex;
+                    edt(() -> exm.setSelected(true));
+                    edt(() -> exm.getPopupMenu().setVisible(true));
+                    sleep(600);
+                    Rectangle r = onScreen(hm.getPopupMenu()).union(onScreen(exm.getPopupMenu()));
+                    snapCrop(pad(r, 8), "46b-help-examples-menu");
+                    edt(() -> exm.getPopupMenu().setVisible(false));
+                }
+                edt(() -> hm.getPopupMenu().setVisible(false));
+            }
+        }
+        AtomicReference<Project> ref = new AtomicReference<>();
+        edt(() -> ref.set(kr.ac.hallym.hcs.app.tutorial.Examples.open(p.getFrame(), p, "console-demo")));
+        sleep(2500);
+        Project ex = ref.get();
+        if (ex == null) {
+            log.add("46: example did not open");
+            return;
+        }
+        edt(() -> {
+            ex.getFrame().setBounds(0, 0, W, H);
+            ex.getFrame().validate();
+        });
+        sleep(800);
+        Rectangle all = onScreen(ex.getFrame().getContentPane());
+        snapCrop(new Rectangle(all.x, all.y + all.height - 34, all.width, 34), "46c-example-readonly-notice");
     }
 
     /** V-01: 새 파일의 트리·검색에 Hallym MIPS, 첫 부품을 놓으면 파일에 추가, 저장 뒤 jar 알림. */
