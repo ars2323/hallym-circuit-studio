@@ -1395,7 +1395,8 @@ public final class Shots {
             Rectangle r = onScreen(tb);
             snapCrop(new Rectangle(r.x, r.y, Math.min(r.width, 1300), r.height), "07a-toolbar");
         }
-        Component status = find(f, x -> x instanceof javax.swing.JLabel && ((javax.swing.JLabel) x).getText() != null
+        Component status = find(f, x -> x instanceof javax.swing.JLabel && x.isShowing()
+                && ((javax.swing.JLabel) x).getText() != null
                 && ((javax.swing.JLabel) x).getText().startsWith(kr.ac.hallym.hcs.app.Messages.get("bar.cycleCount", "").trim()));
         if (status != null) {
             Rectangle r = onScreen(status.getParent());
