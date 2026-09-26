@@ -77,7 +77,7 @@ class MenuHelp extends JMenu implements ActionListener {
 		} else if (src == library) {
 			showHelp("libs");
 		} else if (src == about) {
-			About.showAboutDialog(menubar.getParentWindow());
+			kr.ac.hallym.hcs.app.about.AboutDialog.show(menubar.getParentWindow()); // HCS: E-11 About
 		}
 	}
 	

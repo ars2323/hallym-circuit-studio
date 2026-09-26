@@ -216,6 +216,9 @@ public final class Shots {
         if (want(scenes, "32")) {
             oscillationAndMips();
         }
+        if (want(scenes, "33")) {
+            about(demo);
+        }
         if (want(scenes, "10")) {
             open("tests/circ/register.circ");
             open("tests/circ/values.circ");
@@ -1774,6 +1777,31 @@ public final class Shots {
         edt(() -> sv.showSide(1));
         sleep(500);
         snapFull("27f-stack-demo-full");
+    }
+
+    /** 33: About 창(E-11). 학교 엠블럼, 이름·버전, 설명, 캐릭터 한 장, License·Notices 탭. */
+    void about(Project p) throws Exception {
+        activate(p);
+        SwingUtilities.invokeLater(() -> kr.ac.hallym.hcs.app.about.AboutDialog.show(p.getFrame()));
+        Window w = null;
+        for (int i = 0; i < 40 && w == null; i++) {
+            sleep(250);
+            w = window(x -> x instanceof JDialog && x.isShowing() && find(x, y -> y instanceof JTabbedPane
+                    && "about.tabs".equals(y.getName())) != null);
+        }
+        if (w == null) {
+            log.add("33: no About window");
+            return;
+        }
+        sleep(600);
+        snapCrop(w.getBounds(), "33a-about-license");
+        final Window dialog = w;
+        JTabbedPane tabs = (JTabbedPane) find(dialog, y -> y instanceof JTabbedPane && "about.tabs".equals(y.getName()));
+        edt(() -> tabs.setSelectedIndex(1));
+        sleep(500);
+        snapCrop(dialog.getBounds(), "33b-about-notices");
+        edt(dialog::dispose);
+        sleep(300);
     }
 
     /**

@@ -451,6 +451,8 @@ public class Frame extends LFrame implements LocaleListener {
 		} else {
 			s = StringUtil.format(Strings.get("titleFileKnown"), name);
 		}
+		s = kr.ac.hallym.hcs.app.about.AppIdentity.title(name, circuit, // HCS: E-12 window title
+				proj.getLogisimFile().getMainCircuit());
 		this.setTitle(s);
 		myProjectListener.enableSave();
 	}
