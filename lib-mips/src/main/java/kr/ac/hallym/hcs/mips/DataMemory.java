@@ -65,6 +65,8 @@ class DataMemory extends MemoryFactory {
         long highest = -1;
         Problem problem;
         long problemAddr;
+        /** 몸체에 빨갛게 보이는 글자(propagate 때 만든다). 문제가 없으면 null. */
+        String problemText;
 
         State(WordImage image) {
             this.image = image;
@@ -124,6 +126,16 @@ class DataMemory extends MemoryFactory {
         /** 클럭 상승 에지에 읽거나 쓴 가장 낮은 워드 주소. 없으면 -1. */
         public long lowestAccess() {
             return lowest;
+        }
+
+        /** 진단(D-04): 지금 문제의 종류 이름(CONTROL_FLOATING, UNALIGNED, NOT_IN_ANY_REGION, STACK_LIMIT, OVERLAP). 없으면 null. */
+        public String problemName() {
+            return problem == null ? null : problem.name();
+        }
+
+        /** 진단(D-04): 몸체의 빨간 글자와 같은 문구. 없으면 null. */
+        public String problemText() {
+            return problemText;
         }
 
         /** Stack 깊이를 재는 기준 주소(SPIM 시작 $sp 또는 영역 맨 위, {@link #base()}). */
@@ -228,6 +240,7 @@ class DataMemory extends MemoryFactory {
         }
         s.setPort(READ_DATA, out, DELAY);
         diagnose(s, st, addr, write, read, used, inRegion);
+        st.problemText = describe(st, s);
     }
 
     /** 동작하지 않는 경우를 하나 고른다. 앞의 것이 먼저다. */

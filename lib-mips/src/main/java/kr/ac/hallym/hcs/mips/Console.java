@@ -67,6 +67,11 @@ final class Console extends InstanceFactory {
         boolean syscallFloating;
         String status; // 마지막 syscall의 문제
 
+        /** 진단(D-04): 마지막 syscall의 문제(몸체의 빨간 글자와 같은 문구). 없으면 null. */
+        public String statusText() {
+            return status;
+        }
+
         @Override
         public State clone() {
             try {

@@ -78,11 +78,11 @@
 | ID | 제목 | 이슈 | 상태 | PR | 스크린샷·근거 |
 | --- | --- | --- | --- | --- | --- |
 | D-01 | E·X 출처 추적 | #209 | 완료 | (이 PR) | D-080, OriginTraceTest(구동자 없음·충돌·서브회로 안팎·MUX 고른 입력·기록값 지난 스텝), DynamicCheckTest(E 한 번·원인 하나·Find E/X Origin), 31a~31e |
-| D-02 | 진동 | #210 | 대기 |  |  |
+| D-02 | 진동 | #210 | 완료 | (이 PR) | D-081, FaultCollectionTest.oscillationReplacesTheStaticLoopAndOffersReset(정적 루프 → 진동 한 줄, Reset 단추, 리셋 뒤 걷힘), 32a~32b |
 | D-03 | X 기록 감지 | #211 | 완료 | (이 PR) | D-080, DynamicCheckTest(en 떠 있음·D 떠 있음·값 그대로·정상 회로 0건·지난 스텝 다시 쓰기·스텝당 0.03ms) |
-| D-04 | MIPS 부품 값 의존 검사(#41) | #212 | 대기 |  |  |
+| D-04 | MIPS 부품 값 의존 검사(#41) | #212 | 완료 | (이 PR) | D-081, FaultCollectionTest(정렬·영역 밖·스택 한계·IMem 정렬·syscall), mipsMessagesUseTheBodyText, StackRegionTest·ConsoleTest(lib-mips 접근자), 32c~32d |
 | D-05 | 메시지 클릭과 사이클 뷰 | #213 | 완료 | (이 PR) | D-080, CycleViewGuiTest.dynamicMessageGoesToItsCycleAndCause(사이클·서브회로 인스턴스·원인 선택), 31c |
-| D-06 | 동적 고장 회로 모음 | #214 | 대기 |  |  |
+| D-06 | 동적 고장 회로 모음 | #214 | 완료 | (이 PR) | D-081, tests/circ/faults 18개(정적 9·동적 4·MIPS 5), FaultCollectionTest.everyFaultCircuitGivesItsOneMessage |
 
 ## E 편의 기능(4b)
 

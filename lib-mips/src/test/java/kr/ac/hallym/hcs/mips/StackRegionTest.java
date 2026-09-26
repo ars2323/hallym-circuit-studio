@@ -16,6 +16,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import com.cburch.logisim.comp.Component;
+import com.cburch.logisim.data.BitWidth;
+import com.cburch.logisim.data.Value;
 
 import kr.ac.hallym.hcs.regress.CircuitBuilder;
 
@@ -121,6 +123,10 @@ class StackRegionTest {
             assertEquals(null, sim.port(m[1], DataMemory.READ_DATA).isFullyDefined() ? "driven" : null);
             String text = DataMemory.describe((DataMemory.State) sim.data(m[1]), sim.state(m[1]));
             assertEquals(true, text.contains("16B"), text);
+            // 포크의 진단(D-04)이 읽는 공개 접근자: 몸체의 빨간 글자와 같다
+            DataMemory.State st = (DataMemory.State) sim.data(m[1]);
+            assertEquals("STACK_LIMIT", st.problemName());
+            assertEquals(text, st.problemText());
         }
     }
 
@@ -141,7 +147,17 @@ class StackRegionTest {
             Component[] m = probe(sim, addr);
             assertNull(problem(sim, m[0]));
             assertNull(problem(sim, m[1]));
+            assertNull(((DataMemory.State) sim.data(m[0])).problemName());
+            assertNull(((DataMemory.State) sim.data(m[0])).problemText());
         }
+    }
+
+    @Test
+    void instructionMemoryAddressStatusMatchesItsBody() {
+        assertNull(InstructionMemory.addressStatus(Value.createKnown(BitWidth.create(32), 0x00400004)));
+        assertEquals(true, InstructionMemory.addressStatus(Value.createKnown(BitWidth.create(32), 0x00400002))
+                != null);
+        assertNull(InstructionMemory.addressStatus(Value.createUnknown(BitWidth.create(32))));
     }
 
     @Test

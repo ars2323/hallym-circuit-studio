@@ -43,6 +43,9 @@ public final class MessagesPanel {
     private final JPanel body = new JPanel(new BorderLayout());
     private final JTabbedPane tabs = new JTabbedPane(JTabbedPane.TOP);
     private final JLabel status = new JLabel();
+    /** 진동(D-02) 메시지가 있을 때만 보이는 Reset 단추 줄. */
+    private final JPanel resetBar = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 2));
+    private final javax.swing.JButton reset = new javax.swing.JButton(Messages.get("messages.reset"));
     private JSplitPane split;
 
     MessagesPanel(Project proj) {
@@ -75,6 +78,10 @@ public final class MessagesPanel {
                 open();
             }
         });
+        reset.setFocusable(false);
+        reset.addActionListener(e -> kr.ac.hallym.hcs.app.record.Recorder.requestReset(proj));
+        resetBar.setBackground(Tokens.WHITE);
+        resetBar.add(reset);
         diags.addListener(this::update);
         update();
     }
@@ -110,6 +117,13 @@ public final class MessagesPanel {
         }
         body.removeAll();
         body.add(ds.isEmpty() ? empty : new JScrollPane(list), ds.isEmpty() ? BorderLayout.NORTH : BorderLayout.CENTER);
+        boolean osc = false;
+        for (Diagnostic d : ds) {
+            osc |= d.kind == Diagnostic.Kind.OSCILLATION;
+        }
+        if (osc) {
+            body.add(resetBar, BorderLayout.SOUTH);
+        }
         body.revalidate();
         body.repaint();
         status.setText(statusText(ds.size()));
@@ -133,6 +147,16 @@ public final class MessagesPanel {
         tabs.setMinimumSize(new java.awt.Dimension(0, 0));
         tabs.setPreferredSize(new java.awt.Dimension(100, HEIGHT));
         return split;
+    }
+
+    /** 진동 Reset 단추가 보이는가(테스트). */
+    boolean resetShown() {
+        return resetBar.getParent() == body;
+    }
+
+    /** 진동 Reset 단추(테스트). */
+    javax.swing.JButton resetButton() {
+        return reset;
     }
 
     /** 지금 목록(테스트). */
