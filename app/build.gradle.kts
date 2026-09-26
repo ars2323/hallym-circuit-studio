@@ -49,6 +49,11 @@ dependencies {
 
 tasks.processResources {
     from("src-hcs") { include("**/*.properties") } // 포크 문구 번들은 코드 옆에 둔다
+    // Help › Examples(V-07): 사람이 그린 예제 회로를 번들한다(tests/circ와 같은 파일)
+    from(rootProject.file("tests/circ")) {
+        include("demo-datapath.circ", "console-demo.circ", "stack-demo.circ")
+        into("kr/ac/hallym/hcs/app/examples")
+    }
     from(rootProject.file("assets/fonts/pretendard")) { into("kr/ac/hallym/hcs/app/fonts") } // OFL, LICENSE.txt 포함
     // 첫 실행 안내의 캐릭터(한림대학교 소유, 원본 그대로). 쓰는 두 장만 넣는다.
     from(rootProject.file("assets/hallym/character")) {

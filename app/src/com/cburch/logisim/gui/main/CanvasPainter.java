@@ -112,6 +112,7 @@ class CanvasPainter implements PropertyChangeListener {
 		g.translate(canvas.getHcsOriginX(), canvas.getHcsOriginY());
 
 		grid.paintGrid(g);
+		kr.ac.hallym.hcs.app.tutorial.EmptyHint.paint(canvas, g, proj.getCurrentCircuit()); // HCS: V-07 empty canvas hint
 		g.setColor(Color.black);
 
 		Graphics gScaled = g.create();

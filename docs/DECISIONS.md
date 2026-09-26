@@ -1209,3 +1209,10 @@
 - **대안:** 호를 부품 위에서 완전히 잘라 내기(이전 동작: 호가 끊겨 보임), 직선 점프(선과 구분되지 않음), 장애물을 피하는 자유 곡선(결정성과 성능이 나빠짐).
 - **보강(ui-reviewer 1차):** 서브회로 "N places" 칩도 라벨 칩·먼저 놓은 서브회로 칩을 피해 놓는다(오른쪽 위 → 왼쪽 위 → 오른쪽 아래 → 왼쪽 아래 → 위 가운데, `FlowPainter.chipPlace`). 18h·18j에서 regfile 칩이 값 칩 0x01과 겹쳤다.
 - **테스트:** `FlowPainterTest.tunnelArcsAvoidPartsAndLabelChips`(18e 장면: 고른 호가 후보 중 최소 겹침이고 PC 레지스터·clk 터널·끝점 칩을 지나지 않으며 기본 호보다 덜 가린다), `arcCandidatesAreChosenDeterministically`, `onlyOutputPinsAndStateInputsGetLabels`, `subcircuitChipsMoveOffLabelChips`.
+## D-102 빈 캔버스 안내와 Help › Examples(V-07)
+
+- **날짜:** 2026-09-26
+- **결정:** 보고 있는 회로에 부품도 선도 없으면 캔버스 가운데(보이는 영역 기준, 배율과 무관한 화면 글자 크기)에 흐린 안내 한 덩어리를 그린다(`EmptyHint`): 제목과 할 일 셋 — Ctrl+K 검색, 왼쪽 목록에서 끌어 놓기, Help › Examples. 문장은 한국어, 명령 이름은 영어. 격자 점이 비치지 않게 흰 바탕을 깐다. 첫 부품·선이 생기면 조건이 깨져 사라지고, 파일에는 아무것도 저장하지 않는다. 캐릭터는 쓰지 않는다: 안내는 편집 화면의 일부라 회로가 비었을 때마다 보이므로 캐릭터의 쓰임을 첫 실행·정보 창·정상 종료로 아끼는 CLAUDE.md 8절 취지에 맞지 않고, 흰 바탕·최소 여백을 지켜도 격자 위에 작게 놓이면 가이드라인의 "복잡한 배경 금지"에 걸릴 수 있다. Help › Examples 메뉴는 번들 예제(demo-datapath, console-demo, stack-demo — tests/circ의 같은 파일을 빌드 때 jar에 넣는다)를 임시 폴더에 풀어 읽기 전용 파일로 열고 상태 표시줄에 알린다. 예제인 동안 Save는 다른 이름으로 저장을 묻고(`ProjectActions.doSave` 훅), 다른 자리에 저장하면 보통 파일이 된다.
+- **이유:** v1.0.0 검토(01): 새 파일은 빈 점 격자뿐이라 처음 여는 학생이 할 일을 몰랐고, 예제 메뉴가 없었다.
+- **대안:** 캐릭터를 곁들인 안내(위 이유로 제외), 예제를 열 때마다 바로 저장 위치를 묻기(먼저 둘러보는 흐름을 끊음), 예제를 쓰기 가능한 복사본으로 열기(학생이 예제를 덮어써 버릴 수 있음).
+- **테스트:** `EmptyHintAndExamplesTest` — 새 파일에서 보이고 첫 부품 뒤 사라지며 저장 파일에 아무것도 남지 않음, 안내 줄에 Ctrl+K·Help › Examples·demo-datapath 포함, 예제 셋이 번들돼 있고 저장소 파일과 같으며 읽기 전용으로 풀리고, 예제 표시는 다른 자리에 저장할 때만 풀림.
