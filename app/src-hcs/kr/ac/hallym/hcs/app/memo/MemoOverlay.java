@@ -19,7 +19,7 @@ import com.cburch.logisim.gui.main.Canvas;
 import kr.ac.hallym.hcs.app.theme.Tokens;
 
 /**
- * 영역 메모 그리기(E-08): 부품을 그리기 전에(뒤에 깔리게) 옅은 색 상자와 색 테두리, 왼쪽 위 메모 글을 그린다. 회로
+ * 영역 메모 그리기(E-08): 부품을 그리기 전에(뒤에 깔리게) 옅은 색 상자와 색 테두리, 상자 위 왼쪽에 메모 글을 그린다. 회로
  * 좌표라 배율을 따라 커진다(교재 그림의 영역 표시처럼). 인쇄 보기·그림 내보내기에도 같은 자리에 들어간다.
  */
 public final class MemoOverlay {
@@ -57,9 +57,10 @@ public final class MemoOverlay {
                 g.setStroke(new BasicStroke(BORDER));
                 g.drawRoundRect(b.getX(), b.getY(), b.getWidth(), b.getHeight(), 12, 12);
                 if (!m.text.isEmpty()) {
+                    // 글은 상자 위 테두리 바깥(왼쪽 위)에 둔다: 상자 안 부품·선과 겹치지 않게
                     g.setFont(font);
                     g.setColor(c.darker());
-                    g.drawString(m.text, b.getX() + PAD + 2, b.getY() + PAD + g.getFontMetrics().getAscent());
+                    g.drawString(m.text, b.getX() + PAD, b.getY() - PAD + 2);
                 }
             }
         } finally {

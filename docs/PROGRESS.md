@@ -95,9 +95,9 @@
 | E-05 | Undo History | #219 | 완료 | (이 PR) | D-083, UndoHistoryTest(목록 차례·되돌리기·다시 실행), 34a |
 | E-06 | Create Submission | #220 | 완료 | (이 PR) | D-085, SubmissionTest(.circ·.s·jar를 상대 경로로, 점검은 알리기만, 번들 jar 대신 넣기), 36a |
 | E-07 | Export Image | #221 | 완료 | (이 PR) | D-085, ImageExportTest(PNG 배율·SVG XML·PDF 구조와 pdfinfo·고른 부분·글자 외곽선·잘라내기), 36b~36c |
-| E-08 | 미니맵과 영역 메모 | #222 | 대기 |  | 미니맵은 S-11(D-072)에서 들어감, 영역 메모 남음 |
+| E-08 | 미니맵과 영역 메모 | #222 | 완료 | (이 PR) | 미니맵은 S-11(D-072), 영역 메모는 D-088, AreaMemosTest(둘레 상자·기본 상자·더하기·고치기·지우기·되돌리기·겹치면 안쪽·확장 정보 저장과 원조 바이트 동일·그리기), 39a~39d |
 | E-09 | 단축키 설정 창 | #223 | 완료 | (이 PR) | D-083, KeyBindingsTest(기본 키·Shift 반대·바꾸기·겹침·기본으로·창 키 다시 달기), ShortcutsTest(? 표가 지금 키), 34b~34c |
-| E-10 | 첫 실행 튜토리얼 | #224 | 대기 |  |  |
+| E-10 | 첫 실행 튜토리얼 | #224 | 완료 | (이 PR) | D-089, TourTest(두 언어 문구·영어 제목·말풍선 자리), TourGuiTest(실제 창에서 모든 단계의 대상·말풍선이 대상을 안 가림·닫으면 유리판 복구), 40a~40c |
 | E-11 | About 창 | #225 | 완료 | (이 PR) | D-082, AppIdentityTest(이름·버전·엠블럼·캐릭터·탭 둘, LICENSE·NOTICE 번들), 33a~33b |
 | E-12 | 앱 아이콘과 창 제목 | #226 | 완료 | (이 PR) | D-082, AppIdentityTest(아이콘 여섯 크기, 창 제목) |
 
