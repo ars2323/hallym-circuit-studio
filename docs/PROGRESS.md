@@ -68,9 +68,9 @@
 | C-04 | Run Until | #202 | 완료 | #261 | D-075, RunUntilTest(PC·다음 jr·exit·줄 바뀜·최대 사이클·E 발생·PC 글 읽기), CycleViewGuiTest.runUntilButtonRunsAndReports, 26a~26c |
 | C-05 | 레지스터 패널 | #203 | 완료 | #262 | D-076, RegisterFileTest(라벨 숫자·이름·위치 추정, 수동 대응, 저장·다시 열기, 되돌리기, 표시 없을 때 나열), CycleViewGuiTest.registerPanelWithAMarkedRegisterFile, 27a~27c·27e |
 | C-06 | 메모리 패널(#98) | #204 | 완료 | #262 | D-076, MachineStateTest(factorial $sp·깊이 56·복귀 0·Stack 화살표·최고 수위·Data 라벨), StackRegionTest.panelAccessorsReadWithoutChanging, CycleViewGuiTest.memoryPanelShowsTheStack, 27d·27f |
-| C-07 | 명령어 필드 색 | #205 | 대기 |  |  |
+| C-07 | 명령어 필드 색 | #205 | 완료 | (이 PR) | D-078, FieldPathsTest(rs→RR1, rt→RR2, 합친 버스·RD1/RD2로 안 번짐, 형식에 없는 필드), InstructionPanelTest, CycleViewGuiTest.instructionTabShowsFieldColors, 29a~29c |
 | C-08 | 버스 값 칩과 활성 경로 | #206 | 대기 |  |  |
-| C-09 | Console 탭과 .s 자동 재로드 | #207 | 완료 | (이 PR) | D-077, ProgramReloadTest(바뀐 때만·되돌리기·오류는 옛 내용, Console 글·exit), ConsoleDemoTest, CycleViewGuiTest.consoleTabAndReloadWatcher, 28a~28c |
+| C-09 | Console 탭과 .s 자동 재로드 | #207 | 완료 | #263 | D-077, ProgramReloadTest(바뀐 때만·되돌리기·오류는 옛 내용, Console 글·exit), ConsoleDemoTest, CycleViewGuiTest.consoleTabAndReloadWatcher, 28a~28c |
 | C-10 | 사이클 뷰 테스트 | #208 | 대기 |  |  |
 
 ## D 동적 진단(4단계)

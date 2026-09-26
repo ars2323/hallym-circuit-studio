@@ -204,6 +204,9 @@ public final class Shots {
         if (want(scenes, "28")) {
             consoleAndReload(demo);
         }
+        if (want(scenes, "29")) {
+            instructionFields(demo);
+        }
         if (want(scenes, "10")) {
             open("tests/circ/register.circ");
             open("tests/circ/values.circ");
@@ -1762,6 +1765,51 @@ public final class Shots {
         edt(() -> sv.showSide(1));
         sleep(500);
         snapFull("27f-stack-demo-full");
+    }
+
+    /**
+     * 29: Instruction 탭과 필드 색(C-07). 사람이 그린 demo-datapath(스플리터 팔 op·rs·rt·rd·shamt·funct)에서 R 형식
+     * 명령어의 사이클을 고르면 캔버스의 필드 선이 필드 색 띠를 두른다.
+     */
+    void instructionFields(Project demo) throws Exception {
+        activate(demo);
+        deselect(demo);
+        edt(() -> kr.ac.hallym.hcs.app.record.Recorder.requestReset(demo));
+        sleep(900);
+        for (int i = 0; i < 4; i++) {
+            edt(() -> demo.getSimulator().tick());
+            sleep(40);
+        }
+        sleep(800);
+        kr.ac.hallym.hcs.app.cycle.CycleView v = kr.ac.hallym.hcs.app.cycle.CycleView.of(demo);
+        edt(v::open);
+        edt(() -> v.showSide(2));
+        edt(() -> canvas(demo).getHcsZoom().fitCircuit());
+        sleep(900);
+        snapFull("29a-instruction-fields-full");
+        snapCrop(onScreen(v.sideComponent()), "29b-instruction-tab");
+        snapCrop(onScreen(canvas(demo)), "29c-field-colors-canvas");
+        // 배율(체크리스트 4): 25%에서 띠가 뭉치지 않는지, 400%에서 포트 글자를 덮지 않는지. 스플리터 → regfile 구간
+        com.cburch.logisim.data.Bounds span = null;
+        for (com.cburch.logisim.comp.Component x : demo.getCurrentCircuit().getNonWires()) {
+            String f = x.getFactory().getName();
+            if (f.equals("Splitter") || f.equals("regfile")) {
+                span = span == null ? x.getBounds() : span.add(x.getBounds());
+            }
+        }
+        setZoom(demo, 0.25);
+        centerOn(demo, span);
+        sleep(700);
+        snapCrop(onScreen(canvas(demo).getParent()), "29d-field-colors-25");
+        setZoom(demo, 4.0);
+        centerOn(demo, span);
+        sleep(700);
+        snapCrop(onScreen(canvas(demo).getParent()), "29e-field-colors-400");
+        // 비교(체크리스트 5): 같은 장면에서 Registers 탭을 고르면 띠가 없다(원조에 없는 덧그림이라 -orig 대신)
+        edt(() -> canvas(demo).getHcsZoom().fitCircuit());
+        edt(() -> v.showSide(0));
+        sleep(900);
+        snapCrop(onScreen(canvas(demo)), "29f-no-field-colors");
     }
 
     /**

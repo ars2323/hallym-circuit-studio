@@ -176,6 +176,7 @@ class CanvasPainter implements PropertyChangeListener {
 		circ.draw(context, hidden);
 		kr.ac.hallym.hcs.app.wiring.WireMarks.paint(canvas, g, circ, circState, hidden); // HCS: W-04 junctions, jumps
 		kr.ac.hallym.hcs.app.influence.InfluenceOverlay.paint(canvas, context, g, circ); // HCS: P-01 influence
+		kr.ac.hallym.hcs.app.cycle.FieldOverlay.paint(canvas, g, circ); // HCS: C-07 instruction field colors
 		kr.ac.hallym.hcs.app.flow.FlowController.paint(canvas, g, circ); // HCS: P-07 signal flow
 		sel.draw(context, hidden);
 		kr.ac.hallym.hcs.app.labels.LabelOverlay.paint(canvas, g, circ, circState, hidden); // HCS: #79
