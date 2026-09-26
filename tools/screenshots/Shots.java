@@ -1906,10 +1906,10 @@ public final class Shots {
         sleep(300);
         edt(() -> kr.ac.hallym.hcs.app.tabs.FileTabs.get().detach(ref));
         sleep(1200);
-        snapScreen("41b-detached-window");
+        snapFull("41b-detached-window");
         edt(() -> kr.ac.hallym.hcs.app.tabs.FileTabs.get().sideBySide(ref));
         sleep(1200);
-        snapScreen("41c-side-by-side");
+        snapFull("41c-side-by-side");
         edt(() -> kr.ac.hallym.hcs.app.tabs.FileTabs.get().attach(ref));
         sleep(800);
         activate(demo);
