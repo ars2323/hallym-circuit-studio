@@ -63,6 +63,7 @@ tools/screenshots/run.sh <출력 폴더> [장면 번호 ...]
 | 25 | Cycle View 탭(C-02, C-03): demo-datapath 6사이클, 신호 줄 다섯(clk, pc, halt, alu Result 선, regfile RD1 선), 사이클 2 보기, PC 둘레 확대(마지막·사이클 2) |
 | 26 | Run Until(C-04): demo-datapath 리셋 뒤 Run Until… 창(PC Is 0x10), 멈춘 뒤 표와 상태 표시줄 알림 |
 | 27 | 레지스터·메모리 패널(C-05, C-06): demo regfile 표시 뒤 Registers 탭·Register Mapping 창, stack-demo 6사이클 뒤 Memory 탭(Stack)·Registers 탭(표시 없음) |
+| 28 | Console 탭·.s 자동 재로드(C-09): console-demo exit까지 뒤 Console 탭, demo-datapath에 불러온 .s를 고친 뒤 상태 표시줄 알림 |
 | 14 | Messages 탭: 데모 회로를 두 곳 망가뜨린 뒤(터널 이름 틀림, PC 클럭 지움) 목록, 메시지를 눌러 강조한 캔버스, 표시가 배율 25·100·400%에서 보이는지(14f), 끝나면 되돌림. gateUndefined = error 회로의 빈 게이트 입력(14e) |
 
 ## 올리기와 보고
