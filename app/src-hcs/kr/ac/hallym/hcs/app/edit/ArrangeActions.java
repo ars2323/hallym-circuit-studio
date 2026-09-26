@@ -159,14 +159,20 @@ public final class ArrangeActions {
         if (sel == null) {
             return;
         }
+        List<Component> keep = keep(selection, wires);
+        proj.doAction(SelectionActions.dropAll(sel));
+        sel.addAll(keep);
+    }
+
+    /** 남길 것: wires면 선만, 아니면 부품만. */
+    static List<Component> keep(List<Component> selection, boolean wires) {
         List<Component> keep = new ArrayList<>();
         for (Component c : selection) {
             if (c instanceof Wire == wires) {
                 keep.add(c);
             }
         }
-        proj.doAction(SelectionActions.dropAll(sel));
-        sel.addAll(keep);
+        return keep;
     }
 
     /** 여러 개를 골랐을 때의 메뉴 항목들. */

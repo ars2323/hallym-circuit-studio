@@ -132,5 +132,12 @@ class ArrangeTest {
                 .findFirst().get().getLocation().getX(), "nothing moved");
         assertTrue(kr.ac.hallym.hcs.app.sim.SimControls.lastNotice(proj).contains("NOT #1"),
                 kr.ac.hallym.hcs.app.sim.SimControls.lastNotice(proj));
+        // 선택 필터: 부품과 선을 함께 골랐을 때 한 종류만 남긴다
+        List<Component> both = new ArrayList<>(c.getNonWires());
+        both.addAll(c.getWires());
+        assertEquals(2, ArrangeActions.keep(both, false).size(), "components only");
+        assertTrue(ArrangeActions.keep(both, false).stream().noneMatch(x -> x instanceof com.cburch.logisim.circuit.Wire));
+        assertEquals(1, ArrangeActions.keep(both, true).size(), "wires only");
+        assertTrue(ArrangeActions.keep(both, true).get(0) instanceof com.cburch.logisim.circuit.Wire);
     }
 }
