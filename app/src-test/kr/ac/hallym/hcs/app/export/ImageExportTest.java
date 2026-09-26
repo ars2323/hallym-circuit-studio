@@ -99,6 +99,11 @@ class ImageExportTest {
         assertTrue(ImageExport.write(png, ImageExport.Format.PNG, null, c, s, one, false, 1));
         BufferedImage img = ImageIO.read(png);
         assertEquals(one.get(0).getBounds().getWidth() + 2 * ImageExport.BORDER, img.getWidth());
+        // 덧그림(라벨 칩)을 넣으면 칩이 선 밖으로 나가므로 여백을 더 둔다(검토: 위쪽 칩이 잘림)
+        File withChips = tmp.resolve("sel-chips.png").toFile();
+        assertTrue(ImageExport.write(withChips, ImageExport.Format.PNG, null, c, s, one, true, 1));
+        assertEquals(one.get(0).getBounds().getWidth() + 2 * ImageExport.OVERLAY_BORDER,
+                ImageIO.read(withChips).getWidth());
         assertTrue(!ImageExport.write(tmp.resolve("none.png").toFile(), ImageExport.Format.PNG, null, c, s,
                 new ArrayList<>(), false, 1), "nothing selected");
     }

@@ -60,12 +60,18 @@ public final class ImageExport {
     }
 
     static final int BORDER = 10;
+    /** 덧그림(라벨 칩)을 넣을 때의 여백: 칩은 선 위·옆으로 칩 높이만큼 나간다. */
+    static final int OVERLAY_BORDER = 30;
 
     private ImageExport() {
     }
 
     /** 그릴 범위(회로 좌표): 전체 또는 고른 부품. 비었으면 null. */
     static Bounds area(Circuit circuit, Collection<Component> only, Graphics g) {
+        return area(circuit, only, g, false);
+    }
+
+    static Bounds area(Circuit circuit, Collection<Component> only, Graphics g, boolean overlays) {
         Bounds b;
         if (only == null) {
             b = circuit.getBounds(g);
@@ -75,7 +81,7 @@ public final class ImageExport {
                 b = b.add(c.getBounds(g));
             }
         }
-        return b.getWidth() <= 0 || b.getHeight() <= 0 ? null : b.expand(BORDER);
+        return b.getWidth() <= 0 || b.getHeight() <= 0 ? null : b.expand(overlays ? OVERLAY_BORDER : BORDER);
     }
 
     /**
@@ -115,7 +121,7 @@ public final class ImageExport {
         BufferedImage scratch = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
         Graphics2D probe = scratch.createGraphics();
         draw(probe, canvas, circuit, state, only, overlays);
-        Bounds b = area(circuit, only, probe);
+        Bounds b = area(circuit, only, probe, overlays);
         probe.dispose();
         if (b == null) {
             return false;
