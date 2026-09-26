@@ -122,7 +122,7 @@ class ShortcutsTest {
             assertNotEquals(key, en);
             assertNotEquals(key, ko);
         }
-        assertTrue(Shortcuts.TABLE.containsKey("R / Shift+R"));
+        assertTrue(Shortcuts.table().containsKey("R / Shift+R"), Shortcuts.table().keySet().toString());
     }
 
     private static java.awt.event.KeyEvent key(char c, int mods) {

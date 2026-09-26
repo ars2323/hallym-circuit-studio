@@ -23,6 +23,7 @@ class MenuHelp extends JMenu implements ActionListener {
 	private LogisimMenuBar menubar;
 	private JMenuItem tutorial = new JMenuItem();
 	private JMenuItem quickStart = new JMenuItem(); // HCS: #23
+	private JMenuItem shortcuts = new JMenuItem(); // HCS: E-09 keyboard shortcuts
 	private JMenuItem guide = new JMenuItem();
 	private JMenuItem library = new JMenuItem();
 	private JMenuItem about = new JMenuItem();
@@ -36,11 +37,13 @@ class MenuHelp extends JMenu implements ActionListener {
 
 		tutorial.addActionListener(this);
 		quickStart.addActionListener(this);
+		shortcuts.addActionListener(this); // HCS: E-09
 		guide.addActionListener(this);
 		library.addActionListener(this);
 		about.addActionListener(this);
 
 		add(quickStart);
+		add(shortcuts); // HCS: E-09
 		add(tutorial);
 		add(guide);
 		add(library);
@@ -57,6 +60,7 @@ class MenuHelp extends JMenu implements ActionListener {
 		}
 		tutorial.setText(Strings.get("helpTutorialItem"));
 		quickStart.setText(kr.ac.hallym.hcs.app.Messages.get("quickstart.menu")); // HCS: #23
+		shortcuts.setText(kr.ac.hallym.hcs.app.Messages.get("keys.menu")); // HCS: E-09
 		guide.setText(Strings.get("helpGuideItem"));
 		library.setText(Strings.get("helpLibraryItem"));
 		about.setText(Strings.get("helpAboutItem"));
@@ -70,6 +74,8 @@ class MenuHelp extends JMenu implements ActionListener {
 		Object src = e.getSource();
 		if (src == guide) {
 			showHelp("guide");
+		} else if (src == shortcuts) { // HCS: E-09
+			kr.ac.hallym.hcs.app.keys.Shortcuts.showTable(menubar.getParentWindow());
 		} else if (src == quickStart) { // HCS: #23
 			kr.ac.hallym.hcs.app.tutorial.QuickStart.show(menubar.getParentWindow());
 		} else if (src == tutorial) {

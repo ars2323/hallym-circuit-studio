@@ -46,32 +46,42 @@ import kr.ac.hallym.hcs.app.model.Names;
  * 더블클릭은 값 넣기. 포트 위에 마우스를 올리면 포트 이름과 폭. 단축키 사용자 설정은 4b.
  */
 public final class Shortcuts {
-    /** 단축키 표(? 창과 테스트가 같은 표를 쓴다): 키 표기 → 설명 문구 키. */
-    public static final Map<String, String> TABLE = new LinkedHashMap<>();
+    /**
+     * 단축키 표(? 창과 테스트가 같은 표를 쓴다): 키 표기 → 설명 문구 키. 바꿀 수 있는 명령(E-09, {@link KeyBindings})은
+     * 지금 키로, 고정 키(원조 메뉴, 화살표, 마우스 동작)는 그대로 적는다.
+     */
+    public static Map<String, String> table() {
+        Map<String, String> t = new LinkedHashMap<>();
+        t.put("← ↑ → ↓", "keys.nudge");
+        cfg(t, "rotate");
+        t.put("Ctrl+D", "keys.duplicate");
+        t.put("Delete", "keys.delete");
+        t.put("Ctrl+Click", "keys.poke");
+        t.put("Double-click", "keys.value");
+        cfg(t, "label");
+        cfg(t, "redo");
+        t.put("P", "keys.probe");
+        t.put("Ctrl+Wheel", "keys.zoomWheel");
+        cfg(t, "zoomIn");
+        cfg(t, "zoomOut");
+        cfg(t, "zoomFit");
+        cfg(t, "zoom100");
+        cfg(t, "zoomSel");
+        t.put("Space+Drag", "keys.pan");
+        t.put("Ctrl+2 … Ctrl+9", "keys.tools");
+        cfg(t, "influence");
+        cfg(t, "influenceLess");
+        cfg(t, "influenceMore");
+        t.put("Esc", "keys.influenceClear");
+        cfg(t, "flowToggle");
+        cfg(t, "find");
+        cfg(t, "palette");
+        t.put("?", "keys.help");
+        return t;
+    }
 
-    static {
-        TABLE.put("← ↑ → ↓", "keys.nudge");
-        TABLE.put("R / Shift+R", "keys.rotate");
-        TABLE.put("Ctrl+D", "keys.duplicate");
-        TABLE.put("Delete", "keys.delete");
-        TABLE.put("Ctrl+Click", "keys.poke");
-        TABLE.put("Double-click", "keys.value");
-        TABLE.put("F2", "keys.label");
-        TABLE.put("Ctrl+Y / Ctrl+Shift+Z", "keys.redo");
-        TABLE.put("P", "keys.probe");
-        TABLE.put("Ctrl+Wheel", "keys.zoomWheel");
-        TABLE.put("Ctrl+= / Ctrl+-", "keys.zoomStep");
-        TABLE.put("Ctrl+0 / Ctrl+1", "keys.zoomFit");
-        TABLE.put("F", "keys.zoomSel");
-        TABLE.put("Space+Drag", "keys.pan");
-        TABLE.put("Ctrl+2 … Ctrl+9", "keys.tools");
-        TABLE.put("I / Shift+I", "keys.influence");
-        TABLE.put("[ / ]", "keys.influenceDepth");
-        TABLE.put("Esc", "keys.influenceClear");
-        TABLE.put("Ctrl+Shift+F", "keys.flowToggle");
-        TABLE.put("Ctrl+F", "keys.find");
-        TABLE.put("Ctrl+K", "keys.palette");
-        TABLE.put("?", "keys.help");
+    private static void cfg(Map<String, String> t, String id) {
+        t.put(KeyBindings.display(id), KeyBindings.command(id).descKey);
     }
 
     private final Canvas canvas;
@@ -93,8 +103,7 @@ public final class Shortcuts {
             showTable();
             return true;
         }
-        if (e.getKeyCode() == KeyEvent.VK_F && e.getModifiersEx() == (KeyEvent.CTRL_DOWN_MASK
-                | KeyEvent.SHIFT_DOWN_MASK)) {
+        if (KeyBindings.matches("flowToggle", e)) {
             kr.ac.hallym.hcs.app.flow.FlowMenu.toggleOnClick(canvas); // Signal Flow on Click(P-07)
             return true;
         }
@@ -109,9 +118,39 @@ public final class Shortcuts {
             return false;
         }
         int mods = e.getModifiersEx();
+        boolean shift = (mods & KeyEvent.SHIFT_DOWN_MASK) != 0;
+        // 바꿀 수 있는 키(E-09, KeyBindings)
+        if (KeyBindings.matches("label", e)) {
+            return sel.getComponents().size() == 1 && editLabel(sel.getComponents().iterator().next());
+        }
+        if (KeyBindings.matches("influence", e)) {
+            // 영향 경로(P-01): I 앞, Shift+I 뒤
+            if (!sel.isEmpty()) {
+                kr.ac.hallym.hcs.app.influence.InfluenceOverlay.of(canvas.getProject()).show(canvas.getCircuit(),
+                        new ArrayList<>(sel.getComponents()), !shift
+                                ? kr.ac.hallym.hcs.app.model.Influence.Mode.FORWARD
+                                : kr.ac.hallym.hcs.app.model.Influence.Mode.BACKWARD);
+                return true;
+            }
+            return false;
+        }
+        if (KeyBindings.matches("influenceLess", e) || KeyBindings.matches("influenceMore", e)) {
+            kr.ac.hallym.hcs.app.influence.InfluenceOverlay o =
+                    kr.ac.hallym.hcs.app.influence.InfluenceOverlay.of(canvas.getProject());
+            if (o.active()) {
+                o.widen(KeyBindings.matches("influenceMore", e) ? 1 : -1);
+                return true;
+            }
+            return false;
+        }
+        if (KeyBindings.matches("rotate", e)) {
+            if (!sel.isEmpty()) {
+                rotate(sel.getComponents(), !shift);
+                return true;
+            }
+            return false;
+        }
         switch (e.getKeyCode()) {
-        case KeyEvent.VK_F2:
-            return mods == 0 && sel.getComponents().size() == 1 && editLabel(sel.getComponents().iterator().next());
         case KeyEvent.VK_LEFT:
             return mods == 0 && nudge(sel, -10, 0);
         case KeyEvent.VK_RIGHT:
@@ -120,26 +159,6 @@ public final class Shortcuts {
             return mods == 0 && nudge(sel, 0, -10);
         case KeyEvent.VK_DOWN:
             return mods == 0 && nudge(sel, 0, 10);
-        case KeyEvent.VK_I:
-            // 영향 경로(P-01): I 앞, Shift+I 뒤
-            if ((mods & ~KeyEvent.SHIFT_DOWN_MASK) == 0 && !sel.isEmpty()) {
-                kr.ac.hallym.hcs.app.influence.InfluenceOverlay.of(canvas.getProject()).show(canvas.getCircuit(),
-                        new ArrayList<>(sel.getComponents()), (mods & KeyEvent.SHIFT_DOWN_MASK) == 0
-                                ? kr.ac.hallym.hcs.app.model.Influence.Mode.FORWARD
-                                : kr.ac.hallym.hcs.app.model.Influence.Mode.BACKWARD);
-                return true;
-            }
-            return false;
-        case KeyEvent.VK_OPEN_BRACKET:
-        case KeyEvent.VK_CLOSE_BRACKET: {
-            kr.ac.hallym.hcs.app.influence.InfluenceOverlay o =
-                    kr.ac.hallym.hcs.app.influence.InfluenceOverlay.of(canvas.getProject());
-            if (mods == 0 && o.active()) {
-                o.widen(e.getKeyCode() == KeyEvent.VK_CLOSE_BRACKET ? 1 : -1);
-                return true;
-            }
-            return false;
-        }
         case KeyEvent.VK_ESCAPE: {
             kr.ac.hallym.hcs.app.influence.InfluenceOverlay o =
                     kr.ac.hallym.hcs.app.influence.InfluenceOverlay.of(canvas.getProject());
@@ -149,12 +168,6 @@ public final class Shortcuts {
             }
             return false;
         }
-        case KeyEvent.VK_R:
-            if ((mods & ~KeyEvent.SHIFT_DOWN_MASK) == 0 && !sel.isEmpty()) {
-                rotate(sel.getComponents(), (mods & KeyEvent.SHIFT_DOWN_MASK) == 0);
-                return true;
-            }
-            return false;
         default:
             return false;
         }
@@ -408,20 +421,26 @@ public final class Shortcuts {
         showTable(canvas.getProject().getFrame());
     }
 
-    /** 단축키 표 창(명령 팔레트에서도). */
+    /** 단축키 표 창(명령 팔레트·Help 메뉴에서도). "Customize…"를 누르면 설정 창(E-09). */
     public static void showTable(java.awt.Component parent) {
         StringBuilder sb = new StringBuilder("<html><table>");
-        for (Map.Entry<String, String> e : TABLE.entrySet()) {
+        for (Map.Entry<String, String> e : table().entrySet()) {
             sb.append("<tr><td><b>").append(e.getKey()).append("</b></td><td>").append(Messages.get(e.getValue()))
                     .append("</td></tr>");
         }
         sb.append("</table></html>");
-        JOptionPane.showMessageDialog(parent, sb.toString(), Messages.get("keys.title"), JOptionPane.PLAIN_MESSAGE);
+        Object[] options = {Messages.get("keys.customize"), Messages.get("keys.close")};
+        int r = JOptionPane.showOptionDialog(parent, sb.toString(), Messages.get("keys.title"),
+                JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null, options, options[1]);
+        if (r == 0) {
+            KeyBindingsDialog.show(parent instanceof java.awt.Window ? (java.awt.Window) parent
+                    : javax.swing.SwingUtilities.getWindowAncestor(parent));
+        }
     }
 
     /** 표의 모든 설명 문구 키(테스트용). */
     static List<String> messageKeys() {
-        return Collections.unmodifiableList(new ArrayList<>(TABLE.values()));
+        return Collections.unmodifiableList(new ArrayList<>(table().values()));
     }
 
     /** 이 부품들 중 방향을 바꿀 수 있는 것(테스트용). */

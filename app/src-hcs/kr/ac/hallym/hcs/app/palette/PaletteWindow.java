@@ -178,7 +178,7 @@ public final class PaletteWindow extends JWindow {
     public static void install(Frame frame, java.util.function.Supplier<Location> cursor) {
         int menu = Toolkit.getDefaultToolkit().getMenuShortcutKeyMask();
         JComponent root = frame.getRootPane();
-        root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_K, menu),
+        kr.ac.hallym.hcs.app.keys.KeyBindings.install(root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW), "palette",
                 "hcsPalette");
         root.getActionMap().put("hcsPalette", new AbstractAction() {
             private static final long serialVersionUID = 1L;

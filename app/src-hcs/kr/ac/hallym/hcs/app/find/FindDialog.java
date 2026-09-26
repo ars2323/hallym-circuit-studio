@@ -274,7 +274,7 @@ public final class FindDialog extends JDialog {
     public static void install(Frame frame) {
         int menu = Toolkit.getDefaultToolkit().getMenuShortcutKeyMask();
         JComponent root = frame.getRootPane();
-        root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_F, menu),
+        kr.ac.hallym.hcs.app.keys.KeyBindings.install(root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW), "find",
                 "hcsFind");
         root.getActionMap().put("hcsFind", new AbstractAction() {
             private static final long serialVersionUID = 1L;
