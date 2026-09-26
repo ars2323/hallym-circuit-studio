@@ -131,7 +131,7 @@ final class InstructionPanel extends JComponent {
         g.drawString(text, x, base);
         g.setColor(Tokens.TEXT_2);
         g.drawString(formatName(word), x + Math.max(fm.stringWidth(text) + 24, 300), base);
-        g.drawString(String.format("0x%08x", word) + "  at " + m.pcText(c), x, base + LINE);
+        g.drawString(Messages.get("inspect.wordAt", String.format("0x%08x", word), m.pcText(c)), x, base + LINE);
         // 필드: 범위, 비트, 이름, 값을 칸마다(칸 폭은 가장 긴 글에 맞춘다)
         List<Cell> cells = cells(word);
         int col = x;
