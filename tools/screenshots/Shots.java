@@ -207,6 +207,9 @@ public final class Shots {
         if (want(scenes, "29")) {
             instructionFields(demo);
         }
+        if (want(scenes, "30")) {
+            busValuesAndActivePath(demo);
+        }
         if (want(scenes, "10")) {
             open("tests/circ/register.circ");
             open("tests/circ/values.circ");
@@ -1768,12 +1771,68 @@ public final class Shots {
     }
 
     /**
+     * 30: 버스 값 칩과 활성 경로(C-08). 사람이 그린 demo-datapath를 두 사이클 돌린 뒤 사이클 뷰를 연다. 버스마다 지금
+     * 값 칩(16진, 이름 있는 버스는 이름 옆), MemtoReg MUX가 고른 입력(ALU Result)이 진한 띠. 진법을 바꾼 모습과
+     * Active Path를 끈 모습도 찍는다.
+     */
+    void busValuesAndActivePath(Project demo) throws Exception {
+        activate(demo);
+        deselect(demo);
+        kr.ac.hallym.hcs.app.labels.BusValues.Mode before = kr.ac.hallym.hcs.app.labels.BusValues.mode();
+        edt(() -> kr.ac.hallym.hcs.app.labels.BusValues.setMode(kr.ac.hallym.hcs.app.labels.BusValues.Mode.HEX));
+        edt(() -> kr.ac.hallym.hcs.app.record.Recorder.requestReset(demo));
+        sleep(900);
+        for (int i = 0; i < 4; i++) {
+            edt(() -> demo.getSimulator().tick());
+            sleep(40);
+        }
+        sleep(800);
+        kr.ac.hallym.hcs.app.cycle.CycleView v = kr.ac.hallym.hcs.app.cycle.CycleView.of(demo);
+        edt(v::open);
+        edt(() -> v.showSide(0));
+        edt(() -> canvas(demo).getHcsZoom().fitCircuit());
+        sleep(900);
+        snapFull("30a-bus-values-full");
+        snapCrop(onScreen(canvas(demo)), "30b-bus-values-canvas");
+        // 배율(체크리스트 4): 25%와 400%에서 칩 글자와 활성 경로 띠. 스플리터 → regfile → ALU 구간
+        com.cburch.logisim.data.Bounds span = null;
+        for (com.cburch.logisim.comp.Component x : demo.getCurrentCircuit().getNonWires()) {
+            String f = x.getFactory().getName();
+            if (f.equals("Splitter") || f.equals("regfile")) {
+                span = span == null ? x.getBounds() : span.add(x.getBounds());
+            }
+        }
+        setZoom(demo, 0.25);
+        centerOn(demo, span);
+        sleep(700);
+        snapCrop(onScreen(canvas(demo).getParent()), "30e-bus-values-25");
+        setZoom(demo, 4.0);
+        centerOn(demo, span);
+        sleep(700);
+        snapCrop(onScreen(canvas(demo).getParent()), "30f-bus-values-400");
+        edt(() -> canvas(demo).getHcsZoom().fitCircuit());
+        sleep(700);
+        edt(() -> kr.ac.hallym.hcs.app.labels.BusValues.setMode(kr.ac.hallym.hcs.app.labels.BusValues.Mode.SIGNED));
+        sleep(600);
+        snapCrop(onScreen(canvas(demo)), "30c-bus-values-signed");
+        edt(() -> kr.ac.hallym.hcs.app.labels.BusValues.setMode(kr.ac.hallym.hcs.app.labels.BusValues.Mode.OFF));
+        edt(() -> v.setActivePath(false));
+        sleep(600);
+        snapCrop(onScreen(canvas(demo)), "30d-off");
+        edt(() -> v.setActivePath(true));
+        edt(() -> kr.ac.hallym.hcs.app.labels.BusValues.setMode(before));
+    }
+
+    /**
      * 29: Instruction 탭과 필드 색(C-07). 사람이 그린 demo-datapath(스플리터 팔 op·rs·rt·rd·shamt·funct)에서 R 형식
      * 명령어의 사이클을 고르면 캔버스의 필드 선이 필드 색 띠를 두른다.
      */
     void instructionFields(Project demo) throws Exception {
         activate(demo);
         deselect(demo);
+        // 필드 색만 보이게 버스 값 칩은 이 장면에서 끈다(C-08 기본값은 켬)
+        kr.ac.hallym.hcs.app.labels.BusValues.Mode busBefore = kr.ac.hallym.hcs.app.labels.BusValues.mode();
+        edt(() -> kr.ac.hallym.hcs.app.labels.BusValues.setMode(kr.ac.hallym.hcs.app.labels.BusValues.Mode.OFF));
         edt(() -> kr.ac.hallym.hcs.app.record.Recorder.requestReset(demo));
         sleep(900);
         for (int i = 0; i < 4; i++) {
@@ -1810,6 +1869,7 @@ public final class Shots {
         edt(() -> v.showSide(0));
         sleep(900);
         snapCrop(onScreen(canvas(demo)), "29f-no-field-colors");
+        edt(() -> kr.ac.hallym.hcs.app.labels.BusValues.setMode(busBefore));
     }
 
     /**

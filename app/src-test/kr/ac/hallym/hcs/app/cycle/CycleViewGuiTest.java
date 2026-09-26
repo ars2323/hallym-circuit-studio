@@ -398,6 +398,54 @@ class CycleViewGuiTest {
         }
     }
 
+    /**
+     * C-08: 사이클 뷰가 보이는 동안 Active Path 덧그림이 켜지고(체크를 끄면 꺼진다), 시뮬레이션 중 버스 값 칩이 더해진다
+     * (진법을 끄면 이름 칩만).
+     */
+    @Test
+    void activePathAndBusValues() throws Exception {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "needs a display (xvfb-run)");
+        GuiTestSupport.keepAlive();
+        LogisimFile file = RecordingTestSupport.openCirc(tmp, "demo-datapath.circ");
+        Project proj = new Project(file);
+        Frame frame = show(proj);
+        kr.ac.hallym.hcs.app.labels.BusValues.Mode before = kr.ac.hallym.hcs.app.labels.BusValues.mode();
+        try {
+            CycleView view = CycleView.of(proj);
+            SwingUtilities.invokeAndWait(view::open);
+            Recorder.requestReset(proj);
+            waitFor(() -> Recorder.of(proj).current() != null && Recorder.of(proj).current().last() == 0, "reset");
+            kr.ac.hallym.hcs.app.sim.SimControls.runCycles(proj, 2);
+            waitFor(() -> Recorder.of(proj).current().last() == 4, "2 cycles");
+            SwingUtilities.invokeAndWait(view::refresh);
+            assertTrue(ActivePathOverlay.isShown(proj), "on by default while the cycle view is shown");
+            assertFalse(ActivePathOverlay.selected(file.getMainCircuit(), proj.getCircuitState()).isEmpty(),
+                    "MemtoReg selects an input");
+            SwingUtilities.invokeAndWait(view.activePathBox()::doClick);
+            assertFalse(ActivePathOverlay.isShown(proj));
+            SwingUtilities.invokeAndWait(view.activePathBox()::doClick);
+            assertTrue(ActivePathOverlay.isShown(proj));
+
+            com.cburch.logisim.gui.main.Canvas canvas = frame.getCanvas();
+            java.util.function.IntSupplier chips = () -> {
+                try {
+                    SwingUtilities.invokeAndWait(() -> canvas.paintImmediately(canvas.getVisibleRect()));
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+                return kr.ac.hallym.hcs.app.labels.LabelOverlay.chipRects(canvas).size();
+            };
+            kr.ac.hallym.hcs.app.labels.BusValues.setMode(kr.ac.hallym.hcs.app.labels.BusValues.Mode.OFF);
+            int off = chips.getAsInt();
+            kr.ac.hallym.hcs.app.labels.BusValues.setMode(kr.ac.hallym.hcs.app.labels.BusValues.Mode.HEX);
+            int hex = chips.getAsInt();
+            assertTrue(hex > off, "value chips on unnamed buses: " + off + " -> " + hex);
+        } finally {
+            kr.ac.hallym.hcs.app.labels.BusValues.setMode(before);
+            SwingUtilities.invokeAndWait(frame::dispose);
+        }
+    }
+
     /** C-09: Console 탭은 exit까지 모든 출력, .s를 고쳐 저장하면 1.5초 안에 다시 불러오고 알린다. */
     @Test
     void consoleTabAndReloadWatcher() throws Exception {

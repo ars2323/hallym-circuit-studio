@@ -132,6 +132,16 @@ public final class FieldOverlay {
                 if (halo) {
                     area.subtract(wires);
                 }
+                // 부품 몸체(테두리 포함)는 칠하지 않는다: 띠 끝이 포트에서 부품 테두리에 걸치지 않게(C-07 검토)
+                java.awt.Rectangle box = area.getBounds();
+                for (com.cburch.logisim.comp.Component x : circ.getNonWires()) {
+                    com.cburch.logisim.data.Bounds b = x.getBounds();
+                    java.awt.Rectangle r = new java.awt.Rectangle(b.getX() - 1, b.getY() - 1, b.getWidth() + 2,
+                            b.getHeight() + 2);
+                    if (r.intersects(box)) {
+                        area.subtract(new java.awt.geom.Area(r));
+                    }
+                }
                 g.fill(area); // 한 번에 채워 겹친 곳이 진해지지 않게
             }
         } finally {
