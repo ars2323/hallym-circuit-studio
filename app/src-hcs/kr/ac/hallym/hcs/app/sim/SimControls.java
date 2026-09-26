@@ -189,7 +189,7 @@ public final class SimControls {
             double[] f = {1, 4, 16, 64, 256, 1024, 4096};
             proj.getSimulator().setTickFrequency(f[speed.getSelectedIndex()]);
         });
-        tb.addItem(speed, "bar.speed", 0);
+        tb.addItem(speed, "bar.speedMenu", 0);
         tb.addGap();
         tb.addItem(button("program", "bar.program", () -> kr.ac.hallym.hcs.app.palette.PaletteActions.loadProgram(proj)), "bar.program", OverflowToolbar.KEEP);
         JButton style = new JButton(text() ? Messages.get("bar.iconsOnly") : Messages.get("bar.withText"));
