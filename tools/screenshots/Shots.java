@@ -1786,11 +1786,9 @@ public final class Shots {
         deselect(osc);
         edt(() -> kr.ac.hallym.hcs.app.record.Recorder.requestReset(osc));
         sleep(900);
-        for (int i = 0; i < 2; i++) {
-            edt(() -> osc.getSimulator().tick());
-            sleep(300);
-        }
-        sleep(1500);
+        // 첫 틱에서 발진해 시뮬레이션이 꺼진다. 꺼진 뒤의 틱은 보호기(D-091)가 거절한다
+        edt(() -> osc.getSimulator().tick());
+        sleep(1800);
         edt(() -> canvas(osc).getHcsZoom().fitCircuit());
         messagesTab(osc);
         sleep(900);
