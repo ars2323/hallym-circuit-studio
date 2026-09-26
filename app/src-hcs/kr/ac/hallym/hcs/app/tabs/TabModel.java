@@ -7,6 +7,8 @@ package kr.ac.hallym.hcs.app.tabs;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Map;
+import java.util.LinkedHashMap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -55,6 +57,63 @@ public final class TabModel<K> {
         public boolean updated() {
             return updated;
         }
+    }
+
+    /**
+     * 같은 제목의 탭을 가르는 덧말(V-05): 제목이 겹치는 탭마다, 다른 탭들과 구분되는 가장 짧은 상위 폴더 경로 꼬리
+     * ({@code hw3}, 바로 위 폴더 이름이 겹치면 {@code tests/circ}). 저장한 적 없는 탭과 겹치지 않는 탭은 빠진다. 결과는
+     * 열쇠 → 덧말.
+     */
+    public static <K> Map<K, String> distinguishers(List<Tab<K>> tabs) {
+        Map<K, String> out = new LinkedHashMap<>();
+        Map<String, List<Tab<K>>> byTitle = new LinkedHashMap<>();
+        for (Tab<K> t : tabs) {
+            if (t.file != null) {
+                byTitle.computeIfAbsent(t.title, k -> new ArrayList<>()).add(t);
+            }
+        }
+        for (List<Tab<K>> group : byTitle.values()) {
+            if (group.size() < 2) {
+                continue;
+            }
+            Map<K, List<String>> dirs = new LinkedHashMap<>();
+            for (Tab<K> t : group) {
+                List<String> parts = new ArrayList<>();
+                for (File d = t.file.getAbsoluteFile().getParentFile(); d != null; d = d.getParentFile()) {
+                    parts.add(d.getName().isEmpty() ? d.getPath() : d.getName()); // 가까운 폴더부터
+                }
+                dirs.put(t.key, parts);
+            }
+            for (Tab<K> t : group) {
+                List<String> mine = dirs.get(t.key);
+                int n = 1;
+                for (; n < mine.size(); n++) {
+                    boolean unique = true;
+                    for (Tab<K> o : group) {
+                        if (o != t && tail(dirs.get(o.key), n).equals(tail(mine, n))) {
+                            unique = false;
+                        }
+                    }
+                    if (unique) {
+                        break;
+                    }
+                }
+                out.put(t.key, tail(mine, Math.min(n, mine.size())));
+            }
+        }
+        return out;
+    }
+
+    /** 가까운 폴더 n개를 경로 순서로: {@code tests/circ}. */
+    private static String tail(List<String> parts, int n) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = Math.min(n, parts.size()) - 1; i >= 0; i--) {
+            sb.append(parts.get(i));
+            if (i > 0) {
+                sb.append('/');
+            }
+        }
+        return sb.toString();
     }
 
     public interface Listener {

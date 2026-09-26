@@ -130,8 +130,8 @@
 | V-01 | 새 파일에서도 Hallym MIPS가 보이고 바로 쓰임 | #283 | 완료 | #293 | D-096, MipsShadowTest(7), 44a~44e |
 | V-02 | 진단 문구 정확성(E 원인 종류, 내부 포트 이름 숨김) | #284 | 완료 | #294 | D-097, FaultCollectionTest 문구 기대 파일(ko·en)·내부 포트 이름 0건, 31a·31e |
 | V-03 | 메시지를 누르면 원인이 사이클 표에 | #285 | 완료 | #295 | D-098, CycleViewGuiTest.clickingAMessagePinsTheCauseAndTheErrorSpot, 31c·31f |
-| V-04 | 활성 경로는 가지만 칠함 | #286 | 진행 |  |  |
-| V-05 | 같은 이름 파일 탭 구분 | #287 | 대기 |  |  |
+| V-04 | 활성 경로는 가지만 칠함 | #286 | 완료 | #296 | D-099, NetlistTest.branchFollowsOnlyTheWayToThePort, ActivePathOverlayTest 고정 기대값, 30b |
+| V-05 | 같은 이름 파일 탭 구분 | #287 | 진행 |  |  |
 | V-06 | Signal Flow 터널 호가 부품·라벨을 피함 | #288 | 대기 |  |  |
 | V-07 | 빈 캔버스 안내와 예제 메뉴 | #289 | 대기 |  |  |
 | V-08 | 상태 표시줄 PC·Mark as PC, Tunnels 외톨이 표시 | #290 | 대기 |  |  |

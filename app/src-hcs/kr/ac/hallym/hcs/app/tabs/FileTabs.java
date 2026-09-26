@@ -141,7 +141,43 @@ public final class FileTabs {
 
     void refresh(Project p) {
         model.update(p, file(p), title(p), p.isFileDirty());
+        retitle();
     }
+
+    /** 같은 이름 탭의 덧말(V-05): 프로젝트 → 구분 폴더 이름. */
+    private Map<Project, String> lastSuffix = new java.util.HashMap<>();
+
+    public Map<Project, String> suffixes() {
+        return TabModel.distinguishers(model.tabs());
+    }
+
+    /** 탭 제목에 덧말이 붙는 프로젝트의 창 제목(Window 메뉴·분리 창)도 같이 바꾼다. */
+    private void retitle() {
+        Map<Project, String> now = suffixes();
+        for (TabModel.Tab<Project> t : model.tabs()) {
+            Project p = t.key();
+            String a = now.get(p);
+            String b = lastSuffix.get(p);
+            if (!java.util.Objects.equals(a, b) && p.getFrame() != null) {
+                p.getFrame().recomputeTitle();
+                com.cburch.logisim.gui.menu.WindowManagers.retitle(p);
+            }
+        }
+        lastSuffix = now;
+    }
+
+    /** 창 제목·Window 메뉴에 쓰는 파일 이름: 같은 이름의 다른 파일이 열려 있으면 "이름 — 폴더". */
+    public static String displayName(Project p) {
+        String name = p.getLogisimFile() == null ? "" : p.getLogisimFile().getName();
+        FileTabs t = INSTANCE;
+        if (t == null) {
+            return name;
+        }
+        String s = t.suffixes().get(p);
+        return s == null ? name : name + " " + SUFFIX_SEP + " " + s;
+    }
+
+    public static final String SUFFIX_SEP = "—"; // 긴 줄표
 
     static File file(Project p) {
         return p.getLogisimFile() == null ? null : p.getLogisimFile().getLoader().getMainFile();

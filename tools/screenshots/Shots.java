@@ -266,6 +266,9 @@ public final class Shots {
         if (want(scenes, "44")) {
             alwaysMips(project()); // V-01
         }
+        if (want(scenes, "45")) {
+            sameNameTabs(); // V-05
+        }
         if (want(scenes, "10")) {
             open("tests/circ/register.circ");
             open("tests/circ/values.circ");
@@ -1897,6 +1900,44 @@ public final class Shots {
      * 43: 서브회로 가져오기(P-05). console-demo에 File › Import Subcircuits…로 demo-datapath.circ(main이 regfile·alu를
      * 쓴다)를 골랐을 때의 회로 고르기 창과 계획 창(딸린 회로 먼저, main은 main-2). 가져오지는 않는다.
      */
+    /** V-05: 같은 이름의 파일 둘을 열면 겹치는 탭에만 구분 폴더가 흐리게 붙는다. */
+    void sameNameTabs() throws Exception {
+        File dir = java.nio.file.Files.createTempDirectory("hcs-v05").toFile();
+        File circ = new File(dir, "hw2"); // 이미 열린 tests/circ와 바로 위 폴더 이름이 겹치지 않게
+        File hw3 = new File(dir, "hw3");
+        circ.mkdirs();
+        hw3.mkdirs();
+        java.nio.file.Files.copy(new File("tests/circ/demo-datapath.circ").toPath(), new File(circ, "demo-datapath.circ").toPath());
+        java.nio.file.Files.copy(new File("tests/circ/console-demo.circ").toPath(), new File(hw3, "demo-datapath.circ").toPath());
+        java.nio.file.Files.copy(new File("lib-mips/build/libs/hcs-mips.jar").toPath(), new File(circ, "hcs-mips.jar").toPath());
+        java.nio.file.Files.copy(new File("lib-mips/build/libs/hcs-mips.jar").toPath(), new File(hw3, "hcs-mips.jar").toPath());
+        Project p1 = open(new File(circ, "demo-datapath.circ").getPath());
+        Project p2 = open(new File(hw3, "demo-datapath.circ").getPath());
+        sleep(800);
+        snapCrop(new Rectangle(0, 0, W, 110), "45a-same-name-tabs");
+        // Window 메뉴에도 같은 덧말
+        javax.swing.JMenuBar mb = p2.getFrame().getJMenuBar();
+        for (int i = 0; i < mb.getMenuCount(); i++) {
+            javax.swing.JMenu m = mb.getMenu(i);
+            if (m != null && "Window".equals(m.getText())) {
+                final javax.swing.JMenu wm = m;
+                edt(wm::doClick);
+                sleep(700);
+                Rectangle r = onScreen(wm.getPopupMenu());
+                snapCrop(pad(r, 8), "45b-window-menu");
+                edt(() -> wm.getPopupMenu().setVisible(false));
+            }
+        }
+        edt(() -> p1.getFrame().setTitle(p1.getFrame().getTitle()));
+        for (File d : new File[] {circ, hw3}) {
+            for (File f : d.listFiles()) {
+                f.delete();
+            }
+            d.delete();
+        }
+        dir.delete();
+    }
+
     /** V-01: 새 파일의 트리·검색에 Hallym MIPS, 첫 부품을 놓으면 파일에 추가, 저장 뒤 jar 알림. */
     void alwaysMips(Project base) throws Exception {
         Project p = newProject(base);
