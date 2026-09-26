@@ -2004,12 +2004,32 @@ public final class Shots {
             javax.swing.JList<Object> jl = (javax.swing.JList<Object>) find(tl, x -> x instanceof javax.swing.JList);
             if (jl != null) {
                 // 외톨이 터널(dec0 등)이 보이게 스크롤한다
+                int lone = 0;
+                for (int i = 0; i < jl.getModel().getSize(); i++) {
+                    Object e = jl.getModel().getElementAt(i);
+                    if (e instanceof kr.ac.hallym.hcs.app.side.TunnelList.Entry
+                            && ((kr.ac.hallym.hcs.app.side.TunnelList.Entry) e).lone()) {
+                        lone++;
+                    }
+                }
+                log.add("47: " + jl.getModel().getSize() + " tunnel names, " + lone + " lone");
                 for (int i = 0; i < jl.getModel().getSize(); i++) {
                     Object e = jl.getModel().getElementAt(i);
                     if (e instanceof kr.ac.hallym.hcs.app.side.TunnelList.Entry
                             && ((kr.ac.hallym.hcs.app.side.TunnelList.Entry) e).lone()) {
                         final int idx = i;
-                        edt(() -> jl.ensureIndexIsVisible(Math.min(jl.getModel().getSize() - 1, idx + 6)));
+                        edt(() -> {
+                            jl.setSelectedIndex(idx);
+                            Rectangle cell = jl.getCellBounds(idx, idx);
+                            javax.swing.JScrollPane sp = (javax.swing.JScrollPane) SwingUtilities.getAncestorOfClass(
+                                    javax.swing.JScrollPane.class, jl);
+                            if (sp != null && cell != null) {
+                                sp.getVerticalScrollBar().setValue(Math.max(0, cell.y - 3 * cell.height));
+                            } else {
+                                jl.ensureIndexIsVisible(idx);
+                            }
+                        });
+                        log.add("47: lone entry " + jl.getModel().getElementAt(i) + " at " + i);
                         break;
                     }
                 }
