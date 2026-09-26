@@ -2,6 +2,12 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-26 명령어 필드 색과 Instruction 탭(C-07)
+
+- 기준: feat/field-colors `c2e11bf`
+- 관련 이슈: C-07 #205
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-c07-field-colors/README.md
+
 ## 2026-09-26 Console 탭과 .s 자동 재로드 재촬영(C-09)
 
 - 기준: feat/console-reload `541dab9`
