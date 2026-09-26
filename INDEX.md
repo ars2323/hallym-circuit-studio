@@ -2,6 +2,36 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-26 E·X 출처 추적 재촬영(D-01·D-03·D-05)
+
+- 기준: feat/area-memo `adbe9e5`
+- 관련 이슈: D-01·D-03·D-05 #209 #211 #213 (PR #266)
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-d01-ex-origin-2/README.md
+
+## 2026-09-26 진동·MIPS 값 검사 재촬영(D-02·D-04·D-06)
+
+- 기준: feat/area-memo `adbe9e5`
+- 관련 이슈: D-02·D-04·D-06 #210 #212 #214 (PR #267)
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-d02-dynamic-checks-2/README.md
+
+## 2026-09-26 제출 파일·그림 내보내기 재촬영(E-06·E-07)
+
+- 기준: feat/area-memo `adbe9e5`
+- 관련 이슈: E-06·E-07 #220 #221 (PR #272)
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-e06-submit-export-2/README.md
+
+## 2026-09-26 굵은 버스·비트 수·범례 재촬영(E-03, 원조 비교)
+
+- 기준: feat/area-memo `adbe9e5`
+- 관련 이슈: E-03 #217 (PR #273)
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-e03-bus-style-2/README.md
+
+## 2026-09-26 신호 그룹 색 재촬영(E-04, 25%·400%)
+
+- 기준: feat/area-memo `adbe9e5`
+- 관련 이슈: E-04 #218 (PR #274)
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-e04-signal-groups-2/README.md
+
 ## 2026-09-26 E·X 출처 추적, X 쓰기 감지, 메시지에서 사이클로(D-01·D-03·D-05)
 
 - 기준: feat/signal-groups `d6fecfe`
