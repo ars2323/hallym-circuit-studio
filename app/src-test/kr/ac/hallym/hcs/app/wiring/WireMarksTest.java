@@ -280,4 +280,12 @@ class WireMarksTest {
         proj.undoAction();
         assertEquals(geo, SafeMoveTest.geometry(c), "one undo restores it");
     }
+
+    /** Q-03 검토: 굵은 버스 위 연결점은 버스보다 넓게 그린다(그렇지 않으면 200%에서 사라진다). */
+    @org.junit.jupiter.api.Test
+    void junctionDotOnABusIsWiderThanTheBus() {
+        float base = WireMarks.dotDiameter(2.0);
+        org.junit.jupiter.api.Assertions.assertTrue(WireMarks.dotFor(base, true) > BusStyle.BUS_WIDTH);
+        org.junit.jupiter.api.Assertions.assertEquals(base, WireMarks.dotFor(base, false), "plain wires keep the size");
+    }
 }
