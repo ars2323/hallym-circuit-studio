@@ -349,6 +349,11 @@ public final class EditMenus implements ContextMenus.Provider {
             t.project.getSelection().addAll(net.wires());
         }));
         menu.add(item("cycle.add", () -> kr.ac.hallym.hcs.app.cycle.CycleView.addWire(t.project, t.circuit, w)));
+        // D-01: 값이 E·X인 선에서 처음 생긴 곳 찾기
+        javax.swing.JMenuItem origin = item("menu.findOrigin",
+                () -> kr.ac.hallym.hcs.app.diag.FindOrigin.run(t.project, t.circuit, w));
+        origin.setEnabled(kr.ac.hallym.hcs.app.diag.FindOrigin.undefined(t.project, w));
+        menu.add(origin);
         boolean lit = WireMarks.highlighted(t.circuit).contains(w);
         menu.add(item(lit ? "menu.unhighlightNet" : "menu.highlightNet", () -> {
             WireMarks.highlight(t.circuit, lit ? null : net);

@@ -118,7 +118,7 @@ public final class RunUntil {
     }
 
     /** halt 출력 핀이 1이거나 Console의 Exit가 1(서브회로 안이어도). */
-    static boolean halted(CycleModel m, int cycle) {
+    public static boolean halted(CycleModel m, int cycle) {
         Circuit root = m.recording().circuit();
         int step = CycleModel.stepOf(cycle);
         for (java.util.List<Component> path : m.recording().paths()) {

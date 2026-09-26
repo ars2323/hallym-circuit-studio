@@ -446,6 +446,67 @@ class CycleViewGuiTest {
         }
     }
 
+    /**
+     * D-01·D-03·D-05: 서브회로 datapath 안에서 꺼진 버퍼가 레지스터 en을 떠 있게 하면, 시뮬레이션 중 Messages에 그
+     * 사이클과 원인이 한 줄로 나오고, 누르면 사이클 뷰가 그 사이클로 가고 datapath 인스턴스로 들어가 원인을 고른다.
+     */
+    @Test
+    void dynamicMessageGoesToItsCycleAndCause() throws Exception {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "needs a display (xvfb-run)");
+        GuiTestSupport.keepAlive();
+        LogisimFile file = kr.ac.hallym.hcs.regress.CircuitBuilder.newFile(new com.cburch.logisim.file.Loader(null),
+                java.nio.file.Files.createTempDirectory(tmp, "dyn").toFile());
+        Circuit dp = new Circuit("datapath");
+        file.addCircuit(dp);
+        kr.ac.hallym.hcs.regress.CircuitBuilder b = new kr.ac.hallym.hcs.regress.CircuitBuilder(file, dp);
+        Component clock = b.add("Wiring", "Clock", 100, 400);
+        b.tunnel(clock, 0, "clk");
+        Component buf = b.add("Gates", "Controlled Buffer", 300, 300);
+        b.constant("one", 1, 1, 100, 100);
+        b.constant("off", 1, 0, 100, 200);
+        b.tunnel(buf, 1, "one");
+        b.tunnel(buf, 2, "off");
+        b.tunnel(buf, 0, "we");
+        Component reg = b.add("Memory", "Register", 500, 200, "width", "8", "label", "R1");
+        b.constant("d", 8, 7, 100, 500);
+        b.tunnel(reg, 1, "d");
+        b.tunnel(reg, 2, "clk");
+        b.tunnel(reg, 4, "we");
+        b.tunnel(reg, 0, "q");
+        b.output("q", 8, 700, 100);
+        b.commit();
+        kr.ac.hallym.hcs.regress.CircuitBuilder m = new kr.ac.hallym.hcs.regress.CircuitBuilder(file,
+                file.getMainCircuit());
+        Component inst = m.addSubcircuit(dp, 400, 300);
+        m.tunnel(inst, 0, "q");
+        m.output("q", 8, 700, 100);
+        m.commit();
+        Project proj = new Project(file);
+        Frame frame = show(proj);
+        try {
+            kr.ac.hallym.hcs.app.diag.Diagnostics diags = kr.ac.hallym.hcs.app.diag.Diagnostics.of(proj);
+            assertEquals(java.util.List.of(), diags.list(), "no static message: a buffer may float");
+            CycleView view = CycleView.of(proj);
+            Recorder.requestReset(proj);
+            waitFor(() -> Recorder.of(proj).current() != null && Recorder.of(proj).current().last() == 0, "reset");
+            kr.ac.hallym.hcs.app.sim.SimControls.runCycles(proj, 3);
+            waitFor(() -> Recorder.of(proj).current().last() == 6, "3 cycles");
+            waitFor(() -> diags.list().size() == 1, "one dynamic message");
+            kr.ac.hallym.hcs.app.diag.Diagnostic d = diags.list().get(0);
+            assertEquals(kr.ac.hallym.hcs.app.diag.Diagnostic.Kind.X_WRITE_CONTROL, d.kind);
+            assertEquals(java.util.List.of(inst), d.instances);
+            assertTrue(d.message().contains("main › datapath › R1"), d.message());
+            assertTrue(d.components.contains(buf) && d.components.contains(reg), d.components.toString());
+            SwingUtilities.invokeAndWait(() -> diags.go(d));
+            assertEquals(0, view.model().cursorCycle(), "the cycle of the write");
+            assertEquals(dp, proj.getCurrentCircuit(), "inside the datapath instance");
+            assertTrue(proj.getCircuitState().getParentState() != null, "an instance state, not a fresh one");
+            assertTrue(proj.getSelection().getComponents().contains(buf), "the cause is selected");
+        } finally {
+            SwingUtilities.invokeAndWait(frame::dispose);
+        }
+    }
+
     /** C-09: Console 탭은 exit까지 모든 출력, .s를 고쳐 저장하면 1.5초 안에 다시 불러오고 알린다. */
     @Test
     void consoleTabAndReloadWatcher() throws Exception {
