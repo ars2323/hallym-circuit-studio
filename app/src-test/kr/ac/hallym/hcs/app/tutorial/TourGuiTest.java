@@ -78,7 +78,11 @@ class TourGuiTest {
                 if (s.target != null) {
                     assertNotNull(hole, s.key + " target not found");
                     assertTrue(hole.width > 0 && hole.height > 0, s.key);
-                    assertFalse(bubble.intersects(hole) && hole.width < 1000, s.key + " bubble covers target");
+                    // 대상 옆에 말풍선이 들어갈 자리가 있을 때만 가리지 않아야 한다(작은 CI 화면에서는 큰 패널이 대상이면 겹친다)
+                    boolean room = pane.width - hole.width >= bubble.width + 2 * Tour.GAP
+                            || pane.height - hole.height >= bubble.height + 2 * Tour.GAP;
+                    assertFalse(room && bubble.intersects(hole), s.key + " bubble covers target " + hole + " bubble "
+                            + bubble + " pane " + pane);
                 }
                 assertTrue(pane.contains(bubble), s.key + " bubble inside " + pane + " but " + bubble + " frame "
                         + frame.getSize());
