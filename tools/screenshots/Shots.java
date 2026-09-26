@@ -155,6 +155,15 @@ public final class Shots {
             kr.ac.hallym.hcs.app.labels.BusValues.setMode(bus);
             kr.ac.hallym.hcs.app.labels.LabelOverlay.setDensity(baseDensity);
             kr.ac.hallym.hcs.app.groups.SignalGroups.setShowGroups(baseGroups);
+            // 상태 표시줄 Colors 단추의 글자는 눌러야만 바뀐다: 글자가 기준과 다르면 두 번 눌러(설정은 그대로) 맞춘다
+            String want = kr.ac.hallym.hcs.app.Messages.get(baseGroups ? "group.modeGroups" : "group.modeValues");
+            for (Project q : new Project[] {baseRef, baseDemo}) {
+                javax.swing.JButton colors = q == null || q.getFrame() == null ? null : colorsButton(q);
+                if (colors != null && !want.equals(colors.getText())) {
+                    colors.doClick();
+                    colors.doClick();
+                }
+            }
             kr.ac.hallym.hcs.app.wiring.BusStyle.setWidths(baseWidths);
             kr.ac.hallym.hcs.app.flow.FlowSettings.setActivePathOnly(baseActiveOnly);
         });
@@ -178,6 +187,14 @@ public final class Shots {
         checkState(id);
     }
 
+    /** 상태 표시줄의 Colors 단추(Values/Groups). */
+    javax.swing.JButton colorsButton(Project q) {
+        String g = kr.ac.hallym.hcs.app.Messages.get("group.modeGroups");
+        String v = kr.ac.hallym.hcs.app.Messages.get("group.modeValues");
+        return (javax.swing.JButton) find(q.getFrame(), x -> x instanceof javax.swing.JButton
+                && (g.equals(((javax.swing.JButton) x).getText()) || v.equals(((javax.swing.JButton) x).getText())));
+    }
+
     /** 기준 검사: 열린 탭 목록과 표시 모드가 기준과 같아야 한다. 어긋나면 촬영을 실패시킨다(새어 나온 상태로 찍지 않는다). */
     void checkState(String id) throws Exception {
         java.util.List<String> bad = new ArrayList<>();
@@ -191,6 +208,13 @@ public final class Shots {
         }
         if (kr.ac.hallym.hcs.app.groups.SignalGroups.showGroups() != baseGroups) {
             bad.add("Colors mode");
+        }
+        String want = kr.ac.hallym.hcs.app.Messages.get(baseGroups ? "group.modeGroups" : "group.modeValues");
+        for (Project q : new Project[] {baseRef, baseDemo}) {
+            javax.swing.JButton colors = q == null || q.getFrame() == null ? null : colorsButton(q);
+            if (colors != null && !want.equals(colors.getText())) {
+                bad.add(q.getLogisimFile().getDisplayName() + " Colors button " + colors.getText());
+            }
         }
         if (kr.ac.hallym.hcs.app.labels.BusValues.mode() != baseBus) {
             bad.add("Bus Values mode");
@@ -336,6 +360,10 @@ public final class Shots {
             sceneStart("27");
             machinePanels(withFactorial(ref));
         }
+        if (want(scenes, "37")) {
+            sceneStart("37");
+            busStyle(demo);
+        }
         if (want(scenes, "28")) {
             sceneStart("28");
             consoleAndReload(demo);
@@ -371,10 +399,6 @@ public final class Shots {
         if (want(scenes, "36")) {
             sceneStart("36");
             submitAndExport(demo);
-        }
-        if (want(scenes, "37")) {
-            sceneStart("37");
-            busStyle(demo);
         }
         if (want(scenes, "38")) {
             sceneStart("38");

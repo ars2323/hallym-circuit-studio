@@ -2,4 +2,4 @@
 # 한 줄에 하나: <app/src/... 경로> <DECISIONS의 D-번호>
 # 새 줄을 더하려면 같은 PR에 DECISIONS 항목과 동작 불변 회귀 테스트가 있어야 한다.
 # tools/check-engine-unchanged.sh가 CI에서 확인한다.
-app/src/com/cburch/logisim/file/LibraryManager.java D-007
+app/src/com/cburch/logisim/file/LibraryManager.java D-007 D-096
