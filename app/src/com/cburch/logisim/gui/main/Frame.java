@@ -290,14 +290,10 @@ public class Frame extends LFrame implements LocaleListener {
 
 		computeTitle();
 
-		this.setSize(AppPreferences.WINDOW_WIDTH.get().intValue(),
-				AppPreferences.WINDOW_HEIGHT.get().intValue());
-		Point prefPoint = getInitialLocation();
-		if (prefPoint != null) {
-			this.setLocation(prefPoint);
-		}
-		this.setExtendedState(AppPreferences.WINDOW_STATE.get().intValue());
-		
+		// HCS: X-01 (D-105) fork-only window bounds: first run fills the work area, saved bounds are fitted to the
+		// current monitors, the original AppPreferences window values are neither read nor written
+		kr.ac.hallym.hcs.app.window.WindowBounds.apply(this);
+
 		menuListener.register(mainPanel);
 		// HCS: zoom and pan (#69)
 		layoutCanvas.setHcsZoom(kr.ac.hallym.hcs.app.zoom.ZoomController.install(proj, layoutCanvas,
@@ -513,22 +509,14 @@ public class Frame extends LFrame implements LocaleListener {
 			AppPreferences.APPEARANCE_SHOW_GRID.setBoolean(aZoom.getShowGrid());
 			AppPreferences.APPEARANCE_ZOOM.set(Double.valueOf(aZoom.getZoomFactor()));
 		}
-		int state = getExtendedState() & ~JFrame.ICONIFIED;
-		AppPreferences.WINDOW_STATE.set(Integer.valueOf(state));
-		Dimension dim = getSize();
-		AppPreferences.WINDOW_WIDTH.set(Integer.valueOf(dim.width));
-		AppPreferences.WINDOW_HEIGHT.set(Integer.valueOf(dim.height));
-		Point loc;
+		// HCS: X-01 window state, size, location and the panel split go to the fork's own settings
+		kr.ac.hallym.hcs.app.window.WindowBounds.save(this);
+		kr.ac.hallym.hcs.app.window.WindowBounds.saveMainSplit(mainRegion.getFraction());
 		try {
-			loc = getLocationOnScreen();
-		} catch (IllegalComponentStateException e) {
-			loc = Projects.getLocation(this);
+			kr.ac.hallym.hcs.app.Settings.get().save();
+		} catch (java.io.IOException e) {
+			// settings not writable: the window opens at the default size next time
 		}
-		if (loc != null) {
-			AppPreferences.WINDOW_LOCATION.set(loc.x + "," + loc.y);
-		}
-		if (leftRegion != null) AppPreferences.WINDOW_LEFT_SPLIT.set(Double.valueOf(leftRegion.getFraction())); // HCS: #74 no left split
-		AppPreferences.WINDOW_MAIN_SPLIT.set(Double.valueOf(mainRegion.getFraction()));
 		AppPreferences.DIALOG_DIRECTORY.set(JFileChoosers.getCurrentDirectory());
 	}
 	
