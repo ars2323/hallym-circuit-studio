@@ -32,9 +32,27 @@ public final class OriginText {
         for (Component c : o.node.instances) {
             sb.append(System.identityHashCode(c)).append('/');
         }
+        // 넷은 검사마다 다시 만들므로 객체가 아니라 회로와 가장 작은 자리로 가린다
         sb.append(o.component != null ? "c" + System.identityHashCode(o.component)
-                : "n" + System.identityHashCode(o.node.net));
+                : "n" + System.identityHashCode(o.node.circuit) + "@" + firstLocation(o.node.net));
         return sb.toString();
+    }
+
+    private static Location firstLocation(Netlist.Net n) {
+        Location best = null;
+        for (Netlist.PortRef p : n.ports()) {
+            if (best == null || p.location().compareTo(best) < 0) {
+                best = p.location();
+            }
+        }
+        for (Wire w : n.wires()) {
+            for (Location l : new Location[] {w.getEnd0(), w.getEnd1()}) {
+                if (best == null || l.compareTo(best) < 0) {
+                    best = l;
+                }
+            }
+        }
+        return best;
     }
 
     private static String where(Circuit top, OriginTrace.Origin o) {
@@ -106,12 +124,23 @@ public final class OriginText {
         }
     }
 
+    /**
+     * 강조할 부품: 원인 부품 또는 구동자들. 구동자 없는 선이면 그 선에 닿은 부품들(떠 있는 입력을 가진 부품, 짝 없는
+     * 터널)이다. 정적 진단과 같은 자리인지도 이것으로 가린다.
+     */
     static List<Component> components(OriginTrace.Origin o) {
         List<Component> out = new ArrayList<>();
         if (o.component != null) {
             out.add(o.component);
         }
         out.addAll(o.drivers);
+        if (out.isEmpty()) {
+            for (Netlist.PortRef p : o.node.net.ports()) {
+                if (!out.contains(p.component)) {
+                    out.add(p.component);
+                }
+            }
+        }
         return out;
     }
 

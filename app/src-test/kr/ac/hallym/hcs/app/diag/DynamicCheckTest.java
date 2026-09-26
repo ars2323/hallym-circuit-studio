@@ -110,6 +110,15 @@ class DynamicCheckTest {
         assertEquals(1, d.args().get(0), "cycle 1");
         assertTrue(d.components.contains(buf) && d.components.contains(one), d.components.toString());
         assertTrue(d.message().contains(Messages.get("diag.causePrefix", "").trim()), d.message());
+        // Messages 흐름처럼 스텝마다 검사를 새로 만들어도(넷 객체가 매번 새것) 같은 원인은 한 번
+        Run again = new Run(f);
+        Diagnostics diags = Diagnostics.of(again.proj);
+        diags.onRecording(again.rec);
+        for (int i = 0; i < 8; i++) {
+            again.steps(1);
+            diags.onRecording(again.rec);
+        }
+        assertEquals(1, diags.dynamic().size(), diags.dynamic().toString());
     }
 
     @Test
