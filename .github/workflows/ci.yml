@@ -90,9 +90,11 @@ jobs:
         shell: pwsh
         run: |
           Expand-Archive dist/hallym-circuit-studio-*-windows.zip -DestinationPath smoke
-          $exe = Get-ChildItem smoke -Recurse -Filter HallymCircuitStudio.exe | Select-Object -First 1
-          & $exe.FullName tests/circ/demo-datapath.circ -tty table | Tee-Object -FilePath smoke/tty.txt
-          if (-not (Select-String -Path smoke/tty.txt -Pattern 'halt' -Quiet)) { throw "tty output has no halt column" }
+          $app = Get-ChildItem smoke -Recurse -Filter HallymCircuitStudio.exe | Select-Object -First 1 | Split-Path
+          # jpackage의 창 실행 파일은 콘솔에 쓰지 않으므로 포장된 런타임의 java.exe로 같은 jar를 돌린다
+          & "$app/runtime/bin/java.exe" -cp "$app/app/hallym-circuit-studio.jar" com.cburch.logisim.Main tests/circ/demo-datapath.circ -tty table 2>&1 | Tee-Object -FilePath smoke/tty.txt
+          # 원조 -tty table은 머리글 없이 출력 핀 값 줄만 찍는다(halt 핀 → 0/1)
+          if (-not (Select-String -Path smoke/tty.txt -Pattern '^[01xE]+\s*$' -Quiet)) { throw "tty output has no value row" }
       - name: Run the packaged app (window, .s, 10 cycles, screenshots at 100% and 150%)
         shell: pwsh
         run: |
@@ -137,7 +139,8 @@ jobs:
           mkdir -p j8 && cp tests/circ/demo-datapath.circ j8/ && cp "$(find dist-in -name hcs-mips.jar | head -1)" j8/
           java -version 2>&1 | head -1
           (cd j8 && timeout 120 java -jar ../vendor/logisim-2.7.1/logisim-generic-2.7.1.jar demo-datapath.circ -tty table | tee tty.txt)
-          grep -q halt j8/tty.txt
+          # 원조 -tty table은 머리글 없이 출력 핀 값 줄만 찍는다(halt 핀 → 0/1). 값 줄이 있으면 jar가 불려 회로가 돈 것이다
+          grep -qE '^[01xE]+[[:space:]]*$' j8/tty.txt
 
   # v* 태그: 트랙 A 배포 zip을 만들어 draft Release에 올린다. 학생 배포는 사용자 결정이라 draft로 둔다.
   release:
