@@ -21,6 +21,7 @@ import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JLayeredPane;
+import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JRadioButtonMenuItem;
@@ -70,6 +71,7 @@ public final class QuickBar implements Selection.Listener, ProjectListener {
     /** 창에 빠른 속성 창을 단다. 반환값은 선택 목록이 붙들어 둔다. */
     public static QuickBar install(Frame frame, Canvas canvas, AttrDock dock) {
         QuickBar q = new QuickBar(frame, canvas, dock);
+        q.bar.putClientProperty(QuickBar.class, q);
         frame.getLayeredPane().add(q.bar, JLayeredPane.PALETTE_LAYER);
         canvas.getSelection().addListener(q);
         canvas.getProject().addProjectListener(q);
@@ -129,6 +131,21 @@ public final class QuickBar implements Selection.Listener, ProjectListener {
         QUIET.remove(proj);
     }
 
+    /** 창의 빠른 속성 창(테스트). 없으면 null. */
+    public static QuickBar of(Frame frame) {
+        for (java.awt.Component c : frame.getLayeredPane().getComponents()) {
+            if (c instanceof JComponent && ((JComponent) c).getClientProperty(QuickBar.class) instanceof QuickBar) {
+                return (QuickBar) ((JComponent) c).getClientProperty(QuickBar.class);
+            }
+        }
+        return null;
+    }
+
+    /** 빠른 속성 창이 보이는가(테스트). */
+    public boolean isBarVisible() {
+        return bar.isVisible();
+    }
+
     /** 지금 선택이 조용한 선택인가. */
     public static synchronized boolean isQuiet(Project proj, java.util.Collection<? extends Component> selection) {
         java.util.Set<Component> q = QUIET.get(proj);
@@ -161,7 +178,12 @@ public final class QuickBar implements Selection.Listener, ProjectListener {
         if (pressed || now.isEmpty() || !editing() || !AttrDock.quickBarShown() || proj.getFrame() != frame
                 || isQuiet(proj, canvas.getSelection().getComponents())
                 || !proj.getLogisimFile().contains(canvas.getCircuit())) {
-            targets = now;
+            // 숨길 때 대상과 단추도 비운다: 남겨 두면 다음 배율·스크롤 변경의 place()가 옛 단추(다른 부품의 속성)를
+            // 조용한 선택 위에 다시 띄운다(v1.0.2 최종 세트 14d, 체크리스트 6)
+            targets = pressed ? now : java.util.Collections.emptyList();
+            if (!pressed) {
+                bar.removeAll();
+            }
             bar.setVisible(false);
             return;
         }
