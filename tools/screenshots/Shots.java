@@ -260,6 +260,9 @@ public final class Shots {
         if (want(scenes, "42")) {
             portOrder(demo);
         }
+        if (want(scenes, "43")) {
+            importSubcircuits(open("tests/circ/console-demo.circ")); // demo-datapath(regfile·alu 딸림)를 가져온다
+        }
         if (want(scenes, "10")) {
             open("tests/circ/register.circ");
             open("tests/circ/values.circ");
@@ -1874,6 +1877,54 @@ public final class Shots {
         }
         edt(() -> kr.ac.hallym.hcs.app.wiring.BusStyle.setWidths(false));
         edt(() -> kr.ac.hallym.hcs.app.labels.BusValues.setMode(before));
+    }
+
+    /**
+     * 43: 서브회로 가져오기(P-05). console-demo에 File › Import Subcircuits…로 demo-datapath.circ(main이 regfile·alu를
+     * 쓴다)를 골랐을 때의 회로 고르기 창과 계획 창(딸린 회로 먼저, main은 main-2). 가져오지는 않는다.
+     */
+    void importSubcircuits(Project p) throws Exception {
+        activate(p);
+        deselect(p);
+        SwingUtilities.invokeLater(() -> kr.ac.hallym.hcs.app.libs.ImportDialog.showFor(p,
+                new File("tests/circ/demo-datapath.circ")));
+        Window d = null;
+        for (int i = 0; i < 60 && d == null; i++) {
+            sleep(250);
+            d = window(x -> x instanceof JDialog && x.isShowing() && find(x, y -> y instanceof javax.swing.JCheckBox)
+                    != null);
+        }
+        if (d == null) {
+            log.add("43: no import dialog");
+            return;
+        }
+        sleep(500);
+        snapCrop(d.getBounds(), "43a-import-choose");
+        // OK(첫 글자 있는 단추) → 계획 창
+        javax.swing.JButton ok = (javax.swing.JButton) find(d, y -> y instanceof javax.swing.JButton
+                && "OK".equals(((javax.swing.JButton) y).getText()));
+        if (ok == null) {
+            log.add("43: no OK");
+            final Window dw = d;
+            edt(dw::dispose);
+            return;
+        }
+        edt(ok::doClick);
+        Window plan = null;
+        for (int i = 0; i < 60 && plan == null; i++) {
+            sleep(250);
+            plan = window(x -> x instanceof JDialog && x.isShowing() && find(x, y -> y instanceof javax.swing.JTextArea)
+                    != null);
+        }
+        if (plan == null) {
+            log.add("43: no plan dialog");
+            return;
+        }
+        sleep(500);
+        snapCrop(plan.getBounds(), "43b-import-plan");
+        final Window pw = plan;
+        edt(pw::dispose);
+        sleep(300);
     }
 
     /**
