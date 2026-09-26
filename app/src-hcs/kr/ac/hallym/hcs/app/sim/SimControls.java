@@ -127,27 +127,26 @@ public final class SimControls {
 
     /** 툴바 그룹: 파일·되돌리기 / 도구 / 자주 쓰는 부품 / 시뮬레이션 / 프로그램. */
     public JToolBar toolbar() {
-        JToolBar tb = new JToolBar();
-        tb.setFloatable(false);
-        tb.add(button("new", "bar.new", () -> ProjectActions.doNew(proj)));
-        tb.add(button("open", "bar.open", () -> ProjectActions.doOpen(frame, proj)));
-        tb.add(button("save", "bar.save", () -> ProjectActions.doSave(proj)));
-        tb.add(button("undo", "bar.undo", proj::undoAction));
+        OverflowToolbar tb = new OverflowToolbar(text()); // X-02: 넘치면 아이콘만, 그래도 넘치면 » 메뉴
+        tb.addItem(button("new", "bar.new", () -> ProjectActions.doNew(proj)), "bar.new", 0);
+        tb.addItem(button("open", "bar.open", () -> ProjectActions.doOpen(frame, proj)), "bar.open", 0);
+        tb.addItem(button("save", "bar.save", () -> ProjectActions.doSave(proj)), "bar.save", 0);
+        tb.addItem(button("undo", "bar.undo", proj::undoAction), "bar.undo", 0);
         kr.ac.hallym.hcs.app.edit.RedoStack redo = kr.ac.hallym.hcs.app.edit.RedoStack.of(proj);
         JButton redoButton = button("redo", "bar.redo", redo::redo);
         redo.addListener(() -> redoButton.setEnabled(redo.canRedo()));
         redoButton.setEnabled(redo.canRedo());
-        tb.add(redoButton);
-        tb.addSeparator();
-        tb.add(button("select", "bar.select", () -> use(baseTool("Edit Tool"))));
-        tb.add(button("poke", "bar.poke", () -> use(baseTool("Poke Tool"))));
-        tb.add(button("wire", "bar.wire", () -> use(baseTool("Wiring Tool"))));
-        tb.add(button("text", "bar.text", () -> use(baseTool("Text Tool")))); // 원조 도구 모음에만 있던 도구
-        tb.addSeparator();
-        tb.add(button("pin", "bar.input", () -> use(wiringTool("Pin"))));
-        tb.add(button("tunnel", "bar.tunnel", () -> use(wiringTool("Tunnel"))));
-        tb.add(button("probe", "bar.probe", () -> use(wiringTool("Probe"))));
-        tb.addSeparator();
+        tb.addItem(redoButton, "bar.redo", 0);
+        tb.addGap();
+        tb.addItem(button("select", "bar.select", () -> use(baseTool("Edit Tool"))), "bar.select", 0);
+        tb.addItem(button("poke", "bar.poke", () -> use(baseTool("Poke Tool"))), "bar.poke", 0);
+        tb.addItem(button("wire", "bar.wire", () -> use(baseTool("Wiring Tool"))), "bar.wire", 0);
+        tb.addItem(button("text", "bar.text", () -> use(baseTool("Text Tool"))), "bar.text", 0); // 원조 도구 모음에만 있던 도구
+        tb.addGap();
+        tb.addItem(button("pin", "bar.input", () -> use(wiringTool("Pin"))), "bar.input", 0);
+        tb.addItem(button("tunnel", "bar.tunnel", () -> use(wiringTool("Tunnel"))), "bar.tunnel", 0);
+        tb.addItem(button("probe", "bar.probe", () -> use(wiringTool("Probe"))), "bar.probe", 0);
+        tb.addGap();
         // Signal Flow on Click(P-07): 켜 두면 부품·선을 누를 때 신호 흐름을 보인다(Ctrl+Shift+F)
         javax.swing.JToggleButton flow = new javax.swing.JToggleButton(Messages.get("bar.flow"),
                 kr.ac.hallym.hcs.app.flow.FlowSettings.onClick());
@@ -160,13 +159,13 @@ public final class SimControls {
         });
         kr.ac.hallym.hcs.app.flow.FlowMenu.ALL_TOGGLES.add(() -> flow.setSelected(
                 kr.ac.hallym.hcs.app.flow.FlowSettings.onClick()));
-        tb.add(flow);
-        tb.addSeparator();
-        tb.add(button("run", "bar.run", () -> {
+        tb.addItem(flow, "bar.flow", 0);
+        tb.addGap();
+        tb.addItem(button("run", "bar.run", () -> {
             proj.getSimulator().setIsRunning(!proj.getSimulator().isRunning());
-        }));
-        tb.add(button("cycle", "bar.cycle", () -> cycles(1)));
-        tb.add(button("cycles", "bar.cycles", () -> {
+        }), "bar.run", OverflowToolbar.KEEP);
+        tb.addItem(button("cycle", "bar.cycle", () -> cycles(1)), "bar.cycle", OverflowToolbar.KEEP);
+        tb.addItem(button("cycles", "bar.cycles", () -> {
             Object s = JOptionPane.showInputDialog(frame, Messages.get("bar.cyclesPrompt"),
                     Messages.get("bar.cycles"), JOptionPane.PLAIN_MESSAGE, null, null, "10");
             if (s != null) {
@@ -176,11 +175,11 @@ public final class SimControls {
                     // 숫자가 아니면 아무것도 하지 않는다
                 }
             }
-        }));
-        tb.add(button("reset", "bar.reset", () -> {
+        }), "bar.cycles", 0);
+        tb.addItem(button("reset", "bar.reset", () -> {
             ticks = 0;
             kr.ac.hallym.hcs.app.record.Recorder.requestReset(proj);
-        }));
+        }), "bar.reset", OverflowToolbar.KEEP);
         JComboBox<String> speed = new JComboBox<>(new String[] {"1 Hz", "4 Hz", "16 Hz", "64 Hz", "256 Hz",
             "1 kHz", "4 kHz"});
         speed.setToolTipText(Messages.get("bar.speed"));
@@ -190,9 +189,9 @@ public final class SimControls {
             double[] f = {1, 4, 16, 64, 256, 1024, 4096};
             proj.getSimulator().setTickFrequency(f[speed.getSelectedIndex()]);
         });
-        tb.add(speed);
-        tb.addSeparator();
-        tb.add(button("program", "bar.program", () -> kr.ac.hallym.hcs.app.palette.PaletteActions.loadProgram(proj)));
+        tb.addItem(speed, "bar.speedMenu", 0);
+        tb.addGap();
+        tb.addItem(button("program", "bar.program", () -> kr.ac.hallym.hcs.app.palette.PaletteActions.loadProgram(proj)), "bar.program", OverflowToolbar.KEEP);
         JButton style = new JButton(text() ? Messages.get("bar.iconsOnly") : Messages.get("bar.withText"));
         style.setFocusable(false);
         style.addActionListener(e -> {
@@ -204,8 +203,7 @@ public final class SimControls {
             }
             JOptionPane.showMessageDialog(frame, Messages.get("bar.styleNext"));
         });
-        tb.add(javax.swing.Box.createHorizontalGlue());
-        tb.add(style);
+        tb.addItem(style, "bar.styleButton", OverflowToolbar.FIRST);
         return tb;
     }
 
