@@ -2,6 +2,12 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-26 명령어 필드 색 재촬영 2(C-07)
+
+- 기준: feat/field-colors `5be1d2f`
+- 관련 이슈: C-07 #205 (PR #264)
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-c07-field-colors-3/README.md
+
 ## 2026-09-26 명령어 필드 색 재촬영(C-07)
 
 - 기준: feat/field-colors `7692013`
