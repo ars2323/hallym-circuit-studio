@@ -263,6 +263,9 @@ public final class Shots {
         if (want(scenes, "43")) {
             importSubcircuits(open("tests/circ/console-demo.circ")); // demo-datapath(regfile·alu 딸림)를 가져온다
         }
+        if (want(scenes, "44")) {
+            alwaysMips(project()); // V-01
+        }
         if (want(scenes, "10")) {
             open("tests/circ/register.circ");
             open("tests/circ/values.circ");
@@ -1894,6 +1897,78 @@ public final class Shots {
      * 43: 서브회로 가져오기(P-05). console-demo에 File › Import Subcircuits…로 demo-datapath.circ(main이 regfile·alu를
      * 쓴다)를 골랐을 때의 회로 고르기 창과 계획 창(딸린 회로 먼저, main은 main-2). 가져오지는 않는다.
      */
+    /** V-01: 새 파일의 트리·검색에 Hallym MIPS, 첫 부품을 놓으면 파일에 추가, 저장 뒤 jar 알림. */
+    void alwaysMips(Project base) throws Exception {
+        Project p = newProject(base);
+        activate(p);
+        javax.swing.JTree tree = (javax.swing.JTree) find(p.getFrame(), x -> x instanceof javax.swing.JTree
+                && x.getClass().getSimpleName().equals("ProjectExplorer") && x.isShowing());
+        if (tree == null) {
+            log.add("44: no tree");
+            return;
+        }
+        com.cburch.logisim.file.LogisimFile file = p.getLogisimFile();
+        com.cburch.logisim.tools.Library mips = null;
+        for (Object o : kr.ac.hallym.hcs.app.libs.MipsShadow.treeElements(file)) {
+            if (o instanceof com.cburch.logisim.tools.Library
+                    && ((com.cburch.logisim.tools.Library) o).getDisplayName().equals("Hallym MIPS")) {
+                mips = (com.cburch.logisim.tools.Library) o;
+            }
+        }
+        if (mips == null) {
+            log.add("44: no Hallym MIPS in a new file");
+            return;
+        }
+        final com.cburch.logisim.tools.Library lib = mips;
+        edt(() -> tree.expandPath(new javax.swing.tree.TreePath(new Object[] {file, lib})));
+        sleep(600);
+        Rectangle tr = onScreen(tree);
+        snapCrop(new Rectangle(tr.x, tr.y, tr.width, Math.min(tr.height, 420)), "44a-new-file-tree-pending");
+        JTextField ts = (JTextField) find(p.getFrame(), x -> x instanceof JTextField && x.isShowing()
+                && x.getParent() != null && x.getParent().getParent() != null
+                && x.getParent().getParent().getClass().getSimpleName().equals("ToolboxSearch"));
+        if (ts != null) {
+            edt(() -> ts.setText("instruction memory"));
+            sleep(900);
+            Rectangle r = onScreen(ts.getParent().getParent());
+            snapCrop(new Rectangle(r.x, r.y, r.width, Math.min(r.height, 300)), "44b-new-file-search");
+            edt(() -> ts.setText(""));
+            sleep(400);
+        }
+        // 첫 부품을 놓는다: 라이브러리가 파일에 들어간다(되돌리기 한 단계)
+        com.cburch.logisim.tools.AddTool t = (com.cburch.logisim.tools.AddTool) lib.getTool("Instruction Memory");
+        com.cburch.logisim.circuit.Circuit c = p.getCurrentCircuit();
+        com.cburch.logisim.circuit.CircuitMutation m = new com.cburch.logisim.circuit.CircuitMutation(c);
+        m.add(t.getFactory().createComponent(Location.create(300, 200), t.getFactory().createAttributeSet()));
+        edt(() -> p.doAction(m.toAction(com.cburch.logisim.util.StringUtil.constantGetter("Add Instruction Memory"))));
+        sleep(800);
+        edt(() -> tree.expandPath(new javax.swing.tree.TreePath(new Object[] {file, lib})));
+        sleep(500);
+        tr = onScreen(tree);
+        snapCrop(new Rectangle(tr.x, tr.y, tr.width, Math.min(tr.height, 420)), "44c-tree-after-first-part");
+        snapFull("44d-first-part-placed");
+        // 저장 뒤: .circ 옆에 jar가 없으면 상태 표시줄 알림과 [Copy hcs-mips.jar Here]
+        File dir = java.nio.file.Files.createTempDirectory("hcs-v01").toFile();
+        java.nio.file.Files.copy(new File("tests/circ/console-demo.circ").toPath(), new File(dir, "my-cpu.circ").toPath());
+        Project q = open(new File(dir, "my-cpu.circ").getPath());
+        edt(() -> ProjectActions.doSave(q));
+        sleep(1200);
+        Rectangle bar = new Rectangle(0, H - 60, W, 60);
+        Component btn = find(q.getFrame(), x -> x instanceof javax.swing.JButton && x.isShowing()
+                && "Copy hcs-mips.jar Here".equals(((javax.swing.JButton) x).getText()));
+        if (btn != null) {
+            Rectangle br = onScreen(btn);
+            bar = new Rectangle(0, br.y - 8, Math.min(W, br.x + br.width + 24), br.height + 16);
+        } else {
+            log.add("44: no copy button after save");
+        }
+        snapCrop(bar, "44e-save-jar-notice");
+        for (File f : dir.listFiles()) {
+            f.delete();
+        }
+        dir.delete();
+    }
+
     void importSubcircuits(Project p) throws Exception {
         activate(p);
         deselect(p);

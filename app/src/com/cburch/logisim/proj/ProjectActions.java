@@ -327,6 +327,7 @@ public class ProjectActions {
 		}
 		if (ret) ret = saveExtension(proj, f); // HCS
 		if (ret) kr.ac.hallym.hcs.app.autosave.AutoSave.get().saved(proj); // HCS: #70
+		if (ret) kr.ac.hallym.hcs.app.libs.JarBesideNotice.afterSave(proj, f); // HCS: V-01
 		if (ret) {
 			AppPreferences.updateRecentFile(f);
 			proj.setFileAsClean();

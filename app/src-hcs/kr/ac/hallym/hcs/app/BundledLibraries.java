@@ -18,7 +18,7 @@ import java.security.CodeSource;
  */
 public final class BundledLibraries {
     public static final String MIPS_CLASS = "kr.ac.hallym.hcs.mips.MipsLibrary";
-    static final String MIPS_JAR = "hcs-mips.jar";
+    public static final String MIPS_JAR = "hcs-mips.jar";
 
     private BundledLibraries() {
     }

@@ -149,7 +149,7 @@ public final class ToolboxSearch extends JPanel {
 
     public static List<Palette.Item> results(String query, LogisimFile file,
             List<kr.ac.hallym.hcs.app.libs.OpenFileLibraries.OpenCircuit> openFiles) {
-        List<Library> libs = new ArrayList<>(file.getLibraries());
+        List<Library> libs = kr.ac.hallym.hcs.app.libs.MipsShadow.libraries(file); // V-01: 새 파일에도 Hallym MIPS
         List<Palette.Item> ret = new ArrayList<>();
         for (Palette.Item it : Palette.search(query, libs, file.getCircuits(), PaletteActions.recent(),
                 PaletteActions.favorites(), openFiles)) {

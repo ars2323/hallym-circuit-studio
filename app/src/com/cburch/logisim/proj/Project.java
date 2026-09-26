@@ -378,6 +378,7 @@ public class Project {
 			}
 			fireEvent(new ProjectEvent(ProjectEvent.ACTION_START, this, act));
 			act.doIt(this);
+			kr.ac.hallym.hcs.app.libs.MipsShadow.afterAction(this); // HCS: V-01
 			file.setDirty(isFileDirty());
 			fireEvent(new ProjectEvent(ProjectEvent.ACTION_COMPLETE, this, act));
 			fireEvent(new ProjectEvent(ProjectEvent.ACTION_MERGE, this, first, toAdd));
@@ -386,6 +387,7 @@ public class Project {
 		undoLog.add(new ActionData(circuitState, toAdd));
 		fireEvent(new ProjectEvent(ProjectEvent.ACTION_START, this, act));
 		act.doIt(this);
+		kr.ac.hallym.hcs.app.libs.MipsShadow.afterAction(this); // HCS: V-01
 		while (undoLog.size() > MAX_UNDO_SIZE) {
 			undoLog.removeFirst();
 		}
@@ -402,6 +404,7 @@ public class Project {
 			if (action.isModification()) --undoMods;
 			fireEvent(new ProjectEvent(ProjectEvent.UNDO_START, this, action));
 			action.undo(this);
+			kr.ac.hallym.hcs.app.libs.MipsShadow.afterUndo(this); // HCS: V-01
 			file.setDirty(isFileDirty());
 			fireEvent(new ProjectEvent(ProjectEvent.UNDO_COMPLETE, this, action));
 		}
