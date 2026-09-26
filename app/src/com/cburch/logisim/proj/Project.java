@@ -164,6 +164,13 @@ public class Project {
 		}
 	}
 
+	// HCS: E-05 Undo History reads the undo log (oldest first); read-only
+	public java.util.List<Action> getUndoActions() {
+		java.util.List<Action> ret = new java.util.ArrayList<Action>();
+		for (ActionData d : undoLog) ret.add(d.action);
+		return ret;
+	}
+
 	public Action getLastAction() {
 		if (undoLog.size() == 0) {
 			return null;

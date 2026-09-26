@@ -219,6 +219,9 @@ public final class Shots {
         if (want(scenes, "33")) {
             about(demo);
         }
+        if (want(scenes, "34")) {
+            historyAndKeys(demo);
+        }
         if (want(scenes, "10")) {
             open("tests/circ/register.circ");
             open("tests/circ/values.circ");
@@ -1777,6 +1780,78 @@ public final class Shots {
         edt(() -> sv.showSide(1));
         sleep(500);
         snapFull("27f-stack-demo-full");
+    }
+
+    /**
+     * 34: Undo History(E-05)와 단축키 표·설정(E-09). demo-datapath에 선 세 개를 그린 뒤 하나를 되돌린 상태의 기록
+     * 창, ? 표, Customize…로 연 설정 창. 끝나면 그린 선을 되돌린다.
+     */
+    void historyAndKeys(Project p) throws Exception {
+        activate(p);
+        deselect(p);
+        Circuit c = p.getCurrentCircuit();
+        String[] names = {"Add Wire", "Add Wire", "Move Selection"};
+        for (int i = 0; i < 3; i++) {
+            final int y = 640 + 20 * i;
+            final String n = names[i];
+            edt(() -> {
+                com.cburch.logisim.circuit.CircuitMutation m = new com.cburch.logisim.circuit.CircuitMutation(c);
+                m.add(com.cburch.logisim.circuit.Wire.create(Location.create(200, y), Location.create(300, y)));
+                p.doAction(m.toAction(() -> n));
+            });
+            sleep(200);
+        }
+        edt(p::undoAction);
+        sleep(400);
+        SwingUtilities.invokeLater(() -> kr.ac.hallym.hcs.app.edit.UndoHistory.show(p, p.getFrame()));
+        Window h = null;
+        for (int i = 0; i < 40 && h == null; i++) {
+            sleep(250);
+            h = window(x -> x instanceof JDialog && x.isShowing() && find(x, y -> "history.list".equals(y.getName()))
+                    != null);
+        }
+        if (h == null) {
+            log.add("34: no history window");
+        } else {
+            sleep(500);
+            snapCrop(h.getBounds(), "34a-undo-history");
+            final Window hw = h;
+            edt(hw::dispose);
+        }
+        // ? 표와 Customize…
+        SwingUtilities.invokeLater(() -> kr.ac.hallym.hcs.app.keys.Shortcuts.showTable(p.getFrame()));
+        Window t = null;
+        for (int i = 0; i < 40 && t == null; i++) {
+            sleep(250);
+            t = window(x -> x instanceof JDialog && x.isShowing()
+                    && kr.ac.hallym.hcs.app.Messages.get("keys.title").equals(((JDialog) x).getTitle()));
+        }
+        if (t == null) {
+            log.add("34: no shortcut table");
+        } else {
+            sleep(500);
+            snapCrop(t.getBounds(), "34b-shortcut-table");
+            javax.swing.JButton custom = (javax.swing.JButton) find(t, y -> y instanceof javax.swing.JButton
+                    && kr.ac.hallym.hcs.app.Messages.get("keys.customize").equals(((javax.swing.JButton) y).getText()));
+            SwingUtilities.invokeLater(custom::doClick);
+            Window k = null;
+            for (int i = 0; i < 40 && k == null; i++) {
+                sleep(250);
+                k = window(x -> x instanceof JDialog && x.isShowing() && find(x, y -> "keys.table".equals(y.getName()))
+                        != null);
+            }
+            if (k == null) {
+                log.add("34: no settings window");
+            } else {
+                sleep(500);
+                snapCrop(k.getBounds(), "34c-shortcut-settings");
+                final Window kw = k;
+                edt(kw::dispose);
+            }
+        }
+        edt(p::undoAction);
+        edt(p::undoAction);
+        sleep(300);
     }
 
     /** 33: About 창(E-11). 학교 엠블럼, 이름·버전, 설명, 캐릭터 한 장, License·Notices 탭. */

@@ -139,6 +139,15 @@ public final class RedoStack implements ProjectListener {
         return stack.isEmpty() ? null : stack.peek().action.getName();
     }
 
+    /** 다시 실행할 동작들의 이름(바로 다음 것부터, Undo History E-05). */
+    public List<String> names() {
+        List<String> out = new ArrayList<>();
+        for (Entry e : stack) {
+            out.add(e.action.getName());
+        }
+        return out;
+    }
+
     /** 가장 최근에 되돌린 동작을 다시 적용한다. */
     public void redo() {
         Project proj = project.get();
@@ -172,8 +181,10 @@ public final class RedoStack implements ProjectListener {
     /** 편집 메뉴의 "다시 실행" 항목(Ctrl+Y). */
     public static JMenuItem menuItem(Project proj) {
         JMenuItem item = new JMenuItem();
-        int menu = Toolkit.getDefaultToolkit().getMenuShortcutKeyMask();
-        item.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_Y, menu));
+        // 대표 키는 메뉴 항목이, 나머지 키(Ctrl+Shift+Z)는 창이 맡는다(E-09 단축키 표에서 바꿀 수 있다)
+        item.setAccelerator(kr.ac.hallym.hcs.app.keys.KeyBindings.primary("redo"));
+        kr.ac.hallym.hcs.app.keys.KeyBindings.addListener(
+                () -> item.setAccelerator(kr.ac.hallym.hcs.app.keys.KeyBindings.primary("redo")));
         if (proj == null) {
             item.setText(Messages.get("redo.none"));
             item.setEnabled(false);
@@ -193,9 +204,8 @@ public final class RedoStack implements ProjectListener {
 
     /** 창에 Ctrl+Shift+Z를 단다(Ctrl+Y는 메뉴 항목의 단축키). */
     public static void installKeys(JComponent root, Project proj) {
-        int menu = Toolkit.getDefaultToolkit().getMenuShortcutKeyMask();
-        root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
-                .put(KeyStroke.getKeyStroke(KeyEvent.VK_Z, menu | KeyEvent.SHIFT_DOWN_MASK), "hcsRedo");
+        kr.ac.hallym.hcs.app.keys.KeyBindings.installAlternates(root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW),
+                "redo", "hcsRedo");
         root.getActionMap().put("hcsRedo", new AbstractAction() {
             private static final long serialVersionUID = 1L;
 

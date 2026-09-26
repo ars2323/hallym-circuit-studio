@@ -84,25 +84,19 @@ public final class ZoomController {
         int menu = Toolkit.getDefaultToolkit().getMenuShortcutKeyMask();
         InputMap im = root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
         ActionMap am = root.getActionMap();
-        bind(im, am, "hcsZoomIn", () -> zoomCentered(ZoomMath.stepIn(model.getZoomFactor())),
-                KeyStroke.getKeyStroke(KeyEvent.VK_EQUALS, menu), KeyStroke.getKeyStroke(KeyEvent.VK_PLUS, menu),
-                KeyStroke.getKeyStroke(KeyEvent.VK_ADD, menu),
-                KeyStroke.getKeyStroke(KeyEvent.VK_EQUALS, menu | InputEvent.SHIFT_DOWN_MASK));
-        bind(im, am, "hcsZoomOut", () -> zoomCentered(ZoomMath.stepOut(model.getZoomFactor())),
-                KeyStroke.getKeyStroke(KeyEvent.VK_MINUS, menu), KeyStroke.getKeyStroke(KeyEvent.VK_SUBTRACT, menu));
-        bind(im, am, "hcsZoomFit", this::fitCircuit, KeyStroke.getKeyStroke(KeyEvent.VK_0, menu),
-                KeyStroke.getKeyStroke(KeyEvent.VK_NUMPAD0, menu));
-        bind(im, am, "hcsZoom100", () -> zoomCentered(1.0), KeyStroke.getKeyStroke(KeyEvent.VK_1, menu),
-                KeyStroke.getKeyStroke(KeyEvent.VK_NUMPAD1, menu));
+        // 키는 단축키 표(E-09, KeyBindings)에서: 바꾸면 곧바로 다시 단다
+        bind(im, am, "hcsZoomIn", "zoomIn", () -> zoomCentered(ZoomMath.stepIn(model.getZoomFactor())));
+        bind(im, am, "hcsZoomOut", "zoomOut", () -> zoomCentered(ZoomMath.stepOut(model.getZoomFactor())));
+        bind(im, am, "hcsZoomFit", "zoomFit", this::fitCircuit);
+        bind(im, am, "hcsZoom100", "zoom100", () -> zoomCentered(1.0));
         // F는 글자 입력(라벨 편집 등)과 겹치지 않도록 캔버스에 초점이 있을 때만
-        canvas.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_F, 0), "hcsZoomSel");
+        kr.ac.hallym.hcs.app.keys.KeyBindings.install(canvas.getInputMap(JComponent.WHEN_FOCUSED), "zoomSel",
+                "hcsZoomSel");
         canvas.getActionMap().put("hcsZoomSel", action(this::fitSelection));
     }
 
-    private void bind(InputMap im, ActionMap am, String name, Runnable r, KeyStroke... keys) {
-        for (KeyStroke k : keys) {
-            im.put(k, name);
-        }
+    private void bind(InputMap im, ActionMap am, String name, String command, Runnable r) {
+        kr.ac.hallym.hcs.app.keys.KeyBindings.install(im, command, name);
         am.put(name, action(() -> {
             if (active.getAsBoolean()) {
                 r.run();
