@@ -2,6 +2,12 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-26 창 분리·나란히 보기 재촬영(P-06)
+
+- 기준: feat/tabs-layout
+- 관련 이슈: P-06 #198 (PR #277)
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-p06-tabs-layout-2/README.md
+
 ## 2026-09-26 포트 순서(P-04)
 
 - 기준: feat/port-order
