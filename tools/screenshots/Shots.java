@@ -433,17 +433,20 @@ public final class Shots {
         deselect(p);
         edt(() -> canvas(p).getHcsZoom().fitCircuit());
         sleep(900);
-        kr.ac.hallym.hcs.app.side.SidePanel side = (kr.ac.hallym.hcs.app.side.SidePanel) find(p.getFrame(),
-                x -> x instanceof kr.ac.hallym.hcs.app.side.SidePanel);
+        // 원조 모드에서도 이 클래스가 검증되므로 포크 클래스를 지역 변수 타입으로 두지 않는다(NoClassDefFoundError)
+        java.awt.Component side = find(p.getFrame(),
+                x -> x.getClass().getName().equals("kr.ac.hallym.hcs.app.side.SidePanel"));
         if (side == null) {
             log.add("24: no side panel");
             return;
         }
-        edt(() -> side.tabs().setSelectedIndex(0));
+        javax.swing.JTabbedPane sideTabs = (javax.swing.JTabbedPane) find((java.awt.Container) side,
+                x -> x instanceof javax.swing.JTabbedPane);
+        edt(() -> sideTabs.setSelectedIndex(0));
         sleep(700);
         snapFull("24a-full-window-tunnels");
         snapCrop(onScreen(side), "24b-left-panel-tunnels");
-        edt(() -> side.tabs().setSelectedIndex(1));
+        edt(() -> sideTabs.setSelectedIndex(1));
         sleep(700);
         // 확대해 보이는 영역이 회로 일부일 때의 미니맵
         setZoom(p, 1.5);
@@ -451,7 +454,7 @@ public final class Shots {
         sleep(700);
         snapCrop(onScreen(side), "24c-left-panel-minimap");
         setZoom(p, 1.0);
-        edt(() -> side.tabs().setSelectedIndex(0));
+        edt(() -> sideTabs.setSelectedIndex(0));
         sleep(300);
     }
 
