@@ -268,6 +268,7 @@ public final class Shots {
         }
         if (want(scenes, "45")) {
             sameNameTabs(); // V-05
+        }
         if (want(scenes, "46")) {
             examplesMenu(project()); // V-07
         }
