@@ -52,8 +52,17 @@ public final class BusValues {
         return Mode.HEX;
     }
 
+    /** 모든 창의 상태 표시줄 단추(글자를 함께 바꾼다). */
+    private static final java.util.Set<JButton> BUTTONS = java.util.Collections.newSetFromMap(
+            new java.util.WeakHashMap<>());
+
     public static void setMode(Mode m) {
         Settings.get().set(KEY, m.key());
+        synchronized (BUTTONS) {
+            for (JButton b : BUTTONS) {
+                b.setText(Messages.get("labels.busValues." + m.key()));
+            }
+        }
         try {
             Settings.get().save();
         } catch (java.io.IOException e) {
@@ -120,11 +129,10 @@ public final class BusValues {
         b.setToolTipText(Messages.get("labels.busValuesTip"));
         b.putClientProperty("JButton.buttonType", "toolBarButton");
         b.setForeground(Tokens.TEXT_2);
-        b.addActionListener(e -> {
-            Mode next = Mode.values()[(mode().ordinal() + 1) % Mode.values().length];
-            setMode(next);
-            b.setText(Messages.get("labels.busValues." + next.key()));
-        });
+        b.addActionListener(e -> setMode(Mode.values()[(mode().ordinal() + 1) % Mode.values().length]));
+        synchronized (BUTTONS) {
+            BUTTONS.add(b); // 코드나 다른 창에서 바꿔도 글자가 따라간다(C-08 검토)
+        }
         return b;
     }
 }

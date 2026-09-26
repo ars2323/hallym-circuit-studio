@@ -1794,6 +1794,24 @@ public final class Shots {
         sleep(900);
         snapFull("30a-bus-values-full");
         snapCrop(onScreen(canvas(demo)), "30b-bus-values-canvas");
+        // 배율(체크리스트 4): 25%와 400%에서 칩 글자와 활성 경로 띠. 스플리터 → regfile → ALU 구간
+        com.cburch.logisim.data.Bounds span = null;
+        for (com.cburch.logisim.comp.Component x : demo.getCurrentCircuit().getNonWires()) {
+            String f = x.getFactory().getName();
+            if (f.equals("Splitter") || f.equals("regfile")) {
+                span = span == null ? x.getBounds() : span.add(x.getBounds());
+            }
+        }
+        setZoom(demo, 0.25);
+        centerOn(demo, span);
+        sleep(700);
+        snapCrop(onScreen(canvas(demo).getParent()), "30e-bus-values-25");
+        setZoom(demo, 4.0);
+        centerOn(demo, span);
+        sleep(700);
+        snapCrop(onScreen(canvas(demo).getParent()), "30f-bus-values-400");
+        edt(() -> canvas(demo).getHcsZoom().fitCircuit());
+        sleep(700);
         edt(() -> kr.ac.hallym.hcs.app.labels.BusValues.setMode(kr.ac.hallym.hcs.app.labels.BusValues.Mode.SIGNED));
         sleep(600);
         snapCrop(onScreen(canvas(demo)), "30c-bus-values-signed");

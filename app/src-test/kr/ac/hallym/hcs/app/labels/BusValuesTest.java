@@ -67,6 +67,33 @@ class BusValuesTest {
         }
     }
 
+    /** 상태 표시줄 단추는 코드나 다른 창에서 진법을 바꿔도 글자가 따라간다(C-08 검토). */
+    @Test
+    void everyButtonFollowsTheMode() {
+        BusValues.Mode before = BusValues.mode();
+        try {
+            javax.swing.JButton a = BusValues.button();
+            javax.swing.JButton b = BusValues.button();
+            BusValues.setMode(BusValues.Mode.SIGNED);
+            assertEquals(kr.ac.hallym.hcs.app.Messages.get("labels.busValues.signed"), a.getText());
+            assertEquals(a.getText(), b.getText());
+            a.doClick();
+            assertEquals(BusValues.Mode.OFF, BusValues.mode());
+            assertEquals(kr.ac.hallym.hcs.app.Messages.get("labels.busValues.off"), b.getText());
+        } finally {
+            BusValues.setMode(before);
+        }
+    }
+
+    /** 버스 칩의 지시선은 그 선 위의 가장 가까운 점에서 시작한다(C-08 검토). */
+    @Test
+    void leaderStartsOnTheBus() {
+        Wire v = Wire.create(com.cburch.logisim.data.Location.create(540, 100),
+                com.cburch.logisim.data.Location.create(540, 240));
+        assertEquals(new java.awt.Point(540, 150), LabelOverlay.nearestOnWire(v, new java.awt.Point(500, 150)));
+        assertEquals(new java.awt.Point(540, 240), LabelOverlay.nearestOnWire(v, new java.awt.Point(600, 300)));
+    }
+
     @Test
     void unnamedBusesGetASpotToo() throws Exception {
         LogisimFile file = RecordingTestSupport.openCirc(tmp, "demo-datapath.circ");

@@ -795,7 +795,19 @@ public final class LabelOverlay {
                     r = new Rectangle(r.x + (r.width - w) / 2, r.y, w, r.height);
                 }
             }
-            if (p.leader) {
+            if (bus) {
+                // 버스 칩의 지시선은 그 선 위의 가장 가까운 점에서 긋는다(C-08 검토: 원래 자리 가운데에서 그으면
+                // 옆 버스를 가리키는 것처럼 보인다). 칩이 선에 붙어 있으면 긋지 않는다
+                java.awt.Point from = nearestOnWire((Wire) p.key, new java.awt.Point(r.x + r.width / 2,
+                        r.y + r.height / 2));
+                int ex = Math.max(r.x, Math.min(from.x, r.x + r.width));
+                int ey = Math.max(r.y, Math.min(from.y, r.y + r.height));
+                if (Math.abs(ex - from.x) + Math.abs(ey - from.y) > 6) {
+                    g.setColor(Tokens.GRAY);
+                    g.setStroke(new BasicStroke(1f / (float) Math.max(1, z)));
+                    g.drawLine(from.x, from.y, ex, ey);
+                }
+            } else if (p.leader) {
                 g.setColor(Tokens.GRAY);
                 g.setStroke(new BasicStroke(1f / (float) Math.max(1, z)));
                 int ex = Math.max(r.x, Math.min(p.anchor.x, r.x + r.width));
@@ -841,6 +853,15 @@ public final class LabelOverlay {
             }
         }
         return false;
+    }
+
+    /** 선(가로 또는 세로) 위에서 점 p에 가장 가까운 점. */
+    static java.awt.Point nearestOnWire(Wire w, java.awt.Point p) {
+        int x0 = Math.min(w.getEnd0().getX(), w.getEnd1().getX());
+        int x1 = Math.max(w.getEnd0().getX(), w.getEnd1().getX());
+        int y0 = Math.min(w.getEnd0().getY(), w.getEnd1().getY());
+        int y1 = Math.max(w.getEnd0().getY(), w.getEnd1().getY());
+        return new java.awt.Point(Math.max(x0, Math.min(p.x, x1)), Math.max(y0, Math.min(p.y, y1)));
     }
 
     /** 이름 있는 버스(폭 2 이상)의 가장 긴 선과 그 표시 글자: {@code 이름[w-1:0]}. */
