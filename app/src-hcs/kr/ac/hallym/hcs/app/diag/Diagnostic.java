@@ -57,6 +57,30 @@ public final class Diagnostic {
     /** 동적 진단: 맨 위 회로에서 circuit 인스턴스까지의 서브회로 부품들(정적 진단은 빈 목록). */
     public final List<Component> instances;
     private final Object[] args;
+    /** 동적 진단: E·X가 처음 생긴(또는 쓰려던) 자리. 원인 자리({@link #location})와 다를 수 있다(V-03). null이면 없음. */
+    private Spot appeared;
+
+    /** 회로 인스턴스 경로 안의 한 자리(포트나 선 끝). */
+    public static final class Spot {
+        public final List<Component> instances;
+        public final Circuit circuit;
+        public final Location at;
+
+        Spot(List<Component> instances, Circuit circuit, Location at) {
+            this.instances = Collections.unmodifiableList(new ArrayList<>(instances));
+            this.circuit = circuit;
+            this.at = at;
+        }
+    }
+
+    Diagnostic appearedAt(List<Component> instances, Circuit circuit, Location at) {
+        this.appeared = at == null ? null : new Spot(instances, circuit, at);
+        return this;
+    }
+
+    public Spot appeared() {
+        return appeared;
+    }
 
     Diagnostic(Kind kind, Circuit circuit, List<Component> components, List<Wire> wires, Location location,
             Object... args) {

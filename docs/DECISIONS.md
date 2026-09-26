@@ -1178,3 +1178,11 @@
 - **이유:** v1.0.0 검토(31a)에서 정해지지 않은 입력 핀에서 나온 E를 "충돌 값"이라 불러 학생을 잘못된 곳으로 보냈고, "AND #3.out" 같은 내부 이름이 보였다. PLAN 4.4(원인 한 곳, 학생이 붙인 이름, 사실과 위치까지만).
 - **대안:** 원인 종류마다 문장 전체를 따로(원인 문장이 이미 종류를 말하므로 표기만 가른다), 포트 낱말을 영어로 고정(한국어 문장 안에 "output"이 섞임).
 - **테스트:** `FaultCollectionTest.messagesMatchTheExpectedTextAndShowNoInternalPortNames` — 고장 회로 모음 전체(새 회로 dynamic-e-undefined-input 포함)의 한국어·영어 문구를 `tests/circ/faults/messages.{ko,en}.expected`와 비교하고, `.<포트>` 꼴이 없으며 "충돌"은 dynamic-e-conflict에만 있음을 확인. `widthMismatchIsRecognisedOnTheNet`. 정상 회로 0건 테스트(StaticCheckTest·DynamicCheckTest)는 그대로. 테스트 JVM 언어를 영어로 고정하고 test-prefs를 매번 비운다(언어 설정이 실행 간에 새던 문제).
+
+## D-098 메시지를 누르면 원인 신호를 사이클 표 임시 줄로(V-03)
+
+- **날짜:** 2026-09-26
+- **결정:** 동적 진단(E 발생·X 쓰기)은 원인 자리(`location`)와 별도로 E·X가 처음 생긴(또는 쓰려던) 자리(`Diagnostic.appeared`)를 갖는다. 메시지를 누르면 사이클 뷰가 그 사이클로 가면서 두 자리가 속한 넷을 표 맨 위 임시 줄(원인 먼저, 그다음 생긴 자리)로 둔다. 임시 줄은 연한 호박색 바탕과 왼쪽 띠, 이름 칸의 ×로 구분하고, 그 사이클 칸에 테두리를 그린다. 다른 메시지를 누르면 대체되고, ×나 줄 메뉴의 Remove로 걷힌다. 사용자가 더한 줄 목록(`signals`)과 분리돼 있어 파일에 저장되지 않는다.
+- **이유:** v1.0.0 검토(31c): 메시지를 눌러도 표에는 기본 신호 다섯 줄뿐이라 원인(RegWrite)과 E가 생긴 지점을 볼 수 없었다.
+- **대안:** 임시 줄을 관찰 목록에 영구 추가(파일이 더러워지고 학생이 지워야 함), 원인만 보이기(E가 어디서 나타났는지 함께 봐야 원인과 결과가 이어진다).
+- **테스트:** `CycleViewGuiTest.clickingAMessagePinsTheCauseAndTheErrorSpot` — 31장면 흐름(demo-datapath, RegWrite 3상태)에서 메시지를 누르면 RegWrite 줄과 regfile 안 E 지점 줄이 맨 위에 생기고 그 사이클이 선택되며, 관찰 목록은 비어 있고, ×로 걷힌다.

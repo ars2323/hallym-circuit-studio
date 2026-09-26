@@ -89,7 +89,8 @@ public final class DynamicCheck {
             }
             out.add(new Diagnostic(Diagnostic.Kind.E_APPEARED, o.node.circuit, o.node.instances, o.step,
                     components(o), wires(o), location(o), cycleOf(o.step), OriginText.netLabel(top, en),
-                    Messages.get("diag.causePrefix", cause(o)), OriginText.errorLabel(o, en)));
+                    Messages.get("diag.causePrefix", cause(o)), OriginText.errorLabel(o, en))
+                    .appearedAt(path, c, at));
         }
     }
 
@@ -177,7 +178,7 @@ public final class DynamicCheck {
         if (o == null) {
             out.add(new Diagnostic(kind, c, path, before, Collections.singletonList(x),
                     Collections.<Wire>emptyList(), x.getEnd(port).getLocation(), cycleOf(before), where, portName,
-                    because));
+                    because).appearedAt(path, c, x.getEnd(port).getLocation()));
             return;
         }
         // 누르면 원인으로 간다: 원인 부품·선을 강조하고, 쓰려던 부품이 같은 인스턴스에 있으면 함께
@@ -186,7 +187,7 @@ public final class DynamicCheck {
             comps.add(x);
         }
         out.add(new Diagnostic(kind, o.node.circuit, o.node.instances, before, comps, wires(o), location(o),
-                cycleOf(before), where, portName, because));
+                cycleOf(before), where, portName, because).appearedAt(path, c, x.getEnd(port).getLocation()));
     }
 
     /** before → step 사이에 이 부품의 클럭이 트리거 방향으로 바뀌었는가(상승이 기본, 하강 설정이면 하강). */

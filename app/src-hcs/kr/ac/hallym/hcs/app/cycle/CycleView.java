@@ -20,6 +20,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -60,7 +61,7 @@ import kr.ac.hallym.hcs.app.theme.Tokens;
 public final class CycleView {
     static final int COL_W = 132;
     static final int ROW_H = 22;
-    static final int NAME_W = 180;
+    public static final int NAME_W = 180;
     static final int HEAD_ROWS = 3;
 
     private static final Map<Project, CycleView> ALL = new WeakHashMap<>();
@@ -243,6 +244,10 @@ public final class CycleView {
         rowNames.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
+                if (SwingUtilities.isLeftMouseButton(e) && isPinnedClose(e)) {
+                    unpin(); // 임시 줄의 ×(V-03)
+                    return;
+                }
                 maybeRowMenu(e);
             }
 
@@ -257,6 +262,13 @@ public final class CycleView {
         body.getActionMap().put("hcs.prevCycle", action(() -> step(-1)));
         body.getActionMap().put("hcs.nextCycle", action(() -> step(+1)));
         refresh();
+    }
+
+    /** 이름 칸에서 임시 줄의 × 자리를 눌렀는가. */
+    boolean isPinnedClose(MouseEvent e) {
+        List<Row> rows = rows();
+        int i = e.getY() / ROW_H;
+        return i >= 0 && i < rows.size() && rows.get(i).pinned && e.getX() >= NAME_W - 22;
     }
 
     private static AbstractAction action(Runnable r) {
@@ -335,10 +347,12 @@ public final class CycleView {
 
     static {
         // 동적 진단을 누르면 사이클 뷰가 그 사이클로(D-05)
-        kr.ac.hallym.hcs.app.diag.Diagnostics.setStepViewer((proj, step) -> {
+        // 원인 신호와 E·X가 생긴 자리를 표 맨 위 임시 줄로 보인다(V-03)
+        kr.ac.hallym.hcs.app.diag.Diagnostics.setStepViewer((proj, d) -> {
             CycleView v = of(proj);
             v.open();
-            v.view(kr.ac.hallym.hcs.app.diag.DynamicCheck.cycleOf(step));
+            v.pin(d);
+            v.view(kr.ac.hallym.hcs.app.diag.DynamicCheck.cycleOf(d.step));
         });
     }
 
@@ -379,6 +393,9 @@ public final class CycleView {
         for (CycleModel.Signal s : signals) {
             model.add(s);
         }
+        for (CycleModel.Signal s : pinned) {
+            model.add(s);
+        }
         return model;
     }
 
@@ -413,6 +430,57 @@ public final class CycleView {
 
     List<CycleModel.Signal> signals() {
         return signals;
+    }
+
+    // ---- 임시 줄(V-03) ----
+
+    /** 메시지를 눌러 더한 임시 줄: 원인 신호, E·X가 생긴 자리. 파일에 저장되지 않고 다른 메시지를 누르면 바뀐다. */
+    private final List<CycleModel.Signal> pinned = new ArrayList<>();
+    private int pinnedCycle = -1;
+
+    /** 진단 d의 원인 신호와 생긴 자리를 임시 줄로 둔다(있던 임시 줄은 대체). */
+    public void pin(kr.ac.hallym.hcs.app.diag.Diagnostic d) {
+        pinned.clear();
+        pinnedCycle = -1;
+        Recording r = recorder.current();
+        if (d == null || r == null || d.step < 0) {
+            refresh();
+            return;
+        }
+        Circuit root = r.circuit();
+        pinnedCycle = kr.ac.hallym.hcs.app.diag.DynamicCheck.cycleOf(d.step);
+        CycleModel.Signal cause = d.location == null ? null
+                : CycleModel.signalFor(root, d.instances, d.circuit, d.location);
+        if (cause != null) {
+            pinned.add(cause);
+        }
+        kr.ac.hallym.hcs.app.diag.Diagnostic.Spot ap = d.appeared();
+        CycleModel.Signal at = ap == null ? null : CycleModel.signalFor(root, ap.instances, ap.circuit, ap.at);
+        if (at != null && !pinned.contains(at)) {
+            pinned.add(at);
+        }
+        CycleModel m = model();
+        if (m != null) {
+            for (CycleModel.Signal s : pinned) {
+                m.add(s);
+            }
+        }
+        refresh();
+    }
+
+    /** 임시 줄을 걷는다(이름 칸의 ×). */
+    public void unpin() {
+        pinned.clear();
+        pinnedCycle = -1;
+        refresh();
+    }
+
+    public List<CycleModel.Signal> pinnedSignals() {
+        return Collections.unmodifiableList(pinned);
+    }
+
+    public int pinnedCycle() {
+        return pinnedCycle;
     }
 
     // ---- 조작 ----
@@ -501,6 +569,11 @@ public final class CycleView {
         return (cycle - m.firstCycle()) * COL_W;
     }
 
+    /** 줄 이름 칸(테스트). */
+    public JComponent rowNames() {
+        return rowNames;
+    }
+
     int columnAt(int px) {
         CycleModel m = model();
         if (m == null || m.isEmpty()) {
@@ -528,10 +601,16 @@ public final class CycleView {
     static final class Row {
         final CycleModel.Signal signal;
         final int bit; // -1: 신호 전체
+        final boolean pinned; // 메시지에서 온 임시 줄(V-03)
 
         Row(CycleModel.Signal signal, int bit) {
+            this(signal, bit, false);
+        }
+
+        Row(CycleModel.Signal signal, int bit, boolean pinned) {
             this.signal = signal;
             this.bit = bit;
+            this.pinned = pinned;
         }
 
         String name() {
@@ -545,6 +624,9 @@ public final class CycleView {
 
     List<Row> rows() {
         List<Row> out = new ArrayList<>();
+        for (CycleModel.Signal s : pinned) {
+            out.add(new Row(s, -1, true));
+        }
         for (CycleModel.Signal s : signals) {
             out.add(new Row(s, -1));
             if (s.bits && s.width > 1) {
@@ -734,6 +816,7 @@ public final class CycleView {
             return;
         }
         CycleModel.Signal s = rows.get(i).signal;
+        boolean pinnedRow = rows.get(i).pinned;
         JPopupMenu menu = new JPopupMenu();
         if (s.width > 1) {
             JMenuItem bits = new JMenuItem(Messages.get(s.bits ? "cycle.hideBits" : "cycle.showBits"));
@@ -745,6 +828,10 @@ public final class CycleView {
         }
         JMenuItem remove = new JMenuItem(Messages.get("cycle.remove"));
         remove.addActionListener(a -> {
+            if (pinnedRow) {
+                unpin(); // 임시 줄은 함께 걷힌다(V-03)
+                return;
+            }
             signals.remove(s);
             if (model != null) {
                 model.remove(s);
@@ -831,6 +918,10 @@ public final class CycleView {
                     continue;
                 }
                 Row r = rows.get(i);
+                if (r.pinned) {
+                    g.setColor(Tokens.AMBER_TINT);
+                    g.fillRect(clip.x, y, clip.width, ROW_H - 1);
+                }
                 g.setColor(Tokens.BORDER);
                 g.drawLine(clip.x, y + ROW_H - 1, clip.x + clip.width, y + ROW_H - 1);
                 for (int c = c0; c <= c1; c++) {
@@ -839,6 +930,11 @@ public final class CycleView {
                         paintWave(g, m, r, c, x, y);
                     } else {
                         paintBus(g, m, r, c, x, y, fm);
+                    }
+                    if (r.pinned && c == pinnedCycle) {
+                        // 메시지가 말한 사이클 칸(V-03)
+                        g.setColor(Tokens.AMBER_TEXT);
+                        g.drawRect(x + 1, y + 1, COL_W - 3, ROW_H - 4);
                     }
                 }
             }
@@ -1021,13 +1117,32 @@ public final class CycleView {
             List<Row> rows = rows();
             for (int i = 0; i < rows.size(); i++) {
                 int y = i * ROW_H;
+                Row r = rows.get(i);
+                int textW = NAME_W - 16;
+                if (r.pinned) {
+                    g.setColor(Tokens.AMBER_TINT);
+                    g.fillRect(0, y, NAME_W - 1, ROW_H - 1);
+                    g.setColor(Tokens.AMBER_TEXT);
+                    g.fillRect(0, y, 3, ROW_H - 1); // 왼쪽 띠: 메시지에서 온 임시 줄
+                    g.drawString("×", NAME_W - 16, y + (ROW_H + fm.getAscent() - fm.getDescent()) / 2);
+                    textW = NAME_W - 30;
+                }
                 g.setColor(Tokens.TEXT);
-                g.drawString(fit(fm, rows.get(i).name(), NAME_W - 16), 8,
-                        y + (ROW_H + fm.getAscent() - fm.getDescent()) / 2);
+                g.drawString(fit(fm, r.name(), textW), 8, y + (ROW_H + fm.getAscent() - fm.getDescent()) / 2);
                 g.setColor(Tokens.BORDER);
                 g.drawLine(0, y + ROW_H - 1, NAME_W, y + ROW_H - 1);
             }
             g.drawLine(NAME_W - 1, clip.y, NAME_W - 1, clip.y + clip.height);
+        }
+
+        @Override
+        public String getToolTipText(MouseEvent e) {
+            List<Row> rows = rows();
+            int i = e.getY() / ROW_H;
+            if (i >= 0 && i < rows.size() && rows.get(i).pinned) {
+                return Messages.get("cycle.pinnedTip");
+            }
+            return Messages.get("cycle.rowTip");
         }
 
         {
