@@ -76,6 +76,7 @@ tools/screenshots/run.sh <출력 폴더> [장면 번호 ...]
 | 38 | 신호 그룹 색(E-04): RegWrite=Control, ALU 결과=Data, PC→명령어 메모리=Address로 정한 뒤 Colors: Groups(전체, 150%), 선 우클릭 Signal Group 하위 메뉴 |
 | 39 | 영역 메모(E-08): IF·EX 영역 상자(전체, 150%), 메모 안 우클릭 메뉴, Add Area Memo… 창 |
 | 40 | 첫 실행 튜토리얼(E-10): 첫 장(캐릭터), 도구 모음 단계, Messages 탭 단계 |
+| 41 | 창 분리·나란히 보기(P-06): 탭 우클릭 메뉴, 분리한 창(· Window 배지, console-demo), 나란히 보기(왼쪽·오른쪽 반) |
 | 14 | Messages 탭: 데모 회로를 두 곳 망가뜨린 뒤(터널 이름 틀림, PC 클럭 지움) 목록, 메시지를 눌러 강조한 캔버스, 표시가 배율 25·100·400%에서 보이는지(14f), 끝나면 되돌림. gateUndefined = error 회로의 빈 게이트 입력(14e) |
 
 ## 올리기와 보고

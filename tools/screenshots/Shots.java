@@ -254,6 +254,9 @@ public final class Shots {
         if (want(scenes, "40")) {
             tour(demo);
         }
+        if (want(scenes, "41")) {
+            tabsLayout(demo, open("tests/circ/console-demo.circ")); // 사람이 그린 둘째 회로(체크리스트 10)
+        }
         if (want(scenes, "10")) {
             open("tests/circ/register.circ");
             open("tests/circ/values.circ");
@@ -1868,6 +1871,54 @@ public final class Shots {
         }
         edt(() -> kr.ac.hallym.hcs.app.wiring.BusStyle.setWidths(false));
         edt(() -> kr.ac.hallym.hcs.app.labels.BusValues.setMode(before));
+    }
+
+    /**
+     * 41: 창 분리·나란히 보기(P-06). demo-datapath 탭 우클릭 메뉴, console-demo를 분리한 뒤 두 창(화면 전체), 나란히 보기.
+     * 끝나면 되돌린다.
+     */
+    void tabsLayout(Project demo, Project ref) throws Exception {
+        edt(() -> canvas(ref).getHcsZoom().fitCircuit());
+        activate(demo);
+        deselect(demo);
+        edt(() -> canvas(demo).getHcsZoom().fitCircuit());
+        sleep(600);
+        javax.swing.JTabbedPane files = (javax.swing.JTabbedPane) find(demo.getFrame(),
+                x -> x instanceof javax.swing.JTabbedPane && ((javax.swing.JTabbedPane) x).getTabCount() > 1
+                        && ((javax.swing.JTabbedPane) x).indexOfTab("console-demo") >= 0);
+        if (files == null) {
+            log.add("41: no file tabs");
+            return;
+        }
+        int i = files.indexOfTab("console-demo");
+        Rectangle tr = files.getBoundsAt(i);
+        Point s = files.getLocationOnScreen();
+        robot.mouseMove(s.x + tr.x + tr.width / 2, s.y + tr.y + tr.height / 2);
+        sleep(200);
+        robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
+        robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
+        sleep(800);
+        Rectangle pr = popupBounds();
+        if (pr != null) {
+            pr.add(new Rectangle(s.x + tr.x - 20, s.y + tr.y - 10, tr.width + 40, tr.height + 20));
+            snapCrop(pad(pr, 16), "41a-tab-menu");
+        }
+        key(KeyEvent.VK_ESCAPE);
+        sleep(300);
+        edt(() -> kr.ac.hallym.hcs.app.tabs.FileTabs.get().detach(ref));
+        sleep(1200);
+        snapFull("41b-detached-window");
+        edt(() -> kr.ac.hallym.hcs.app.tabs.FileTabs.get().sideBySide(ref));
+        sleep(1200);
+        snapFull("41c-side-by-side");
+        edt(() -> kr.ac.hallym.hcs.app.tabs.FileTabs.get().attach(ref));
+        sleep(800);
+        activate(demo);
+        edt(() -> {
+            demo.getFrame().setBounds(0, 0, W, H);
+            demo.getFrame().validate();
+        });
+        sleep(600);
     }
 
     /**

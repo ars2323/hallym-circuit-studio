@@ -41,6 +41,8 @@ public final class FileTabBar extends JPanel {
     private static final long serialVersionUID = 1L;
     static final String DIRTY = "● ";
     static final String SEP = " › ";
+    /** 분리한 창 표시(P-06): Updated 배지와 같은 글 배지(글꼴에 없는 기호를 쓰지 않는다). */
+    static final String DETACHED = "\u00B7 ";
 
     private final Frame frame;
     private final Project proj;
@@ -102,11 +104,29 @@ public final class FileTabBar extends JPanel {
                 int i = from;
                 from = -1;
                 files.setCursor(null);
-                com.cburch.logisim.data.Location at = canvasPoint(e);
-                if (i < 0 || at == null || i >= model.tabs().size()) {
+                if (i < 0 || i >= model.tabs().size()) {
                     return;
                 }
-                dropTab(model.tabs().get(i).key(), at);
+                com.cburch.logisim.data.Location at = canvasPoint(e);
+                if (at != null) {
+                    dropTab(model.tabs().get(i).key(), at);
+                    return;
+                }
+                // 창 밖으로 끌어 놓으면 그 탭을 제 창으로 분리한다(P-06)
+                java.awt.Point onScreen = e.getLocationOnScreen();
+                if (!frame.getBounds().contains(onScreen) && !model.isDetached(model.tabs().get(i).key())) {
+                    FileTabs.get().detach(model.tabs().get(i).key());
+                }
+            }
+
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (SwingUtilities.isRightMouseButton(e)) {
+                    int i = files.indexAtLocation(e.getX(), e.getY());
+                    if (i >= 0 && i < model.tabs().size()) {
+                        tabMenu(model.tabs().get(i).key()).show(files, e.getX(), e.getY());
+                    }
+                }
             }
         };
         files.addMouseListener(drag);
@@ -131,6 +151,30 @@ public final class FileTabBar extends JPanel {
         });
         updateFiles();
         updateCircuits();
+    }
+
+    /** 파일 탭 우클릭 메뉴(P-06): Detach Tab / Attach Tab, View Side by Side, Close. */
+    javax.swing.JPopupMenu tabMenu(Project p) {
+        javax.swing.JPopupMenu m = new javax.swing.JPopupMenu();
+        boolean det = FileTabs.get().model().isDetached(p);
+        javax.swing.JMenuItem toggle = new javax.swing.JMenuItem(Messages.get(det ? "tabs.attach" : "tabs.detach"));
+        toggle.addActionListener(e -> {
+            if (det) {
+                FileTabs.get().attach(p);
+            } else {
+                FileTabs.get().detach(p);
+            }
+        });
+        m.add(toggle);
+        javax.swing.JMenuItem side = new javax.swing.JMenuItem(Messages.get("tabs.sideBySide"));
+        side.setEnabled(FileTabs.get().model().size() > 1);
+        side.addActionListener(e -> FileTabs.get().sideBySide(p));
+        m.add(side);
+        m.addSeparator();
+        javax.swing.JMenuItem close = new javax.swing.JMenuItem(Messages.get("tabs.close"));
+        close.addActionListener(e -> FileTabs.get().close(p));
+        m.add(close);
+        return m;
     }
 
     /** 탭 막대 위의 마우스 자리가 이 창 캔버스 위면 회로 좌표, 아니면 null. */
@@ -181,9 +225,13 @@ public final class FileTabBar extends JPanel {
             }
             for (int i = 0; i < tabs.size(); i++) {
                 TabModel.Tab<Project> t = tabs.get(i);
+                boolean det = FileTabs.get().model().isDetached(t.key());
                 String title = (t.dirty() ? DIRTY : "") + t.title() + (t.updated() ? " · " + Messages.get(
-                        "tabs.updatedBadge") : "");
+                        "tabs.updatedBadge") : "") + (det ? " " + DETACHED + Messages.get("tabs.detachedBadge") : "");
                 String tip = t.file() == null ? Messages.get("tabs.unsaved") : t.file().getPath();
+                if (det) {
+                    tip = tip + " — " + Messages.get("tabs.detachedTip");
+                }
                 if (t.dirty()) {
                     tip = tip + " (" + Messages.get("tabs.modified") + ")";
                 }
