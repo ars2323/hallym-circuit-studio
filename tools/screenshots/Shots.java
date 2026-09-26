@@ -121,6 +121,20 @@ public final class Shots {
             setZoom(p, fit);
             scrollTo(p, 0, 0);
             snapFull("02-demo-fit-orig");
+            snapFull("37a-bus-widths-full-orig"); // E-03 비교: 원조 선 굵기(버스도 3px)
+            com.cburch.logisim.data.Bounds span37 = null;
+            for (com.cburch.logisim.comp.Component x : p.getCurrentCircuit().getNonWires()) {
+                String f = x.getFactory().getName();
+                if (f.equals("Instruction Memory") || f.equals("regfile")) {
+                    span37 = span37 == null ? x.getBounds() : span37.add(x.getBounds());
+                }
+            }
+            setZoom(p, 1.5);
+            centerOn(p, span37);
+            sleep(700);
+            snapCrop(onScreen(canvas(p).getParent()), "37b-bus-widths-150-orig");
+            setZoom(p, fit);
+            scrollTo(p, 0, 0);
             zoomCrops(p, "orig");
             junctionsAndJumps(p, "orig");
             controlPins(p, "orig");
@@ -1804,6 +1818,9 @@ public final class Shots {
         edt(() -> canvas(p).getHcsZoom().fitCircuit());
         sleep(900);
         snapFull("37a-bus-widths-full");
+        // 원조 비교(체크리스트 5): 원조 모드가 같은 배율로 같은 장면을 찍는다
+        java.nio.file.Files.write(new File(out, "fit-zoom.txt").toPath(),
+                Double.toString(zoom(p)).getBytes(StandardCharsets.UTF_8));
         com.cburch.logisim.data.Bounds span = null;
         for (com.cburch.logisim.comp.Component x : p.getCurrentCircuit().getNonWires()) {
             String f = x.getFactory().getName();
