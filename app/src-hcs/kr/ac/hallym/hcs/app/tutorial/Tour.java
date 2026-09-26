@@ -49,6 +49,7 @@ import com.cburch.logisim.proj.Projects;
 
 import kr.ac.hallym.hcs.app.Messages;
 import kr.ac.hallym.hcs.app.Settings;
+import kr.ac.hallym.hcs.app.sim.OverflowToolbar;
 import kr.ac.hallym.hcs.app.theme.Tokens;
 
 /**
@@ -160,6 +161,14 @@ public final class Tour {
     }
 
     static Component button(Frame f, String nameKey) {
+        // 도구 모음 항목은 열쇠로(X-02: 좁으면 글자를 숨기거나 » 메뉴로 보낸다: 그때는 » 단추가 대상)
+        Component bar = find(f, x -> x instanceof OverflowToolbar);
+        if (bar != null) {
+            Component c = ((OverflowToolbar) bar).visibleFor(nameKey);
+            if (c != null && c.isShowing()) {
+                return c;
+            }
+        }
         String text = Messages.get(nameKey);
         return find(f, x -> x instanceof AbstractButton && text.equals(((AbstractButton) x).getText()));
     }

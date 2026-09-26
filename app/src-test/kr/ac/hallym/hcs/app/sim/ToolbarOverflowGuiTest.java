@@ -69,13 +69,13 @@ class ToolbarOverflowGuiTest {
         });
         Frame frame = fr.get();
         try {
-            OverflowToolbar tb = find(frame.getContentPane());
-            assertNotNull(tb, "the app toolbar");
             SwingUtilities.invokeAndWait(() -> frame.setBounds(0, 0, 1920, 900));
             Thread.sleep(300);
             List<String> all = new ArrayList<>();
             SwingUtilities.invokeAndWait(() -> {
                 frame.validate();
+                OverflowToolbar tb = find(frame.getContentPane());
+                assertNotNull(tb, "the app toolbar");
                 all.addAll(tb.shownKeys());
                 all.addAll(tb.overflowKeys());
             });
@@ -86,6 +86,8 @@ class ToolbarOverflowGuiTest {
                 List<String> problems = new ArrayList<>();
                 SwingUtilities.invokeAndWait(() -> {
                     frame.validate();
+                    OverflowToolbar tb = find(frame.getContentPane()); // 창이 도구 모음을 다시 만들었을 수 있다
+                    assertNotNull(tb, "the app toolbar at " + width);
                     List<String> here = new ArrayList<>(tb.shownKeys());
                     here.addAll(tb.overflowKeys());
                     if (!here.containsAll(all) || here.size() != all.size()) {
@@ -99,6 +101,19 @@ class ToolbarOverflowGuiTest {
                     }
                     if (tb.moreButton().isVisible() && !box.contains(tb.moreButton().getBounds())) {
                         problems.add(width + ": » clipped");
+                    }
+                    // 열쇠로 찾기(튜토리얼): 보이는 항목은 그 부품, 숨긴 항목은 » 단추, 둘 다 화면에 보인다
+                    for (String k : tb.shownKeys()) {
+                        Component c = tb.visibleFor(k);
+                        if (c == null || c == tb.moreButton() || !c.isVisible()
+                                || !k.equals(((javax.swing.JComponent) c).getClientProperty(OverflowToolbar.KEY_PROPERTY))) {
+                            problems.add(width + ": " + k + " should be found on the toolbar: " + c);
+                        }
+                    }
+                    for (String k : tb.overflowKeys()) {
+                        if (tb.visibleFor(k) != tb.moreButton() || !tb.moreButton().isVisible()) {
+                            problems.add(width + ": " + k + " should resolve to the » button");
+                        }
                     }
                     if (width >= 1920 && !tb.overflowKeys().isEmpty()) {
                         problems.add("1920: nothing should overflow " + tb.overflowKeys());

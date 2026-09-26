@@ -16,6 +16,7 @@ import java.util.List;
 
 import javax.swing.AbstractButton;
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JComboBox;
 import javax.swing.JMenu;
@@ -82,8 +83,24 @@ public final class OverflowToolbar extends JToolBar {
                 ? ((AbstractButton) c).getText() : null;
         Item it = new Item(c, key, priority, text);
         items.add(it);
+        if (c instanceof JComponent) {
+            ((JComponent) c).putClientProperty(KEY_PROPERTY, key); // 글자가 숨어도 찾을 수 있게(튜토리얼·테스트)
+        }
         super.add(c, getComponentCount() - 1); // » 앞에
         return c;
+    }
+
+    /** 항목 부품에 붙는 열쇠(예: "bar.poke")의 클라이언트 속성 이름. */
+    public static final String KEY_PROPERTY = "hcs.barKey";
+
+    /** 열쇠의 항목이 도구 모음에 보이면 그 부품, » 메뉴로 갔으면 » 단추, 없으면 null. */
+    public Component visibleFor(String key) {
+        for (Item it : items) {
+            if (key.equals(it.key)) {
+                return it.shown ? it.comp : more;
+            }
+        }
+        return null;
     }
 
     public void addGap() {
