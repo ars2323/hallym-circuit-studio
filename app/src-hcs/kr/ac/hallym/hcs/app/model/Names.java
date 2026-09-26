@@ -134,6 +134,19 @@ public final class Names {
                 : name + " (" + port + ")";
     }
 
+    /**
+     * 진단 문구용 포트 이름(V-02): 식별자 이름 + 읽는 포트 이름. {@code AND #3 output}, {@code R D}; 포트 하나짜리
+     * 부품은 {@code PC}. 내부 포트 이름({@code .out})은 학생에게 보이지 않는다.
+     */
+    public static String portText(Circuit circuit, Component c, int end) {
+        String name = name(circuit, c);
+        if (c.getEnds().size() == 1) {
+            return name;
+        }
+        String port = Kinds.readablePort(c, end);
+        return port.equals(name) ? name : name + " " + port;
+    }
+
     /** 시뮬레이션 상태의 회로 경로: 맨 위 회로부터 지금 회로까지. */
     public static List<String> circuitPath(CircuitState state) {
         List<String> ret = new ArrayList<>();

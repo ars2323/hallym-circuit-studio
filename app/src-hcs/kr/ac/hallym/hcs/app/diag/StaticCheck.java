@@ -272,7 +272,7 @@ public final class StaticCheck {
         }
 
         String port(Netlist.PortRef p) {
-            return Names.path(circuit.getName(), Names.port(circuit, p.component, p.end));
+            return Names.path(circuit.getName(), Names.portText(circuit, p.component, p.end));
         }
 
         int endNamed(Component c, String port) {
@@ -498,7 +498,7 @@ public final class StaticCheck {
                         if (req.contains(Kinds.portName(c, i)) && undriven(p) && !inLoneTunnelNet(p)
                                 && told.add(p)) {
                             add(Diagnostic.Kind.INPUT_UNCONNECTED, Collections.singletonList(c),
-                                    Collections.emptyList(), p.location(), name(c), Kinds.portName(c, i));
+                                    Collections.emptyList(), p.location(), name(c), Kinds.readablePort(c, i));
                         }
                     }
                 } else if (Kinds.of(c).category() == Kinds.Category.GATE) {
@@ -532,7 +532,7 @@ public final class StaticCheck {
             Netlist.PortRef p = new Netlist.PortRef(c, first);
             if (!inLoneTunnelNet(p) && told.add(p)) {
                 add(Diagnostic.Kind.INPUT_UNCONNECTED, Collections.singletonList(c), Collections.emptyList(),
-                        p.location(), name(c), Kinds.portName(c, first));
+                        p.location(), name(c), Kinds.readablePort(c, first));
             }
         }
 

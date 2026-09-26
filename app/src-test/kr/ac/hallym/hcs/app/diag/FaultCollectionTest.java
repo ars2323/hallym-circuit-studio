@@ -112,6 +112,72 @@ class FaultCollectionTest {
         assertTrue(problems.isEmpty(), String.join("\n", problems));
     }
 
+    /**
+     * V-02: 모든 고장 회로의 문구(한국어·영어)를 기대 파일과 비교하고, 어느 문구에도 내부 포트 이름 꼴(".out",
+     * ".combined")이 없으며, "충돌"은 실제 충돌(dynamic-e-conflict)에서만 쓴다. 갱신: -Phcs.update=true.
+     */
+    @Test
+    void messagesMatchTheExpectedTextAndShowNoInternalPortNames() throws Exception {
+        java.util.regex.Pattern internal = java.util.regex.Pattern.compile("[^\\s.(]\\.[A-Za-z][A-Za-z0-9]*");
+        java.util.Locale old = com.cburch.logisim.util.LocaleManager.getLocale();
+        List<String> problems = new ArrayList<>();
+        try {
+            for (String lang : new String[] {"en", "ko"}) {
+                com.cburch.logisim.util.LocaleManager.setLocale(new java.util.Locale(lang));
+                StringBuilder all = new StringBuilder();
+                for (String name : FaultCircuits.EXPECTED.keySet()) {
+                    Object[] g = generate(name, tmp.resolve(lang).resolve(name));
+                    for (Diagnostic d : messages((LogisimFile) g[1], 8)) {
+                        String m = d.message();
+                        all.append(name).append(": ").append(m).append('\n');
+                        java.util.regex.Matcher mt = internal.matcher(m);
+                        if (mt.find()) {
+                            problems.add(name + " (" + lang + ") internal port name '" + mt.group() + "' in: " + m);
+                        }
+                        boolean conflict = m.contains("conflicting") || m.contains("충돌");
+                        if (conflict != name.equals("dynamic-e-conflict")) {
+                            problems.add(name + " (" + lang + ") conflict wording: " + m);
+                        }
+                    }
+                }
+                File expected = new File(DIR, "messages." + lang + ".expected");
+                if (Boolean.getBoolean("hcs.update") || !expected.exists()) {
+                    Files.write(expected.toPath(), all.toString().getBytes(StandardCharsets.UTF_8));
+                }
+                assertEquals(new String(Files.readAllBytes(expected.toPath()), StandardCharsets.UTF_8), all.toString(),
+                        lang + " messages (update with -Phcs.update=true)");
+            }
+        } finally {
+            com.cburch.logisim.util.LocaleManager.setLocale(old);
+        }
+        assertTrue(problems.isEmpty(), String.join("\n", problems));
+    }
+
+    /** V-02 (c): 비트 폭이 어긋난 넷은 "비트 폭 불일치" 표기를 고른다; 맞는 넷은 아니다. */
+    @Test
+    void widthMismatchIsRecognisedOnTheNet() throws Exception {
+        Object[] g = generate("static-width-mismatch", tmp.resolve("w"));
+        LogisimFile file = (LogisimFile) g[1];
+        kr.ac.hallym.hcs.app.model.Netlist nl = kr.ac.hallym.hcs.app.model.Netlist.of(file.getMainCircuit());
+        int mismatched = 0;
+        int total = 0;
+        for (kr.ac.hallym.hcs.app.model.Netlist.Net n : nl.nets()) {
+            total++;
+            if (OriginText.widthMismatch(n)) {
+                mismatched++;
+            }
+        }
+        assertEquals(1, mismatched, "exactly the 32-bit constant to 5-bit pin net");
+        java.util.Locale old = com.cburch.logisim.util.LocaleManager.getLocale();
+        try {
+            com.cburch.logisim.util.LocaleManager.setLocale(java.util.Locale.ENGLISH);
+            assertEquals("E (error value, bit width mismatch)", kr.ac.hallym.hcs.app.Messages.get("diag.eWidth"));
+            assertEquals("E (error value)", kr.ac.hallym.hcs.app.Messages.get("diag.eValue"));
+        } finally {
+            com.cburch.logisim.util.LocaleManager.setLocale(old);
+        }
+    }
+
     @Test
     void mipsMessagesUseTheBodyText() throws Exception {
         Object[] g = generate("mips-unaligned", tmp.resolve("u"));

@@ -178,6 +178,16 @@ class KindsTest {
     /** S-09: 화면 글자용 포트 이름은 읽을 수 있다(식별자는 그대로). */
     @Test
     void readablePortTitles(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir) throws Exception {
+        java.util.Locale old = com.cburch.logisim.util.LocaleManager.getLocale();
+        com.cburch.logisim.util.LocaleManager.setLocale(java.util.Locale.ENGLISH); // V-02: 포트 낱말은 언어별
+        try {
+            readablePortTitlesIn(dir);
+        } finally {
+            com.cburch.logisim.util.LocaleManager.setLocale(old);
+        }
+    }
+
+    void readablePortTitlesIn(java.nio.file.Path dir) throws Exception {
         com.cburch.logisim.file.LogisimFile f = kr.ac.hallym.hcs.regress.CircuitBuilder.newFile(
                 new com.cburch.logisim.file.Loader(null), dir.toFile());
         kr.ac.hallym.hcs.regress.CircuitBuilder b = new kr.ac.hallym.hcs.regress.CircuitBuilder(f, f.getMainCircuit());

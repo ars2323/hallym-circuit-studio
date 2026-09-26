@@ -111,6 +111,11 @@ fun Test.hcsTestSetup(headless: Boolean) {
     systemProperty("hcs.mipsJar", mipsJar.get().archiveFile.get().asFile.absolutePath)
     systemProperty("hcs.refMips", rootProject.file("tests/mips/ref-mips.circ").absolutePath)
     systemProperty("java.awt.headless", headless.toString())
+    // 문구 기대값은 영어 기준(V-02). 한국어 문구는 UiLanguageTest·FaultCollectionTest가 따로 고른다.
+    // 언어를 바꾼 테스트가 환경설정에 남기므로 매번 비운 채 시작한다.
+    systemProperty("user.language", "en")
+    systemProperty("user.country", "US")
+    doFirst { delete(layout.buildDirectory.dir("test-prefs")) }
     // Logisim은 언어 등을 Java 환경설정에 저장한다. 테스트가 개발자 PC의 설정을 바꾸지 않게 따로 둔다.
     systemProperty("java.util.prefs.userRoot", layout.buildDirectory.dir("test-prefs").get().asFile.absolutePath)
     systemProperty("hcs.configDir", layout.buildDirectory.dir("test-config").get().asFile.absolutePath)

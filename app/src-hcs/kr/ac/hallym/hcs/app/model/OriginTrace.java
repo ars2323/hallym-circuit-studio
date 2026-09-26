@@ -211,6 +211,7 @@ public final class OriginTrace {
                 for (Netlist.PortRef p : drivers) {
                     ds.add(p.component);
                 }
+                ds.sort(java.util.Comparator.comparing(Component::getLocation)); // 문구 순서를 고정한다(V-02)
                 return new Origin(hasError(v) ? Cause.CONFLICT : Cause.ALL_OFF, n, null, ds, s, v, chain, steps);
             }
             Netlist.PortRef d = drivers.get(0);
