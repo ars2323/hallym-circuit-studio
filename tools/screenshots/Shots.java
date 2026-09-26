@@ -448,6 +448,18 @@ public final class Shots {
             sceneStart("47");
             pcAndLoneTunnels(ref, demo); // V-08
         }
+        if (want(scenes, "48")) {
+            sceneStart("48");
+            firstRunWindow(demo); // X-01
+        }
+        if (want(scenes, "49")) {
+            sceneStart("49");
+            toolbarOverflow(demo); // X-02
+        }
+        if (want(scenes, "50")) {
+            sceneStart("50");
+            panelBalance(demo); // X-03
+        }
         if (want(scenes, "45")) {
             sceneStart("45");
             sameNameTabs(); // V-05
@@ -1295,6 +1307,113 @@ public final class Shots {
         });
         activate(p);
         return p;
+    }
+
+    /**
+     * 48: 환경설정 없는 첫 실행(X-01, D-105). 저장된 창 자리를 지우고 새 창을 열면 작업 영역(1920×1080 Xvfb, 최대화 없음)을
+     * 채운다. 창 크기와 작업 영역을 로그에 적고 90% 미만이면 실패로 적는다.
+     */
+    void firstRunWindow(Project base) throws Exception {
+        kr.ac.hallym.hcs.app.window.WindowBounds.store(null, false);
+        AtomicReference<Project> ref = new AtomicReference<>();
+        edt(() -> ref.set(ProjectActions.doNew(base)));
+        sleep(2500);
+        Project p = ref.get();
+        activate(p);
+        sleep(800);
+        Frame f = p.getFrame();
+        Rectangle work = kr.ac.hallym.hcs.app.window.WindowBounds.workAreas().get(0);
+        Rectangle b = f.getBounds();
+        boolean ok = b.width >= work.width * 0.9 && b.height >= work.height * 0.9;
+        log.add("48: first-run window " + b.width + "x" + b.height + " at " + b.x + "," + b.y + " work " + work.width
+                + "x" + work.height + (ok ? "" : " TOO SMALL"));
+        snapFull("48-first-run");
+        Component tb = find(f, x -> x instanceof kr.ac.hallym.hcs.app.sim.OverflowToolbar && x.isShowing());
+        if (tb != null) {
+            kr.ac.hallym.hcs.app.sim.OverflowToolbar ot = (kr.ac.hallym.hcs.app.sim.OverflowToolbar) tb;
+            log.add("48: toolbar shown " + ot.shownKeys().size() + " overflow " + ot.overflowKeys());
+        }
+        edt(() -> kr.ac.hallym.hcs.app.tabs.FileTabs.get().close(p));
+        sleep(800);
+        kr.ac.hallym.hcs.app.window.WindowBounds.store(new Rectangle(0, 0, W, H), false);
+    }
+
+    /**
+     * 49: 도구 모음 넘침(X-02, D-106). 창을 960·640 폭으로 줄여 도구 모음을 찍는다: 960은 아이콘만, 640은 » 메뉴. 640의 »
+     * 메뉴를 연 장면도 찍는다. 잘린 단추가 있으면 로그에 적는다.
+     */
+    void toolbarOverflow(Project p) throws Exception {
+        activate(p);
+        Frame f = p.getFrame();
+        java.awt.Dimension min = f.getMinimumSize();
+        try {
+            for (int width : new int[] {960, 640}) {
+                edt(() -> {
+                    f.setExtendedState(Frame.NORMAL);
+                    // 1920 화면의 최소 창 폭은 960(X-01): 640은 1280 화면의 반 폭 창을 흉내 내므로 최소 크기를 잠시 낮춘다
+                    f.setMinimumSize(new java.awt.Dimension(Math.min(min.width, width), min.height));
+                    f.setBounds(0, 0, width, 700);
+                    f.validate();
+                });
+                sleep(900);
+                Component tb = find(f, x -> x instanceof kr.ac.hallym.hcs.app.sim.OverflowToolbar && x.isShowing());
+                if (tb == null) {
+                    log.add("49: no toolbar at " + width);
+                    continue;
+                }
+                kr.ac.hallym.hcs.app.sim.OverflowToolbar ot = (kr.ac.hallym.hcs.app.sim.OverflowToolbar) tb;
+                Rectangle r = onScreen(tb);
+                snapCrop(new Rectangle(0, 0, width, r.y + r.height + 4), "49-toolbar-" + width);
+                Rectangle box = new Rectangle(0, 0, tb.getWidth(), tb.getHeight());
+                for (Component c : ot.shownComponents()) {
+                    if (!box.contains(c.getBounds())) {
+                        log.add("49: clipped " + c.getBounds() + " at " + width);
+                    }
+                }
+                log.add("49: " + width + " icons-only " + ot.iconsOnlyNow() + " overflow " + ot.overflowKeys());
+                javax.swing.JButton more = ot.moreButton();
+                if (more.isVisible()) {
+                    edt(more::doClick);
+                    sleep(700);
+                    snapCrop(new Rectangle(0, 0, width, Math.min(700, r.y + r.height + 420)),
+                            "49-toolbar-" + width + "-menu");
+                    edt(() -> javax.swing.MenuSelectionManager.defaultManager().clearSelectedPath());
+                    sleep(300);
+                }
+            }
+        } finally {
+            edt(() -> {
+                f.setMinimumSize(min);
+                f.setBounds(0, 0, W, H);
+                f.validate();
+            });
+            sleep(600);
+        }
+    }
+
+    /** 50: 좁은 창의 칸 비율(X-03, D-107). 1280·960 폭에서 캔버스가 창의 절반 이상을 갖는지 찍고 로그에 적는다. */
+    void panelBalance(Project p) throws Exception {
+        activate(p);
+        Frame f = p.getFrame();
+        try {
+            for (int width : new int[] {1280, 960}) {
+                edt(() -> {
+                    f.setExtendedState(Frame.NORMAL);
+                    f.setBounds(0, 0, width, 800);
+                    f.validate();
+                });
+                sleep(1200);
+                int canvasW = canvas(p).getParent().getParent().getWidth();
+                log.add("50: " + width + " canvas " + canvasW + (canvasW * 2 >= width ? "" : " NARROW"));
+                snapCrop(new Rectangle(0, 0, width, 800), "50-panels-" + width);
+            }
+        } finally {
+            edt(() -> {
+                f.setBounds(0, 0, W, H);
+                f.validate();
+            });
+            sleep(600);
+        }
     }
 
     void menuAt(Project p, Location at, String name) throws Exception {

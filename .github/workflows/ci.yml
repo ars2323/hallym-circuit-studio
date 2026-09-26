@@ -99,7 +99,7 @@ jobs:
           & $java -cp $jar com.cburch.logisim.Main tests/circ/demo-datapath.circ -tty table 2>&1 | Tee-Object -FilePath smoke/tty.txt
           # 원조 -tty table은 머리글 없이 출력 핀 값 줄만 찍는다(halt 핀 → 0/1)
           if (-not (Select-String -Path smoke/tty.txt -Pattern '^[01xE]+\s*$' -Quiet)) { throw "tty output has no value row" }
-      - name: Run the packaged app (window, .s, 10 cycles, screenshots at 100% and 150%)
+      - name: Run the packaged app (first run, .s, 10 cycles, screenshots at 100% and 150%)
         shell: pwsh
         run: |
           $jar = (Get-ChildItem smoke -Recurse -Filter hallym-circuit-studio.jar | Select-Object -First 1).FullName
@@ -110,6 +110,24 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "smoke at 100% failed" }
           & $java "-Dsun.java2d.uiScale=1.5" "-Dhcs.configDir=smoke/config150" "-Djava.util.prefs.userRoot=smoke/prefs150" -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/mips/sum.s smoke/screenshot-150.png
           if ($LASTEXITCODE -ne 0) { throw "smoke at 150% failed" }
+      # X-05(v1.0.2): 러너가 허용하면 1920×1080에서도 첫 실행(빈 환경설정)을 100%·125%로 찍는다. 못 바꾸면 건너뛰고 로그에 남긴다.
+      - name: First run at 1920x1080 (100% and 125%, if the runner allows)
+        shell: pwsh
+        run: |
+          $jar = (Get-ChildItem smoke -Recurse -Filter hallym-circuit-studio.jar | Select-Object -First 1).FullName
+          $java = Get-ChildItem smoke -Recurse -Filter java.exe | Select-Object -First 1
+          $java = if ($java) { $java.FullName } else { "java" }
+          $res = (pwsh tools/winsmoke/set-resolution.ps1 -Width 1920 -Height 1080 | Select-Object -Last 1)
+          Write-Host "resolution: $res"
+          if ("$res" -like "OK*") {
+            & $java "-Dsun.java2d.uiScale=1" "-Dhcs.configDir=smoke/config1920-100" "-Djava.util.prefs.userRoot=smoke/prefs1920-100" -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/mips/sum.s smoke/screenshot-1920-100.png
+            if ($LASTEXITCODE -ne 0) { throw "smoke at 1920x1080 100% failed" }
+            & $java "-Dsun.java2d.uiScale=1.25" "-Dhcs.configDir=smoke/config1920-125" "-Djava.util.prefs.userRoot=smoke/prefs1920-125" -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/mips/sum.s smoke/screenshot-1920-125.png
+            if ($LASTEXITCODE -ne 0) { throw "smoke at 1920x1080 125% failed" }
+          } else {
+            Write-Host "::notice::1920x1080 first-run scenes skipped: $res"
+            Set-Content -Path smoke/1920-skipped.txt -Value "$res"
+          }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -117,6 +135,7 @@ jobs:
           path: |
             smoke/*.png
             smoke/tty.txt
+            smoke/1920-skipped.txt
       - uses: actions/upload-artifact@v4
         with:
           name: windows-package
