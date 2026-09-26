@@ -69,16 +69,16 @@ public final class SimControls {
         notice.setForeground(Tokens.AMBER_TEXT);
         listener = new SimulatorListener() {
             public void propagationCompleted(SimulatorEvent e) {
-                SwingUtilities.invokeLater(SimControls.this::refresh);
+                refreshLater();
             }
 
             public void tickCompleted(SimulatorEvent e) {
                 ticks++;
-                SwingUtilities.invokeLater(SimControls.this::refresh);
+                refreshLater();
             }
 
             public void simulatorStateChanged(SimulatorEvent e) {
-                SwingUtilities.invokeLater(SimControls.this::refresh);
+                refreshLater();
             }
         };
         proj.getSimulator().addSimulatorListener(listener);
@@ -205,7 +205,23 @@ public final class SimControls {
         return tb;
     }
 
-    /** 프로젝트의 도구 모음과 같은 방법으로 n 사이클을 실행한다(사이클 표의 Next Cycle). 창이 없으면 바로 틱한다. */
+    /** 시뮬레이터 스레드가 전파마다 부른다: 다시 그리기 요청을 한 번으로 모은다(빠른 클럭·발진에서 EDT가 넘치지 않게). */
+    private final java.util.concurrent.atomic.AtomicBoolean refreshPending =
+            new java.util.concurrent.atomic.AtomicBoolean();
+
+    void refreshLater() {
+        if (refreshPending.compareAndSet(false, true)) {
+            SwingUtilities.invokeLater(() -> {
+                refreshPending.set(false);
+                refresh();
+            });
+        }
+    }
+
+    /**
+     * 프로젝트의 도구 모음과 같은 방법으로 n 사이클을 실행한다(사이클 표의 Next Cycle). 창이 없으면 바로 틱한다.
+     * 시뮬레이션이 꺼져 있으면 틱하지 않는다(D-091).
+     */
     public static void runCycles(Project proj, int n) {
         SimControls s;
         synchronized (ALL) {
@@ -215,18 +231,20 @@ public final class SimControls {
             s.cycles(n);
         } else {
             for (int i = 0; i < 2 * n; i++) {
-                proj.getSimulator().tick();
+                if (!TickGuard.tick(proj)) {
+                    return;
+                }
             }
         }
     }
 
-    /** n 사이클: 원조 틱 2n번. */
+    /** n 사이클: 원조 틱 2n번. 꺼져 있으면 멈추고 알린다. */
     void cycles(int n) {
-        Simulator sim = proj.getSimulator();
         Timer t = new Timer(0, null);
         StatusModel.Run run = new StatusModel.Run(n);
         t.addActionListener(e -> {
-            if (!run.step(sim::tick)) {
+            boolean[] ok = {true};
+            if (!run.step(() -> ok[0] = TickGuard.tick(proj)) || !ok[0]) {
                 t.stop();
             }
         });

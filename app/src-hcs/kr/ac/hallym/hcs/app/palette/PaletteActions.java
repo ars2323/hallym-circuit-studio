@@ -135,7 +135,7 @@ public final class PaletteActions {
             kr.ac.hallym.hcs.app.record.Recorder.requestReset(proj);
             break;
         case "tick":
-            sim.tick();
+            kr.ac.hallym.hcs.app.sim.TickGuard.tick(proj); // D-091: 꺼져 있으면 틱하지 않는다
             break;
         case "step":
             sim.step();
