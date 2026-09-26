@@ -33,7 +33,7 @@ $common = @(
 if ($LASTEXITCODE -ne 0) { throw "jpackage app-image failed" }
 Copy-Item LICENSE "$Dest/$name/LICENSE.txt"
 Copy-Item NOTICE "$Dest/$name/NOTICE.txt"
-Copy-Item docs/GUIDE-ko.md "$Dest/$name/사용안내.md" -ErrorAction SilentlyContinue
+Copy-Item docs/GUIDE-ko.md "$Dest/$name/GUIDE-ko.md"  # ASCII 이름: WiX(MSI)가 코드 페이지 밖 파일 이름을 거부한다(LGHT0311)
 $zip = "$Dest/hallym-circuit-studio-$Version-windows.zip"
 if (Test-Path $zip) { Remove-Item $zip }
 Compress-Archive -Path "$Dest/$name" -DestinationPath $zip
