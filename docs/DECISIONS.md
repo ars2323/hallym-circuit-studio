@@ -1142,3 +1142,14 @@
 - **이유:** PLAN.md 11.10 "다른 .circ에서 서브회로를 가져온다(딸린 서브회로 포함)". 앞 과제의 부품(ALU, 레지스터 파일)을 다음 과제 파일로 옮겨 오는 일이 잦다.
 - **대안:** 라이브러리로 불러오기(P-03)만 두기: 원본 파일이 함께 있어야 열리고 제출물이 둘이 된다. 복사 뒤 이름 충돌을 묻기: 자동 번호로 충분하고 나중에 이름을 바꿀 수 있다. 같은 이름이면 덮어쓰기: 학생 회로를 지운다.
 
+## D-094 Windows 패키지, 실제 실행 검증, 트랙 A Java 8 확인, 복구 테스트(R-01~R-04)
+
+- **날짜:** 2026-09-26
+- **결정:**
+  - **Windows 패키지(R-01):** `tools/package-windows.ps1`가 jpackage로 JRE(Temurin 21)를 포함한 앱 폴더를 만들어 zip으로 묶고(관리자 권한 없이 풀어 실행), 같은 앱 폴더로 MSI(사용자별 설치, 시작 메뉴·바탕화면 바로가기, 폴더 선택)를 만든다. 앱 폴더에는 `app/lib/hcs-mips.jar`·`hcs-asm.exe`, LICENSE·NOTICE가 들어간다. Pretendard는 jar 안에 있다. **.circ 파일 연결은 넣지 않는다**(최종 완성 지시: 설치 옵션으로만; jpackage MSI의 파일 연결은 켜면 늘 등록되므로 아예 두지 않는다). 아이콘은 `assets/hallym/logo/app.ico`(0단계에서 원본으로 만든 것).
+  - **실제 실행 검증(R-02):** CI Windows 러너에서 zip을 풀어 (1) 패키지 실행 파일로 `demo-datapath.circ -tty table`을 돌려 halt 열이 나오는지, (2) 패키지의 런타임으로 `tools/winsmoke/Smoke`를 돌려 창을 띄우고 .s(sum.s)를 불러오고 10사이클 돈 뒤 PC가 바뀌었는지 보고 화면을 찍는다(100%·150% 배율은 `-Dsun.java2d.uiScale`). 화면은 아티팩트 `windows-smoke`.
+  - **트랙 A Java 8(R-03):** CI에 `track-a-java8` 잡: Temurin 8에서 원조 2.7.1 jar가 `hcs-mips.jar`(같은 폴더)를 불러 `demo-datapath.circ -tty table`을 돌린다. 트랙 A zip은 기존 `package-track-a.sh` 그대로이고 Release에 Windows zip·MSI도 함께 올린다(draft).
+  - **자동 저장 복구 테스트(R-04):** `RecoveryTest`가 강제 종료를 "같은 폴더를 보는 새 저장소"로 흉내 낸다: 편집 뒤 자동 저장 → 목록에 남음 → 열면 편집이 있음 → 복구 저장한 파일을 원조 로더가 같은 회로로 읽음 → 원본 파일은 그대로. 창(복구 제안 대화 상자)은 `offerRecovery`의 원조 JOptionPane이라 GUI 테스트로 두지 않는다.
+- **이유:** 최종 완성 지시 R-01~R-04. 학생 PC에는 Java가 없을 수 있어 JRE를 포함하고, 관리자 권한이 없는 실습실을 위해 zip을 기본으로 둔다.
+- **대안:** Inno Setup·NSIS: 러너에 없는 도구를 더 설치해야 한다. jpackage 하나로 zip·MSI가 나온다(WiX는 러너에 있다). 파일 연결을 MSI 옵션으로: jpackage가 지원하지 않는다.
+

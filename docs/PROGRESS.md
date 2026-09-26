@@ -105,12 +105,12 @@
 
 | ID | 제목 | 이슈 | 상태 | PR | 스크린샷·근거 |
 | --- | --- | --- | --- | --- | --- |
-| R-01 | Windows 패키지 | #227 | 대기 |  |  |
-| R-02 | Windows 실제 실행 검증 | #228 | 대기 |  |  |
-| R-03 | 트랙 A 라이브러리 zip | #229 | 대기 |  |  |
-| R-04 | 자동 저장 복구 테스트 | #230 | 대기 |  |  |
-| R-05 | 문서 | #231 | 대기 |  |  |
-| R-06 | 릴리스 노트 | #232 | 대기 |  |  |
+| R-01 | Windows 패키지 | #227 | 완료 | (이 PR) | D-094, tools/package-windows.ps1(jpackage zip+MSI, 파일 연결 없음), CI windows 잡 |
+| R-02 | Windows 실제 실행 검증 | #228 | 완료 | (이 PR) | D-094, CI: 패키지 실행 파일 tty + tools/winsmoke/Smoke(창·.s·10사이클·PC 변화·100%·150% 화면), 아티팩트 windows-smoke |
+| R-03 | 트랙 A 라이브러리 zip | #229 | 완료 | (이 PR) | D-094, CI track-a-java8(원조 2.7.1 + Temurin 8 + hcs-mips.jar로 demo-datapath tty), package-track-a.sh |
+| R-04 | 자동 저장 복구 테스트 | #230 | 완료 | (이 PR) | D-094, RecoveryTest(강제 종료 뒤 목록·편집 복구·원조 로더·원본 불변) |
+| R-05 | 문서 | #231 | 완료 | (이 PR) | docs/GUIDE-ko.md, docs/TA-GUIDE-ko.md, README 다운로드·빠른 시작·스크린샷 |
+| R-06 | 릴리스 노트 | #232 | 완료 | (이 PR) | docs/RELEASE-NOTES.md(기능 요약·원조와의 차이·알려진 한계·설치) |
 | R-07 | v1.0.0 공개 릴리스 게시 | #233 | 대기 |  |  |
 
 ## Q 품질 게이트

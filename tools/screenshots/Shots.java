@@ -1144,6 +1144,7 @@ public final class Shots {
             p.doAction(m.toAction(null));
         });
         sleep(2000); // 편집이 멈추면 0.7초 뒤 진단
+        messagesTab(p); // 앞 장면이 Cycle View 탭을 남겨 두었을 수 있다
         edt(() -> canvas(p).getHcsZoom().fitCircuit());
         sleep(1000);
         snapFull("14a-messages");
@@ -1395,7 +1396,8 @@ public final class Shots {
             Rectangle r = onScreen(tb);
             snapCrop(new Rectangle(r.x, r.y, Math.min(r.width, 1300), r.height), "07a-toolbar");
         }
-        Component status = find(f, x -> x instanceof javax.swing.JLabel && ((javax.swing.JLabel) x).getText() != null
+        Component status = find(f, x -> x instanceof javax.swing.JLabel && x.isShowing()
+                && ((javax.swing.JLabel) x).getText() != null
                 && ((javax.swing.JLabel) x).getText().startsWith(kr.ac.hallym.hcs.app.Messages.get("bar.cycleCount", "").trim()));
         if (status != null) {
             Rectangle r = onScreen(status.getParent());
@@ -1565,6 +1567,7 @@ public final class Shots {
 
     /** 13: ? 단축키 표. */
     void keysTable(Project p) throws Exception {
+        activate(p); // 탭이 숨긴 창이면 캔버스 자리를 잴 수 없다
         clickCanvas(p, emptySpot(p));
         robot.keyPress(KeyEvent.VK_SHIFT);
         robot.keyPress(KeyEvent.VK_SLASH);
