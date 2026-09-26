@@ -205,6 +205,11 @@ public final class LabelOverlay {
         } catch (java.io.IOException e) {
             // 환경설정을 못 써도 표시는 바뀐다
         }
+        repaintAll();
+    }
+
+    /** 칩이 있는 캔버스를 모두 다시 그린다(표시 설정이 바뀌었을 때). */
+    static void repaintAll() {
         synchronized (LabelOverlay.class) {
             for (Canvas c : OVERLAYS.keySet()) {
                 c.repaint();
@@ -356,7 +361,7 @@ public final class LabelOverlay {
         subcircuits(g, circuit, hidden, z);
         List<Rectangle> covered = new ArrayList<>(splitterArms(g, circuit, hidden, z));
         armRects = new ArrayList<>(covered);
-        chips(g, circuit, hidden, z);
+        chips(g, circuit, hidden, z, state);
         for (LabelLayout.Placed p : cached) {
             covered.add(p.rect);
         }
@@ -690,7 +695,7 @@ public final class LabelOverlay {
 
     // ---- 라벨 칩 ----
 
-    private void chips(Graphics2D g, Circuit circuit, java.util.Set<Component> hidden, double z) {
+    private void chips(Graphics2D g, Circuit circuit, java.util.Set<Component> hidden, double z, CircuitState state) {
         Density d = density();
         float px = (float) Math.max(BASE_PX, MIN_SCREEN_PX / z);
         Font font = new Font(Tokens.UI_FONT, Font.PLAIN, 1).deriveFont(px);
@@ -729,10 +734,24 @@ public final class LabelOverlay {
             texts.put(key, name);
             sig = sig * 31 + System.identityHashCode(c) * 3 + name.hashCode();
         }
-        if (d != Density.HOVER) {
-            for (Map.Entry<Wire, String> e : busNames(circuit).entrySet()) {
+        // 버스 이름(밀도가 "마우스 올린 것만"이 아니면)과 시뮬레이션 중 값(C-08). 배치는 값 자리에 가장 넓은 글자를 넣어
+        // 계산하므로 값이 바뀌어도 칩이 움직이지 않는다
+        BusValues.Mode mode = BusValues.mode();
+        boolean values = mode != BusValues.Mode.OFF && state != null && simulating();
+        Map<Object, String> shownText = new HashMap<>();
+        if (d != Density.HOVER || values) {
+            for (Map.Entry<Wire, Bus> e : buses(circuit).entrySet()) {
                 Wire w = e.getKey();
-                String text = e.getValue();
+                Bus bus = e.getValue();
+                String name = d != Density.HOVER && !bus.name.isEmpty() ? bus.name + "[" + (bus.width - 1) + ":0]"
+                        : null;
+                String value = values ? BusValues.format(state.getValue(w.getEnd0()), mode) : null;
+                if (name == null && value == null) {
+                    continue;
+                }
+                String template = value == null ? null : BusValues.template(bus.width, mode, fm);
+                String text = value == null ? name : name == null ? template : name + " = " + template;
+                shownText.put(w, value == null ? name : name == null ? value : name + " = " + value);
                 int tw = fm.stringWidth(text) + 2 * padX;
                 Location m = Location.create((w.getEnd0().getX() + w.getEnd1().getX()) / 2,
                         (w.getEnd0().getY() + w.getEnd1().getY()) / 2);
@@ -762,13 +781,20 @@ public final class LabelOverlay {
             cachedText = texts;
         }
         for (LabelLayout.Placed p : cached) {
-            String text = texts.get(p.key);
+            String text = shownText.containsKey(p.key) ? shownText.get(p.key) : texts.get(p.key);
             if (text == null) {
                 continue;
             }
             boolean bus = p.key instanceof Wire;
             boolean caption = p.key instanceof Caption;
             Rectangle r = p.rect;
+            if (shownText.containsKey(p.key)) {
+                // 값 칩: 자리는 가장 넓은 값으로 잡아 두고(움직이지 않게), 칩은 지금 글자 폭으로 그 가운데에 그린다
+                int w = fm.stringWidth(text) + 2 * padX;
+                if (w < r.width) {
+                    r = new Rectangle(r.x + (r.width - w) / 2, r.y, w, r.height);
+                }
+            }
             if (p.leader) {
                 g.setColor(Tokens.GRAY);
                 g.setStroke(new BasicStroke(1f / (float) Math.max(1, z)));
@@ -820,6 +846,28 @@ public final class LabelOverlay {
     /** 이름 있는 버스(폭 2 이상)의 가장 긴 선과 그 표시 글자: {@code 이름[w-1:0]}. */
     static Map<Wire, String> busNames(Circuit circuit) {
         Map<Wire, String> ret = new java.util.LinkedHashMap<>();
+        for (Map.Entry<Wire, Bus> e : buses(circuit).entrySet()) {
+            if (!e.getValue().name.isEmpty()) {
+                ret.put(e.getKey(), e.getValue().name + "[" + (e.getValue().width - 1) + ":0]");
+            }
+        }
+        return ret;
+    }
+
+    /** 버스 하나: 넷 이름(없으면 빈 글자)과 폭. */
+    static final class Bus {
+        final String name;
+        final int width;
+
+        Bus(String name, int width) {
+            this.name = name;
+            this.width = width;
+        }
+    }
+
+    /** 버스(폭 2 이상)마다 가장 긴 선(칩 자리). 그 선이 {@link #BUS_MIN_LENGTH}보다 짧으면 뺀다. */
+    static Map<Wire, Bus> buses(Circuit circuit) {
+        Map<Wire, Bus> ret = new java.util.LinkedHashMap<>();
         Netlist nl = Netlist.of(circuit);
         Set<Netlist.Net> seen = new HashSet<>();
         for (Wire w : circuit.getWires()) {
@@ -832,10 +880,6 @@ public final class LabelOverlay {
             if (width < 2) {
                 continue;
             }
-            String name = QuickProbe.netName(circuit, net);
-            if (name.isEmpty()) {
-                continue;
-            }
             Wire longest = null;
             for (Wire o : net.wires()) {
                 if (longest == null || o.getLength() > longest.getLength()) {
@@ -843,10 +887,16 @@ public final class LabelOverlay {
                 }
             }
             if (longest != null && longest.getLength() >= BUS_MIN_LENGTH) {
-                ret.put(longest, name + "[" + (width - 1) + ":0]");
+                ret.put(longest, new Bus(QuickProbe.netName(circuit, net), width));
             }
         }
         return ret;
+    }
+
+    /** 이 캔버스의 프로젝트가 시뮬레이션 중인가(값 칩은 그때만). */
+    private boolean simulating() {
+        com.cburch.logisim.proj.Project p = canvas.getProject();
+        return p != null && p.getSimulator() != null && p.getSimulator().isRunning();
     }
 
     /** 점 p를 몸체로 덮는 부품(선 제외). */

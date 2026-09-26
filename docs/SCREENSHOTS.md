@@ -65,6 +65,7 @@ tools/screenshots/run.sh <출력 폴더> [장면 번호 ...]
 | 27 | 레지스터·메모리 패널(C-05, C-06): demo regfile 표시 뒤 Registers 탭·Register Mapping 창, stack-demo 6사이클 뒤 Memory 탭(Stack)·Registers 탭(표시 없음) |
 | 28 | Console 탭·.s 자동 재로드(C-09): console-demo exit까지 뒤 Console 탭, demo-datapath에 불러온 .s를 고친 뒤 상태 표시줄 알림 |
 | 29 | 명령어 필드 색(C-07): demo-datapath에서 R 형식 명령어 사이클의 Instruction 탭과 캔버스 필드 색 띠(rs → RR1, rt → RR2, rd → WR) |
+| 30 | 버스 값 칩과 활성 경로(C-08): demo-datapath 두 사이클 뒤 버스 값 칩(Hex, Signed), MemtoReg MUX가 고른 입력 진한 띠, 끈 모습 |
 | 14 | Messages 탭: 데모 회로를 두 곳 망가뜨린 뒤(터널 이름 틀림, PC 클럭 지움) 목록, 메시지를 눌러 강조한 캔버스, 표시가 배율 25·100·400%에서 보이는지(14f), 끝나면 되돌림. gateUndefined = error 회로의 빈 게이트 입력(14e) |
 
 ## 올리기와 보고

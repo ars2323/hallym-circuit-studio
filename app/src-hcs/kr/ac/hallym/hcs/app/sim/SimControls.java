@@ -278,6 +278,7 @@ public final class SimControls {
         legend.setToolTipText(Messages.get("bar.legendTip"));
         p.add(legend);
         p.add(kr.ac.hallym.hcs.app.labels.LabelOverlay.densityButton()); // #79
+        p.add(kr.ac.hallym.hcs.app.labels.BusValues.button()); // C-08
         p.add(notice); // 편집 결과 한 줄 알림(#81)
         refresh();
         return p;

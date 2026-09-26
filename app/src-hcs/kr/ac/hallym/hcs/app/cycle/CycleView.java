@@ -110,6 +110,7 @@ public final class CycleView {
     private final JButton next = new JButton(Messages.get("cycle.next"));
     private final JButton latest = new JButton(Messages.get("cycle.latest"));
     private final JButton runUntil = new JButton(Messages.get("cycle.runUntil"));
+    private final javax.swing.JCheckBox activePath = new javax.swing.JCheckBox(Messages.get("cycle.activePath"));
     private RunUntilRunner runner;
     private boolean follow = true;
     // Recorder는 청취자를 강하게 잡지만, 창이 닫히면 함께 사라지도록 필드로 둔다
@@ -172,6 +173,15 @@ public final class CycleView {
         bar.add(next);
         bar.add(latest);
         bar.add(runUntil);
+        // C-08: 고른 사이클의 MUX가 고른 입력을 캔버스에 진하게
+        activePath.setSelected(ActivePathOverlay.enabled());
+        activePath.setFocusable(false);
+        activePath.setToolTipText(Messages.get("cycle.activePathTip"));
+        activePath.addActionListener(e -> {
+            ActivePathOverlay.setEnabled(activePath.isSelected());
+            updateFieldOverlay();
+        });
+        bar.add(activePath);
         bar.add(position);
         bar.add(notice);
         empty.setForeground(Tokens.TEXT_2);
@@ -633,14 +643,30 @@ public final class CycleView {
         return instruction;
     }
 
-    /** Instruction 탭이 보이면 보고 있는 사이클의 명령어 필드 색을 캔버스에 겹친다. 아니면 없앤다. */
+    /**
+     * 캔버스 덧그림을 맞춘다. Instruction 탭이 보이면 보고 있는 사이클의 명령어 필드 색(C-07), 사이클 뷰가 보이고
+     * Active Path가 켜져 있으면 MUX가 고른 입력(C-08). 아니면 없앤다.
+     */
     void updateFieldOverlay() {
         Project proj = projRef.get();
         if (proj == null) {
             return;
         }
-        boolean on = side.getSelectedIndex() == INSPECT_TAB && panel.isShowing();
-        FieldOverlay.show(proj, on ? instruction.word() : null);
+        boolean showing = panel.isShowing();
+        FieldOverlay.show(proj, showing && side.getSelectedIndex() == INSPECT_TAB ? instruction.word() : null);
+        CycleModel m = model();
+        ActivePathOverlay.setShown(proj, showing && activePath.isSelected() && m != null && !m.isEmpty());
+    }
+
+    javax.swing.JCheckBox activePathBox() {
+        return activePath;
+    }
+
+    /** Active Path를 켜고 끈다(체크 상자와 같다, 스크린샷). */
+    public void setActivePath(boolean on) {
+        activePath.setSelected(on);
+        ActivePathOverlay.setEnabled(on);
+        updateFieldOverlay();
     }
 
     void refresh() {
@@ -779,9 +805,13 @@ public final class CycleView {
                 // 줄이 없을 때: 더하는 방법(보이는 영역 왼쪽에)
                 Rectangle vis = getVisibleRect();
                 g.setFont(new Font(Tokens.UI_FONT, Font.PLAIN, Tokens.FONT_SMALL));
+                // 열 경계선이 글자 위를 지나지 않게 바탕을 깐다(C-05 검토)
+                FontMetrics hf = g.getFontMetrics();
+                String hint = Messages.get("cycle.noRowsHint");
+                g.setColor(Tokens.WHITE);
+                g.fillRect(vis.x + 4, 0, hf.stringWidth(hint) + 8, ROW_H);
                 g.setColor(Tokens.TEXT_2);
-                g.drawString(Messages.get("cycle.noRowsHint"), vis.x + 8,
-                        (ROW_H + g.getFontMetrics().getAscent() - g.getFontMetrics().getDescent()) / 2);
+                g.drawString(hint, vis.x + 8, (ROW_H + hf.getAscent() - hf.getDescent()) / 2);
                 return;
             }
             int c0 = Math.max(m.firstCycle(), m.firstCycle() + clip.x / COL_W);

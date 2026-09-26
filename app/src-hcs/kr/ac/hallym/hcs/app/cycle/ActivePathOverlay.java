@@ -1,0 +1,159 @@
+/*
+ * Hallym Circuit Studio
+ * Copyright (c) 2026 AIAC Lab, Hallym University.
+ * License: GNU GPL version 2 or later. See LICENSE.
+ */
+package kr.ac.hallym.hcs.app.cycle;
+
+import java.awt.AlphaComposite;
+import java.awt.BasicStroke;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.WeakHashMap;
+
+import com.cburch.logisim.circuit.Circuit;
+import com.cburch.logisim.circuit.CircuitState;
+import com.cburch.logisim.circuit.Wire;
+import com.cburch.logisim.comp.Component;
+import com.cburch.logisim.data.Value;
+import com.cburch.logisim.gui.main.Canvas;
+import com.cburch.logisim.proj.Project;
+
+import kr.ac.hallym.hcs.app.Settings;
+import kr.ac.hallym.hcs.app.flow.ActivePath;
+import kr.ac.hallym.hcs.app.model.Netlist;
+import kr.ac.hallym.hcs.app.theme.Tokens;
+
+/**
+ * 활성 경로(C-08, PLAN.md 11.12): 사이클 뷰가 보이는 동안, 고른 사이클의 MUX 선택 값을 보고 실제로 고른 데이터 입력의
+ * 넷(그 입력까지 오는 선)을 진한 띠로 겹쳐 그린다. 선택 값이 정해지지 않은 MUX는 칠하지 않는다. 고르지 않은 입력은
+ * 흐리게 하지 않는다: 그 넷이 다른 곳에서는 쓰일 수 있다. 값은 캔버스의 회로 상태(기록 엔진이 고른 사이클로 바꿔
+ * 끼운 것)에서 읽기만 한다. 켜고 끄기는 앱 환경설정, 파일에는 저장하지 않는다.
+ */
+public final class ActivePathOverlay {
+    static final String KEY = "cycle.activePath";
+    /** 띠 폭(화면 px). */
+    static final float BAND_PX = 6f;
+    static final float ALPHA = 0.4f;
+
+    private static final Set<Project> SHOWN = Collections.newSetFromMap(new WeakHashMap<>());
+    /** 회로마다 넷 목록(부품·선이 그대로면 다시 쓴다). */
+    private static final Map<Circuit, Object[]> NETS = new WeakHashMap<>();
+
+    private ActivePathOverlay() {
+    }
+
+    public static boolean enabled() {
+        return Settings.get().getBoolean(KEY, true);
+    }
+
+    public static void setEnabled(boolean on) {
+        Settings.get().set(KEY, Boolean.toString(on));
+        try {
+            Settings.get().save();
+        } catch (java.io.IOException e) {
+            // 환경설정을 못 써도 표시는 바뀐다
+        }
+    }
+
+    /** 사이클 뷰가 이 프로젝트에 대해 덧그림을 원하는가. 바뀌면 캔버스를 다시 그린다. */
+    static void setShown(Project proj, boolean on) {
+        boolean changed;
+        synchronized (SHOWN) {
+            changed = on ? SHOWN.add(proj) : SHOWN.remove(proj);
+        }
+        if (changed) {
+            proj.repaintCanvas();
+        }
+    }
+
+    static boolean isShown(Project proj) {
+        synchronized (SHOWN) {
+            return SHOWN.contains(proj);
+        }
+    }
+
+    /** MUX마다 선택 값이 정해졌으면 고른 데이터 입력 넷의 선들. GUI 없이 테스트한다. */
+    static Set<Wire> selected(Circuit circ, CircuitState state) {
+        Set<Wire> out = new LinkedHashSet<>();
+        if (circ == null || state == null) {
+            return out;
+        }
+        Netlist nl = null;
+        for (Component c : circ.getNonWires()) {
+            if (!c.getFactory().getName().equals("Multiplexer")) {
+                continue;
+            }
+            int n = c.getEnds().size();
+            int k = ActivePath.dataCount(c, n); // 포트: 데이터 0..k-1, 선택 k, (enable), 출력 마지막
+            if (k >= n) {
+                continue;
+            }
+            Value sel = state.getValue(c.getEnd(k).getLocation());
+            if (sel == null || !sel.isFullyDefined()) {
+                continue;
+            }
+            int i = sel.toIntValue();
+            if (i < 0 || i >= k) {
+                continue;
+            }
+            if (nl == null) {
+                nl = netlist(circ);
+            }
+            Netlist.Net net = nl.netOf(c, i);
+            if (net != null) {
+                out.addAll(net.wires());
+            }
+        }
+        return out;
+    }
+
+    private static Netlist netlist(Circuit circ) {
+        long sig = 17;
+        for (Component c : circ.getNonWires()) {
+            sig = sig * 31 + System.identityHashCode(c);
+        }
+        for (Wire w : circ.getWires()) {
+            sig = sig * 31 + w.hashCode();
+        }
+        synchronized (NETS) {
+            Object[] hit = NETS.get(circ);
+            if (hit != null && (Long) hit[0] == sig) {
+                return (Netlist) hit[1];
+            }
+            Netlist nl = Netlist.of(circ);
+            NETS.put(circ, new Object[] {sig, nl});
+            return nl;
+        }
+    }
+
+    /** CanvasPainter가 부품을 그린 뒤 부른다(회로 좌표, 배율이 걸린 Graphics). */
+    public static void paint(Canvas canvas, Graphics g0, Circuit circ, CircuitState state) {
+        Project proj = canvas.getProject();
+        if (!(g0 instanceof Graphics2D) || proj == null || !isShown(proj)) {
+            return;
+        }
+        Set<Wire> wires = selected(circ, state);
+        if (wires.isEmpty()) {
+            return;
+        }
+        double z = canvas.getHcsZoom() == null ? 1.0 : canvas.getHcsZoom().zoomFactor();
+        Graphics2D g = (Graphics2D) g0.create();
+        try {
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, ALPHA));
+            g.setStroke(new BasicStroke((float) (BAND_PX / z), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g.setColor(Tokens.NAVY);
+            for (Wire w : wires) {
+                g.drawLine(w.getEnd0().getX(), w.getEnd0().getY(), w.getEnd1().getX(), w.getEnd1().getY());
+            }
+        } finally {
+            g.dispose();
+        }
+    }
+}

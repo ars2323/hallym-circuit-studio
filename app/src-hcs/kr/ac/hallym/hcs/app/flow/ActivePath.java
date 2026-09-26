@@ -86,7 +86,7 @@ public final class ActivePath implements Trace.Pass {
     }
 
     /** MUX·Demux·Decoder의 가지 수(선택 폭 s → 2^s). */
-    static int dataCount(Component c, int n) {
+    public static int dataCount(Component c, int n) {
         Object sel = c.getAttributeSet().getValue(com.cburch.logisim.std.plexers.Plexers.ATTR_SELECT);
         int w = sel instanceof com.cburch.logisim.data.BitWidth ? ((com.cburch.logisim.data.BitWidth) sel).getWidth()
                 : 1;
