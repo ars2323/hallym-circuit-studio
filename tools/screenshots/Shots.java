@@ -3103,6 +3103,8 @@ public final class Shots {
         snapFull("32a-oscillation");
         javax.swing.JList<?> list = diagList(osc);
         if (list != null) {
+            log.add("32: frame " + osc.getFrame().getBounds() + " panel "
+                    + onScreen(list.getParent().getParent().getParent()) + " showing " + list.isShowing());
             snapCrop(pad(onScreen(list.getParent().getParent().getParent()), 4), "32b-oscillation-message");
         } else {
             log.add("32: no oscillation message");
@@ -3203,6 +3205,11 @@ public final class Shots {
             sleep(900);
             snapFull("31a-dynamic-message");
             Rectangle panel = onScreen(list.getParent().getParent().getParent());
+            log.add("31: frame " + p.getFrame().getBounds() + " panel " + panel + " showing " + list.isShowing());
+            for (Component q = list; q != null; q = q.getParent()) {
+                log.add("31:   " + q.getClass().getSimpleName() + " " + q.getBounds()
+                        + (q instanceof javax.swing.JSplitPane ? " div=" + ((javax.swing.JSplitPane) q).getDividerLocation() : ""));
+            }
             snapCrop(pad(panel, 4), "31b-message-row");
             Rectangle cell = list.getCellBounds(0, 0);
             Point s = list.getLocationOnScreen();
