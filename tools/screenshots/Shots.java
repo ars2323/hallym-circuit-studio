@@ -222,6 +222,9 @@ public final class Shots {
         if (want(scenes, "34")) {
             historyAndKeys(demo);
         }
+        if (want(scenes, "35")) {
+            arrange(demo);
+        }
         if (want(scenes, "10")) {
             open("tests/circ/register.circ");
             open("tests/circ/values.circ");
@@ -1780,6 +1783,81 @@ public final class Shots {
         edt(() -> sv.showSide(1));
         sleep(500);
         snapFull("27f-stack-demo-full");
+    }
+
+    /**
+     * 35: 배치 편집(E-01·E-02). 새 파일에 레지스터 R0 하나를 두고 우클릭 Duplicate N…(3개, 아래로)으로 R1~R3을 만든다.
+     * 흩어진 NOT 게이트 셋을 골라 우클릭(Align·Distribute·선택 필터)하고 Align › Left.
+     */
+    void arrange(Project base) throws Exception {
+        Project p = newProject(base);
+        Circuit c = p.getCurrentCircuit();
+        edt(() -> {
+            com.cburch.logisim.circuit.CircuitMutation m = new com.cburch.logisim.circuit.CircuitMutation(c);
+            com.cburch.logisim.comp.ComponentFactory reg = find(p, "Memory", "Register");
+            com.cburch.logisim.data.AttributeSet as = reg.createAttributeSet();
+            as.setValue(com.cburch.logisim.instance.StdAttr.WIDTH, com.cburch.logisim.data.BitWidth.create(32));
+            as.setValue(com.cburch.logisim.instance.StdAttr.LABEL, "R0");
+            m.add(reg.createComponent(Location.create(200, 120), as));
+            com.cburch.logisim.comp.ComponentFactory not = find(p, "Gates", "NOT Gate");
+            int[][] at = {{520, 110}, {570, 190}, {500, 280}};
+            for (int[] xy : at) {
+                m.add(not.createComponent(Location.create(xy[0], xy[1]), not.createAttributeSet()));
+            }
+            p.doAction(m.toAction(null));
+        });
+        sleep(600);
+        com.cburch.logisim.comp.Component r0 = byLabel(c, "R0");
+        setZoom(p, 1.5);
+        scrollTo(p, 0, 0);
+        menuAt(p, r0.getLocation().translate(-20, 0), "35a-menu-duplicate-n");
+        final com.cburch.logisim.comp.Component r = r0;
+        SwingUtilities.invokeLater(() -> kr.ac.hallym.hcs.app.edit.ArrangeActions.duplicateN(p, c,
+                java.util.Collections.singletonList(r)));
+        Window d = null;
+        for (int i = 0; i < 40 && d == null; i++) {
+            sleep(250);
+            d = window(x -> x instanceof JDialog && x.isShowing() && find(x, y -> y instanceof javax.swing.JSpinner)
+                    != null);
+        }
+        if (d == null) {
+            log.add("35: no Duplicate N dialog");
+            return;
+        }
+        sleep(500);
+        snapCrop(d.getBounds(), "35b-duplicate-n-dialog");
+        // 글자 있는 첫 단추가 OK(스피너의 화살표 단추는 글자가 없다)
+        javax.swing.JButton ok = (javax.swing.JButton) find(d, y -> y instanceof javax.swing.JButton
+                && !((javax.swing.JButton) y).getText().isEmpty());
+        if (ok == null) {
+            log.add("35: no OK button");
+            return;
+        }
+        edt(ok::doClick);
+        sleep(900);
+        List<com.cburch.logisim.comp.Component> nots = new java.util.ArrayList<>();
+        for (com.cburch.logisim.comp.Component x : c.getNonWires()) {
+            if (x.getFactory().getName().equals("NOT Gate")) {
+                nots.add(x);
+            }
+        }
+        edt(() -> {
+            p.doAction(com.cburch.logisim.gui.main.SelectionActions.dropAll(p.getSelection()));
+            p.getSelection().addAll(nots);
+        });
+        sleep(500);
+        snapFull("35c-copies-and-loose-gates");
+        menuAt(p, nots.get(0).getLocation().translate(-15, 0), "35d-menu-arrange");
+        edt(() -> kr.ac.hallym.hcs.app.edit.ArrangeActions.align(p, c, nots, kr.ac.hallym.hcs.app.edit.Arrange.Align.LEFT));
+        sleep(700);
+        snapFull("35e-aligned-left");
+    }
+
+    /** 원조 라이브러리의 부품 팩토리. */
+    static com.cburch.logisim.comp.ComponentFactory find(Project p, String lib, String name) {
+        com.cburch.logisim.tools.AddTool t = (com.cburch.logisim.tools.AddTool) p.getLogisimFile().getLibrary(lib)
+                .getTool(name);
+        return t.getFactory();
     }
 
     /**

@@ -70,6 +70,9 @@ public final class EditMenus implements ContextMenus.Provider {
             port(t, c, port, menu);
         }
         menu.add(duplicate(t, c));
+        // E-01: N개 복제(개수·간격·방향·라벨 번호)
+        menu.add(MenuLayout.group(item("menu.duplicateN", () -> kr.ac.hallym.hcs.app.edit.ArrangeActions.duplicateN(
+                t.project, t.circuit, Collections.singletonList(c))), MenuLayout.COMMON));
         menu.add(showAttributes(t, c));
         String f = c.getFactory().getName();
         if (f.equals("Pin")) {
@@ -292,6 +295,11 @@ public final class EditMenus implements ContextMenus.Provider {
         }
         if (common.contains("label")) {
             menu.add(item("menu.bulkLabels", () -> LabelsDialog.show(t, comps), comps.size()));
+        }
+        // E-01·E-02: N개 복제, 정렬, 같은 간격, 선택 필터
+        for (javax.swing.JMenuItem it : kr.ac.hallym.hcs.app.edit.ArrangeActions.multiItems(t.project, t.circuit,
+                comps, t.selection)) {
+            menu.add(it);
         }
     }
 
