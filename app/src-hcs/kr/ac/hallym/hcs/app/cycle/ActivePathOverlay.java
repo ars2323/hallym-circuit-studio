@@ -10,8 +10,9 @@ import java.awt.BasicStroke;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
@@ -20,6 +21,7 @@ import com.cburch.logisim.circuit.Circuit;
 import com.cburch.logisim.circuit.CircuitState;
 import com.cburch.logisim.circuit.Wire;
 import com.cburch.logisim.comp.Component;
+import com.cburch.logisim.data.Location;
 import com.cburch.logisim.data.Value;
 import com.cburch.logisim.gui.main.Canvas;
 import com.cburch.logisim.proj.Project;
@@ -77,9 +79,13 @@ public final class ActivePathOverlay {
         }
     }
 
-    /** MUX마다 선택 값이 정해졌으면 고른 데이터 입력 넷의 선들. GUI 없이 테스트한다. */
-    static Set<Wire> selected(Circuit circ, CircuitState state) {
-        Set<Wire> out = new LinkedHashSet<>();
+    /**
+     * MUX마다 선택 값이 정해졌으면, 고른 데이터 입력까지 오는 가지의 선분들(V-04): 그 넷을 내는 포트에서 그 입력 포트까지의
+     * 가장 짧은 선 경로만. 같은 넷의 다른 가지(다른 부품으로 가는 선)는 칠하지 않는다. 내는 포트를 모르면(스플리터·터널만
+     * 있는 넷) 넷 전체. GUI 없이 테스트한다.
+     */
+    static List<Location[]> selected(Circuit circ, CircuitState state) {
+        List<Location[]> out = new ArrayList<>();
         if (circ == null || state == null) {
             return out;
         }
@@ -105,8 +111,28 @@ public final class ActivePathOverlay {
                 nl = netlist(circ);
             }
             Netlist.Net net = nl.netOf(c, i);
-            if (net != null) {
-                out.addAll(net.wires());
+            if (net == null) {
+                continue;
+            }
+            Location to = c.getEnd(i).getLocation();
+            Location from = null;
+            if (!net.drivers().isEmpty()) {
+                from = net.drivers().get(0).location();
+            } else {
+                for (Netlist.PortRef p : net.ports()) {
+                    if (p.component != c && !p.data().isInput()) {
+                        from = p.location();
+                        break;
+                    }
+                }
+            }
+            List<Location[]> branch = from == null ? Collections.<Location[]>emptyList() : Netlist.branch(net, from, to);
+            if (branch.isEmpty()) {
+                for (Wire w : net.wires()) {
+                    out.add(new Location[] {w.getEnd0(), w.getEnd1()});
+                }
+            } else {
+                out.addAll(branch);
             }
         }
         return out;
@@ -137,7 +163,7 @@ public final class ActivePathOverlay {
         if (!(g0 instanceof Graphics2D) || proj == null || !isShown(proj)) {
             return;
         }
-        Set<Wire> wires = selected(circ, state);
+        List<Location[]> wires = selected(circ, state);
         if (wires.isEmpty()) {
             return;
         }
@@ -154,13 +180,13 @@ public final class ActivePathOverlay {
             java.awt.geom.Area area = new java.awt.geom.Area();
             java.awt.geom.Area lines = new java.awt.geom.Area();
             java.util.Map<com.cburch.logisim.data.Location, Integer> ends = new java.util.HashMap<>();
-            for (Wire w : wires) {
-                java.awt.geom.Line2D line = new java.awt.geom.Line2D.Double(w.getEnd0().getX(), w.getEnd0().getY(),
-                        w.getEnd1().getX(), w.getEnd1().getY());
+            for (Location[] w : wires) {
+                java.awt.geom.Line2D line = new java.awt.geom.Line2D.Double(w[0].getX(), w[0].getY(), w[1].getX(),
+                        w[1].getY());
                 area.add(new java.awt.geom.Area(outer.createStrokedShape(line)));
                 lines.add(new java.awt.geom.Area(inner.createStrokedShape(line)));
-                ends.merge(w.getEnd0(), 1, Integer::sum);
-                ends.merge(w.getEnd1(), 1, Integer::sum);
+                ends.merge(w[0], 1, Integer::sum);
+                ends.merge(w[1], 1, Integer::sum);
             }
             float band = FieldOverlay.BAND;
             for (java.util.Map.Entry<com.cburch.logisim.data.Location, Integer> e : ends.entrySet()) {

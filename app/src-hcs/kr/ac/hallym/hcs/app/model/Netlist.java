@@ -8,10 +8,12 @@ package kr.ac.hallym.hcs.app.model;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.cburch.logisim.circuit.Circuit;
 import com.cburch.logisim.circuit.Wire;
@@ -188,6 +190,96 @@ public final class Netlist {
             }
         }
         return null;
+    }
+
+    /**
+     * 넷 안의 가지(V-04): from(값을 내는 포트 자리)에서 to(읽는 포트 자리)까지 가장 짧은 선 경로의 선분들. 선분은 선의
+     * 끝점과 그 위의 포트 자리 사이 조각이라, 긴 선의 일부만 지나면 그 부분만 나온다. 같은 넷의 터널 짝은 길이 0으로 잇고
+     * 선분을 내지 않는다. 닿지 못하면 빈 목록.
+     */
+    public static List<com.cburch.logisim.data.Location[]> branch(Net net, com.cburch.logisim.data.Location from,
+            com.cburch.logisim.data.Location to) {
+        List<com.cburch.logisim.data.Location[]> out = new ArrayList<>();
+        if (net == null || from == null || to == null) {
+            return out;
+        }
+        Set<com.cburch.logisim.data.Location> points = new HashSet<>();
+        List<com.cburch.logisim.data.Location> tunnels = new ArrayList<>();
+        for (Wire w : net.wires()) {
+            points.add(w.getEnd0());
+            points.add(w.getEnd1());
+        }
+        for (PortRef p : net.ports()) {
+            points.add(p.location());
+            if (Kinds.of(p.component).factory().equals("Tunnel")) {
+                tunnels.add(p.location());
+            }
+        }
+        points.add(from);
+        points.add(to);
+        java.util.Comparator<com.cburch.logisim.data.Location> order = java.util.Comparator
+                .comparingInt(com.cburch.logisim.data.Location::getY).thenComparingInt(com.cburch.logisim.data.Location::getX);
+        Map<com.cburch.logisim.data.Location, List<com.cburch.logisim.data.Location>> adj = new HashMap<>();
+        List<Wire> wires = new ArrayList<>(net.wires());
+        wires.sort(java.util.Comparator.<Wire>comparingInt(w -> w.getEnd0().getY()).thenComparingInt(w -> w.getEnd0().getX()));
+        for (Wire w : wires) {
+            List<com.cburch.logisim.data.Location> on = new ArrayList<>();
+            for (com.cburch.logisim.data.Location p : points) {
+                if (w.contains(p)) {
+                    on.add(p);
+                }
+            }
+            on.sort(order);
+            for (int i = 1; i < on.size(); i++) {
+                adj.computeIfAbsent(on.get(i - 1), k -> new ArrayList<>()).add(on.get(i));
+                adj.computeIfAbsent(on.get(i), k -> new ArrayList<>()).add(on.get(i - 1));
+            }
+        }
+        tunnels.sort(order);
+        // 다익스트라: 거리가 같으면 위·왼쪽 먼저(결정적)
+        Map<com.cburch.logisim.data.Location, Integer> dist = new HashMap<>();
+        Map<com.cburch.logisim.data.Location, com.cburch.logisim.data.Location> via = new HashMap<>();
+        Set<com.cburch.logisim.data.Location> jumped = new HashSet<>();
+        java.util.PriorityQueue<Object[]> pq = new java.util.PriorityQueue<>(java.util.Comparator
+                .<Object[]>comparingInt(e -> (Integer) e[1]).thenComparing(e -> (com.cburch.logisim.data.Location) e[0], order));
+        pq.add(new Object[] {from, 0, null});
+        while (!pq.isEmpty()) {
+            Object[] e = pq.poll();
+            com.cburch.logisim.data.Location p = (com.cburch.logisim.data.Location) e[0];
+            if (dist.containsKey(p)) {
+                continue;
+            }
+            dist.put(p, (Integer) e[1]);
+            if (e[2] != null) {
+                via.put(p, (com.cburch.logisim.data.Location) e[2]);
+            }
+            if (p.equals(to)) {
+                break;
+            }
+            for (com.cburch.logisim.data.Location q : adj.getOrDefault(p, Collections.emptyList())) {
+                if (!dist.containsKey(q)) {
+                    pq.add(new Object[] {q, (Integer) e[1] + p.manhattanDistanceTo(q), p});
+                }
+            }
+            if (tunnels.contains(p) && jumped.add(p)) {
+                for (com.cburch.logisim.data.Location q : tunnels) {
+                    if (!q.equals(p) && !dist.containsKey(q)) {
+                        pq.add(new Object[] {q, (Integer) e[1], p});
+                    }
+                }
+            }
+        }
+        if (!dist.containsKey(to)) {
+            return out;
+        }
+        for (com.cburch.logisim.data.Location p = to; via.containsKey(p); p = via.get(p)) {
+            com.cburch.logisim.data.Location q = via.get(p);
+            boolean jump = tunnels.contains(p) && tunnels.contains(q) && !(adj.getOrDefault(p, Collections.emptyList()).contains(q));
+            if (!jump) {
+                out.add(0, new com.cburch.logisim.data.Location[] {q, p});
+            }
+        }
+        return out;
     }
 
     /** 회로의 넷을 계산한다. */

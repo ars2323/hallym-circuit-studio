@@ -231,4 +231,46 @@ class NetlistTest {
         assertFalse(back.components.contains(and));
         assertNotNull(Trace.describe(start));
     }
+
+    /**
+     * V-04: 넷 안의 가지. 상수 → T자 갈림 → 핀 둘. 핀 B까지의 가지는 갈림 뒤 A 쪽 조각을 담지 않고, 긴 선의 일부만
+     * 지나면 그 조각만 나온다. 터널 짝은 길이 0으로 건너고 선분을 내지 않는다.
+     */
+    @Test
+    void branchFollowsOnlyTheWayToThePort() throws Exception {
+        LogisimFile file = CircuitBuilder.newFile(new Loader(null), tmp.toFile());
+        CircuitBuilder b = new CircuitBuilder(file, file.getMainCircuit());
+        Component k = constant(b, 100, 100); // 출력 자리 (100,100)
+        Component a = out(b, "A", 300, 100, "west");
+        Component bb = out(b, "B", 200, 200, "west");
+        wire(b, 100, 100, 300, 100); // 긴 선 하나: (200,100)에서 갈림
+        wire(b, 200, 100, 200, 200);
+        // 터널 짝: 상수 → t ... t → 핀 C
+        Component t1 = b.add("Wiring", "Tunnel", 100, 300, "label", "t", "facing", "west");
+        wire(b, 100, 100, 100, 300);
+        Component t2 = b.add("Wiring", "Tunnel", 400, 300, "label", "t", "facing", "east");
+        Component c = out(b, "C", 500, 300, "west");
+        wire(b, 400, 300, 500, 300);
+        b.commit();
+        Netlist nl = Netlist.of(file.getMainCircuit());
+        Netlist.Net net = nl.netOf(k, 0);
+        assertEquals(net, nl.netOf(bb, 0));
+        assertEquals(net, nl.netOf(c, 0), "tunnels merge into one net");
+        Location from = k.getEnd(0).getLocation();
+        assertEquals("[(100,100)-(200,100), (200,100)-(200,200)]", segs(Netlist.branch(net, from, bb.getEnd(0).getLocation())),
+                "to B: the first half of the long wire, then down; not the piece to A");
+        assertEquals("[(100,100)-(200,100), (200,100)-(300,100)]", segs(Netlist.branch(net, from, a.getEnd(0).getLocation())));
+        assertEquals("[(100,100)-(100,300), (400,300)-(500,300)]", segs(Netlist.branch(net, from, c.getEnd(0).getLocation())),
+                "through the tunnel pair without a segment for the jump");
+        assertEquals("[]", segs(Netlist.branch(net, from, Location.create(900, 900))), "unreachable: empty");
+        assertEquals(t1.getFactory(), t2.getFactory());
+    }
+
+    static String segs(java.util.List<Location[]> list) {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        for (Location[] s : list) {
+            out.add(s[0] + "-" + s[1]);
+        }
+        return out.toString();
+    }
 }
