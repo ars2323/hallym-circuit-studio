@@ -88,11 +88,19 @@ public final class FlowController {
     private Circuit listening;
     private final ProjectListener projectListener = this::projectChanged;
     /** 클럭 틱·전파가 끝나면(값이 바뀌면) Active Path Only를 다시 계산한다. 약한 참조라 붙잡아 둔다. */
+    private final java.util.concurrent.atomic.AtomicBoolean valuesPending =
+            new java.util.concurrent.atomic.AtomicBoolean();
     private final com.cburch.logisim.circuit.SimulatorListener simListener =
             new com.cburch.logisim.circuit.SimulatorListener() {
                 @Override
                 public void propagationCompleted(com.cburch.logisim.circuit.SimulatorEvent e) {
-                    SwingUtilities.invokeLater(FlowController.this::valuesChanged);
+                    // 전파마다 요청을 하나로 모은다(D-091: 빠른 클럭·발진에서 EDT가 넘치지 않게)
+                    if (valuesPending.compareAndSet(false, true)) {
+                        SwingUtilities.invokeLater(() -> {
+                            valuesPending.set(false);
+                            valuesChanged();
+                        });
+                    }
                 }
 
                 @Override

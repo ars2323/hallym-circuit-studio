@@ -76,6 +76,12 @@ public final class RunUntilRunner {
         int target = CycleModel.stepOf(CycleModel.cycleOf(step) + 1);
         requestedTo = target;
         Simulator sim = proj.getSimulator();
+        if (!kr.ac.hallym.hcs.app.sim.TickGuard.canTick(sim)) {
+            // D-091: 꺼진 시뮬레이터에 틱을 요청하면 전파 스레드가 돈다. 멈추고 알린다
+            kr.ac.hallym.hcs.app.sim.SimControls.notice(proj, kr.ac.hallym.hcs.app.Messages.get("runUntil.simOff"));
+            stop();
+            return;
+        }
         for (int i = step; i < target; i++) {
             sim.tick();
         }
