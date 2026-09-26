@@ -19,8 +19,8 @@ import kr.ac.hallym.hcs.app.cycle.FieldOverlay;
 class ChipGapTest {
     @Test
     void wireGapCoversTheHighlightBand() {
-        assertEquals(6, LabelOverlay.WIRE_GAP, "BAND 10 → half 5 + 1");
-        assertTrue(LabelOverlay.WIRE_GAP > FieldOverlay.BAND / 2);
+        assertEquals(8, LabelOverlay.WIRE_GAP, "BAND 10 → half 5 + 3");
+        assertTrue(LabelOverlay.WIRE_GAP >= FieldOverlay.BAND / 2 + 3, "at 150% the chip stays 4px or more outside the band");
     }
 
     @Test
