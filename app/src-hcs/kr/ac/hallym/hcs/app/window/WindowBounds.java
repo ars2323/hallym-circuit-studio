@@ -163,6 +163,16 @@ public final class WindowBounds {
     }
 
     /** 창을 닫을 때 저장한다(최대화 상태면 크기는 보통 상태의 것). */
+    /** 저장값을 직접 둔다(테스트: 첫 실행 최대화 대신 정해진 창으로 열리게). null이면 첫 실행 상태로 지운다. */
+    public static void store(Rectangle b, boolean maximized) {
+        Settings s = Settings.get();
+        s.set(X, b == null ? "" : Integer.toString(b.x));
+        s.set(Y, b == null ? "" : Integer.toString(b.y));
+        s.set(W, b == null ? "" : Integer.toString(b.width));
+        s.set(H, b == null ? "" : Integer.toString(b.height));
+        s.set(MAX, b == null ? "" : Boolean.toString(maximized));
+    }
+
     public static void save(Frame f) {
         Settings s = Settings.get();
         int state = f.getExtendedState();

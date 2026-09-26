@@ -46,6 +46,10 @@ public final class AttrDock {
     private final Timer saver = new Timer(600, e -> save());
     private Runnable onQuickToggle = () -> { };
     private boolean collapsed;
+    /** 창이 좁아 자동으로 준 폭(0이면 없음, -1이면 자동으로 접음). 설정에 저장하지 않는다(X-03). */
+    private int autoWidth;
+    /** 이 시각까지의 분할선 변화는 프로그램이 놓은 것(창 크기·자동 조정): 학생이 정한 폭으로 저장하지 않는다. */
+    private long programmaticUntil;
 
     public AttrDock(JComponent center, JComponent body) {
         this.center = center;
@@ -96,7 +100,8 @@ public final class AttrDock {
         split.setBorder(null);
         split.setContinuousLayout(true);
         split.addPropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, e -> {
-            if (!collapsed && split.getWidth() > 0 && panel.getWidth() > 0) {
+            if (!collapsed && autoWidth == 0 && split.getWidth() > 0 && panel.getWidth() > 0
+                    && System.currentTimeMillis() > programmaticUntil) {
                 Settings.get().set(WIDTH, panel.getWidth());
                 saver.restart();
             }
@@ -136,7 +141,38 @@ public final class AttrDock {
     }
 
     public boolean isCollapsed() {
+        return collapsed || autoWidth < 0;
+    }
+
+    /** 학생이 직접 접었는가(자동 접힘 제외). */
+    public boolean isUserCollapsed() {
         return collapsed;
+    }
+
+    /** 학생이 정한 Attributes 폭. */
+    public int userWidth() {
+        return Math.max(DOCK_MIN, Settings.get().getInt(WIDTH, 240));
+    }
+
+    static final int DOCK_MIN = 160;
+
+    public int stripWidth() {
+        return strip.getPreferredSize().width;
+    }
+
+    public int dividerSize() {
+        return split.getDividerSize();
+    }
+
+    /**
+     * 창 폭에 따른 자동 조정(X-03): 0이면 학생이 정한 값대로, 양수면 그 폭으로, -1이면 접는다. 설정은 건드리지 않는다.
+     */
+    public void balance(int width) {
+        if (width == autoWidth) {
+            return;
+        }
+        autoWidth = width;
+        layout();
     }
 
     public void setCollapsed(boolean c) {
@@ -196,14 +232,15 @@ public final class AttrDock {
     }
 
     private void layout() {
+        programmaticUntil = System.currentTimeMillis() + 800;
         root.removeAll();
-        if (collapsed) {
+        if (isCollapsed()) {
             root.add(center, BorderLayout.CENTER);
             root.add(strip, BorderLayout.EAST);
         } else {
             split.setLeftComponent(center);
             split.setRightComponent(panel);
-            int w = Math.max(160, Settings.get().getInt(WIDTH, 240));
+            int w = autoWidth > 0 ? autoWidth : userWidth();
             panel.setPreferredSize(new Dimension(w, 0));
             root.add(split, BorderLayout.CENTER);
             javax.swing.SwingUtilities.invokeLater(() -> {

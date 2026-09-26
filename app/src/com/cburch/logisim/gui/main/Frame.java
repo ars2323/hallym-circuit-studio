@@ -284,6 +284,9 @@ public class Frame extends LFrame implements LocaleListener {
 				kr.ac.hallym.hcs.app.window.WindowBounds.mainSplit()); // HCS: X-01 fork-only panel width
 
 		getContentPane().add(mainRegion, BorderLayout.CENTER);
+		// HCS: X-03 keep the canvas at least half the window wide; shrink or collapse the side panels first
+		kr.ac.hallym.hcs.app.window.PanelBalance.install(this, mainRegion, explPanel, hcsDock,
+				kr.ac.hallym.hcs.app.window.WindowBounds.mainSplit());
 		JPanel hcsStatus = hcsSim.statusBar(); // HCS: review 1 full-width status bar
 		hcsStatus.add(hcsMessages.statusLabel(), 0); // HCS: #27 diagnostic count first (PLAN.md 11.7)
 		getContentPane().add(hcsStatus, BorderLayout.SOUTH);
@@ -511,7 +514,8 @@ public class Frame extends LFrame implements LocaleListener {
 		}
 		// HCS: X-01 window state, size, location and the panel split go to the fork's own settings
 		kr.ac.hallym.hcs.app.window.WindowBounds.save(this);
-		kr.ac.hallym.hcs.app.window.WindowBounds.saveMainSplit(mainRegion.getFraction());
+		kr.ac.hallym.hcs.app.window.PanelBalance pb = kr.ac.hallym.hcs.app.window.PanelBalance.of(this); // HCS: X-03
+		kr.ac.hallym.hcs.app.window.WindowBounds.saveMainSplit(pb != null ? pb.userFraction() : mainRegion.getFraction());
 		try {
 			kr.ac.hallym.hcs.app.Settings.get().save();
 		} catch (java.io.IOException e) {
