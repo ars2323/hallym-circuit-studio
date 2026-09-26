@@ -52,6 +52,11 @@ public final class TunnelList extends JPanel {
             this.tunnels = tunnels;
         }
 
+        /** 같은 이름의 터널이 하나뿐인가(V-08: 흐린 주황 개수와 툴팁, 판정은 아니다). */
+        public boolean lone() {
+            return tunnels.size() == 1;
+        }
+
         @Override
         public String toString() {
             return name + " (" + tunnels.size() + ")";
@@ -88,6 +93,10 @@ public final class TunnelList extends JPanel {
     private int cycle;
     private String lastName;
 
+    static String esc(String s) {
+        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+    }
+
     /** 원조 Project·Circuit은 청취자를 약하게 잡는다: 필드로 붙잡아 둔다. */
     private final ProjectListener projectListener = this::projectChanged;
     private final CircuitListener circuitListener = this::circuitChanged;
@@ -108,7 +117,14 @@ public final class TunnelList extends JPanel {
                 Entry e = (Entry) value;
                 Color col = TunnelColorStore.display(proj.getLogisimFile(), watched, e.name);
                 c.setIcon(new Swatch(col == null ? Tokens.TEXT_MUTED : col));
-                c.setToolTipText(Messages.get("side.tunnelTip", e.name, e.tunnels.size()));
+                if (e.lone()) {
+                    // V-08: 같은 이름이 하나뿐 — 개수를 흐린 주황으로, 툴팁으로만 알린다(Messages에는 올리지 않는다)
+                    c.setText("<html>" + esc(e.name) + " <span style='color:#" + String.format("%06X",
+                            Tokens.AMBER_TEXT.getRGB() & 0xFFFFFF) + "'>(1)</span></html>");
+                    c.setToolTipText(Messages.get("side.tunnelLoneTip", e.name));
+                } else {
+                    c.setToolTipText(Messages.get("side.tunnelTip", e.name, e.tunnels.size()));
+                }
                 return c;
             }
         });

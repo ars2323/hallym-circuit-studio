@@ -266,6 +266,9 @@ public final class Shots {
         if (want(scenes, "44")) {
             alwaysMips(project()); // V-01
         }
+        if (want(scenes, "47")) {
+            pcAndLoneTunnels(ref, demo); // V-08
+        }
         if (want(scenes, "45")) {
             sameNameTabs(); // V-05
         }
@@ -1987,6 +1990,68 @@ public final class Shots {
         sleep(800);
         Rectangle all = onScreen(ex.getFrame().getContentPane());
         snapCrop(new Rectangle(all.x, all.y + all.height - 34, all.width, 34), "46c-example-readonly-notice");
+    }
+
+    /** V-08: ref-mips 상태 표시줄의 PC, Tunnels 목록의 외톨이 터널(흐린 주황 개수), 레지스터 우클릭 Mark as PC. */
+    void pcAndLoneTunnels(Project ref, Project demo) throws Exception {
+        activate(ref);
+        deselect(ref);
+        edt(() -> canvas(ref).getHcsZoom().fitCircuit());
+        sleep(800);
+        Rectangle all = onScreen(ref.getFrame().getContentPane());
+        snapCrop(new Rectangle(all.x, all.y + all.height - 34, Math.min(all.width, 700), 34), "47a-refmips-status-pc");
+        Component tl = find(ref.getFrame(), x -> x.getClass().getSimpleName().equals("TunnelList") && x.isShowing());
+        if (tl != null) {
+            @SuppressWarnings("unchecked")
+            javax.swing.JList<Object> jl = (javax.swing.JList<Object>) find(tl, x -> x instanceof javax.swing.JList);
+            if (jl != null) {
+                // 외톨이 터널(dec0 등)이 보이게 스크롤한다
+                int lone = 0;
+                for (int i = 0; i < jl.getModel().getSize(); i++) {
+                    Object e = jl.getModel().getElementAt(i);
+                    if (e instanceof kr.ac.hallym.hcs.app.side.TunnelList.Entry
+                            && ((kr.ac.hallym.hcs.app.side.TunnelList.Entry) e).lone()) {
+                        lone++;
+                    }
+                }
+                log.add("47: " + jl.getModel().getSize() + " tunnel names, " + lone + " lone");
+                for (int i = 0; i < jl.getModel().getSize(); i++) {
+                    Object e = jl.getModel().getElementAt(i);
+                    if (e instanceof kr.ac.hallym.hcs.app.side.TunnelList.Entry
+                            && ((kr.ac.hallym.hcs.app.side.TunnelList.Entry) e).lone()) {
+                        final int idx = i;
+                        edt(() -> {
+                            jl.setSelectedIndex(idx);
+                            Rectangle cell = jl.getCellBounds(idx, idx);
+                            javax.swing.JScrollPane sp = (javax.swing.JScrollPane) SwingUtilities.getAncestorOfClass(
+                                    javax.swing.JScrollPane.class, jl);
+                            if (sp != null && cell != null) {
+                                sp.getVerticalScrollBar().setValue(Math.max(0, cell.y - 3 * cell.height));
+                            } else {
+                                jl.ensureIndexIsVisible(idx);
+                            }
+                        });
+                        log.add("47: lone entry " + jl.getModel().getElementAt(i) + " at " + i);
+                        break;
+                    }
+                }
+                sleep(400);
+            }
+            Rectangle r = onScreen(tl);
+            snapCrop(new Rectangle(r.x, r.y, r.width, Math.min(r.height, 260)), "47b-tunnels-lone");
+        } else {
+            log.add("47: no tunnel list");
+        }
+        activate(demo);
+        deselect(demo);
+        com.cburch.logisim.comp.Component pc = byLabel(demo.getCurrentCircuit(), "PC");
+        if (pc == null) {
+            log.add("47: no PC register in demo");
+            return;
+        }
+        setZoom(demo, 1.0);
+        centerOn(demo, pc.getBounds());
+        menuAt(demo, pc.getLocation().translate(-10, 10), "47c-register-menu-mark-pc");
     }
 
     /** V-01: 새 파일의 트리·검색에 Hallym MIPS, 첫 부품을 놓으면 파일에 추가, 저장 뒤 jar 알림. */

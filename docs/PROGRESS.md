@@ -134,6 +134,6 @@
 | V-05 | 같은 이름 파일 탭 구분 | #287 | 완료 | #297 | D-100, TabLayoutTest.sameTitlesGetTheShortestDistinguishingFolder, TabsLayoutGuiTest, 45a·45b |
 | V-06 | Signal Flow 터널 호가 부품·라벨을 피함 | #288 | 진행 |  |  |
 | V-07 | 빈 캔버스 안내와 예제 메뉴 | #289 | 진행 |  |  |
-| V-08 | 상태 표시줄 PC·Mark as PC, Tunnels 외톨이 표시 | #290 | 대기 |  |  |
+| V-08 | 상태 표시줄 PC·Mark as PC, Tunnels 외톨이 표시 | #290 | 진행 |  |  |
 | V-09 | 스크린샷 실행기 위생과 데모 값 | #291 | 대기 |  |  |
 | V-10 | v1.0.1 공개 릴리스 | #292 | 대기 |  |  |
