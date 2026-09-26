@@ -216,10 +216,15 @@ public final class FileTabBar extends JPanel {
         t.putClientProperty("JTabbedPane.tabCloseToolTipText", Messages.get("tabs.close"));
     }
 
+    static String esc(String s) {
+        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+    }
+
     void updateFiles() {
         updating = true;
         try {
             List<TabModel.Tab<Project>> tabs = FileTabs.get().model().tabs();
+            java.util.Map<Project, String> suffix = FileTabs.get().suffixes(); // V-05
             while (files.getTabCount() > tabs.size()) {
                 files.removeTabAt(files.getTabCount() - 1);
             }
@@ -228,6 +233,13 @@ public final class FileTabBar extends JPanel {
                 boolean det = FileTabs.get().model().isDetached(t.key());
                 String title = (t.dirty() ? DIRTY : "") + t.title() + (t.updated() ? " · " + Messages.get(
                         "tabs.updatedBadge") : "") + (det ? " " + DETACHED + Messages.get("tabs.detachedBadge") : "");
+                String s = suffix.get(t.key());
+                if (s != null) {
+                    // 같은 이름의 다른 파일: 구분되는 폴더 이름을 흐리게(V-05)
+                    title = "<html>" + esc(title) + " <span style='color:#" + String.format("%06X",
+                            kr.ac.hallym.hcs.app.theme.Tokens.TEXT_2.getRGB() & 0xFFFFFF) + "'>" + FileTabs.SUFFIX_SEP
+                            + " " + esc(s) + "</span></html>";
+                }
                 String tip = t.file() == null ? Messages.get("tabs.unsaved") : t.file().getPath();
                 if (det) {
                     tip = tip + " — " + Messages.get("tabs.detachedTip");

@@ -1193,3 +1193,11 @@
 - **이유:** v1.0.0 검토(30b): MemtoReg MUX가 ALU Result를 고를 때 Data Memory Addr로 가는 가지까지 진하게 칠해져 "고른 입력"이 아니라 "넷"으로 읽혔다.
 - **대안:** 선 단위로 칠하기(긴 선 하나가 갈림을 지나면 다른 가지 조각까지 칠해짐), Signal Flow 경로 계산 재사용(넷 전체를 걷는 애니메이션용이라 가지를 가리지 못함).
 - **테스트:** `NetlistTest.branchFollowsOnlyTheWayToThePort`(T자 갈림·긴 선의 일부·터널 짝·닿지 못함), `ActivePathOverlayTest.selectedMuxInputOnly` — 30장면 회로(demo-datapath)의 고정 기대값: 선택 0 = ALU Result에서 MUX 입력 0까지 다섯 선분(Addr 가지 없음), 선택 1 = ReadData에서 입력 1까지 한 선분.
+
+## D-100 같은 이름 파일 탭 구분(V-05)
+
+- **날짜:** 2026-09-26
+- **결정:** 제목이 겹치는 탭에만, 다른 탭들과 구분되는 가장 짧은 상위 폴더 경로 꼬리를 흐리게 덧붙인다(`demo-datapath — hw3`; 바로 위 폴더 이름까지 겹치면 `tests/circ`). 계산은 `TabModel.distinguishers`(GUI 없는 순수 함수)가 하고, 저장한 적 없는 탭과 겹치지 않는 탭은 그대로다. 탭 툴팁은 전체 경로. 창 제목(`Frame.computeTitle`)과 Window 메뉴(`WindowManagers.ProjectManager`)도 같은 덧말(`FileTabs.displayName`)을 쓰며, 다른 탭이 열리거나 닫혀 덧말이 바뀌면 `FileTabs.retitle`이 창 제목과 메뉴 글자를 다시 쓴다. 같은 파일을 두 번 열면 원조 `Projects.findProjectFor`가 기존 프로젝트를 앞으로 가져오고 탭도 그리로 가는 기존 동작을 테스트로 고정했다.
+- **이유:** v1.0.0 검토(40a): 다른 파일 둘이 탭에 똑같이 "demo-datapath"로 보였다.
+- **대안:** 늘 폴더를 붙이기(겹치지 않는 탭까지 길어짐), 전체 경로(탭이 지나치게 넓어짐), 번호 붙이기(어느 파일인지 알 수 없음).
+- **테스트:** `TabLayoutTest.sameTitlesGetTheShortestDistinguishingFolder`(겹치는 것만, 바로 위 폴더가 같으면 두 단계, 셋 중 하나만 짧게), `TabsLayoutGuiTest.sameNamedFilesShowTheirFolderAndReopeningGoesToTheExistingTab`(창 제목·덧말·재열기).

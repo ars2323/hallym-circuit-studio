@@ -52,4 +52,35 @@ class TabLayoutTest {
         assertNull(FileTabs.parseBounds("garbage"));
         assertNull(FileTabs.parseBounds(""));
     }
+
+    /** V-05: 같은 제목의 탭만, 서로 다른 가장 가까운 상위 폴더 이름으로 가른다. */
+    @Test
+    void sameTitlesGetTheShortestDistinguishingFolder() {
+        TabModel<String> m = new TabModel<>();
+        m.add("a", new File("/home/s/circ/demo-datapath.circ"), "demo-datapath");
+        m.add("b", new File("/home/s/hw3/demo-datapath.circ"), "demo-datapath");
+        m.add("c", new File("/home/s/circ/gates.circ"), "gates");
+        m.add("u", null, "demo-datapath"); // 저장한 적 없는 탭은 빠진다
+        java.util.Map<String, String> d = TabModel.distinguishers(m.tabs());
+        assertEquals("circ", d.get("a"));
+        assertEquals("hw3", d.get("b"));
+        assertNull(d.get("c"), "a unique title gets nothing");
+        assertNull(d.get("u"));
+        // 바로 위 폴더 이름이 같으면 한 단계 더 올라간다
+        TabModel<String> n = new TabModel<>();
+        n.add("x", new File("/home/kim/circ/demo.circ"), "demo");
+        n.add("y", new File("/home/lee/circ/demo.circ"), "demo");
+        java.util.Map<String, String> e = TabModel.distinguishers(n.tabs());
+        assertEquals("kim/circ", e.get("x"));
+        assertEquals("lee/circ", e.get("y"));
+        // 셋: 둘은 바로 위 폴더가 같고 하나는 다르다 → 다른 것만 짧다
+        TabModel<String> o = new TabModel<>();
+        o.add("p", new File("/w/tests/circ/demo.circ"), "demo");
+        o.add("q", new File("/t/x/circ/demo.circ"), "demo");
+        o.add("r", new File("/t/x/hw3/demo.circ"), "demo");
+        java.util.Map<String, String> f = TabModel.distinguishers(o.tabs());
+        assertEquals("tests/circ", f.get("p"));
+        assertEquals("x/circ", f.get("q"));
+        assertEquals("hw3", f.get("r"));
+    }
 }

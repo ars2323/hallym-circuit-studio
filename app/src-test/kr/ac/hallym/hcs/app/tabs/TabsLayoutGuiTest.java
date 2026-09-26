@@ -74,6 +74,40 @@ class TabsLayoutGuiTest {
         return fr.get();
     }
 
+    /** V-05: 같은 이름의 파일 둘은 탭·창 제목에 폴더가 붙고, 같은 파일을 다시 열면 새 탭 대신 기존 탭으로 간다. */
+    @Test
+    void sameNamedFilesShowTheirFolderAndReopeningGoesToTheExistingTab() throws Exception {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "needs a display (xvfb-run)");
+        GuiTestSupport.keepAlive();
+        FileTabs.get().install();
+        java.nio.file.Files.createDirectories(tmp.resolve("circ"));
+        java.nio.file.Files.createDirectories(tmp.resolve("hw3"));
+        a = frame("circ/demo-datapath.circ", 0);
+        b = frame("hw3/demo-datapath.circ", 100);
+        Project pa = a.getProject();
+        Project pb = b.getProject();
+        settle();
+        java.util.Map<Project, String> d = FileTabs.get().suffixes();
+        assertEquals("circ", d.get(pa));
+        assertEquals("hw3", d.get(pb));
+        assertEquals("demo-datapath \u2014 circ", FileTabs.displayName(pa));
+        SwingUtilities.invokeAndWait(() -> {
+            a.recomputeTitle();
+            b.recomputeTitle();
+        });
+        assertTrue(a.getTitle().startsWith("demo-datapath \u2014 circ"), a.getTitle());
+        assertTrue(b.getTitle().startsWith("demo-datapath \u2014 hw3"), b.getTitle());
+        // 같은 파일을 다시 열면 기존 프로젝트로(원조 findProjectFor)
+        int before = com.cburch.logisim.proj.Projects.getOpenProjects().size();
+        AtomicReference<Project> again = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> again.set(com.cburch.logisim.proj.ProjectActions.doOpen(a, pa,
+                tmp.resolve("hw3/demo-datapath.circ").toFile())));
+        settle();
+        assertEquals(before, com.cburch.logisim.proj.Projects.getOpenProjects().size(), "no new tab");
+        assertTrue(again.get() == pb || again.get() == null, "the existing project");
+        assertEquals(pb, FileTabs.get().model().active(), "the existing tab is active");
+    }
+
     static void settle() throws Exception {
         for (int i = 0; i < 5; i++) {
             SwingUtilities.invokeAndWait(() -> { });
