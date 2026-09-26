@@ -31,15 +31,14 @@ import kr.ac.hallym.hcs.app.theme.Tokens;
 
 /**
  * 활성 경로(C-08, PLAN.md 11.12): 사이클 뷰가 보이는 동안, 고른 사이클의 MUX 선택 값을 보고 실제로 고른 데이터 입력의
- * 넷(그 입력까지 오는 선)을 진한 띠로 겹쳐 그린다. 선택 값이 정해지지 않은 MUX는 칠하지 않는다. 고르지 않은 입력은
+ * 넷(그 입력까지 오는 선) 둘레에 진한 남색 띠를 그린다(필드 색과 같은 방식: 선의 값 색을 가리지 않는다). 선택 값이 정해지지 않은 MUX는 칠하지 않는다. 고르지 않은 입력은
  * 흐리게 하지 않는다: 그 넷이 다른 곳에서는 쓰일 수 있다. 값은 캔버스의 회로 상태(기록 엔진이 고른 사이클로 바꿔
  * 끼운 것)에서 읽기만 한다. 켜고 끄기는 앱 환경설정, 파일에는 저장하지 않는다.
  */
 public final class ActivePathOverlay {
     static final String KEY = "cycle.activePath";
-    /** 띠 폭(화면 px). */
-    static final float BAND_PX = 6f;
     static final float ALPHA = 0.4f;
+    static final float HALO_ALPHA = 0.7f;
 
     private static final Set<Project> SHOWN = Collections.newSetFromMap(new WeakHashMap<>());
     /** 회로마다 넷 목록(부품·선이 그대로면 다시 쓴다). */
@@ -146,12 +145,43 @@ public final class ActivePathOverlay {
         Graphics2D g = (Graphics2D) g0.create();
         try {
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, ALPHA));
-            g.setStroke(new BasicStroke((float) (BAND_PX / z), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            // 필드 색(C-07)과 같은 방식: 선 둘레만 칠해 선의 값 색을 가리지 않고, 부품 몸체는 칠하지 않는다
+            boolean halo = z >= FieldOverlay.HALO_ZOOM;
+            g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, halo ? HALO_ALPHA : ALPHA));
             g.setColor(Tokens.NAVY);
+            BasicStroke outer = new BasicStroke(FieldOverlay.BAND, BasicStroke.CAP_BUTT, BasicStroke.JOIN_ROUND);
+            BasicStroke inner = new BasicStroke(FieldOverlay.HOLE, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
+            java.awt.geom.Area area = new java.awt.geom.Area();
+            java.awt.geom.Area lines = new java.awt.geom.Area();
+            java.util.Map<com.cburch.logisim.data.Location, Integer> ends = new java.util.HashMap<>();
             for (Wire w : wires) {
-                g.drawLine(w.getEnd0().getX(), w.getEnd0().getY(), w.getEnd1().getX(), w.getEnd1().getY());
+                java.awt.geom.Line2D line = new java.awt.geom.Line2D.Double(w.getEnd0().getX(), w.getEnd0().getY(),
+                        w.getEnd1().getX(), w.getEnd1().getY());
+                area.add(new java.awt.geom.Area(outer.createStrokedShape(line)));
+                lines.add(new java.awt.geom.Area(inner.createStrokedShape(line)));
+                ends.merge(w.getEnd0(), 1, Integer::sum);
+                ends.merge(w.getEnd1(), 1, Integer::sum);
             }
+            float band = FieldOverlay.BAND;
+            for (java.util.Map.Entry<com.cburch.logisim.data.Location, Integer> e : ends.entrySet()) {
+                if (e.getValue() >= 2) {
+                    area.add(new java.awt.geom.Area(new java.awt.geom.Ellipse2D.Double(e.getKey().getX() - band / 2,
+                            e.getKey().getY() - band / 2, band, band)));
+                }
+            }
+            if (halo) {
+                area.subtract(lines);
+            }
+            java.awt.Rectangle box = area.getBounds();
+            for (Component x : circ.getNonWires()) {
+                com.cburch.logisim.data.Bounds b = x.getBounds();
+                java.awt.Rectangle r = new java.awt.Rectangle(b.getX() - 1, b.getY() - 1, b.getWidth() + 2,
+                        b.getHeight() + 2);
+                if (r.intersects(box)) {
+                    area.subtract(new java.awt.geom.Area(r));
+                }
+            }
+            g.fill(area);
         } finally {
             g.dispose();
         }

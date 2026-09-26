@@ -1812,6 +1812,9 @@ public final class Shots {
     void instructionFields(Project demo) throws Exception {
         activate(demo);
         deselect(demo);
+        // 필드 색만 보이게 버스 값 칩은 이 장면에서 끈다(C-08 기본값은 켬)
+        kr.ac.hallym.hcs.app.labels.BusValues.Mode busBefore = kr.ac.hallym.hcs.app.labels.BusValues.mode();
+        edt(() -> kr.ac.hallym.hcs.app.labels.BusValues.setMode(kr.ac.hallym.hcs.app.labels.BusValues.Mode.OFF));
         edt(() -> kr.ac.hallym.hcs.app.record.Recorder.requestReset(demo));
         sleep(900);
         for (int i = 0; i < 4; i++) {
@@ -1848,6 +1851,7 @@ public final class Shots {
         edt(() -> v.showSide(0));
         sleep(900);
         snapCrop(onScreen(canvas(demo)), "29f-no-field-colors");
+        edt(() -> kr.ac.hallym.hcs.app.labels.BusValues.setMode(busBefore));
     }
 
     /**
