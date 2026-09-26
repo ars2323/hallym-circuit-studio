@@ -1948,6 +1948,20 @@ public final class Shots {
         centerOn(p, span);
         sleep(700);
         snapCrop(onScreen(canvas(p).getParent()), "38b-signal-groups-150");
+        // 배율 양끝(체크리스트 4): 25% 전체, 400% regfile 왼쪽(RegWrite 테두리)
+        setZoom(p, 0.25);
+        edt(() -> canvas(p).getHcsZoom().fitCircuit());
+        setZoom(p, 0.25);
+        sleep(600);
+        snapCrop(onScreen(canvas(p).getParent()), "38d-signal-groups-25");
+        setZoom(p, 4.0);
+        centerOn(p, com.cburch.logisim.data.Bounds.create(rw.getEnd0().getX() - 60, rw.getEnd0().getY() - 50, 160,
+                100));
+        sleep(700);
+        snapCrop(onScreen(canvas(p).getParent()), "38e-signal-groups-400");
+        setZoom(p, 1.5);
+        centerOn(p, span);
+        sleep(500);
         // 선 우클릭 → Signal Group 하위 메뉴
         Location mid = Location.create((rs.getEnd0().getX() + rs.getEnd1().getX()) / 2,
                 (rs.getEnd0().getY() + rs.getEnd1().getY()) / 2);
