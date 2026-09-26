@@ -55,7 +55,7 @@ class WindowBoundsTest {
         Rectangle edge = WindowBounds.fit(new Rectangle(-300, 200, 1000, 600), works);
         assertEquals(new Rectangle(0, 200, 1000, 600), edge);
         Rectangle left = WindowBounds.fit(new Rectangle(-900, 200, 1000, 600), works);
-        assertEquals(new Rectangle(-900, 200, 1000, 600), left, "mostly on the left monitor: stays");
+        assertEquals(new Rectangle(-1000, 200, 1000, 600), left, "mostly on the left monitor: pulled fully inside it");
     }
 
     @Test
