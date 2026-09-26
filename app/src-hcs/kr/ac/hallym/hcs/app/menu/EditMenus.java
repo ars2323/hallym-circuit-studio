@@ -357,6 +357,23 @@ public final class EditMenus implements ContextMenus.Provider {
             t.project.getSelection().addAll(net.wires());
         }));
         menu.add(item("cycle.add", () -> kr.ac.hallym.hcs.app.cycle.CycleView.addWire(t.project, t.circuit, w)));
+        // E-04: 신호 그룹(제어·데이터·주소)
+        JMenu group = new JMenu(Messages.get("group.menu"));
+        kr.ac.hallym.hcs.app.groups.SignalGroups.Group now = kr.ac.hallym.hcs.app.groups.SignalGroups.groupOf(
+                t.project.getLogisimFile(), t.circuit, w);
+        for (kr.ac.hallym.hcs.app.groups.SignalGroups.Group g : kr.ac.hallym.hcs.app.groups.SignalGroups.Group.values()) {
+            javax.swing.JRadioButtonMenuItem it = new javax.swing.JRadioButtonMenuItem(Messages.get("group." + g.key()),
+                    g == now);
+            it.addActionListener(e -> t.project.doAction(kr.ac.hallym.hcs.app.groups.SignalGroups.action(
+                    t.project.getLogisimFile(), t.circuit, w, g)));
+            group.add(it);
+        }
+        javax.swing.JRadioButtonMenuItem none = new javax.swing.JRadioButtonMenuItem(Messages.get("group.none"),
+                now == null);
+        none.addActionListener(e -> t.project.doAction(kr.ac.hallym.hcs.app.groups.SignalGroups.action(
+                t.project.getLogisimFile(), t.circuit, w, null)));
+        group.add(none);
+        menu.add(group);
         // D-01: 값이 E·X인 선에서 처음 생긴 곳 찾기
         javax.swing.JMenuItem origin = item("menu.findOrigin",
                 () -> kr.ac.hallym.hcs.app.diag.FindOrigin.run(t.project, t.circuit, w));

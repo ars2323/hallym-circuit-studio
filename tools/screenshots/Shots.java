@@ -245,6 +245,9 @@ public final class Shots {
         if (want(scenes, "37")) {
             busStyle(demo);
         }
+        if (want(scenes, "38")) {
+            signalGroups(demo);
+        }
         if (want(scenes, "10")) {
             open("tests/circ/register.circ");
             open("tests/circ/values.circ");
@@ -1858,6 +1861,133 @@ public final class Shots {
             sleep(300);
         }
         edt(() -> kr.ac.hallym.hcs.app.wiring.BusStyle.setWidths(false));
+        edt(() -> kr.ac.hallym.hcs.app.labels.BusValues.setMode(before));
+    }
+
+    /**
+     * 38: 신호 그룹 색(E-04). demo-datapath에는 control 서브회로가 없으므로 RegWrite 선을 Control, ALU 결과 버스를
+     * Data, PC → 명령어 메모리 버스를 Address로 정한 뒤 상태 표시줄 Colors: Groups로 바꿔 전체와 150%, 그리고 선
+     * 우클릭 메뉴의 Signal Group 하위 메뉴. 끝나면 정한 그룹을 되돌린다(Undo 세 번).
+     */
+    void signalGroups(Project p) throws Exception {
+        activate(p);
+        Circuit c = p.getCurrentCircuit();
+        kr.ac.hallym.hcs.app.labels.BusValues.Mode before = kr.ac.hallym.hcs.app.labels.BusValues.mode();
+        edt(() -> kr.ac.hallym.hcs.app.labels.BusValues.setMode(kr.ac.hallym.hcs.app.labels.BusValues.Mode.OFF));
+        kr.ac.hallym.hcs.app.model.Netlist nl = kr.ac.hallym.hcs.app.model.Netlist.of(c);
+        Wire regWrite = null;
+        Wire result = null;
+        Wire pcBus = null;
+        for (kr.ac.hallym.hcs.app.model.Netlist.Net n : nl.nets()) {
+            String name = kr.ac.hallym.hcs.app.probe.QuickProbe.netName(c, n);
+            Wire any = n.wires().isEmpty() ? null : n.wires().iterator().next();
+            if (any == null) {
+                continue;
+            }
+            if (name.equals("RegWrite")) {
+                regWrite = any;
+            } else if (name.equals("Result") || name.equals("ALUResult")) {
+                result = any;
+            }
+            for (Wire w : n.wires()) {
+                if (w.contains(Location.create(340, 200))) {
+                    pcBus = w; // PC → 명령어 메모리
+                }
+            }
+        }
+        if (result == null) {
+            // 이름이 없으면 alu 인스턴스의 Result 출력에 닿은 선
+            for (Wire w : c.getWires()) {
+                for (com.cburch.logisim.comp.Component x : c.getNonWires()) {
+                    if (x.getFactory().getName().equals("alu")) {
+                        for (com.cburch.logisim.comp.EndData e : x.getEnds()) {
+                            if (e.isOutput() && e.getWidth().getWidth() == 32 && (w.getEnd0().equals(e.getLocation())
+                                    || w.getEnd1().equals(e.getLocation()))) {
+                                result = w;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (regWrite == null || result == null || pcBus == null) {
+            log.add("38: wires not found " + regWrite + " " + result + " " + pcBus);
+            return;
+        }
+        final Wire rw = regWrite;
+        final Wire rs = result;
+        final Wire pb = pcBus;
+        edt(() -> {
+            p.doAction(kr.ac.hallym.hcs.app.groups.SignalGroups.action(p.getLogisimFile(), c, rw,
+                    kr.ac.hallym.hcs.app.groups.SignalGroups.Group.CONTROL));
+            p.doAction(kr.ac.hallym.hcs.app.groups.SignalGroups.action(p.getLogisimFile(), c, rs,
+                    kr.ac.hallym.hcs.app.groups.SignalGroups.Group.DATA));
+            p.doAction(kr.ac.hallym.hcs.app.groups.SignalGroups.action(p.getLogisimFile(), c, pb,
+                    kr.ac.hallym.hcs.app.groups.SignalGroups.Group.ADDRESS));
+        });
+        javax.swing.JButton mode = (javax.swing.JButton) find(p.getFrame(), x -> x instanceof javax.swing.JButton
+                && x.isShowing() && kr.ac.hallym.hcs.app.Messages.get("group.modeValues").equals(
+                        ((javax.swing.JButton) x).getText()));
+        if (mode == null) {
+            log.add("38: no Colors button");
+            return;
+        }
+        edt(mode::doClick);
+        deselect(p);
+        edt(() -> canvas(p).getHcsZoom().fitCircuit());
+        sleep(900);
+        snapFull("38a-signal-groups-full");
+        com.cburch.logisim.data.Bounds span = null;
+        for (com.cburch.logisim.comp.Component x : c.getNonWires()) {
+            String f = x.getFactory().getName();
+            if (f.equals("regfile") || f.equals("alu") || f.equals("Data Memory")) {
+                span = span == null ? x.getBounds() : span.add(x.getBounds());
+            }
+        }
+        setZoom(p, 1.5);
+        centerOn(p, span);
+        sleep(700);
+        snapCrop(onScreen(canvas(p).getParent()), "38b-signal-groups-150");
+        // 선 우클릭 → Signal Group 하위 메뉴
+        Location mid = Location.create((rs.getEnd0().getX() + rs.getEnd1().getX()) / 2,
+                (rs.getEnd0().getY() + rs.getEnd1().getY()) / 2);
+        centerOn(p, com.cburch.logisim.data.Bounds.create(mid.getX() - 200, mid.getY() - 150, 400, 300));
+        sleep(400);
+        Point s = screen(p, mid);
+        robot.mouseMove(s.x, s.y);
+        sleep(200);
+        robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
+        robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
+        sleep(900);
+        Rectangle r = popupBounds();
+        JMenuItem sub = menuItem(m -> m instanceof javax.swing.JMenu
+                && kr.ac.hallym.hcs.app.Messages.get("group.menu").equals(m.getText()));
+        if (r == null || sub == null) {
+            log.add("38: no wire menu / Signal Group submenu");
+        } else {
+            javax.swing.JMenu jm = (javax.swing.JMenu) sub;
+            Point at = jm.getLocationOnScreen();
+            robot.mouseMove(at.x + 10, at.y + jm.getHeight() / 2);
+            sleep(700);
+            edt(() -> jm.setPopupMenuVisible(true));
+            sleep(700);
+            Rectangle all = new Rectangle(r);
+            if (jm.getPopupMenu().isShowing()) {
+                all.add(onScreen(jm.getPopupMenu()));
+            }
+            all.add(new Rectangle(s.x - 60, s.y - 60, 120, 120));
+            snapCrop(pad(all, 20), "38c-signal-group-menu");
+        }
+        key(KeyEvent.VK_ESCAPE);
+        sleep(200);
+        key(KeyEvent.VK_ESCAPE);
+        sleep(300);
+        edt(() -> kr.ac.hallym.hcs.app.groups.SignalGroups.setShowGroups(false));
+        edt(() -> {
+            for (int i = 0; i < 3; i++) {
+                p.undoAction();
+            }
+        });
         edt(() -> kr.ac.hallym.hcs.app.labels.BusValues.setMode(before));
     }
 

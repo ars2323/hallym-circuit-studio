@@ -210,6 +210,7 @@ public final class WireMarks {
         } finally {
             BusStyle.CHIPS.remove();
         }
+        kr.ac.hallym.hcs.app.groups.GroupOverlay.paint(canvas, g0, circuit, hidden); // E-04 그룹 색 테두리
     }
 
     /** state가 null이면 인쇄 보기처럼 검정으로 그린다. */
