@@ -261,7 +261,7 @@ public final class Shots {
             portOrder(demo);
         }
         if (want(scenes, "43")) {
-            importSubcircuits(demo);
+            importSubcircuits(open("tests/circ/console-demo.circ")); // demo-datapath(regfile·alu 딸림)를 가져온다
         }
         if (want(scenes, "10")) {
             open("tests/circ/register.circ");
@@ -1880,14 +1880,14 @@ public final class Shots {
     }
 
     /**
-     * 43: 서브회로 가져오기(P-05). demo-datapath에 File › Import Subcircuits…로 ref-mips.circ(회로가 여럿인 파일)를
-     * 골랐을 때의 회로 고르기 창과 계획 창(딸린 회로·새 이름). 가져오지는 않는다(Cancel).
+     * 43: 서브회로 가져오기(P-05). console-demo에 File › Import Subcircuits…로 demo-datapath.circ(main이 regfile·alu를
+     * 쓴다)를 골랐을 때의 회로 고르기 창과 계획 창(딸린 회로 먼저, main은 main-2). 가져오지는 않는다.
      */
     void importSubcircuits(Project p) throws Exception {
         activate(p);
         deselect(p);
         SwingUtilities.invokeLater(() -> kr.ac.hallym.hcs.app.libs.ImportDialog.showFor(p,
-                new File("tests/mips/ref-mips.circ")));
+                new File("tests/circ/demo-datapath.circ")));
         Window d = null;
         for (int i = 0; i < 60 && d == null; i++) {
             sleep(250);
