@@ -93,8 +93,8 @@
 | E-03 | 버스 폭 표시와 선 색 범례 | #217 | 대기 |  |  |
 | E-04 | 신호 그룹 색 | #218 | 대기 |  |  |
 | E-05 | Undo History | #219 | 완료 | (이 PR) | D-083, UndoHistoryTest(목록 차례·되돌리기·다시 실행), 34a |
-| E-06 | Create Submission | #220 | 대기 |  |  |
-| E-07 | Export Image | #221 | 대기 |  |  |
+| E-06 | Create Submission | #220 | 완료 | (이 PR) | D-085, SubmissionTest(.circ·.s·jar를 상대 경로로, 점검은 알리기만, 번들 jar 대신 넣기), 36a |
+| E-07 | Export Image | #221 | 완료 | (이 PR) | D-085, ImageExportTest(PNG 배율·SVG XML·PDF 구조와 pdfinfo·고른 부분·글자 외곽선·잘라내기), 36b~36c |
 | E-08 | 미니맵과 영역 메모 | #222 | 대기 |  | 미니맵은 S-11(D-072)에서 들어감, 영역 메모 남음 |
 | E-09 | 단축키 설정 창 | #223 | 완료 | (이 PR) | D-083, KeyBindingsTest(기본 키·Shift 반대·바꾸기·겹침·기본으로·창 키 다시 달기), ShortcutsTest(? 표가 지금 키), 34b~34c |
 | E-10 | 첫 실행 튜토리얼 | #224 | 대기 |  |  |

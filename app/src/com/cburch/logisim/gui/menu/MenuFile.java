@@ -59,6 +59,7 @@ class MenuFile extends Menu implements ActionListener {
 		add(close);
 		add(save);
 		add(saveAs);
+		add(kr.ac.hallym.hcs.app.submit.SubmissionDialog.menuItem(menubar.getProject())); // HCS: E-06 submission
 		addSeparator();
 		add(exportImage);
 		add(print);

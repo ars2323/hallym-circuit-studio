@@ -225,6 +225,9 @@ public final class Shots {
         if (want(scenes, "35")) {
             arrange(demo);
         }
+        if (want(scenes, "36")) {
+            submitAndExport(demo);
+        }
         if (want(scenes, "10")) {
             open("tests/circ/register.circ");
             open("tests/circ/values.circ");
@@ -1783,6 +1786,75 @@ public final class Shots {
         edt(() -> sv.showSide(1));
         sleep(500);
         snapFull("27f-stack-demo-full");
+    }
+
+    /**
+     * 36: 제출 파일(E-06)과 그림 내보내기(E-07). demo-datapath와 sum.s를 출력 폴더에 복사해 열고(저장소 파일을
+     * 건드리지 않게), Instruction Memory가 sum.s를 가리키게 저장한 뒤 File › Create Submission… 점검 창, 그리고 File ›
+     * Export Image… 창.
+     */
+    void submitAndExport(Project base) throws Exception {
+        File dir = new File(out, "submit-demo");
+        dir.mkdirs();
+        java.nio.file.Files.copy(new File("tests/circ/demo-datapath.circ").toPath(), new File(dir,
+                "demo-datapath.circ").toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        java.nio.file.Files.copy(new File("tests/mips/sum.s").toPath(), new File(dir, "sum.s").toPath(),
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        Project p = open(new File(dir, "demo-datapath.circ").getPath());
+        activate(p);
+        Circuit c = p.getCurrentCircuit();
+        edt(() -> {
+            for (com.cburch.logisim.comp.Component x : c.getNonWires()) {
+                if (x.getFactory().getName().equals("Instruction Memory")) {
+                    @SuppressWarnings("unchecked")
+                    com.cburch.logisim.data.Attribute<Object> a = (com.cburch.logisim.data.Attribute<Object>) x
+                            .getAttributeSet().getAttribute("source");
+                    com.cburch.logisim.circuit.CircuitMutation m = new com.cburch.logisim.circuit.CircuitMutation(c);
+                    m.set(x, a, "sum.s");
+                    p.doAction(m.toAction(null));
+                }
+            }
+        });
+        sleep(3000); // .s 자동 재로드(C-09)가 sum.s를 불러온 뒤 저장한다
+        edt(() -> com.cburch.logisim.proj.ProjectActions.doSave(p));
+        sleep(1500);
+        edt(() -> canvas(p).getHcsZoom().fitCircuit());
+        kr.ac.hallym.hcs.app.submit.Submission plan = kr.ac.hallym.hcs.app.submit.Submission.plan(p.getLogisimFile(),
+                kr.ac.hallym.hcs.app.diag.Diagnostics.of(p).list().size(), p.isFileDirty());
+        SwingUtilities.invokeLater(() -> kr.ac.hallym.hcs.app.submit.SubmissionDialog.showPlan(p, plan));
+        Window w = null;
+        for (int i = 0; i < 40 && w == null; i++) {
+            sleep(250);
+            w = window(x -> x instanceof JDialog && x.isShowing()
+                    && kr.ac.hallym.hcs.app.Messages.get("submit.title").equals(((JDialog) x).getTitle()));
+        }
+        if (w == null) {
+            log.add("36: no submission window");
+        } else {
+            sleep(500);
+            snapCrop(w.getBounds(), "36a-submission-checks");
+            final Window sw = w;
+            edt(sw::dispose);
+        }
+        SwingUtilities.invokeLater(() -> kr.ac.hallym.hcs.app.export.ImageExport.show(p));
+        Window e = null;
+        for (int i = 0; i < 40 && e == null; i++) {
+            sleep(250);
+            e = window(x -> x instanceof JDialog && x.isShowing()
+                    && kr.ac.hallym.hcs.app.Messages.get("export.title").equals(((JDialog) x).getTitle()));
+        }
+        if (e == null) {
+            log.add("36: no export window");
+        } else {
+            sleep(500);
+            snapCrop(e.getBounds(), "36b-export-image");
+            final Window ew = e;
+            edt(ew::dispose);
+        }
+        // 내보낸 결과 한 장(SVG를 같은 내용 PNG로 보이기 위해 2배 PNG)
+        File png = new File(out, "36c-export-png-2x.png");
+        kr.ac.hallym.hcs.app.export.ImageExport.write(png, kr.ac.hallym.hcs.app.export.ImageExport.Format.PNG,
+                canvas(p), c, p.getCircuitState(), null, true, 2);
     }
 
     /**
