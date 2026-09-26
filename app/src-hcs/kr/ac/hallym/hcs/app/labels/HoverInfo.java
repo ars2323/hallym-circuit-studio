@@ -76,13 +76,50 @@ public final class HoverInfo {
         java.awt.Rectangle r = canvas.hcsToScreen(new java.awt.Rectangle(b.getX(), b.getY(), b.getWidth(),
                 b.getHeight()));
         java.awt.Rectangle vis = canvas.getVisibleRect();
-        int gap = 16; // 포트 이름·칩이 부품 옆에 붙어 있어 조금 띄운다
-        int tx = r.x + r.width + gap;
-        if (tx + 200 > vis.x + vis.width && r.x - gap - 200 > vis.x) {
-            tx = r.x - gap - 200; // 오른쪽이 모자라면 왼쪽(도움말 폭 약 200px)
+        java.util.List<java.awt.Rectangle> chips = new java.util.ArrayList<>();
+        for (java.awt.Rectangle c : LabelOverlay.chipRects(canvas)) {
+            chips.add(canvas.hcsToScreen(c));
         }
-        int ty = Math.max(vis.y, r.y - 8);
-        return new java.awt.Point(tx, ty);
+        return choose(vis, r, chips);
+    }
+
+    static final int TIP_W = 200; // 도움말 폭·높이 어림(px)
+    static final int TIP_H = 60;
+
+    /**
+     * 부품 r(화면 px) 둘레에서 라벨·값 칩(화면 px)을 가리지 않는 첫 자리: 오른쪽 위, 오른쪽 아래, 왼쪽 위, 왼쪽 아래,
+     * 위, 아래 차례. 모두 가리면 첫 자리(Q-03 검토: 도움말이 값 칩을 덮었다). GUI 없이 테스트한다.
+     */
+    static java.awt.Point choose(java.awt.Rectangle vis, java.awt.Rectangle r, java.util.List<java.awt.Rectangle> chips) {
+        int gap = 16; // 포트 이름·칩이 부품 옆에 붙어 있어 조금 띄운다
+        int right = r.x + r.width + gap;
+        int left = r.x - gap - TIP_W;
+        int top = Math.max(vis.y, r.y - 8);
+        int below = r.y + r.height + gap;
+        int above = Math.max(vis.y, r.y - gap - TIP_H);
+        int[][] tries = {{right, top}, {right, below}, {left, top}, {left, below}, {r.x, above}, {r.x, below}};
+        java.awt.Point first = null;
+        for (int[] t : tries) {
+            java.awt.Rectangle box = new java.awt.Rectangle(t[0], t[1], TIP_W, TIP_H);
+            boolean inside = box.x >= vis.x && box.x + TIP_W <= vis.x + vis.width && box.y >= vis.y;
+            if (!inside) {
+                continue;
+            }
+            if (first == null) {
+                first = new java.awt.Point(t[0], t[1]);
+            }
+            boolean clear = true;
+            for (java.awt.Rectangle c : chips) {
+                if (c.intersects(box)) {
+                    clear = false;
+                    break;
+                }
+            }
+            if (clear) {
+                return new java.awt.Point(t[0], t[1]);
+            }
+        }
+        return first != null ? first : new java.awt.Point(right, top);
     }
 
     /** 점 p를 덮는 부품(선 제외). 없으면 null. */
