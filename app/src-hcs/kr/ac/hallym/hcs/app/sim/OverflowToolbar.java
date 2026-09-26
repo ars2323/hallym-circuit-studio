@@ -66,7 +66,11 @@ public final class OverflowToolbar extends JToolBar {
         more.setFocusable(false);
         more.setToolTipText(Messages.get("bar.more"));
         more.setForeground(Tokens.TEXT_2);
-        more.addActionListener(e -> menu().show(more, 0, more.getHeight()));
+        more.addActionListener(e -> {
+            JPopupMenu m = menu();
+            int w = m.getPreferredSize().width; // 오른쪽 끝 단추 아래, 오른쪽 맞춤(창 밖으로 나가지 않게)
+            m.show(more, more.getWidth() - w, more.getHeight());
+        });
         super.add(more);
         setLayout(new Overflow());
     }
