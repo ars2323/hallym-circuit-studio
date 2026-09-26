@@ -6,7 +6,7 @@
 
 - **Windows zip**(`hallym-circuit-studio-<버전>-windows.zip`): JRE가 들어 있어 실습실 PC에 Java가 없어도 됩니다. 관리자 권한 없이 폴더에 풀어 실행합니다. 네트워크 드라이브보다 로컬 폴더가 빠릅니다.
 - **MSI**: 사용자별 설치, 시작 메뉴·바탕화면 바로가기. `.circ` 파일 연결은 하지 않습니다(학생 PC의 원조 Logisim 연결을 건드리지 않기 위해).
-- **트랙 A**(`hcs-mips-<버전>-windows.zip`): 원조 Logisim 2.7.1을 계속 쓰는 반을 위한 MIPS 부품 라이브러리(`hcs-mips.jar` + `hcs-asm.exe`). Project › Load Library › JAR Library로 불러옵니다. 자세한 것은 zip 안 `사용안내.md`(= `docs/track-a-guide.md`).
+- **트랙 A**(`hcs-mips-<버전>-windows.zip`): 원조 Logisim 2.7.1을 계속 쓰는 반을 위한 MIPS 부품 라이브러리(`hcs-mips.jar` + `hcs-asm.exe`). Project › Load Library › JAR Library로 불러옵니다. 포크로 만든 .circ를 원조에서 열 때도 이 `hcs-mips.jar`를 .circ 옆에 두면 됩니다(포크는 저장할 때 jar가 없으면 알리고 복사 단추를 보입니다). 자세한 것은 zip 안 `사용안내.md`(= `docs/track-a-guide.md`).
 - 두 트랙의 `.circ`는 서로 열립니다. MIPS 부품을 쓴 파일은 원조에서 열 때 `hcs-mips.jar`가 .circ와 같은 폴더(또는 바로 위·아래)에 있어야 합니다.
 
 ## 2. 과제 템플릿 만들기
