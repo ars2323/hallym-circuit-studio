@@ -91,7 +91,7 @@
 | E-01 | N개 복제 | #215 | 완료 | (이 PR) | D-084, ArrangeTest(라벨 번호·N개 복제와 되돌리기 한 번·닿으면 거절), 35a~35c |
 | E-02 | 정렬·같은 간격, 선택 필터 | #216 | 완료 | (이 PR) | D-084, ArrangeTest(정렬·같은 간격·이어진 부품은 두기·선택 필터), 35d~35e |
 | E-03 | 버스 폭 표시와 선 색 범례 | #217 | 완료 | (이 PR) | D-086, BusStyleTest(버스만 굵게·넷마다 비트 수 자리·범례·색 뜻·설정), LabelsTest(값 없는 선은 색 줄 없음), 37a~37c |
-| E-04 | 신호 그룹 색 | #218 | 대기 |  |  |
+| E-04 | 신호 그룹 색 | #218 | 완료 | (이 PR) | D-087, SignalGroupsTest(control 출력은 Control·정한 그룹 되돌리기·확장 정보 저장과 원조 바이트 동일·넷이 사라지면 지움·보기는 환경설정), 38a~38c |
 | E-05 | Undo History | #219 | 완료 | (이 PR) | D-083, UndoHistoryTest(목록 차례·되돌리기·다시 실행), 34a |
 | E-06 | Create Submission | #220 | 완료 | (이 PR) | D-085, SubmissionTest(.circ·.s·jar를 상대 경로로, 점검은 알리기만, 번들 jar 대신 넣기), 36a |
 | E-07 | Export Image | #221 | 완료 | (이 PR) | D-085, ImageExportTest(PNG 배율·SVG XML·PDF 구조와 pdfinfo·고른 부분·글자 외곽선·잘라내기), 36b~36c |

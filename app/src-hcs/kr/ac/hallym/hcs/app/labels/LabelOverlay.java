@@ -785,6 +785,11 @@ public final class LabelOverlay {
             cachedSig = sig;
             cachedText = texts;
         }
+        Map<Wire, kr.ac.hallym.hcs.app.groups.SignalGroups.Group> groups =
+                kr.ac.hallym.hcs.app.groups.SignalGroups.showGroups() && canvas.getProject() != null
+                        ? kr.ac.hallym.hcs.app.groups.SignalGroups.wireGroups(canvas.getProject().getLogisimFile(),
+                                circuit)
+                        : null;
         for (LabelLayout.Placed p : cached) {
             String text = shownText.containsKey(p.key) ? shownText.get(p.key) : texts.get(p.key);
             if (text == null) {
@@ -827,8 +832,10 @@ public final class LabelOverlay {
             int arc = Math.round(px * 0.5f);
             g.setColor(bus ? Tokens.TEAL_TINT : caption ? Tokens.WHITE : new Color(0xF3, 0xF6, 0xFA, 235));
             g.fillRoundRect(r.x, r.y, r.width, r.height, arc, arc);
-            g.setColor(bus ? Tokens.TEAL : Tokens.BORDER.darker());
-            g.setStroke(new BasicStroke(1f / (float) Math.max(1, z)));
+            // E-04: 그룹 색 보기면 그룹이 있는 버스 칩 테두리를 그룹 색으로(굵게)
+            java.awt.Color groupColor = bus && groups != null ? groupColor(circuit, groups, (Wire) p.key) : null;
+            g.setColor(groupColor != null ? groupColor : bus ? Tokens.TEAL : Tokens.BORDER.darker());
+            g.setStroke(new BasicStroke((groupColor != null ? 2f : 1f) / (float) Math.max(1, z)));
             g.drawRoundRect(r.x, r.y, r.width, r.height, arc, arc);
             g.setColor(bus ? Tokens.TEAL_TEXT : caption ? Tokens.NAVY : Tokens.TEXT);
             g.setFont(caption ? font.deriveFont(Font.BOLD) : font);
@@ -872,6 +879,13 @@ public final class LabelOverlay {
         int y0 = Math.min(w.getEnd0().getY(), w.getEnd1().getY());
         int y1 = Math.max(w.getEnd0().getY(), w.getEnd1().getY());
         return new java.awt.Point(Math.max(x0, Math.min(p.x, x1)), Math.max(y0, Math.min(p.y, y1)));
+    }
+
+    /** 이 선 넷의 그룹 색(없으면 null). */
+    static java.awt.Color groupColor(Circuit circuit,
+            Map<Wire, kr.ac.hallym.hcs.app.groups.SignalGroups.Group> groups, Wire w) {
+        kr.ac.hallym.hcs.app.groups.SignalGroups.Group g = groups.get(w);
+        return g == null ? null : g.color;
     }
 
     /** 이름 있는 버스(폭 2 이상)의 가장 긴 선과 그 표시 글자: {@code 이름[w-1:0]}. */
