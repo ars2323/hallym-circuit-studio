@@ -7,7 +7,7 @@ plugins {
 
 val logisimJar = rootProject.file("vendor/logisim-2.7.1/logisim-generic-2.7.1.jar")
 
-version = "0.1.0" // 트랙 A 배포 버전(태그 v0.1.0)
+version = "1.0.0" // 트랙 A 배포 버전(태그 v1.0.0)
 
 java {
     toolchain {
