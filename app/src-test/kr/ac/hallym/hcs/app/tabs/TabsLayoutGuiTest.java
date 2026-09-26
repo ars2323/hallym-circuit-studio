@@ -68,7 +68,9 @@ class TabsLayoutGuiTest {
             f.setVisible(true);
             fr.set(f);
         });
-        FileTabs.get().model().add(proj, file, name);
+        if (FileTabs.get().model().find(file) == null) {
+            FileTabs.get().model().add(proj, file, name); // 앱에서는 Projects 알림이 더한다
+        }
         return fr.get();
     }
 
@@ -83,6 +85,7 @@ class TabsLayoutGuiTest {
     void detachShowsBothWindowsAndAttachOverlapsAgain() throws Exception {
         assumeFalse(GraphicsEnvironment.isHeadless(), "needs a display (xvfb-run)");
         GuiTestSupport.keepAlive();
+        FileTabs.get().install(); // 앱 시작 때처럼 탭 모델을 창에 잇는다(한 번만)
         a = frame("a.circ", 0);
         b = frame("b.circ", 0);
         FileTabs tabs = FileTabs.get();
@@ -96,7 +99,11 @@ class TabsLayoutGuiTest {
         SwingUtilities.invokeAndWait(() -> tabs.detach(pb));
         settle();
         assertTrue(tabs.model().isDetached(pb));
-        assertTrue(a.isVisible() && b.isVisible(), "the group shows its other tab, the detached one stays");
+        tabs.model().activate(pa); // 무리 창을 누른 것처럼(테스트 JVM에는 keepAlive 창의 탭도 있다)
+        settle();
+        assertTrue(a.isVisible() && b.isVisible(), "the group shows its other tab, the detached one stays: a="
+                + a.isVisible() + " b=" + b.isVisible() + " active=" + (tabs.model().active() == pa ? "a" : "b")
+                + " tabs=" + tabs.model().size());
         assertFalse(a.getBounds().equals(b.getBounds()), "the detached window is set off");
         assertTrue(Settings.get().getList(FileTabs.DETACHED).contains(tmp.resolve("b.circ").toFile().getAbsolutePath()));
         assertEquals(1, Settings.get().getList(FileTabs.DETACHED_BOUNDS).size());

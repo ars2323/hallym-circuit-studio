@@ -151,40 +151,60 @@ public final class FileTabs {
         return p.getLogisimFile() == null ? "" : p.getLogisimFile().getDisplayName();
     }
 
-    /** 활성 탭의 창만 보이게 한다. 분리한 창(P-06)은 늘 보이고 겹치는 무리에 끼지 않는다. */
+    /** 무리에서 마지막으로 활성이었던 탭(P-06): 분리한 창이 활성이어도 무리 창은 이 탭을 보인다. */
+    private Project groupActive;
+
+    /**
+     * 활성 탭의 창을 보인다. 무리(겹치는 창들)는 늘 한 창만 보이고, 분리한 창(P-06)은 늘 보이며 무리에 끼지 않는다.
+     * 활성 탭을 실행 시점에 읽으므로(예약이 몰려도) 마지막 상태로 수렴한다.
+     */
     private void showActive() {
         SwingUtilities.invokeLater(() -> {
             Project active = model.active();
-            Frame show = active == null ? null : active.getFrame();
-            if (show == null) {
+            if (active == null) {
                 return;
             }
-            if (model.isDetached(active)) {
+            if (!model.isDetached(active)) {
+                groupActive = active;
+            }
+            Project g = groupActive != null && model.has(groupActive) ? groupActive : null;
+            if (g == null) {
+                for (TabModel.Tab<Project> t : model.tabs()) {
+                    if (!model.isDetached(t.key())) {
+                        g = t.key();
+                        break;
+                    }
+                }
+                groupActive = g;
+            }
+            Frame show = g == null ? null : g.getFrame();
+            if (show != null) {
+                Frame from = null;
+                for (TabModel.Tab<Project> t : model.tabs()) {
+                    Frame f = t.key().getFrame();
+                    if (f != null && f != show && f.isShowing() && !model.isDetached(t.key())) {
+                        from = f;
+                    }
+                }
+                if (from != null) {
+                    copyBounds(from, show);
+                }
                 if (!show.isVisible()) {
                     show.setVisible(true);
                 }
-                show.toFront();
-                return;
-            }
-            Frame from = null;
-            for (TabModel.Tab<Project> t : model.tabs()) {
-                Frame f = t.key().getFrame();
-                if (f != null && f != show && f.isShowing() && !model.isDetached(t.key())) {
-                    from = f;
+                for (TabModel.Tab<Project> t : model.tabs()) {
+                    Frame f = t.key().getFrame();
+                    if (f != null && f != show && f.isVisible() && !model.isDetached(t.key())) {
+                        f.setVisible(false);
+                    }
                 }
             }
-            if (from != null) {
-                copyBounds(from, show);
-            }
-            if (!show.isVisible()) {
-                show.setVisible(true);
-            }
-            show.toFront();
-            for (TabModel.Tab<Project> t : model.tabs()) {
-                Frame f = t.key().getFrame();
-                if (f != null && f != show && f.isVisible() && !model.isDetached(t.key())) {
-                    f.setVisible(false);
+            Frame front = active.getFrame();
+            if (front != null) {
+                if (!front.isVisible()) {
+                    front.setVisible(true);
                 }
+                front.toFront();
             }
         });
     }
@@ -211,21 +231,14 @@ public final class FileTabs {
         Rectangle screen = screenOf(f);
         Rectangle at = new Rectangle(Math.min(r.x + 60, screen.x + screen.width - r.width),
                 Math.min(r.y + 60, screen.y + screen.height - r.height), r.width, r.height);
-        boolean wasActive = model.active() == p;
+        if (groupActive == p) {
+            groupActive = null; // 무리는 이웃 탭을 보인다(showActive가 고른다)
+        }
         model.detach(p);
         f.setExtendedState(Frame.NORMAL);
         f.setBounds(at);
         f.setVisible(true);
         f.toFront();
-        if (wasActive) {
-            for (TabModel.Tab<Project> t : model.tabs()) {
-                if (t.key() != p && !model.isDetached(t.key())) {
-                    model.activate(t.key()); // 무리 창이 비지 않게
-                    break;
-                }
-            }
-            model.activate(p);
-        }
         saveRestoreList();
     }
 

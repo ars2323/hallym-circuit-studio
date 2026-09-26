@@ -208,6 +208,11 @@ public final class TabModel<K> {
         fire();
     }
 
+    /** 이 탭이 있는가. */
+    public synchronized boolean has(K key) {
+        return indexOf(key) >= 0;
+    }
+
     public synchronized boolean isDetached(K key) {
         return detached.contains(key);
     }
