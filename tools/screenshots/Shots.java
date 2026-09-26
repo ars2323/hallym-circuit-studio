@@ -1908,8 +1908,10 @@ public final class Shots {
             String f = x.getFactory().getName();
             if (f.equals("Instruction Memory") || f.equals("Adder")
                     || (f.equals("Register") && "PC".equals(x.getAttributeSet().getValue(
-                            com.cburch.logisim.instance.StdAttr.LABEL)))) {
-                ifParts.add(x);
+                            com.cburch.logisim.instance.StdAttr.LABEL)))
+                    || (f.equals("Tunnel") && x.getLocation().getY() < 250 && "pc".equals(
+                            x.getAttributeSet().getValue(com.cburch.logisim.instance.StdAttr.LABEL)))) {
+                ifParts.add(x); // 위쪽 pc 터널까지 넣어 상자 위 글이 선·칩과 겹치지 않게
             } else if (f.equals("alu")) {
                 exParts.add(x);
             }

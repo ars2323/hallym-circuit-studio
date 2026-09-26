@@ -11,7 +11,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Dimension;
 import java.awt.Rectangle;
-import java.util.Locale;
 
 import org.junit.jupiter.api.Test;
 
@@ -19,17 +18,27 @@ import kr.ac.hallym.hcs.app.Messages;
 
 /** E-10: 단계마다 두 언어 문구가 있고 제목은 영어 이름이며, 말풍선은 대상을 가리지 않고 창 안에 놓인다. */
 class TourTest {
+    static java.util.Properties load(String name) throws Exception {
+        java.util.Properties p = new java.util.Properties();
+        try (java.io.InputStream in = Messages.class.getResourceAsStream(name)) {
+            p.load(new java.io.InputStreamReader(in, java.nio.charset.StandardCharsets.UTF_8));
+        }
+        return p;
+    }
+
     @Test
-    void everyStepHasTitleAndBodyInBothLanguages() {
+    void everyStepHasTitleAndBodyInBothLanguages() throws Exception {
         assertTrue(Tour.steps().size() >= 10);
+        java.util.Properties names = load("names.properties");
+        java.util.Properties ko = load("messages_ko.properties");
+        java.util.Properties en = load("messages.properties");
         for (Tour.Step s : Tour.steps()) {
-            for (Locale l : new Locale[] {Locale.KOREAN, Locale.ENGLISH}) {
-                String title = Messages.get(l, s.key + ".title");
-                String body = Messages.get(l, s.key + ".body");
-                assertFalse(title.isEmpty() || title.startsWith("!"), s.key);
-                assertFalse(body.isEmpty() || body.startsWith("!") || body.equals(s.key + ".body"), s.key + " " + l);
-                assertTrue(title.chars().allMatch(ch -> ch < 0x3131 || ch > 0xD7A3), "title is an English name: " + title);
-            }
+            String title = names.getProperty(s.key + ".title", "");
+            assertFalse(title.isEmpty(), s.key + " title");
+            assertTrue(title.chars().allMatch(ch -> ch < 0x3131 || ch > 0xD7A3), "title is an English name: " + title);
+            assertFalse(ko.getProperty(s.key + ".body", "").isEmpty(), s.key + " ko body");
+            assertFalse(en.getProperty(s.key + ".body", "").isEmpty(), s.key + " en body");
+            assertFalse(Messages.get(s.key + ".body").startsWith("!"), s.key);
         }
     }
 

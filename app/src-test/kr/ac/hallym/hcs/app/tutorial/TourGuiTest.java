@@ -26,7 +26,7 @@ import com.cburch.logisim.file.LogisimFile;
 import com.cburch.logisim.gui.main.Frame;
 import com.cburch.logisim.proj.Project;
 
-import kr.ac.hallym.hcs.app.GuiTestSupport;
+import kr.ac.hallym.hcs.app.gui.GuiTestSupport;
 import kr.ac.hallym.hcs.app.record.RecordingTestSupport;
 
 /** E-10 GUI: 실제 창에서 모든 단계의 대상이 찾아지고, 말풍선이 대상을 가리지 않으며, 닫으면 유리판이 돌아온다. */
