@@ -397,6 +397,39 @@ class CycleViewGuiTest {
             s.setLastModified(s.lastModified() + 2000);
             waitFor(() -> Messages.get("reload.done", "factorial.s").equals(
                     kr.ac.hallym.hcs.app.sim.SimControls.lastNotice(proj)), "reload notice");
+            // 알림은 상태 표시줄 한 줄뿐, 모달 창은 없다
+            for (java.awt.Window w : java.awt.Window.getWindows()) {
+                assertFalse(w instanceof java.awt.Dialog && w.isShowing(), "no dialog: " + w);
+            }
+
+            // 리셋할 때도 다시 본다(리셋 전 훅): 파일을 고치고 같은 GUI 스레드 차례 안에서 리셋하면, 감시 타이머가
+            // 끼어들 틈 없이 곧바로 내용이 바뀐다
+            Component imem = null;
+            for (Component c : main.getNonWires()) {
+                if (c.getFactory().getName().equals("Instruction Memory")) {
+                    imem = c;
+                }
+            }
+            @SuppressWarnings("unchecked")
+            com.cburch.logisim.data.Attribute<Object> contents = (com.cburch.logisim.data.Attribute<Object>) imem
+                    .getAttributeSet().getAttribute("contents");
+            Component im = imem;
+            AtomicReference<String[]> seen = new AtomicReference<>();
+            SwingUtilities.invokeAndWait(() -> {
+                try {
+                    String before = contents.toStandardString(im.getAttributeSet().getValue(contents));
+                    String t = new String(java.nio.file.Files.readAllBytes(s.toPath()),
+                            java.nio.charset.StandardCharsets.UTF_8).replace("li    $a0, 5", "li    $a0, 4");
+                    java.nio.file.Files.write(s.toPath(), t.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    s.setLastModified(s.lastModified() + 4000);
+                    Recorder.requestReset(proj);
+                    seen.set(new String[] {before,
+                        contents.toStandardString(im.getAttributeSet().getValue(contents))});
+                } catch (java.io.IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            assertFalse(seen.get()[0].equals(seen.get()[1]), "reset reloads the changed .s at once");
         } finally {
             SwingUtilities.invokeAndWait(frame::dispose);
         }
