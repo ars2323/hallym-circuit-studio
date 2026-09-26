@@ -41,10 +41,8 @@ class WindowBoundsGuiTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "needs a display (xvfb-run)");
         GuiTestSupport.keepAlive();
         Settings s = Settings.get();
-        for (String k : new String[] {WindowBounds.X, WindowBounds.Y, WindowBounds.W, WindowBounds.H,
-            WindowBounds.MAX}) {
-            s.set(k, "");
-        }
+        Rectangle before = WindowBounds.saved(s); // 다른 GUI 테스트를 위해 keepAlive가 둔 창(끝나면 되돌린다)
+        WindowBounds.store(null, false); // 첫 실행 상태
         int origW = AppPreferences.WINDOW_WIDTH.get();
         int origH = AppPreferences.WINDOW_HEIGHT.get();
         String origLoc = AppPreferences.WINDOW_LOCATION.get();
@@ -84,10 +82,7 @@ class WindowBoundsGuiTest {
             assertTrue(WindowBounds.saved(s) != null, "the fork saved its own window keys");
         } finally {
             SwingUtilities.invokeAndWait(frame::dispose);
-            for (String k : new String[] {WindowBounds.X, WindowBounds.Y, WindowBounds.W, WindowBounds.H,
-                WindowBounds.MAX}) {
-                s.set(k, "");
-            }
+            WindowBounds.store(before, false);
         }
     }
 }

@@ -265,8 +265,11 @@ public final class FileTabs {
         Frame group = groupFrame();
         Rectangle r = group == null ? f.getBounds() : group.getBounds();
         Rectangle screen = screenOf(f);
-        Rectangle at = new Rectangle(Math.min(r.x + 60, screen.x + screen.width - r.width),
-                Math.min(r.y + 60, screen.y + screen.height - r.height), r.width, r.height);
+        // 무리 창이 최대화돼 화면을 다 쓰면(X-01 첫 실행) 같은 크기로는 비켜 둘 수 없다: 비킨 만큼 줄인다
+        int w = Math.min(r.width, screen.width - 60);
+        int h = Math.min(r.height, screen.height - 60);
+        Rectangle at = new Rectangle(Math.min(r.x + 60, screen.x + screen.width - w),
+                Math.min(r.y + 60, screen.y + screen.height - h), w, h);
         if (groupActive == p) {
             groupActive = null; // 무리는 이웃 탭을 보인다(showActive가 고른다)
         }

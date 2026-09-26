@@ -30,6 +30,10 @@ public final class GuiTestSupport {
         if (anchor != null) {
             return;
         }
+        // X-01: 저장된 창이 없으면 첫 실행처럼 최대화로 열린다. 테스트 창은 정해진 크기(1400×900, 보통 상태)로 연다
+        if (kr.ac.hallym.hcs.app.window.WindowBounds.saved(kr.ac.hallym.hcs.app.Settings.get()) == null) {
+            kr.ac.hallym.hcs.app.window.WindowBounds.store(new java.awt.Rectangle(0, 0, 1400, 900), false);
+        }
         Project p = new Project(CircuitBuilder.newFile(new Loader(null),
                 Files.createTempDirectory("hcs-gui-anchor").toFile()));
         p.getSimulator().setIsRunning(false);
