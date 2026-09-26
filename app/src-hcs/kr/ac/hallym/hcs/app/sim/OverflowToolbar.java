@@ -153,7 +153,9 @@ public final class OverflowToolbar extends JToolBar {
                 m.add(mi);
             } else if (it.comp instanceof AbstractButton) {
                 AbstractButton b = (AbstractButton) it.comp;
-                JMenuItem mi = new JMenuItem(Messages.get(it.key), b.getIcon());
+                // 아이콘 없는 글자 단추(Icons Only ↔ Text)는 도구 모음과 같은 이름으로(한 기능에 이름 하나, X-05 검토)
+                String label = b.getIcon() == null && b.getText() != null ? b.getText() : Messages.get(it.key);
+                JMenuItem mi = new JMenuItem(label, b.getIcon());
                 mi.setEnabled(b.isEnabled());
                 mi.addActionListener(e -> b.doClick());
                 m.add(mi);

@@ -7,7 +7,7 @@ plugins {
     application
 }
 
-version = "1.0.1"
+version = "1.0.2"
 
 val logisimJar = rootProject.file("vendor/logisim-2.7.1/logisim-generic-2.7.1.jar")
 
