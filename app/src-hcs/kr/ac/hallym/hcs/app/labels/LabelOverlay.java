@@ -83,6 +83,8 @@ public final class LabelOverlay {
     /** 이번 그리기의 원조 라벨들(wrap이 채우고 paint가 쓴다). */
     private List<LabelField> labels = new ArrayList<>();
     private long cachedSig;
+    /** 칩과 선 사이 최소 간격(회로 단위): 강조 띠의 반 폭보다 1 크다(X-04, D-108). */
+    public static final int WIRE_GAP = (int) (kr.ac.hallym.hcs.app.cycle.FieldOverlay.BAND / 2) + 1;
     private List<LabelLayout.Placed> cached = new ArrayList<>();
     private Map<Object, String> cachedText = new HashMap<>();
 
@@ -774,11 +776,13 @@ public final class LabelOverlay {
             Bounds b = c.getBounds();
             obstacles.add(new Rectangle(b.getX(), b.getY(), b.getWidth(), b.getHeight()));
         }
-        // 선도 피한다(S-05: 칩이 옆 선 위에 놓이지 않게). 피할 수 없으면 칩 위에 선을 다시 그린다(redrawWires)
+        // 선도 피한다(S-05: 칩이 옆 선 위에 놓이지 않게). 피할 수 없으면 칩 위에 선을 다시 그린다(redrawWires).
+        // 강조 띠(Active Path·필드 색, 선 둘레 BAND)만큼 더 띄운다(X-04: 칩이 강조된 버스에 닿지 않게)
         for (Wire w : circuit.getWires()) {
             sig = sig * 31 + w.hashCode();
             Bounds b = w.getBounds();
-            obstacles.add(new Rectangle(b.getX() - 1, b.getY() - 1, b.getWidth() + 2, b.getHeight() + 2));
+            obstacles.add(new Rectangle(b.getX() - WIRE_GAP, b.getY() - WIRE_GAP, b.getWidth() + 2 * WIRE_GAP,
+                    b.getHeight() + 2 * WIRE_GAP));
         }
         if (sig != cachedSig || !texts.equals(cachedText)) {
             cached = LabelLayout.layout(reqs, obstacles, Math.max(3, Math.round(px / 3)), 14);

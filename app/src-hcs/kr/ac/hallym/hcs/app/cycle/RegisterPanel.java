@@ -126,6 +126,20 @@ final class RegisterPanel extends JComponent implements Scrollable {
         return listMode;
     }
 
+    /** 표시 없이 나열했고 이름이 $n·Rn으로 대응되지 않았다: 안내를 보일 때(X-04). */
+    boolean isUnmappedList() {
+        if (!listMode) {
+            return false;
+        }
+        List<MachineState.Reg> regs = new ArrayList<>();
+        for (Line l : lines) {
+            if (l.reg != null) {
+                regs.add(l.reg);
+            }
+        }
+        return !regs.isEmpty() && MachineState.unmapped(regs);
+    }
+
     List<Line> lines() {
         return lines;
     }
@@ -235,6 +249,9 @@ final class RegisterPanel extends JComponent implements Scrollable {
         for (Line l : lines) {
             if (l.reg != null) {
                 w = Math.max(w, fm.stringWidth(l.reg.name) + 8);
+                if (l.reg.alias != null) {
+                    w = Math.max(w, fm.stringWidth(l.reg.name + "  " + l.reg.alias) + 8);
+                }
             }
         }
         return Math.min(w, 260);
@@ -285,6 +302,11 @@ final class RegisterPanel extends JComponent implements Scrollable {
             int x = 18;
             g.setColor(r.changed ? Tokens.TEAL_TEXT : Tokens.TEXT);
             g.drawString(CycleView.fit(fm, r.name, nameW), x, y + base);
+            if (r.alias != null) { // PC로 판별한 레지스터: 원래 이름을 곁에 흐리게(X-04)
+                g.setColor(Tokens.TEXT_2);
+                int ax = x + fm.stringWidth(r.name + "  ");
+                g.drawString(CycleView.fit(fm, r.alias, nameW - (ax - x)), ax, y + base);
+            }
             x += nameW + 4;
             if (r.number >= 0 && r.name.startsWith("$")) {
                 g.setColor(Tokens.TEXT_2);

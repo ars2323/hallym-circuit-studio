@@ -128,6 +128,26 @@ class StatusModelTest {
         proj.undoAction();
         assertNull(PcMark.marked(file, main));
         assertEquals(reg, StatusModel.pcComponent(file, main));
+
+        // X-04: Registers 탭용 pcRegister — 판별한 PC가 터널이면 그 넷에 값을 내는 레지스터로 옮긴다
+        CircuitBuilder b5 = new CircuitBuilder(file, main);
+        com.cburch.logisim.comp.Component src = b5.add("Memory", "Register", 800, 800, "width", "32");
+        b5.tunnel(src, 0, "pcnet"); // Q 출력에 터널 pcnet
+        com.cburch.logisim.comp.Component pcT = b5.add("Wiring", "Tunnel", 100, 900, "label", "pcnet", "width", "32");
+        b5.commit();
+        assertEquals(reg, StatusModel.pcRegister(file, main), "a register is used as it is");
+        com.cburch.logisim.circuit.CircuitMutation rm = new com.cburch.logisim.circuit.CircuitMutation(main);
+        rm.remove(reg); // 라벨 Pc 레지스터를 지우면 터널 pc(t)가 PC: 그 넷에는 값을 내는 레지스터가 없다
+        rm.execute();
+        assertEquals(t, StatusModel.pcComponent(file, main));
+        assertNull(StatusModel.pcRegister(file, main), "nothing drives the pc tunnel: no register row is renamed");
+        com.cburch.logisim.circuit.CircuitMutation rm2 = new com.cburch.logisim.circuit.CircuitMutation(main);
+        rm2.remove(pcT);
+        rm2.execute();
+        CircuitBuilder b7 = new CircuitBuilder(file, main);
+        b7.tunnel(src, 0, "pc"); // src의 Q에 터널 pc: 터널 t와 같은 넷이 되고, 그 넷을 내는 것은 src다
+        b7.commit();
+        assertEquals(src, StatusModel.pcRegister(file, main), "the register driving the pc tunnel's net");
         proj.doAction(PcMark.action(file, main, other, true));
         // 저장 형식: hcs:ext 안 kind="pc" at="(600,600)" 하나, 원조 요소는 그대로
         java.io.File out = tmp.resolve("pc.circ").toFile();
