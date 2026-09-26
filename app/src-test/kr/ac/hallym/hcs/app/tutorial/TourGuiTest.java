@@ -63,17 +63,25 @@ class TourGuiTest {
             });
             for (int i = 0; i < Tour.steps().size(); i++) {
                 final int step = i;
-                SwingUtilities.invokeAndWait(() -> o.go(step));
+                // 한 번의 EDT 호출 안에서 단계를 옮기고 자리를 읽는다(다른 스레드에서 읽으면 배치 도중 값이 섞인다)
+                Rectangle[] got = new Rectangle[3];
+                SwingUtilities.invokeAndWait(() -> {
+                    o.go(step);
+                    got[0] = o.hole();
+                    got[1] = o.bubble.getBounds();
+                    got[2] = new Rectangle(0, 0, o.getWidth(), o.getHeight());
+                });
                 Tour.Step s = Tour.steps().get(i);
-                Rectangle hole = o.hole();
+                Rectangle hole = got[0];
+                Rectangle bubble = got[1];
+                Rectangle pane = got[2];
                 if (s.target != null) {
                     assertNotNull(hole, s.key + " target not found");
                     assertTrue(hole.width > 0 && hole.height > 0, s.key);
-                    assertFalse(o.bubble.getBounds().intersects(hole) && hole.width < 1000, s.key + " bubble covers target");
+                    assertFalse(bubble.intersects(hole) && hole.width < 1000, s.key + " bubble covers target");
                 }
-                Rectangle pane = new Rectangle(0, 0, o.getWidth(), o.getHeight());
-                assertTrue(pane.contains(o.bubble.getBounds()), s.key + " bubble inside " + pane + " but "
-                        + o.bubble.getBounds() + " frame " + frame.getSize());
+                assertTrue(pane.contains(bubble), s.key + " bubble inside " + pane + " but " + bubble + " frame "
+                        + frame.getSize());
             }
             assertEquals(Tour.steps().size() - 1, o.step());
             SwingUtilities.invokeAndWait(o::end);
