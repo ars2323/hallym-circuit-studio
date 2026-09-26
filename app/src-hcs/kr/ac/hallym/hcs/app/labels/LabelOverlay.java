@@ -83,8 +83,8 @@ public final class LabelOverlay {
     /** 이번 그리기의 원조 라벨들(wrap이 채우고 paint가 쓴다). */
     private List<LabelField> labels = new ArrayList<>();
     private long cachedSig;
-    /** 칩과 선 사이 최소 간격(회로 단위): 강조 띠의 반 폭보다 1 크다(X-04, D-108). */
-    public static final int WIRE_GAP = (int) (kr.ac.hallym.hcs.app.cycle.FieldOverlay.BAND / 2) + 1;
+    /** 칩과 선 사이 최소 간격(회로 단위): 강조 띠의 반 폭보다 3 크다(X-04, D-108; 150%에서도 띠 밖 4px 이상). */
+    public static final int WIRE_GAP = (int) (kr.ac.hallym.hcs.app.cycle.FieldOverlay.BAND / 2) + 3;
     private List<LabelLayout.Placed> cached = new ArrayList<>();
     private Map<Object, String> cachedText = new HashMap<>();
 
