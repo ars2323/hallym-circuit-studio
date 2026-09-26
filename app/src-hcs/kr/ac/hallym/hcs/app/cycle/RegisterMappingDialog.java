@@ -6,7 +6,6 @@
 package kr.ac.hallym.hcs.app.cycle;
 
 import java.awt.BorderLayout;
-import java.awt.GridLayout;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -63,9 +62,16 @@ public final class RegisterMappingDialog {
         Map<Integer, Component> now = RegisterFile.mapping(proj.getLogisimFile(), rf);
         List<Choice> choices = choices(rf);
         List<JComboBox<Choice>> boxes = new ArrayList<>();
-        JPanel grid = new JPanel(new GridLayout(0, 2, 8, 4));
+        JPanel grid = new JPanel(new java.awt.GridBagLayout());
+        java.awt.GridBagConstraints gc = new java.awt.GridBagConstraints();
+        gc.insets = new java.awt.Insets(2, 2, 2, 8);
+        gc.anchor = java.awt.GridBagConstraints.WEST;
         for (int n = 0; n < 32; n++) {
-            grid.add(new JLabel(MipsText.REG[n] + "  (R" + n + ")"));
+            gc.gridy = n;
+            gc.gridx = 0;
+            gc.weightx = 0;
+            gc.fill = java.awt.GridBagConstraints.NONE;
+            grid.add(new JLabel(MipsText.REG[n] + "  (R" + n + ")"), gc);
             JComboBox<Choice> box = new JComboBox<>(choices.toArray(new Choice[0]));
             Component cur = now.get(n);
             for (Choice c : choices) {
@@ -74,7 +80,10 @@ public final class RegisterMappingDialog {
                 }
             }
             boxes.add(box);
-            grid.add(box);
+            gc.gridx = 1;
+            gc.weightx = 1;
+            gc.fill = java.awt.GridBagConstraints.HORIZONTAL;
+            grid.add(box, gc);
         }
         JPanel p = new JPanel(new BorderLayout(0, 8));
         JLabel help = new JLabel("<html><div style='width:380px'>" + Messages.get("regfile.mappingHelp")

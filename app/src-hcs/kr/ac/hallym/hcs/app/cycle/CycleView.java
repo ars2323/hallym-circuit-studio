@@ -80,6 +80,7 @@ public final class CycleView {
     private final RegisterPanel registers = new RegisterPanel(this::machine);
     private final MemoryPanel memory = new MemoryPanel(this::memories);
     private final JTabbedPane side = new JTabbedPane();
+    private final JLabel memSummary = new JLabel();
     private final javax.swing.JSplitPane split;
     private final JLabel position = new JLabel();
     private final JLabel notice = new JLabel(Messages.get("cycle.pastNotice"));
@@ -147,7 +148,12 @@ public final class CycleView {
         empty.setVerticalAlignment(SwingConstants.TOP);
         panel.add(bar, BorderLayout.NORTH);
         side.addTab(Messages.get("regs.tab"), new JScrollPane(registers));
-        side.addTab(Messages.get("mem.tab"), new JScrollPane(memory));
+        JPanel memTab = new JPanel(new BorderLayout());
+        memSummary.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
+        memSummary.setForeground(Tokens.NAVY);
+        memTab.add(memSummary, BorderLayout.NORTH);
+        memTab.add(new JScrollPane(memory), BorderLayout.CENTER);
+        side.addTab(Messages.get("mem.tab"), memTab);
         side.setMinimumSize(new Dimension(0, 0));
         split = new javax.swing.JSplitPane(javax.swing.JSplitPane.HORIZONTAL_SPLIT, scroll, side);
         split.setResizeWeight(0.6);
@@ -389,6 +395,18 @@ public final class CycleView {
         return c <= m.lastCycle() ? c : -1;
     }
 
+    /**
+     * 오른쪽 끝이 right가 되게 스크롤하되 왼쪽 끝을 열 경계에 맞춘다(잘린 열 조각이 값처럼 보이지 않게, C-05 검토).
+     */
+    void scrollToColumnEdge(int right) {
+        javax.swing.JViewport vp = scroll.getViewport();
+        int w = vp.getWidth();
+        int left = Math.max(0, right - w);
+        left = (left + COL_W - 1) / COL_W * COL_W; // 올림: 오른쪽 열이 온전히 보이면 왼쪽 조각을 넘긴다
+        int max = Math.max(0, body.getPreferredSize().width - w);
+        vp.setViewPosition(new java.awt.Point(Math.min(left, max), vp.getViewPosition().y));
+    }
+
     /** 줄 목록: 신호마다 한 줄, 비트로 펼친 버스는 비트마다 한 줄 더(높은 비트부터). */
     static final class Row {
         final CycleModel.Signal signal;
@@ -498,6 +516,8 @@ public final class CycleView {
     void refresh() {
         registers.refresh();
         memory.refresh();
+        memSummary.setText(memory.summary());
+        memSummary.setVisible(!memory.summary().isEmpty());
         CycleModel m = model();
         boolean has = m != null && !m.isEmpty();
         if (has) {
@@ -531,8 +551,7 @@ public final class CycleView {
         head.repaint();
         rowNames.repaint();
         if (has && follow && m.cursorCycle() == m.lastCycle()) {
-            SwingUtilities.invokeLater(() -> body.scrollRectToVisible(new Rectangle(x(m, m.lastCycle()), 0, COL_W,
-                    1)));
+            SwingUtilities.invokeLater(() -> scrollToColumnEdge(x(m, m.lastCycle()) + COL_W));
         }
     }
 
@@ -602,7 +621,11 @@ public final class CycleView {
         public Dimension getPreferredSize() {
             CycleModel m = model();
             int cols = m == null || m.isEmpty() ? 0 : m.lastCycle() - m.firstCycle() + 1;
-            return new Dimension(cols * COL_W, Math.max(1, rows().size()) * ROW_H);
+            int content = cols * COL_W;
+            // 끝까지 스크롤했을 때 왼쪽 끝이 열 경계에 오도록 오른쪽에 빈칸을 조금 더한다(잘린 열 조각이 값처럼 보이지 않게)
+            int vw = scroll.getViewport().getWidth();
+            int extra = content > vw && vw > 0 ? (COL_W - (content - vw) % COL_W) % COL_W : 0;
+            return new Dimension(content + extra, Math.max(1, rows().size()) * ROW_H);
         }
 
         @Override

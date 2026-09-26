@@ -199,7 +199,7 @@ public final class Shots {
             runUntil(demo);
         }
         if (want(scenes, "27")) {
-            machinePanels(demo, ref);
+            machinePanels(demo);
         }
         if (want(scenes, "10")) {
             open("tests/circ/register.circ");
@@ -1699,10 +1699,10 @@ public final class Shots {
 
     /**
      * 27: 레지스터·메모리 패널(C-05, C-06). demo-datapath(사람이 그린 회로)의 regfile을 "Mark as Register File"로
-     * 표시하고 6사이클 돈 뒤 Registers 탭과 Register Mapping 창. 스택은 프로그램을 도는 CPU가 있어야 쌓이므로 ref-mips에
-     * factorial.s를 불러 가장 깊을 때(fact(0)의 첫 bne)의 Memory 탭과 Registers 탭(표시 없음: 모든 레지스터 나열).
+     * 표시하고 6사이클 돈 뒤 Registers 탭과 Register Mapping 창. 스택은 작은 회로 stack-demo를 6사이클 돌린 뒤 Memory 탭과
+     * Registers 탭(표시 없음: 모든 레지스터 나열).
      */
-    void machinePanels(Project demo, Project ref) throws Exception {
+    void machinePanels(Project demo) throws Exception {
         activate(demo);
         deselect(demo);
         Circuit rf = demo.getLogisimFile().getCircuit("regfile");
@@ -1736,30 +1736,29 @@ public final class Shots {
         }
         sleep(400);
 
-        activate(ref);
-        deselect(ref);
-        if (!chooseProgram(ref, "tests/mips/factorial.s", null, "27")) {
-            return;
-        }
-        edt(() -> kr.ac.hallym.hcs.app.record.Recorder.requestReset(ref));
+        // 스택: 사람이 그린 작은 회로 stack-demo(체크리스트 10). 사이클마다 $sp가 4 내려가고 그 칸에 count를 쓴다
+        Project sd = open("tests/circ/stack-demo.circ");
+        activate(sd);
+        deselect(sd);
+        edt(() -> kr.ac.hallym.hcs.app.record.Recorder.requestReset(sd));
         sleep(900);
-        kr.ac.hallym.hcs.app.cycle.CycleView rv = kr.ac.hallym.hcs.app.cycle.CycleView.of(ref);
-        edt(rv::open);
-        // fact(6)..fact(0)의 일곱 번째 bne: 가장 깊은 곳
-        for (int k = 0; k < 7; k++) {
-            edt(() -> rv.start(kr.ac.hallym.hcs.app.cycle.RunUntil.instruction("bne", 1000)));
-            for (int i = 0; i < 100 && rv.isRunningUntil(); i++) {
-                sleep(100);
-            }
+        for (int i = 0; i < 12; i++) {
+            edt(() -> sd.getSimulator().tick());
+            sleep(40);
         }
-        sleep(600);
-        edt(() -> rv.showSide(1));
-        sleep(700);
-        snapCrop(onScreen(rv.sideComponent()), "27d-stack-deepest");
-        edt(() -> rv.showSide(0));
+        sleep(800);
+        kr.ac.hallym.hcs.app.cycle.CycleView sv = kr.ac.hallym.hcs.app.cycle.CycleView.of(sd);
+        edt(sv::open);
+        edt(() -> sv.showSide(1));
+        edt(() -> canvas(sd).getHcsZoom().fitCircuit());
+        sleep(900);
+        snapCrop(onScreen(sv.sideComponent()), "27d-stack");
+        edt(() -> sv.showSide(0));
         sleep(500);
-        snapCrop(onScreen(rv.sideComponent()), "27e-registers-unmarked");
-        snapFull("27f-ref-mips-full");
+        snapCrop(onScreen(sv.sideComponent()), "27e-registers-unmarked");
+        edt(() -> sv.showSide(1));
+        sleep(500);
+        snapFull("27f-stack-demo-full");
     }
 
     void program(Project p) throws Exception {

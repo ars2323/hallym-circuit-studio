@@ -76,6 +76,20 @@ final class MemoryPanel extends JComponent implements Scrollable {
         }
     }
 
+    /** 고정 요약 줄: Stack의 깊이와 최고 수위(목록을 $sp 칸으로 스크롤해도 보인다). Stack이 없으면 빈 글. */
+    String summary() {
+        StringBuilder sb = new StringBuilder();
+        for (Line l : lines) {
+            if (l.word == null && l.memory.stack) {
+                if (sb.length() > 0) {
+                    sb.append("   ");
+                }
+                sb.append(head(l.memory));
+            }
+        }
+        return sb.toString();
+    }
+
     List<Line> lines() {
         return lines;
     }
@@ -129,7 +143,8 @@ final class MemoryPanel extends JComponent implements Scrollable {
             if (l.word == null) {
                 g.setFont(ui);
                 g.setColor(Tokens.NAVY);
-                g.drawString(head(l.memory), 6, y + base);
+                // 깊이·최고 수위는 위 고정 요약 줄에 있다: 목록 머리는 이름만
+                g.drawString(l.memory.name, 6, y + base);
                 g.setFont(getFont());
                 continue;
             }

@@ -225,6 +225,17 @@ final class RegisterPanel extends JComponent implements Scrollable {
         }
     }
 
+    /** 나열 모드의 이름 칸: 가장 긴 이름에 맞춘다(한 목록 안에서는 같은 폭). */
+    private int listNameWidth(FontMetrics fm) {
+        int w = 60;
+        for (Line l : lines) {
+            if (l.reg != null) {
+                w = Math.max(w, fm.stringWidth(l.reg.name) + 8);
+            }
+        }
+        return Math.min(w, 260);
+    }
+
     @Override
     public Dimension getPreferredSize() {
         return new Dimension(560, Math.max(1, lines.size()) * ROW_H + 4);
@@ -266,7 +277,7 @@ final class RegisterPanel extends JComponent implements Scrollable {
                 g.fillRect(0, y, getWidth(), ROW_H);
             }
             // 표시한 레지스터 파일은 $name 칸이 좁고, 모두 나열할 때는 경로가 든 이름 칸이 넓다(한 목록 안에서는 같은 폭)
-            int nameW = listMode ? 200 : 60;
+            int nameW = listMode ? listNameWidth(fm) : 60;
             int x = 18;
             g.setColor(r.changed ? Tokens.TEAL_TEXT : Tokens.TEXT);
             g.drawString(CycleView.fit(fm, r.name, nameW), x, y + base);
