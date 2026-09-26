@@ -155,6 +155,15 @@ public final class Shots {
             kr.ac.hallym.hcs.app.labels.BusValues.setMode(bus);
             kr.ac.hallym.hcs.app.labels.LabelOverlay.setDensity(baseDensity);
             kr.ac.hallym.hcs.app.groups.SignalGroups.setShowGroups(baseGroups);
+            // 상태 표시줄 Colors 단추의 글자는 눌러야만 바뀐다: 글자가 기준과 다르면 두 번 눌러(설정은 그대로) 맞춘다
+            String want = kr.ac.hallym.hcs.app.Messages.get(baseGroups ? "group.modeGroups" : "group.modeValues");
+            for (Project q : new Project[] {baseRef, baseDemo}) {
+                javax.swing.JButton colors = q == null || q.getFrame() == null ? null : colorsButton(q);
+                if (colors != null && !want.equals(colors.getText())) {
+                    colors.doClick();
+                    colors.doClick();
+                }
+            }
             kr.ac.hallym.hcs.app.wiring.BusStyle.setWidths(baseWidths);
             kr.ac.hallym.hcs.app.flow.FlowSettings.setActivePathOnly(baseActiveOnly);
         });
@@ -171,11 +180,32 @@ public final class Shots {
                 q.getFrame().setBounds(0, 0, W, H);
                 q.getFrame().validate();
             });
+            // 앞 장면의 편집(속성 변경·부품 삭제·프로그램 불러오기 등)을 되돌려 파일을 연 상태로
+            for (int i = 0; i < 200 && q.isFileDirty() && q.getLastAction() != null; i++) {
+                edt(q::undoAction);
+            }
+            // 스크롤·배율 뒤에 남은 빠른 속성 창(유리판 위 패널)을 감춘다
+            edt(() -> {
+                javax.swing.JLayeredPane lp = q.getFrame().getLayeredPane();
+                for (Component k : lp.getComponents()) {
+                    if (k instanceof javax.swing.JPanel && k != q.getFrame().getContentPane() && k.isVisible()) {
+                        k.setVisible(false);
+                    }
+                }
+            });
             deselect(p);
             setZoom(p, 1.0);
             scrollTo(p, 0, 0);
         }
         checkState(id);
+    }
+
+    /** 상태 표시줄의 Colors 단추(Values/Groups). */
+    javax.swing.JButton colorsButton(Project q) {
+        String g = kr.ac.hallym.hcs.app.Messages.get("group.modeGroups");
+        String v = kr.ac.hallym.hcs.app.Messages.get("group.modeValues");
+        return (javax.swing.JButton) find(q.getFrame(), x -> x instanceof javax.swing.JButton
+                && (g.equals(((javax.swing.JButton) x).getText()) || v.equals(((javax.swing.JButton) x).getText())));
     }
 
     /** 기준 검사: 열린 탭 목록과 표시 모드가 기준과 같아야 한다. 어긋나면 촬영을 실패시킨다(새어 나온 상태로 찍지 않는다). */
@@ -191,6 +221,13 @@ public final class Shots {
         }
         if (kr.ac.hallym.hcs.app.groups.SignalGroups.showGroups() != baseGroups) {
             bad.add("Colors mode");
+        }
+        String want = kr.ac.hallym.hcs.app.Messages.get(baseGroups ? "group.modeGroups" : "group.modeValues");
+        for (Project q : new Project[] {baseRef, baseDemo}) {
+            javax.swing.JButton colors = q == null || q.getFrame() == null ? null : colorsButton(q);
+            if (colors != null && !want.equals(colors.getText())) {
+                bad.add(q.getLogisimFile().getDisplayName() + " Colors button " + colors.getText());
+            }
         }
         if (kr.ac.hallym.hcs.app.labels.BusValues.mode() != baseBus) {
             bad.add("Bus Values mode");
@@ -208,6 +245,9 @@ public final class Shots {
                 }
                 if (!p.getSelection().getComponents().isEmpty()) {
                     bad.add(p.getLogisimFile().getDisplayName() + " selection");
+                }
+                if (p.isFileDirty()) {
+                    bad.add(p.getLogisimFile().getDisplayName() + " still edited");
                 }
             }
         }
@@ -336,6 +376,10 @@ public final class Shots {
             sceneStart("27");
             machinePanels(withFactorial(ref));
         }
+        if (want(scenes, "37")) {
+            sceneStart("37");
+            busStyle(demo);
+        }
         if (want(scenes, "28")) {
             sceneStart("28");
             consoleAndReload(demo);
@@ -371,10 +415,6 @@ public final class Shots {
         if (want(scenes, "36")) {
             sceneStart("36");
             submitAndExport(demo);
-        }
-        if (want(scenes, "37")) {
-            sceneStart("37");
-            busStyle(demo);
         }
         if (want(scenes, "38")) {
             sceneStart("38");
@@ -1883,7 +1923,10 @@ public final class Shots {
         sleep(900);
         snapFull("25a-cycles-full");
         snapCrop(onScreen(v.component()), "25b-cycles-table");
-        Bounds pcArea = Bounds.create(250, 130, 420, 150);
+        // 200% 캔버스: 사람이 그린 demo면 PC 둘레, ref-mips면 Instruction Memory 둘레(V-09)
+        com.cburch.logisim.comp.Component imem = byFactory(c, "Instruction Memory");
+        Bounds pcArea = p.getLogisimFile().getCircuit("regfile") != null || imem == null
+                ? Bounds.create(250, 130, 420, 150) : imem.getBounds().expand(120);
         setZoom(p, 2.0);
         centerOn(p, pcArea);
         snapLogical(p, pcArea, "25e-canvas-latest-200");
