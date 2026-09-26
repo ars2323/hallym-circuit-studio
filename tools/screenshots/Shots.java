@@ -1990,6 +1990,8 @@ public final class Shots {
         sleep(800);
         Rectangle all = onScreen(ex.getFrame().getContentPane());
         snapCrop(new Rectangle(all.x, all.y + all.height - 34, all.width, 34), "46c-example-readonly-notice");
+    }
+
     /** V-08: ref-mips 상태 표시줄의 PC, Tunnels 목록의 외톨이 터널(흐린 주황 개수), 레지스터 우클릭 Mark as PC. */
     void pcAndLoneTunnels(Project ref, Project demo) throws Exception {
         activate(ref);
