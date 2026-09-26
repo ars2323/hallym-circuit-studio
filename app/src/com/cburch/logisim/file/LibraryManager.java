@@ -14,7 +14,7 @@ import java.util.WeakHashMap;
 import com.cburch.logisim.tools.Library;
 import com.cburch.logisim.util.StringUtil;
 
-class LibraryManager {
+public class LibraryManager { // HCS: V-01. public so the fork can register the bundled MIPS library
 	public static final LibraryManager instance = new LibraryManager();
 
 	private static char desc_sep = '#';
@@ -83,6 +83,8 @@ class LibraryManager {
 
 		@Override
 		String toDescriptor(Loader loader) {
+			// HCS: V-01 (D-096). A relative name ("hcs-mips.jar") always means "next to the .circ".
+			if (!file.isAbsolute()) return "jar#" + file.getPath().replace(File.separatorChar, '/') + desc_sep + className;
 			return "jar#" + toRelative(loader, file) + desc_sep + className;
 		}
 		
@@ -193,8 +195,8 @@ class LibraryManager {
 		return loadJarLibrary(loader, toRead, toRead, className); // HCS: D-007
 	}
 	
-	// HCS: D-007. named goes into the saved descriptor; source is the jar actually loaded.
-	private LoadedLibrary loadJarLibrary(Loader loader, File named, File source, String className) {
+	// HCS: D-007. named goes into the saved descriptor; source is the jar actually loaded. Public for V-01.
+	public LoadedLibrary loadJarLibrary(Loader loader, File named, File source, String className) {
 		JarDescriptor jarDescriptor = new JarDescriptor(named, source, className);
 		LoadedLibrary ret = findKnown(jarDescriptor);
 		if (ret != null) return ret;

@@ -15,7 +15,7 @@
 | 자리 | 하는 일 |
 | --- | --- |
 | 왼쪽 위 검색 칸 | 부품 이름(`mux 32`, `register`)이나 명령을 치면 아래 목록이 걸러집니다. Ctrl+K |
-| 왼쪽 부품 목록 | 회로와 라이브러리. 부품을 고르고 캔버스를 누르면 놓입니다. **Hallym MIPS**에 Instruction Memory, Data Memory, Stack, Console이 있습니다 |
+| 왼쪽 부품 목록 | 회로와 라이브러리. 부품을 고르고 캔버스를 누르면 놓입니다. **Hallym MIPS**는 새 파일에서도 늘 목록에 있고(처음엔 흐리게 "(아직 파일에 없음)"), Instruction Memory, Data Memory, Stack, Console이 들어 있습니다. 첫 부품을 놓는 순간 파일에 추가됩니다 |
 | 도구 모음 | Edit(고르기·옮기기), Poke(값 바꾸기), Wire, Text, Pin, Tunnel, Probe, Signal Flow / Run, 1 Cycle, N Cycles, Reset, 클럭 속도, Load .s |
 | 가운데 캔버스 | 회로. Ctrl+휠 확대·축소, Ctrl+0 전체 맞춤, Ctrl+1 100%, 스페이스+끌기 이동, 오른쪽 클릭으로 그 자리의 명령 |
 | 오른쪽 Attributes | 고른 부품의 속성(Data Bits, Facing, Label…). 값을 두 번 누르면 바로 고칩니다. 부품을 놓으면 뜨는 작은 창(Quick Attributes)으로도 고칩니다 |
@@ -41,7 +41,7 @@
 
 ## 4. MIPS 프로그램 올리기와 돌리기
 
-1. Instruction Memory를 놓고(왼쪽 목록 Hallym MIPS) 오른쪽 클릭 **Load .s…** 또는 도구 모음 **Load .s**로 어셈블리 파일을 고릅니다. 기계어는 QtSpim(Hallym MIPS Simulator)과 같고, `.text`는 `0x00400000`, `.data`는 `0x10010000`부터입니다. `.data`가 있으면 Data Memory에도 함께 올라갑니다.
+1. Instruction Memory를 놓고(왼쪽 목록 Hallym MIPS, 또는 Ctrl+K에서 `instruction memory`) 오른쪽 클릭 **Load .s…** 또는 도구 모음 **Load .s**로 어셈블리 파일을 고릅니다. 기계어는 QtSpim(Hallym MIPS Simulator)과 같고, `.text`는 `0x00400000`, `.data`는 `0x10010000`부터입니다. `.data`가 있으면 Data Memory에도 함께 올라갑니다.
 2. .s 파일을 고쳐 저장하면 자동으로 다시 불러오고 시뮬레이션을 리셋합니다(상태 표시줄에 알림).
 3. **1 Cycle**은 한 사이클(클럭 두 틱), **N Cycles**는 정한 수만큼, **Run**은 계속 돌립니다. **Reset**은 처음으로.
 4. **Cycle View**에서 사이클 표를 보고, 열을 누르면 그 사이클의 회로가 보입니다. Run Until…로 조건(PC 값, 사이클 수, halt)까지 돌립니다. Registers·Memory·Instruction 탭에 레지스터 파일(오른쪽 클릭 Mark as Register File로 지정)과 메모리, 지금 명령어의 필드가 보입니다.
@@ -58,7 +58,7 @@ Messages 탭은 **동작할 수 없는 연결**만 알립니다. 결과가 맞�
 
 ## 6. 저장과 제출
 
-- Ctrl+S로 저장합니다. 원조 Logisim 2.7.1에서도 열립니다. 몇 분마다 자동 저장되고, 프로그램이 갑자기 끝났으면 다음 실행 때 복구를 제안합니다.
+- Ctrl+S로 저장합니다. 원조 Logisim 2.7.1에서도 열립니다. MIPS 부품을 쓴 파일은 .circ 옆에 `hcs-mips.jar`가 있어야 원조에서 열립니다. 저장할 때 jar가 없으면 상태 표시줄에 한 번 알리고 **Copy hcs-mips.jar Here** 단추로 복사할 수 있습니다(누르기 전에는 복사하지 않습니다). 몇 분마다 자동 저장되고, 프로그램이 갑자기 끝났으면 다음 실행 때 복구를 제안합니다.
 - **File › Create Submission…**은 .circ와 불러온 .s, 라이브러리를 zip 하나로 묶습니다. 묶기 전에 저장했는지, Messages가 0건인지, Probe가 남았는지, 원조 2.7.1에서 열리는지 알려 줍니다(막지는 않습니다).
 - **File › Export Image…**는 회로를 PNG(1~4배)·SVG·PDF로 내보냅니다. 보고서용입니다.
 - 다른 과제 파일의 서브회로가 필요하면 **File › Import Subcircuits…**로 복사해 옵니다(딸린 서브회로 포함).

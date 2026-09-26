@@ -102,7 +102,7 @@ public class ProjectExplorer extends JTree implements LocaleListener {
 		}
 		private List<?> getChildren(Object parent) {
 			if (parent == proj.getLogisimFile()) {
-				return ((Library) parent).getElements();
+				return kr.ac.hallym.hcs.app.libs.MipsShadow.treeElements(proj.getLogisimFile()); // HCS: V-01
 			} else if (parent instanceof Library) {
 				return ((Library) parent).getTools();
 			} else {
@@ -277,6 +277,12 @@ public class ProjectExplorer extends JTree implements LocaleListener {
 					String text = lib.getDisplayName();
 					if (lib.isDirty()) text += DIRTY_MARKER;
 					((JLabel) ret).setText(text);
+					// HCS: V-01. Hallym MIPS not yet in the file: dim, with a hint
+					if (kr.ac.hallym.hcs.app.libs.MipsShadow.isPending(proj.getLogisimFile(), lib)) {
+						((JLabel) ret).setText("<html><i>" + text + "</i> <span style='color:#888888'>"
+							+ kr.ac.hallym.hcs.app.Messages.get("mips.pendingMark") + "</span></html>");
+						((JLabel) ret).setToolTipText(kr.ac.hallym.hcs.app.Messages.get("mips.pendingTip"));
+					}
 				}
 			}
 			return ret;

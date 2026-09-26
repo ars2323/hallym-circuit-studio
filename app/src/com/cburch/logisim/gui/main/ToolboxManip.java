@@ -195,6 +195,7 @@ class ToolboxManip implements ProjectExplorer.Listener {
 		} else if (clicked == proj.getLogisimFile()) {
 			return Popups.forProject(proj);
 		} else if (clicked instanceof Library) {
+			if (kr.ac.hallym.hcs.app.libs.MipsShadow.isPending(proj.getLogisimFile(), clicked)) return null; // HCS: V-01
 			boolean is_top = event.getTreePath().getPathCount() <= 2;
 			return Popups.forLibrary(proj, (Library) clicked, is_top);
 		} else {

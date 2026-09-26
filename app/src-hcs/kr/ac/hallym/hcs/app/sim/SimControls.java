@@ -49,7 +49,11 @@ public final class SimControls {
     private final JLabel programLabel = new JLabel();
     /** 한 줄 알림(편집 결과 등). 몇 초 뒤 사라진다. */
     private final JLabel notice = new JLabel();
-    private final javax.swing.Timer noticeTimer = new javax.swing.Timer(NOTICE_MS, e -> notice.setText(""));
+    private final JButton noticeButton = new JButton(); // V-01: 알림 옆 단추(예: Copy hcs-mips.jar Here)
+    private final javax.swing.Timer noticeTimer = new javax.swing.Timer(NOTICE_MS, e -> {
+        notice.setText("");
+        noticeButton.setVisible(false);
+    });
     /** 알림이 보이는 시간. */
     static final int NOTICE_MS = 8000;
     private static final java.util.Map<Project, SimControls> ALL = new java.util.WeakHashMap<>();
@@ -269,6 +273,33 @@ public final class SimControls {
 
     private static final java.util.Map<Project, String> LAST = new java.util.WeakHashMap<>();
 
+    /**
+     * 단추가 달린 알림(V-01). 단추를 누르면 action을 실행하고 알림을 done으로 바꾼다. 원조 저장 흐름은 막지 않는다.
+     * 단추 알림은 자동으로 사라지지 않는다(다음 알림이 지운다).
+     */
+    public static void noticeWithButton(Project proj, String text, String button, java.util.function.Supplier<String> action) {
+        SimControls s;
+        synchronized (ALL) {
+            s = ALL.get(proj);
+            LAST.put(proj, text);
+        }
+        if (s == null) {
+            return;
+        }
+        s.notice.setText(text);
+        s.noticeTimer.stop();
+        for (java.awt.event.ActionListener l : s.noticeButton.getActionListeners()) {
+            s.noticeButton.removeActionListener(l);
+        }
+        s.noticeButton.setText(button);
+        s.noticeButton.addActionListener(e -> {
+            s.noticeButton.setVisible(false);
+            notice(proj, action.get());
+        });
+        s.noticeButton.setVisible(true);
+        s.noticeButton.getParent().revalidate();
+    }
+
     /** 마지막 알림(테스트). */
     public static String lastNotice(Project proj) {
         synchronized (ALL) {
@@ -297,6 +328,9 @@ public final class SimControls {
         p.add(kr.ac.hallym.hcs.app.labels.LabelOverlay.densityButton()); // #79
         p.add(kr.ac.hallym.hcs.app.labels.BusValues.button()); // C-08
         p.add(notice); // 편집 결과 한 줄 알림(#81)
+        noticeButton.setVisible(false);
+        noticeButton.setMargin(new java.awt.Insets(0, Tokens.SPACE_4, 0, Tokens.SPACE_4));
+        p.add(noticeButton);
         refresh();
         return p;
     }

@@ -141,7 +141,7 @@ public final class PaletteWindow extends JWindow {
 
     private void refresh() {
         Project proj = frame.getProject();
-        List<Library> libs = new ArrayList<>(proj.getLogisimFile().getLibraries());
+        List<Library> libs = kr.ac.hallym.hcs.app.libs.MipsShadow.libraries(proj.getLogisimFile()); // V-01
         List<Circuit> subs = new ArrayList<>(proj.getLogisimFile().getCircuits());
         subs.remove(proj.getCurrentCircuit());
         model.clear();

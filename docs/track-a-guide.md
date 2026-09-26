@@ -12,6 +12,8 @@
 
 Logisim 2.7.1에서 **Project › Load Library › JAR Library…**를 누르고 `hcs-mips.jar`를 고릅니다. 왼쪽 부품 목록에 **Hallym MIPS**가 생깁니다. 한 번 불러오면 .circ에 저장되어 다음부터는 자동으로 불러옵니다.
 
+Hallym Circuit Studio(포크)에서는 이 단계가 없습니다. Hallym MIPS가 새 파일에서도 늘 목록에 있고, 첫 부품을 놓으면 `jar#hcs-mips.jar#…`(같은 폴더의 jar)로 파일에 기록됩니다. 그 파일을 원조 2.7.1에서 열려면 `hcs-mips.jar`를 .circ 옆에 두면 됩니다.
+
 ## 3. 부품
 
 | 부품 | 입력 | 출력 | 하는 일 |
