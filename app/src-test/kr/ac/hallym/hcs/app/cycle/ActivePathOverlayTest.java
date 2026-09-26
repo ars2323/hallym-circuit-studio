@@ -20,6 +20,7 @@ import com.cburch.logisim.circuit.Circuit;
 import com.cburch.logisim.circuit.CircuitState;
 import com.cburch.logisim.circuit.Wire;
 import com.cburch.logisim.comp.Component;
+import com.cburch.logisim.data.Location;
 import com.cburch.logisim.data.Value;
 import com.cburch.logisim.file.LogisimFile;
 import com.cburch.logisim.instance.InstanceState;
@@ -75,20 +76,65 @@ class ActivePathOverlayTest {
         Pin.FACTORY.setValue(ps, Value.FALSE);
         ps.fireInvalidated();
         state.getPropagator().propagate();
-        Set<Wire> a = ActivePathOverlay.selected(main, state);
-        assertTrue(a.containsAll(in0), "select 0 → input 0");
-        assertTrue(java.util.Collections.disjoint(a, in1));
+        java.util.List<Location[]> a = ActivePathOverlay.selected(main, state);
+        assertTrue(onWires(a, in0) && !onWires(a, in1), "select 0 → input 0: " + text(a));
+        // V-04: 넷 전체가 아니라 ALU Result 출력에서 MUX 입력 0까지의 가지만. Data Memory Addr로 가는 가지는 없다
+        Component dmem = null;
+        for (Component c : main.getNonWires()) {
+            if (c.getFactory().getName().equals("Data Memory")) {
+                dmem = c;
+            }
+        }
+        assertNotNull(dmem);
+        Location addr = dmem.getEnd(0).getLocation();
+        assertTrue(nl.netOf(mux, 0) == nl.netOf(dmem, 0), "Addr shares the ALU Result net");
+        for (Location[] seg : a) {
+            assertFalse(seg[0].equals(addr) || seg[1].equals(addr), "no segment reaches Addr: " + text(a));
+        }
+        assertTrue(text(a).length() < text(nl.netOf(mux, 0).wires().stream()
+                .map(w -> new Location[] {w.getEnd0(), w.getEnd1()}).collect(java.util.stream.Collectors.toList()))
+                .length(), "fewer segments than the whole net");
+        assertEquals(EXPECTED_SELECT_0, text(a), "fixed branch for the demo circuit (D-099)");
 
         Pin.FACTORY.setValue(ps, Value.TRUE);
         ps.fireInvalidated();
         state.getPropagator().propagate();
-        Set<Wire> b = ActivePathOverlay.selected(main, state);
-        assertTrue(b.containsAll(in1), "select 1 → input 1");
-        assertTrue(java.util.Collections.disjoint(b, in0));
+        java.util.List<Location[]> b = ActivePathOverlay.selected(main, state);
+        assertTrue(onWires(b, in1) && !onWires(b, in0), "select 1 → input 1: " + text(b));
+        assertEquals(EXPECTED_SELECT_1, text(b));
 
         Pin.FACTORY.setValue(ps, Value.UNKNOWN);
         ps.fireInvalidated();
         state.getPropagator().propagate();
-        assertEquals(Set.of(), ActivePathOverlay.selected(main, state), "undetermined select: nothing");
+        assertEquals(java.util.List.of(), ActivePathOverlay.selected(main, state), "undetermined select: nothing");
+    }
+
+    /** 30장면 회로(demo-datapath)의 고정 기대값: 선분 목록 "(x1,y1)-(x2,y2)" 공백 구분. */
+    static final String EXPECTED_SELECT_0 = "(1100,240)-(1140,240) (1140,240)-(1140,210) (1140,210)-(1490,210) (1490,210)-(1490,420) (1490,420)-(1510,420)";
+    static final String EXPECTED_SELECT_1 = "(1440,440)-(1510,440)"; // ReadData에서 입력 1까지 한 선분
+
+    static String text(java.util.List<Location[]> segs) {
+        StringBuilder sb = new StringBuilder();
+        for (Location[] s : segs) {
+            sb.append(sb.length() > 0 ? " " : "").append(s[0]).append('-').append(s[1]);
+        }
+        return sb.toString();
+    }
+
+    /** 선분이 모두 이 선들 위에 있는가(선분 하나라도 있어야 참). */
+    static boolean onWires(java.util.List<Location[]> segs, Set<Wire> wires) {
+        if (segs.isEmpty()) {
+            return false;
+        }
+        for (Location[] s : segs) {
+            boolean on = false;
+            for (Wire w : wires) {
+                on |= w.contains(s[0]) && w.contains(s[1]);
+            }
+            if (!on) {
+                return false;
+            }
+        }
+        return true;
     }
 }

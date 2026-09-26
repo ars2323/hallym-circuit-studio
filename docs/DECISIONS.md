@@ -1186,3 +1186,10 @@
 - **이유:** v1.0.0 검토(31c): 메시지를 눌러도 표에는 기본 신호 다섯 줄뿐이라 원인(RegWrite)과 E가 생긴 지점을 볼 수 없었다.
 - **대안:** 임시 줄을 관찰 목록에 영구 추가(파일이 더러워지고 학생이 지워야 함), 원인만 보이기(E가 어디서 나타났는지 함께 봐야 원인과 결과가 이어진다).
 - **테스트:** `CycleViewGuiTest.clickingAMessagePinsTheCauseAndTheErrorSpot` — 31장면 흐름(demo-datapath, RegWrite 3상태)에서 메시지를 누르면 RegWrite 줄과 regfile 안 E 지점 줄이 맨 위에 생기고 그 사이클이 선택되며, 관찰 목록은 비어 있고, ×로 걷힌다.
+## D-099 활성 경로는 넷 전체가 아니라 가지만(V-04)
+
+- **날짜:** 2026-09-26
+- **결정:** 사이클 뷰의 활성 경로(C-08)는 MUX가 고른 데이터 입력 넷 전체가 아니라, 그 넷을 내는 포트(넷의 첫 드라이버, 없으면 스플리터 같은 비입력 포트)에서 그 MUX 입력 포트까지의 가장 짧은 선 경로 선분만 칠한다. 계산은 공용 연결 엔진 `Netlist.branch(net, from, to)`가 한다: 선의 끝점과 그 위의 포트 자리를 마디로, 같은 넷의 터널 짝은 길이 0으로 이어 다익스트라(거리가 같으면 위·왼쪽 먼저)로 찾고, 긴 선의 일부만 지나면 그 조각만 돌려준다. 내는 포트를 못 찾거나 닿지 못하면 넷 전체(이전 동작). MUX 선택 규칙(선택 값이 정해졌을 때만, 데이터 입력 번호 = 선택 값)은 Signal Flow의 Active Path Only(`ActivePath.dataCount`)와 같은 것을 쓴다. Signal Flow 애니메이션 자체는 신호가 넷의 모든 읽는 포트에 닿는 것을 보이므로 넷 전체를 걷는 것이 맞고, 바꾸지 않는다.
+- **이유:** v1.0.0 검토(30b): MemtoReg MUX가 ALU Result를 고를 때 Data Memory Addr로 가는 가지까지 진하게 칠해져 "고른 입력"이 아니라 "넷"으로 읽혔다.
+- **대안:** 선 단위로 칠하기(긴 선 하나가 갈림을 지나면 다른 가지 조각까지 칠해짐), Signal Flow 경로 계산 재사용(넷 전체를 걷는 애니메이션용이라 가지를 가리지 못함).
+- **테스트:** `NetlistTest.branchFollowsOnlyTheWayToThePort`(T자 갈림·긴 선의 일부·터널 짝·닿지 못함), `ActivePathOverlayTest.selectedMuxInputOnly` — 30장면 회로(demo-datapath)의 고정 기대값: 선택 0 = ALU Result에서 MUX 입력 0까지 다섯 선분(Addr 가지 없음), 선택 1 = ReadData에서 입력 1까지 한 선분.
