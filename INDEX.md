@@ -2,6 +2,12 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-26 Console 탭과 .s 자동 재로드(C-09)
+
+- 기준: feat/console-reload `9f29ff4` (main `608bb7a` 위)
+- 관련 이슈: C-09 #207
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-26-c09-console-reload/README.md
+
 ## 2026-09-26 레지스터·메모리 패널 재촬영 2(C-05, C-06)
 
 - 기준: feat/register-panel `a673078`
