@@ -25,7 +25,7 @@ import com.cburch.logisim.proj.Project;
  */
 public final class FieldOverlay {
     /** 띠 폭(회로 좌표): 격자 간격. 나란한 선의 띠끼리 겹치지 않는다. */
-    static final float BAND = 10f;
+    public static final float BAND = 10f;
     /** 비워 두는 선 폭(회로 좌표): 원조 선(굵은 표시 5)보다 조금 넓게. */
     static final float HOLE = com.cburch.logisim.circuit.Wire.WIDTH + 3;
     /** 이 배율 이상에서 선을 비우고 둘레만 칠한다. */

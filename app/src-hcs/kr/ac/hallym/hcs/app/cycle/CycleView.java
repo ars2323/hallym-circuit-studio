@@ -766,7 +766,7 @@ public final class CycleView {
         updateFieldOverlay();
         registers.refresh();
         memory.refresh();
-        regsHint.setVisible(registers.isListMode() && !registers.lines().isEmpty());
+        regsHint.setVisible(registers.isUnmappedList()); // X-04: 이름이 $n으로 대응됐으면 안내하지 않는다
         memSummary.setText(memory.summary());
         memSummary.setVisible(!memory.summary().isEmpty());
         CycleModel m = model();

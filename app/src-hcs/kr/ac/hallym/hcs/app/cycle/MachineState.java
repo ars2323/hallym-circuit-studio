@@ -48,12 +48,19 @@ public final class MachineState {
         public final Value value;
         /** 앞 사이클과 다르다. */
         public final boolean changed;
+        /** 역할 이름으로 보일 때(PC로 판별한 레지스터) 원래 이름. 없으면 null. */
+        public final String alias;
 
         Reg(int number, String name, Value value, boolean changed) {
+            this(number, name, value, changed, null);
+        }
+
+        Reg(int number, String name, Value value, boolean changed, String alias) {
             this.number = number;
             this.name = name;
             this.value = value;
             this.changed = changed;
+            this.alias = alias;
         }
     }
 
@@ -102,13 +109,27 @@ public final class MachineState {
             }
             return out;
         }
+        // 상태 표시줄과 같은 PC 판별(D-103; 터널이면 그 넷을 내는 레지스터): 최상위의 그 레지스터는 "PC"로 보이고
+        // 원래 이름은 곁에 흐리게(X-04)
+        Component pc = kr.ac.hallym.hcs.app.sim.StatusModel.pcRegister(file, root());
         for (RegisterFile.Found f : RegisterFile.all(root())) {
             Value v = model.recording().value(f.path, f.register.getEnd(0).getLocation(), step);
             Value p = hasPrev ? model.recording().value(f.path, f.register.getEnd(0).getLocation(), prev) : null;
-            out.add(new Reg(RegisterFile.numberOf(Names.label(f.register)), f.name, v,
-                    p != null && v != null && !p.equals(v)));
+            boolean isPc = pc != null && f.path.isEmpty() && f.register == pc;
+            out.add(new Reg(RegisterFile.numberOf(Names.label(f.register)), isPc ? "PC" : f.name, v,
+                    p != null && v != null && !p.equals(v), isPc && !f.name.equalsIgnoreCase("PC") ? f.name : null));
         }
         return out;
+    }
+
+    /** 나열한 레지스터에 번호가 하나도 없다(라벨이 $n·Rn 꼴이 아니다): "표시하지 않아 모두 나열" 안내를 보일 때(X-04). */
+    public static boolean unmapped(List<Reg> regs) {
+        for (Reg r : regs) {
+            if (r.number >= 0) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** 사이클 c의 $sp($29). 레지스터 파일 표시나 라벨로 찾지 못하면 null. */

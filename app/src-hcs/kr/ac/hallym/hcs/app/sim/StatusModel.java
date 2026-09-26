@@ -76,6 +76,55 @@ public final class StatusModel {
      * 다른 부품 먼저, 위→아래·왼쪽→오른쪽, (3) Instruction Memory(Addr 입력이 곧 PC 값), (4) 없으면 null. 값은 첫
      * 포트(레지스터 Q, 터널·핀의 자리, Instruction Memory의 Addr)에서 읽는다.
      */
+    /**
+     * PC 값을 쥔 레지스터·카운터(X-04, Registers 탭): 판별한 PC가 터널·핀·Instruction Memory면 그 넷에 값을 내는
+     * 레지스터·카운터로 옮긴다. 없으면 null.
+     */
+    public static Component pcRegister(com.cburch.logisim.file.LogisimFile file, Circuit c) {
+        Component pc = pcComponent(file, c);
+        if (pc == null || PcMark.markable(pc)) {
+            return pc;
+        }
+        kr.ac.hallym.hcs.app.model.Netlist nl = kr.ac.hallym.hcs.app.model.Netlist.of(c);
+        Component direct = drivingRegister(nl, nl.netOf(pc, 0));
+        if (direct != null) {
+            return direct;
+        }
+        // 조합 부품 한 단계 너머(ref-mips: PC 레지스터와 0x00400000 상수를 가산기·XOR로 합쳐 pc 넷을 낸다): 그 부품의
+        // 입력을 내는 레지스터·카운터. 한 단계만 거슬러 간다(학생 데이터패스를 해석하지 않는다, D-010)
+        kr.ac.hallym.hcs.app.model.Netlist.Net net = nl.netOf(pc, 0);
+        if (net != null) {
+            for (kr.ac.hallym.hcs.app.model.Netlist.PortRef d : net.drivers()) {
+                Component comb = d.component;
+                if (comb.getFactory().getName().equals("Tunnel") || comb.getFactory().getName().equals("Splitter")) {
+                    continue;
+                }
+                for (int in = 0; in < comb.getEnds().size(); in++) {
+                    if (comb.getEnds().get(in).isInput()) {
+                        Component r = drivingRegister(nl, nl.netOf(comb, in));
+                        if (r != null) {
+                            return r;
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private static Component drivingRegister(kr.ac.hallym.hcs.app.model.Netlist nl,
+            kr.ac.hallym.hcs.app.model.Netlist.Net net) {
+        if (net == null) {
+            return null;
+        }
+        for (kr.ac.hallym.hcs.app.model.Netlist.PortRef d : net.drivers()) {
+            if (PcMark.markable(d.component)) {
+                return d.component;
+            }
+        }
+        return null;
+    }
+
     public static Component pcComponent(com.cburch.logisim.file.LogisimFile file, Circuit c) {
         if (c == null) {
             return null;

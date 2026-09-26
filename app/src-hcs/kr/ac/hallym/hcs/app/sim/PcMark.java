@@ -52,12 +52,18 @@ public final class PcMark {
         } catch (RuntimeException e) {
             return null;
         }
+        Component other = null;
         for (Component x : c.getNonWires()) {
             if (x.getLocation().equals(l) && !x.getEnds().isEmpty()) {
-                return x;
+                if (markable(x)) {
+                    return x; // 같은 자리에 터널·핀이 겹쳐 있어도 표시한 것은 레지스터·카운터다(X-04)
+                }
+                if (other == null) {
+                    other = x;
+                }
             }
         }
-        return null;
+        return other;
     }
 
     /** 이 회로에서 PC로 표시한 부품. 없으면 null. */

@@ -90,6 +90,25 @@ class MachineStateTest {
         // $29는 라벨로 찾았다(ref-mips 레지스터 라벨 $1~$31)
         List<MachineState.Reg> regs = ms.registers(last);
         assertTrue(regs.stream().anyMatch(x -> x.number == 29), "$29 found by its label");
+        // X-04: ref-mips의 pc 라벨은 터널에 있고 그 넷은 가산기(PC 레지스터 + 0x00400000)가 낸다. 가산기 입력을 내는
+        // (라벨 없는) 레지스터가 "PC"로 보이고 원래 이름(Register #n)이 곁에 따라온다
+        MachineState.Reg viaAdder = regs.stream().filter(x -> "PC".equals(x.name)).findFirst().orElse(null);
+        assertNotNull(viaAdder, "the register behind the pc adder is listed as PC");
+        assertTrue(viaAdder.alias != null && viaAdder.alias.startsWith("Register #"), "alias: " + viaAdder.alias);
+        assertFalse(MachineState.unmapped(regs), "names are mapped by their $n labels: no 'everything listed' hint");
+        // 라벨 없는 레지스터(Register #n)를 Mark as PC로 정해도 같다("PC"와 원래 이름)
+        com.cburch.logisim.comp.Component pcReg = main.getNonWires().stream()
+                .filter(x -> x.getFactory().getName().equals("Register")
+                        && kr.ac.hallym.hcs.app.model.Names.label(x) == null).findFirst().get();
+        kr.ac.hallym.hcs.app.sim.PcMark.action(file, main, pcReg, true).doIt(proj);
+        regs = ms.registers(last);
+        MachineState.Reg pcRow = regs.stream().filter(x -> "PC".equals(x.name)).findFirst().orElse(null);
+        // (ref-mips에는 그 레지스터 자리에 터널이 겹쳐 있다: 표시 찾기는 레지스터·카운터를 우선한다)
+        assertNotNull(pcRow, "the marked register is listed as PC: "
+                + regs.stream().map(x -> x.name).collect(java.util.stream.Collectors.toList()));
+        assertTrue(pcRow.alias != null && pcRow.alias.startsWith("Register #"), "original name kept: " + pcRow.alias);
+        assertNotNull(pcRow.value, "the PC row carries the register's recorded value");
+        assertTrue(MachineState.unmapped(List.of(new MachineState.Reg(-1, "Register #1", null, false))));
 
         // 가장 깊을 때 Stack 패널을 그 사이클 상태로 본다(기록에서 다시 만든 상태 = 캔버스가 보이는 상태)
         CircuitState then = r.reconstruct(CycleModel.stepOf(deepest));

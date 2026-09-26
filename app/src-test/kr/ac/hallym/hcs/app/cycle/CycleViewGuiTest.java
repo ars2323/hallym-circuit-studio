@@ -309,7 +309,9 @@ class CycleViewGuiTest {
             }
             // 표시를 되돌리면 모든 레지스터를 나열한다
             SwingUtilities.invokeAndWait(proj::undoAction);
-            waitFor(() -> view.registerHintShown() && view.registerPanel().isListMode(), "unmarked list with the hint");
+            // 라벨($1~$31)로 이름이 대응돼 있으면 "표시하지 않아 모두 나열" 안내는 보이지 않는다(X-04)
+            waitFor(() -> view.registerPanel().isListMode() && !view.registerHintShown(),
+                    "unmarked list, names still mapped by label: no hint");
         } finally {
             SwingUtilities.invokeAndWait(frame::dispose);
         }
