@@ -90,18 +90,22 @@ jobs:
         shell: pwsh
         run: |
           Expand-Archive dist/hallym-circuit-studio-*-windows.zip -DestinationPath smoke
-          $app = Get-ChildItem smoke -Recurse -Filter HallymCircuitStudio.exe | Select-Object -First 1 | Split-Path
-          # jpackage의 창 실행 파일은 콘솔에 쓰지 않으므로 포장된 런타임의 java.exe로 같은 jar를 돌린다
-          & "$app/runtime/bin/java.exe" -cp "$app/app/hallym-circuit-studio.jar" com.cburch.logisim.Main tests/circ/demo-datapath.circ -tty table 2>&1 | Tee-Object -FilePath smoke/tty.txt
+          Get-ChildItem smoke -Recurse -Depth 3 | Select-Object -ExpandProperty FullName
+          $jar = (Get-ChildItem smoke -Recurse -Filter hallym-circuit-studio.jar | Select-Object -First 1).FullName
+          $java = Get-ChildItem smoke -Recurse -Filter java.exe | Select-Object -First 1
+          $java = if ($java) { $java.FullName } else { "java" }  # 포장 런타임에 java.exe가 없으면 JDK의 java로 같은 jar를
+          Write-Host "java: $java"; Write-Host "jar: $jar"
+          # jpackage의 창 실행 파일은 콘솔에 쓰지 않으므로 java로 같은 jar를 돌린다
+          & $java -cp $jar com.cburch.logisim.Main tests/circ/demo-datapath.circ -tty table 2>&1 | Tee-Object -FilePath smoke/tty.txt
           # 원조 -tty table은 머리글 없이 출력 핀 값 줄만 찍는다(halt 핀 → 0/1)
           if (-not (Select-String -Path smoke/tty.txt -Pattern '^[01xE]+\s*$' -Quiet)) { throw "tty output has no value row" }
       - name: Run the packaged app (window, .s, 10 cycles, screenshots at 100% and 150%)
         shell: pwsh
         run: |
-          $app = Get-ChildItem smoke -Recurse -Filter HallymCircuitStudio.exe | Select-Object -First 1 | Split-Path
-          $jar = "$app/app/hallym-circuit-studio.jar"
+          $jar = (Get-ChildItem smoke -Recurse -Filter hallym-circuit-studio.jar | Select-Object -First 1).FullName
           javac -encoding UTF-8 -cp $jar -d smoke/classes tools/winsmoke/Smoke.java
-          $java = "$app/runtime/bin/java.exe"
+          $java = Get-ChildItem smoke -Recurse -Filter java.exe | Select-Object -First 1
+          $java = if ($java) { $java.FullName } else { "java" }
           & $java -Dsun.java2d.uiScale=1 -Dhcs.configDir=smoke/config100 -Djava.util.prefs.userRoot=smoke/prefs100 -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/mips/sum.s smoke/screenshot-100.png
           if ($LASTEXITCODE -ne 0) { throw "smoke at 100% failed" }
           & $java -Dsun.java2d.uiScale=1.5 -Dhcs.configDir=smoke/config150 -Djava.util.prefs.userRoot=smoke/prefs150 -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/mips/sum.s smoke/screenshot-150.png
