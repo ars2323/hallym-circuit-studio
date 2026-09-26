@@ -417,6 +417,8 @@ public final class EditMenus implements ContextMenus.Provider {
         }, sub.getName()));
         menu.add(item("menu.autoAppearance", () -> kr.ac.hallym.hcs.app.appear.AutoAppearance.run(t.project, sub,
                 t.canvas)));
+        menu.add(item("menu.portOrder", () -> kr.ac.hallym.hcs.app.appear.PortOrderDialog.show(t.project, sub,
+                t.canvas))); // P-04
         // C-05: 레지스터 파일 표시(파일에 저장, 조교가 템플릿에 해 둘 수도 있다)
         com.cburch.logisim.file.LogisimFile file = t.project.getLogisimFile();
         boolean marked = kr.ac.hallym.hcs.app.cycle.RegisterFile.marked(file) == sub;

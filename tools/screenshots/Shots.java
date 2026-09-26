@@ -257,6 +257,9 @@ public final class Shots {
         if (want(scenes, "41")) {
             tabsLayout(demo, open("tests/circ/console-demo.circ")); // 사람이 그린 둘째 회로(체크리스트 10)
         }
+        if (want(scenes, "42")) {
+            portOrder(demo);
+        }
         if (want(scenes, "10")) {
             open("tests/circ/register.circ");
             open("tests/circ/values.circ");
@@ -1871,6 +1874,71 @@ public final class Shots {
         }
         edt(() -> kr.ac.hallym.hcs.app.wiring.BusStyle.setWidths(false));
         edt(() -> kr.ac.hallym.hcs.app.labels.BusValues.setMode(before));
+    }
+
+    /**
+     * 42: 포트 순서(P-04). demo-datapath의 regfile 서브회로에 Port Order… 창을 열어 찍고, 서쪽 RegWrite를 맨 위로 옮겨
+     * 적용한 모양(끊어질 연결이 있으면 알림 창은 스크립트가 넘긴다). 끝나면 되돌린다.
+     */
+    void portOrder(Project p) throws Exception {
+        activate(p);
+        deselect(p);
+        Circuit rf = null;
+        for (Circuit c : p.getLogisimFile().getCircuits()) {
+            if (c.getName().equals("regfile")) {
+                rf = c;
+            }
+        }
+        if (rf == null) {
+            log.add("42: no regfile");
+            return;
+        }
+        final Circuit sub = rf;
+        SwingUtilities.invokeLater(() -> kr.ac.hallym.hcs.app.appear.PortOrderDialog.show(p, sub, p.getFrame()));
+        Window d = null;
+        for (int i = 0; i < 40 && d == null; i++) {
+            sleep(250);
+            d = window(x -> x instanceof JDialog && x.isShowing() && find(x, y -> y instanceof javax.swing.JList)
+                    != null);
+        }
+        if (d == null) {
+            log.add("42: no Port Order dialog");
+            return;
+        }
+        sleep(500);
+        snapCrop(d.getBounds(), "42a-port-order-dialog");
+        final Window dw = d;
+        edt(dw::dispose);
+        sleep(300);
+        java.util.Map<com.cburch.logisim.data.Direction, java.util.List<com.cburch.logisim.instance.Instance>> order =
+                kr.ac.hallym.hcs.app.appear.AutoAppearance.sides(sub);
+        java.util.List<com.cburch.logisim.instance.Instance> west = order.get(com.cburch.logisim.data.Direction.WEST);
+        int rw = -1;
+        for (int i = 0; i < west.size(); i++) {
+            if ("RegWrite".equals(kr.ac.hallym.hcs.app.appear.AutoAppearance.portName(west.get(i)))) {
+                rw = i;
+            }
+        }
+        if (rw >= 0) {
+            order.put(com.cburch.logisim.data.Direction.WEST,
+                    kr.ac.hallym.hcs.app.appear.PortOrderDialog.moved(west, rw, 0));
+        }
+        edt(() -> kr.ac.hallym.hcs.app.appear.PortOrderDialog.apply(p, sub, order, null));
+        sleep(600);
+        com.cburch.logisim.comp.Component inst = null;
+        for (com.cburch.logisim.comp.Component x : p.getCurrentCircuit().getNonWires()) {
+            if (x.getFactory().getName().equals("regfile")) {
+                inst = x;
+            }
+        }
+        if (inst != null) {
+            setZoom(p, 2.0);
+            Bounds area = inst.getBounds().expand(60);
+            centerOn(p, area);
+            snapLogical(p, area, "42b-regfile-reordered");
+        }
+        edt(p::undoAction);
+        sleep(300);
     }
 
     /**

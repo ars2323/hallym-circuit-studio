@@ -64,7 +64,7 @@ public final class AutoAppearance {
     }
 
     /** 회로의 핀(인스턴스)을 변별로: 원조 기본 모양처럼 핀이 보는 방향의 반대 변. */
-    static Map<Direction, List<Instance>> sides(Circuit circuit) {
+    public static Map<Direction, List<Instance>> sides(Circuit circuit) {
         CircuitAppearance appear = circuit.getAppearance();
         Map<Instance, Location> now = new HashMap<>();
         for (Map.Entry<Location, Instance> e : appear.getPortOffsets(Direction.EAST).entrySet()) {
@@ -88,7 +88,7 @@ public final class AutoAppearance {
         return ret;
     }
 
-    static String portName(Instance pin) {
+    public static String portName(Instance pin) {
         String s = pin.getAttributeValue(StdAttr.LABEL);
         return s == null ? "" : s.trim();
     }
@@ -114,9 +114,13 @@ public final class AutoAppearance {
         return (v + 9) / 10 * 10;
     }
 
-    /** 새 모양의 도형들(아래부터 그리는 순서). */
+    /** 새 모양의 도형들(아래부터 그리는 순서). 포트 순서는 지금 모양의 순서. */
     public static List<CanvasObject> build(Circuit circuit) {
-        Map<Direction, List<Instance>> side = sides(circuit);
+        return build(circuit, sides(circuit));
+    }
+
+    /** 변마다 준 포트 순서로(P-04 Port Order…). 변은 핀이 보는 방향의 반대 변이어야 한다. */
+    public static List<CanvasObject> build(Circuit circuit, Map<Direction, List<Instance>> side) {
         List<Instance> west = side.get(Direction.WEST);
         List<Instance> east = side.get(Direction.EAST);
         List<Instance> north = side.get(Direction.NORTH);
