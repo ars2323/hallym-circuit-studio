@@ -117,6 +117,12 @@ class CycleViewGuiTest {
             CycleModel m = view.model();
             assertEquals(12, m.lastCycle());
             assertEquals(Messages.get("cycle.position", 12, 12), view.positionLabel().getText());
+            // 마지막 사이클을 따라갈 때 표 왼쪽 끝은 열 경계(잘린 열 조각이 없다)
+            SwingUtilities.invokeAndWait(() -> { });
+            Thread.sleep(300);
+            AtomicReference<Integer> vx = new AtomicReference<>();
+            SwingUtilities.invokeAndWait(() -> vx.set(view.viewX()));
+            assertEquals(0, vx.get() % CycleView.COL_W, "view x " + vx.get());
             assertFalse(view.noticeLabel().isVisible());
             int pcNow = pcOf(proj, pcTunnel);
 
@@ -301,8 +307,7 @@ class CycleViewGuiTest {
             }
             // 표시를 되돌리면 모든 레지스터를 나열한다
             SwingUtilities.invokeAndWait(proj::undoAction);
-            waitFor(() -> view.registerPanel().lines().stream().anyMatch(l -> l.reg == null && l.head == null
-                    && Messages.get("regs.notMarked").equals(l.text)), "unmarked list");
+            waitFor(() -> view.registerHintShown() && view.registerPanel().isListMode(), "unmarked list with the hint");
         } finally {
             SwingUtilities.invokeAndWait(frame::dispose);
         }

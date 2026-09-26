@@ -39,12 +39,15 @@ public final class StackDemo {
         b.tunnelOutward(d.counter, 2, "clk");
         Component shift = b.add("Arithmetic", "Shifter", 520, 210, "width", "32");
         b.tunnelOutward(shift, 0, "count");
-        b.constant("two", 5, 2, 360, 320);
-        b.tunnelOutward(shift, 1, "two");
+        // 상수는 짧은 선으로 곧장(이웃 포트의 터널과 겹치지 않게)
+        com.cburch.logisim.data.Location in1 = CircuitBuilder.port(shift, 1);
+        b.add("Wiring", "Constant", in1.getX() - 60, in1.getY(), "width", "5", "value", "0x2");
+        b.wire(com.cburch.logisim.data.Location.create(in1.getX() - 60, in1.getY()), in1);
         b.tunnelOutward(shift, 2, "offset");
-        b.constant("top", 32, 0x7FFFEFF8, 560, 100);
         Component sub = b.add("Arithmetic", "Subtractor", 760, 200, "width", "32");
-        b.tunnelOutward(sub, 0, "top");
+        com.cburch.logisim.data.Location in0 = CircuitBuilder.port(sub, 0);
+        b.add("Wiring", "Constant", in0.getX() - 100, in0.getY(), "width", "32", "value", "0x7fffeff8");
+        b.wire(com.cburch.logisim.data.Location.create(in0.getX() - 100, in0.getY()), in0);
         b.tunnelOutward(sub, 1, "offset");
         b.tunnelOutward(sub, 2, "next");
 

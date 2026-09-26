@@ -121,6 +121,11 @@ final class RegisterPanel extends JComponent implements Scrollable {
         repaint();
     }
 
+    /** 레지스터 파일 표시가 없는가(위 안내 줄을 보인다). */
+    boolean isListMode() {
+        return listMode;
+    }
+
     List<Line> lines() {
         return lines;
     }
@@ -153,7 +158,6 @@ final class RegisterPanel extends JComponent implements Scrollable {
                 }
             }
         } else {
-            out.add(new Line(null, null, Messages.get("regs.notMarked")));
             for (MachineState.Reg r : regs) {
                 out.add(new Line(null, r, null));
             }

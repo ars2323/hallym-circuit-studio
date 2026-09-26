@@ -924,8 +924,8 @@
   - **$sp와 깊이:** 맨 위에 `$sp`와 스택 깊이(SPIM 시작 $sp `0x7FFFEFFC`에서 뺀 값)를 보인다. $sp는 $29(표시한 파일 또는 라벨)다. $sp가 시작 $sp 아래 1MB(Stack 기본 한계) 밖이면(아직 $sp를 두지 않은 프로그램 시작 등) 깊이를 보이지 않는다.
   - **Memory 탭:** lib-mips 상태에 읽기 전용 공개 메서드(`readWord`, `pageAddresses`, `lowestAccess`, `depthBase`)를 더하고, 포크는 이것들을 이름으로 부른다(lib-mips는 JAR 라이브러리로 따로 불려 포크가 컴파일 때 모른다).
     - Data는 낮은 주소부터 .data 라벨과 함께 보이고, 0인 칸이 이어지면 한 줄로 접는다.
-    - Stack은 높은 주소가 위이고, $sp가 가리키는 칸에 화살표를 둔다. 머리에 지금 깊이와 최고 수위(실제로 읽거나 쓴 가장 낮은 곳, D-050)를 보이고, $sp 칸이 보이게 스크롤한다.
-  - 요약 줄(`$sp 0x7fffefe4 · stack depth 24 B`, `Stack · depth 24 B · peak 24 B`)은 이름·값 모양이라 영어다(GLOSSARY). Stack 요약은 목록 위에 고정해 $sp 칸으로 스크롤해도 보인다.
+    - Stack은 높은 주소가 위이고, $sp가 가리키는 칸에 화살표를 둔다. 머리에 지금 깊이와 사용한 영역(최고 수위, 실제로 읽거나 쓴 가장 낮은 곳, D-050)을 보이고, $sp 칸이 보이게 스크롤한다.
+  - 요약 줄(`$sp 0x7fffefe4 · stack depth 24 B`, `Stack · depth 24 B · used 24 B (peak)`, Stack 부품 몸통의 `used … (peak)`와 같은 말)은 이름·값 모양이라 영어다(GLOSSARY). Stack 요약은 목록 위에 고정해 $sp 칸으로 스크롤해도 보인다.
   - 스크린샷용 작은 회로 `tests/circ/stack-demo.circ`(생성기 `StackDemo`)를 더했다. 사이클마다 $sp를 4 내리고 그 칸에 count를 쓴다. 스택 장면을 자동 배치한 ref-mips 대신 사람이 그린 모양의 회로로 찍기 위해서다(체크리스트 10).
 - **이유:** PLAN.md 5.1·5.3, #98. 값만 보이고 판단하지 않는다(규칙 2.6).
 - **대안:**

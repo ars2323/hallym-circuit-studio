@@ -81,6 +81,8 @@ public final class CycleView {
     private final MemoryPanel memory = new MemoryPanel(this::memories);
     private final JTabbedPane side = new JTabbedPane();
     private final JLabel memSummary = new JLabel();
+    /** 레지스터 파일 표시가 없을 때 안내(줄바꿈하는 글, C-05 검토: 한 줄로 그리면 좁은 칸에서 잘린다). */
+    private final javax.swing.JTextArea regsHint = new javax.swing.JTextArea();
     private final javax.swing.JSplitPane split;
     private final JLabel position = new JLabel();
     private final JLabel notice = new JLabel(Messages.get("cycle.pastNotice"));
@@ -118,6 +120,16 @@ public final class CycleView {
         scroll.getHorizontalScrollBar().setUnitIncrement(COL_W / 2);
         scroll.getVerticalScrollBar().setUnitIncrement(ROW_H);
         scroll.setBorder(BorderFactory.createEmptyBorder());
+        // 보이는 폭이 바뀌면(옆 탭, 창 크기) 마지막 사이클을 따라가는 동안 다시 열 경계에 맞춘다
+        scroll.getViewport().addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override
+            public void componentResized(java.awt.event.ComponentEvent e) {
+                CycleModel m = model();
+                if (follow && m != null && !m.isEmpty() && m.cursorCycle() == m.lastCycle()) {
+                    SwingUtilities.invokeLater(() -> scrollToColumnEdge(x(m, m.lastCycle()) + COL_W));
+                }
+            }
+        });
 
         JPanel bar = new JPanel(new FlowLayout(FlowLayout.LEFT, Tokens.SPACE_2, 2));
         bar.setBackground(Tokens.WINDOW);
@@ -147,7 +159,19 @@ public final class CycleView {
         empty.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
         empty.setVerticalAlignment(SwingConstants.TOP);
         panel.add(bar, BorderLayout.NORTH);
-        side.addTab(Messages.get("regs.tab"), new JScrollPane(registers));
+        JPanel regTab = new JPanel(new BorderLayout());
+        regsHint.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
+        regsHint.setForeground(Tokens.TEXT_2);
+        regsHint.setLineWrap(true);
+        regsHint.setWrapStyleWord(true);
+        regsHint.setEditable(false);
+        regsHint.setFocusable(false);
+        regsHint.setOpaque(false);
+        regsHint.setFont(new Font(Tokens.UI_FONT, Font.PLAIN, Tokens.FONT_SMALL));
+        regsHint.setText(Messages.get("regs.notMarked"));
+        regTab.add(regsHint, BorderLayout.NORTH);
+        regTab.add(new JScrollPane(registers), BorderLayout.CENTER);
+        side.addTab(Messages.get("regs.tab"), regTab);
         JPanel memTab = new JPanel(new BorderLayout());
         memSummary.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
         memSummary.setForeground(Tokens.NAVY);
@@ -400,6 +424,8 @@ public final class CycleView {
      */
     void scrollToColumnEdge(int right) {
         javax.swing.JViewport vp = scroll.getViewport();
+        body.setSize(body.getPreferredSize()); // 새 폭(끝 빈칸 포함)이 자리 잡은 뒤 옮겨야 열 경계에 맞는다
+        vp.validate();
         int w = vp.getWidth();
         int left = Math.max(0, right - w);
         left = (left + COL_W - 1) / COL_W * COL_W; // 올림: 오른쪽 열이 온전히 보이면 왼쪽 조각을 넘긴다
@@ -501,6 +527,11 @@ public final class CycleView {
         return side;
     }
 
+    /** 레지스터 파일 표시가 없다는 안내가 보이는가(테스트). */
+    boolean registerHintShown() {
+        return regsHint.isVisible();
+    }
+
     RegisterPanel registerPanel() {
         return registers;
     }
@@ -516,6 +547,7 @@ public final class CycleView {
     void refresh() {
         registers.refresh();
         memory.refresh();
+        regsHint.setVisible(registers.isListMode() && !registers.lines().isEmpty());
         memSummary.setText(memory.summary());
         memSummary.setVisible(!memory.summary().isEmpty());
         CycleModel m = model();
@@ -891,6 +923,11 @@ public final class CycleView {
     // 테스트
     static CycleView forTest(Project proj) {
         return of(proj);
+    }
+
+    /** 표의 보이는 영역 왼쪽 x(테스트). */
+    int viewX() {
+        return scroll.getViewport().getViewPosition().x;
     }
 
     JComponent body() {
