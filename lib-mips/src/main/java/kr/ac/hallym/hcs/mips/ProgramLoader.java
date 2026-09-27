@@ -368,7 +368,7 @@ final class ProgramLoader {
                     }
                 }
                 if (covering.isEmpty()) {
-                    plan.errors.add(noMemory(s, candidates, kind));
+                    plan.errors.add(noMemory(s, candidates, kind).get(Text.korean()));
                     continue;
                 } else if (covering.size() == 1) {
                     to = covering.get(0);
@@ -392,7 +392,8 @@ final class ProgramLoader {
         return out;
     }
 
-    private static String noMemory(ExecutableImage.Segment s, List<Target> candidates, String kind) {
+    /** 구간을 담는 부품이 없다는 오류 문장(두 언어). 후보가 있으면 이름을 잇는다. */
+    static Msg noMemory(ExecutableImage.Segment s, List<Target> candidates, String kind) {
         StringBuilder have = new StringBuilder();
         for (Target t : candidates) {
             have.append(have.length() == 0 ? "" : ", ").append(t.describe());
@@ -400,9 +401,9 @@ final class ProgramLoader {
         String list = candidates.isEmpty() ? "" : " " + kind + ": " + have + ".";
         String listKo = candidates.isEmpty() ? " 회로에 " + kind + " 부품이 없습니다."
                 : " 이 파일의 " + kind + " 부품: " + have + ".";
-        return Text.of("No " + kind + " covers " + s + ", so nothing was loaded."
+        return Msg.of("No " + kind + " covers " + s + ", so nothing was loaded."
                 + (candidates.isEmpty() ? " The circuit has no " + kind + "." : list),
-                s + " 구간을 담는 " + kind + " 부품이 없어 아무것도 불러오지 않았습니다." + listKo).get();
+                s + " 구간을 담는 " + kind + " 부품이 없어 아무것도 불러오지 않았습니다." + listKo);
     }
 
     private static void put(Plan plan, Target t, SortedMap<Long, Integer> words, String source) {

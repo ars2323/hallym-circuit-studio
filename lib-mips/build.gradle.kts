@@ -114,7 +114,7 @@ pitest {
         "kr.ac.hallym.hcs.mips.HmxConsistencyTest",
         "kr.ac.hallym.hcs.mips.HallymMipsGoldenTest")
     threads = 4
-    mutationThreshold = 95 // 지금 98.9%(D-138). 남은 7개는 같은 동작(equivalent) 돌연변이다
+    mutationThreshold = 95 // 지금 98.7%(D-138). 남은 8개는 같은 동작(equivalent) 돌연변이다
     timestampedReports = false
     outputFormats = setOf("HTML", "XML")
     jvmArgs = testProperties.map { (k, v) -> "-D$k=$v" }

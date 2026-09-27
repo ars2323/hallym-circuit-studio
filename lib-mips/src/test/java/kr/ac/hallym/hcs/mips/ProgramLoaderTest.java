@@ -168,22 +168,27 @@ class ProgramLoaderTest {
         sim.b.add(sim.mips, "Instruction Memory", 400, 500, "base", "0x0", "label", "IM2");
         sim.b.commit();
         ProgramLoader.Plan plan = plan(image().build(), sim, null, null);
+        // 후보는 회로에서 찾은 순서로 잇는다(부품 순서는 정해져 있지 않다)
+        List<String> names = new ArrayList<>();
+        for (ProgramLoader.Target t : ProgramLoader.find(sim.file.getCircuits(), true)) {
+            names.add(t.describe());
+        }
+        assertEquals(List.of("main › IM2 (00000000-000fffff)", "main › Instruction Memory (00000000-000fffff)"),
+                names.stream().sorted().toList());
+        String have = String.join(", ", names);
         assertEquals(List.of("No Instruction Memory covers .text 0x00400000–0x00400004, so nothing was loaded."
-                + " Instruction Memory: main › Instruction Memory (00000000-000fffff), main › IM2 (00000000-000fffff)."),
-                plan.errors);
+                + " Instruction Memory: " + have + "."), plan.errors);
         assertTrue(plan.changes.isEmpty());
         assertTrue(plan.text.isEmpty());
-        // 설명 문장은 언어 설정을 따른다(이름은 영어)
-        LocaleManager.setLocale(new Locale("ko"));
-        if (Text.korean()) {
-            assertEquals(List.of(".text 0x00400000–0x00400004 구간을 담는 Instruction Memory 부품이 없어 아무것도 불러오지"
-                    + " 않았습니다. 이 파일의 Instruction Memory 부품: main › Instruction Memory (00000000-000fffff),"
-                    + " main › IM2 (00000000-000fffff)."), plan(image().build(), sim, null, null).errors);
-            assertEquals(List.of(".text 0x00400000–0x00400004 구간을 담는 Instruction Memory 부품이 없어 아무것도 불러오지"
-                    + " 않았습니다. 회로에 Instruction Memory 부품이 없습니다."), ProgramLoader.plan(image().build(), List.of(),
-                    List.of(), List.of(), null, null, "p.hmx").errors);
-        }
-        LocaleManager.setLocale(Locale.ENGLISH);
+        // 한국어 문장(이름은 영어). 원조 2.7.1의 언어 설정에는 ko가 없을 수 있어 두 벌을 직접 본다
+        List<ProgramLoader.Target> ims = ProgramLoader.find(sim.file.getCircuits(), true);
+        ExecutableImage.Segment text = image().build().segments().get(0);
+        assertEquals(".text 0x00400000–0x00400004 구간을 담는 Instruction Memory 부품이 없어 아무것도 불러오지 않았습니다."
+                + " 이 파일의 Instruction Memory 부품: " + have + ".", ProgramLoader.noMemory(text, ims,
+                "Instruction Memory").ko);
+        assertEquals(".text 0x00400000–0x00400004 구간을 담는 Instruction Memory 부품이 없어 아무것도 불러오지 않았습니다."
+                + " 회로에 Instruction Memory 부품이 없습니다.", ProgramLoader.noMemory(text, List.of(), "Instruction Memory").ko);
+        assertEquals(plan.errors.get(0), ProgramLoader.noMemory(text, ims, "Instruction Memory").en);
         // 부품이 아예 없음
         ProgramLoader.Plan none = ProgramLoader.plan(image().data(0x10010000L, 1).build(), List.of(), List.of(),
                 List.of(), null, null, "p.hmx");
