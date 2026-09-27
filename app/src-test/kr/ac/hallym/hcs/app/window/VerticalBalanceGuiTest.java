@@ -118,6 +118,7 @@ class VerticalBalanceGuiTest {
                 // 균형 잡기는 배치 뒤 EDT에서 몇 단계로 이어진다(CI에서는 느리다): 조건이 맞을 때까지 잠시 기다린다
                 for (int tries = 0; tries < 25; tries++) {
                     SwingUtilities.invokeAndWait(() -> {
+                        frame.validate(); // 화면을 그릴 때처럼 배치를 끝낸 뒤 잰다
                         JScrollPane sp = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class,
                                 frame.getCanvas());
                         got[0] = sp.getWidth();
