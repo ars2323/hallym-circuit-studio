@@ -286,7 +286,6 @@ public final class FaultCircuits {
         });
     }
 
-    /** 한 주소를 읽는 메모리 하나(쓰기 없음). */
     /**
      * 받는 터널 receiver(1비트, MUX 선택)와 보내기만 하는 상수 터널들(senders: 이름, 폭 번갈아). receiver만 짝이
      * 없다(보내기만 하는 터널은 동작을 막지 않는다).
@@ -307,6 +306,7 @@ public final class FaultCircuits {
         b.commit();
     }
 
+    /** 한 주소를 읽는 메모리 하나(쓰기 없음). */
     static void memory(LogisimFile f, Library mips, String kind, int addr, String... attrs) {
         CircuitBuilder b = main(f);
         clock(b);
