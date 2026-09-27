@@ -100,9 +100,12 @@ class AssemblerIntegrationTest {
         assertFalse(used.contains("?"), used.toString());
     }
 
-    /** 디스어셈블러의 이름이 원본 spim의 디스어셈블과 같다. */
+    /**
+     * 공용 디스어셈블러(D-127)의 글이 원본 spim 명령줄의 디스어셈블(-dump의 text.asm)과 같다. hcs-asm을 거치지 않는 두 번째
+     * 확인이다. 원래 줄의 식({@code [m3]} 등)은 워드만으로 알 수 없어 그 앞까지 비교한다.
+     */
     @Test
-    void mnemonicsMatchTheOriginalSpim() throws Exception {
+    void disassemblyMatchesTheOriginalSpim() throws Exception {
         assertTrue(ORACLE.canExecute(), "먼저 make -C native/hcs-asm oracle 을 돌린다: " + ORACLE);
         List<Path> programs = new ArrayList<>();
         try (var list = Files.list(TESTS.resolve("asm"))) {
@@ -110,10 +113,9 @@ class AssemblerIntegrationTest {
         }
         programs.add(SPIM_DIR.resolve("Tests/tt.core.s"));
         programs.add(SPIM_DIR.resolve("Tests/tt.alu.bare.s"));
-        Pattern line = Pattern.compile("^\\[0x([0-9a-f]{8})\\]\\s+0x([0-9a-f]{8})\\s+(\\S+)");
+        Pattern line = Pattern.compile("^\\[0x([0-9a-f]{8})\\]\\t0x([0-9a-f]{8})  ([^;]*)");
         int compared = 0;
-        int unknown = 0;
-        List<String> missing = new ArrayList<>();
+        int floating = 0;
         for (Path program : programs) {
             Path work = Files.createTempDirectory(tmp, "spim");
             new ProcessBuilder(ORACLE.getPath(), "-noexception", "-dump", "-file", program.toString())
@@ -124,24 +126,20 @@ class AssemblerIntegrationTest {
                 if (!m.find()) {
                     continue;
                 }
+                int addr = (int) Long.parseLong(m.group(1), 16);
                 int word = (int) Long.parseLong(m.group(2), 16);
-                String ours = Disassembler.mnemonic(word);
-                if (ours == null) {
-                    // 부동소수점(COP1, COP1X)은 수업 범위 밖이라 이름을 모른다. 그 밖은 모두 알아야 한다.
-                    int op = word >>> 26;
-                    if (op != 0x11 && op != 0x13) {
-                        missing.add(program.getFileName() + ": " + l);
-                    }
-                    unknown += 1;
-                    continue;
-                }
-                assertEquals(m.group(3), ours, program.getFileName() + " " + l);
+                String spim = m.group(3).trim();
+                int bracket = spim.indexOf(" [");
+                String ours = kr.ac.hallym.hcs.mips.disasm.Disassembler.text(word, addr);
+                assertEquals(bracket < 0 ? spim : spim.substring(0, bracket), ours, program.getFileName() + " " + l);
                 compared += 1;
+                if ((word >>> 26) == 0x11) {
+                    floating += 1;
+                }
             }
         }
-        assertEquals(List.of(), missing);
         assertTrue(compared > 2000, "compared " + compared);
-        assertTrue(unknown > 0); // tt.core.s에는 부동소수점 명령이 있다
+        assertTrue(floating > 100, "floating " + floating); // tt.core.s의 부동소수점 명령도 같다
     }
 
     /** 어셈블한 .text·.data를 메모리에 넣고 원조 엔진에서 읽으면 SPIM이 둔 워드가 나온다(Hallym MIPS 배치). */

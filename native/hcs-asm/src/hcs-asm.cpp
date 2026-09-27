@@ -23,6 +23,7 @@
 #include <unistd.h>
 #endif
 
+#include "disasm.h"
 #include "frontend.h"
 
 // The core's headers have no include guards: include each exactly once.
@@ -47,6 +48,7 @@ struct Options {
   bool pseudo = true;
   bool exception = false;
   std::string exception_file;  // empty: exceptions.s next to the executable
+  bool disasm = false;  // print SPIM's text listing instead of JSON (D-127)
 };
 
 struct TextWord {
@@ -82,6 +84,8 @@ void usage(FILE *out) {
       "  -exception           load the exception handler (default off)\n"
       "  -noexception         do not load the exception handler (default)\n"
       "  -exception_file <f>  exception handler file (implies -exception)\n"
+      "  -disasm              print the labels and the text segment as SPIM shows\n"
+      "                       it (\"<addr> <word> <text>\" lines) instead of JSON\n"
       "  -version             print version and exit\n",
       SPIM_VERSION);
 }
@@ -100,6 +104,8 @@ bool parse_args(int argc, char **argv, Options *o) {
     } else if ((a == "-exception_file" || a == "-ef") && i + 1 < argc) {
       o->exception = true;
       o->exception_file = argv[++i];
+    } else if (a == "-disasm") {
+      o->disasm = true;
     } else if (a == "-version" || a == "--version") {
       std::printf("hcs-asm %s (SPIM %s core)\n", HCS_ASM_VERSION, SPIM_VERSION);
       std::exit(0);
@@ -341,6 +347,14 @@ int main(int argc, char **argv) {
       errors.push_back(m);
     }
     std::free(undefined);
+  }
+
+  if (opt.disasm) {
+    std::vector<std::pair<std::string, unsigned> > named;
+    for (size_t i = 0; i < labels.size(); i += 1) named.push_back(std::make_pair(labels[i].name, labels[i].addr));
+    std::string listing_out = disasm_listing(named, TEXT_BOT, text_top);
+    std::fwrite(listing_out.data(), 1, listing_out.size(), stdout);
+    return errors.empty() ? 0 : 1;
   }
 
   std::vector<TextWord> text;

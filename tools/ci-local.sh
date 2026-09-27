@@ -19,6 +19,11 @@ tools/check-engine-unchanged.sh
 step "hcs-asm 빌드·어셈블 일치"
 make -s -C native/hcs-asm -j"$(nproc)" test
 
+step "디스어셈블러 골든 다시 만들어도 같음 (D-127)"
+tools/gen-disasm-golden.sh
+git diff --exit-code -- tests/disasm
+test -z "$(git status --porcelain -- tests/disasm)"
+
 step "Gradle 빌드·테스트 (hcs-asm을 쓰는 테스트 포함)"
 ./gradlew --no-daemon -q build
 

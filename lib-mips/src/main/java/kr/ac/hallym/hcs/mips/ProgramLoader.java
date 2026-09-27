@@ -396,7 +396,7 @@ final class ProgramLoader {
     static List<String> usedInstructions(ExecutableImage img) {
         TreeSet<String> names = new TreeSet<String>();
         for (Integer w : img.textWords().values()) {
-            String m = Disassembler.mnemonic(w);
+            String m = kr.ac.hallym.hcs.mips.disasm.Disassembler.mnemonic(w); // D-127: 공용 디스어셈블러
             names.add(m == null ? "?" : m);
         }
         return new ArrayList<String>(names);
