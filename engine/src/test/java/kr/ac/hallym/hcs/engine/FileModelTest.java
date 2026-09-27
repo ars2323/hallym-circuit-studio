@@ -423,6 +423,10 @@ class FileModelTest {
                 "Gates", "name", "AND Gate", "loc", Client.xy(600, 600)));
         assertEquals(3, f.code);
         assertEquals("cannotModify", f.reason());
+        // 파일을 편집해도 라이브러리 회로의 id는 그대로다
+        e.client.call("edit.addComponent", params("fileId", fileId, "circuitId", a.get("main").getAsString(), "lib",
+                "Gates", "name", "AND Gate", "loc", Client.xy(900, 900)));
+        assertEquals(inside.getAsJsonArray("components"), snapshot(fileId, sub).getAsJsonArray("components"));
     }
 
     @Test

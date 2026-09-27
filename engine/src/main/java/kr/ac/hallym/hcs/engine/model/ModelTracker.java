@@ -6,10 +6,12 @@
 package kr.ac.hallym.hcs.engine.model;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.cburch.logisim.circuit.Circuit;
 import com.cburch.logisim.circuit.Wire;
@@ -31,6 +33,8 @@ public final class ModelTracker {
     private final LogisimFile file;
     private final Map<Circuit, Map<String, JsonObject>> last = new IdentityHashMap<>();
     private final Map<Circuit, Netlist> netlists = new IdentityHashMap<>();
+    /** 화면이 본 .circ 라이브러리의 회로(읽기 전용). 그 부품 id도 살려 둔다(인스턴스 경로에 쓴다). */
+    private final Set<Circuit> viewedLibraryCircuits = Collections.newSetFromMap(new IdentityHashMap<>());
 
     public ModelTracker(ModelJson json, LogisimFile file) {
         this.json = json;
@@ -56,6 +60,9 @@ public final class ModelTracker {
     }
 
     public JsonObject snapshot(Circuit c) {
+        if (!file.contains(c)) {
+            viewedLibraryCircuits.add(c);
+        }
         return json.snapshot(c, netlist(c));
     }
 
@@ -106,6 +113,10 @@ public final class ModelTracker {
         last.clear();
         last.putAll(next);
         netlists.keySet().retainAll(next.keySet());
+        for (Circuit c : viewedLibraryCircuits) {
+            live.addAll(c.getNonWires());
+            live.addAll(c.getWires());
+        }
         json.ids().retain(live);
         return out;
     }
