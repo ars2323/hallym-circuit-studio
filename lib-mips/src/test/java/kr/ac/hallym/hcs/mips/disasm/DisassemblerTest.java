@@ -84,6 +84,20 @@ class DisassemblerTest {
         assertEquals("cvt.d.w $f0, $f2", Disassembler.text(0x46201021, 0));
     }
 
+    /**
+     * SPIM 표에 같은 키가 둘인 워드: SPIM의 글은 C 라이브러리 qsort가 같은 키를 어떤 순서로 두느냐에 달려 골든에서 뺐다
+     * (D-127, tools/disasm-golden.py tie_dependent). 디스어셈블러는 Linux(glibc) SPIM의 글을 따른다. 어셈블할 수 있는
+     * trunc.w.s·floor.w.s는 어셈블한 목록 그대로다(quirks.txt).
+     */
+    @Test
+    void wordsWhoseSpimTextDependsOnQsortKeepTheLinuxText() {
+        assertEquals("swxc1 $f0, $f0, $f0", Disassembler.text(0x46000008, 0)); // 다른 순서면 round.l.s
+        assertEquals("sdxc1 $f1, $f1, $f1", Disassembler.text(0x46010849, 0)); // 다른 순서면 trunc.l.s
+        assertEquals("trunc.w.s $f6, $f5", Disassembler.text(0x4604298d, 0)); // Linux .word 목록은 suxc1
+        assertEquals("floor.w.s $f31, $f31", Disassembler.text(0x461fffcf, 0)); // 다른 순서면 prefx
+        assertEquals(Disassembler.UNKNOWN, Disassembler.text(0x4c0a5b00, 0)); // 다른 순서면 lwxc1
+    }
+
     @Test
     void unknownWordsAndMnemonics() {
         assertEquals(Disassembler.UNKNOWN, Disassembler.text(0xffffffff, 0));
