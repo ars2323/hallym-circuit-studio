@@ -42,7 +42,68 @@ SPIM 9.1.24
 Pretendard 1.3.9
   Copyright (c) 2021, Kil Hyung-jin, with Reserved Font Name Pretendard.
   License: SIL Open Font License, Version 1.1
-  Location: assets/fonts/pretendard/ (LICENSE.txt included)
+  Location: assets/fonts/pretendard/ (LICENSE.txt included);
+            electron/src/renderer/assets/fonts/Pretendard-*.subset.woff2
+            (subset, converted to WOFF2, taken from Hallym MIPS Simulator;
+            license: OFL-Pretendard.txt there)
+
+--------------------------------------------------------------------------
+D2Coding
+  Copyright (c) NAVER Corporation (https://github.com/naver/d2codingfont).
+  License: SIL Open Font License, Version 1.1
+  Location: electron/src/renderer/assets/fonts/D2Coding.woff2 (converted to
+            WOFF2, taken from Hallym MIPS Simulator; license: OFL-D2Coding.txt there)
+
+--------------------------------------------------------------------------
+Lucide icons
+  Copyright (c) Lucide Contributors (https://lucide.dev).
+  License: ISC License; the icons derived from Feather, (c) 2013-present
+           Cole Bemis, under the MIT License.
+  Location: electron/src/renderer/assets/icons/lucide/ (LICENSE.txt there)
+
+--------------------------------------------------------------------------
+Electron, Chromium and Node.js (Hallym Circuit Studio 2, electron/)
+  Electron (MIT License, (c) Electron contributors, (c) GitHub Inc.), which
+  contains Chromium (BSD-style licenses, (c) The Chromium Authors, with the
+  many libraries Chromium includes) and Node.js (MIT License, (c) Node.js
+  contributors, with the libraries Node.js includes).
+  Their license texts ship with every build of the Electron edition, next to
+  the executable: LICENSE.electron.txt (Electron's license) and
+  LICENSES.chromium.html (Chromium's credits: the licenses of Chromium,
+  Node.js and the libraries they include). About > Licenses opens the latter.
+
+--------------------------------------------------------------------------
+Hallym MIPS Simulator (screen code, design values, tools and test harness)
+  Copyright (c) 2026, Hakhyeon Kim (AIAC Lab, Hallym University).
+  License: BSD 3-Clause (electron/LICENSE.hallym-mips.txt)
+  Source:  https://github.com/ars2323/hallym-mips-simulator, tag v2.3.0
+  Location: the files listed in electron/ORIGIN.md. Nothing that comes from
+            SPIM is taken (no instruction tables, no simulator core).
+
+     Redistribution and use in source and binary forms, with or without
+     modification, are permitted provided that the following conditions are met:
+
+     1. Redistributions of source code must retain the above copyright notice, this
+        list of conditions and the following disclaimer.
+
+     2. Redistributions in binary form must reproduce the above copyright notice,
+        this list of conditions and the following disclaimer in the documentation
+        and/or other materials provided with the distribution.
+
+     3. Neither the name of the copyright holder nor the names of its
+        contributors may be used to endorse or promote products derived from
+        this software without specific prior written permission.
+
+     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+     AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+     IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+     DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+     FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+     DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+     SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+     CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+     OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+     OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 --------------------------------------------------------------------------
 FlatLaf
@@ -86,4 +147,5 @@ Haram & Hari)
   from the program and used separately. Anyone who forks or redistributes
   this project must remove them, unless Hallym University has given its own
   permission. This software is not an official product of Hallym University.
-  Location: assets/hallym/
+  Location: assets/hallym/ (the Electron edition shows these same files,
+            unmodified; electron/hallym-assets.md)
