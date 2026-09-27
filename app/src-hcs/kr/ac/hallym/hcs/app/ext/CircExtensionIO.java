@@ -17,16 +17,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.xml.XMLConstants;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.parsers.SAXParser;
+import javax.xml.parsers.SAXParserFactory;
 
-import org.w3c.dom.Attr;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.NamedNodeMap;
-import org.w3c.dom.Node;
+import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
+import org.xml.sax.helpers.DefaultHandler;
 
 /**
  * {@link CircExtension}을 .circ에 읽고 쓴다(D-024). 저장 형식:
@@ -60,63 +57,69 @@ public final class CircExtensionIO {
         return parse(Files.readAllBytes(file.toPath()));
     }
 
+    /**
+     * 속성은 파일에 적힌 차례 그대로 읽는다(SAX). DOM은 속성을 이름 차례로 돌려주어, 열고 저장만 해도
+     * {@code <hcs:splitter x=".." y=".." arm0=".."/>}가 {@code arm0 .. x y}로 바뀌었다(D-149).
+     */
     static CircExtension parse(byte[] xml) throws IOException {
         CircExtension ext = new CircExtension();
-        Document doc;
         try {
-            doc = builder().parse(new ByteArrayInputStream(xml));
+            parser().parse(new ByteArrayInputStream(xml), new DefaultHandler() {
+                private int depth; // 뿌리 요소 = 1
+                private boolean inExt;
+                private String circuit;
+
+                @Override
+                public void startElement(String uri, String localName, String qName, Attributes atts) {
+                    depth++;
+                    if (depth == 2 && isHcs(uri, localName, "ext")) {
+                        inExt = true;
+                    } else if (depth == 3 && inExt && isHcs(uri, localName, "circuit")) {
+                        String name = atts.getValue("", "name");
+                        circuit = name == null ? "" : name;
+                    } else if (depth == 4 && circuit != null && NS.equals(uri)) {
+                        ext.add(circuit, new CircExtension.Item(localName, attrs(atts)));
+                    }
+                }
+
+                @Override
+                public void endElement(String uri, String localName, String qName) {
+                    if (depth == 3) {
+                        circuit = null;
+                    } else if (depth == 2) {
+                        inExt = false;
+                    }
+                    depth--;
+                }
+            });
         } catch (SAXException e) {
-            return ext;
-        }
-        Element root = doc.getDocumentElement();
-        for (Node n = root.getFirstChild(); n != null; n = n.getNextSibling()) {
-            if (isHcs(n, "ext")) {
-                readExt((Element) n, ext);
-            }
+            return new CircExtension(); // 읽을 수 없는 파일: 확장 정보 없음(원조 로더가 따로 알린다)
         }
         return ext;
     }
 
-    private static void readExt(Element extElt, CircExtension ext) {
-        for (Node c = extElt.getFirstChild(); c != null; c = c.getNextSibling()) {
-            if (!isHcs(c, "circuit")) {
-                continue;
-            }
-            String circuit = ((Element) c).getAttribute("name");
-            for (Node i = c.getFirstChild(); i != null; i = i.getNextSibling()) {
-                if (i.getNodeType() == Node.ELEMENT_NODE && NS.equals(i.getNamespaceURI())) {
-                    ext.add(circuit, new CircExtension.Item(i.getLocalName(), attrs((Element) i)));
-                }
-            }
-        }
-    }
-
-    private static Map<String, String> attrs(Element elt) {
+    private static Map<String, String> attrs(Attributes atts) {
         Map<String, String> ret = new LinkedHashMap<>();
-        NamedNodeMap map = elt.getAttributes();
-        for (int k = 0; k < map.getLength(); k++) {
-            Attr a = (Attr) map.item(k);
-            if (a.getNamespaceURI() == null) {
-                ret.put(a.getName(), a.getValue());
+        for (int k = 0; k < atts.getLength(); k++) {
+            if (atts.getURI(k).isEmpty()) {
+                ret.put(atts.getQName(k), atts.getValue(k));
             }
         }
         return ret;
     }
 
-    private static boolean isHcs(Node n, String localName) {
-        return n.getNodeType() == Node.ELEMENT_NODE && NS.equals(n.getNamespaceURI())
-                && localName.equals(n.getLocalName());
+    private static boolean isHcs(String uri, String localName, String want) {
+        return NS.equals(uri) && want.equals(localName);
     }
 
-    private static DocumentBuilder builder() throws IOException {
+    private static SAXParser parser() throws IOException {
         try {
-            DocumentBuilderFactory f = DocumentBuilderFactory.newInstance();
+            SAXParserFactory f = SAXParserFactory.newInstance();
             f.setNamespaceAware(true);
             f.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
             f.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-            f.setExpandEntityReferences(false);
-            return f.newDocumentBuilder();
-        } catch (ParserConfigurationException e) {
+            return f.newSAXParser();
+        } catch (ParserConfigurationException | SAXException e) {
             throw new IOException(e);
         }
     }

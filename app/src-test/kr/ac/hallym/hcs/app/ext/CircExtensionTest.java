@@ -74,6 +74,24 @@ class CircExtensionTest {
         assertEquals(ext, CircExtensionIO.read(f));
     }
 
+    /** 읽기는 속성을 파일에 적힌 차례로 둔다: 열고 저장만 하면 확장 블록도 같은 글자다(D-149, 전에는 이름 차례). */
+    @Test
+    void attributesKeepTheirOrderThroughReadAndWrite() throws Exception {
+        File f = copy("gates");
+        CircExtension ext = new CircExtension();
+        ext.add("main", item("splitter", "x", "620", "y", "200", "arm0", "op", "arm1", "rs"));
+        ext.add("main", item("tunnel", "label", "PC", "color", "#0072B2"));
+        CircExtensionIO.writeInto(f, ext);
+        byte[] written = Files.readAllBytes(f.toPath());
+        String text = new String(written, StandardCharsets.UTF_8);
+        assertTrue(text.contains("<hcs:splitter x=\"620\" y=\"200\" arm0=\"op\" arm1=\"rs\"/>"), text);
+        CircExtension read = CircExtensionIO.read(f);
+        assertEquals(java.util.Arrays.asList("x", "y", "arm0", "arm1"),
+                new java.util.ArrayList<>(read.items("main").get(0).attrs().keySet()));
+        CircExtensionIO.writeInto(f, read);
+        assertArrayEquals(written, Files.readAllBytes(f.toPath()), "read then written again: the same bytes");
+    }
+
     @Test
     void emptyExtensionLeavesFileUntouched() throws Exception {
         File f = copy("gates");
