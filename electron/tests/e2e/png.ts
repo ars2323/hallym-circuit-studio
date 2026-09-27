@@ -52,8 +52,11 @@ export function decodePng(png: Buffer): Pixels {
   return { width, height, rgba: out };
 }
 
-// Where two screenshots differ: '' when they do not, else the box around the pixels that do.
-export function pixelDiff(a: Buffer, b: Buffer): string {
+export interface Rect { x: number; y: number; width: number; height: number }
+
+// Where two screenshots differ outside `ignore` (CSS px, device scale 1): '' when
+// they do not, else the box around the pixels that do.
+export function pixelDiff(a: Buffer, b: Buffer, ignore: Rect[] = []): string {
   const p = decodePng(a);
   const q = decodePng(b);
   if (p.width !== q.width || p.height !== q.height) return `sizes ${p.width}x${p.height} and ${q.width}x${q.height}`;
@@ -62,6 +65,7 @@ export function pixelDiff(a: Buffer, b: Buffer): string {
     if (p.rgba[i] === q.rgba[i] && p.rgba[i + 1] === q.rgba[i + 1] && p.rgba[i + 2] === q.rgba[i + 2] && p.rgba[i + 3] === q.rgba[i + 3]) continue;
     const x = (i / 4) % p.width;
     const y = Math.floor(i / 4 / p.width);
+    if (ignore.some((g) => x >= Math.floor(g.x) && x < Math.ceil(g.x + g.width) && y >= Math.floor(g.y) && y < Math.ceil(g.y + g.height))) continue;
     [l, t, r, bt, n] = [Math.min(l, x), Math.min(t, y), Math.max(r, x), Math.max(bt, y), n + 1];
   }
   return n === 0 ? '' : `${n} pixels differ within x ${l}..${r}, y ${t}..${bt}`;

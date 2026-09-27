@@ -9,24 +9,30 @@ import path from 'node:path';
 import { answerOpen, DATAPATH, GATES, launch, repo, sample } from './harness.ts';
 import { pixelDiff } from './png.ts';
 
-// The card as it looks with the choices (and the back link) painted over.
-async function cardShot(page: Page): Promise<Buffer> {
+// The card, and the part of it that is the step's own: the choices and the
+// "← 처음으로" row, from the choices' top to that row's bottom, across the
+// choices' width (2 px more on every side: a glyph's edge).
+interface CardShot { png: Buffer; choices: { x: number; y: number; width: number; height: number } }
+async function cardShot(page: Page): Promise<CardShot> {
   await page.mouse.move(1, 1);
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await page.waitForFunction(() => [...document.querySelectorAll('.wcard img')].every((i) => (i as HTMLImageElement).complete));
   await page.evaluate(() => document.fonts.ready);
-  const card = page.locator('.wcard');
-  return card.screenshot({ mask: [page.locator('.wcard .actions'), page.locator('.wcard .back')], maskColor: '#ff00ff', animations: 'disabled' });
+  const choices = await page.evaluate(() => {
+    const [c, a, b] = ['.wcard', '.wcard .actions', '.wcard .back'].map((s) => document.querySelector(s)!.getBoundingClientRect());
+    return { x: a.left - c.left - 2, y: a.top - c.top - 2, width: a.width + 4, height: b.bottom - a.top + 4 };
+  });
+  return { png: await page.locator('.wcard').screenshot({ animations: 'disabled' }), choices };
 }
 
 // The same card twice in a row: Chromium may draw a scaled image at a lower
 // quality first and at full quality a frame later.
-async function settledShot(page: Page): Promise<Buffer> {
+async function settledShot(page: Page): Promise<CardShot> {
   let last = await cardShot(page);
   for (let i = 0; i < 20; i += 1) {
     await page.waitForTimeout(150);
     const next = await cardShot(page);
-    if (Buffer.compare(last, next) === 0) return next;
+    if (Buffer.compare(last.png, next.png) === 0) return next;
     last = next;
   }
   throw new Error('the card never looked the same twice in a row');
@@ -74,7 +80,8 @@ test('step 2 is the same card: the same box and the same pixels, but for the cho
         expect(await sub.evaluate((e) => e.scrollWidth <= e.clientWidth + 1), await sub.innerText()).toBe(true);
       }
       const shot2 = await settledShot(page);
-      expect(pixelDiff(shot1, shot2), `${way}: the card changed outside its choices`).toBe('');
+      expect(shot2.choices).toEqual(shot1.choices);
+      expect(pixelDiff(shot1.png, shot2.png, [shot1.choices]), `${way}: the card changed outside its choices`).toBe('');
       await page.getByRole('button', { name: '← 처음으로' }).click();
       await expect(page.locator('.action').nth(0)).toContainText('튜토리얼 보기');
     }
