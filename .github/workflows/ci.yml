@@ -37,6 +37,9 @@ jobs:
           test -z "$(git status --porcelain -- tests/disasm)"
       - name: Gradle build and tests
         run: ./gradlew --no-daemon build
+      # Z-24(D-138): 두 트랙 공용 로더·디스어셈블러와 ProgramLoader의 돌연변이 테스트. 죽인 비율이 95% 아래면 실패한다
+      - name: Mutation tests (PIT, loader and disassembler)
+        run: ./gradlew --no-daemon :lib-mips:pitest
       # D-129: identity hash가 모두 같은 JVM(-XX:hashCode=2)에서 단위 테스트를 한 번 더 돈다. identityHashCode를
       # 열쇠·서명으로 쓰면(고유하지 않다) 여기서 틀린다. 벽시계 시간을 재는 @Tag("timing")은 뺀다.
       - name: Unit tests with a constant identity hash
@@ -53,6 +56,7 @@ jobs:
           path: |
             **/build/reports/tests/
             **/build/test-results/
+            lib-mips/build/reports/pitest/
       - uses: actions/upload-artifact@v4
         with:
           name: linux-build

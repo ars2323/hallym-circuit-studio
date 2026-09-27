@@ -57,13 +57,26 @@ final class RefMips {
     Component stack;
     Component console;
 
-    private RefMips(CircuitBuilder b, Library mips) {
+    /** 리셋 때 PC(Hallym MIPS 배치의 entry). */
+    private final long entry;
+
+    private RefMips(CircuitBuilder b, Library mips, long entry) {
         this.b = b;
         this.mips = mips;
+        this.entry = entry;
     }
 
+    /** 커밋된 tests/mips/ref-mips.circ: PC가 0x00400024(Hallym MIPS 기본 배치의 main)에서 시작한다(D-126). */
     static RefMips build(CircuitBuilder b, Library mips) {
-        RefMips m = new RefMips(b, mips);
+        return build(b, mips, 0x00400024L);
+    }
+
+    /**
+     * PC가 entry에서 시작하는 같은 CPU. 다른 entry의 이미지(예외 처리기 없이 어셈블한 Hallym MIPS no-handler.hmx:
+     * 0x00400000)를 돌리는 시험이 메모리 안에서만 만든다(D-138). 상수 textbase 값만 다르다.
+     */
+    static RefMips build(CircuitBuilder b, Library mips, long entry) {
+        RefMips m = new RefMips(b, mips, entry);
         m.build();
         return m;
     }
@@ -284,7 +297,7 @@ final class RefMips {
         t(pcReg, 2, "clk");
         t(pcReg, 3, "zero1");
         t(pcReg, 4, "one");
-        konst("textbase", 32, 0x00400024L); // 이름은 그대로 두고 값만 entry로(D-126)
+        konst("textbase", 32, entry); // 이름은 그대로 두고 값만 entry로(D-126)
         gate("XOR Gate", "pc", 32, "pcx", "textbase");
         gate("XOR Gate", "npcx", 32, "npc", "textbase");
         konst("four", 32, 4);

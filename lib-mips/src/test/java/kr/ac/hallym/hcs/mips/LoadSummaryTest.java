@@ -43,10 +43,12 @@ class LoadSummaryTest {
             List<ProgramLoader.Target> datas = ProgramLoader.find(sim.file.getCircuits(), false);
             ProgramLoader.Plan plan = ProgramLoader.plan(img, texts, datas, List.of(), null, null, "p.hmx");
             assertEquals(List.of(), plan.errors);
+            assertEquals("entry 0x00400000", plan.notes.get(0), "Z-03: the summary starts with the entry line");
+            assertEquals(1, plan.startLines);
             assertEquals(".text: 1 word (0x00400000–0x00400000), entry 0x00400000 → main › Instruction Memory"
-                    + " (00400000-004fffff)", plan.notes.get(0));
+                    + " (00400000-004fffff)", plan.notes.get(1));
             assertEquals(".data: 8 bytes = 2 words (0x10010000–0x10010007) → main › Data Memory"
-                    + " (10010000-1010ffff)", plan.notes.get(1));
+                    + " (10010000-1010ffff)", plan.notes.get(2));
             assertEquals("Instructions used: addi", plan.notes.get(plan.notes.size() - 1));
             assertEquals(List.of("addi"), plan.instructions);
             for (String n : plan.notes) {
@@ -81,6 +83,9 @@ class LoadSummaryTest {
         sim.b.commit();
         ProgramLoader.Plan plan = ProgramLoader.plan(l, sim.file.getCircuits(), null, null, "example.hmx");
         assertEquals(List.of(), plan.errors);
+        // Z-03: entry 줄, reg 줄(파일 순서), 그다음 어디서 온 이미지인가
+        assertEquals(List.of("entry 0x00400024 (main)", "reg $sp 0x7ffff000", "reg $gp 0x10008000",
+                "Executable image example.hmx, Hallym MIPS 2.2.0, 2026-09-27T13:15+09:00"), plan.notes.subList(0, 4));
         String all = String.join("\n", plan.notes);
         assertTrue(all.contains(".text: 14 words (0x00400000–0x00400034), entry 0x00400024 →"), all);
         assertTrue(all.contains(".data: 12 bytes = 3 words (0x10010000–0x1001000b) →"), all);
@@ -99,6 +104,54 @@ class LoadSummaryTest {
         assertEquals(0x00400024L, (long) plan.image.entry());
         assertEquals(0x10008000L, (long) plan.image.reg("$gp"));
         assertEquals(1, plan.stackBase.size());
+    }
+
+    /**
+     * Z-03(D-138): 진입 루틴의 jr $ra, 예외 처리기 없이 어셈블한 이미지는 사실 줄(설명 문장이라 언어 설정을 따른다)이다.
+     * 요약 머리 줄은 두 언어 모두 영어다. 레지스터에는 아무것도 넣지 않는다(바뀌는 것은 메모리 부품 속성뿐).
+     */
+    @Test
+    void startFactsAreFactLines() throws Exception {
+        Locale old = LocaleManager.getLocale();
+        try {
+            for (Locale loc : new Locale[] {Locale.ENGLISH, new Locale("ko")}) {
+                LocaleManager.setLocale(loc);
+                boolean korean = Text.korean();
+                InProcessSim sim = new InProcessSim();
+                sim.b.add(sim.mips, "Instruction Memory", 400, 200);
+                sim.b.commit();
+                int jal = 0x0c100009; // 0x00400014: jal main
+                ExecutableImage jr = new ExecutableImage.Builder().entry(0x00400024L).reg("$sp", 0x7fffeffcL)
+                        .symbol("main", 0x00400024L).text(0x00400000L, 0, 0, 0, 0, 0, jal, 0, 0, 0x0000000c,
+                                0x20080001, 0x03e00008).build();
+                ProgramLoader.Plan plan = ProgramLoader.plan(jr, ProgramLoader.find(sim.file.getCircuits(), true),
+                        List.of(), List.of(), null, null, "jr.hmx");
+                assertEquals(List.of(), plan.errors);
+                assertEquals(List.of("entry 0x00400024 (main)", "reg $sp 0x7fffeffc"), plan.notes.subList(0, 2));
+                assertEquals(1, plan.facts.size(), plan.facts.toString());
+                assertEquals(korean ? "진입 루틴의 jr $ra: 0x00400028. 회로에서는 시작 코드가 돌지 않으므로 $ra 값은 회로가 주는"
+                        + " 값입니다." : "jr $ra in the entry routine: 0x00400028. The startup code does not run in the"
+                        + " circuit, so $ra is whatever the circuit gives.", plan.facts.get(0));
+                for (ProgramLoader.Change ch : plan.changes) {
+                    assertTrue(ch.target.component.getFactory() instanceof MemoryFactory, "only memory parts change");
+                }
+                // 예외 처리기 없이 어셈블한 이미지(Hallym MIPS no-handler.hmx): 처리기 사실 줄, jr $ra 줄은 없다
+                ProgramLoader.Loaded nh = ProgramLoader.read(AssemblerIntegrationTest.TESTS.resolve(
+                        "hmx/hallym-mips-v2.4.0/no-handler.hmx").toFile());
+                ProgramLoader.Plan noHandler = ProgramLoader.plan(nh, sim.file.getCircuits(), null, null, "nh.hmx");
+                assertEquals(List.of(), noHandler.errors);
+                assertEquals("entry 0x00400000 (__start)", noHandler.notes.get(0));
+                assertEquals(korean ? "예외 처리기 없이 어셈블한 이미지: 시작 코드 없음, 진입점 = 프로그램의 __start."
+                        : "Assembled without the exception handler: no start-up code, entry = the program's own __start.",
+                        noHandler.facts.get(0));
+                assertEquals(2, noHandler.facts.size(), "then the source check line");
+                // 요약 창 글: 머리 줄, 요약 줄, 사실 줄 순
+                String html = LoadProgramMenu.summaryHtml(noHandler);
+                assertTrue(html.startsWith("<html>entry 0x00400000 (__start)<br>reg $sp 0x7fffffe4<br>"), html);
+            }
+        } finally {
+            LocaleManager.setLocale(old);
+        }
     }
 
     /** 트랙 A 우클릭 메뉴: "Load Program...", 불러온 뒤 "Reload 파일 이름", 파일 고르기 거르개(.hmx, 전환용 .s). */

@@ -1,0 +1,40 @@
+# Hallym MIPS v2.4.0 golden branches.s: registers and console output at exit.
+# Oracle: SPIM 9.1.24 (vendor/spim-9.1.24; its CPU/ is byte-identical to Hallym MIPS v2.4.0's CPU/).
+# Made by: spim -exception in an empty environment with the commands load "branches.s", run, print_all_regs hex (no program arguments).
+# $sp and the start-up code's $a0-$a2 come from the run stack: with no arguments $sp is 0x7ffffff0; Hallym MIPS passes the file name, so its reg $sp is 0x7fffffe4.
+# Regenerate while vendor/spim exists: ./gradlew :lib-mips:test --tests kr.ac.hallym.hcs.mips.HallymMipsGoldenTest -Phcs.update=true (D-138).
+$zero 00000000
+$at 00000000
+$v0 0000000a
+$v1 00000000
+$a0 0000000f
+$a1 7ffffff4
+$a2 7ffffff8
+$a3 00000000
+$t0 0000000f
+$t1 00000006
+$t2 00000006
+$t3 00000000
+$t4 00000000
+$t5 00000000
+$t6 00000000
+$t7 00000000
+$s0 0000001e
+$s1 00000000
+$s2 00000000
+$s3 00000000
+$s4 00000000
+$s5 00000000
+$s6 00000000
+$s7 00000000
+$t8 00000000
+$t9 00000000
+$k0 00000000
+$k1 00000000
+$gp 10008000
+$sp 7ffffff0
+$fp 00000000
+$ra 00400048
+hi 00000000
+lo 00000000
+console ""

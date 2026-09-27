@@ -23,7 +23,9 @@ import com.cburch.logisim.instance.StdAttr;
 import kr.ac.hallym.hcs.mips.image.ExecutableImage;
 import kr.ac.hallym.hcs.mips.image.HmxError;
 import kr.ac.hallym.hcs.mips.image.HmxParser;
+import kr.ac.hallym.hcs.mips.image.Msg;
 import kr.ac.hallym.hcs.mips.image.SourceCheck;
+import kr.ac.hallym.hcs.mips.image.StartFacts;
 
 /**
  * 실행 이미지를 어느 메모리에 어떤 속성으로 넣을지 정한다(PLAN.md 6.3, Z-01, D-126). GUI와 떨어져 있어 테스트할 수
@@ -35,6 +37,9 @@ import kr.ac.hallym.hcs.mips.image.SourceCheck;
  *   <li>어느 부품도 담지 않는 구간이 있으면 구간과 범위를 말하고 아무것도 넣지 않는다(전부 아니면 전무).</li>
  *   <li>{@code reg $sp}가 있으면 그 값을 품는 Stack의 깊이 기준이 된다(0x7FFFEFFC 규칙보다 파일 값이 먼저).</li>
  * </ul>
+ *
+ * <p>요약은 entry 줄과 {@code reg} 줄로 시작하고, 진입 루틴에 {@code jr $ra}가 있으면 사실 줄을 더한다(공용
+ * {@link StartFacts}, Z-03, D-138). 레지스터에는 아무 값도 넣지 않는다.
  */
 final class ProgramLoader {
     private ProgramLoader() {
@@ -143,7 +148,10 @@ final class ProgramLoader {
         /** 이미지 .text의 명령어 이름(알파벳 순). */
         final List<String> instructions = new ArrayList<String>();
         final List<Change> changes = new ArrayList<Change>();
+        /** 요약 줄. 앞 {@link #startLines}개는 entry·reg 줄({@link StartFacts#summary}). */
         final List<String> notes = new ArrayList<String>();
+        /** notes 앞의 entry·reg 줄 수. */
+        int startLines;
         final List<String> facts = new ArrayList<String>();
         final List<String> warnings = new ArrayList<String>();
         final List<String> errors = new ArrayList<String>();
@@ -240,7 +248,7 @@ final class ProgramLoader {
     static Plan plan(Loaded loaded, List<Circuit> circuits, Target clicked, Chooser chooser, String source) {
         Plan plan = plan(loaded.image, find(circuits, true), find(circuits, false), findStacks(circuits), clicked,
                 chooser, source);
-        plan.notes.addAll(0, loaded.notes);
+        plan.notes.addAll(plan.startLines, loaded.notes);
         plan.facts.addAll(loaded.facts);
         plan.warnings.addAll(loaded.warnings);
         return plan;
@@ -250,6 +258,14 @@ final class ProgramLoader {
             Target clicked, Chooser chooser, String source) {
         Plan plan = new Plan();
         plan.image = img;
+        // 요약 머리: entry 줄, reg 줄(파일 순서). 사실 줄: 진입 루틴의 jr $ra(Z-03)
+        for (Msg m : StartFacts.summary(img)) {
+            plan.notes.add(m.get(Text.korean()));
+        }
+        plan.startLines = plan.notes.size();
+        for (Msg m : StartFacts.facts(img)) {
+            plan.facts.add(m.get(Text.korean()));
+        }
         Map<Target, List<ExecutableImage.Segment>> textTo = assign(plan, img.segments(ExecutableImage.Kind.TEXT),
                 texts, clicked != null && isText(clicked.component.getFactory()) ? clicked : null, chooser,
                 Text.name("Instruction Memory").get());
@@ -260,8 +276,7 @@ final class ProgramLoader {
             if (plan.errors.isEmpty()) {
                 plan.errors.add(Text.of("Nothing was loaded.", "아무것도 불러오지 않았습니다.").get()); // 고르기 취소
             }
-            plan.changes.clear();
-            return plan;
+            return plan; // 바꿀 것(changes)은 아직 하나도 없다
         }
         plan.text.putAll(textTo);
         plan.data.putAll(dataTo);
@@ -295,8 +310,20 @@ final class ProgramLoader {
             plan.notes.add(".data: " + ExecutableImage.describe(e.getValue()) + " → " + e.getKey().describe());
         }
 
-        // Stack 깊이 기준: reg $sp
-        Long sp = img.reg("$sp");
+        stackDepthBase(plan, img.reg("$sp"), stacks);
+
+        plan.instructions.addAll(usedInstructions(img));
+        plan.notes.add(Text.name("Instructions used: ").get() + String.join(", ", plan.instructions));
+        return plan;
+    }
+
+    /**
+     * {@code reg $sp}를 Stack 깊이 기준으로 기억한다(D-126 4번, D-138): 파일의 {@code $sp} 바로 아래 워드를 담는 Stack의
+     * {@code contents}에 주소만 있는 줄로 적고, {@code reg $sp}가 없는 이미지면 기준을 지운다. 파일 값이 0x7FFFEFFC 규칙보다
+     * 먼저다. 레지스터에는 아무것도 넣지 않는다. $sp를 다루는 곳은 여기 하나다(Data Memory와 Stack을 한 부품으로 합치면 이
+     * 메서드만 그 부품의 스택 영역을 보도록 바꾼다).
+     */
+    static void stackDepthBase(Plan plan, Long sp, List<Target> stacks) {
         for (Target st : stacks) {
             WordImage now = st.component.getAttributeSet().getValue(MemoryFactory.CONTENTS);
             now = now == null ? WordImage.EMPTY : now;
@@ -311,10 +338,6 @@ final class ProgramLoader {
                         .get() + st.describe());
             }
         }
-
-        plan.instructions.addAll(usedInstructions(img));
-        plan.notes.add(Text.name("Instructions used: ").get() + String.join(", ", plan.instructions));
-        return plan;
     }
 
     /**
@@ -345,7 +368,7 @@ final class ProgramLoader {
                     }
                 }
                 if (covering.isEmpty()) {
-                    plan.errors.add(noMemory(s, candidates, kind));
+                    plan.errors.add(noMemory(s, candidates, kind).get(Text.korean()));
                     continue;
                 } else if (covering.size() == 1) {
                     to = covering.get(0);
@@ -369,7 +392,8 @@ final class ProgramLoader {
         return out;
     }
 
-    private static String noMemory(ExecutableImage.Segment s, List<Target> candidates, String kind) {
+    /** 구간을 담는 부품이 없다는 오류 문장(두 언어). 후보가 있으면 이름을 잇는다. */
+    static Msg noMemory(ExecutableImage.Segment s, List<Target> candidates, String kind) {
         StringBuilder have = new StringBuilder();
         for (Target t : candidates) {
             have.append(have.length() == 0 ? "" : ", ").append(t.describe());
@@ -377,9 +401,9 @@ final class ProgramLoader {
         String list = candidates.isEmpty() ? "" : " " + kind + ": " + have + ".";
         String listKo = candidates.isEmpty() ? " 회로에 " + kind + " 부품이 없습니다."
                 : " 이 파일의 " + kind + " 부품: " + have + ".";
-        return Text.of("No " + kind + " covers " + s + ", so nothing was loaded."
+        return Msg.of("No " + kind + " covers " + s + ", so nothing was loaded."
                 + (candidates.isEmpty() ? " The circuit has no " + kind + "." : list),
-                s + " 구간을 담는 " + kind + " 부품이 없어 아무것도 불러오지 않았습니다." + listKo).get();
+                s + " 구간을 담는 " + kind + " 부품이 없어 아무것도 불러오지 않았습니다." + listKo);
     }
 
     private static void put(Plan plan, Target t, SortedMap<Long, Integer> words, String source) {

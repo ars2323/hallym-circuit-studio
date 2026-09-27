@@ -27,6 +27,9 @@ test -z "$(git status --porcelain -- tests/disasm)"
 step "Gradle 빌드·테스트 (hcs-asm을 쓰는 테스트 포함)"
 ./gradlew --no-daemon -q build
 
+step "돌연변이 테스트: 로더·디스어셈블러 (Z-24, D-138)"
+./gradlew --no-daemon -q :lib-mips:pitest
+
 step "단위 테스트, identity hash가 모두 같은 JVM에서 (D-129)"
 ./gradlew --no-daemon -q :app:testConstantIdentityHash
 

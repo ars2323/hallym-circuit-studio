@@ -1,5 +1,6 @@
 HALLYM-EXEC 1
-# 손 작성: 1판에 없는 키(checksum). 1판에서 새 키는 새 판이다.
+# 손 작성: 1판 명세에 없는 필드(checksum). 명세대로 읽지 않고 넘긴다(새 필드는 판을 올리지 않는다).
+endian        little
 entry         0x00400024
 checksum      1234
 .text 0x00400024 words 1
