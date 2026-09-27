@@ -98,6 +98,20 @@ public final class Theme {
         }
     }
 
+    /**
+     * UI 글꼴(Pretendard) 굵기별: 400 Regular, 500 Medium, 600 SemiBold, 700 Bold(Hallym MIPS CSS의 font-weight와 같은 값).
+     * 그 굵기 글꼴이 없으면 Pretendard(또는 대체 글꼴)의 PLAIN·BOLD로 넘어간다.
+     */
+    public static Font uiFont(int weight, float size) {
+        String name = weight >= 700 ? "Pretendard Bold" : weight >= 600 ? "Pretendard SemiBold"
+                : weight >= 500 ? "Pretendard Medium" : "Pretendard Regular";
+        Font f = new Font(name, Font.PLAIN, Math.round(size)).deriveFont(size);
+        if (f.getFamily().startsWith(Tokens.UI_FONT)) {
+            return f;
+        }
+        return new Font(Tokens.UI_FONT, weight >= 600 ? Font.BOLD : Font.PLAIN, Math.round(size)).deriveFont(size);
+    }
+
     /** Pretendard를 등록하고 UI 글꼴 이름을 돌려준다. */
     static String registerFonts() {
         GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();

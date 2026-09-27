@@ -66,7 +66,10 @@ tasks.processResources {
     from(rootProject.file("assets/icons/lucide")) { into("kr/ac/hallym/hcs/app/icons/lucide") }
     // 첫 실행 안내의 캐릭터(한림대학교 소유, 원본 그대로). 쓰는 두 장만 넣는다.
     from(rootProject.file("assets/hallym/character")) {
-        include("haram-hari-greeting.png", "haram-hari-ok.png", "haram-hari.png")
+        // Hallym MIPS와 같은 자세 이름으로 쓰는 것들(ui/Characters)
+        include("haram-hari-greeting.png", "haram-hari-ok.png", "haram-hari.png", "haram.png", "hari.png",
+                "haram-hari-guide.png", "haram-hari-curious.png", "haram-hari-congrats.png", "haram-hari-best.png",
+                "haram-hari-go.png", "haram-hari-education.png", "haram-hari-thanks.png", "haram-hari-sign.png")
         into("kr/ac/hallym/hcs/app/character")
     }
     // About 창과 앱 아이콘(E-11·E-12): 학교 엠블럼과 앱 아이콘(원형 그대로 만든 파생 PNG), 라이선스·고지 원문
