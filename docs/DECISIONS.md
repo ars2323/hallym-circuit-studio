@@ -1438,5 +1438,6 @@
 - **날짜:** 2026-09-27
 - **결정:** 실행 이미지(.hmx) 모델·파서(`kr.ac.hallym.hcs.mips.image`)와 디스어셈블러(`kr.ac.hallym.hcs.mips.disasm`)는 `lib-mips/src/shared/java`에 둔다. 이 소스는 lib-mips jar(트랙 A, `--release 8`)와 포크 앱(트랙 B)에 함께 컴파일한다. Java 8 문법, 외부 의존성 없음, GUI 없음, Logisim 클래스를 쓰지 않는다.
 - **이유:** 포크는 번들 MIPS 라이브러리를 원조 방식(JAR 라이브러리, 따로 된 클래스 로더)으로 불러 앱 코드가 lib-mips 클래스를 직접 부르지 못한다(지금도 필요한 곳은 반사로 읽는다). 최종 라운드 지시는 "트랙 A와 트랙 B가 같은 코드를 쓴다"이므로, 같은 소스를 두 번 컴파일해 두 쪽이 글자까지 같은 파서·디스어셈블러를 쓰게 한다.
+- **덧붙임:** 원조의 JAR 라이브러리 클래스 로더(`ZipClassLoader`)는 부모를 먼저 찾는다. 그래서 포크 안에서는 hcs-mips.jar 코드도 포크 jar에 든 공용 클래스 사본을 쓰고(형도 하나), 원조 2.7.1에서는 hcs-mips.jar 자신의 사본을 쓴다.
 - **대안:** 앱 클래스 경로에 hcs-mips.jar를 넣어 한 클래스 로더로 합치기(D-007의 번들·그림자 라이브러리 방식과 원조 호환 경로를 흔든다). 반사로 lib-mips 쪽 파서 부르기(형이 없어 실수하기 쉽다).
 - **테스트:** `SharedSourceTest`(트랙 A jar에 Java 8 바이트코드로 들어감), `SharedSourceAppTest`(포크 jar에 들어감).

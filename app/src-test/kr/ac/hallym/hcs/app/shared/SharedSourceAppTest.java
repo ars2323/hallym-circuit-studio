@@ -15,7 +15,10 @@ import org.junit.jupiter.api.Test;
 
 import kr.ac.hallym.hcs.mips.image.HmxFormat;
 
-/** D-125: 포크 앱은 공용 소스를 직접 컴파일해 쓴다(번들 라이브러리 클래스 로더와 따로). */
+/**
+ * D-125: 포크 앱은 공용 소스를 직접 컴파일해 쓴다. 번들 라이브러리의 클래스 로더(원조 ZipClassLoader)는 부모를 먼저 찾으므로,
+ * 포크 안에서는 hcs-mips.jar 코드도 포크 jar의 이 사본을 쓴다(같은 소스라 결과가 같다).
+ */
 class SharedSourceAppTest {
     @Test
     void theAppCompilesTheSharedSourceIntoItsJar() throws Exception {
