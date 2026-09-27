@@ -72,7 +72,7 @@ jobs:
         with:
           name: windows-build
           path: native/hcs-asm/build/hcs-asm.exe
-      # R-01: jpackage로 JRE 포함 zip과 MSI. R-02: 푼 zip의 런타임으로 실제 실행(100%·150%) 뒤 화면을 찍는다.
+      # R-01: jpackage로 JRE 포함 zip(MSI는 배포하지 않는다, D-122). R-02: 푼 zip의 런타임으로 실제 실행(100%·150%) 뒤 화면을 찍는다.
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -81,11 +81,13 @@ jobs:
       - name: Stage the app
         shell: pwsh
         run: ./gradlew --no-daemon :app:stage :lib-mips:jar
-      - name: Package (zip + MSI)
+      - name: Package (zip)
         shell: pwsh
         run: |
           $v = if ($env:GITHUB_REF_NAME -match '^v(\d+\.\d+\.\d+)') { $Matches[1] } else { "0.0.0" }
           pwsh tools/package-windows.ps1 -Version $v -Dest dist
+          # D-122: MSI는 배포하지 않는다. 배포물에 .msi가 섞이면 실패한다
+          if (Get-ChildItem dist -Filter *.msi) { throw "dist has an .msi: MSI is not distributed (D-122)" }
       - name: Run the packaged app (tty engine check)
         shell: pwsh
         run: |
@@ -148,7 +150,6 @@ jobs:
           name: windows-package
           path: |
             dist/*.zip
-            dist/*.msi
 
   # R-03: 트랙 A jar가 원조 2.7.1 + Java 8 런타임에서 불러와 도는지(tty로 demo-datapath를 돌린다)
   track-a-java8:
@@ -195,4 +196,4 @@ jobs:
             --title "Hallym Circuit Studio $GITHUB_REF_NAME" \
             --notes-file docs/RELEASE-NOTES.md \
             dist/*.zip dist/hcs-mips.jar dist/hcs-asm dist/hcs-asm.exe dist/hcs-mips-guide-ko.md \
-            dist-in/windows-package/*.zip dist-in/windows-package/*.msi
+            dist-in/windows-package/*.zip

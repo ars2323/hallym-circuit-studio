@@ -11,7 +11,7 @@
 
 ## 다운로드와 빠른 시작
 
-1. [Releases](https://github.com/ars2323/hallym-circuit-studio/releases)에서 `hallym-circuit-studio-<버전>-windows.zip`을 받아 풀고 `HallymCircuitStudio.exe`를 실행한다(Java·관리자 권한 불필요). 설치형은 `.msi`.
+1. [Releases](https://github.com/ars2323/hallym-circuit-studio/releases)에서 `hallym-circuit-studio-<버전>-windows.zip`을 받아 풀고 `HallymCircuitStudio.exe`를 실행한다(Java·관리자 권한 불필요).
 2. 왼쪽 목록 **Hallym MIPS**의 Instruction Memory를 놓고 **Load .s**로 어셈블리 파일을 올린다. **1 Cycle**·**Run**으로 돌리고 **Cycle View**에서 사이클마다 값을 본다.
 3. 아래 **Messages**는 동작하지 않는 연결만 알린다. 줄을 누르면 그 자리로 간다.
 4. 원조 Logisim 2.7.1을 계속 쓰려면 `hcs-mips-<버전>-windows.zip`의 `hcs-mips.jar`를 Project › Load Library › JAR Library로 불러온다.
