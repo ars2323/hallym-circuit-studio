@@ -141,7 +141,7 @@ Component = {
 
 | 메서드 | params | result |
 | --- | --- | --- |
-| `sim.reset` | `{fileId}` | `{}`(원조 Reset Simulation, 사이클 수 0) |
+| `sim.reset` | `{fileId}` | `{}`(원조 Reset Simulation, 사이클 수 0. N Cycles 도중이면 처리 중인 틱이 끝난 뒤 재설정하고 그때 `sim.state`) |
 | `sim.poke` | `{fileId, circuitId, componentId, at?:[x,y], action?}` | `{poked}`(Poke 도구와 같은 동작: 핀 값 바꾸기 등) |
 | `sim.cycles` | `{fileId, n}` | `{}` 곧바로. 틱은 엔진이 따라오는 만큼만 요청한다(D-123). 끝나면 `sim.state` |
 | `sim.run` | `{fileId, on, hz?}` | `{}` |
@@ -149,7 +149,7 @@ Component = {
 | `sim.watch` | `{fileId, circuitId, path?:[componentId]}` | `{}`: 이 회로(서브회로 안이면 인스턴스 경로)의 넷 값을 보낸다 |
 | `sim.state` | `{fileId}` | 아래 `sim.state`와 같은 객체(요청으로도 물을 수 있다) |
 
-- `sim.poke`: `action`은 `"click"`(기본, 누르고 뗌), `"press"`, `"release"`(버튼처럼 누르는 동안만 켜지는 부품은 화면이 누를 때와 뗄 때 따로 보낸다). `at`은 회로 좌표(여러 비트 핀에서 어느 비트인지), 없으면 부품 가운데. 누를 것이 없는 부품·선은 `poked:false`. 서브회로를 보며 그 안의 입력 핀을 누르면 오류 4 `frozenPin`(원조는 상태를 복제할지 묻는다).
+- `sim.poke`: `action`은 `"click"`(기본, 누르고 뗌), `"press"`, `"release"`(버튼처럼 누르는 동안만 켜지는 부품은 화면이 누를 때와 뗄 때 따로 보낸다). `at`은 회로 좌표(여러 비트 핀에서 어느 비트인지), 없으면 부품 가운데. 누를 것이 없는 부품·선은 `poked:false`. 보고 있지 않은 회로의 부품을 누르면 그 회로가 시뮬레이션의 지금 회로가 된다. 서브회로를 보며 그 안의 입력 핀을 누르면 오류 4 `frozenPin`(원조는 상태를 복제할지 묻는다).
 - `sim.cycles`: `n` ≥ 1, 한 사이클 = 원조 틱 2번. 처리 중인 틱이 8개를 넘지 않게 요청하고 틱 완료로 센다(틱이 빠지지 않는다). 돌고 있으면 `n`을 더한다. 시뮬레이션이 꺼져 있으면 오류 4(`off`·`oscillating`), 도중에 꺼지면 `engine.log`와 `sim.state`로 알리고 멈춘다. 끝나면 그 순간의 값(`sim.values`)을 먼저, `sim.state`를 뒤에 보낸다.
 - `sim.run`: `on`이면 원조 틱(Ticks Enabled)을 켜고, `hz`는 원조 틱 주파수(초당 틱, Swing 속도 메뉴와 같은 값: 1·4·16·64·256·1024·4096)다. 켤 때 시뮬레이션이 꺼져 있으면 오류 4.
 - `sim.watch`: `circuitId`는 시작 회로, `path`는 거기서 내려가는 서브회로 인스턴스 id들이다. 보는 회로는 시뮬레이션의 지금 상태가 된다(Swing에서 그 회로·인스턴스를 여는 것과 같다). 파일마다 하나만 본다(다시 보내면 바꾼다). 처음에는 모든 넷을 한 번 보낸다. 없는 경로는 오류 1.
