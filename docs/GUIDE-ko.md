@@ -4,7 +4,9 @@
 
 ## 1. 설치
 
-**Windows(권장):** `hallym-circuit-studio-<버전>-windows.zip`을 원하는 폴더에 풀고 `HallymCircuitStudio.exe`를 실행합니다. Java를 따로 설치할 필요가 없고 관리자 권한도 필요 없습니다.
+**Windows(권장):** 릴리스 페이지에서 `HallymCircuitStudio-<버전>-win-x64-setup.exe`를 받아 실행합니다. 묻는 화면 없이 바로 설치되고, Java도 관리자 권한도 필요 없습니다. 설치가 끝나면 시작 메뉴에서 엽니다: **Hallym Circuit Studio**. 1.0.x를 MSI로 설치해 두었다면 설치할 때 예전 설치본을 조용히 지웁니다(1.0.3 zip 폴더는 그대로 둡니다).
+
+**"Windows의 PC 보호" 창이 뜨면:** 설치 파일에 코드 서명이 없어서 Microsoft Defender SmartScreen이 막는 것입니다. 창에서 **추가 정보** → **실행** 순서로 누릅니다. 받은 파일은 릴리스 노트의 SHA-256으로 확인할 수 있습니다.
 
 **다른 운영체제:** Java 21 이상을 설치하고 `java -jar hallym-circuit-studio.jar`로 실행합니다.
 
