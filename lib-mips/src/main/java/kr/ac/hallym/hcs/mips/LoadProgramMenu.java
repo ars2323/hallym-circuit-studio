@@ -129,7 +129,7 @@ final class LoadProgramMenu implements MenuExtender, ActionListener {
             sb.append(escape(f)).append("<br>");
         }
         for (String w : plan.warnings) {
-            sb.append("<div style='background:").append(WARN_BACKGROUND).append(";padding:2px 4px'>")
+            sb.append("<div style='background-color:").append(WARN_BACKGROUND).append(";padding:2px 4px'>")
                     .append(escape(w)).append("</div>");
         }
         return sb.append("</html>").toString();

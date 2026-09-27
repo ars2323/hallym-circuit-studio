@@ -93,12 +93,54 @@ class LoadSummaryTest {
         ProgramLoader.Plan warn = ProgramLoader.plan(changed, sim.file.getCircuits(), null, null, "x.hmx");
         assertEquals(1, warn.warnings.size());
         String html = LoadProgramMenu.summaryHtml(warn);
-        assertTrue(html.contains("<div style='background:" + LoadProgramMenu.WARN_BACKGROUND), html);
+        assertTrue(html.contains("<div style='background-color:" + LoadProgramMenu.WARN_BACKGROUND), html);
         assertTrue(html.contains("example.s"), html);
         // 실행 이미지의 데이터(entry, 레지스터 시작 값, 기호)는 글이 아니라 값으로도 있다
         assertEquals(0x00400024L, (long) plan.image.entry());
         assertEquals(0x10008000L, (long) plan.image.reg("$gp"));
         assertEquals(1, plan.stackBase.size());
+    }
+
+    /** 트랙 A 우클릭 메뉴: "Load Program...", 불러온 뒤 "Reload 파일 이름", 파일 고르기 거르개(.hmx, 전환용 .s). */
+    @Test
+    void menuIsLoadProgramWithImageAndTransitionFilters() throws Exception {
+        InProcessSim sim = new InProcessSim();
+        com.cburch.logisim.comp.Component im = sim.b.add(sim.mips, "Instruction Memory", 400, 200);
+        sim.b.commit();
+        Object ext = im.getFeature(com.cburch.logisim.tools.MenuExtender.class);
+        assertTrue(ext instanceof LoadProgramMenu);
+        javax.swing.JPopupMenu menu = new javax.swing.JPopupMenu();
+        ((LoadProgramMenu) ext).configureMenu(menu, null);
+        List<String> items = new java.util.ArrayList<>();
+        for (java.awt.Component c : menu.getComponents()) {
+            if (c instanceof javax.swing.JMenuItem) {
+                items.add(((javax.swing.JMenuItem) c).getText());
+            }
+        }
+        assertEquals(List.of("Load Program..."), items);
+        im.getAttributeSet().setValue(MemoryFactory.SOURCE, "asm/lab04.hmx");
+        javax.swing.JPopupMenu again = new javax.swing.JPopupMenu();
+        ((LoadProgramMenu) im.getFeature(com.cburch.logisim.tools.MenuExtender.class)).configureMenu(again, null);
+        assertEquals("Reload lab04.hmx", ((javax.swing.JMenuItem) again.getComponent(2)).getText());
+        assertEquals("Program", MemoryFactory.SOURCE.getDisplayName());
+
+        javax.swing.JFileChooser chooser = new javax.swing.JFileChooser();
+        javax.swing.filechooser.FileNameExtensionFilter hmx = new javax.swing.filechooser.FileNameExtensionFilter(
+                "Executable image (*.hmx)", "hmx");
+        chooser.setFileFilter(hmx);
+        AssemblyTransition.addFilters(chooser, hmx);
+        java.io.File dir = AssemblerIntegrationTest.TESTS.toFile();
+        javax.swing.filechooser.FileFilter both = chooser.getFileFilter();
+        assertTrue(both.accept(new java.io.File(dir, "hmx/example.hmx")) && both.accept(new java.io.File(dir, "mips/sum.s")),
+                "the default filter shows .hmx and .s during the transition");
+        assertTrue(hmx.accept(new java.io.File(dir, "hmx/example.hmx")));
+        assertFalse(hmx.accept(new java.io.File(dir, "mips/sum.s")));
+        List<String> names = new java.util.ArrayList<>();
+        for (javax.swing.filechooser.FileFilter f : chooser.getChoosableFileFilters()) {
+            names.add(f.getDescription());
+        }
+        assertTrue(names.contains("Executable image (*.hmx)") && names.contains("MIPS assembly, transition (*.s, *.asm)"),
+                names.toString());
     }
 
     @Test
