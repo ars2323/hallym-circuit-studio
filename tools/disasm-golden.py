@@ -81,7 +81,19 @@ def keys():
             out.append((field(op, 31, 26) | 0x0100009, "j", (op,)))
         else:
             out.append((itype(op, 9, 10, 0x1234), "i", (op,)))
-    return out
+    return [e for e in out if not tie_dependent(e[0])]
+
+
+# SPIM finds a word's instruction by binary search in a table it sorts with qsort, and a few keys
+# have two entries. Which one it finds then depends on how the C library's qsort orders equal keys:
+# glibc keeps table order, the Windows runtime does not, so hcs-asm.exe prints other names for these
+# words. They are left out of keys.s and fields.s (the disassembler keeps glibc's text, pinned in
+# DisassemblerTest). check.py re-runs every golden with shuffled tie orders (build/ties/hcs-asm) and
+# fails if any other word depends on it. Found that way: COP1 fmt S funct 8 (swxc1 or round.l.s),
+# 9 (sdxc1 or trunc.l.s), 13 (suxc1 or trunc.w.s), 15 (floor.w.s or prefx); COP1X rs 0 (unknown or lwxc1).
+def tie_dependent(word):
+    op, rs, fn = (word >> 26) & 63, (word >> 21) & 31, word & 63
+    return op == 17 and rs == 16 and fn in (8, 9, 13, 15) or op == 19 and rs == 0
 
 
 # ---- fields.s: representative field values for each word SPIM decodes --------------------------
@@ -134,6 +146,7 @@ def variants(word, cls):
 # instruction: FP compares and conditional moves put fields elsewhere, movt/bc1fl/bc1tl/bc2t... lose
 # their tf/nd bit, trunc.w.s shows as suxc1. The disassembler follows the assembled listing (what
 # QtSpim shows for a program), so these are assembled from source here with representative fields.
+# floor.w.s is here too: its .word listing depends on qsort (tie_dependent), the assembled one does not.
 CONDS = ["f", "un", "eq", "ueq", "olt", "ult", "ole", "ule", "sf", "ngle", "seq", "ngl", "lt", "nge", "le", "ngt"]
 
 
@@ -151,8 +164,9 @@ def quirks():
         for fmt in ("s", "d"):
             for fd, fs, rt in ((4, 2, "$t1"), (0, 0, "$0"), (30, 31, "$31")):
                 out.append("%s.%s $f%d, $f%d, %s" % (name, fmt, fd, fs, rt))
-    for fd, fs in ((0, 2), (31, 1), (4, 30)):
-        out.append("trunc.w.s $f%d, $f%d" % (fd, fs))
+    for name in ("trunc.w.s", "floor.w.s"):  # .word listing of these depends on qsort (tie_dependent)
+        for fd, fs in ((0, 2), (31, 1), (4, 30)):
+            out.append("%s $f%d, $f%d" % (name, fd, fs))
     for z in ("1", "2"):
         for name in ("f", "t", "fl", "tl"):
             for cc, target in ((None, "main"), (3, "fwd"), (7, "main")):

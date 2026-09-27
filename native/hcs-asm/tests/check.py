@@ -6,8 +6,10 @@
 2. Oracle: for every input that assembles without errors, the unmodified spim
    command line (build/oracle/spim -dump) must give the same text and data words.
    The vendor SPIM test programs are checked against the oracle too.
-3. -disasm: every tests/disasm/*.txt is exactly what its first-line command prints.
+3. -disasm: every tests/disasm/*.txt is exactly what its first-line command prints, also with
+   the test build whose SPIM qsort orders equal keys differently (build/ties, as on Windows).
 """
+import difflib
 import json
 import os
 import re
@@ -20,6 +22,7 @@ TOOL_DIR = os.path.dirname(HERE)
 ROOT = os.path.abspath(os.path.join(TOOL_DIR, "..", ".."))
 HCS_ASM = os.path.join(TOOL_DIR, "build", "hcs-asm.exe" if os.name == "nt" else "hcs-asm")
 ORACLE = os.path.join(TOOL_DIR, "build", "oracle", "spim")
+TIES = os.path.join(TOOL_DIR, "build", "ties", "hcs-asm")  # 시험용: qsort 같은 키 순서를 바꾼 빌드(D-127)
 CASES = os.path.join(ROOT, "tests", "asm")
 DISASM = os.path.join(ROOT, "tests", "disasm")
 SPIM_SRC = os.path.join(ROOT, "vendor", "spim-9.1.24")
@@ -158,6 +161,8 @@ def main():
 
     # -disasm (D-127): 디스어셈블러 골든은 첫 줄에 적힌 명령으로 다시 뽑으면 글자까지 같다. 다시 만들기는
     # tools/gen-disasm-golden.sh.
+    # SPIM이 표를 qsort로 정렬하므로, 같은 키끼리의 순서를 바꾼 시험용 빌드(build/ties/, Linux)로도 같아야 한다.
+    # 그래야 qsort가 다른 Windows의 hcs-asm.exe에서도 같다.
     disasm = sorted(f for f in os.listdir(DISASM) if f.endswith(".txt"))
     for name in disasm:
         with open(os.path.join(DISASM, name), encoding="utf-8", newline="") as f:
@@ -166,9 +171,19 @@ def main():
         if head[:2] != ["#", "hcs-asm"]:
             fail(name, "no '# hcs-asm ...' command line")
             continue
-        p = subprocess.run([HCS_ASM] + head[2:], cwd=ROOT, capture_output=True, text=True, encoding="utf-8")
-        if p.returncode not in (0, 1) or golden.split("\n", 1)[1] != p.stdout.replace("\r\n", "\n"):
-            fail(name, f"hcs-asm -disasm output differs from tests/disasm/{name} (exit {p.returncode})")
+        expected = golden.split("\n", 1)[1]
+        runs = [(HCS_ASM, None)] + [(TIES, seed) for seed in range(1, 9) if os.path.exists(TIES)]
+        for tool, seed in runs:
+            env = dict(os.environ, HCS_QSORT_TIES=str(seed)) if seed else None
+            p = subprocess.run([tool] + head[2:], cwd=ROOT, capture_output=True, text=True, encoding="utf-8", env=env)
+            got = p.stdout.replace("\r\n", "\n")
+            if p.returncode not in (0, 1) or got != expected:
+                how = f"with qsort ties order {seed} " if seed else ""
+                diff = difflib.unified_diff(expected.splitlines(), got.splitlines(), f"tests/disasm/{name}",
+                                            "hcs-asm -disasm", n=0, lineterm="")
+                fail(name, f"hcs-asm -disasm {how}differs from tests/disasm/{name} (exit {p.returncode})\n  "
+                           + "\n  ".join(list(diff)[:24]))
+                break
 
     total = len(cases) + (len(ORACLE_ONLY) if with_oracle else 0) + len(QTSPIM_GOLDEN)
     if failures:

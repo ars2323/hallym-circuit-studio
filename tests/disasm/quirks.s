@@ -157,6 +157,9 @@ main:
 	trunc.w.s $f0, $f2
 	trunc.w.s $f31, $f1
 	trunc.w.s $f4, $f30
+	floor.w.s $f0, $f2
+	floor.w.s $f31, $f1
+	floor.w.s $f4, $f30
 	bc1f main
 	bc1f 3, fwd
 	bc1f 7, main

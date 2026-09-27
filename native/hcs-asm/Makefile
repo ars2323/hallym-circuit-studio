@@ -49,7 +49,7 @@ $(BUILD_DIR)/%.o: src/%.cpp $(BUILD_DIR)/parser_yacc.h | $(BUILD_DIR)
 $(BUILD_DIR) $(BUILD_DIR)/core:
 	mkdir -p $@
 
-test: all oracle
+test: all oracle ties
 	python3 tests/check.py
 
 clean:
@@ -65,3 +65,18 @@ $(ORACLE): $(CORE_OBJS) $(BUILD_DIR)/oracle/spim.o
 	$(CXX) -o $@ $^ $(LDFLAGS) -lm
 .PHONY: oracle
 oracle: $(ORACLE)
+
+# 시험용 hcs-asm(D-127): SPIM inst.cpp의 qsort가 같은 키끼리의 순서를 HCS_QSORT_TIES로 바꾼다(tests/ties/).
+# 디스어셈블러 골든이 qsort 구현(glibc·Windows)에 따라 달라지지 않는지 check.py가 이것으로 본다. 배포하지 않는다.
+TIES := $(BUILD_DIR)/ties/hcs-asm
+$(BUILD_DIR)/ties:
+	mkdir -p $@
+$(BUILD_DIR)/ties/inst.o: $(CPU_DIR)/inst.cpp $(BUILD_DIR)/parser_yacc.h tests/ties/qsort-ties.h | $(BUILD_DIR)/ties
+	$(CXX) $(CXXFLAGS) $(CORE_FLAGS) $(INCLUDES) -include tests/ties/qsort-ties.h -c -o $@ $<
+$(BUILD_DIR)/ties/qsort-ties.o: tests/ties/qsort-ties.cpp | $(BUILD_DIR)/ties
+	$(CXX) $(CXXFLAGS) $(OWN_FLAGS) -c -o $@ $<
+$(TIES): $(filter-out $(BUILD_DIR)/core/inst.o,$(CORE_OBJS)) $(BUILD_DIR)/ties/inst.o $(BUILD_DIR)/ties/qsort-ties.o $(OWN_OBJS)
+	$(CXX) -o $@ $^ $(LDFLAGS) -lm
+	cp $(CPU_DIR)/exceptions.s $(BUILD_DIR)/ties/exceptions.s
+.PHONY: ties
+ties: $(TIES)
