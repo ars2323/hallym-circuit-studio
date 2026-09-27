@@ -29,7 +29,7 @@ public final class VerticalBalance {
         int canvasMin = (contentHeight + 1) / 2 + 2; // 절반에 여유 2px(경계 픽셀 반올림)
         int allowed = splitHeight - divider - canvasMin - canvasChrome;
         int bottom = Math.min(userBottom, allowed);
-        if (bottom < BOTTOM_MIN) {
+        if (bottom < BOTTOM_MIN && bottom < userBottom) { // 줄여야 하는데 최소 아래로 내려간다: 접는다(학생이 작게 둔 것은 그대로)
             return Math.min(strip, Math.max(0, splitHeight - divider));
         }
         return bottom;
@@ -48,7 +48,7 @@ public final class VerticalBalance {
         int treeMin = (sideHeight + 1) / 2 + 2;
         int allowed = sideHeight - divider - treeMin;
         int tabs = Math.min(userTabs, allowed);
-        if (tabs < SIDE_TABS_MIN) {
+        if (tabs < SIDE_TABS_MIN && tabs < userTabs) {
             return Math.min(strip, Math.max(0, sideHeight - divider));
         }
         return tabs;
