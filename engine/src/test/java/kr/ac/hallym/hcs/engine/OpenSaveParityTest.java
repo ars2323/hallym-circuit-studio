@@ -1,0 +1,210 @@
+/*
+ * Hallym Circuit Studio
+ * Copyright (c) 2026 AIAC Lab, Hallym University.
+ * License: GNU GPL version 2 or later. See LICENSE.
+ */
+package kr.ac.hallym.hcs.engine;
+
+import static kr.ac.hallym.hcs.engine.Client.params;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestFactory;
+import org.junit.jupiter.api.io.TempDir;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+
+import kr.ac.hallym.hcs.regress.CircEquivalence;
+import kr.ac.hallym.hcs.regress.CircNormalizer;
+
+/**
+ * 열기만 한 파일은 저장해도 그대로다(규칙 2.3, D-006, D-149): tests/ 아래와 화면 고정 파일의 모든 .circ를 한 엔진으로
+ * 차례로 열고 화면이 여는 동안 하는 일(회로마다 model.circuit, model.library, diag.list, mips.facts, sim.watch, 몇
+ * 사이클)을 한 뒤 저장하면 원래 글자와 같다(D-006 정규화). 더 돌리고 한 번 더 저장해도 같다. 새 부품을 쓰는 파일도
+ * 열기만으로는 아무것도 늘지 않는다.
+ */
+class OpenSaveParityTest {
+    static final File REPO = Fixtures.CIRC_DIR.getParentFile().getParentFile();
+    static final File SMOKE_JAR = new File(System.getProperty("hcs.smokeJar"));
+    static final Pattern LIB = Pattern.compile("<lib desc=\"(file|jar)#([^#\"]+)");
+    static final int CYCLES = 4;
+
+    @TempDir
+    Path tmp;
+
+    InProcess e;
+
+    @BeforeEach
+    void start() throws Exception {
+        e = new InProcess();
+    }
+
+    @AfterEach
+    void stop() {
+        e.close();
+    }
+
+    /** tests/ 아래(빌드 폴더 제외)와 electron/tests/fixtures의 .circ 전부. */
+    static List<File> allFiles() throws IOException {
+        List<File> ret = new ArrayList<>();
+        for (File root : new File[] {new File(REPO, "tests"), new File(REPO, "electron/tests/fixtures")}) {
+            try (Stream<Path> s = Files.walk(root.toPath())) {
+                s.filter(p -> p.toString().endsWith(".circ")
+                        && !p.toString().contains(File.separator + "build" + File.separator))
+                        .sorted().forEach(p -> ret.add(p.toFile()));
+            }
+        }
+        return ret;
+    }
+
+    static String name(File f) {
+        return REPO.toPath().relativize(f.toPath()).toString().replace(File.separatorChar, '/');
+    }
+
+    static String read(File f) throws IOException {
+        return new String(Files.readAllBytes(f.toPath()), StandardCharsets.UTF_8);
+    }
+
+    /**
+     * f를 dir로 복사하고, .circ 라이브러리도 같은 상대 경로로 복사한다. 스모크 JAR는 빌드 산출물에서 가져오고,
+     * hcs-mips.jar는 두지 않는다(엔진이 번들로 잇고 설명자는 그대로 둔다, D-007).
+     */
+    static File copyWithLibraries(File f, Path dir) throws IOException {
+        Path target = dir.resolve(f.getName());
+        Files.copy(f.toPath(), target);
+        Matcher m = LIB.matcher(read(f));
+        while (m.find()) {
+            String rel = m.group(2);
+            File src = new File(f.getParentFile(), rel);
+            Path dst = dir.resolve(rel);
+            if (Files.exists(dst)) {
+                continue;
+            }
+            if (m.group(1).equals("file") && src.isFile()) {
+                Files.createDirectories(dst.getParent());
+                copyWithLibraries(src, dst.getParent());
+            } else if (m.group(1).equals("jar") && rel.equals(SMOKE_JAR.getName())) {
+                Files.copy(SMOKE_JAR.toPath(), dst);
+            }
+        }
+        return target.toFile();
+    }
+
+    @Test
+    void allFilesAreFound() throws Exception {
+        List<File> files = allFiles();
+        assertTrue(files.size() >= 60, "found " + files.size());
+        assertTrue(files.stream().anyMatch(f -> name(f).equals("tests/circ/demo-datapath.circ")));
+        assertTrue(files.stream().anyMatch(f -> name(f).equals("electron/tests/fixtures/broken-datapath.circ")));
+    }
+
+    @TestFactory
+    Stream<DynamicTest> openingAsTheScreenDoesThenSavingChangesNothing() throws Exception {
+        // 한 엔진에서 차례로 연다(화면의 탭처럼): 앞 파일의 도구 기본값이 뒤 파일에 끼어들지 않는다
+        return allFiles().stream().map(f -> DynamicTest.dynamicTest(name(f), () -> {
+            File copy = copyWithLibraries(f, Files.createTempDirectory(tmp, "o"));
+            JsonObject opened = e.client.callObject("file.open", params("path", copy.getPath()));
+            assertEquals(new JsonArray(), opened.getAsJsonArray("messages"), "no load errors");
+            String fileId = opened.get("fileId").getAsString();
+            screenOpens(fileId, opened);
+            assertFalse(e.client.callObject("file.dirty", params("fileId", fileId)).get("dirty").getAsBoolean(),
+                    "opening does not make the file dirty");
+            File saved = new File(copy.getParentFile(), "saved-" + f.getName());
+            e.client.call("file.save", params("fileId", fileId, "path", saved.getPath()));
+            assertSavedLike(f, saved, "the first save");
+            if (!read(f).contains("jar#")) {
+                assertEquals(Collections.<String>emptyList(), CircEquivalence.compare(f, saved));
+            }
+            // 더 돌리고 다시 저장(Ctrl+S): 원조는 두 번째 저장에 앞 저장이 불러온 도구(ROM)를 적는다
+            screenOpens(fileId, opened);
+            e.client.call("file.save", params("fileId", fileId));
+            assertSavedLike(f, saved, "the second save");
+            e.client.call("file.close", params("fileId", fileId));
+        }));
+    }
+
+    /** 두 파일을 함께 열어 두어도 저마다 제 도구 기본값({@code <lib>} 아래 {@code <tool>})으로 저장한다. */
+    @Test
+    void toolDefaultsStayWithTheirFile() throws Exception {
+        File withTools = new File(REPO, "tests/parity/01-place-parts.circ");
+        File plain = new File(Fixtures.CIRC_DIR, "gates.circ");
+        assertTrue(read(withTools).contains("<tool name=\"Splitter\">"));
+        assertFalse(read(plain).contains("<tool name=\"Splitter\">"));
+        File a = copyWithLibraries(withTools, Files.createTempDirectory(tmp, "a"));
+        File b = copyWithLibraries(plain, Files.createTempDirectory(tmp, "b"));
+        String idA = e.client.callObject("file.open", params("path", a.getPath())).get("fileId").getAsString();
+        String idB = e.client.callObject("file.open", params("path", b.getPath())).get("fileId").getAsString();
+        File savedB = new File(b.getParentFile(), "saved.circ");
+        File savedA = new File(a.getParentFile(), "saved.circ");
+        e.client.call("file.save", params("fileId", idB, "path", savedB.getPath()));
+        e.client.call("file.save", params("fileId", idA, "path", savedA.getPath()));
+        assertSavedLike(plain, savedB, "the plain file");
+        assertSavedLike(withTools, savedA, "the file with tool defaults");
+    }
+
+    /** D-006 비교: 원래 파일과 저장한 파일의 정규화 글자가 같다. */
+    static void assertSavedLike(File original, File saved, String what) throws IOException {
+        String want = CircNormalizer.normalize(read(original));
+        String got = CircNormalizer.normalize(read(saved));
+        assertEquals(want, got, () -> what + ": " + difference(want, got));
+    }
+
+    /** 실패 글: 한쪽에만 있는 줄(여러 번 나오는 줄은 개수로 센다). */
+    static String difference(String want, String got) {
+        List<String> missing = new ArrayList<>(List.of(want.split("\n")));
+        List<String> extra = new ArrayList<>();
+        for (String line : got.split("\n")) {
+            if (!missing.remove(line)) {
+                extra.add(line);
+            }
+        }
+        return "saved file differs from the original; missing " + missing + ", added " + extra;
+    }
+
+    /** 화면(electron app.ts)이 파일을 열 때 부르는 것 전부와 몇 사이클. */
+    void screenOpens(String fileId, JsonObject opened) {
+        for (JsonElement ce : opened.getAsJsonArray("circuits")) {
+            e.client.callObject("model.circuit", params("fileId", fileId, "circuitId",
+                    ce.getAsJsonObject().get("circuitId").getAsString()));
+        }
+        e.client.call("model.library", params("fileId", fileId));
+        e.client.callObject("diag.list", params("fileId", fileId));
+        e.client.callObject("mips.facts", params("fileId", fileId));
+        if (opened.get("main").isJsonNull()) {
+            return;
+        }
+        String main = opened.get("main").getAsString();
+        e.client.call("sim.watch", params("fileId", fileId, "circuitId", main));
+        long want = e.client.callObject("sim.state", params("fileId", fileId)).get("cycle").getAsLong() + CYCLES;
+        int mark = e.client.mark();
+        try {
+            e.client.call("sim.cycles", params("fileId", fileId, "n", CYCLES));
+            e.client.awaitNotificationAfter(mark, "sim.state", s -> s.get("fileId").getAsString().equals(fileId)
+                    && (s.get("cycle").getAsLong() >= want || !s.get("running").getAsBoolean()));
+        } catch (Client.Failure stopped) {
+            // 진동으로 멈춘 회로는 Reset 전까지 더 돌지 않는다(오류 4, D-134 9항): 화면도 그대로 둔다
+            assertEquals(4, stopped.code, stopped.getMessage());
+        }
+        e.client.callObject("diag.list", params("fileId", fileId));
+        e.client.callObject("mips.facts", params("fileId", fileId));
+    }
+}
