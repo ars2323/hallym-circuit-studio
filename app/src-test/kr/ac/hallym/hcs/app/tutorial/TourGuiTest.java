@@ -103,4 +103,59 @@ class TourGuiTest {
             SwingUtilities.invokeAndWait(frame::dispose);
         }
     }
+
+    /** Y-04: 가장 작은 기준 창(683×512)에서도 말풍선이 유리판 안에 들어가고 Next·Close 단추가 보인다. */
+    @Test
+    void bubbleFitsTheSmallestLaptopWindow() throws Exception {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "needs a display (xvfb-run)");
+        GuiTestSupport.keepAlive();
+        LogisimFile file = RecordingTestSupport.openRefMips(tmp);
+        Project proj = new Project(file);
+        AtomicReference<Frame> fr = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            Frame f = new Frame(proj);
+            proj.setFrame(f);
+            f.setVisible(true);
+            fr.set(f);
+        });
+        Frame frame = fr.get();
+        try {
+            for (int i = 0; i < 8; i++) {
+                SwingUtilities.invokeAndWait(() -> {
+                    frame.setExtendedState(java.awt.Frame.NORMAL);
+                    frame.setMinimumSize(new java.awt.Dimension(200, 150));
+                    frame.setBounds(0, 0, 683, 512);
+                    frame.validate();
+                });
+                Thread.sleep(300);
+                if (frame.getWidth() == 683 && frame.getHeight() == 512) {
+                    break;
+                }
+            }
+            AtomicReference<Tour.Overlay> ov = new AtomicReference<>();
+            SwingUtilities.invokeAndWait(() -> ov.set(Tour.show(frame)));
+            Tour.Overlay o = ov.get();
+            Thread.sleep(400);
+            SwingUtilities.invokeAndWait(() -> {
+                o.setSize(frame.getRootPane().getSize());
+                o.go(0);
+            });
+            for (int i = 0; i < Tour.steps().size(); i++) {
+                final int step = i;
+                Rectangle[] got = new Rectangle[2];
+                boolean[] buttons = new boolean[1];
+                SwingUtilities.invokeAndWait(() -> {
+                    o.go(step);
+                    got[0] = o.bubbleBounds();
+                    got[1] = new Rectangle(0, 0, o.getWidth(), o.getHeight());
+                    buttons[0] = o.buttonsShowing();
+                });
+                assertTrue(got[1].contains(got[0]), "step " + i + " bubble " + got[0] + " inside " + got[1]);
+                assertTrue(buttons[0], "step " + i + ": Next/Close visible");
+            }
+            SwingUtilities.invokeAndWait(o::end);
+        } finally {
+            SwingUtilities.invokeAndWait(frame::dispose);
+        }
+    }
 }
