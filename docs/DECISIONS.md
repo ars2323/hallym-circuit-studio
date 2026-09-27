@@ -1741,7 +1741,16 @@
   | JDK 21 전체(Temurin, 비교) | 81 ms | 316 ms | 46 MB | 116 MB |
   | 번들 런타임, 모듈 압축(zip-6, 버림) | 121 ms | 330 ms | 48 MB | 124 MB |
 
-  런타임 크기: 디스크 114 MB(모듈 55 MB, `libjvm` 26 MB, CDS 13 MB, AppCDS 13 MB), zip 36 MB, xz 약 25 MB(NSIS LZMA 짐작). JDK 전체는 346 MB. 패키지한 Linux 앱 폴더는 398 MB(Electron 포함). Windows 값은 CI `runtime (windows-2022)` 작업 요약에 남는다(PR 본문에 옮긴다).
+  CI 러너(PR #422 CI run 36349353800, `runtime` 작업, 중앙값 5번):
+
+  | | 시작→`engine.hello` | ref-mips 열기 | RSS 빈 상태 | RSS ref-mips | 런타임 디스크 / zip |
+  |---|---|---|---|---|---|
+  | Windows(windows-2022) + AppCDS | 109 ms | 454 ms | 48 MB | 93 MB | 102 MB / 32 MB |
+  | Windows, AppCDS 없음 | 165 ms | 631 ms | 41 MB | 94 MB | |
+  | Linux(ubuntu-24.04) + AppCDS | 64 ms | 304 ms | 59 MB | 90 MB | 115 MB / 36 MB |
+  | Linux, AppCDS 없음 | 102 ms | 406 ms | 51 MB | 102 MB | |
+
+  Windows의 RSS는 작업 집합(tasklist)이다. 런타임 크기(개발 PC): 디스크 114 MB(모듈 55 MB, `libjvm` 26 MB, CDS 13 MB, AppCDS 13 MB), zip 36 MB, xz 약 25 MB(NSIS LZMA 짐작). Windows는 `jvm.dll`에 기호가 없어 102 MB, zip 32 MB. JDK 전체는 346 MB. 패키지한 Linux 앱 폴더는 398 MB(Electron 포함).
 - **이유:** v2 지시 3-3(jlink JRE, 시작 시간·메모리·크기 보고, 엔진이 죽으면 알리고 다시 띄움)과 7절(실습실 PC 규칙: 학생이 저장한 파일 말고 디스크에 남기지 않음). 편집은 엔진이 권위이고 Logisim 편집 코드로 하므로, 같은 파일에서 같은 의도를 같은 순서로 다시 보내면 같은 모델이 된다(Logisim 되돌리기 기록까지). 복구를 main에 두는 까닭은 엔진은 죽을 때 저널도 함께 잃기 때문이다. id를 엔진에서 되살리는 까닭은 창의 모든 탭·보기 상태를 창 코드가 옮겨 적지 않아도 되게 하기 위해서다(N-05 캔버스가 같은 때 만들어지고 있다).
 - **대안(버림):** 복구 파일을 임시 폴더에 쓰기(실습실 규칙 위반, 끝난 뒤 지워도 충돌 뒤에는 남는다). main이 창과 엔진 사이에서 파일·회로 id를 번역하기(결과·알림마다 id가 든 자리를 알아야 해서 새 메서드가 생길 때마다 깨진다). 창이 새 id로 탭을 옮겨 적기(보기·선택 등 id로 든 창 상태를 모두 옮겨야 한다). 파일별로 따로 재생하기(파일 사이의 클립보드 순서가 틀어진다). 재생 전 의도마다 스냅숏을 새로 받기(ref-mips에서 의도 수백 개면 수 초). 모듈 압축 `--compress zip-6`(89→59 MB이지만 hello 104→121 ms, 메모리 증가. 설치 파일은 어차피 압축된다). SerialGC·C1만(위 4). 설치본에서 PC의 Java로 넘어가기(Java 8 등에서 알 수 없는 오류). `-XX:+AutoCreateSharedArchive`(실행 때 아카이브를 디스크에 쓴다). 되살린 뒤 창을 첫 화면으로 돌리기(N-02의 임시 동작: 저장하지 않은 편집을 잃는다).
 - **테스트:** 단위(`node --test`) 117개 — `recovery.test.ts` 16(Try Again은 저장본으로, 부품 ref·그림자·똑같은 부품 둘·id floor, 저널의 기록·저장·닫기·기록 못 한 id, 응답과 `model.changed`가 한 청크일 때 편집 앞 모델로 적힘, 가짜 엔진으로: 두 파일 의도를 원래 순서로 재생·같은 id·같은 모델·호출이 되살리기를 기다림·새 id가 floor 위, 디스크가 바뀐 파일, 기록 못 한 의도와 재생 오류, 재생 중 또 죽음→저장본만·다음 충돌은 다시 재생, 한도 60초 3번→failed·호출 풀림, 되살리는 동안 restarting·알림 없음, 연 파일 없음), `recovered.test.ts` 6(대화상자·띠 문구, 조사·"하면 됩니다"·"한림" 없음), `engine.test.ts` +3(응답 이벤트가 호출보다 먼저·오류는 안 알림·던지는 청취자, hello 매개변수, `crash()`), `engine-locate.test.ts` +3(설치본은 번들만·AppCDS, 소스 트리 JAVA_HOME·PATH·HCS_JAVA, JVM 경고는 stderr), `files.test.ts` +1(`reopened`). e2e(가짜 엔진) `recovery.e2e.ts` 7(두 파일·편집 9개·alu 탭까지 되살림·같은 모델·두 번째 충돌, 저장 뒤 편집만, 재생 실패→저장본·띠, 재생 중 또 죽음, 사라진 파일 닫음, 고아 없음(종료·main SIGKILL), 로그는 메모리), `engine.e2e.ts`의 충돌 시험을 새 동작으로 바꿈, `window.e2e.ts`(창에 연 API 목록). 진짜 엔진 e2e(선택 실행, CI `runtime` 작업은 번들 런타임으로 실행) 6개 — 새로: 편집 10개(놓기·속성·옮기기·선·되돌리기·다시 하기·지우기, 새 파일의 핀 둘과 선) 뒤 java를 죽여 두 파일의 모든 회로 모델이 죽기 전과 같음·같은 id·저장 필요·되돌리기가 재생된 기록을 거슬러 감, Electron main을 죽이면 java도 끝남. Java `RestoreTest` 5(idFloor, 이름으로 회로 id 되살리기·서브회로 인스턴스·편집, 새 파일, 쓰는 중이거나 틀린 id 거절), `ParentWatchTest` 1(Linux: stdin을 쥔 채 부모 sh만 끝내면 엔진도 끝남). 돌연변이 53개 모두 잡힘(새로 17개: 재생 순서, 저장 뒤 저널, 속성 없이 짝짓기, idFloor, 또 죽을 때 재생, 호출 붙잡기, 디스크가 바뀐 파일, 실패한 파일 닫기, 띠의 Reset, 시뮬레이션 상태, 응답 이벤트, hello 매개변수, 설치본의 PC Java, JVM 경고, AppCDS 인자, 닫은 파일의 탭, 창 호출의 저널 표시). Gradle `:engine:runtime`이 hello와 MIPS 파일 열기를 스스로 확인한다.
