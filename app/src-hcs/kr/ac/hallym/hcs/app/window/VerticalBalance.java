@@ -11,8 +11,8 @@ package kr.ac.hallym.hcs.app.window;
  * 분할도 같다: 트리가 왼쪽 칸 높이의 절반 이상을 가지고, 아래 탭은 줄이다가 접는다. GUI 없이 계산만 한다.
  */
 public final class VerticalBalance {
-    /** 아래 칸이 이보다 낮아져야 하면 접는다(탭 줄 + 두 줄). */
-    public static final int BOTTOM_MIN = 80;
+    /** 아래 칸이 이보다 낮아져야 하면 접는다: 탭 줄 + Cycle View 도구 줄 + 머리 세 줄이 들어가는 높이(검토 반영). */
+    public static final int BOTTOM_MIN = 130;
     /** 왼쪽 칸 아래 탭(Tunnels·Minimap)이 이보다 낮아져야 하면 접는다. */
     public static final int SIDE_TABS_MIN = 70;
 

@@ -21,11 +21,19 @@ class VerticalBalanceTest {
 
     @Test
     void aShortWindowShrinksTheBottomToKeepHalfForTheCanvas() {
-        // 683×512(1024×768 150%): 내부 ≈ 488, 나눔 칸 ≈ 400 → 캔버스 244+2 + 회로 탭 25 + 나눔선 5 → 아래 124
-        int b = VerticalBalance.bottom(400, 488, 25, 300, 5, 30);
-        assertEquals(124, b);
+        // 1093×582: 내부 ≈ 558, 나눔 칸 ≈ 470 → 캔버스 279+2 + 회로 탭 25 + 나눔선 5 → 아래 159
+        int b = VerticalBalance.bottom(470, 558, 25, 300, 5, 30);
+        assertEquals(159, b);
         assertFalse(VerticalBalance.collapsed(b, 30));
-        assertTrue(400 - b - 5 - 25 >= 488 / 2, "canvas keeps half of the window");
+        assertTrue(470 - b - 5 - 25 >= 558 / 2, "canvas keeps half of the window");
+    }
+
+    @Test
+    void aVeryShortWindowCollapsesInsteadOfShowingAnEmptyStrip() {
+        // 683×512(1024×768 150%): 내부 ≈ 488, 나눔 칸 ≈ 400 → 남는 124 < 130 → 탭 줄만(줄 하나도 못 보이는 칸은 접는다)
+        int b = VerticalBalance.bottom(400, 488, 25, 300, 5, 30);
+        assertEquals(30, b);
+        assertTrue(VerticalBalance.collapsed(b, 30));
     }
 
     @Test
