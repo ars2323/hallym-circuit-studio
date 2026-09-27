@@ -485,7 +485,8 @@ public class Frame extends LFrame implements LocaleListener {
 			AttrTableModel oldModel = attrTable.getAttrTableModel();
 			boolean same = oldModel instanceof AttrTableToolModel
 				&& ((AttrTableToolModel) oldModel).getTool() == oldTool;
-			if (!force && !same && !(oldModel instanceof AttrTableCircuitModel)) {
+			boolean blank = oldModel == null || oldModel.getTitle() == null; // HCS: Y-05 an empty pane shows the circuit
+			if (!force && !same && !blank && !(oldModel instanceof AttrTableCircuitModel)) {
 				return;
 			}
 		}

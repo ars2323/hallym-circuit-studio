@@ -1318,3 +1318,11 @@
 - **이유:** v1.0.2 장면 48은 다른 파일이 열린 상태였고, windows-smoke에는 튜토리얼 화면이 없었다.
 - **대안:** 실행기 안에서 설정을 지우고 새 창 열기(최근 파일·열린 탭이 남는다).
 - **테스트:** `TourGuiTest.bubbleFitsTheSmallestLaptopWindow`(683×512에서 12장 모두 말풍선이 유리판 안, Next·Close 보임), FirstRun 로그 `tutorial true`, CI tutorial smoke.
+
+## D-116 빈 Attributes 칸과 자동 아이콘만 상태의 글자 단추(Y-05)
+
+- **날짜:** 2026-09-27
+- **결정:** (1) 아무것도 고르지 않았고 지금 도구(예: Poke)에 속성이 없으면 Attributes 칸은 비워 두지 않고 현재 회로의 속성(Circuit: main)을 보인다. 원조는 Edit/Select 도구에서만 그렇게 했고, 포크의 기본 도구인 Poke에서는 빈 모델이 남았다. `Frame.viewAttributes`에서 이전 모델이 빈 모델이면 회로 모델로 바꾼다(`// HCS: Y-05`, GUI 계층). (2) 도구 모음이 창 폭 때문에 자동으로 아이콘만 보일 때 규칙은 하나다: 아이콘이 있는 단추는 글자를 숨기고, 아이콘 없는 토글(Signal Flow)은 이름이 곧 글자라 그대로 두며, Icons Only/Icons and Text 토글은 도구 모음에서 빼고 » 메뉴에 "Icons Only (automatic: the window is too narrow)"라는 비활성 항목으로만 둔다. 학생이 정한 글자 설정은 창이 넓어지면 그대로 돌아온다.
+- **이유:** v1.0.2 windows-smoke 1024 100%에서 Attributes 칸이 비어 있었고, 아이콘만 모드에서 "Signal Flow"·"Icons Only" 두 글자 단추만 남아 Icons Only 토글의 뜻이 헷갈렸다.
+- **대안:** 빈 칸에 안내 한 줄("부품을 고르면 속성이 보입니다")만 두기(회로 속성을 바로 고칠 수 없다), Signal Flow에 아이콘을 만들어 붙이기(새 그림이 필요하고 토글 뜻이 덜 드러난다).
+- **테스트:** `EmptyAttributesGuiTest`(새 창의 Attributes 칸 제목에 회로 이름, 속성 줄 ≥ 1), `OverflowToolbarTest.styleToggleMovesToTheMenuWhenIconsOnlyIsAutomatic`.
