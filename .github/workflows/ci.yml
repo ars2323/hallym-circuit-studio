@@ -41,6 +41,8 @@ jobs:
       # 열쇠·서명으로 쓰면(고유하지 않다) 여기서 틀린다. 벽시계 시간을 재는 @Tag("timing")은 뺀다.
       - name: Unit tests with a constant identity hash
         run: ./gradlew --no-daemon :app:testConstantIdentityHash
+      - name: Engine server tests (N-03; again with a constant identity hash, D-129)
+        run: ./gradlew --no-daemon :engine:test && ./gradlew --no-daemon :engine:test -Phcs.constantHash=true
       - name: GUI tests (Xvfb)
         run: xvfb-run -a ./gradlew --no-daemon :app:guiTest
       - name: Test reports
