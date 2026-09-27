@@ -406,4 +406,17 @@ class UiLanguageTest {
         }
         return out;
     }
+
+    /** 선택기의 포트 이름(찾기 결과·진단 문장의 "Mux #1 select")은 이름 묶음에만 있다: 한국어 설명 묶음에 들어가면 번역된다. */
+    @Test
+    void readablePortNamesAreNamesNotDescriptions() throws Exception {
+        Properties names = load(app("names.properties"), true);
+        Properties ko = load(app("messages_ko.properties"), true);
+        Properties en = load(app("messages.properties"), true);
+        for (String k : new String[] {"port.select", "port.enable"}) { // input·output은 일반 명사(V-02)
+            assertTrue(names.containsKey(k), k + " is a name");
+            assertFalse(ko.containsKey(k) || en.containsKey(k), k + " must not be in the description bundles");
+        }
+        assertEquals("select", names.getProperty("port.select"));
+    }
 }

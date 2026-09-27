@@ -208,4 +208,40 @@ class InfluenceOverlayTest {
         }
         assertTrue(dark[1] < dark[0], "the label text is left out: " + dark[0] + " vs " + dark[1]);
     }
+
+    /** v1.0.3 최종 세트: "N places" 칩은 라벨·값 칩을 피해 자리를 옮긴다. */
+    @Test
+    void placesChipAvoidsLabelChips() {
+        java.awt.Rectangle body = new java.awt.Rectangle(400, 200, 100, 120);
+        // 칩이 없으면 오른쪽 위
+        java.awt.geom.Point2D.Float p = InfluenceOverlay.placesAt(body, 90, 16, 6, java.util.Collections.emptyList());
+        org.junit.jupiter.api.Assertions.assertEquals(410f, p.x, 0.01);
+        org.junit.jupiter.api.Assertions.assertEquals(178f, p.y, 0.01);
+        // 오른쪽 위 자리의 왼쪽 끝에 값 칩이 있으면(17c의 "0x00") 다른 자리로
+        java.awt.Rectangle chip = new java.awt.Rectangle(398, 180, 30, 14);
+        java.awt.geom.Point2D.Float q = InfluenceOverlay.placesAt(body, 90, 16, 6, java.util.List.of(chip));
+        java.awt.Rectangle placed = new java.awt.Rectangle(Math.round(q.x), Math.round(q.y), 90, 16);
+        org.junit.jupiter.api.Assertions.assertFalse(placed.intersects(chip), "moved off the chip: " + placed);
+    }
+
+    /** 옮긴 자리도 터널 점선(무게 10)을 덮지 않고, 모든 자리가 막히면 가장 적게 가리는 자리를 고른다. */
+    @Test
+    void placesChipAvoidsTunnelLinksAndPicksTheLeastCoveredSpot() {
+        java.awt.Rectangle body = new java.awt.Rectangle(400, 200, 100, 120);
+        java.util.List<InfluenceOverlay.Obstacle> obs = new java.util.ArrayList<>();
+        obs.add(new InfluenceOverlay.Obstacle(new java.awt.Rectangle(398, 180, 30, 14), 10)); // 오른쪽 위 자리의 값 칩
+        obs.add(new InfluenceOverlay.Obstacle(new java.awt.Rectangle(400, 170, 20, 20), 10)); // 왼쪽 위 자리
+        obs.add(new InfluenceOverlay.Obstacle(new java.awt.Rectangle(420, 326, 6, 6), 10)); // 아래 자리를 지나는 점선
+        java.awt.geom.Point2D.Float q = InfluenceOverlay.placesAtWeighted(body, 90, 16, 6, obs);
+        java.awt.Rectangle placed = new java.awt.Rectangle(Math.round(q.x), Math.round(q.y), 90, 16);
+        for (InfluenceOverlay.Obstacle o : obs) {
+            org.junit.jupiter.api.Assertions.assertFalse(placed.intersects(o.rect), placed + " covers " + o.rect);
+        }
+        org.junit.jupiter.api.Assertions.assertFalse(InfluenceOverlay.coversText(q, 90, 16, obs));
+        // 둘레가 모두 칩으로 막히면 가장 적게 가리는 자리라도 글자를 가린다: 작은 배율에서는 그리지 않는 조건
+        java.util.List<InfluenceOverlay.Obstacle> full = java.util.List.of(
+                new InfluenceOverlay.Obstacle(new java.awt.Rectangle(250, 50, 400, 450), 10));
+        java.awt.geom.Point2D.Float r = InfluenceOverlay.placesAtWeighted(body, 90, 16, 6, full);
+        org.junit.jupiter.api.Assertions.assertTrue(InfluenceOverlay.coversText(r, 90, 16, full));
+    }
 }
