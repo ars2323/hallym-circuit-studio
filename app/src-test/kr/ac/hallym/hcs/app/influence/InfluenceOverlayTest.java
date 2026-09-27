@@ -208,4 +208,19 @@ class InfluenceOverlayTest {
         }
         assertTrue(dark[1] < dark[0], "the label text is left out: " + dark[0] + " vs " + dark[1]);
     }
+
+    /** v1.0.3 최종 세트: "N places" 칩은 라벨·값 칩을 피해 자리를 옮긴다. */
+    @Test
+    void placesChipAvoidsLabelChips() {
+        java.awt.Rectangle body = new java.awt.Rectangle(400, 200, 100, 120);
+        // 칩이 없으면 오른쪽 위
+        java.awt.geom.Point2D.Float p = InfluenceOverlay.placesAt(body, 90, 16, 6, java.util.Collections.emptyList());
+        org.junit.jupiter.api.Assertions.assertEquals(410f, p.x, 0.01);
+        org.junit.jupiter.api.Assertions.assertEquals(178f, p.y, 0.01);
+        // 오른쪽 위 자리의 왼쪽 끝에 값 칩이 있으면(17c의 "0x00") 다른 자리로
+        java.awt.Rectangle chip = new java.awt.Rectangle(398, 180, 30, 14);
+        java.awt.geom.Point2D.Float q = InfluenceOverlay.placesAt(body, 90, 16, 6, java.util.List.of(chip));
+        java.awt.Rectangle placed = new java.awt.Rectangle(Math.round(q.x), Math.round(q.y), 90, 16);
+        org.junit.jupiter.api.Assertions.assertFalse(placed.intersects(chip), "moved off the chip: " + placed);
+    }
 }

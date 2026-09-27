@@ -346,7 +346,8 @@ public final class InfluenceOverlay {
                 }
                 outline(g, e.getKey().getBounds(), FORWARD, Math.max(1.5f, px(STOP_PX, z)), null, z);
                 if (e.getValue() > 0) {
-                    placesChip(g, e.getKey(), e.getValue(), z);
+                    placesChip(g, e.getKey(), e.getValue(), z, canvas == null ? java.util.Collections.emptyList()
+                            : kr.ac.hallym.hcs.app.labels.LabelOverlay.chipRects(canvas));
                 }
             }
         } finally {
@@ -393,7 +394,7 @@ public final class InfluenceOverlay {
         return Messages.get("influence.places", inst.getFactory().getName(), n);
     }
 
-    private static void placesChip(Graphics2D g, Component inst, int n, double z) {
+    private static void placesChip(Graphics2D g, Component inst, int n, double z, java.util.List<Rectangle> chips) {
         String text = placesText(inst, n);
         g.setFont(new Font(Tokens.UI_FONT, Font.BOLD, 1).deriveFont(px(11, z)));
         FontMetrics fm = g.getFontMetrics();
@@ -402,14 +403,49 @@ public final class InfluenceOverlay {
         float padY = px(2, z);
         float w = fm.stringWidth(text) + 2 * padX;
         float h = fm.getAscent() + fm.getDescent() + 2 * padY;
-        float x = b.getX() + b.getWidth() - w;
-        float y = b.getY() - px(6, z) - h;
+        java.awt.geom.Point2D.Float at = placesAt(new Rectangle(b.getX(), b.getY(), b.getWidth(), b.getHeight()), w, h,
+                px(6, z), chips);
+        float x = at.x;
+        float y = at.y;
         g.setColor(Tokens.WHITE);
         g.fill(new RoundRectangle2D.Float(x, y, w, h, px(6, z), px(6, z)));
         g.setColor(FORWARD);
         g.setStroke(new BasicStroke(Math.max(1f, px(1, z))));
         g.draw(new RoundRectangle2D.Float(x, y, w, h, px(6, z), px(6, z)));
         g.drawString(text, x + padX, y + padY + fm.getAscent());
+    }
+
+    /**
+     * "N places" 칩 자리(회로 좌표): 부품 오른쪽 위 바깥이 기본이고, 라벨·값 칩(chips)과 겹치면 왼쪽 위, 오른쪽 아래,
+     * 왼쪽 아래 순으로 옮긴다. 모두 겹치면 겹침이 가장 적은 자리(v1.0.3 최종 세트: "0x00" 칩이 "regfile" 첫 글자를 덮었다).
+     */
+    static java.awt.geom.Point2D.Float placesAt(Rectangle body, float w, float h, float gap, java.util.List<Rectangle> chips) {
+        float[][] tries = {
+            {body.x + body.width - w, body.y - gap - h},
+            {body.x, body.y - gap - h},
+            {body.x + body.width - w, body.y + body.height + gap},
+            {body.x, body.y + body.height + gap},
+        };
+        float[] best = tries[0];
+        long bestOverlap = Long.MAX_VALUE;
+        for (float[] t : tries) {
+            Rectangle r = new Rectangle(Math.round(t[0]) - 2, Math.round(t[1]) - 2, Math.round(w) + 4, Math.round(h) + 4);
+            long overlap = 0;
+            for (Rectangle c : chips) {
+                Rectangle i = r.intersection(c);
+                if (!i.isEmpty()) {
+                    overlap += (long) i.width * i.height;
+                }
+            }
+            if (overlap == 0) {
+                return new java.awt.geom.Point2D.Float(t[0], t[1]);
+            }
+            if (overlap < bestOverlap) {
+                bestOverlap = overlap;
+                best = t;
+            }
+        }
+        return new java.awt.geom.Point2D.Float(best[0], best[1]);
     }
 
     static float px(float screen, double zoom) {
