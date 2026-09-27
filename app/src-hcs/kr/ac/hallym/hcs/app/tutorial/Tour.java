@@ -166,6 +166,7 @@ public final class Tour {
         root.setGlassPane(o);
         o.setVisible(true);
         o.go(0);
+        frame.repaint(); // 캔버스의 빈 회로 안내를 유리판 아래에서 지운다(Y-04)
         return o;
     }
 

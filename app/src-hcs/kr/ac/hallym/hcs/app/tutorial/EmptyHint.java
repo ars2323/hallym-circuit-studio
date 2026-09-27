@@ -48,6 +48,11 @@ public final class EmptyHint {
      * 캔버스 좌표(배율 없이, 원점만 옮긴 Graphics)에 그린다. 보이는 영역 가운데에 둔다.
      */
     public static void paint(Canvas canvas, Graphics g0, Circuit circuit) {
+        // 튜토리얼 유리판이 떠 있는 동안은 그리지 않는다(말풍선 옆으로 글자 조각이 비친다, Y-04 검토)
+        javax.swing.JRootPane root = javax.swing.SwingUtilities.getRootPane(canvas);
+        if (root != null && root.getGlassPane() instanceof Tour.Overlay && root.getGlassPane().isVisible()) {
+            return;
+        }
         if (!shouldShow(circuit) || !(g0 instanceof Graphics2D)) {
             return;
         }
