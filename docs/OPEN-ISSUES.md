@@ -45,7 +45,7 @@
 
 | ID | 내용 | 결정 | 상태 |
 | --- | --- | --- | --- |
-| E-02 | 우리 코드가 `System.identityHashCode`를 고유한 ID처럼 썼다(문자열 열쇠, 방문 표시, "이미 말함" 열쇠, 바뀜 서명). identity hash는 고유하지 않아 서로 다른 두 객체가 같은 값을 가질 수 있다. 촬영 JVM(`-XX:hashCode=2`, 모든 값이 같음)에서 드러났다: 장면 31(demo-datapath, RegWrite 3상태, 6사이클)의 Messages가 원인 "입력 핀 main › RegWrite" 대신 "… 둘레의 고리에서 값이 정해지지 않습니다"라고 말했다(E·X 출처 추적 `OriginTrace.key`가 서로 다른 넷을 같은 곳으로 봄). 보통 JVM에서도 드물게, 비결정적으로 생길 수 있었다(같은 원인 두 곳을 한 번만 말함, 칩·터널 색·영향 경로를 다시 그리지 않음 등). | 열쇠·서명은 정체(==)로 비교하는 `RefKey`로 바꾸고, 단위 테스트 전체를 상수 identity hash JVM에서 한 번 더 돈다(`:app:testConstantIdentityHash`, CI Linux, D-129) | 고침(이 PR) |
+| E-02 | 우리 코드가 `System.identityHashCode`를 고유한 ID처럼 썼다(문자열 열쇠, 방문 표시, "이미 말함" 열쇠, 바뀜 서명). identity hash는 고유하지 않아 서로 다른 두 객체가 같은 값을 가질 수 있다. 촬영 JVM(`-XX:hashCode=2`, 모든 값이 같음)에서 드러났다: 장면 31(demo-datapath, RegWrite 3상태, 6사이클)의 Messages가 원인 "입력 핀 main › RegWrite" 대신 "… 둘레의 고리에서 값이 정해지지 않습니다"라고 말했다(E·X 출처 추적 `OriginTrace.key`가 서로 다른 넷을 같은 곳으로 봄). 보통 JVM에서도 드물게, 비결정적으로 생길 수 있었다(같은 원인 두 곳을 한 번만 말함, 칩·터널 색·영향 경로를 다시 그리지 않음 등). | 열쇠·서명은 정체(==)로 비교하는 `RefKey`로 바꾸고, 단위 테스트 전체를 상수 identity hash JVM에서 한 번 더 돈다(`:app:testConstantIdentityHash`, CI Linux, D-129) | 고침(#408) |
 
 ## 넘긴 모양 다듬기(v1.0.3 최종 세트 세 범위 검토에서, 2026-09-27)
 
