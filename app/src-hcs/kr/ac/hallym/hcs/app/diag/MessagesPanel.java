@@ -212,7 +212,25 @@ public final class MessagesPanel {
             split.setDividerLocation(h - want - split.getDividerSize());
         }
         badge();
+        // 캔버스 높이는 위쪽 배치가 끝난 뒤에야 정확하다(회로 탭 줄 등): 한 번 더 재서 모자라면 다시 잡는다
+        if (!verifying) {
+            verifying = true;
+            javax.swing.SwingUtilities.invokeLater(() -> {
+                try {
+                    int canvasNow = canvasHeight.getAsInt();
+                    javax.swing.JRootPane rp = javax.swing.SwingUtilities.getRootPane(split);
+                    int ch = rp == null ? split.getHeight() : rp.getContentPane().getHeight();
+                    if (!holdOpen && !userClosed && canvasNow > 0 && canvasNow < ch / 2) {
+                        balance();
+                    }
+                } finally {
+                    verifying = false;
+                }
+            });
+        }
     }
+
+    private boolean verifying;
 
     /** 창이 아래 칸 규칙에 쓸 캔버스 높이를 준다. */
     public void setCanvasHeight(java.util.function.IntSupplier supplier) {
