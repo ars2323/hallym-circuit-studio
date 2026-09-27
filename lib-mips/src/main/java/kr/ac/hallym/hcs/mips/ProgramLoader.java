@@ -74,7 +74,10 @@ final class ProgramLoader {
         /** 목록에 보일 이름. 예: {@code datapath › IMem (00400000-004fffff)}. */
         String describe() {
             String label = component.getAttributeSet().getValue(StdAttr.LABEL);
-            String name = label == null || label.isEmpty() ? component.getFactory().getDisplayName() : label;
+            ComponentFactory f = component.getFactory();
+            String name = label != null && !label.isEmpty() ? label
+                    : f instanceof MemoryFactory ? ((MemoryFactory) f).title().get() // "Stack"(목록 이름은 "Stack (old circuits)")
+                    : f.getDisplayName();
             long[] r = region();
             return circuit.getName() + " › " + name + " (" + WordImage.hex(r[0]) + "-" + WordImage.hex(r[1] - 1) + ")";
         }

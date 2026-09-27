@@ -100,7 +100,7 @@ class ProgramLoaderTest {
         // 이름: 라벨이 있으면 라벨
         assertEquals("main › Instruction Memory (00400000-0040000f)", t.describe());
         assertEquals(t.describe(), t.toString());
-        assertEquals("main › DM (10010000-1010ffff)", new ProgramLoader.Target(main, dm).describe());
+        assertEquals("main › DM (10000000-100fffff)", new ProgramLoader.Target(main, dm).describe()); // 데이터 영역(D-140)
         // 같은 부품이면 같은 대상
         ProgramLoader.Target again = new ProgramLoader.Target(main, im);
         assertEquals(t, again);
@@ -226,7 +226,7 @@ class ProgramLoaderTest {
         ProgramLoader.Plan plan = plan(image().build(), sim, null, null);
         assertSame(dm, plan.emptiedData.component);
         assertTrue(((WordImage) change(plan, dm, MemoryFactory.CONTENTS)).isEmpty());
-        assertTrue(plan.notes.contains(".data: none (emptied main › Data Memory (10010000-1010ffff))"), plan.notes.toString());
+        assertTrue(plan.notes.contains(".data: none (emptied main › Data Memory (10000000-100fffff))"), plan.notes.toString());
         // 우클릭한 Data Memory가 둘 중 하나면 그것을 비운다
         Component dm2 = sim.b.add(sim.mips, "Data Memory", 400, 800, "label", "D2");
         sim.b.commit();

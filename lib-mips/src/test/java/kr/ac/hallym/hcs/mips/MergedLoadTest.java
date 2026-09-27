@@ -21,9 +21,9 @@ import kr.ac.hallym.hcs.mips.image.ExecutableImage;
 
 /**
  * 실행 이미지를 합친 Data Memory(D-140)에 넣는다: .data는 데이터 영역에, {@code reg $sp}는 스택 영역의 깊이 기준으로.
- * 스택 내용은 파일에 없으므로 0이다. 넣은 뒤 부품에서 워드·바이트 단위로 되읽어 이미지와 같은지 본다(명세 골든은 다른
- * 작업이 tests/hmx/hallym-mips-v2.4.0/에 들인다. 그 전까지는 같은 모양의 tests/hmx 파일: 데이터(example),
- * 0 구간(zero-runs, 명세의 space-gap과 같은 .data 빈칸), 홀수 길이(data-odd)).
+ * 스택 내용은 파일에 없으므로 0이다. 넣은 뒤 부품에서 워드·바이트 단위로 되읽어 이미지와 같은지 본다: Hallym MIPS
+ * 2.4.0 명세 골든(tests/hmx/hallym-mips-v2.4.0의 data, space-gap)과 손으로 쓴 tests/hmx 파일(example, zero-runs,
+ * data-odd).
  */
 class MergedLoadTest {
     static final Path HMX = AssemblerIntegrationTest.TESTS.resolve("hmx");
@@ -162,14 +162,12 @@ class MergedLoadTest {
     /**
      * Hallym MIPS 2.4.0이 내보낸 명세 골든(data, space-gap; tests/hmx/hallym-mips-v2.4.0/, 다른 작업이 들인다): 합친
      * Data Memory에 올린 뒤 .data를 워드·바이트 단위로 되읽으면 이미지와 같고(.space 빈칸은 0), 파일의 reg $sp
-     * (0x7fffffe4)는 스택 영역의 깊이 기준이며, 스택 영역은 0이다(Hallym MIPS가 인자를 둔 자리도 파일에 없다). 그 폴더가
-     * 없으면(골든이 아직 main에 없음) 건너뛴다.
+     * (0x7fffffe4)는 스택 영역의 깊이 기준이며, 스택 영역은 0이다(Hallym MIPS가 인자를 둔 자리도 파일에 없다). 일곱
+     * 골든 모두의 되읽기는 HallymMipsGoldenTest가 같은 합친 부품으로 한다.
      */
     @Test
     void hallymMipsGoldensLoadIntoTheMergedDataMemory() throws Exception {
         Path dir = HMX.resolve("hallym-mips-v2.4.0");
-        org.junit.jupiter.api.Assumptions.assumeTrue(java.nio.file.Files.isDirectory(dir),
-                "the v2.4.0 goldens come with the .hmx spec work (tests/hmx/hallym-mips-v2.4.0)");
         long[][] expect = {{28, 7}, {4168, 1042}}; // .data 바이트, 워드
         String[] names = {"data.hmx", "space-gap.hmx"};
         for (int k = 0; k < names.length; k += 1) {
