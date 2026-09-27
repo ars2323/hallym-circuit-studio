@@ -7,6 +7,7 @@ import { expect, test, type Page } from '@playwright/test';
 import path from 'node:path';
 
 import { answerOpen, DATAPATH, GATES, launch, repo, sample } from './harness.ts';
+import { pixelDiff } from './png.ts';
 
 // The card as it looks with the choices (and the back link) painted over.
 async function cardShot(page: Page): Promise<Buffer> {
@@ -16,6 +17,19 @@ async function cardShot(page: Page): Promise<Buffer> {
   await page.evaluate(() => document.fonts.ready);
   const card = page.locator('.wcard');
   return card.screenshot({ mask: [page.locator('.wcard .actions'), page.locator('.wcard .back')], maskColor: '#ff00ff', animations: 'disabled' });
+}
+
+// The same card twice in a row: Chromium may draw a scaled image at a lower
+// quality first and at full quality a frame later.
+async function settledShot(page: Page): Promise<Buffer> {
+  let last = await cardShot(page);
+  for (let i = 0; i < 20; i += 1) {
+    await page.waitForTimeout(150);
+    const next = await cardShot(page);
+    if (Buffer.compare(last, next) === 0) return next;
+    last = next;
+  }
+  throw new Error('the card never looked the same twice in a row');
 }
 
 test('the first screen: greeting, lead in two lines, two ways in; no toolbar', async () => {
@@ -48,7 +62,7 @@ test('step 2 is the same card: the same box and the same pixels, but for the cho
   try {
     const box1 = await page.locator('.wcard').boundingBox();
     const actions1 = await page.locator('.wcard .actions').boundingBox();
-    const shot1 = await cardShot(page);
+    const shot1 = await settledShot(page);
     for (const [way, choices] of [['튜토리얼 보기', ['논리설계 및 실험', '컴퓨터구조']], ['바로 시작', ['새 회로', '파일 열기']]] as const) {
       await page.getByRole('button', { name: new RegExp(way) }).click();
       await expect(page.locator('.action').nth(0)).toContainText(choices[0]);
@@ -59,8 +73,8 @@ test('step 2 is the same card: the same box and the same pixels, but for the cho
       for (const sub of await page.locator('.action .sub').all()) {
         expect(await sub.evaluate((e) => e.scrollWidth <= e.clientWidth + 1), await sub.innerText()).toBe(true);
       }
-      const shot2 = await cardShot(page);
-      expect(Buffer.compare(shot1, shot2), `${way}: the card changed outside its choices`).toBe(0);
+      const shot2 = await settledShot(page);
+      expect(pixelDiff(shot1, shot2), `${way}: the card changed outside its choices`).toBe('');
       await page.getByRole('button', { name: '← 처음으로' }).click();
       await expect(page.locator('.action').nth(0)).toContainText('튜토리얼 보기');
     }
