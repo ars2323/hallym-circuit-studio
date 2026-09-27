@@ -15,6 +15,14 @@ java {
     }
 }
 
+// 두 트랙 공용 코드(D-125): 실행 이미지(.hmx) 모델·파서, 디스어셈블러. Java 8, 외부 의존성 없음, GUI 없음.
+// lib-mips jar(트랙 A)와 포크 앱(트랙 B, app/build.gradle.kts)에 같은 소스를 함께 컴파일한다.
+sourceSets {
+    main {
+        java.srcDir("src/shared/java")
+    }
+}
+
 // smoke: JAR 라이브러리 방식 자체를 확인하는 최소 라이브러리(docs/jar-library.md). 배포하지 않는다.
 val smoke by sourceSets.creating
 

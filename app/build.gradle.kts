@@ -28,7 +28,8 @@ val thirdParty by tasks.registering(Jar::class) {
 
 sourceSets {
     main {
-        java.setSrcDirs(listOf("src", "src-hcs")) // src-hcs: 포크가 더한 코드(kr.ac.hallym.hcs.app)
+        // src-hcs: 포크가 더한 코드(kr.ac.hallym.hcs.app). lib-mips/src/shared/java: 두 트랙 공용 코드(D-125)
+        java.setSrcDirs(listOf("src", "src-hcs", rootProject.file("lib-mips/src/shared/java")))
         resources.setSrcDirs(listOf("."))
         resources.include("resources/**", "doc/**")
     }
