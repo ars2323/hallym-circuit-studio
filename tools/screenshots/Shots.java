@@ -1575,10 +1575,12 @@ public final class Shots {
             Point s = list.getLocationOnScreen();
             robot.mouseMove(s.x + cell.x + 40, s.y + cell.y + cell.height / 2);
             sleep(200);
+            log.add("14b: before click " + focusInfo());
             robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
             robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
             sleep(1500);
             snapFull("14b-messages-clicked");
+            log.add("14b: after click " + focusInfo());
             // 원래 크기 자르기(S-13): snapFull은 1600px로 줄여 굵기를 잴 수 없다. 누른 PC(4px)와 누르지 않은 터널(2px)
             com.cburch.logisim.comp.Component pcReg = byLabel(p.getCurrentCircuit(), "PC");
             if (pcReg != null) {
@@ -3303,10 +3305,12 @@ public final class Shots {
             Point s = list.getLocationOnScreen();
             robot.mouseMove(s.x + cell.x + 40, s.y + cell.y + cell.height / 2);
             sleep(200);
+            log.add("31c: before click " + focusInfo());
             robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
             robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
             sleep(1500);
             snapFull("31c-message-clicked");
+            log.add("31c: after click " + focusInfo());
             // V-03: 표 맨 위 임시 줄(원인 RegWrite, E가 생긴 자리)과 강조된 사이클 칸
             Component cv = find(p.getFrame(), x -> x.getClass().getSimpleName().equals("RowNames") && x.isShowing());
             if (cv != null) {
@@ -3317,6 +3321,9 @@ public final class Shots {
                 log.add("31: no cycle view rows");
             }
         }
+        // 메시지를 누르면 원인이 있는 회로(서브회로일 수 있다)로 간다: 파랑 선은 main에서 찾는다
+        edt(() -> p.setCurrentCircuit(c));
+        sleep(700);
         // 파랑 X 선 우클릭: Find E/X Origin
         com.cburch.logisim.circuit.Wire blue = null;
         for (com.cburch.logisim.circuit.Wire w : c.getWires()) {
@@ -3988,6 +3995,15 @@ public final class Shots {
             }
         }
         b.append(';');
+    }
+
+    /** 로그용: 초점이 있는 창과 부품(촬영이 흔들릴 때 원인 찾기). */
+    static String focusInfo() {
+        java.awt.KeyboardFocusManager k = java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager();
+        Component o = k.getFocusOwner();
+        java.awt.Window w = k.getFocusedWindow();
+        return "window " + (w == null ? "-" : w.getClass().getSimpleName()) + ", owner "
+                + (o == null ? "-" : o.getClass().getSimpleName());
     }
 
     static Rectangle onScreen(Component c) {
