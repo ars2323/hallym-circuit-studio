@@ -20,7 +20,7 @@ v1(Swing, `swing-final`)의 기능을 v2(Electron 화면 + Java 엔진)로 모�
 | B-07 | 라벨 칩, 터널 색 칩, 포트 이름, 마우스 오버 정보 | N-05 |  |  |  |
 | B-08 | 터널 이동(짝 터널로), 찾기(Ctrl+F) | N-12 |  |  |  |
 | B-09 | 넷 강조(Highlight Net), 넷 정보 | N-15 |  |  |  |
-| B-10 | 정적 진단과 Messages 탭(정상 회로 0건) | N-13 |  |  |  |
+| B-10 | 정적 진단과 Messages 탭(정상 회로 0건) | N-13 |  | messages.e2e.ts "a broken circuit…", "nothing to say…"; 엔진 `DiagTest.normalCircuitsHaveNoMessagesBeforeAndAfterCycles` | D-143. 정상 회로 0건은 열 때와 6사이클 뒤 모두 |
 | B-11 | 따라오는 선(SafeMove), 선 한 토막 끌기 | N-08 |  |  |  |
 | B-12 | 서브회로 인스턴스 안내와 포트 변경 영향 알림 | N-11 |  |  |  |
 | B-13 | 자동 저장·복구 파일 | N-19 |  |  |  |
@@ -58,8 +58,8 @@ v1(Swing, `swing-final`)의 기능을 v2(Electron 화면 + Java 엔진)로 모�
 | S-26 | 회귀 확인: UI 언어(D-049) | N-20 |  |  |  |
 | S-27 | 회귀 확인: Stack은 used N B (peak)만 | N-14 |  |  |  |
 | S-28 | 회귀 확인: 찾기 결과 묶음과 위치 표시 | N-12 |  |  |  |
-| S-29 | 회귀 확인: 메시지 클릭 뒤 속성 패널·빠른 속성 창·캔버스 표시 | N-13 |  |  |  |
-| S-30 | 회귀 확인: gateUndefined=error일 때만 빈 게이트 입력 알림 | N-13 |  |  |  |
+| S-29 | 회귀 확인: 메시지 클릭 뒤 속성 패널·빠른 속성 창·캔버스 표시 | N-13 |  | messages.e2e.ts "choosing a message…" | D-143. 메시지를 누르면 `hcs:reveal`(회로·인스턴스·부품·선·넷·자리·사이클)과 회로 탭. 캔버스 표시·고르기는 N-05/N-10이 이 사건을 받아 한다(후속) |
+| S-30 | 회귀 확인: gateUndefined=error일 때만 빈 게이트 입력 알림 | N-13 |  | 엔진 `DiagTest.emptyGateInputsOnlyWhenTheProjectSaysError` | D-143. v1 StaticCheck 그대로 |
 | W-01 | 결정적 길 찾기 | N-08 |  |  |  |
 | W-02 | 따라온 선 정리 단계 | N-08 |  |  |  |
 | W-03 | 묶음 재배선 | N-08 |  |  |  |
@@ -82,12 +82,12 @@ v1(Swing, `swing-final`)의 기능을 v2(Electron 화면 + Java 엔진)로 모�
 | C-08 | 버스 값 칩과 활성 경로 | N-15 |  |  |  |
 | C-09 | Console 탭과 자동 재로드(.hmx. .s 자동 재로드는 D-141에서 없앰) | N-16 |  |  |  |
 | C-10 | 사이클 뷰 테스트 | N-14 |  |  |  |
-| D-01 | E·X 출처 추적 | N-13 |  |  |  |
-| D-02 | 진동 | N-13 |  |  |  |
-| D-03 | X 기록 감지 | N-13 |  |  |  |
-| D-04 | MIPS 부품 값 의존 검사(#41) | N-13 |  |  |  |
-| D-05 | 메시지 클릭과 사이클 뷰 | N-13 |  |  |  |
-| D-06 | 동적 고장 회로 모음 | N-13 |  |  |  |
+| D-01 | E·X 출처 추적 | N-13 |  | 엔진 `DiagTest.traceOriginFollowsAnXBackToTheInputPin` | D-143. `trace.origin` API. 선 우클릭 "Find E/X Origin" 메뉴는 캔버스 메뉴(N-10)가 이 API를 부른다(후속). E 발생 메시지(`E_APPEARED`)는 원인 한 곳을 이미 담는다 |
+| D-02 | 진동 | N-13 |  | messages.e2e.ts "an oscillation…"; 엔진 `DiagTest.oscillationReplacesTheStaticLoopWithItsLoop` | D-143. 고리의 부품·선·넷, Messages의 Reset Simulation(Reset 뒤 다시 켬) |
+| D-03 | X 기록 감지 | N-13 |  | messages.e2e.ts "the clock runs…"; 엔진 `DiagTest.dynamicMessagesComeWithTheirCycleAndGoAtReset` | D-143 |
+| D-04 | MIPS 부품 값 의존 검사(#41) | N-13 |  | 엔진 `DiagTest.everyFaultCircuitGivesOneMessageInBothLanguages`(mips-* 5개) | D-143. lib-mips 몸체 글자를 v2 문구 두 벌로(`DiagTextTest`) |
+| D-05 | 메시지 클릭과 사이클 뷰 | N-13 |  | messages.e2e.ts "the clock runs…"(reveal의 cycle) | D-143. 사건에 사이클을 싣는다. Cycle View가 그 사이클로 가는 것은 N-14가 `hcs:reveal`을 받아 한다(후속) |
+| D-06 | 동적 고장 회로 모음 | N-13 |  | 엔진 `DiagTest.everyFaultCircuitGivesOneMessageInBothLanguages` | D-143. v1 모음 19개 + 가까운 이름 3개(`static-tunnel-near-*`), v2 문구 골든 `messages.v2.*.expected` |
 | E-01 | N개 복제 | N-21 |  |  |  |
 | E-02 | 정렬·같은 간격, 선택 필터 | N-21 |  |  |  |
 | E-03 | 버스 폭 표시와 선 색 범례 | N-05 |  |  |  |
@@ -101,7 +101,7 @@ v1(Swing, `swing-final`)의 기능을 v2(Electron 화면 + Java 엔진)로 모�
 | E-11 | About 창 | N-20 |  |  |  |
 | E-12 | 앱 아이콘과 창 제목 | N-17 |  |  |  |
 | V-01 | 새 파일에서도 Hallym MIPS가 보이고 바로 쓰임 | N-12 |  |  |  |
-| V-02 | 진단 문구 정확성(E 원인 종류, 내부 포트 이름 숨김) | N-13 |  |  |  |
+| V-02 | 진단 문구 정확성(E 원인 종류, 내부 포트 이름 숨김) | N-13 |  | 엔진 `DiagTest.everyFaultCircuitGivesOneMessageInBothLanguages`, `DiagTextTest` | D-143. 내부 포트 이름 없음, "충돌"은 충돌에만, 한국어 틀에서 이름 뒤 조사 없음 |
 | V-03 | 메시지를 누르면 원인이 사이클 표에 | N-14 |  |  |  |
 | V-04 | 활성 경로는 가지만 칠함 | N-15 |  |  |  |
 | V-05 | 같은 이름 파일 탭 구분 | N-11 |  |  |  |
@@ -123,5 +123,5 @@ v1(Swing, `swing-final`)의 기능을 v2(Electron 화면 + Java 엔진)로 모�
 | Y-06 | 확인과 릴리스(review-shots v103, v1.0.3, needs-human) | 과정 |  |  | v1 검토·릴리스 과정이라 옮길 기능이 아님 |
 | Y-07 | MSI 배포 중단(zip만), setup exe 결정(v1.1.0, #334) | N-23 |  |  |  |
 | Y-08 | 틱 누락 확인(N Cycles 고침, Run Until·기록·연속 실행은 해당 없음) | N-07 |  |  |  |
-| Y-10 | 메시지를 누르면 초점이 검색 칸으로 옮겨 가던 것 | N-13 |  |  |  |
+| Y-10 | 메시지를 누르면 초점이 검색 칸으로 옮겨 가던 것 | N-13 |  | messages.e2e.ts "choosing a message…"(초점이 메시지에 남음, Tab·Enter) | D-143 |
 | Y-09 | 촬영·검토 절차(장면마다 새 JVM, 병렬, 같은 코드면 같은 픽셀, 바뀐 것만 검토, core·feature 세트) | 과정 |  |  | v1 검토·릴리스 과정이라 옮길 기능이 아님 |
