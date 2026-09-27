@@ -47,6 +47,8 @@ public final class OverflowToolbar extends JToolBar {
         final int priority;
         final String text;
         boolean shown = true;
+        /** 창이 좁아 자동으로 아이콘만 보일 때는 도구 모음에서 빼고 » 메뉴에만 둔다(Icons Only 토글, Y-05). */
+        boolean menuWhenAuto;
 
         Item(Component comp, String key, int priority, String text) {
             this.comp = comp;
@@ -77,6 +79,13 @@ public final class OverflowToolbar extends JToolBar {
     }
 
     /** 항목을 더한다. key는 문구 열쇠(메뉴·테스트 이름), 글자가 있는 단추는 넘칠 때 글자를 숨긴다. */
+    /** 자동 아이콘만 상태에서는 » 메뉴에만 두는 항목(Icons Only 토글). */
+    public Component addMenuWhenAutoItem(Component c, String key, int priority) {
+        addItem(c, key, priority);
+        items.get(items.size() - 1).menuWhenAuto = true;
+        return c;
+    }
+
     public Component addItem(Component c, String key, int priority) {
         // 아이콘이 있는 단추만 글자를 숨길 수 있다(아이콘 없는 토글은 글자가 곧 이름)
         String text = c instanceof AbstractButton && ((AbstractButton) c).getIcon() != null
@@ -155,6 +164,13 @@ public final class OverflowToolbar extends JToolBar {
                 AbstractButton b = (AbstractButton) it.comp;
                 // 아이콘 없는 글자 단추(Icons Only ↔ Text)는 도구 모음과 같은 이름으로(한 기능에 이름 하나, X-05 검토)
                 String label = b.getIcon() == null && b.getText() != null ? b.getText() : Messages.get(it.key);
+                if (it.menuWhenAuto && iconsOnlyNow && textPreferred) {
+                    // 창이 좁아 이미 아이콘만이다: 토글 대신 상태를 알린다(Y-05)
+                    JMenuItem info = new JMenuItem(Messages.get("bar.iconsOnlyAuto"));
+                    info.setEnabled(false);
+                    m.add(info);
+                    continue;
+                }
                 JMenuItem mi = new JMenuItem(label, b.getIcon());
                 mi.setEnabled(b.isEnabled());
                 mi.addActionListener(e -> b.doClick());
@@ -232,6 +248,14 @@ public final class OverflowToolbar extends JToolBar {
             iconsOnlyNow = !text;
             int moreW = more.getPreferredSize().width + GAP;
             boolean overflow = false;
+            if (!text) { // 자동 아이콘만: Icons Only 토글은 도구 모음에서 빼고 » 메뉴에만(Y-05)
+                for (Item it : items) {
+                    if (it.menuWhenAuto) {
+                        it.shown = false;
+                        overflow = true;
+                    }
+                }
+            }
             while (total(text) + (overflow ? moreW : 0) > avail) {
                 // 2. 우선순위가 가장 낮은 것 중 가장 오른쪽 항목을 숨긴다
                 Item victim = null;

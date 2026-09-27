@@ -203,7 +203,7 @@ public final class SimControls {
             }
             JOptionPane.showMessageDialog(frame, Messages.get("bar.styleNext"));
         });
-        tb.addItem(style, "bar.styleButton", OverflowToolbar.FIRST);
+        tb.addMenuWhenAutoItem(style, "bar.styleButton", OverflowToolbar.FIRST);
         return tb;
     }
 

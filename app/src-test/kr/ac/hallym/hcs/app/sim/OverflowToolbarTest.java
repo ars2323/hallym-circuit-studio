@@ -112,4 +112,31 @@ class OverflowToolbarTest {
             }
         }
     }
+
+    /** Y-05: 자동으로 아이콘만 보일 때 Icons Only 토글은 도구 모음에서 빠져 » 메뉴에 상태 항목으로만 남는다. */
+    @Test
+    void styleToggleMovesToTheMenuWhenIconsOnlyIsAutomatic() {
+        OverflowToolbar tb = new OverflowToolbar(true);
+        for (int i = 0; i < 8; i++) {
+            tb.addItem(new JButton("Command " + i, new BarIcons("run")), "k" + i, 0);
+        }
+        JButton style = new JButton("Icons Only");
+        tb.addMenuWhenAutoItem(style, "style", OverflowToolbar.FIRST);
+        layout(tb, 2000);
+        assertTrue(tb.shownKeys().contains("style"), "wide: the toggle sits on the toolbar");
+        assertTrue(!tb.iconsOnlyNow());
+        layout(tb, 560); // 글자를 숨겨야 들어가는 폭
+        assertTrue(tb.iconsOnlyNow(), "icons only now");
+        assertTrue(!tb.shownKeys().contains("style") && tb.overflowKeys().contains("style"),
+                "automatic icons-only: the toggle is only in the » menu: " + tb.shownKeys());
+        javax.swing.JPopupMenu m = tb.menu();
+        boolean info = false;
+        for (java.awt.Component c : m.getComponents()) {
+            if (c instanceof javax.swing.JMenuItem && !c.isEnabled()
+                    && ((javax.swing.JMenuItem) c).getText().startsWith("Icons Only")) {
+                info = true;
+            }
+        }
+        assertTrue(info, "the menu explains the automatic state instead of offering the toggle");
+    }
 }
