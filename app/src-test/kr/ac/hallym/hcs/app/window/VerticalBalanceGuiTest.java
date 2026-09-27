@@ -106,10 +106,10 @@ class VerticalBalanceGuiTest {
                     got[5] = side == null ? -1 : side.treeHeight() + side.tabsHeight();
                 });
                 String tag = sz[0] + "x" + sz[1] + " (frame " + frame.getWidth() + "x" + frame.getHeight() + ")";
-                if (got[0] * 2 < got[2]) {
+                if (got[0] < got[2] / 2) { // 홀수 폭의 반올림 허용
                     problems.add(tag + ": canvas width " + got[0] + " < half of " + got[2]);
                 }
-                if (got[1] * 2 < got[3]) {
+                if (got[1] < got[3] / 2) {
                     problems.add(tag + ": canvas height " + got[1] + " < half of " + got[3] + " bottom "
                             + mp.bottomHeight() + (mp.isAutoCollapsed() ? " collapsed" : ""));
                 }

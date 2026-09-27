@@ -106,10 +106,10 @@ public final class Smoke {
             }
             System.out.println("SMOKE: canvas " + sp.getWidth() + "x" + sp.getHeight() + " of content "
                     + content.getWidth() + "x" + content.getHeight());
-            if (sp.getWidth() * 2 < content.getWidth()) {
+            if (sp.getWidth() < content.getWidth() / 2) {
                 problems.add("canvas width " + sp.getWidth() + " < half of " + content.getWidth());
             }
-            if (sp.getHeight() * 2 < content.getHeight()) {
+            if (sp.getHeight() < content.getHeight() / 2) {
                 problems.add("canvas height " + sp.getHeight() + " < half of " + content.getHeight());
             }
         });

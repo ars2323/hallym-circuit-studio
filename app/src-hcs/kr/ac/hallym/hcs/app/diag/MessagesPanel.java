@@ -141,6 +141,7 @@ public final class MessagesPanel {
         body.repaint();
         status.setText(statusText(ds.size()));
         status.setForeground(ds.isEmpty() ? Tokens.TEXT_2 : Tokens.ERROR_TEXT);
+        badge();
     }
 
     /** 접혀 있을 때 새 메시지는 탭 이름의 개수 배지로만 알린다(자동으로 펴서 캔버스를 가리지 않는다, Y-01). */
