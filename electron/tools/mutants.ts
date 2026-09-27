@@ -80,6 +80,17 @@ export const MUTANTS: Mutant[] = [
   { module: 'recovery', file: 'src/main/recovery.ts', what: 'a file that failed its replay left half replayed',
     find: "        await this.call('file.close', { fileId: f.fileId }).catch((x) => { if (x instanceof EngineGone) throw x; });\n", replace: '',
     tests: ['tests/unit/recovery.test.ts'] },
+  // ---- packaging and notices (tools/stage-engine.ts, NOTICE, About)
+  { module: 'package', file: 'tools/stage-engine.ts', what: 'the runtime\'s links point into the build tree',
+    find: 'verbatimSymlinks: true', replace: 'verbatimSymlinks: false', tests: ['tests/unit/package.test.ts'] },
+  { module: 'package', file: 'tools/stage-engine.ts', what: 'packaged without the runtime, silently',
+    find: "    [path.join(p.runtime, 'bin', javaExe), ':engine:runtime'],\n", replace: '', tests: ['tests/unit/package.test.ts'] },
+  { module: 'notice', file: '../NOTICE', what: 'NOTICE without the runtime\'s license',
+    find: '  License: GNU General Public License, version 2, with the Classpath\n           Exception', replace: '  License: GNU General Public License, version 2',
+    tests: ['tests/unit/notice.test.ts'] },
+  { module: 'notice', file: 'src/main/paths.ts', what: 'About > Licenses without the runtime',
+    find: "  { name: 'LICENSE.openjdk.txt', title: 'OpenJDK runtime (Eclipse Temurin 21.0.12) — GNU General Public License, version 2, with the Classpath Exception' },\n",
+    replace: '', tests: ['tests/unit/notice.test.ts'] },
   { module: 'recovered', file: 'src/renderer/app/logic/recovered.ts', what: 'the band does not say the simulation is back to Reset',
     find: '  if (any) band.push(RESET);', replace: '', tests: ['tests/unit/recovered.test.ts'] },
   { module: 'files', file: 'src/renderer/app/logic/files.ts', what: 'a reopened file keeps its old simulation state',
@@ -197,7 +208,8 @@ function copyTree(dir: string): void {
   symlinkSync(path.join(root, 'node_modules'), path.join(dir, 'node_modules'));
   // The repository around electron/: its notices, the marks and characters, the test circuits.
   for (const f of ['LICENSE', 'NOTICE']) cpSync(path.join(root, '..', f), path.join(dir, '..', f));
-  for (const d of ['assets', 'tests']) symlinkSync(path.join(root, '..', d), path.join(dir, '..', d));
+  // engine/: its build file names the runtime's OpenJDK release (tests/unit/notice.test.ts).
+  for (const d of ['assets', 'tests', 'engine']) symlinkSync(path.join(root, '..', d), path.join(dir, '..', d));
 }
 
 if (import.meta.main) {

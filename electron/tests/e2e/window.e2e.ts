@@ -114,13 +114,15 @@ test('About: the version, Logisim 2.7.1 by Carl Burch, the marks\' owner, not of
     }
     await about.getByRole('tab', { name: 'Licenses' }).click();
     const items = about.locator('details');
-    await expect(items).toHaveCount(9);
-    for (let i = 0; i < 9; i += 1) {
+    await expect(items).toHaveCount(10);
+    for (let i = 0; i < 10; i += 1) {
       await items.nth(i).locator('summary').click();
       await expect(items.nth(i).locator('pre')).not.toBeEmpty();
     }
     await expect(items.nth(2).locator('pre')).toContainText('BSD 3-Clause License');
     await expect(items.nth(3).locator('pre')).toContainText('not an official product of Hallym University');
+    await expect(items.nth(4).locator('summary')).toContainText('OpenJDK runtime (Eclipse Temurin 21.0.12)');
+    await expect(items.nth(4).locator('pre')).toContainText('"CLASSPATH" EXCEPTION TO THE GPL');
     expect(await about.innerText()).not.toContain('한림');
     await about.getByRole('button', { name: 'Close' }).click();
     await expect(about).toBeHidden();

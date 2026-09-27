@@ -12,9 +12,10 @@
       the window, its assets, the university's marks and characters (the
       repository's originals, copied byte for byte), and the notices.  No
       node_modules: everything is bundled.
-   2. Stages the engine beside it: build/package/engine/ (hcs-engine.jar,
-      hcs-mips.jar from ../engine/build/stage) and build/package/runtime/
-      (the jlink runtime with its AppCDS archive, ../engine/build/runtime).
+   2. Stages the engine beside it (tools/stage-engine.ts):
+      build/package/engine/ (hcs-engine.jar, hcs-mips.jar from
+      ../engine/build/stage) and build/package/runtime/ (the jlink runtime
+      with its AppCDS archive, ../engine/build/runtime).
    3. Runs electron-builder on it: those two go into resources/engine and
       resources/runtime (extraResources), where src/main/engine-locate.ts
       looks for them -- packaged, the app runs the engine on that runtime
@@ -26,11 +27,12 @@
 
 import { build as electronBuild, type Configuration } from 'electron-builder';
 import * as esbuild from 'esbuild';
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { LICENSE_SOURCES } from '../src/main/paths.ts';
 import { nodeOptions, rendererOptions, writeThirdParty } from './build-ui.ts';
+import { DEFAULT_STAGE_PATHS, extraResources, stageEngine } from './stage-engine.ts';
 
 const root = path.join(import.meta.dirname, '..');
 const repo = path.join(root, '..');
@@ -43,22 +45,6 @@ const dirOnly = process.argv.includes('--dir');
 export const APP_ID = 'kr.ac.hallym.circuit-studio';
 // The marks and characters the window shows, from the page (renderer/app/): renderer/hallym/.
 export const PACKAGED_HALLYM = '../hallym';
-
-// The engine's jars and its runtime, as the Gradle build left them (N-04).
-export const ENGINE_STAGE = path.join(repo, 'engine/build/stage');
-export const ENGINE_RUNTIME = path.join(repo, 'engine/build/runtime');
-
-function stageEngine(): void {
-  const javaExe = process.platform === 'win32' ? 'java.exe' : 'java';
-  for (const [need, task] of [[path.join(ENGINE_STAGE, 'hcs-engine.jar'), ':engine:stage'], [path.join(ENGINE_STAGE, 'hcs-mips.jar'), ':engine:stage'],
-    [path.join(ENGINE_RUNTIME, 'bin', javaExe), ':engine:runtime']]) {
-    if (!existsSync(need)) throw new Error(`${need} is missing: ./gradlew ${task} (on this OS) first`);
-  }
-  const out = path.join(root, 'build/package');
-  for (const d of ['engine', 'runtime']) rmSync(path.join(out, d), { recursive: true, force: true });
-  cpSync(ENGINE_STAGE, path.join(out, 'engine'), { recursive: true, preserveTimestamps: true });
-  cpSync(ENGINE_RUNTIME, path.join(out, 'runtime'), { recursive: true, preserveTimestamps: true });
-}
 
 async function stageApp(): Promise<void> {
   rmSync(stage, { recursive: true, force: true });
@@ -98,11 +84,8 @@ export const config: Configuration = {
   electronLanguages: ['ko', 'en-US'],
   npmRebuild: false,
   nodeGypRebuild: false,
-  // The engine and its runtime (N-03, N-04; stageEngine()).
-  extraResources: [
-    { from: path.join(root, 'build/package/engine'), to: 'engine' },
-    { from: path.join(root, 'build/package/runtime'), to: 'runtime' },
-  ],
+  // The engine and its runtime (N-03, N-04; tools/stage-engine.ts).
+  extraResources: extraResources(DEFAULT_STAGE_PATHS.out),
   // The notices next to the executable as well as in About.
   extraFiles: [{ from: path.join(repo, 'LICENSE'), to: 'LICENSE.txt' }, { from: path.join(repo, 'NOTICE'), to: 'NOTICE.txt' }],
   win: {

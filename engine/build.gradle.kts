@@ -131,12 +131,17 @@ tasks.test {
 //   4. 이 런타임과 AppCDS로 engine.hello에 답하는지 확인한다.
 // ./gradlew :engine:runtimeZip → build/distributions/hcs-runtime-<os>-x64.zip (CI 산출물, 압축 크기 보고)
 
+// The OpenJDK release the runtime is made from. NOTICE and electron/LICENSE.openjdk.txt name it (a different JDK
+// fails the build: change it here and there together; electron/tests/unit/notice.test.ts compares them).
+val runtimeJdk = "21.0.12"
+
 abstract class JlinkRuntime : DefaultTask() {
     @get:javax.inject.Inject abstract val execOps: org.gradle.process.ExecOperations
     @get:Nested abstract val launcher: Property<JavaLauncher>
     @get:InputDirectory abstract val stageDir: DirectoryProperty
     @get:InputFiles abstract val trainingCircuits: ConfigurableFileCollection
     @get:Input abstract val extraModules: ListProperty<String>
+    @get:Input abstract val jdkVersion: Property<String>
     @get:OutputDirectory abstract val output: DirectoryProperty
     @get:Internal abstract val workDir: DirectoryProperty
 
@@ -160,6 +165,12 @@ abstract class JlinkRuntime : DefaultTask() {
     @TaskAction
     fun build() {
         val home = launcher.get().metadata.installationPath.asFile
+        // 21.0.12+1 and its respin 21.0.12.1+1 are both 21.0.12
+        val toolchain = launcher.get().metadata.javaRuntimeVersion
+        if (!Regex("^${Regex.escape(jdkVersion.get())}([.+].*)?$").matches(toolchain)) {
+            throw GradleException("the runtime is to be made from OpenJDK ${jdkVersion.get()} but the toolchain is $toolchain: " +
+                "use that JDK, or change runtimeJdk in engine/build.gradle.kts, NOTICE and electron/LICENSE.openjdk.txt together")
+        }
         val exe = if (System.getProperty("os.name").startsWith("Windows")) ".exe" else ""
         val tool = { name: String -> File(home, "bin/$name$exe").absolutePath }
         // The jars as they are launched: hcs-mips.jar beside hcs-engine.jar (the packaged app's resources/engine).
@@ -175,6 +186,8 @@ abstract class JlinkRuntime : DefaultTask() {
         dir.walkTopDown().filter { it.name == "classes_nocoops.jsa" }.toList().forEach { it.delete() }
         // The JVM writes its archives read-only: an installer or the next build must be able to remove them.
         dir.walkTopDown().filter { it.name.endsWith(".jsa") }.forEach { it.setWritable(true) }
+        // (Writable only so that the next build and the installer can replace them; at run time the JVM only reads
+        // them: -XX:SharedArchiveFile, never -XX:ArchiveClassesAtExit.)
         val java = File(dir, "bin/java$exe").absolutePath
 
         // AppCDS: one run through what a student does first.  A request that fails (an id that turned out
@@ -241,6 +254,7 @@ val runtime = tasks.register<JlinkRuntime>("runtime") {
     stageDir = layout.dir(stage.map { it.destinationDir })
     trainingCircuits.from(rootProject.file("tests/mips/ref-mips.circ"), rootProject.file("tests/circ/demo-datapath.circ"))
     extraModules = listOf("jdk.charsets", "jdk.unsupported")
+    jdkVersion = runtimeJdk
     output = layout.buildDirectory.dir("runtime")
     workDir = layout.buildDirectory.dir("tmp/runtime-train")
     dependsOn(stage)
