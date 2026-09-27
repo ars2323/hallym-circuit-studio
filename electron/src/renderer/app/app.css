@@ -1,0 +1,65 @@
+/* This window's layout (app.ts, logic/layout.ts).  The shared parts'
+   look -- tokens, fonts, title bar, buttons, panel heads, splitters, empty
+   states, first screen, dialogs, status bar, band -- is in
+   ../shared/shared.css (Hallym MIPS's). */
+
+/* Rows: the title bar, the toolbar's own row (titlebar.ts, only when the bar
+   cannot hold it), the band, the work area, the status bar.  Placed by row:
+   a hidden one leaves its row empty. */
+.app { display: grid; height: 100vh; grid-template-rows: var(--titlebar) auto auto minmax(0, 1fr) 24px; }
+.app > .titlebar { grid-row: 1; }
+.app > .toolrow { grid-row: 2; }
+.app > .band { grid-row: 3; }
+.app > .work { grid-row: 4; }
+.app > .status { grid-row: 5; }
+
+.work { min-height: 0; min-width: 0; display: grid; }
+.stage-welcome { display: flex; align-items: center; justify-content: center; padding: 24px; overflow: auto; }
+
+/* ---- the panels: left | Canvas | right ----------------------------------- */
+.shell { display: grid; min-height: 0; min-width: 0; padding: 8px;
+  grid-template-columns: var(--left-w, 260px) 8px minmax(0, 1fr) 8px var(--right-w, 280px); grid-template-rows: minmax(0, 1fr); }
+.shell.narrow { grid-template-columns: var(--left-w, 260px) 8px minmax(0, 1fr); }
+.shell.narrow > .rightcol, .shell.narrow > .rightsplit { display: none; }
+.leftcol { display: grid; min-height: 0; min-width: 0; grid-template-rows: minmax(0, 1fr) 8px var(--lower-h, 240px); }
+.center { display: grid; min-height: 0; min-width: 0; grid-template-rows: minmax(0, 1fr) 8px var(--bottom-h, 220px); }
+.rightcol { display: grid; min-height: 0; min-width: 0; }
+.panel > .pbody[hidden] { display: none; }
+
+/* ---- the Canvas panel: file tabs, circuit tabs, the Canvas ----------------- */
+.canvaspanel .filebar { padding: 0 8px 0 8px; }
+.ptabs.strip { overflow-x: auto; overflow-y: hidden; scrollbar-width: none; margin-left: 0; }
+.ptabs.strip .ptab { gap: 6px; font-weight: 500; }
+.ptabs.strip .ptab.on { font-weight: 600; }
+.ptabs.strip .ptab .dirty { color: var(--amber-text); }
+.ptabs.strip .stripitem { display: flex; align-items: center; height: 100%; flex: none; }
+.ptabs.strip .stripitem .ptab { padding-right: 4px; }
+.tabclose { width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; margin-right: 6px; padding: 0; border: 0; border-radius: 4px; background: none; }
+.tabclose img { width: 14px; height: 14px; opacity: .5; }
+.tabclose:hover { background: var(--hover); }
+.tabclose:hover img { opacity: .9; }
+.circuitbar { display: flex; align-items: center; height: 30px; padding: 0 8px; border-bottom: 1px solid var(--border); background: var(--window); flex: none; }
+.circuitbar .ptabs.strip { height: 100%; }
+.circuitbar .ptab { font-size: 12px; padding: 0 8px; }
+.circuitbar .tabclose { width: 18px; height: 18px; margin-right: 4px; }
+.canvas { background: var(--white); }
+
+/* ---- the bottom panel -------------------------------------------------------- */
+.panel.bottom.collapsed > .pbody { display: none; }
+.panel.bottom.collapsed > .phead { border-bottom: 0; }
+
+/* ---- lists in the side panels (Components, Circuits, Tunnels) ---------------- */
+.list { list-style: none; margin: 0; padding: 4px 0; }
+.list li > button, .list li > .item { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 26px; padding: 3px 12px; border: 0; background: none; text-align: left; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.list li > button:hover { background: var(--hover); }
+.list li.on > button { background: var(--blue-tint); color: var(--navy); font-weight: 600; box-shadow: inset 3px 0 0 var(--blue); }
+.list .tag { margin-left: auto; padding: 0 6px; border-radius: 4px; background: var(--window); color: var(--muted); font-size: 11px; }
+.list .count { margin-left: auto; color: var(--muted); font-size: 12px; }
+.list .dim { color: var(--dim); }
+.libgroup summary { display: flex; align-items: center; gap: 8px; padding: 6px 12px; font-weight: 600; color: var(--navy); cursor: pointer; list-style-position: inside; }
+.libgroup summary .count { margin-left: auto; color: var(--muted); font-size: 12px; font-weight: 400; }
+.libgroup .list { padding: 0 0 6px 12px; }
+.libgroup + .libgroup { border-top: 1px solid var(--border); }
+
+/* ---- status bar: the engine's versions at the far end ----------------------------- */
+.status .engine { color: var(--muted); }
