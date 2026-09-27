@@ -139,6 +139,17 @@ public final class Shots {
             return;
         }
         closeDialogs();
+        // 첫 실행 튜토리얼 유리판이 떠 있으면 닫는다(Y-04 뒤로는 창 활성화 전에도 뜬다: 47b가 어둡게 찍혔다)
+        for (Project p : new ArrayList<>(com.cburch.logisim.proj.Projects.getOpenProjects())) {
+            if (p.getFrame() != null) {
+                edt(() -> {
+                    Component g = p.getFrame().getRootPane().getGlassPane();
+                    if (g instanceof kr.ac.hallym.hcs.app.tutorial.Tour.Overlay) {
+                        ((kr.ac.hallym.hcs.app.tutorial.Tour.Overlay) g).end();
+                    }
+                });
+            }
+        }
         // 앞 장면이 메시지를 눌러 만든 임시 줄을 걷는다(Y-03: 앱도 Reset·메시지 소멸 때 걷지만 장면은 깨끗이 시작한다)
         for (Project p : new ArrayList<>(com.cburch.logisim.proj.Projects.getOpenProjects())) {
             edt(() -> kr.ac.hallym.hcs.app.cycle.CycleView.of(p).unpin());
