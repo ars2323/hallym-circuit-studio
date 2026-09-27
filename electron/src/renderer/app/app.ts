@@ -4,7 +4,8 @@
                  when the bar cannot hold it); New, Open, About at the right
                  end; the system's caption buttons (titleBarOverlay)
      band        one line, only when there is something the student must
-                 not miss (the engine stopped, or could not start)
+                 not miss (the engine stopped and what came back, or it
+                 could not start)
      work        the first screen (start.ts), or once a file is open:
                    left    Components | Circuits   over   Tunnels | Minimap
                    center  file tabs, circuit tabs, Canvas
@@ -22,7 +23,7 @@
    Nothing is restored from an earlier run and nothing is written but the
    files the student saves (the lab-PC rule; src/main/main.ts). */
 
-import type { CircuitRef, DiagList, DiagMessage, EngineStatus, LibraryGroup, NewResult, SimState, Snapshot } from '../../main/protocol.ts';
+import type { CircuitRef, DiagList, DiagMessage, EngineStatus, LibraryGroup, NewResult, Recovered, SimState, Snapshot } from '../../main/protocol.ts';
 import { aboutDialog } from '../shared/about.ts';
 import { ask } from '../shared/ask.ts';
 import { band } from '../shared/band.ts';
@@ -40,6 +41,7 @@ import { arrange, nothingDragged, PAD, SPLITTER } from './logic/layout.ts';
 import { messageCount } from './logic/messages.ts';
 import { messagesPanel } from './messages.ts';
 import { emitReveal, onReveal } from './reveal.ts';
+import { recoveredText } from './logic/recovered.ts';
 import { startScreen } from './start.ts';
 
 const api = window.app;
@@ -578,19 +580,9 @@ async function engineFailed(): Promise<void> {
 function onEngine(s: EngineStatus): void {
   const before = engine;
   engine = s;
+  // Restarting lasts until the files are back (the main process says 'ready' after onRecovered).
   if (s.state === 'restarting') notices.show('엔진이 멈춰서 다시 시작하는 중입니다', 'warn');
-  if (s.state === 'ready' && before.generation > 0 && s.generation !== before.generation) {
-    // A new engine: the files were the old one's.
-    const had = files.count();
-    files.clear();
-    snapshots.clear();
-    libraries.clear();
-    diags.clear();
-    start.go('first');
-    notices.show(had ? `엔진이 멈춰서 다시 시작했습니다 · 열려 있던 파일 ${had}개를 닫았습니다` : '엔진이 멈춰서 다시 시작했습니다', 'warn');
-  } else if (s.state === 'ready' && before.state !== 'ready' && notices.text()?.startsWith('엔진을 시작하지 못했습니다')) {
-    notices.hide();
-  }
+  if (s.state === 'ready' && before.state !== 'ready' && notices.text()?.startsWith('엔진을 시작하지 못했습니다')) notices.hide();
   render();
   if (s.state === 'failed') void engineFailed();
 }
@@ -605,7 +597,29 @@ onReveal((r) => {
   render();
 });
 
+// The engine died and started again, and the main process opened every file
+// again with its unsaved edits (src/main/recovery.ts, D-142).  The files keep
+// their ids, tabs and the circuit on show; their parts have new ids, so the
+// window asks for everything again.  The simulation starts from Reset.
+function onRecovered(r: Recovered): void {
+  const text = recoveredText(r, (fileId) => files.get(fileId)?.name ?? fileId);
+  snapshots.clear();
+  libraries.clear();
+  diags.clear();
+  wanted = '';
+  for (const f of r.closed) files.close(f.fileId);
+  for (const f of r.restored) files.reopened(f.fileId, f.dirty);
+  for (const f of r.lost) files.reopened(f.fileId, false);
+  if (files.count() === 0) start.go('first');
+  note = null;
+  notices.show(text.band, 'warn');
+  render();
+  for (const f of files.list()) void loadDiags(f.fileId);   // their messages name parts by the new ids
+  void ask({ title: text.title, body: text.body, detail: text.detail || undefined, ok: 'Close', cancel: null, character: false });
+}
+
 api.onEngineStatus(onEngine);
+api.onEngineRecovered(onRecovered);
 api.onNotify((method, params) => {
   const p = params as Record<string, unknown>;
   if (method === 'sim.state') {

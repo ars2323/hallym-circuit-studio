@@ -11,9 +11,15 @@
      dialog when it fails), never written to a file.
    - If it ends on its own, every call in flight is rejected with EngineGone,
      and it is started again -- at most `maxRestarts` times in
-     `restartWindowMs`, then it is left failed.  Each start that answers
-     hello is a new `generation`: files of an earlier one are gone (the
-     window closes their tabs).
+     `restartWindowMs` (3 in 60 s), then it is left failed.  Each start that
+     answers hello is a new `generation`: files of an earlier one are gone,
+     until recovery.ts opens them again and replays their unsaved edits
+     (N-04, D-142).  How it ended and its last log lines are kept for the
+     dialog (crash()).
+   - Every answer is also told, as it is read and before the call settles,
+     as an 'answer' event (method, params, result, the caller's tag):
+     recovery.ts keeps its copy of the model and its journal from them,
+     in the order the engine answered.
 
    Nothing here knows Electron: tests/unit/engine.test.ts runs it against
    the fake engine and against streams it writes by hand. */
@@ -35,6 +41,21 @@ export interface EngineProcess {
   on(event: 'error', listener: (error: Error) => void): this;
 }
 export type Launcher = () => EngineProcess;
+
+// An answer, as it was read (the 'answer' event).
+export interface Answer {
+  method: string;
+  params: unknown;
+  result: unknown;
+  tag: string | undefined;   // what the caller passed (main.ts: 'window' for the window's calls)
+}
+
+// How the last engine ended on its own (for the dialog after a restart).
+export interface Crash {
+  how: string;          // "signal SIGKILL", "exit code 1"
+  log: string[];        // its last stderr lines
+  at: number;
+}
 
 // The engine answered the call with an error.
 export class EngineError extends Error {
@@ -67,16 +88,20 @@ export interface EngineOptions {
   restartDelayMs?: number;      // before each restart: default 300 ms
   shutdownTimeoutMs?: number;   // engine.shutdown, then kill: default 3 s
   stderrLines?: number;         // how many of its last log lines are kept: default 40
+  helloParams?: () => Record<string, unknown>;  // more for engine.hello at each start (recovery.ts: idFloor)
 }
 
 interface Events {
   status: [EngineStatus];
   notification: [method: string, params: unknown];
+  answer: [Answer];
   log: [line: string];
 }
 
 interface Pending {
   method: string;
+  params: unknown;
+  tag: string | undefined;
   resolve: (value: unknown) => void;
   reject: (error: Error) => void;
 }
@@ -85,7 +110,7 @@ export const MSG_CRASHED = '엔진이 멈췄습니다';
 export const MSG_NOT_STARTED = '엔진을 시작하지 못했습니다';
 
 export class EngineClient extends EventEmitter<Events> {
-  private readonly opts: Required<Omit<EngineOptions, 'launch' | 'client'>> & Pick<EngineOptions, 'launch' | 'client'>;
+  private readonly opts: Required<Omit<EngineOptions, 'launch' | 'client' | 'helloParams'>> & Pick<EngineOptions, 'launch' | 'client' | 'helloParams'>;
   private proc: EngineProcess | null = null;
   private nextId = 1;
   private readonly pending = new Map<number, Pending>();
@@ -98,6 +123,7 @@ export class EngineClient extends EventEmitter<Events> {
   private readonly crashes: number[] = [];   // times of the crashes in the window
   private ready: Promise<void> = Promise.resolve();
   private stopping = false;
+  private lastCrash: Crash | null = null;
 
   constructor(options: EngineOptions) {
     super();
@@ -113,6 +139,8 @@ export class EngineClient extends EventEmitter<Events> {
 
   get pid(): number | undefined { return this.proc?.pid; }
   log(): string[] { return [...this.stderrTail]; }
+  // How the last engine that ended on its own ended (null: none has).
+  crash(): Crash | null { return this.lastCrash; }
 
   // Launches and says hello.  Resolves with the hello; a failed start
   // leaves it failed (status().error says why) and rejects with EngineGone.
@@ -123,11 +151,11 @@ export class EngineClient extends EventEmitter<Events> {
   }
 
   // A request.  While it starts, it waits for the start; a failed or
-  // stopped engine rejects at once.
-  async call<T = unknown>(method: string, params: unknown = {}): Promise<T> {
+  // stopped engine rejects at once.  `tag` comes back with its 'answer' event.
+  async call<T = unknown>(method: string, params: unknown = {}, opts: { tag?: string } = {}): Promise<T> {
     if (this.state === 'starting' || this.state === 'restarting') await this.ready.catch(() => {});
     if (this.state !== 'ready' || !this.proc) throw new EngineGone(this.error ?? MSG_NOT_STARTED);
-    return this.send<T>(this.proc, method, params);
+    return this.send<T>(this.proc, method, params, opts.tag);
   }
 
   // engine.shutdown, then its end; killed if it does not end in time.
@@ -158,10 +186,10 @@ export class EngineClient extends EventEmitter<Events> {
     this.emit('status', this.status());
   }
 
-  private send<T>(proc: EngineProcess, method: string, params: unknown): Promise<T> {
+  private send<T>(proc: EngineProcess, method: string, params: unknown, tag?: string): Promise<T> {
     const id = this.nextId++;
     return new Promise<T>((resolve, reject) => {
-      this.pending.set(id, { method, resolve: resolve as (v: unknown) => void, reject });
+      this.pending.set(id, { method, params, tag, resolve: resolve as (v: unknown) => void, reject });
       proc.stdin.write(encodeRequest(id, method, params));
     });
   }
@@ -196,7 +224,7 @@ export class EngineClient extends EventEmitter<Events> {
     });
     try {
       const hello = await Promise.race([
-        this.send<Hello>(proc, 'engine.hello', this.opts.client),
+        this.send<Hello>(proc, 'engine.hello', { ...this.opts.client, ...this.opts.helloParams?.() }),
         unstarted.then((why) => { throw new Error(`엔진을 실행하지 못했습니다 (${why})`); }),
         late,
       ]);
@@ -262,8 +290,18 @@ export class EngineClient extends EventEmitter<Events> {
     const p = this.pending.get(m.id);
     if (!p) { this.emit('log', `(answer to no call: id ${m.id}) ${line}`); return; }
     this.pending.delete(m.id);
-    if (m.kind === 'response') p.resolve(m.result);
-    else p.reject(new EngineError(p.method, m.error));
+    if (m.kind === 'response') {
+      // Told before the call settles: what is read after this line (the
+      // edit's model.changed) comes after it, as the engine wrote it.
+      try {
+        this.emit('answer', { method: p.method, params: p.params, result: m.result, tag: p.tag });
+      } catch (e) {
+        this.emit('log', `(answer listener) ${(e as Error).message}`);
+      }
+      p.resolve(m.result);
+    } else {
+      p.reject(new EngineError(p.method, m.error));
+    }
   }
 
   private rejectAll(error: Error): void {
@@ -283,6 +321,7 @@ export class EngineClient extends EventEmitter<Events> {
     }
     this.rejectAll(new EngineGone(MSG_CRASHED));
     const now = Date.now();
+    this.lastCrash = { how, log: this.stderrTail.slice(-8), at: now };
     this.crashes.push(now);
     while (this.crashes.length && now - this.crashes[0] > this.opts.restartWindowMs) this.crashes.shift();
     if (this.crashes.length > this.opts.maxRestarts) {

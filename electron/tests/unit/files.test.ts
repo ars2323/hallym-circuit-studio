@@ -63,3 +63,17 @@ test('saved: the new name and path, no unsaved changes; clear(): nothing left (a
   files.clear();
   assert.deepEqual([files.count(), files.active()], [0, null]);
 });
+
+test('reopened by a new engine (D-142): the same tabs and circuit on show, unsaved as it says, the simulation from Reset', () => {
+  const files = new Files();
+  files.add(file(1));
+  files.openCircuit('f1', 'c2');
+  files.setSim({ fileId: 'f1', running: true, ticking: true, cycle: 9, oscillating: false });
+  files.reopened('f1', true);
+  const f = files.get('f1')!;
+  assert.deepEqual([f.tabs, f.circuit, f.dirty, f.sim], [['c1', 'c2'], 'c2', true, null]);
+  files.reopened('f1', false);
+  assert.equal(f.dirty, false);
+  files.reopened('nope', true);   // a file the window does not have: nothing
+  assert.equal(files.count(), 1);
+});

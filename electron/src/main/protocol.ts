@@ -167,6 +167,18 @@ export const WINDOW_METHODS = [
 ] as const;
 export type WindowMethod = typeof WINDOW_METHODS[number];
 
+/* What came back after the engine died and started again (src/main/recovery.ts,
+   the 'engine:recovered' event, D-142).  Files keep their fileId and circuit
+   ids; their parts have new ids (the window asks for the model again). */
+export interface Recovered {
+  generation: number;
+  attempt: number;          // 1: unsaved edits replayed; 2: it ended again while recovering, last saved versions opened
+  crash: { how: string; log: string[] } | null;   // how the engine ended, its last log lines
+  restored: { fileId: string; edits: number; dirty: boolean }[];   // opened again, every unsaved edit replayed
+  lost: { fileId: string; reason: 'replayFailed' | 'crashedAgain' | 'changedOnDisk' | 'notRecorded'; edits: number }[];  // opened as last saved
+  closed: { fileId: string; reason: 'missing' | 'openFailed' }[];  // could not be opened again: its tab closes
+}
+
 // The engine as the window sees it (src/main/engine.ts EngineStatus).
 export type EngineState = 'starting' | 'ready' | 'restarting' | 'failed' | 'stopped';
 

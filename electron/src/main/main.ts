@@ -9,6 +9,13 @@
    come through here, only the methods in WINDOW_METHODS, and the engine's
    notifications go back to it as they arrive.
 
+   If the engine dies, it is started again and every open file comes back
+   with its unsaved edits (recovery.ts: the journal of the window's edit
+   intents, kept in memory only); the window's calls wait meanwhile, and
+   then it is told what came back ('engine:recovered': a dialog and a band).
+   Quitting ends the engine (engine.shutdown, then killed after 3 s); if this
+   process itself is killed, the engine ends as its stdin closes.
+
    Nothing is kept from one run to the next -- lab PCs are shared, and every
    student starts from the same screen: the window's size, the panels, the
    files opened.  Chromium's profile is this run's folder in the temp folder
@@ -21,6 +28,7 @@ import path from 'node:path';
 
 import { EngineClient, EngineError, type EngineProcess } from './engine.ts';
 import { locateEngine } from './engine-locate.ts';
+import { Supervisor, WINDOW } from './recovery.ts';
 import { LICENSES, paths, version } from './paths.ts';
 import { WINDOW_METHODS, type EngineStatus, type OpenResult, type SaveResult } from './protocol.ts';
 import { circArgument, removeAfterExitScript, removeEarlierRuns, runDirName, runsDirFor } from './run-folder.ts';
@@ -60,8 +68,11 @@ app.on('quit', () => {
 // ---- the engine ---------------------------------------------------------------------
 
 const located = locateEngine({ env: process.env, runDir, resources: app.isPackaged ? process.resourcesPath : null, repoRoot: paths.repoRoot });
+let supervisor: Supervisor | null = null;
 const engine = new EngineClient({
   client: { client: 'hallym-circuit-studio', version },
+  // A restarted engine's ids start above every id the window has seen (D-142).
+  helloParams: () => supervisor?.helloParams() ?? {},
   launch: (): EngineProcess => {
     if (!located.ok) throw new Error(`${located.reason}\n${located.looked.map((l) => `  ${l}`).join('\n')}`);
     const env = { ...process.env };
@@ -69,14 +80,23 @@ const engine = new EngineClient({
     return spawn(located.engine.command, located.engine.args, { cwd: located.engine.cwd, env, stdio: 'pipe', windowsHide: true });
   },
 });
+supervisor = new Supervisor(engine);
+const recovery = supervisor;
 if (process.env.HCS_ENGINE_LOG === '1') engine.on('log', (line) => console.log(`[engine] ${line}`));
-// For the e2e tests (app.evaluate): the engine, to end it as a crash would.
-(globalThis as { __hcs?: unknown }).__hcs = { engine };
+// For the e2e tests (app.evaluate): the engine, to end it as a crash would; the journal.
+(globalThis as { __hcs?: unknown }).__hcs = { engine, recovery };
 
 // The files the engine has open, by id: the same file opened again goes to
-// its tab; a new generation of the engine has none.
+// its tab.  They outlive a restart of the engine (recovery.ts opens them
+// again under the same ids), except those that could not be opened again.
 const openFiles = new Map<string, string | null>();
-engine.on('status', (s) => { if (s.state !== 'ready') openFiles.clear(); });
+recovery.on('recovered', (r) => { for (const c of r.closed) openFiles.delete(c.fileId); });
+
+// A call of the window's: after any recovery under way, tagged so that the journal records it.
+async function windowCall<T>(method: string, params: unknown): Promise<T> {
+  await recovery.settled();
+  return engine.call<T>(method, params, { tag: WINDOW });
+}
 
 // ---- answers --------------------------------------------------------------------------
 
@@ -102,7 +122,7 @@ async function openPath(p: string): Promise<Opened> {
       return { fileId, path: p, name: path.basename(p), circuits: [], main: '', libraries: [], already: true };
     }
   }
-  const r = await engine.call<OpenResult>('file.open', { path: path.resolve(p) });
+  const r = await windowCall<OpenResult>('file.open', { path: path.resolve(p) });
   openFiles.set(r.fileId, p);
   // The tab shows the file's own name (with .circ), not Logisim's project name.
   return { ...r, name: path.basename(p), path: p, already: r.alreadyOpen === true };
@@ -140,21 +160,25 @@ async function main(): Promise<void> {
   });
 
   const send = (channel: string, ...args: unknown[]) => { if (!win.isDestroyed()) win.webContents.send(channel, ...args); };
-  engine.on('status', (s: EngineStatus) => send('engine:status', s));
-  engine.on('notification', (method, params) => send('engine:notify', method, params));
+  // The engine's status as the window should see it (restarting until its files are back).
+  recovery.on('status', (s: EngineStatus) => send('engine:status', s));
+  // While a recovery replays, the engine's changes are of parts the window never had: held back.
+  engine.on('notification', (method, params) => { if (!recovery.quiet()) send('engine:notify', method, params); });
+  recovery.on('recovered', (r) => send('engine:recovered', r));
 
   const allowed = new Set<string>(WINDOW_METHODS);
   ipcMain.handle('engine:call', (_e, method: string, params: unknown) => answer(async () => {
     if (!allowed.has(method)) throw new Error(`not a method the window may call: ${method}`);
-    const result = await engine.call(method, params);
+    const result = await windowCall(method, params);
     if (method === 'file.new') openFiles.set((result as { fileId: string }).fileId, null);
     if (method === 'file.close') openFiles.delete((params as { fileId: string }).fileId);
     return result;
   }));
-  ipcMain.handle('engine:status', () => engine.status());
+  ipcMain.handle('engine:status', () => recovery.view(engine.status()));
   ipcMain.handle('engine:retry', () => answer(async () => {
     if (engine.status().state === 'failed') await engine.start().catch(() => {});
-    return engine.status();
+    await recovery.settled();
+    return recovery.view(engine.status());
   }));
 
   // The file named on the command line: opened instead of the first screen.
@@ -179,7 +203,7 @@ async function main(): Promise<void> {
       if (r.canceled || !r.filePath) return null;
       target = r.filePath;
     }
-    const saved = await engine.call<SaveResult>('file.save', { fileId, path: target });
+    const saved = await windowCall<SaveResult>('file.save', { fileId, path: target });
     openFiles.set(fileId, saved.path || target);
     return { path: saved.path || target, name: path.basename(saved.path || target), bytes: saved.bytes, needsMipsJar: saved.needsMipsJar === true };
   }));

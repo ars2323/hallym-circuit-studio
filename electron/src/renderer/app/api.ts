@@ -1,6 +1,6 @@
 /* window.app, as src/main/preload.cjs exposes it. */
 
-import type { EngineStatus, Hello, OpenResult, WindowMethod } from '../../main/protocol.ts';
+import type { EngineStatus, Hello, OpenResult, Recovered, WindowMethod } from '../../main/protocol.ts';
 
 export interface Opened extends OpenResult {
   path: string;
@@ -21,6 +21,8 @@ export interface AppApi {
   retryEngine(): Promise<EngineStatus>;
   onEngineStatus(listener: (s: EngineStatus) => void): void;
   onNotify(listener: (method: string, params: unknown) => void): void;
+  // The engine died and started again: what came back (src/main/recovery.ts, D-142).
+  onEngineRecovered(listener: (report: Recovered) => void): void;
   startupFile(): Promise<{ name: string } | null>;      // a .circ named on the command line
   openStartupFile(): Promise<Opened | null>;
   openFile(): Promise<Opened | null>;                   // the open dialog, then the engine

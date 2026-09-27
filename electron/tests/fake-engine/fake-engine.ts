@@ -11,8 +11,11 @@
    for a snapshot, nothing like Logisim's loader), file.save (the bytes it
    opened, or an empty circuit), file.close, file.dirty, model.circuit,
    model.library (this file's circuits first, as the engine lists them),
-   edit.undo/redo ({changed:false}), sim.reset/cycles/run/enable/state (a
-   cycle count and the clock, told back as sim.state), diag.list and
+   edit.addComponent/addWire/move/delete/setAttr/undo/redo (the parts as
+   plain records: a move gives a part a new id, as Logisim's new objects
+   do; undo brings the parts back under new ids; model.changed after the
+   answer), sim.reset/cycles/run/enable/state (a cycle count and the
+   clock, told back as sim.state), diag.list and
    diag.changed (D-143: the real engine's words for the circuits in
    tests/fixtures/messages.json -- written by tools/diag-fixture.ts --
    matched by file name; the list after cycles once the file has run the
@@ -21,7 +24,8 @@
    (nothing to follow).  The same shapes as
    the real engine's (docs/engine-api.md, engine/ D-134): Logisim's project
    name (Untitled, a file's name without .circ), alreadyOpen, messages,
-   needsMipsJar.  Anything else: -32601.
+   needsMipsJar; and a restarted engine's engine.hello idFloor and
+   file.new/open restore (docs/engine-api.md 7, D-142).  Anything else: -32601.
 
    FAKE_ENGINE_MODE (comma-separated) for the tests of the client:
      silent-hello   never answers engine.hello
@@ -31,15 +35,23 @@
      oscillate      sim.cycles turns the simulation off (oscillation), with an engine.log warning
      needs-mips     file.save says the saved .circ needs hcs-mips.jar beside it
    FAKE_ENGINE_CRASH_ON=<method>  exits (code 70) on that call, unanswered
-   FAKE_ENGINE_OPEN_MESSAGE=<text> file.open reports it as a loader message */
+   FAKE_ENGINE_OPEN_MESSAGE=<text> file.open reports it as a loader message
+   A restarted engine (engine.hello with an idFloor), for the tests of recovery:
+   FAKE_ENGINE_FAIL_AFTER_RESTART=<method>   answers that call with an error (-32603)
+   FAKE_ENGINE_CRASH_AFTER_RESTART=<method>  exits (code 70) on that call */
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 type Params = Record<string, unknown>;
 interface Comp { id: string; lib: string; name: string; loc: [number, number]; attrs: Record<string, string> }
-interface Circuit { circuitId: string; name: string; comps: Comp[]; wires: { id: string; a: [number, number]; b: [number, number] }[] }
-interface File { fileId: string; name: string; path: string | null; bytes: Buffer | null; circuits: Circuit[]; main: string; libs: string[]; cycle: number; ticking: boolean; hz: number; on: boolean; diag: Diag | null; ran: boolean }
+interface Wire { id: string; a: [number, number]; b: [number, number] }
+interface Circuit { circuitId: string; name: string; comps: Comp[]; wires: Wire[] }
+interface Step { circuitId: string; comps: Comp[]; wires: Wire[] }   // a circuit's parts before an edit
+interface File {
+  fileId: string; name: string; path: string | null; bytes: Buffer | null; circuits: Circuit[]; main: string; libs: string[];
+  cycle: number; ticking: boolean; hz: number; on: boolean; dirty: boolean; undo: Step[]; redo: Step[]; diag: Diag | null; ran: boolean;
+}
 
 // Messages (diag.*): the real engine's, for a few circuits (tests/fixtures/messages.json).
 interface Place { name: string; loc: [number, number] }
@@ -54,6 +66,9 @@ const DIAG: Record<string, Diag> = (() => {
 
 const modes = new Set((process.env.FAKE_ENGINE_MODE ?? '').split(',').filter(Boolean));
 const crashOn = process.env.FAKE_ENGINE_CRASH_ON ?? '';
+const failAfterRestart = process.env.FAKE_ENGINE_FAIL_AFTER_RESTART ?? '';
+const crashAfterRestart = process.env.FAKE_ENGINE_CRASH_AFTER_RESTART ?? '';
+let restarted = false;
 const files = new Map<string, File>();
 let nextFile = 1;
 let nextCircuit = 1;
@@ -172,9 +187,10 @@ const stem = (name: string) => name.replace(/\.circ$/i, '');
 const methods: Record<string, (p: Params) => unknown> = {
   'engine.hello': () => ({ engine: 'fake-engine', version: '0', logisim: '2.7.1', java: 'none (fake engine, Node)', api: '0' }),
   'engine.shutdown': () => { setImmediate(() => process.exit(0)); return {}; },
-  'file.new': () => {
+  'file.new': (p) => {
     const c: Circuit = { circuitId: `c${nextCircuit++}`, name: 'main', comps: [], wires: [] };
-    const f: File = { fileId: `f${nextFile++}`, name: 'Untitled', path: null, bytes: null, circuits: [c], main: 'main', libs: [], cycle: 0, ticking: false, hz: 1, on: true, diag: null, ran: false };
+    const f: File = { fileId: fileIdFor(p), name: 'Untitled', path: null, bytes: null, circuits: [c], main: 'main', libs: [], cycle: 0, ticking: false, hz: 1, on: true, dirty: false, undo: [], redo: [], diag: null, ran: false };
+    adopt(f, p);
     files.set(f.fileId, f);
     return { fileId: f.fileId, name: f.name, circuits: refs(f), main: mainId(f), libraries: libRefs(f) };
   },
@@ -190,8 +206,10 @@ const methods: Record<string, (p: Params) => unknown> = {
     }
     const text = bytes.toString('utf8');
     if (!text.includes('<project')) throw new Failure(2, `The file does not appear to be a Logisim project file: ${file}`, { path: file, reason: 'loadFailed' });
+    const fileId = fileIdFor(p);
     const r = readCirc(text);
-    const f: File = { fileId: `f${nextFile++}`, name: stem(path.basename(file)), path: file, bytes, circuits: r.circuits, main: r.main, libs: r.libs, cycle: 0, ticking: false, hz: 1, on: true, diag: DIAG[path.basename(file)] ?? null, ran: false };
+    const f: File = { fileId, name: stem(path.basename(file)), path: file, bytes, circuits: r.circuits, main: r.main, libs: r.libs, cycle: 0, ticking: false, hz: 1, on: true, dirty: false, undo: [], redo: [], diag: DIAG[path.basename(file)] ?? null, ran: false };
+    adopt(f, p);
     files.set(f.fileId, f);
     const messages = process.env.FAKE_ENGINE_OPEN_MESSAGE ? [process.env.FAKE_ENGINE_OPEN_MESSAGE] : [];
     return { fileId: f.fileId, name: f.name, circuits: refs(f), main: mainId(f), libraries: libRefs(f), messages };
@@ -206,20 +224,14 @@ const methods: Record<string, (p: Params) => unknown> = {
     }
     f.path = target;
     f.name = stem(path.basename(target));
+    f.dirty = false;
     return { path: target, bytes: bytes.length, needsMipsJar: modes.has('needs-mips') };
   },
   'file.close': (p) => { fileOf(p); files.delete(String(p.fileId)); return {}; },
-  'file.dirty': (p) => { fileOf(p); return { dirty: false }; },
+  'file.dirty': (p) => ({ dirty: fileOf(p).dirty }),
   'model.circuit': (p) => {
     const c = circuitOf(p);
-    return {
-      circuitId: c.circuitId, name: c.name,
-      components: c.comps.map((k) => ({
-        id: k.id, lib: k.lib, name: k.name, loc: k.loc, bounds: [k.loc[0] - 30, k.loc[1] - 15, 30, 30],
-        facing: (k.attrs.facing as 'east' | undefined) ?? 'east', attrs: k.attrs, ports: [],
-      })),
-      wires: c.wires, nets: [], junctions: [],
-    };
+    return { circuitId: c.circuitId, name: c.name, components: c.comps.map(compJson), wires: c.wires, nets: [], junctions: [] };
   },
   'model.library': (p) => {
     const f = fileOf(p);
@@ -228,8 +240,66 @@ const methods: Record<string, (p: Params) => unknown> = {
       ...LIBRARY.map((g) => ({ lib: g.lib, display: g.lib === 'I/O' ? 'Input/Output' : g.lib, tools: g.tools.map((name) => ({ name, display: name })) })),
     ];
   },
-  'edit.undo': (p) => { fileOf(p); return { changed: false }; },
-  'edit.redo': (p) => { fileOf(p); return { changed: false }; },
+  'edit.addComponent': (p) => {
+    const c = circuitOf(p);
+    const loc = p.loc as [number, number];
+    if (!Array.isArray(loc) || typeof p.name !== 'string') throw new Failure(-32602, 'loc and name are required');
+    const k: Comp = { id: `k${nextComp++}`, lib: (p.lib as string | null | undefined) ?? 'circuit', name: p.name, loc: [loc[0], loc[1]], attrs: { ...(p.attrs as Record<string, string> ?? {}) } };
+    return edit(p, c, () => { c.comps.push(k); return { removed: [], added: [k] }; }, { id: k.id });
+  },
+  'edit.addWire': (p) => {
+    const c = circuitOf(p);
+    const pts = p.points as [number, number][];
+    const added: Wire[] = [];
+    for (let i = 1; i < pts.length; i += 1) {
+      if (pts[i][0] === pts[i - 1][0] && pts[i][1] === pts[i - 1][1]) continue;
+      added.push({ id: `w${nextWire++}`, a: [...pts[i - 1]] as [number, number], b: [...pts[i]] as [number, number] });
+    }
+    if (added.length === 0) return { changed: false, outcome: 'empty' };
+    return edit(p, c, () => { c.wires.push(...added); return { removed: [], added }; });
+  },
+  'edit.move': (p) => {
+    const c = circuitOf(p);
+    const ids = partsOf(c, p.ids);
+    const dx = Number(p.dx);
+    const dy = Number(p.dy);
+    return edit(p, c, () => {
+      const added: (Comp | Wire)[] = [];
+      c.comps = c.comps.map((k) => {
+        if (!ids.has(k.id)) return k;
+        const moved = { ...k, id: `k${nextComp++}`, loc: [k.loc[0] + dx, k.loc[1] + dy] as [number, number] };
+        added.push(moved);
+        return moved;
+      });
+      c.wires = c.wires.map((w) => {
+        if (!ids.has(w.id)) return w;
+        const moved = { id: `w${nextWire++}`, a: [w.a[0] + dx, w.a[1] + dy] as [number, number], b: [w.b[0] + dx, w.b[1] + dy] as [number, number] };
+        added.push(moved);
+        return moved;
+      });
+      return { removed: [...ids], added };
+    }, { outcome: 'moved' });
+  },
+  'edit.delete': (p) => {
+    const c = circuitOf(p);
+    const ids = partsOf(c, p.ids);
+    return edit(p, c, () => {
+      c.comps = c.comps.filter((k) => !ids.has(k.id));
+      c.wires = c.wires.filter((w) => !ids.has(w.id));
+      return { removed: [...ids], added: [] };
+    });
+  },
+  'edit.setAttr': (p) => {
+    const c = circuitOf(p);
+    const ids = partsOf(c, p.ids);
+    return edit(p, c, () => {
+      const added = c.comps.filter((k) => ids.has(k.id));
+      for (const k of added) k.attrs = { ...k.attrs, [String(p.attr)]: String(p.value) };
+      return { removed: [], added };
+    });
+  },
+  'edit.undo': (p) => undoRedo(fileOf(p), 'undo'),
+  'edit.redo': (p) => undoRedo(fileOf(p), 'redo'),
   'sim.reset': (p) => {
     const f = fileOf(p);
     f.cycle = 0; f.ticking = false; f.on = true;
@@ -270,6 +340,78 @@ const methods: Record<string, (p: Params) => unknown> = {
   },
 };
 
+// ---- ids and edits -----------------------------------------------------------------
+
+// A restarted engine's ids start above the window's (engine.hello idFloor).
+function floor(n: number): void {
+  nextFile = Math.max(nextFile, n + 1);
+  nextCircuit = Math.max(nextCircuit, n + 1);
+  nextComp = Math.max(nextComp, n + 1);
+  nextWire = Math.max(nextWire, n + 1);
+}
+
+// file.new/open `restore`: the old engine's file id, and its circuit ids by name.
+function fileIdFor(p: Params): string {
+  const r = p.restore as { fileId?: unknown } | undefined;
+  if (r === undefined) return `f${nextFile++}`;
+  if (typeof r !== 'object' || r === null || typeof r.fileId !== 'string' || !/^f\d+$/.test(r.fileId)) throw new Failure(-32602, 'restore.fileId must be "f" and a number');
+  if (files.has(r.fileId)) throw new Failure(-32602, `restore.fileId is in use: ${r.fileId}`);
+  nextFile = Math.max(nextFile, Number(r.fileId.slice(1)) + 1);   // as the real engine: never given again
+  return r.fileId;
+}
+function adopt(f: File, p: Params): void {
+  const names = (p.restore as { circuits?: Record<string, string> } | undefined)?.circuits ?? {};
+  for (const c of f.circuits) if (typeof names[c.name] === 'string' && /^c\d+$/.test(names[c.name])) c.circuitId = names[c.name];
+  const main = f.circuits.find((c) => c.name === f.main);
+  if (main) f.main = main.name;
+}
+
+const compJson = (k: Comp) => ({
+  id: k.id, lib: k.lib, name: k.name, loc: k.loc, bounds: [k.loc[0] - 30, k.loc[1] - 15, 30, 30],
+  facing: (k.attrs.facing as 'east' | undefined) ?? 'east', attrs: k.attrs, ports: [],
+});
+const partJson = (x: Comp | Wire) => ('a' in x ? x : compJson(x));
+
+function partsOf(c: Circuit, ids: unknown): Set<string> {
+  if (!Array.isArray(ids)) throw new Failure(-32602, 'ids must be an array');
+  for (const id of ids) {
+    if (!c.comps.some((k) => k.id === id) && !c.wires.some((w) => w.id === id)) throw new Failure(1, `no such component id: ${String(id)}`, { kind: 'component', id: String(id) });
+  }
+  return new Set(ids as string[]);
+}
+
+const copyParts = (c: Circuit): Step => ({ circuitId: c.circuitId, comps: structuredClone(c.comps), wires: structuredClone(c.wires) });
+
+// One edit: its undo step, the change, model.changed after the answer.
+function edit(p: Params, c: Circuit, change: () => { removed: string[]; added: (Comp | Wire)[] }, result: Record<string, unknown> = {}): unknown {
+  const f = fileOf(p);
+  const before = copyParts(c);
+  const { removed, added } = change();
+  f.undo.push(before);
+  f.redo = [];
+  f.dirty = true;
+  const params = { fileId: f.fileId, circuitId: c.circuitId, removed, added: added.map(partJson), nets: [], junctions: [], dirty: true };
+  setImmediate(() => notify('model.changed', params));
+  return { changed: true, ...result };
+}
+
+function undoRedo(f: File, which: 'undo' | 'redo'): unknown {
+  const from = which === 'undo' ? f.undo : f.redo;
+  const to = which === 'undo' ? f.redo : f.undo;
+  const step = from.pop();
+  if (!step) return { changed: false };
+  const c = f.circuits.find((x) => x.circuitId === step.circuitId)!;
+  to.push(copyParts(c));
+  const removed = [...c.comps.map((k) => k.id), ...c.wires.map((w) => w.id)];
+  // What comes back comes back under new ids (as the real engine's).
+  c.comps = step.comps.map((k) => ({ ...k, id: `k${nextComp++}` }));
+  c.wires = step.wires.map((w) => ({ ...w, id: `w${nextWire++}` }));
+  f.dirty = true;
+  const params = { fileId: f.fileId, circuitId: c.circuitId, removed, added: [...c.comps.map(compJson), ...c.wires], nets: [], junctions: [], dirty: true };
+  setImmediate(() => notify('model.changed', params));
+  return { changed: true };
+}
+
 function handle(line: string): void {
   let msg: { jsonrpc?: string; id?: number; method?: string; params?: Params };
   try { msg = JSON.parse(line); } catch {
@@ -279,6 +421,15 @@ function handle(line: string): void {
   const { id, method } = msg;
   if (method === crashOn) process.exit(70);
   if (method === 'engine.hello' && modes.has('silent-hello')) return;
+  if (method === 'engine.hello' && typeof msg.params?.idFloor === 'number' && msg.params.idFloor > 0) {
+    restarted = true;
+    floor(msg.params.idFloor);
+  }
+  if (restarted && method === crashAfterRestart) process.exit(70);
+  if (restarted && method === failAfterRestart) {
+    write({ jsonrpc: '2.0', id, error: { code: -32603, message: `failing ${method} after a restart, as asked` } });
+    return;
+  }
   const f = method ? methods[method] : undefined;
   if (!f) { write({ jsonrpc: '2.0', id, error: { code: -32601, message: `no method ${String(method)}` } }); return; }
   try {

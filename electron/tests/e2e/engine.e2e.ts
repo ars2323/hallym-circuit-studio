@@ -1,10 +1,10 @@
 /* The engine seen from the window: no engine -- the window's own dialog
    (no character anywhere: it is an error), a band, Try Again; the engine's
    notifications reach the status bar; a crash -- it starts again, the
-   files of the old one are closed, a band says so, and the new one works. */
+   files come back (recovery.e2e.ts: with their unsaved edits), a dialog
+   and a band say so, and the new one works. */
 
 import { expect, test } from '@playwright/test';
-import path from 'node:path';
 
 import { DATAPATH, launch, newCircuit, openFile, sample, visibleCharacters } from './harness.ts';
 
@@ -90,7 +90,7 @@ test('an oscillation: the status bar says it in the window\'s words (not the eng
   }
 });
 
-test('a crash: the engine starts again, the old engine\'s files close, a band says so, and the new one opens files', async () => {
+test('a crash: the engine starts again, the files come back in their tabs, a dialog and a band say so, and the new engine answers', async () => {
   const r = await launch();
   const { page } = r;
   try {
@@ -99,15 +99,18 @@ test('a crash: the engine starts again, the old engine\'s files close, a band sa
     await expect(page.locator('.filebar .ptab')).toHaveCount(2);
     const before = await r.app.evaluate(() => (globalThis as unknown as { __hcs: { engine: { pid: number } } }).__hcs.engine.pid);
     await r.app.evaluate(() => (globalThis as unknown as { __hcs: { engine: { kill(): void } } }).__hcs.engine.kill());
-    await expect(page.locator('.band')).toHaveText('엔진이 멈춰서 다시 시작했습니다 · 열려 있던 파일 2개를 닫았습니다');
-    await expect(page.locator('.wcard')).toBeVisible();
-    expect(await visibleCharacters(page)).toBe(0); // the band says something went wrong: no character
-    await expect(page.locator('.filebar .ptab')).toHaveCount(0);
+    await expect(page.locator('dialog.ask h2')).toHaveText('엔진이 멈췄다가 다시 시작했습니다');
+    expect(await visibleCharacters(page)).toBe(0); // the dialog says something went wrong: no character
+    await page.locator('dialog.ask').getByRole('button', { name: 'Close' }).click();
+    await expect(page.locator('.band')).toHaveText('엔진이 멈춰서 다시 시작했습니다 · 파일 2개를 되살렸습니다 · 시뮬레이션은 Reset 상태입니다');
+    expect(await visibleCharacters(page)).toBe(0); // nor while the band is up
+    await expect(page.locator('.filebar .ptab')).toHaveText(['demo-datapath.circ', 'untitled.circ']);
     const after = await r.app.evaluate(() => (globalThis as unknown as { __hcs: { engine: { pid: number } } }).__hcs.engine.pid);
     expect(after).not.toBe(before);
-    await openFile(r, path.join(r.dir, 'demo-datapath.circ'));
-    await expect(page.locator('.band')).toBeHidden();
+    await page.locator('.filebar .ptab', { hasText: 'demo-datapath.circ' }).click();
     await expect(page.locator('.canvas h3')).toContainText('부품 35개');
+    await openFile(r, sample(r.dir, 'tests/circ/gates.circ'));
+    await expect(page.locator('.band')).toBeHidden();
     expect(await visibleCharacters(page)).toBe(1); // the Canvas's guide, the band gone
   } finally {
     await r.close();
