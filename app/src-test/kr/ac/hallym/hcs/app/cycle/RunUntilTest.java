@@ -83,12 +83,12 @@ class RunUntilTest {
     @Test
     void untilPcAndInstructionAndExit() throws Exception {
         refMips("mips/factorial.s");
-        // fact 라벨 주소(hcs-asm): 0x00400034
-        RunUntilRunner.Outcome o = run(RunUntil.pc(0x00400034, 1000));
+        // fact 라벨 주소(hcs-asm -exception, Hallym MIPS 배치): 0x00400058
+        RunUntilRunner.Outcome o = run(RunUntil.pc(0x00400058, 1000));
         assertEquals(RunUntil.Result.MET, o.result);
-        assertEquals(0x00400034, model.pc(o.cycle).toIntValue());
+        assertEquals(0x00400058, model.pc(o.cycle).toIntValue());
         for (int c = 1; c < o.cycle; c++) {
-            assertNotEquals(0x00400034, model.pc(c).toIntValue(), "the first time, at cycle " + c);
+            assertNotEquals(0x00400058, model.pc(c).toIntValue(), "the first time, at cycle " + c);
         }
         assertEquals(CycleModel.stepOf(o.cycle), model.recording().last(), "stopped right there");
 
@@ -115,7 +115,7 @@ class RunUntilTest {
     @Test
     void untilPcStopsAtTheSameCycleUnderLoad() throws Exception {
         refMips("mips/factorial.s");
-        RunUntilRunner.Outcome calm = run(RunUntil.pc(0x00400034, 1000));
+        RunUntilRunner.Outcome calm = run(RunUntil.pc(0x00400058, 1000));
         assertEquals(RunUntil.Result.MET, calm.result);
 
         Recorder.requestReset(proj);
@@ -125,11 +125,11 @@ class RunUntilTest {
         RunUntilRunner.Outcome loaded;
         try (kr.ac.hallym.hcs.app.record.TickLoadTestSupport.Burner b =
                 new kr.ac.hallym.hcs.app.record.TickLoadTestSupport.Burner(4)) {
-            loaded = run(RunUntil.pc(0x00400034, 1000));
+            loaded = run(RunUntil.pc(0x00400058, 1000));
         }
         assertEquals(RunUntil.Result.MET, loaded.result);
         assertEquals(calm.cycle, loaded.cycle, "the same stop cycle under load");
-        assertEquals(0x00400034, model.pc(loaded.cycle).toIntValue());
+        assertEquals(0x00400058, model.pc(loaded.cycle).toIntValue());
         Thread.sleep(300);
         assertEquals(CycleModel.stepOf(loaded.cycle), model.recording().last(), "stopped right there, not past it");
     }

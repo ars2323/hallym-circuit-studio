@@ -276,9 +276,12 @@ class UiLanguageTest {
         for (String k : m.stringPropertyNames()) {
             ret.add("messages_ko#" + k + ": " + m.getProperty(k));
         }
-        Pattern textOf = Pattern.compile("Text\\.of\\(\\s*(?:\"(?:[^\"\\\\]|\\\\.)*\"[^,]*),\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
+        // lib-mips의 Text.of와 두 트랙 공용 코드(lib-mips/src/shared/java, D-125)의 Msg.of(실행 이미지 오류 문구, D-126)
+        Pattern textOf = Pattern.compile("(?:Text|Msg)\\.of\\(\\s*(?:\"(?:[^\"\\\\]|\\\\.)*\"[^,]*),\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
         int n = 0;
-        for (File f : javaFiles(new File(ROOT, "lib-mips/src/main/java"))) {
+        List<File> sources = new ArrayList<>(javaFiles(new File(ROOT, "lib-mips/src/main/java")));
+        sources.addAll(javaFiles(new File(ROOT, "lib-mips/src/shared/java")));
+        for (File f : sources) {
             Matcher mt = textOf.matcher(new String(Files.readAllBytes(f.toPath()), StandardCharsets.UTF_8));
             while (mt.find()) {
                 ret.add(f.getName() + ": " + mt.group(1));
@@ -340,7 +343,9 @@ class UiLanguageTest {
         }
         String loader = new String(Files.readAllBytes(new File(ROOT,
                 "lib-mips/src/main/java/kr/ac/hallym/hcs/mips/ProgramLoader.java").toPath()), StandardCharsets.UTF_8);
-        assertFalse(loader.contains("Text.of("), "the load summary is English (Text.name)");
+        // 요약 줄(notes)은 영어 이름이다. Text.of는 불러오지 못한 이유(오류 문장, 한국어 설명)에만 쓴다(D-126)
+        assertFalse(loader.matches("(?s).*notes\\.add\\(\\s*Text\\.of.*"), "the load summary is English (Text.name)");
+        assertTrue(loader.contains("notes.add(Text.name("), "summary lines use Text.name");
     }
 
     /** 검토 3차: 폭 표시는 1이면 단수다(1 bit, 32 bits). */

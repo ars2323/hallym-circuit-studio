@@ -75,9 +75,9 @@ class CycleModelTest {
         CycleModel withSource = new CycleModel(main, r, cpu, ProgramSource.of(CycleModel.sourceFile(cpu, circ)));
         assertEquals(0, withSource.firstCycle());
         assertEquals(30, withSource.lastCycle());
-        assertEquals("0x00400000", withSource.pcText(0));
+        assertEquals("0x00400024", withSource.pcText(0)); // entry: main after the start code (D-126)
         assertEquals("main: li $t0, 0", withSource.instructionText(0), "the line as written, label included");
-        assertEquals("0x00400004", withSource.pcText(1));
+        assertEquals("0x00400028", withSource.pcText(1));
         assertEquals("outer: li $t1, 0", withSource.instructionText(1));
         // la arr(0x10010000)는 아래 절반이 0이라 SPIM이 lui 하나로 바꾼다: 그 워드도 원래 줄로 보인다
         assertEquals("la $s0, arr", withSource.instructionText(2));

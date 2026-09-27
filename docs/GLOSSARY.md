@@ -53,7 +53,8 @@
 | Data Memory | 데이터 메모리 |
 | Stack, Console | |
 | Radix Probe | 다중 진법 프로브 |
-| Load .s, Reload | .s 프로그램 불러오기 |
+| Load Program..., Load .s, Reload | 프로그램 불러오기, .s 프로그램 불러오기 |
+| Executable image (*.hmx) | 목적 파일, 오브젝트 파일 |
 | 1 Cycle, N Cycles, Reset, Run | |
 | Quick Attributes, All Attributes | 빠른 속성 |
 | Find, Tunnels | |
@@ -75,7 +76,9 @@
 
 ## 3. 한국어 문장 규칙
 
-- 문장 안에서 이름을 말할 때는 영어 이름 그대로 쓴다: "Instruction Memory를 오른쪽 클릭하고 "Load .s..."를 고릅니다", "Poke Tool(손 모양)을 고르고".
+- 문장 안에서 이름을 말할 때는 영어 이름 그대로 쓴다: "Instruction Memory를 오른쪽 클릭하고 "Load Program..."을 고릅니다", "Poke Tool(손 모양)을 고르고".
+- Hallym MIPS가 내보내는 `.hmx`는 문장에서 "실행 이미지"라고 부른다. 목적 파일·오브젝트 파일·`.o`라고 부르지 않는다(D-126).
+- 파일 이름, 레지스터, 키, 자리 표시(`{0}`) 바로 뒤에는 조사를 붙이지 않는다. 사이에 한국어 명사를 두거나("`$sp` 레지스터", "`entry` 키가") "File: lab04.s"처럼 쓴다(D-126, 실행 이미지 오류 문구).
 - 메뉴 경로는 `›`로 잇는다: `Simulate › Reset Simulation`.
 - 조사는 영어 이름의 끝소리에 맞춘다(Console이, Stack을). 헷갈리면 "은(는)"처럼 둘 다 적는다.
 - 회로, 선, 부품, 포트, 버스, 비트, 라벨, 터널, 서브회로 같은 일반 명사는 한국어로 쓴다. 화면의 특정 버튼·메뉴·부품 종류를 가리킬 때만 영어 이름이다.

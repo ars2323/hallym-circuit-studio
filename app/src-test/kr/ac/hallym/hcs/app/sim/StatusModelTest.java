@@ -174,6 +174,6 @@ class StatusModelTest {
         proj.getSimulator().setIsRunning(false);
         com.cburch.logisim.circuit.CircuitState state = new com.cburch.logisim.circuit.CircuitState(proj, main);
         state.getPropagator().propagate();
-        assertEquals("0x00400000", StatusModel.pc(state), "reset PC of the reference datapath");
+        assertEquals("0x00400024", StatusModel.pc(state), "reset PC of the reference datapath: the entry (D-126)");
     }
 }

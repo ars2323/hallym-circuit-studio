@@ -73,6 +73,9 @@ public final class ProgramReload {
                     continue;
                 }
                 File s = new File(v.toString());
+                if (!isAssembly(s)) {
+                    continue; // 실행 이미지(.hmx) 다시 읽기는 v2 엔진 API 몫이다(D-126). hcs-asm에 넘기지 않는다
+                }
                 if (!s.isAbsolute() && circ != null && circ.getParentFile() != null) {
                     s = new File(circ.getParentFile(), v.toString());
                 }
@@ -185,12 +188,19 @@ public final class ProgramReload {
         }
     }
 
+    /** 전환용 .s(.asm)인가. 트랙 A의 AssemblyTransition과 같은 규칙(D-126). */
+    static boolean isAssembly(File f) {
+        String n = f.getName().toLowerCase();
+        return n.endsWith(".s") || n.endsWith(".asm");
+    }
+
     static String assemble(File source) throws IOException {
         File exe = kr.ac.hallym.hcs.app.BundledLibraries.hcsAsm();
         if (exe == null) {
             throw new IOException(Messages.get("reload.noAssembler"));
         }
-        Process p = new ProcessBuilder(exe.getPath(), source.getPath()).start();
+        // Hallym MIPS 기본 배치(시작 코드 9워드, main 0x00400024): 트랙 A 불러오기와 같은 기계어(D-126)
+        Process p = new ProcessBuilder(exe.getPath(), "-exception", source.getPath()).start();
         p.getOutputStream().close();
         byte[] out = p.getInputStream().readAllBytes();
         try {

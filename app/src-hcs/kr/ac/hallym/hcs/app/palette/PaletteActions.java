@@ -171,7 +171,9 @@ public final class PaletteActions {
                     JPopupMenu menu = new JPopupMenu();
                     ((MenuExtender) ext).configureMenu(menu, proj);
                     for (java.awt.Component mc : menu.getComponents()) {
-                        if (mc instanceof JMenuItem && ((JMenuItem) mc).getText().contains(".s")) {
+                        // lib-mips 메뉴 이름이 "Load Program..."으로 바뀌었다(D-126). 옛 이름도 받는다
+                        if (mc instanceof JMenuItem && (((JMenuItem) mc).getText().startsWith("Load Program")
+                                || ((JMenuItem) mc).getText().contains(".s"))) {
                             ((JMenuItem) mc).doClick();
                             return;
                         }
