@@ -10,8 +10,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.io.File;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -20,9 +18,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.DynamicTest;
@@ -38,15 +33,17 @@ import kr.ac.hallym.hcs.mips.image.ExecutableImage;
 /**
  * 참조 single-cycle MIPS 회로(#16)로 예제를 돌린 결과(레지스터, 메모리, Console)가 원본 spim 실행과 같다(D-126).
  * 예제는 실행 이미지(tests/hmx/mips/*.hmx, Hallym MIPS 배치)로 불러오고, 회로의 PC는 entry(main, 0x00400024)에서
- * 시작한다. spim은 예외 처리기를 불러온 채(시작 코드가 0x00400000~0x00400020) {@code run 0x00400024}로 main부터
- * 돌려 회로와 조건을 맞춘다. 참조 회로의 lw/sw와 $sp 접근은 모두 Data Memory 한 개로 간다(D-140).
+ * 시작한다. spim 결과는 예외 처리기를 불러온 채(시작 코드가 0x00400000~0x00400020) {@code run 0x00400024}로 main부터
+ * 돌린 것이고, vendor/spim이 있을 때 tests/spim-oracle/run/에 굳혀 두었다(D-141). 참조 회로의 lw/sw와 $sp 접근은
+ * 모두 Data Memory 한 개로 간다(D-140).
  */
 class RefMipsTest {
     static final Path PROGRAMS = Path.of(System.getProperty("hcs.testsDir"), "mips");
     static final Path IMAGES = Path.of(System.getProperty("hcs.testsDir"), "hmx", "mips");
     /** Hallym MIPS 기본 배치의 entry(main). 참조 회로의 PC가 리셋 때 여기서 시작한다. */
     static final long ENTRY = 0x00400024L;
-    static final File ORACLE = new File(System.getProperty("hcs.spimOracle"));
+    /** 굳혀 둔 spim 실행 결과(D-141): 이름.regs. */
+    static final Path ORACLES = Path.of(System.getProperty("hcs.testsDir"), "spim-oracle", "run");
     static final int MAX_CYCLES = 5000;
     /** spim이 실행 전에 채우는 레지스터: $a1, $a2, $gp. 프로그램이 쓰지 않으면 비교하지 않는다. */
     static final int[] PRESET = {5, 6, 28};
@@ -132,33 +129,22 @@ class RefMipsTest {
     static void load(com.cburch.logisim.circuit.Circuit main, RefMips cpu, ExecutableImage prog) {
         ProgramLoader.Plan plan = ProgramLoader.plan(prog, List.of(new ProgramLoader.Target(main, cpu.imem)),
                 List.of(new ProgramLoader.Target(main, cpu.dmem)), List.of(), null, null, "program.hmx");
-        AssemblerIntegrationTest.apply(plan);
+        ProgramLoadIntegrationTest.apply(plan);
     }
 
-    /** 원본 spim(예외 처리기를 불러온 Hallym MIPS 배치)으로 main(entry)부터 돌린다. */
-    static Result runSpim(Path source, ExecutableImage prog, Path work) throws Exception {
-        StringBuilder cmd = new StringBuilder("load \"" + source + "\"\nrun " + ExecutableImage.hex(prog.entry())
-                + "\nprint_all_regs hex\n");
-        for (Long addr : prog.dataWords().keySet()) {
-            cmd.append("print 0x").append(Long.toHexString(addr)).append('\n');
-        }
-        Path in = work.resolve("cmd.txt");
-        Files.writeString(in, cmd.toString());
-        Process p = new ProcessBuilder(ORACLE.getPath(), "-exception").redirectInput(in.toFile())
-                .redirectErrorStream(true).start();
-        String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-        assertTrue(p.waitFor(60, TimeUnit.SECONDS));
-        String[] parts = out.split("\\(spim\\) ", -1);
+    /**
+     * 굳혀 둔 원본 spim 결과(tests/spim-oracle/run/이름.regs): 예외 처리기를 불러온 Hallym MIPS 배치로 main(entry)부터
+     * 돌린 레지스터, .data 워드, Console 글. 만든 방법은 파일 머리 주석에 있다.
+     */
+    static Result spimOracle(String name) throws Exception {
+        HallymMipsGoldenTest.Oracle o = HallymMipsGoldenTest.Oracle.read(ORACLES.resolve(name.replaceAll("\\.s$", "")
+                + ".regs"));
         Result r = new Result();
-        r.console = parts[2]; // load, run 다음
-        Matcher m = Pattern.compile("R(\\d+)\\s+\\(\\w+\\) = ([0-9a-f]{8})").matcher(out);
-        while (m.find()) {
-            r.regs[Integer.parseInt(m.group(1))] = (int) Long.parseLong(m.group(2), 16);
+        r.console = o.console;
+        for (int i = 0; i < 32; i += 1) {
+            r.regs[i] = o.regs.get(HallymMipsGoldenTest.NAMES[i]);
         }
-        Matcher d = Pattern.compile("seg @ 0x([0-9a-f]{8}) \\(\\d+\\) = 0x([0-9a-f]{8})").matcher(out);
-        while (d.find()) {
-            r.data.put(Long.parseLong(d.group(1), 16), (int) Long.parseLong(d.group(2), 16));
-        }
+        r.data.putAll(o.mem);
         return r;
     }
 
@@ -188,15 +174,17 @@ class RefMipsTest {
 
     @TestFactory
     Stream<DynamicTest> programsMatchSpim() throws Exception {
-        List<Path> programs = new ArrayList<>();
-        try (var list = Files.list(PROGRAMS)) {
-            list.filter(f -> f.toString().endsWith(".s")).sorted().forEach(programs::add);
+        List<String> programs = new ArrayList<>();
+        try (var list = Files.list(IMAGES)) {
+            list.filter(f -> f.toString().endsWith(".hmx")).sorted()
+                    .forEach(f -> programs.add(f.getFileName().toString().replace(".hmx", ".s")));
         }
         assertTrue(programs.size() >= 5);
-        return programs.stream().map(p -> DynamicTest.dynamicTest(p.getFileName().toString(), () -> {
-            ExecutableImage prog = image(p.getFileName().toString());
+        return programs.stream().map(name -> DynamicTest.dynamicTest(name, () -> {
+            ExecutableImage prog = image(name);
             Result circuit = runCircuit(prog, cpu -> { });
-            Result spim = runSpim(p, prog, Files.createTempDirectory(tmp, "spim"));
+            assertTrue(Files.exists(ORACLES.resolve(name.replace(".s", ".regs"))), "every example has its spim oracle");
+            Result spim = spimOracle(name);
             assertEquals(spim.console, circuit.console, "Console");
             Set<Integer> writes = written(prog);
             for (int i = 1; i < 32; i += 1) {
@@ -251,13 +239,25 @@ class RefMipsTest {
         set(cpu.dmem.getAttributeSet(), MemoryFactory.STACK_SIZE, 0x100);
     }
 
+    /**
+     * factorial.s의 {@code li $a0, 6}을 {@code li $a0, 40}으로 바꾼 프로그램: factorial.hmx에서 그 워드 하나
+     * ({@code ori $4, $0, 6} = 0x34040006, 0x0040002c)만 0x34040028로 바꾼 이미지다. vendor/spim이 있을 때 hcs-asm
+     * {@code -exception}으로 어셈블한 결과와 이 한 워드 말고는 같았다(D-141).
+     */
+    static ExecutableImage deepFactorial(Path tmp) throws Exception {
+        String hmx = Files.readString(IMAGES.resolve("factorial.hmx"));
+        assertEquals(1, hmx.split("\n34040006\n", -1).length - 1, "one li $a0, 6 word");
+        Path deep = Files.writeString(tmp.resolve("deep.hmx"), hmx.replace("\n34040006\n", "\n34040028\n"));
+        ProgramLoader.Loaded l = ProgramLoader.readImage(deep.toFile());
+        assertEquals(List.of(), l.errors);
+        assertEquals(0x34040028, (int) l.image.textWords().get(0x0040002cL));
+        return l.image;
+    }
+
     /** 한계를 256바이트로 줄이면 fact(6)의 깊이(56바이트)는 괜찮고, fact(40)은 한계를 넘는다. */
     @Test
     void deepRecursionReportsTheStackLimit() throws Exception {
-        String deep = Files.readString(PROGRAMS.resolve("factorial.s"))
-                .replace("li    $a0, 6", "li    $a0, 40");
-        Path source = Files.writeString(tmp.resolve("deep.s"), deep);
-        ExecutableImage prog = AssemblerIntegrationTest.image(source); // 만든 .hmx가 없는 변형: 전환용 .s 경로
+        ExecutableImage prog = deepFactorial(tmp);
         // 한계 밖에는 쓰지 못해 복귀 주소가 깨지므로 exit까지 가지 않는다. 한계 초과가 알려지는지만 본다.
         runCircuit(prog, RefMipsTest::smallStack, false);
         assertTrue(stackProblems.contains(DataMemory.Problem.STACK_LIMIT), stackProblems.toString());
@@ -299,7 +299,7 @@ class RefMipsTest {
 
     /**
      * 원조 2.7.1 jar -tty로 sum을 끝까지 돌리면 Console Exit에 이은 halt로 exit 직후 멈춘다. 첫 줄의 PC는 entry다
-     * (이미지는 .hmx로 읽는다: 트랙 A는 hcs-asm 없이 .hmx만으로 동작한다).
+     * (이미지는 .hmx로 읽는다: 트랙 A는 .hmx만 불러온다, D-141).
      */
     @Test
     void originalLogisimRunsTheReferenceCpuToExit() throws Exception {

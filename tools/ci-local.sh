@@ -16,15 +16,8 @@ tools/verify-assets.sh
 step "엔진 소스 원본 일치"
 tools/check-engine-unchanged.sh
 
-step "hcs-asm 빌드·어셈블 일치"
-make -s -C native/hcs-asm -j"$(nproc)" test
-
-step "디스어셈블러 골든 다시 만들어도 같음 (D-127)"
-tools/gen-disasm-golden.sh
-git diff --exit-code -- tests/disasm
-test -z "$(git status --porcelain -- tests/disasm)"
-
-step "Gradle 빌드·테스트 (hcs-asm을 쓰는 테스트 포함)"
+# D-141: vendor/spim과 hcs-asm은 지웠다. SPIM 결과는 tests/disasm·tests/spim-oracle 등에 굳혀 두었다
+step "Gradle 빌드·테스트 (굳혀 둔 SPIM 결과와 대조)"
 ./gradlew --no-daemon -q build
 
 step "돌연변이 테스트: 로더·디스어셈블러 (Z-24, D-138)"
@@ -32,5 +25,9 @@ step "돌연변이 테스트: 로더·디스어셈블러 (Z-24, D-138)"
 
 step "단위 테스트, identity hash가 모두 같은 JVM에서 (D-129)"
 ./gradlew --no-daemon -q :app:testConstantIdentityHash
+
+step "엔진 서버 테스트 (N-03, 상수 identity hash로 한 번 더)"
+./gradlew --no-daemon -q :engine:test
+./gradlew --no-daemon -q :engine:test -Phcs.constantHash=true
 
 printf '\nci-local: all checks passed (%s)\n' "$(git rev-parse --short HEAD)"

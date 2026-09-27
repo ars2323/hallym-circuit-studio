@@ -20,10 +20,10 @@ import com.cburch.logisim.proj.Project;
 import com.cburch.logisim.proj.Projects;
 
 /**
- * Windows 실제 실행 검증(R-02): 포장한 런타임으로 앱을 띄워 demo-datapath를 열고, .s를 불러오고, 10사이클 돌린 뒤 화면을
- * 찍는다. 배율은 -Dsun.java2d.uiScale로 준다. 쓰기: java -cp "<app jar>;tools/winsmoke" Smoke <circ> <asm> <out.png>
+ * Windows 실제 실행 검증(R-02): 포장한 런타임으로 앱을 띄워 demo-datapath를 열고, 실행 이미지(.hmx)를 불러오고, 10사이클 돌린 뒤 화면을
+ * 찍는다. 배율은 -Dsun.java2d.uiScale로 준다. 쓰기: java -cp "<app jar>;tools/winsmoke" Smoke <circ> <hmx> <out.png>
  * 실패하면 0이 아닌 코드로 끝난다. 환경설정 폴더가 비어 있으면(첫 실행) 창이 작업 영역의 90% 이상인지, 도구 모음 단추가
- * 잘리지 않고 Run·Load .s가 보이는지, 캔버스가 창 내부의 절반 이상인지도 확인한다(v1.0.2 X-05, v1.0.3 Y-01).
+ * 잘리지 않고 Run·Load Program이 보이는지, 캔버스가 창 내부의 절반 이상인지도 확인한다(v1.0.2 X-05, v1.0.3 Y-01).
  */
 public final class Smoke {
     static Project project() {
@@ -163,7 +163,7 @@ public final class Smoke {
 
     public static void main(String[] args) throws Exception {
         File circ = new File(args[0]).getAbsoluteFile();
-        File asm = new File(args[1]).getAbsoluteFile();
+        File image = new File(args[1]).getAbsoluteFile();
         File out = new File(args[2]).getAbsoluteFile();
         Thread t = new Thread(() -> com.cburch.logisim.Main.main(new String[] {circ.getPath()}), "app-main");
         t.setDaemon(true);
@@ -185,7 +185,7 @@ public final class Smoke {
             }
         });
         // X-01/X-02(v1.0.2): 환경설정이 없는 첫 실행 창은 작업 영역의 90% 이상이고, 도구 모음 단추는 잘리지 않으며
-        // Run·Load .s는 도구 모음에 남아 있어야 한다. 아니면 실패로 끝난다
+        // Run·Load Program은 도구 모음에 남아 있어야 한다. 아니면 실패로 끝난다
         checkFirstRunWindow();
         // Y-04(v1.0.3): "tutorial" 모드는 첫 실행 튜토리얼이 떠 있는지, 말풍선이 창 안에 들어오고 Next·Close가 보이는지
         // 검사하고 화면을 찍은 뒤 끝난다
@@ -198,7 +198,7 @@ public final class Smoke {
             System.out.println("SMOKE: wrote " + out);
             System.exit(0);
         }
-        // .s 불러오기: 부품 메뉴가 여는 파일 선택 창에 경로를 넣는다
+        // Load Program(.hmx, D-141): 부품 메뉴가 여는 파일 선택 창에 경로를 넣는다
         Thread loader = new Thread(() -> {
             try {
                 SwingUtilities.invokeAndWait(() -> kr.ac.hallym.hcs.app.palette.PaletteActions.loadProgram(p));
@@ -220,12 +220,12 @@ public final class Smoke {
             }
         }
         if (fc == null) {
-            System.err.println("SMOKE: no .s chooser");
+            System.err.println("SMOKE: no program chooser");
             System.exit(3);
         }
         final JFileChooser chooser = fc;
         SwingUtilities.invokeLater(() -> {
-            chooser.setSelectedFile(asm);
+            chooser.setSelectedFile(image);
             chooser.approveSelection();
         });
         Thread.sleep(5000);

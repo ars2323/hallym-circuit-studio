@@ -6,7 +6,6 @@
 # 빌드 산출물
 build/
 .gradle/
-native/**/build/
 *.class
 
 # IDE

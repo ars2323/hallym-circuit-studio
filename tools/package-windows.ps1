@@ -1,7 +1,7 @@
 # Windows 배포물(R-01): jpackage로 JRE를 포함한 앱 폴더(zip, 관리자 권한 없이 풀어 실행)를 만든다.
 # MSI는 배포하지 않는다(D-122). -Msi는 v1.0.x MSI 설치본 위에 setup exe를 까는 검사(v1.1.0)에서만 쓴다.
 #   pwsh tools/package-windows.ps1 -Version 1.0.0 -Dest dist
-# 앞서 `gradlew :app:stage :lib-mips:jar`와 hcs-asm.exe 빌드가 끝나 있어야 한다(app/build/stage/, native/hcs-asm/build/).
+# 앞서 `gradlew :app:stage :lib-mips:jar`가 끝나 있어야 한다(app/build/stage/). hcs-asm.exe는 없어졌다(D-141).
 # .circ 파일 연결은 넣지 않는다(D-094, D-122).
 param(
   [string]$Version = "1.0.0",
@@ -13,9 +13,7 @@ $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 Set-Location $root
 $stage = "app/build/stage"
 if (-not (Test-Path "$stage/hallym-circuit-studio.jar")) { throw "run ./gradlew :app:stage first" }
-if (-not (Test-Path "$stage/lib/hcs-asm.exe")) {
-  if (Test-Path "native/hcs-asm/build/hcs-asm.exe") { Copy-Item native/hcs-asm/build/hcs-asm.exe "$stage/lib/" } else { throw "hcs-asm.exe missing" }
-}
+if (Test-Path "$stage/lib/hcs-asm*") { throw "hcs-asm is no longer shipped (D-141)" }
 New-Item -ItemType Directory -Force $Dest | Out-Null
 $name = "HallymCircuitStudio"
 if (Test-Path "$Dest/$name") { Remove-Item -Recurse -Force "$Dest/$name" }
@@ -29,7 +27,7 @@ $common = @(
   "--java-options", "-Dfile.encoding=UTF-8",
   "--java-options", "-Xss4m"
 )
-# 1) 앱 폴더(zip): runtime + app/hallym-circuit-studio.jar + app/lib/(hcs-mips.jar, hcs-asm.exe)
+# 1) 앱 폴더(zip): runtime + app/hallym-circuit-studio.jar + app/lib/hcs-mips.jar
 & jpackage --type app-image --input $stage --main-jar hallym-circuit-studio.jar --main-class com.cburch.logisim.Main --dest $Dest @common
 if ($LASTEXITCODE -ne 0) { throw "jpackage app-image failed" }
 Copy-Item LICENSE "$Dest/$name/LICENSE.txt"

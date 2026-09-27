@@ -1,0 +1,57 @@
+# RefMipsTest oracle for tests/mips/memory.s (image tests/hmx/mips/memory.hmx): SPIM 9.1.24 run from main.
+# Made by: spim -exception (vendor/spim-9.1.24 built with make -C native/hcs-asm oracle, commit dfd8fd2) with the commands
+#   load "memory.s", run 0x00400024, print_all_regs hex, and print <addr> for every .data word of the image.
+# Registers, hi, lo, the .data words (mem <addr> <word>) and the console output after the run, in an empty
+# environment. $a1, $a2 and $gp are SPIM's run-stack presets: compared only when the program writes them.
+# Frozen before vendor/spim-9.1.24 and hcs-asm were removed (D-141): this file is now the oracle.
+$zero 00000000
+$at 10010000
+$v0 0000000a
+$v1 00000000
+$a0 00000419
+$a1 00000000
+$a2 00000000
+$a3 00000000
+$t0 00000005
+$t1 00000419
+$t2 00000010
+$t3 10010010
+$t4 000003e8
+$t5 00000014
+$t6 00000000
+$t7 00000000
+$s0 10010000
+$s1 00000005
+$s2 1001001c
+$s3 1001001c
+$s4 00000000
+$s5 00000000
+$s6 00000000
+$s7 00000000
+$t8 00000000
+$t9 00000000
+$k0 00000000
+$k1 00000000
+$gp 10008000
+$sp 7fffeffc
+$fp 00000000
+$ra 00000000
+hi 00000000
+lo 00000000
+mem 10010000 00000003
+mem 10010004 ffffffff
+mem 10010008 00000028
+mem 1001000c 00000007
+mem 10010010 000003e8
+mem 10010014 00000005
+mem 10010018 00000419
+mem 1001001c 000003e8
+mem 10010020 00000007
+mem 10010024 00000028
+mem 10010028 ffffffff
+mem 1001002c 00000003
+mem 10010030 6c6c6148
+mem 10010034 ed206d79
+mem 10010038 a1eb8c9a
+mem 1001003c 0000209c
+console "Hallym 회로 1049"

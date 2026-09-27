@@ -110,7 +110,7 @@ public final class Palette {
         COMMANDS.put("tick", Arrays.asList("tick", "클럭 한 번", "클럭", "사이클"));
         COMMANDS.put("step", Arrays.asList("step", "한 단계", "전파"));
         COMMANDS.put("run", Arrays.asList("run", "시뮬레이션 켜기", "시뮬레이션"));
-        COMMANDS.put("loadS", Arrays.asList(".s", "s 불러오기", "프로그램", "load"));
+        COMMANDS.put("loadS", Arrays.asList(".hmx", "hmx 불러오기", "프로그램", "load", "program"));
         COMMANDS.put("fit", Arrays.asList("fit", "화면 맞춤", "맞춤"));
         COMMANDS.put("find", Arrays.asList("find", "찾기"));
         COMMANDS.put("keys", Arrays.asList("keys", "단축키", "?"));

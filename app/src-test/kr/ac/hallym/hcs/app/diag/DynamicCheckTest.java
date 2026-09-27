@@ -177,7 +177,8 @@ class DynamicCheckTest {
 
     @Test
     void normalCircuitsStayQuiet() throws Exception {
-        for (String program : new String[] {"mips/factorial.s", "mips/alu.s", "mips/branches.s", "mips/memory.s"}) {
+        for (String program : new String[] {"hmx/mips/factorial.hmx", "hmx/mips/alu.hmx", "hmx/mips/branches.hmx",
+            "hmx/mips/memory.hmx"}) {
             Path dir = Files.createTempDirectory(tmp, "m");
             LogisimFile file = RecordingTestSupport.openRefMips(dir);
             RecordingTestSupport.load(file, RecordingTestSupport.program(program));
@@ -261,7 +262,7 @@ class DynamicCheckTest {
     @Tag("timing") // 상수 identity hash 실행에서는 뺀다(D-129)
     void scanningAStepIsCheap() throws Exception {
         LogisimFile file = RecordingTestSupport.openRefMips(tmp);
-        RecordingTestSupport.load(file, RecordingTestSupport.program("mips/factorial.s"));
+        RecordingTestSupport.load(file, RecordingTestSupport.program("hmx/mips/factorial.hmx"));
         Run r = new Run(file);
         r.steps(600);
         DynamicCheck c = new DynamicCheck(r.rec.circuit(), r.rec);

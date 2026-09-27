@@ -12,8 +12,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Install bison, flex and Xvfb
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends bison flex xvfb
+      - name: Install Xvfb
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -27,14 +27,8 @@ jobs:
         run: tools/check-engine-unchanged.sh
       - name: Fork tree marked against upstream 2.7.1 (D-130)
         run: tools/check-upstream-markers.sh
-      - name: hcs-asm build and assembly match
-        run: make -s -C native/hcs-asm -j"$(nproc)" test
-      # D-127: 디스어셈블러 골든을 방금 만든 hcs-asm(SPIM 자신의 출력)으로 다시 만들어, 저장소의 골든과 한 글자라도 다르면 실패한다
-      - name: Disassembler goldens regenerate unchanged
-        run: |
-          tools/gen-disasm-golden.sh
-          git diff --exit-code -- tests/disasm
-          test -z "$(git status --porcelain -- tests/disasm)"
+      # D-141: vendor/spim과 hcs-asm은 지웠다. SPIM 결과(디스어셈블러 골든, 실행 오라클, 메모리 배치)는
+      # tests/disasm, tests/spim-oracle 등에 굳혀 두었고 Gradle 테스트가 그 파일과 대조한다.
       - name: Gradle build and tests
         run: ./gradlew --no-daemon build
       # Z-24(D-138): 두 트랙 공용 로더·디스어셈블러와 ProgramLoader의 돌연변이 테스트. 죽인 비율이 95% 아래면 실패한다
@@ -62,7 +56,6 @@ jobs:
           name: linux-build
           path: |
             lib-mips/build/libs/hcs-mips.jar
-            native/hcs-asm/build/hcs-asm
 
   # Hallym Circuit Studio 2의 화면(electron/, D-133·D-135). 엔진은 가짜 엔진(electron/tests/fake-engine)으로 시험한다.
   electron:
@@ -101,32 +94,14 @@ jobs:
           name: electron-e2e
           path: electron/test-results/
 
-  # hcs-asm.exe: MSYS2 MinGW g++로 정적 링크한다. SPIM 원본 CPU/는 그대로 컴파일한다.
+  # Windows: 포장(jpackage zip)과 포장한 런타임으로 실제 실행. hcs-asm.exe 빌드는 D-141에서 없어졌다.
   windows:
     runs-on: windows-2022
     defaults:
       run:
-        shell: msys2 {0}
+        shell: pwsh
     steps:
       - uses: actions/checkout@v4
-      - uses: msys2/setup-msys2@v2
-        with:
-          msystem: UCRT64
-          update: false
-          install: >-
-            mingw-w64-ucrt-x86_64-gcc
-            mingw-w64-ucrt-x86_64-python
-            make
-            bison
-            flex
-      - name: Build hcs-asm.exe
-        run: make -s -C native/hcs-asm -j4 all LDFLAGS=-static
-      - name: hcs-asm golden and QtSpim output match
-        run: python native/hcs-asm/tests/check.py --no-oracle
-      - uses: actions/upload-artifact@v4
-        with:
-          name: windows-build
-          path: native/hcs-asm/build/hcs-asm.exe
       # R-01: jpackage로 JRE 포함 zip(MSI는 배포하지 않는다, D-122). R-02: 푼 zip의 런타임으로 실제 실행(100%·150%) 뒤 화면을 찍는다.
       - uses: actions/setup-java@v4
         with:
@@ -156,21 +131,21 @@ jobs:
           & $java -cp $jar com.cburch.logisim.Main tests/circ/demo-datapath.circ -tty table 2>&1 | Tee-Object -FilePath smoke/tty.txt
           # 원조 -tty table은 머리글 없이 출력 핀 값 줄만 찍는다(halt 핀 → 0/1)
           if (-not (Select-String -Path smoke/tty.txt -Pattern '^[01xE]+\s*$' -Quiet)) { throw "tty output has no value row" }
-      - name: Run the packaged app (first run, .s, 10 cycles, screenshots at 100% and 150%)
+      - name: Run the packaged app (first run, .hmx, 10 cycles, screenshots at 100% and 150%)
         shell: pwsh
         run: |
           $jar = (Get-ChildItem smoke -Recurse -Filter hallym-circuit-studio.jar | Select-Object -First 1).FullName
           javac -encoding UTF-8 -cp $jar -d smoke/classes tools/winsmoke/Smoke.java
           $java = Get-ChildItem smoke -Recurse -Filter java.exe | Select-Object -First 1
           $java = if ($java) { $java.FullName } else { "java" }
-          & $java "-Dsun.java2d.uiScale=1" "-Dhcs.configDir=smoke/config100" "-Djava.util.prefs.userRoot=smoke/prefs100" -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/mips/sum.s smoke/screenshot-100.png
+          & $java "-Dsun.java2d.uiScale=1" "-Dhcs.configDir=smoke/config100" "-Djava.util.prefs.userRoot=smoke/prefs100" -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/hmx/mips/sum.hmx smoke/screenshot-100.png
           if ($LASTEXITCODE -ne 0) { throw "smoke at 100% failed" }
-          & $java "-Dsun.java2d.uiScale=1.5" "-Dhcs.configDir=smoke/config150" "-Djava.util.prefs.userRoot=smoke/prefs150" -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/mips/sum.s smoke/screenshot-150.png
+          & $java "-Dsun.java2d.uiScale=1.5" "-Dhcs.configDir=smoke/config150" "-Djava.util.prefs.userRoot=smoke/prefs150" -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/hmx/mips/sum.hmx smoke/screenshot-150.png
           if ($LASTEXITCODE -ne 0) { throw "smoke at 150% failed" }
           # Y-04(v1.0.3): 튜토리얼이 뜬 첫 실행 화면. 말풍선이 창·작업 영역 안에 들어오고 Next·Close가 보여야 한다
-          & $java "-Dsmoke.mode=tutorial" "-Dsun.java2d.uiScale=1" "-Dhcs.configDir=smoke/config-tut100" "-Djava.util.prefs.userRoot=smoke/prefs-tut100" -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/mips/sum.s smoke/screenshot-tutorial-100.png
+          & $java "-Dsmoke.mode=tutorial" "-Dsun.java2d.uiScale=1" "-Dhcs.configDir=smoke/config-tut100" "-Djava.util.prefs.userRoot=smoke/prefs-tut100" -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/hmx/mips/sum.hmx smoke/screenshot-tutorial-100.png
           if ($LASTEXITCODE -ne 0) { throw "tutorial smoke at 100% failed" }
-          & $java "-Dsmoke.mode=tutorial" "-Dsun.java2d.uiScale=1.5" "-Dhcs.configDir=smoke/config-tut150" "-Djava.util.prefs.userRoot=smoke/prefs-tut150" -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/mips/sum.s smoke/screenshot-tutorial-150.png
+          & $java "-Dsmoke.mode=tutorial" "-Dsun.java2d.uiScale=1.5" "-Dhcs.configDir=smoke/config-tut150" "-Djava.util.prefs.userRoot=smoke/prefs-tut150" -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/hmx/mips/sum.hmx smoke/screenshot-tutorial-150.png
           if ($LASTEXITCODE -ne 0) { throw "tutorial smoke at 150% failed" }
       # X-05(v1.0.2): 러너가 허용하면 1920×1080에서도 첫 실행(빈 환경설정)을 100%·125%로 찍는다. 못 바꾸면 건너뛰고 로그에 남긴다.
       - name: First run at 1920x1080 (100% and 125%, if the runner allows)
@@ -182,11 +157,11 @@ jobs:
           $res = (pwsh tools/winsmoke/set-resolution.ps1 -Width 1920 -Height 1080 | Select-Object -Last 1)
           Write-Host "resolution: $res"
           if ("$res" -like "OK*") {
-            & $java "-Dsun.java2d.uiScale=1" "-Dhcs.configDir=smoke/config1920-100" "-Djava.util.prefs.userRoot=smoke/prefs1920-100" -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/mips/sum.s smoke/screenshot-1920-100.png
+            & $java "-Dsun.java2d.uiScale=1" "-Dhcs.configDir=smoke/config1920-100" "-Djava.util.prefs.userRoot=smoke/prefs1920-100" -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/hmx/mips/sum.hmx smoke/screenshot-1920-100.png
             if ($LASTEXITCODE -ne 0) { throw "smoke at 1920x1080 100% failed" }
-            & $java "-Dsun.java2d.uiScale=1.25" "-Dhcs.configDir=smoke/config1920-125" "-Djava.util.prefs.userRoot=smoke/prefs1920-125" -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/mips/sum.s smoke/screenshot-1920-125.png
+            & $java "-Dsun.java2d.uiScale=1.25" "-Dhcs.configDir=smoke/config1920-125" "-Djava.util.prefs.userRoot=smoke/prefs1920-125" -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/hmx/mips/sum.hmx smoke/screenshot-1920-125.png
             if ($LASTEXITCODE -ne 0) { throw "smoke at 1920x1080 125% failed" }
-            & $java "-Dsmoke.mode=tutorial" "-Dsun.java2d.uiScale=1.25" "-Dhcs.configDir=smoke/config-tut1920-125" "-Djava.util.prefs.userRoot=smoke/prefs-tut1920-125" -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/mips/sum.s smoke/screenshot-tutorial-1920-125.png
+            & $java "-Dsmoke.mode=tutorial" "-Dsun.java2d.uiScale=1.25" "-Dhcs.configDir=smoke/config-tut1920-125" "-Djava.util.prefs.userRoot=smoke/prefs-tut1920-125" -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/hmx/mips/sum.hmx smoke/screenshot-tutorial-1920-125.png
             if ($LASTEXITCODE -ne 0) { throw "tutorial smoke at 1920x1080 125% failed" }
           } else {
             Write-Host "::notice::1920x1080 first-run scenes skipped: $res"
@@ -250,5 +225,5 @@ jobs:
           gh release create "$GITHUB_REF_NAME" --draft --verify-tag \
             --title "Hallym Circuit Studio $GITHUB_REF_NAME" \
             --notes-file docs/RELEASE-NOTES.md \
-            dist/*.zip dist/hcs-mips.jar dist/hcs-asm dist/hcs-asm.exe dist/hcs-mips-guide-ko.md \
+            dist/*.zip dist/hcs-mips.jar dist/hcs-mips-guide-ko.md \
             dist-in/windows-package/*.zip

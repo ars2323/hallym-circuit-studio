@@ -32,8 +32,9 @@ import kr.ac.hallym.hcs.app.record.Recording;
 import kr.ac.hallym.hcs.app.record.RecordingTestSupport;
 
 /**
- * C-02 사이클 표 모델: ref-mips가 tests/record/busy-loop.s를 도는 기록에서 열마다 PC와 명령어 글(학생이 쓴 .s 줄,
- * 없으면 디스어셈블), 고른 신호의 값·바뀜을 읽는다. Instruction Memory는 따로 지정하지 않아도 찾는다.
+ * C-02 사이클 표 모델: ref-mips가 tests/record/busy-loop.s의 실행 이미지(tests/hmx/record/busy-loop.hmx)를 도는
+ * 기록에서 열마다 PC와 명령어 글(디스어셈블, 분기 목적지에 이미지 기호의 라벨), 고른 신호의 값·바뀜을 읽는다.
+ * Instruction Memory는 따로 지정하지 않아도 찾는다. .hmx에는 워드마다 원래 줄이 없어 .s 줄은 보이지 않는다(D-141).
  */
 class CycleModelTest {
     @TempDir
@@ -42,21 +43,21 @@ class CycleModelTest {
     @Test
     void columnsShowPcAndTheSourceLine() throws Exception {
         LogisimFile file = RecordingTestSupport.openRefMips(tmp);
-        Path s = RecordingTestSupport.program("record/busy-loop.s");
+        Path s = RecordingTestSupport.program("hmx/record/busy-loop.hmx");
         RecordingTestSupport.load(file, s);
         Circuit main = file.getMainCircuit();
         CycleModel.Cpu cpu = CycleModel.findCpu(main);
         assertNotNull(cpu, "Instruction Memory found without marking it");
         assertTrue(cpu.path.isEmpty());
 
-        // .s를 .circ 옆에 두고 Instruction Memory의 source 속성에 상대 경로로(메뉴의 .s 불러오기와 같다)
+        // .hmx를 .circ 옆에 두고 Instruction Memory의 source 속성에 상대 경로로(메뉴의 Load Program과 같다)
         File circ = file.getLoader().getMainFile();
-        File copy = new File(circ.getParentFile(), "busy-loop.s");
+        File copy = new File(circ.getParentFile(), "busy-loop.hmx");
         Files.copy(s, copy.toPath());
         @SuppressWarnings("unchecked")
         Attribute<Object> src = (Attribute<Object>) cpu.imem.getAttributeSet().getAttribute("source");
         CircuitMutation m = new CircuitMutation(main);
-        m.set(cpu.imem, src, "busy-loop.s");
+        m.set(cpu.imem, src, "busy-loop.hmx");
         m.execute();
         assertEquals(copy.getCanonicalFile(), CycleModel.sourceFile(cpu, circ).getCanonicalFile());
 
@@ -76,12 +77,15 @@ class CycleModelTest {
         assertEquals(0, withSource.firstCycle());
         assertEquals(30, withSource.lastCycle());
         assertEquals("0x00400024", withSource.pcText(0)); // entry: main after the start code (D-126)
-        assertEquals("main: li $t0, 0", withSource.instructionText(0), "the line as written, label included");
+        assertEquals(Integer.valueOf(0x00400024), withSource.source().addresses().get("main"), "labels from the image");
+        assertEquals("inner", withSource.source().label(0x00400030));
+        assertEquals(null, withSource.source().line(0x00400024), ".hmx has no source lines");
+        assertEquals("ori $t0, $zero, 0", withSource.instructionText(0), "disassembly: main: li $t0, 0");
         assertEquals("0x00400028", withSource.pcText(1));
-        assertEquals("outer: li $t1, 0", withSource.instructionText(1));
-        // la arr(0x10010000)는 아래 절반이 0이라 SPIM이 lui 하나로 바꾼다: 그 워드도 원래 줄로 보인다
-        assertEquals("la $s0, arr", withSource.instructionText(2));
-        assertEquals("inner: sw $t1, 0($s0)", withSource.instructionText(3));
+        assertEquals("ori $t1, $zero, 0", withSource.instructionText(1));
+        // la arr(0x10010000)는 아래 절반이 0이라 SPIM이 lui 하나로 바꾼다
+        assertEquals("lui $s0, 0x1001", withSource.instructionText(2));
+        assertEquals("sw $t1, 0($s0)", withSource.instructionText(3));
         // 분기 뒤: bne가 inner로 돌아간다(PC가 줄어든다)
         int back = -1;
         for (int c = 1; c <= 30; c++) {
@@ -91,12 +95,17 @@ class CycleModelTest {
             }
         }
         assertTrue(back > 0, "the loop branches back");
-        assertEquals("inner: sw $t1, 0($s0)", withSource.instructionText(back));
+        assertEquals("sw $t1, 0($s0)", withSource.instructionText(back));
+        assertEquals("bne $t4, $zero, inner", withSource.instructionText(back - 1), "branch target from the image's label");
 
-        // .s가 없으면 디스어셈블
+        // 프로그램 파일이 없으면 라벨 없는 디스어셈블. 옛 .s 경로는 읽지 않는다(D-141)
         CycleModel bare = new CycleModel(main, r, cpu, null);
         assertEquals("ori $t0, $zero, 0", bare.instructionText(0));
         assertEquals("lui $s0, 0x1001", bare.instructionText(2));
+        assertTrue(bare.instructionText(back - 1).startsWith("bne $t4, $zero, 0x"), bare.instructionText(back - 1));
+        File oldSource = new File(circ.getParentFile(), "busy-loop.s");
+        Files.copy(RecordingTestSupport.program("record/busy-loop.s"), oldSource.toPath());
+        assertTrue(ProgramSource.of(oldSource) == ProgramSource.EMPTY, "a .s path is not read");
 
         // 신호 줄: 터널 pc의 넷. 이름은 터널 이름, 값은 열마다 PC와 같고 바뀐 열을 안다
         Component pcTunnel = null;

@@ -1,0 +1,39 @@
+HALLYM-EXEC 1
+# hcs-asm -exception으로 만들어 굳힌 시험 이미지(D-126, D-141): 기계어는 SPIM 9.1.24 그대로
+source        ../../record/busy-loop.s
+source-sha256 4bdb91b55cd36024dab842c67370b1235e104b9ed8ec20a485a35518c511d2ed
+produced-by   hcs-asm 0.1.0 -exception
+endian        little
+
+entry         0x00400024
+
+symbol arr    0x10010000
+symbol inner  0x00400030
+symbol main   0x00400024
+symbol outer  0x00400028
+
+.text 0x00400000 words 21
+8fa40000
+27a50004
+24a60004
+00041080
+00c23021
+0c100009
+00000000
+3402000a
+0000000c
+34080000
+34090000
+3c101001
+ae090000
+8e0a0000
+016a5820
+22100004
+21290001
+292c0064
+1580fffa
+21080001
+0810000a
+
+.data 0x10010000 bytes 400
+zero 400

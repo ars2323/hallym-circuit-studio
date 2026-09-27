@@ -283,11 +283,11 @@ class ProgramLoaderTest {
         assertFalse(broken.ok());
         assertNull(broken.image);
         assertEquals(2, broken.errors.size(), broken.errors.toString());
-        ProgramLoader.Loaded good = ProgramLoader.read(AssemblerIntegrationTest.TESTS.resolve("hmx/example.hmx").toFile());
+        ProgramLoader.Loaded good = ProgramLoader.read(ProgramLoadIntegrationTest.TESTS.resolve("hmx/example.hmx").toFile());
         assertTrue(good.ok());
         good.errors.add("later");
         assertFalse(good.ok(), "an error makes it not ok even with an image");
-        ProgramLoader.Loaded plain = ProgramLoader.read(AssemblerIntegrationTest.TESTS.resolve("hmx/comments.hmx").toFile());
+        ProgramLoader.Loaded plain = ProgramLoader.read(ProgramLoadIntegrationTest.TESTS.resolve("hmx/comments.hmx").toFile());
         assertEquals(List.of("Executable image comments.hmx"), plain.notes, "no produced-by, no assembled");
     }
 

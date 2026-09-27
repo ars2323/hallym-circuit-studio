@@ -16,7 +16,7 @@ import com.cburch.logisim.tools.MenuExtender;
 
 /**
  * Instruction Memory(PLAN.md 6.2). 입력 {@code Addr}(32), 출력 {@code Instr}(32). 클럭 없는 읽기 전용이다.
- * 내용은 {@code contents} 속성(.s의 .text)이고 .circ에 저장된다.
+ * 내용은 {@code contents} 속성(실행 이미지 .hmx의 .text)이고 .circ에 저장된다.
  */
 final class InstructionMemory extends MemoryFactory {
     static final int ADDR = 0;
@@ -44,7 +44,7 @@ final class InstructionMemory extends MemoryFactory {
         state.setPort(INSTR, out, DELAY);
     }
 
-    /** 우클릭 메뉴 ".s 프로그램 불러오기"(PLAN.md 6.3). */
+    /** 우클릭 메뉴 "Load Program..."(PLAN.md 6.3, .hmx만, D-141). */
     @Override
     protected Object getInstanceFeature(Instance instance, Object key) {
         if (key == MenuExtender.class && true) {

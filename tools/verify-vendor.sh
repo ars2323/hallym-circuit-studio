@@ -9,9 +9,9 @@ cd "$root/vendor"
 sha256sum --quiet -c "$sums"
 
 expected="$(cut -c67- "$sums" | sort)"
-# 원본 옆에 우리가 둔 출처 기록(D-130). 이 둘만 허용하고, 없으면 실패한다
-origins="logisim-2.7.1/ORIGIN.md
-spim-9.1.24/ORIGIN.md"
+# 원본 옆에 우리가 둔 출처 기록(D-130). 이것만 허용하고, 없으면 실패한다.
+# vendor/spim-9.1.24는 사용자 결정으로 지웠다(D-141). 다시 생기면 체크섬에 없는 파일이라 실패한다.
+origins="logisim-2.7.1/ORIGIN.md"
 while IFS= read -r o; do
   [ -f "$o" ] || { echo "출처 기록이 없다: vendor/$o" >&2; exit 1; }
 done <<< "$origins"

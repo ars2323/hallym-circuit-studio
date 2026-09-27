@@ -28,7 +28,7 @@ import kr.ac.hallym.hcs.app.record.Recording;
 /**
  * 사이클 표의 모델(C-02, PLAN.md 5.1). 열 하나가 한 사이클이다: 열 c는 사이클 c가 끝난 뒤(스텝 2c, 상태 표시줄의
  * "Cycle c"와 같다) 회로의 값이다. 머리는 PC와 명령어로, Instruction Memory의 Addr 입력과 Instr 출력이다(PLAN.md
- * 5.3, 따로 지정할 필요가 없다). 명령어 글은 학생이 쓴 .s의 원래 줄이고, .s가 없으면 디스어셈블이다. 줄은 사용자가
+ * 5.3, 따로 지정할 필요가 없다). 명령어 글은 원래 줄이 있으면 그 줄이고, 없으면 라벨을 붙인 디스어셈블이다(.hmx에는 원래 줄이 없다, D-141). 줄은 사용자가
  * 고른 신호다. GUI 없이 테스트한다.
  */
 public final class CycleModel {
@@ -155,7 +155,7 @@ public final class CycleModel {
     }
 
     /**
-     * 명령어 글: .s의 원래 줄, 없으면 디스어셈블. PC나 명령어가 정해지지 않았으면 빈 글. 한 줄이 워드 여럿으로
+     * 명령어 글: 원래 줄(ProgramSource에 있을 때), 없으면 디스어셈블. PC나 명령어가 정해지지 않았으면 빈 글. 한 줄이 워드 여럿으로
      * 바뀐 의사 명령어(la 등)는 같은 줄이 이어서 보인다.
      */
     public String instructionText(int cycle) {
@@ -239,7 +239,7 @@ public final class CycleModel {
         return null;
     }
 
-    /** Instruction Memory가 불러온 .s 파일(속성 source는 .circ 파일 기준 상대 경로일 수 있다). 없으면 null. */
+    /** Instruction Memory가 불러온 프로그램 파일(.hmx, 속성 source는 .circ 파일 기준 상대 경로일 수 있다). 없으면 null. */
     public static File sourceFile(Cpu cpu, File circFile) {
         if (cpu == null) {
             return null;

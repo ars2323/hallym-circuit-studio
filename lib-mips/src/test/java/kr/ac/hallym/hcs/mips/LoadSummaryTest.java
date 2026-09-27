@@ -73,7 +73,7 @@ class LoadSummaryTest {
     /** Z-01의 예: 명세 예시 이미지의 요약 줄. */
     @Test
     void summaryStatesTheExactRegionAndAmount() throws Exception {
-        ProgramLoader.Loaded l = ProgramLoader.read(AssemblerIntegrationTest.TESTS.resolve("hmx/example.hmx").toFile());
+        ProgramLoader.Loaded l = ProgramLoader.read(ProgramLoadIntegrationTest.TESTS.resolve("hmx/example.hmx").toFile());
         assertEquals(List.of(), l.errors);
         assertEquals("Executable image example.hmx, Hallym MIPS 2.2.0, 2026-09-27T13:15+09:00", l.notes.get(0));
         InProcessSim sim = new InProcessSim();
@@ -94,7 +94,7 @@ class LoadSummaryTest {
         assertTrue(plan.warnings.isEmpty());
         // 요약 창 글: 노란 줄은 바탕색 div
         ProgramLoader.Loaded changed = ProgramLoader.read(
-                AssemblerIntegrationTest.TESTS.resolve("hmx/source-changed.hmx").toFile());
+                ProgramLoadIntegrationTest.TESTS.resolve("hmx/source-changed.hmx").toFile());
         ProgramLoader.Plan warn = ProgramLoader.plan(changed, sim.file.getCircuits(), null, null, "x.hmx");
         assertEquals(1, warn.warnings.size());
         String html = LoadProgramMenu.summaryHtml(warn);
@@ -136,7 +136,7 @@ class LoadSummaryTest {
                     assertTrue(ch.target.component.getFactory() instanceof MemoryFactory, "only memory parts change");
                 }
                 // 예외 처리기 없이 어셈블한 이미지(Hallym MIPS no-handler.hmx): 처리기 사실 줄, jr $ra 줄은 없다
-                ProgramLoader.Loaded nh = ProgramLoader.read(AssemblerIntegrationTest.TESTS.resolve(
+                ProgramLoader.Loaded nh = ProgramLoader.read(ProgramLoadIntegrationTest.TESTS.resolve(
                         "hmx/hallym-mips-v2.4.0/no-handler.hmx").toFile());
                 ProgramLoader.Plan noHandler = ProgramLoader.plan(nh, sim.file.getCircuits(), null, null, "nh.hmx");
                 assertEquals(List.of(), noHandler.errors);
@@ -154,46 +154,65 @@ class LoadSummaryTest {
         }
     }
 
-    /** 트랙 A 우클릭 메뉴: "Load Program...", 불러온 뒤 "Reload 파일 이름", 파일 고르기 거르개(.hmx, 전환용 .s). */
+    static List<String> items(com.cburch.logisim.comp.Component c) {
+        javax.swing.JPopupMenu menu = new javax.swing.JPopupMenu();
+        ((LoadProgramMenu) c.getFeature(com.cburch.logisim.tools.MenuExtender.class)).configureMenu(menu, null);
+        List<String> items = new java.util.ArrayList<>();
+        for (java.awt.Component x : menu.getComponents()) {
+            if (x instanceof javax.swing.JMenuItem) {
+                items.add(((javax.swing.JMenuItem) x).getText());
+            }
+        }
+        return items;
+    }
+
+    /**
+     * 트랙 A 우클릭 메뉴: "Load Program...", .hmx를 불러온 뒤 "Reload 파일 이름". 파일 고르기 창은 .hmx 거르개 하나뿐이다
+     * ("모든 파일"도 없다, D-141). 옛 source가 .s면 Reload 대신 "Load .hmx for 이름.s..."이고, 그 안내는 사실과 할 일,
+     * 속성 값이며, 고르기 창은 같은 이름의 .hmx를 골라 둔다.
+     */
     @Test
-    void menuIsLoadProgramWithImageAndTransitionFilters() throws Exception {
+    void menuIsLoadProgramWithTheImageFilterOnly() throws Exception {
         InProcessSim sim = new InProcessSim();
         com.cburch.logisim.comp.Component im = sim.b.add(sim.mips, "Instruction Memory", 400, 200);
         sim.b.commit();
-        Object ext = im.getFeature(com.cburch.logisim.tools.MenuExtender.class);
-        assertTrue(ext instanceof LoadProgramMenu);
-        javax.swing.JPopupMenu menu = new javax.swing.JPopupMenu();
-        ((LoadProgramMenu) ext).configureMenu(menu, null);
-        List<String> items = new java.util.ArrayList<>();
-        for (java.awt.Component c : menu.getComponents()) {
-            if (c instanceof javax.swing.JMenuItem) {
-                items.add(((javax.swing.JMenuItem) c).getText());
-            }
-        }
-        assertEquals(List.of("Load Program..."), items);
+        assertTrue(im.getFeature(com.cburch.logisim.tools.MenuExtender.class) instanceof LoadProgramMenu);
+        assertEquals(List.of("Load Program..."), items(im));
         im.getAttributeSet().setValue(MemoryFactory.SOURCE, "asm/lab04.hmx");
-        javax.swing.JPopupMenu again = new javax.swing.JPopupMenu();
-        ((LoadProgramMenu) im.getFeature(com.cburch.logisim.tools.MenuExtender.class)).configureMenu(again, null);
-        assertEquals("Reload lab04.hmx", ((javax.swing.JMenuItem) again.getComponent(2)).getText());
+        assertEquals(List.of("Load Program...", "Reload lab04.hmx"), items(im));
         assertEquals("Program", MemoryFactory.SOURCE.getDisplayName());
-
-        javax.swing.JFileChooser chooser = new javax.swing.JFileChooser();
-        javax.swing.filechooser.FileNameExtensionFilter hmx = new javax.swing.filechooser.FileNameExtensionFilter(
-                "Executable image (*.hmx)", "hmx");
-        chooser.setFileFilter(hmx);
-        AssemblyTransition.addFilters(chooser, hmx);
-        java.io.File dir = AssemblerIntegrationTest.TESTS.toFile();
-        javax.swing.filechooser.FileFilter both = chooser.getFileFilter();
-        assertTrue(both.accept(new java.io.File(dir, "hmx/example.hmx")) && both.accept(new java.io.File(dir, "mips/sum.s")),
-                "the default filter shows .hmx and .s during the transition");
-        assertTrue(hmx.accept(new java.io.File(dir, "hmx/example.hmx")));
-        assertFalse(hmx.accept(new java.io.File(dir, "mips/sum.s")));
-        List<String> names = new java.util.ArrayList<>();
-        for (javax.swing.filechooser.FileFilter f : chooser.getChoosableFileFilters()) {
-            names.add(f.getDescription());
+        // 옛 파일: source가 .s(.asm, 대소문자 무관)
+        im.getAttributeSet().setValue(MemoryFactory.SOURCE, "prog/sum.s");
+        assertEquals(List.of("Load Program...", "Load .hmx for sum.s..."), items(im));
+        im.getAttributeSet().setValue(MemoryFactory.SOURCE, "C:\\lab\\LAB04.ASM");
+        assertEquals(List.of("Load Program...", "Load .hmx for LAB04.ASM..."), items(im));
+        Locale old = LocaleManager.getLocale();
+        try {
+            LocaleManager.setLocale(Locale.ENGLISH);
+            assertEquals("This file points to a .s file. Load the file exported with Export executable image (.hmx) in"
+                    + " Hallym MIPS.\nProgram: prog/sum.s", LoadProgramMenu.replaceMessage("prog/sum.s"));
+            assertEquals(kr.ac.hallym.hcs.mips.image.AssemblySource.FACT.get(Text.korean()) + "\nProgram: prog/sum.s",
+                    LoadProgramMenu.replaceMessage("prog/sum.s"), "the sentence follows the language setting");
+            assertEquals("Load .hmx for sum.s...", LoadProgramMenu.replaceLabel("sum.s"), "menu names stay English");
+        } finally {
+            LocaleManager.setLocale(old);
         }
-        assertTrue(names.contains("Executable image (*.hmx)") && names.contains("MIPS assembly, transition (*.s, *.asm)"),
-                names.toString());
+
+        java.io.File dir = ProgramLoadIntegrationTest.TESTS.toFile();
+        javax.swing.JFileChooser chooser = LoadProgramMenu.chooser(new java.io.File(dir, "hmx"), null);
+        javax.swing.filechooser.FileFilter[] filters = chooser.getChoosableFileFilters();
+        assertEquals(1, filters.length, "only the executable image filter");
+        assertFalse(chooser.isAcceptAllFileFilterUsed());
+        assertEquals("Executable image (*.hmx)", filters[0].getDescription());
+        assertTrue(filters[0].accept(new java.io.File(dir, "hmx/example.hmx")));
+        assertFalse(filters[0].accept(new java.io.File(dir, "mips/sum.s")));
+        assertFalse(filters[0].accept(new java.io.File(dir, "asm/branches.asm")));
+        // 옛 .s 옆의 같은 이름 .hmx를 골라 둔다(없으면 고르지 않는다)
+        java.io.File mips = new java.io.File(dir, "hmx/mips");
+        java.io.File sum = new java.io.File(mips, kr.ac.hallym.hcs.mips.image.AssemblySource.imageName("../../mips/sum.s"));
+        assertEquals("sum.hmx", sum.getName());
+        assertEquals(sum.getAbsoluteFile(), LoadProgramMenu.chooser(mips, sum).getSelectedFile().getAbsoluteFile());
+        assertEquals(null, LoadProgramMenu.chooser(mips, new java.io.File(mips, "none.hmx")).getSelectedFile());
     }
 
     @Test

@@ -2,7 +2,7 @@
 # Oracle: SPIM 9.1.24 (vendor/spim-9.1.24; its CPU/ is byte-identical to Hallym MIPS v2.4.0's CPU/).
 # Made by: spim -exception in an empty environment with the commands load "data.s", run, print_all_regs hex (no program arguments).
 # $sp and the start-up code's $a0-$a2 come from the run stack: with no arguments $sp is 0x7ffffff0; Hallym MIPS passes the file name, so its reg $sp is 0x7fffffe4.
-# Regenerate while vendor/spim exists: ./gradlew :lib-mips:test --tests kr.ac.hallym.hcs.mips.HallymMipsGoldenTest -Phcs.update=true (D-138).
+# Made and checked against SPIM at commit 5bde1ea (D-138). Frozen before vendor/spim-9.1.24 was removed (D-141): this file is the oracle.
 $zero 00000000
 $at 10010000
 $v0 0000000a

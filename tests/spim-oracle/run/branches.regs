@@ -1,0 +1,41 @@
+# RefMipsTest oracle for tests/mips/branches.s (image tests/hmx/mips/branches.hmx): SPIM 9.1.24 run from main.
+# Made by: spim -exception (vendor/spim-9.1.24 built with make -C native/hcs-asm oracle, commit dfd8fd2) with the commands
+#   load "branches.s", run 0x00400024, print_all_regs hex, and print <addr> for every .data word of the image.
+# Registers, hi, lo, the .data words (mem <addr> <word>) and the console output after the run, in an empty
+# environment. $a1, $a2 and $gp are SPIM's run-stack presets: compared only when the program writes them.
+# Frozen before vendor/spim-9.1.24 and hcs-asm were removed (D-141): this file is now the oracle.
+$zero 00000000
+$at 00000001
+$v0 0000000a
+$v1 00000000
+$a0 00000064
+$a1 00000000
+$a2 00000000
+$a3 00000000
+$t0 00000000
+$t1 fffffffe
+$t2 00000000
+$t3 00000000
+$t4 00000000
+$t5 00000000
+$t6 00000000
+$t7 00000000
+$s0 00000000
+$s1 00000000
+$s2 00000000
+$s3 00000000
+$s4 00000000
+$s5 00000000
+$s6 00000000
+$s7 00000000
+$t8 00000000
+$t9 00000000
+$k0 00000000
+$k1 00000000
+$gp 10008000
+$sp 7fffeffc
+$fp 00000000
+$ra 00000000
+hi 00000000
+lo 00000000
+console "aaabcd"

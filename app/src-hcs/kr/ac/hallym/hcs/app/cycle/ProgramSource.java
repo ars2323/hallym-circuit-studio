@@ -7,22 +7,20 @@ package kr.ac.hallym.hcs.app.cycle;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+
+import kr.ac.hallym.hcs.mips.disasm.Disassembler;
+import kr.ac.hallym.hcs.mips.image.AssemblySource;
+import kr.ac.hallym.hcs.mips.image.HmxParser;
 
 /**
- * 불러온 .s의 주소 → 원래 줄(C-02 사이클 표 머리, PLAN.md 5.1: 학생이 쓴 줄 그대로, 라벨·주석 포함). hcs-asm을
- * 다시 돌려 주소와 줄 번호, 라벨을 얻는다(기계어는 QtSpim 그대로, D-010). 파일이 바뀌지 않았으면 다시 돌리지 않는다.
- * .s가 없거나 어셈블할 수 없으면 비어 있다(머리는 디스어셈블로).
+ * 불러온 프로그램의 주소 → 원래 줄과 라벨(C-02 사이클 표 머리, PLAN.md 5.1). 불러오는 것은 실행 이미지(.hmx)이고
+ * (D-141) .hmx에는 워드마다 원래 줄 번호가 없어(hmx-feedback.md) 줄은 비어 있고 라벨만 이미지의 기호에서 얻는다. 머리는
+ * 라벨을 붙인 디스어셈블이다. .s 경로(옛 파일)나 읽을 수 없는 이미지면 비어 있다. 파일이 바뀌지 않았으면 다시 읽지 않는다.
  */
 public final class ProgramSource {
     public static final ProgramSource EMPTY = new ProgramSource(null, Collections.emptyMap(),
@@ -83,7 +81,7 @@ public final class ProgramSource {
         return Collections.unmodifiableMap(addrByLabel);
     }
 
-    /** source(.s)를 읽는다. 같은 파일·수정 시각이면 앞 결과를 쓴다. 실패하면 EMPTY. */
+    /** source(.hmx)를 읽는다. 같은 파일·수정 시각이면 앞 결과를 쓴다. 실패하면 EMPTY. */
     public static synchronized ProgramSource of(File source) {
         if (source == null || !source.isFile()) {
             return EMPTY;
@@ -98,55 +96,19 @@ public final class ProgramSource {
     }
 
     static ProgramSource load(File source) {
-        File exe = kr.ac.hallym.hcs.app.BundledLibraries.hcsAsm();
-        if (exe == null || !ProgramReload.isAssembly(source)) {
-            return EMPTY; // .hmx에는 원래 줄이 없다(머리는 디스어셈블로)
+        if (AssemblySource.isAssembly(source.getName())) {
+            return EMPTY; // 옛 파일의 .s 경로: 읽지 않는다(D-141)
         }
+        HmxParser.Result r;
         try {
-            // 불러오기와 같은 Hallym MIPS 배치(-exception, D-126): 주소가 메모리의 워드와 맞는다
-            Process proc = new ProcessBuilder(exe.getPath(), "-exception", source.getPath()).redirectErrorStream(false)
-                    .start();
-            proc.getOutputStream().close();
-            byte[] out = proc.getInputStream().readAllBytes();
-            if (!proc.waitFor(30, TimeUnit.SECONDS)) {
-                proc.destroyForcibly();
-                return EMPTY;
-            }
-            List<String> lines = new ArrayList<>(Files.readAllLines(source.toPath(), StandardCharsets.UTF_8));
-            return parse(source, new String(out, StandardCharsets.UTF_8), lines);
+            r = HmxParser.read(source);
         } catch (IOException e) {
             return EMPTY;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return EMPTY;
         }
-    }
-
-    /** hcs-asm의 JSON에서 text 칸의 주소·줄 번호와 labels를 읽는다. */
-    static ProgramSource parse(File source, String json, List<String> lines) {
-        Map<Integer, Integer> byAddr = new HashMap<>();
-        int t = json.indexOf("\"text\"");
-        if (t >= 0) {
-            int end = json.indexOf(']', t);
-            Matcher m = Pattern.compile("\"addr\":\\s*\"0x([0-9a-fA-F]+)\"[^}]*?\"line\":\\s*(\\d+)")
-                    .matcher(json.substring(t, end < 0 ? json.length() : end));
-            while (m.find()) {
-                byAddr.put((int) Long.parseLong(m.group(1), 16), Integer.parseInt(m.group(2)));
-            }
+        if (!r.ok() || r.image.symbols().isEmpty()) {
+            return EMPTY; // 읽을 수 없는 이미지, 기호 없는 이미지
         }
-        Map<Integer, String> labels = new HashMap<>();
-        int l = json.indexOf("\"labels\"");
-        if (l >= 0) {
-            int end = json.indexOf('}', l);
-            Matcher m = Pattern.compile("\"([^\"]+)\":\\s*\"0x([0-9a-fA-F]+)\"")
-                    .matcher(json.substring(l + 8, end < 0 ? json.length() : end));
-            while (m.find()) {
-                labels.putIfAbsent((int) Long.parseLong(m.group(2), 16), m.group(1));
-            }
-        }
-        if (byAddr.isEmpty()) {
-            return EMPTY;
-        }
-        return new ProgramSource(source, byAddr, labels, lines);
+        return new ProgramSource(source, Collections.<Integer, Integer>emptyMap(),
+                new HashMap<>(Disassembler.byAddress(r.image.symbols())), Collections.<String>emptyList());
     }
 }

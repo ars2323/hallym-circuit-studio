@@ -13,7 +13,7 @@
 | 속성 이름과 값(Data Bits, Facing, East …) | 대화 상자의 안내 문장, 오류 문장 |
 | 우클릭 메뉴와 맨 위 요약 줄(`Adder · 32 bits`) | 단축키 표의 "설명" 칸 |
 | 부품 몸체 제목과 상태 글자(Instruction Memory, Data Memory, Stack, Console, `-- exit --`) | 첫 실행 안내, 빈 화면 안내 |
-| 검색 결과, 단축키 이름, 대화 상자 제목 | .s 불러오기 요약의 문장 |
+| 검색 결과, 단축키 이름, 대화 상자 제목 | 불러오기 요약의 문장 |
 
 경계에 있는 것:
 - 포트 설명은 "포트 이름: 설명" 모양이다. 포트 이름은 영어, 설명은 한국어다(`Clock: 트리거가 오면 상태가 바뀝니다`).
@@ -53,7 +53,7 @@
 | Data Memory | 데이터 메모리 |
 | Stack, Console | |
 | Radix Probe | 다중 진법 프로브 |
-| Load Program..., Load .s, Reload | 프로그램 불러오기, .s 프로그램 불러오기 |
+| Load Program..., Load .hmx for …, Reload | 프로그램 불러오기, .s 프로그램 불러오기 |
 | Executable image (*.hmx) | 목적 파일, 오브젝트 파일 |
 | 1 Cycle, N Cycles, Reset, Run | |
 | Quick Attributes, All Attributes | 빠른 속성 |

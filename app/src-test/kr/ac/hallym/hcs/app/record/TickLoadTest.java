@@ -178,7 +178,7 @@ class TickLoadTest {
     @Tag("timing") // 제한 시간 안에 끝까지 돌아야 한다: 상수 identity hash 실행에서는 뺀다(D-129)
     void consoleOutputIsCompleteWhenTheClockRunsFast() throws Exception {
         LogisimFile file = RecordingTestSupport.openRefMips(tmp);
-        RecordingTestSupport.load(file, RecordingTestSupport.program("mips/factorial.s"));
+        RecordingTestSupport.load(file, RecordingTestSupport.program("hmx/mips/factorial.hmx"));
         Component console = null;
         for (Component c : file.getMainCircuit().getNonWires()) {
             if (c.getFactory().getName().equals("Console")) {

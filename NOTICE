@@ -28,15 +28,22 @@ Logisim 2.7.1
             original file carries a "// HCS:" comment)
 
 --------------------------------------------------------------------------
-SPIM 9.1.24
+SPIM 9.1.24 output (test data only)
   Copyright (c) 1990-2023, James R. Larus. All rights reserved.
-  License: BSD 3-Clause (see vendor/spim-9.1.24/README)
-  Source:  https://sourceforge.net/projects/spimsimulator/ (Subversion r764,
-           identical to tag vanilla-9.1.24 of ars2323/hallym-mips-simulator)
-  Location: vendor/spim-9.1.24/ (original source, unmodified; ORIGIN.md there)
-  Used only through the separate executable hcs-asm (native/hcs-asm/),
-  which is itself BSD 3-Clause licensed (native/hcs-asm/LICENSE).
-  SPIM code is not linked into or copied into any GPL-licensed code.
+  License: BSD 3-Clause (text in tests/spim-oracle/LICENSE)
+  Source:  https://sourceforge.net/projects/spimsimulator/ (Subversion r764)
+  No SPIM code is in this repository or in any distributed program. The
+  command-line assembler hcs-asm (native/hcs-asm/) and the vendored SPIM
+  source (vendor/spim-9.1.24/) were removed (D-141): programs are
+  assembled in Hallym MIPS and loaded as executable images (.hmx). What
+  remains is output that SPIM produced before the removal, kept as test
+  data: disassembler goldens (tests/disasm/, including listings of SPIM's
+  own helloworld.s and Tests/tt.core.s), run, listing and memory-layout
+  oracles (tests/spim-oracle/, tests/hmx/hallym-mips-v2.4.0/*.regs),
+  hcs-asm output (tests/asm/*.json) and test images (tests/hmx/asm/,
+  tests/hmx/mips/, tests/hmx/record/) whose start-up code comes from
+  SPIM's exceptions.s.
+  Location: tests/ (test data only; not part of the distributed program)
 
 --------------------------------------------------------------------------
 Pretendard 1.3.9

@@ -74,11 +74,8 @@ val testProperties = mapOf(
     "hcs.logisimJar" to logisimJar.absolutePath,
     "hcs.mipsJar" to layout.buildDirectory.file("libs/hcs-mips.jar").get().asFile.absolutePath,
     "hcs.smokeJar" to layout.buildDirectory.file("libs/hcs-smoke.jar").get().asFile.absolutePath,
+    // SPIM의 결과는 tests/spim-oracle 등에 굳혀 둔 파일로 대조한다(vendor/spim과 hcs-asm은 지웠다, D-141)
     "hcs.testsDir" to rootProject.file("tests").absolutePath,
-    // hcs-asm과 원본 spim 오라클은 make -C native/hcs-asm oracle 로 먼저 빌드한다(tools/ci-local.sh 순서).
-    "hcs.asm" to rootProject.file("native/hcs-asm/build/hcs-asm").absolutePath,
-    "hcs.spimOracle" to rootProject.file("native/hcs-asm/build/oracle/spim").absolutePath,
-    "hcs.spimDir" to rootProject.file("vendor/spim-9.1.24").absolutePath,
 )
 
 tasks.test {
@@ -101,17 +98,17 @@ tasks.test {
 }
 
 // Z-24(D-138): 두 트랙 공용 로더·디스어셈블러와 트랙 A 불러오기(ProgramLoader)의 돌연변이 테스트.
-// ./gradlew :lib-mips:pitest (hcs-asm과 spim 오라클을 먼저 빌드). 보고서: lib-mips/build/reports/pitest/index.html.
+// ./gradlew :lib-mips:pitest. 보고서: lib-mips/build/reports/pitest/index.html.
 // 죽인 돌연변이 비율이 문턱보다 낮으면 실패한다(CI Linux).
 pitest {
     pitestVersion = "1.30.0"
     junit5PluginVersion = "1.2.3"
     targetClasses = setOf("kr.ac.hallym.hcs.mips.image.*", "kr.ac.hallym.hcs.mips.disasm.*",
         "kr.ac.hallym.hcs.mips.ProgramLoader*")
-    // 공용 코드의 단위 테스트와 불러오기 테스트. ref-mips를 spim과 대조하는 RefMipsTest 같은 긴 통합 테스트는 넣지 않는다.
+    // 공용 코드의 단위 테스트와 불러오기 테스트. ref-mips를 SPIM 오라클과 대조하는 RefMipsTest 같은 긴 통합 테스트는 넣지 않는다.
     targetTests = setOf("kr.ac.hallym.hcs.mips.image.*", "kr.ac.hallym.hcs.mips.disasm.*",
         "kr.ac.hallym.hcs.mips.ProgramLoaderTest", "kr.ac.hallym.hcs.mips.LoadSummaryTest",
-        "kr.ac.hallym.hcs.mips.HmxConsistencyTest",
+        "kr.ac.hallym.hcs.mips.HmxConsistencyTest", "kr.ac.hallym.hcs.mips.ProgramLoadIntegrationTest",
         "kr.ac.hallym.hcs.mips.HallymMipsGoldenTest", "kr.ac.hallym.hcs.mips.MergedLoadTest")
     threads = 4
     mutationThreshold = 95 // 지금 98.7%(D-138). 남은 8개는 같은 동작(equivalent) 돌연변이다

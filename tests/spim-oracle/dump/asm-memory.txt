@@ -1,0 +1,17 @@
+# spim -noexception -dump -file tests/asm/memory.s: the text segment of text.asm (address, word, text before the ';' source comment).
+# Original SPIM 9.1.24 command line (vendor/spim-9.1.24/spim/spim.cpp built with make -C native/hcs-asm oracle, commit dfd8fd2).
+# Frozen before vendor/spim-9.1.24 and hcs-asm were removed (D-141). Do not edit.
+00400000 3c101001 lui $16, 4097 [arr]
+00400004 8e080000 lw $8, 0($16)
+00400008 8e090004 lw $9, 4($16)
+0040000c 8e0a000c lw $10, 12($16)
+00400010 01095820 add $11, $8, $9
+00400014 016a5820 add $11, $11, $10
+00400018 ae0b0010 sw $11, 16($16)
+0040001c 22110010 addi $17, $16, 16
+00400020 8e2cfffc lw $12, -4($17)
+00400024 ae2c0000 sw $12, 0($17)
+00400028 3c011001 lui $1, 4097
+0040002c 8c2d0010 lw $13, 16($1)
+00400030 3402000a ori $2, $0, 10
+00400034 0000000c syscall

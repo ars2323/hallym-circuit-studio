@@ -1,0 +1,23 @@
+# spim -noexception -dump -file tests/asm/pseudo.s: the text segment of text.asm (address, word, text before the ';' source comment).
+# Original SPIM 9.1.24 command line (vendor/spim-9.1.24/spim/spim.cpp built with make -C native/hcs-asm oracle, commit dfd8fd2).
+# Frozen before vendor/spim-9.1.24 and hcs-asm were removed (D-141). Do not edit.
+00400000 34080005 ori $8, $0, 5
+00400004 3c01ffff lui $1, -1
+00400008 3429fffb ori $9, $1, -5
+0040000c 3c011234 lui $1, 4660
+00400010 342a5678 ori $10, $1, 22136
+00400014 3c0b1001 lui $11, 4097 [val]
+00400018 00086021 addu $12, $0, $8
+0040001c 01006827 nor $13, $8, $0
+00400020 00087022 sub $14, $0, $8
+00400024 0109082a slt $1, $8, $9
+00400028 14200008 bne $1, $0, 32 [done-0x00400028]
+0040002c 0128082a slt $1, $9, $8
+00400030 14200001 bne $1, $0, 4 [next-0x00400030]
+00400034 0128082a slt $1, $9, $8
+00400038 10200004 beq $1, $0, 16 [done-0x00400038]
+0040003c 0109082a slt $1, $8, $9
+00400040 10200002 beq $1, $0, 8 [done-0x00400040]
+00400044 04010001 bgez $0 4 [done-0x00400044]
+00400048 3402000a ori $2, $0, 10
+0040004c 0000000c syscall

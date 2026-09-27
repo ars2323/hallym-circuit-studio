@@ -117,10 +117,11 @@ Component = {
 
 | 메서드 | params | result |
 | --- | --- | --- |
-| `mips.facts` | `{fileId}` | `{facts:[{id, en, ko, components:[componentId]}]}` |
+| `mips.facts` | `{fileId}` | `{facts:[{id, en, ko, components:[componentId], sources?:[글]}]}` |
 
-- `mips.facts`: 파일의 MIPS **사실**(D-140). 진단(Messages)이 아니다: 회로는 동작하고, 도구가 바뀐 사실만 상태 표시줄에 한 줄로 보인다(화면은 N-16/N-17). 문장은 영어(`en`)·한국어(`ko`) 두 벌이고 화면이 언어 설정에 맞춰 고른다. 지금 사실은 하나다.
+- `mips.facts`: 파일의 MIPS **사실**(D-140, D-141). 진단(Messages)이 아니다: 회로는 동작하고, 도구가 바뀐 사실과 할 일만 상태 표시줄에 한 줄로 보인다(화면은 N-16/N-17). 문장은 영어(`en`)·한국어(`ko`) 두 벌이고 화면이 언어 설정에 맞춰 고른다. 파일을 열 때 묻는다.
   - `separateStack`: 파일에 따로 된 옛 Stack 부품이 있다. `ko` = "이 회로는 따로 된 Stack 부품을 씁니다. 새 Data Memory는 스택 영역을 함께 맡습니다.", `components` = 파일 안의 Stack 부품들(모든 회로). 옛 Stack은 전과 똑같이 동작하므로 고치라고 하지 않는다.
+  - `assemblySource`(D-141): MIPS 메모리 부품의 `source` 속성이 .s(.asm, 대소문자 무관)를 가리킨다. .s 불러오기와 hcs-asm은 없어졌다. `ko` = "이 파일은 .s 파일을 가리킵니다. Hallym MIPS에서 Export executable image (.hmx) 단추로 내보낸 파일을 불러오세요.", `en` = "This file points to a .s file. Load the file exported with Export executable image (.hmx) in Hallym MIPS.", `components` = 그 부품들(모든 회로), `sources` = 부품마다 속성 글(`components`와 같은 순서, 예 `"prog/sum.s"`). 속성은 읽기만 하므로 파일은 전과 같이 열리고, 고치지 않으면 같은 바이트로 저장된다. 불러오기(N-16, 트랙 A `ProgramLoader`와 같은 길)가 .hmx를 넣으면 `source`가 그 .hmx 경로(.circ 기준 상대 경로)로 바뀌고 사실이 없어진다. 불러오기에 .s를 넘기면 이미지 없이 같은 문장 하나가 오류로 온다.
 - 사실은 파일 내용에서 나오므로 편집(부품을 지우거나 놓음) 뒤에는 화면이 다시 묻는다.
 - **Memory 표(N-14가 메서드로 싣는다):** 엔진의 `MemoryTable`이 Hallym MIPS Data 탭 같은 한 표를 만든다. 줄은 `{kind:"section"|"words"|"zeros", section:"data"|"stack", part, addr, end}`(주소는 `"0x10010000"` 꼴 글자)에 `words`(칸 네 개 +0·+4·+8·+C, 구간 밖 `null`, 정해지지 않은 칸 `"xxxxxxxx"`), `zeros`의 `count`, `labels:[{addr, names}]`, `pointers:{"$sp": addr}`, 스택 `section`의 `base`·`depth`·`peak`가 붙는다. 데이터 구간은 `0x10010000`부터(그 아래에 값이 있으면 그 줄부터) 영역 끝까지, 스택 구간은 스택 영역 맨 위에서 아래로(높은 주소가 위) 지금 `$sp`·최고 수위·깊이 기준 가운데 가장 낮은 줄까지다. 0이 이어지는 줄들은 한 줄이고, 포인터가 가리키는 줄은 줄이지 않는다. 합친 Data Memory는 두 구간, 옛 구조(스택 영역 없는 Data Memory + Stack)는 부품마다 한 구간이다.
 
@@ -204,4 +205,4 @@ Component = {
 
 ## 6. 확장
 
-진단(Messages), E/X 출처, 영향 경로, Signal Flow, 기록(사이클 표, Registers·Memory·Instruction), MIPS(.hmx·.s 불러오기, 디스어셈블, Console)는 각 N 항목에서 이 문서에 절을 더하며 늘린다. 메서드 이름은 `diag.*`, `trace.*`, `record.*`, `mips.*`로 묶는다(`mips.facts`는 5절에 있다).
+진단(Messages), E/X 출처, 영향 경로, Signal Flow, 기록(사이클 표, Registers·Memory·Instruction), MIPS(.hmx 불러오기, 디스어셈블, Console)는 각 N 항목에서 이 문서에 절을 더하며 늘린다. 메서드 이름은 `diag.*`, `trace.*`, `record.*`, `mips.*`로 묶는다(`mips.facts`는 5절에 있다).

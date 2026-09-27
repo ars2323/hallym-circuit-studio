@@ -1,0 +1,5 @@
+# spim -noexception -dump -file tests/asm/with-handler.s: the text segment of text.asm (address, word, text before the ';' source comment).
+# Original SPIM 9.1.24 command line (vendor/spim-9.1.24/spim/spim.cpp built with make -C native/hcs-asm oracle, commit dfd8fd2).
+# Frozen before vendor/spim-9.1.24 and hcs-asm were removed (D-141). Do not edit.
+00400000 3402000a ori $2, $0, 10
+00400004 0000000c syscall

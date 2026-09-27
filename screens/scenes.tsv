@@ -9,7 +9,7 @@ orig	-	-	tests/circ/demo-datapath.circ,lib-mips/,vendor/
 48	core	48-first-run	app/src-hcs/kr/ac/hallym/hcs/app/window/,app/src-hcs/kr/ac/hallym/hcs/app/tutorial/,tools/screenshots/FirstRun.java
 01	core	01-first-screen	app/src-hcs/kr/ac/hallym/hcs/app/palette/,app/src-hcs/kr/ac/hallym/hcs/app/tutorial/
 02	core	02-demo-fit	app/src-hcs/kr/ac/hallym/hcs/app/labels/,app/src-hcs/kr/ac/hallym/hcs/app/wiring/,app/src-hcs/kr/ac/hallym/hcs/app/zoom/
-11	core	11b-imem,11c-dmem,11d-stack-mid-recursion,11g-console-end	lib-mips/,native/hcs-asm/,app/src-hcs/kr/ac/hallym/hcs/app/sim/
+11	core	11b-imem,11c-dmem,11d-stack-mid-recursion,11g-console-end	lib-mips/,tests/hmx/mips/,app/src-hcs/kr/ac/hallym/hcs/app/sim/
 25	core	25a-cycles-full,25b-cycles-table	app/src-hcs/kr/ac/hallym/hcs/app/cycle/,app/src-hcs/kr/ac/hallym/hcs/app/record/
 27	core	27b-registers-panel	app/src-hcs/kr/ac/hallym/hcs/app/cycle/
 14	core	14a-messages,14b-messages-clicked	app/src-hcs/kr/ac/hallym/hcs/app/diag/

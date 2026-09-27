@@ -42,16 +42,16 @@ class MachineStateTest {
     @Test
     void factorialStackDepthFollowsTheCalls() throws Exception {
         LogisimFile file = RecordingTestSupport.openRefMips(tmp);
-        Path s = RecordingTestSupport.program("mips/factorial.s");
+        Path s = RecordingTestSupport.program("hmx/mips/factorial.hmx");
         RecordingTestSupport.load(file, s);
         Circuit main = file.getMainCircuit();
         CycleModel.Cpu cpu = CycleModel.findCpu(main);
         File circ = file.getLoader().getMainFile();
-        Files.copy(s, new File(circ.getParentFile(), "factorial.s").toPath());
+        Files.copy(s, new File(circ.getParentFile(), "factorial.hmx").toPath());
         @SuppressWarnings("unchecked")
         Attribute<Object> src = (Attribute<Object>) cpu.imem.getAttributeSet().getAttribute("source");
         CircuitMutation m = new CircuitMutation(main);
-        m.set(cpu.imem, src, "factorial.s");
+        m.set(cpu.imem, src, "factorial.hmx");
         m.execute();
 
         Project proj = new Project(file);

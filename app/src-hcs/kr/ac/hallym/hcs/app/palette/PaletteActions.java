@@ -162,7 +162,7 @@ public final class PaletteActions {
         }
     }
 
-    /** .s 불러오기: 이 회로의 Instruction Memory 메뉴 항목(Hallym MIPS 라이브러리)을 누른다. */
+    /** Load Program(.hmx, D-141): 이 회로의 Instruction Memory 메뉴 항목(Hallym MIPS 라이브러리)을 누른다. */
     public static void loadProgram(Project proj) {
         for (Component c : proj.getCurrentCircuit().getNonWires()) {
             if (c.getFactory().getName().equals("Instruction Memory")) {
@@ -171,9 +171,8 @@ public final class PaletteActions {
                     JPopupMenu menu = new JPopupMenu();
                     ((MenuExtender) ext).configureMenu(menu, proj);
                     for (java.awt.Component mc : menu.getComponents()) {
-                        // lib-mips 메뉴 이름이 "Load Program..."으로 바뀌었다(D-126). 옛 이름도 받는다
-                        if (mc instanceof JMenuItem && (((JMenuItem) mc).getText().startsWith("Load Program")
-                                || ((JMenuItem) mc).getText().contains(".s"))) {
+                        // lib-mips 메뉴 "Load Program..."(D-126, .hmx만 D-141)
+                        if (mc instanceof JMenuItem && ((JMenuItem) mc).getText().startsWith("Load Program")) {
                             ((JMenuItem) mc).doClick();
                             return;
                         }
