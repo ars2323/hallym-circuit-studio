@@ -1,0 +1,218 @@
+/* The shared parts' look (derived from Hallym MIPS v2.3.0
+   electron/src/renderer/app/app.css): its tokens (the colours of Hallym
+   MIPS's own theme, the same as its 1.x edition's), its fonts, and the
+   rules of the parts this app takes -- title bar, buttons, panel heads,
+   splitters, empty states, first screen, dialogs, About, status bar, band.
+   The rules of its simulator panels (Editor, Assemble, Text, Data,
+   Registers, Inspector, Console) and of its tutorial are not here.
+
+   Every place a hexadecimal literal or a name with the digit 0 can appear
+   is set in D2Coding (.mono): Pretendard draws 0x1 as 0×1, and its 0 next
+   to letters reads as O.
+
+   Every panel's head is .phead (ui.ts): one height, one font, one set of
+   margins, controls on the right. */
+
+@font-face { font-family: Pretendard; font-weight: 400; src: url(../assets/fonts/Pretendard-Regular.subset.woff2) format('woff2'); }
+@font-face { font-family: Pretendard; font-weight: 500; src: url(../assets/fonts/Pretendard-Medium.subset.woff2) format('woff2'); }
+@font-face { font-family: Pretendard; font-weight: 600; src: url(../assets/fonts/Pretendard-SemiBold.subset.woff2) format('woff2'); }
+@font-face { font-family: Pretendard; font-weight: 700; src: url(../assets/fonts/Pretendard-Bold.subset.woff2) format('woff2'); }
+@font-face { font-family: D2Coding; src: url(../assets/fonts/D2Coding.woff2) format('woff2'); }
+
+:root {
+  --navy: #00205b; --blue: #0055a5; --teal: #00a9a5; --gray: #bcbec0;
+  --white: #ffffff; --window: #f5f7fa; --border: #e1e5ea; --hover: #f3f6f9;
+  --text: #1f2933; --text-2: #5a6472; --muted: #65707e; --dim: #a9b1bb;
+  --blue-tint: #e8f0f9; --blue-tint2: #d3e2f3; --teal-tint: #e6f6f5; --teal-text: #00736f;
+  --amber-tint: #fdf3e1; --amber-text: #8a5a00; --purple: #6b4c9a;
+  --error: #c0392b; --error-tint: #fbeae8; --error-text: #8e2a1f;
+  --ui: Pretendard, sans-serif; --code: D2Coding, monospace;
+  --fs: 13px;
+  --titlebar: 40px; --head: 34px;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; height: 100%; overflow: hidden; }
+body {
+  font: var(--fs)/1.45 var(--ui); color: var(--text); background: var(--window);
+  font-feature-settings: 'calt' 0;
+  /* Korean sentences break between words (어절), never inside one; only a
+     piece of code too long for a whole line breaks anywhere. */
+  word-break: keep-all;
+}
+.mono { overflow-wrap: anywhere; }
+button, select { font: inherit; color: inherit; cursor: pointer; }
+.mono { font-family: var(--code); }
+/* An English name inside a Korean sentence stays on one line (dom.ts codeText). */
+.name { white-space: nowrap; }
+/* The university's characters never stand next to an error: none on screen
+   while an error dialog (ask.ts) or the band (band.ts) is up. */
+body.error-dialog img.char, body.band-shown img.char { visibility: hidden; }
+.linkbtn { border: 0; background: none; padding: 0; color: var(--blue); font-weight: 500; }
+.linkbtn:hover { text-decoration: underline; }
+
+/* ---- title bar: the window's own ---------------------------------------- */
+/* The whole bar moves the window (and double-click maximises); everything
+   that is pressed opts out.  The system's caption buttons sit over the
+   right end (titleBarOverlay): keep clear of them. */
+.titlebar {
+  display: flex; align-items: center; gap: 8px; min-width: 0; height: var(--titlebar);
+  /* --caption-extra: the tests make the room Windows' wider caption buttons take. */
+  padding: 0 calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 8px + var(--caption-extra, 0px)) 0 12px;
+  background: var(--white); border-bottom: 1px solid var(--border);
+  -webkit-app-region: drag; user-select: none;
+}
+.titlebar button, .titlebar input, .titlebar select, .titlebar a { -webkit-app-region: no-drag; }
+.titlebar .brand { display: flex; align-items: center; gap: 8px; flex: none; }
+.titlebar .logo { height: 18px; width: auto; }
+.titlebar .appname { font-weight: 700; color: var(--navy); white-space: nowrap; letter-spacing: .1px; }
+.titlebar .file { color: var(--text-2); white-space: nowrap; overflow: hidden; flex: none;
+  padding-left: 10px; border-left: 1px solid var(--border); }
+.titlebar .file:empty { display: none; }
+.titlebar .file b { color: var(--text); font-weight: 400; }
+.titlebar .dirty { color: var(--amber-text); }
+.titlebar .toolbar-slot { display: flex; flex: none; margin-left: 6px; }
+.titlebar .drag { flex: 1; min-width: 12px; align-self: stretch; }
+.titlebar .tools { display: flex; gap: 2px; flex: none; }
+.titlebar.tighter { gap: 3px; }
+.titlebar.tighter .iconbtn { width: 24px; }
+.titlebar.tighter .drag { min-width: 4px; }
+.titlebar.noapp .appname { display: none; }
+/* The toolbar in groups; its own row under the bar when the bar cannot hold it (titlebar.ts). */
+.toolbar { display: flex; align-items: center; gap: 6px; flex: none; }
+.toolbar .tgroup { display: flex; align-items: center; gap: 4px; flex: none; }
+.toolbar .tgroup + .tgroup { padding-left: 6px; border-left: 1px solid var(--border); }
+.toolrow { display: flex; align-items: center; height: 40px; padding: 0 12px; background: var(--white); border-bottom: 1px solid var(--border); overflow: hidden; }
+.toolbar.nokeys .btn kbd { display: none; }
+.toolbar.nolabels .seg .label { display: none; }
+.toolbar.nolabels .seg button { padding: 2px 6px; }
+.toolbar.noicons .btn img { display: none; }
+.toolbar.noicons .btn { padding: 0 9px; }
+.toolbar.tighter { gap: 3px; }
+.toolbar.tighter .tgroup { gap: 2px; }
+.toolbar.tighter .tgroup + .tgroup { padding-left: 3px; }
+.toolbar.tighter .btn { padding: 0 7px; }
+.btn { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--white); color: var(--navy); font-weight: 500; white-space: nowrap; flex: none; }
+.btn:hover:not(:disabled) { background: var(--hover); }
+.btn img { width: 16px; height: 16px; opacity: .85; }
+.btn.primary { background: var(--blue); border-color: var(--blue); color: var(--white); }
+.btn.primary:hover:not(:disabled) { background: #004a90; }
+.btn.primary img { filter: invert(1); opacity: 1; }
+.btn:disabled { color: var(--gray); cursor: default; }
+.btn:disabled img { opacity: .35; }
+.btn kbd { font: 11px var(--code); color: inherit; opacity: .7; }
+.btn.small { height: 26px; padding: 0 8px; }
+.iconbtn { width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; border: 0; background: none; color: var(--text-2); flex: none; }
+.iconbtn:hover:not(:disabled) { background: var(--hover); }
+.iconbtn img { width: 18px; height: 18px; opacity: .7; }
+.iconbtn:disabled { cursor: default; }
+.iconbtn:disabled img { opacity: .3; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; padding: 2px; background: var(--window); flex: none; }
+.seg button { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; height: 26px; border: 0; border-radius: 6px; background: none; color: var(--text-2); font-weight: 500; white-space: nowrap; }
+.seg button img { width: 16px; height: 16px; opacity: .75; }
+.seg button.on { background: var(--white); color: var(--navy); font-weight: 600; box-shadow: 0 1px 2px rgba(0,32,91,.12); }
+.seg button:disabled { color: var(--gray); cursor: default; }
+.seg button:disabled img { opacity: .35; }
+.selectbox { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+.selectbox img { width: 16px; height: 16px; opacity: .7; }
+.selectbox select { height: 28px; padding: 0 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--white); color: var(--navy); font-weight: 500; }
+.selectbox select:disabled { color: var(--gray); cursor: default; }
+.selectbox:has(select:disabled) img { opacity: .35; }
+
+/* ---- status bar: facts only ---------------------------------------------- */
+.status { display: flex; align-items: center; gap: 16px; padding: 0 12px; font-size: 12px; color: var(--text-2); background: var(--white); border-top: 1px solid var(--border); white-space: nowrap; overflow: hidden; }
+.status .err { color: var(--error-text); font-weight: 600; }
+.status .run { color: var(--blue); font-weight: 600; }
+.status .ok { color: var(--teal-text); font-weight: 600; }
+.status .warn { color: var(--amber-text); }
+.status .grow { flex: 1; }
+
+/* ---- the one panel and its head ----------------------------------------- */
+.panel { background: var(--white); border: 1px solid var(--border); border-radius: 8px; display: flex; flex-direction: column; min-height: 0; min-width: 0; overflow: clip; } /* clip: never scrolled sideways by focus or scrollIntoView */
+.phead { display: flex; align-items: center; gap: 10px; height: var(--head); padding: 0 8px 0 12px; border-bottom: 1px solid var(--border); flex: none; min-width: 0; }
+.ptitle { font-weight: 600; color: var(--navy); white-space: nowrap; }
+.ptabs { display: flex; height: 100%; margin-left: -4px; min-width: 0; }
+.ptab { display: flex; align-items: center; height: 100%; padding: 0 10px; border: 0; background: none; font-weight: 600; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+.ptab.on { color: var(--navy); border-bottom-color: var(--blue); }
+.ptab:hover:not(.on) { color: var(--text); }
+.pgrow { flex: 1; min-width: 0; }
+.pmeta { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.paside { display: flex; align-items: center; gap: 6px; flex: none; }
+.paside:empty { display: none; }
+.pmeta:not([hidden]) + .paside { padding-left: 10px; border-left: 1px solid var(--border); }
+.hbtn { height: 24px; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--white); color: var(--text-2); font-size: 12px; white-space: nowrap; }
+.hbtn:hover { background: var(--hover); color: var(--navy); }
+.pbody { flex: 1; min-height: 0; position: relative; overflow: auto; }
+
+/* ---- splitters (splitter.ts) --------------------------------------------- */
+.splitter { cursor: col-resize; display: flex; align-items: center; justify-content: center; touch-action: none; }
+.splitter .grip { width: 3px; height: 36px; border-radius: 2px; background: var(--border); }
+.splitter:hover .grip, .splitter.dragging .grip { background: var(--blue-tint2); }
+.vgrip { display: flex; align-items: center; justify-content: center; cursor: row-resize; touch-action: none; }
+.vgrip .grip { width: 36px; height: 3px; border-radius: 2px; background: var(--border); }
+.vgrip:hover .grip, .vgrip.dragging .grip { background: var(--muted); }
+
+/* ---- the band (band.ts): one line, covering nothing ---------------------- */
+.band { margin: 8px 8px 0; padding: 3px 10px; border-radius: 6px; background: var(--amber-tint); color: var(--amber-text);
+  box-shadow: inset 3px 0 0 var(--amber-text); font-size: 12px; line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.band[data-kind=error] { background: var(--error-tint); color: var(--error-text); box-shadow: inset 3px 0 0 var(--error); }
+
+/* ---- notices (notice.ts): an empty panel's word -- one shape, in the middle
+   of its panel, the character (where there is one) at the far end, on white -- */
+.notice-host { display: flex; flex: 1; min-height: 0; min-width: 0; align-items: center; justify-content: center; overflow: auto; container-type: size; }
+.notice { display: flex; align-items: center; gap: 24px; max-width: 640px; padding: 16px 24px; margin: auto; }
+.notice .say { flex: 1; min-width: 0; }
+.notice .say h3 { margin: 0 0 6px; font-size: 16px; font-weight: 600; color: var(--navy); }
+.notice .say > p { margin: 0; color: var(--text-2); line-height: 1.5; }
+.notice img.char { flex: none; }
+/* Too short or too narrow for the character: the words alone. */
+@container (max-height: 156px) or (max-width: 380px) { .notice img.char { display: none; } .notice { padding: 8px 16px; gap: 0; } }
+/* A side panel's word: smaller, from the top (the panel is narrow and tall). */
+.notice-host.side { align-items: flex-start; }
+.notice-host.side .notice { margin: 0; padding: 14px 14px; }
+.notice-host.side .notice .say h3 { font-size: 14px; margin-bottom: 4px; }
+.notice-host.side .notice .say > p { font-size: 12.5px; }
+
+/* ---- first screen: one fixed shape for every step (welcome.ts) ----------- */
+.welcome { display: contents; }
+.wcard { display: grid; grid-template-columns: 200px 460px; gap: 0 40px; align-items: center; width: 780px; max-width: calc(100vw - 48px);
+  background: var(--white); border: 1px solid var(--border); border-radius: 14px; padding: 36px 40px; }
+.wcard h1 { margin: 0 0 6px; font-size: 24px; font-weight: 700; color: var(--navy); }
+.wcard p.lead { margin: 0 0 20px; color: var(--text-2); font-size: 14px; white-space: nowrap; }
+.actions { display: grid; grid-template-columns: 220px 220px; gap: 12px; }
+.action { display: flex; gap: 12px; align-items: flex-start; width: 220px; height: 84px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--white); text-align: left; }
+.action:hover { border-color: var(--blue); }
+.action img { width: 20px; height: 20px; margin-top: 2px; opacity: .8; flex: none; }
+.action b { display: block; color: var(--navy); font-weight: 600; margin-bottom: 2px; }
+.action .sub { display: block; color: var(--text-2); font-size: 12px; line-height: 1.45; white-space: nowrap; }
+.action.main { border-color: var(--blue); background: var(--blue-tint); }
+.wbody .back { display: block; margin-top: 12px; font-size: 12px; height: 18px; }
+@media (max-width: 860px) { .wcard { grid-template-columns: 460px; justify-content: center; } .wcard img.char { display: none; } }
+
+/* ---- dialogs (ask.ts, about.ts) ------------------------------------------ */
+.modal { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: auto; padding: 20px 22px; border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 16px 48px rgba(0,32,91,.20); color: var(--text); }
+.modal::backdrop { background: rgba(0,32,91,.35); } /* overlay.ts DIALOG_BACKDROP: the caption buttons' patch matches */
+.modal.ask { width: min(480px, calc(100vw - 32px)); }
+.modal.ask.plain { width: min(520px, calc(100vw - 32px)); }
+.askbody { display: flex; gap: 18px; align-items: center; }
+.askbody img.char { flex: none; }
+.asktext { min-width: 0; flex: 1; }
+.asktext h2 { margin: 0 0 6px; font-size: 17px; }
+.asktext p { margin: 0; color: var(--text-2); line-height: 1.55; }
+.asktext p.askfile { margin-bottom: 4px; color: var(--muted); font-size: 12px; }
+.asktext p.askfile .mono { color: var(--text); }
+.asktext pre.askdetail { margin: 10px 0 0; padding: 8px 10px; max-height: 160px; overflow: auto; white-space: pre-wrap; font-size: 11.5px; color: var(--text-2); background: var(--window); border-radius: 6px; }
+.btn.danger { background: var(--error); border-color: var(--error); color: var(--white); }
+.btn.danger:hover:not(:disabled) { background: #a93226; }
+.modal h2 { margin: 0 0 12px; font-size: 18px; color: var(--navy); }
+.modal .row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.modal .row.end { justify-content: flex-end; }
+.modal .hint { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+.modal summary { cursor: pointer; font-weight: 600; color: var(--navy); }
+.about .tabs { display: flex; gap: 2px; height: 34px; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
+.about .tab { display: flex; align-items: center; padding: 0 12px; border: 0; background: none; color: var(--text-2); font-weight: 500; border-bottom: 2px solid transparent; }
+.about .tab.on { color: var(--navy); border-bottom-color: var(--blue); font-weight: 600; }
+.about .tabbody p { margin: 6px 0; }
+.about .licenses details { border-bottom: 1px solid var(--border); padding: 6px 0; }
+.about .licenses pre { max-height: 240px; overflow: auto; white-space: pre-wrap; font-size: 11.5px; background: var(--window); padding: 8px 10px; border-radius: 6px; }

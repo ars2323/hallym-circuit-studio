@@ -64,6 +64,43 @@ jobs:
             lib-mips/build/libs/hcs-mips.jar
             native/hcs-asm/build/hcs-asm
 
+  # Hallym Circuit Studio 2의 화면(electron/, D-133·D-135). 엔진은 가짜 엔진(electron/tests/fake-engine)으로 시험한다.
+  electron:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: electron
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: electron/package-lock.json
+      - name: Install Xvfb
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb
+      # Ubuntu 24.04 keeps unprivileged user namespaces from programs without an AppArmor profile: Chromium's sandbox needs them.
+      - name: Let Chromium's sandbox start
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: What is taken from Hallym MIPS is there, copies byte for byte (ORIGIN.md)
+        run: node tools/import-hmips.ts --check
+      - name: Unit tests
+        run: npm test
+      - name: Build the window's script
+        run: npm run build:ui
+      - name: End-to-end tests (Xvfb, the fake engine)
+        run: xvfb-run -a -s '-screen 0 2400x1400x24' npx playwright test
+      - name: e2e results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: electron-e2e
+          path: electron/test-results/
+
   # hcs-asm.exe: MSYS2 MinGW g++로 정적 링크한다. SPIM 원본 CPU/는 그대로 컴파일한다.
   windows:
     runs-on: windows-2022

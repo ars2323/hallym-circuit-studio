@@ -1,0 +1,33 @@
+{
+  "name": "hallym-circuit-studio",
+  "version": "2.0.0-alpha.0",
+  "private": true,
+  "description": "Hallym Circuit Studio 2: the screen (Electron) of a Logisim 2.7.1-based circuit tool; circuits run in the Java engine (../engine, ../docs/engine-api.md)",
+  "license": "GPL-2.0-or-later",
+  "type": "module",
+  "scripts": {
+    "build:ui": "node tools/build-ui.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test \"tests/unit/**/*.test.ts\"",
+    "test:mutants": "node tools/mutants.ts",
+    "electron": "node tools/build-ui.ts && node tools/electron.ts",
+    "e2e": "node tools/build-ui.ts && playwright test",
+    "e2e:widths": "node tools/build-ui.ts && node tools/e2e-widths.ts",
+    "screens": "node tools/build-ui.ts && node tools/capture-screens.ts",
+    "import:hmips": "node tools/import-hmips.ts",
+    "package": "node tools/package.ts",
+    "package:dir": "node tools/package.ts --dir"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^22.20.4",
+    "electron": "^44.4.5",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
+  },
+  "engines": {
+    "node": ">=22.18"
+  },
+  "productName": "Hallym Circuit Studio"
+}
