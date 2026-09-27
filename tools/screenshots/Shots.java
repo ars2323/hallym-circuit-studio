@@ -1447,6 +1447,8 @@ public final class Shots {
     /** 50: 좁은 창의 칸 비율(X-03, D-107). 1280·960 폭에서 캔버스가 창의 절반 이상을 갖는지 찍고 로그에 적는다. */
     void panelBalance(Project p) throws Exception {
         activate(p);
+        edt(() -> kr.ac.hallym.hcs.app.cycle.CycleView.of(p).open()); // 앞 장면 상태에 기대지 않고 Cycle View를 편다
+        sleep(400);
         Frame f = p.getFrame();
         try {
             for (int width : new int[] {1280, 960}) {
