@@ -31,32 +31,32 @@ public final class Disassembler {
 
     /** 피연산자 모양. SPIM 목록의 쉼표·공백 그대로다. */
     private enum Form {
-        NONE, // name
-        R3, // $rd, $rs, $rt
-        SHIFT, // $rd, $rt, sa (워드 전체가 0이면 nop)
-        SHIFTV, // $rd, $rt, $rs
+        NO_OPERANDS, // name
+        RD_RS_RT, // $rd, $rs, $rt
+        RD_RT_SA, // $rd, $rt, sa (워드 전체가 0이면 nop)
+        RD_RT_RS, // $rd, $rt, $rs
         RS, // $rs
         RD, // $rd
         RD_RS, // $rd, $rs
         RS_RT, // $rs, $rt
         RT_RD, // $rt, $rd
-        RT_FS, // $rt, $f<rd>
-        MOVC, // $rd, $rs, cc
-        I3, // $rt, $rs, imm
-        I2, // $rs, imm
-        LUI, // $rt, imm
-        MEM, // $rt, imm($rs)
-        FMEM, // $f<rt>, imm($rs)
-        BR2, // $rs, $rt, disp   (disp: 바이트 변위, disp() 참고)
-        BR1, // $rs disp         (SPIM은 쉼표를 찍지 않는다)
-        BC, // <name><cc> disp   (조건 코드가 이름에 붙는다)
-        JUMP, // 0x<index × 4>    (위 4비트 없이 28비트)
-        F2, // $fd, $fs
-        F3, // $fd, $fs, $ft
-        FCMP, // $fs, $ft  또는 cc, $fs, $ft
-        FCMP_WORD, // $fd, $ft   (.ps 비교: SPIM이 어셈블하지 않아 워드 해석만 있다)
-        FMOVC, // $fd, $fs, cc
-        FMOVC_WORD // $f0, $fd, cc (.ps 조건 이동: 워드 해석만 있다)
+        RT_FRD, // $rt, $f<rd>
+        RD_RS_CC, // $rd, $rs, cc
+        RT_RS_IMM, // $rt, $rs, imm
+        RS_IMM, // $rs, imm
+        RT_IMM, // $rt, imm
+        RT_OFFSET_BASE, // $rt, imm($rs)
+        FRT_OFFSET_BASE, // $f<rt>, imm($rs)
+        RS_RT_DISP, // $rs, $rt, disp   (disp: 바이트 변위, disp() 참고)
+        RS_DISP, // $rs disp         (SPIM은 쉼표를 찍지 않는다)
+        CC_DISP, // <name><cc> disp   (조건 코드가 이름에 붙는다)
+        TARGET28, // 0x<index × 4>    (위 4비트 없이 28비트)
+        FD_FS, // $fd, $fs
+        FD_FS_FT, // $fd, $fs, $ft
+        CC_FS_FT, // $fs, $ft  또는 cc, $fs, $ft
+        FD_FT, // $fd, $ft   (.ps 비교: SPIM이 어셈블하지 않아 워드 해석만 있다)
+        FD_FS_CC, // $fd, $fs, cc
+        F0_FD_CC // $f0, $fd, cc (.ps 조건 이동: 워드 해석만 있다)
     }
 
     private static final class Op {
@@ -85,53 +85,53 @@ public final class Disassembler {
     }
 
     static {
-        put(PRIMARY, 2, "j", Form.JUMP);
-        put(PRIMARY, 3, "jal", Form.JUMP);
-        put(PRIMARY, 4, "beq", Form.BR2);
-        put(PRIMARY, 5, "bne", Form.BR2);
-        put(PRIMARY, 6, "blez", Form.BR1);
-        put(PRIMARY, 7, "bgtz", Form.BR1);
+        put(PRIMARY, 2, "j", Form.TARGET28);
+        put(PRIMARY, 3, "jal", Form.TARGET28);
+        put(PRIMARY, 4, "beq", Form.RS_RT_DISP);
+        put(PRIMARY, 5, "bne", Form.RS_RT_DISP);
+        put(PRIMARY, 6, "blez", Form.RS_DISP);
+        put(PRIMARY, 7, "bgtz", Form.RS_DISP);
         String[] alu = {"addi", "addiu", "slti", "sltiu", "andi", "ori", "xori"};
         for (int i = 0; i < alu.length; i++) {
-            put(PRIMARY, 8 + i, alu[i], Form.I3);
+            put(PRIMARY, 8 + i, alu[i], Form.RT_RS_IMM);
         }
-        put(PRIMARY, 15, "lui", Form.LUI);
-        put(PRIMARY, 20, "beql", Form.BR2);
-        put(PRIMARY, 21, "bnel", Form.BR2);
-        put(PRIMARY, 22, "blezl", Form.BR1);
-        put(PRIMARY, 23, "bgtzl", Form.BR1);
+        put(PRIMARY, 15, "lui", Form.RT_IMM);
+        put(PRIMARY, 20, "beql", Form.RS_RT_DISP);
+        put(PRIMARY, 21, "bnel", Form.RS_RT_DISP);
+        put(PRIMARY, 22, "blezl", Form.RS_DISP);
+        put(PRIMARY, 23, "bgtzl", Form.RS_DISP);
         String[] mem = {"lb", "lh", "lwl", "lw", "lbu", "lhu", "lwr", null, "sb", "sh", "swl", "sw", null, null, "swr"};
         for (int i = 0; i < mem.length; i++) {
             if (mem[i] != null) {
-                put(PRIMARY, 32 + i, mem[i], Form.MEM);
+                put(PRIMARY, 32 + i, mem[i], Form.RT_OFFSET_BASE);
             }
         }
-        put(PRIMARY, 47, "cache", Form.I3); // SPIM: $rt, $rs, imm
-        put(PRIMARY, 48, "ll", Form.MEM);
-        put(PRIMARY, 49, "lwc1", Form.FMEM);
-        put(PRIMARY, 50, "lwc2", Form.MEM);
-        put(PRIMARY, 51, "pref", Form.I3); // SPIM: $rt, $rs, imm
-        put(PRIMARY, 53, "ldc1", Form.FMEM);
-        put(PRIMARY, 54, "ldc2", Form.MEM);
-        put(PRIMARY, 56, "sc", Form.MEM);
-        put(PRIMARY, 57, "swc1", Form.FMEM);
-        put(PRIMARY, 58, "swc2", Form.MEM);
-        put(PRIMARY, 61, "sdc1", Form.FMEM);
-        put(PRIMARY, 62, "sdc2", Form.MEM);
+        put(PRIMARY, 47, "cache", Form.RT_RS_IMM); // SPIM: $rt, $rs, imm
+        put(PRIMARY, 48, "ll", Form.RT_OFFSET_BASE);
+        put(PRIMARY, 49, "lwc1", Form.FRT_OFFSET_BASE);
+        put(PRIMARY, 50, "lwc2", Form.RT_OFFSET_BASE);
+        put(PRIMARY, 51, "pref", Form.RT_RS_IMM); // SPIM: $rt, $rs, imm
+        put(PRIMARY, 53, "ldc1", Form.FRT_OFFSET_BASE);
+        put(PRIMARY, 54, "ldc2", Form.RT_OFFSET_BASE);
+        put(PRIMARY, 56, "sc", Form.RT_OFFSET_BASE);
+        put(PRIMARY, 57, "swc1", Form.FRT_OFFSET_BASE);
+        put(PRIMARY, 58, "swc2", Form.RT_OFFSET_BASE);
+        put(PRIMARY, 61, "sdc1", Form.FRT_OFFSET_BASE);
+        put(PRIMARY, 62, "sdc2", Form.RT_OFFSET_BASE);
 
-        put(SPECIAL, 0, "sll", Form.SHIFT);
-        put(SPECIAL, 2, "srl", Form.SHIFT);
-        put(SPECIAL, 3, "sra", Form.SHIFT);
-        put(SPECIAL, 4, "sllv", Form.SHIFTV);
-        put(SPECIAL, 6, "srlv", Form.SHIFTV);
-        put(SPECIAL, 7, "srav", Form.SHIFTV);
+        put(SPECIAL, 0, "sll", Form.RD_RT_SA);
+        put(SPECIAL, 2, "srl", Form.RD_RT_SA);
+        put(SPECIAL, 3, "sra", Form.RD_RT_SA);
+        put(SPECIAL, 4, "sllv", Form.RD_RT_RS);
+        put(SPECIAL, 6, "srlv", Form.RD_RT_RS);
+        put(SPECIAL, 7, "srav", Form.RD_RT_RS);
         put(SPECIAL, 8, "jr", Form.RS);
         put(SPECIAL, 9, "jalr", Form.RD_RS);
-        put(SPECIAL, 10, "movz", Form.R3);
-        put(SPECIAL, 11, "movn", Form.R3);
-        put(SPECIAL, 12, "syscall", Form.NONE);
-        put(SPECIAL, 13, "break", Form.NONE);
-        put(SPECIAL, 15, "sync", Form.NONE);
+        put(SPECIAL, 10, "movz", Form.RD_RS_RT);
+        put(SPECIAL, 11, "movn", Form.RD_RS_RT);
+        put(SPECIAL, 12, "syscall", Form.NO_OPERANDS);
+        put(SPECIAL, 13, "break", Form.NO_OPERANDS);
+        put(SPECIAL, 15, "sync", Form.NO_OPERANDS);
         put(SPECIAL, 16, "mfhi", Form.RD);
         put(SPECIAL, 17, "mthi", Form.RS);
         put(SPECIAL, 18, "mflo", Form.RD);
@@ -143,7 +143,7 @@ public final class Disassembler {
         String[] r3 = {"add", "addu", "sub", "subu", "and", "or", "xor", "nor", null, null, "slt", "sltu"};
         for (int i = 0; i < r3.length; i++) {
             if (r3[i] != null) {
-                put(SPECIAL, 32 + i, r3[i], Form.R3);
+                put(SPECIAL, 32 + i, r3[i], Form.RD_RS_RT);
             }
         }
         String[] traps = {"tge", "tgeu", "tlt", "tltu", "teq", null, "tne"};
@@ -157,82 +157,82 @@ public final class Disassembler {
             "teqi", null, "tnei", null, "bltzal", "bgezal", "bltzall", "bgezall"};
         for (int i = 0; i < regimm.length; i++) {
             if (regimm[i] != null) {
-                put(REGIMM, i, regimm[i], i >= 8 && i < 16 ? Form.I2 : Form.BR1);
+                put(REGIMM, i, regimm[i], i >= 8 && i < 16 ? Form.RS_IMM : Form.RS_DISP);
             }
         }
-        put(REGIMM, 20, "synci", Form.I3); // SPIM: $rt, $rs, imm
+        put(REGIMM, 20, "synci", Form.RT_RS_IMM); // SPIM: $rt, $rs, imm
 
         put(SPECIAL2, 0, "madd", Form.RS_RT);
         put(SPECIAL2, 1, "maddu", Form.RS_RT);
-        put(SPECIAL2, 2, "mul", Form.R3);
+        put(SPECIAL2, 2, "mul", Form.RD_RS_RT);
         put(SPECIAL2, 4, "msub", Form.RS_RT);
         put(SPECIAL2, 5, "msubu", Form.RS_RT);
-        put(SPECIAL2, 32, "clz", Form.R3); // SPIM: $rd, $rs, $rt
-        put(SPECIAL2, 33, "clo", Form.R3);
-        put(SPECIAL2, 63, "sdbbp", Form.NONE);
+        put(SPECIAL2, 32, "clz", Form.RD_RS_RT); // SPIM: $rd, $rs, $rt
+        put(SPECIAL2, 33, "clo", Form.RD_RS_RT);
+        put(SPECIAL2, 63, "sdbbp", Form.NO_OPERANDS);
 
         // 단정도(S)·배정도(D) 공통
         Op[][] sd = {COP1_S, COP1_D};
         String[] fmt = {"s", "d"};
         for (int k = 0; k < 2; k++) {
             String f = "." + fmt[k];
-            put(sd[k], 0, "add" + f, Form.F3);
-            put(sd[k], 1, "sub" + f, Form.F3);
-            put(sd[k], 2, "mul" + f, Form.F3);
-            put(sd[k], 3, "div" + f, Form.F3);
+            put(sd[k], 0, "add" + f, Form.FD_FS_FT);
+            put(sd[k], 1, "sub" + f, Form.FD_FS_FT);
+            put(sd[k], 2, "mul" + f, Form.FD_FS_FT);
+            put(sd[k], 3, "div" + f, Form.FD_FS_FT);
             String[] unary = {"sqrt", "abs", "mov", "neg"};
             for (int i = 0; i < unary.length; i++) {
-                put(sd[k], 4 + i, unary[i] + f, Form.F2);
+                put(sd[k], 4 + i, unary[i] + f, Form.FD_FS);
             }
             String[] conv = {"round.l", "trunc.l", "ceil.l", "floor.l", "round.w", "trunc.w", "ceil.w", "floor.w"};
             for (int i = 0; i < conv.length; i++) {
-                put(sd[k], 8 + i, conv[i] + f, Form.F2);
+                put(sd[k], 8 + i, conv[i] + f, Form.FD_FS);
             }
-            put(sd[k], 17, "movf" + f, Form.FMOVC); // tf 비트가 1이면 movt(cop1)
-            put(sd[k], 18, "movz" + f, Form.FMOVC);
-            put(sd[k], 19, "movn" + f, Form.FMOVC);
-            put(sd[k], 21, "recip" + f, Form.F2);
-            put(sd[k], 22, "rsqrt" + f, Form.F2);
+            put(sd[k], 17, "movf" + f, Form.FD_FS_CC); // tf 비트가 1이면 movt(cop1)
+            put(sd[k], 18, "movz" + f, Form.FD_FS_CC);
+            put(sd[k], 19, "movn" + f, Form.FD_FS_CC);
+            put(sd[k], 21, "recip" + f, Form.FD_FS);
+            put(sd[k], 22, "rsqrt" + f, Form.FD_FS);
             for (int c = 0; c < 16; c++) {
-                put(sd[k], 48 + c, "c." + COND[c] + f, Form.FCMP);
+                put(sd[k], 48 + c, "c." + COND[c] + f, Form.CC_FS_FT);
             }
         }
         // SPIM은 단정도 funct 8·9·13을 인덱스 저장 명령 이름으로 보인다. 13은 SPIM이 trunc.w.s로 어셈블하므로 그 이름이다.
-        put(COP1_S, 8, "swxc1", Form.F3);
-        put(COP1_S, 9, "sdxc1", Form.F3);
-        put(COP1_S, 13, "trunc.w.s", Form.F2);
-        put(COP1_S, 33, "cvt.d.s", Form.F2);
-        put(COP1_S, 36, "cvt.w.s", Form.F2);
-        put(COP1_S, 37, "cvt.l.s", Form.F2);
-        put(COP1_S, 38, "cvt.ps.s", Form.F2);
-        put(COP1_D, 32, "cvt.s.d", Form.F2);
-        put(COP1_D, 33, "cvt.d.w", Form.F2); // SPIM: fmt D 자리
-        put(COP1_D, 36, "cvt.w.d", Form.F2);
-        put(COP1_D, 37, "cvt.l.d", Form.F2);
+        put(COP1_S, 8, "swxc1", Form.FD_FS_FT);
+        put(COP1_S, 9, "sdxc1", Form.FD_FS_FT);
+        put(COP1_S, 13, "trunc.w.s", Form.FD_FS);
+        put(COP1_S, 33, "cvt.d.s", Form.FD_FS);
+        put(COP1_S, 36, "cvt.w.s", Form.FD_FS);
+        put(COP1_S, 37, "cvt.l.s", Form.FD_FS);
+        put(COP1_S, 38, "cvt.ps.s", Form.FD_FS);
+        put(COP1_D, 32, "cvt.s.d", Form.FD_FS);
+        put(COP1_D, 33, "cvt.d.w", Form.FD_FS); // SPIM: fmt D 자리
+        put(COP1_D, 36, "cvt.w.d", Form.FD_FS);
+        put(COP1_D, 37, "cvt.l.d", Form.FD_FS);
 
-        put(COP1_PS1, 0, "add.ps", Form.F3);
-        put(COP1_PS1, 1, "sub.ps", Form.F3);
-        put(COP1_PS1, 5, "abs.ps", Form.F2);
+        put(COP1_PS1, 0, "add.ps", Form.FD_FS_FT);
+        put(COP1_PS1, 1, "sub.ps", Form.FD_FS_FT);
+        put(COP1_PS1, 5, "abs.ps", Form.FD_FS);
         for (int c = 0; c < 16; c++) {
-            put(COP1_PS1, 48 + c, "c." + COND[c] + ".ps", Form.FCMP_WORD);
+            put(COP1_PS1, 48 + c, "c." + COND[c] + ".ps", Form.FD_FT);
         }
-        put(COP1_PS2, 2, "mul.ps", Form.F3);
-        put(COP1_PS2, 6, "mov.ps", Form.F2);
-        put(COP1_PS2, 7, "neg.ps", Form.F2);
-        put(COP1_PS2, 17, "movf.ps", Form.FMOVC_WORD);
-        put(COP1_PS2, 18, "movz.ps", Form.FMOVC_WORD);
-        put(COP1_PS2, 19, "movn.ps", Form.FMOVC_WORD);
-        put(COP1_PS2, 32, "cvt.s.pu", Form.F2);
-        put(COP1_PS2, 36, "cvt.s.pl", Form.F2);
+        put(COP1_PS2, 2, "mul.ps", Form.FD_FS_FT);
+        put(COP1_PS2, 6, "mov.ps", Form.FD_FS);
+        put(COP1_PS2, 7, "neg.ps", Form.FD_FS);
+        put(COP1_PS2, 17, "movf.ps", Form.F0_FD_CC);
+        put(COP1_PS2, 18, "movz.ps", Form.F0_FD_CC);
+        put(COP1_PS2, 19, "movn.ps", Form.F0_FD_CC);
+        put(COP1_PS2, 32, "cvt.s.pu", Form.FD_FS);
+        put(COP1_PS2, 36, "cvt.s.pl", Form.FD_FS);
         String[] pair = {"pll", "plu", "pul", "puu"};
         for (int i = 0; i < pair.length; i++) {
-            put(COP1_PS2, 44 + i, pair[i] + ".ps", Form.F3);
+            put(COP1_PS2, 44 + i, pair[i] + ".ps", Form.FD_FS_FT);
         }
     }
 
-    private static final Op SPECIAL3_EXT = new Op("ext", Form.F2); // SPIM: SPECIAL3 전체
-    private static final Op COP2_OP = new Op("cop2", Form.JUMP);
-    private static final Op CVT_S_W = new Op("cvt.s.w", Form.F2);
+    private static final Op SPECIAL3_EXT = new Op("ext", Form.FD_FS); // SPIM: SPECIAL3 전체
+    private static final Op COP2_OP = new Op("cop2", Form.TARGET28);
+    private static final Op CVT_S_W = new Op("cvt.s.w", Form.FD_FS);
 
     private static Op decode(int word) {
         int op = word >>> 26;
@@ -242,7 +242,7 @@ public final class Disassembler {
         switch (op) {
         case 0:
             if (fn == 1) {
-                return new Op((rt & 1) == 0 ? "movf" : "movt", Form.MOVC);
+                return new Op((rt & 1) == 0 ? "movf" : "movt", Form.RD_RS_CC);
             }
             return SPECIAL[fn];
         case 1:
@@ -266,13 +266,13 @@ public final class Disassembler {
     private static Op cop0(int rs, int fn5) {
         if (rs == 16) {
             switch (fn5) {
-            case 1: return new Op("tlbr", Form.NONE);
-            case 2: return new Op("tlbwi", Form.NONE);
-            case 6: return new Op("tlbwr", Form.NONE);
-            case 8: return new Op("tlbp", Form.NONE);
-            case 16: return new Op("rfe", Form.NONE);
-            case 24: return new Op("eret", Form.NONE);
-            case 31: return new Op("deret", Form.NONE);
+            case 1: return new Op("tlbr", Form.NO_OPERANDS);
+            case 2: return new Op("tlbwi", Form.NO_OPERANDS);
+            case 6: return new Op("tlbwr", Form.NO_OPERANDS);
+            case 8: return new Op("tlbp", Form.NO_OPERANDS);
+            case 16: return new Op("rfe", Form.NO_OPERANDS);
+            case 24: return new Op("eret", Form.NO_OPERANDS);
+            case 31: return new Op("deret", Form.NO_OPERANDS);
             default: return null;
             }
         }
@@ -281,9 +281,9 @@ public final class Disassembler {
         }
         switch (rs) {
         case 0: return new Op("mfc0", Form.RT_RD);
-        case 2: return new Op("cfc0", Form.RT_FS);
+        case 2: return new Op("cfc0", Form.RT_FRD);
         case 4: return new Op("mtc0", Form.RT_RD);
-        case 6: return new Op("ctc0", Form.RT_FS);
+        case 6: return new Op("ctc0", Form.RT_FRD);
         case 10: return new Op("rdpgpr", Form.RT_RD);
         case 14: return new Op("wrpgpr", Form.RT_RD);
         default: return null;
@@ -293,11 +293,11 @@ public final class Disassembler {
     private static Op cop1(int rs, int rt, int fn) {
         switch (rs) {
         case 8:
-            return new Op(branchName("bc1", rt), Form.BC);
+            return new Op(branchName("bc1", rt), Form.CC_DISP);
         case 16:
         case 17:
             if (fn == 17 && (rt & 1) != 0) { // tf 비트: movt.fmt
-                return new Op(rs == 16 ? "movt.s" : "movt.d", Form.FMOVC);
+                return new Op(rs == 16 ? "movt.s" : "movt.d", Form.FD_FS_CC);
             }
             return (rs == 16 ? COP1_S : COP1_D)[fn];
         case 19:
@@ -313,12 +313,12 @@ public final class Disassembler {
             return null;
         }
         switch (rs) {
-        case 0: return new Op("mfc1", Form.RT_FS);
-        case 2: return new Op("cfc1", Form.RT_FS);
-        case 3: return new Op("mfhc1", Form.RT_FS);
-        case 4: return new Op("mtc1", Form.RT_FS);
-        case 6: return new Op("ctc1", Form.RT_FS);
-        case 7: return new Op("mthc1", Form.RT_FS);
+        case 0: return new Op("mfc1", Form.RT_FRD);
+        case 2: return new Op("cfc1", Form.RT_FRD);
+        case 3: return new Op("mfhc1", Form.RT_FRD);
+        case 4: return new Op("mtc1", Form.RT_FRD);
+        case 6: return new Op("ctc1", Form.RT_FRD);
+        case 7: return new Op("mthc1", Form.RT_FRD);
         default: return null;
         }
     }
@@ -327,12 +327,12 @@ public final class Disassembler {
     private static Op cop2(int rs, int rt) {
         switch (rs) {
         case 0: return new Op("mfc2", Form.RT_RD);
-        case 2: return new Op("cfc2", Form.RT_FS);
+        case 2: return new Op("cfc2", Form.RT_FRD);
         case 3: return new Op("mfhc2", Form.RT_RD);
         case 4: return new Op("mtc2", Form.RT_RD);
-        case 6: return new Op("ctc2", Form.RT_FS);
+        case 6: return new Op("ctc2", Form.RT_FRD);
         case 7: return new Op("mthc2", Form.RT_RD);
-        case 8: return new Op(branchName("bc2", rt), Form.BC);
+        case 8: return new Op(branchName("bc2", rt), Form.CC_DISP);
         case 16: return COP2_OP;
         default: return null;
         }
@@ -349,7 +349,7 @@ public final class Disassembler {
         if (o == null) {
             return null;
         }
-        return o.form == Form.SHIFT && word == 0 ? "nop" : o.name;
+        return o.form == Form.RD_RT_SA && word == 0 ? "nop" : o.name;
     }
 
     /** 이름표 없이 {@link #text(int, int, Map)}. */
@@ -375,18 +375,18 @@ public final class Disassembler {
         StringBuilder sb = new StringBuilder(o.name);
         String target = null;
         switch (o.form) {
-        case NONE:
+        case NO_OPERANDS:
             break;
-        case R3:
+        case RD_RS_RT:
             sb.append(" $").append(rd).append(", $").append(rs).append(", $").append(rt);
             break;
-        case SHIFT:
+        case RD_RT_SA:
             if (word == 0) {
                 return "nop";
             }
             sb.append(" $").append(rd).append(", $").append(rt).append(", ").append(sa);
             break;
-        case SHIFTV:
+        case RD_RT_RS:
             sb.append(" $").append(rd).append(", $").append(rt).append(", $").append(rs);
             break;
         case RS:
@@ -404,40 +404,40 @@ public final class Disassembler {
         case RT_RD:
             sb.append(" $").append(rt).append(", $").append(rd);
             break;
-        case RT_FS:
+        case RT_FRD:
             sb.append(" $").append(rt).append(", $f").append(rd);
             break;
-        case MOVC:
+        case RD_RS_CC:
             sb.append(" $").append(rd).append(", $").append(rs).append(", ").append(rt >> 2);
             break;
-        case I3:
+        case RT_RS_IMM:
             sb.append(" $").append(rt).append(", $").append(rs).append(", ").append(imm);
             break;
-        case I2:
+        case RS_IMM:
             sb.append(" $").append(rs).append(", ").append(imm);
             break;
-        case LUI:
+        case RT_IMM:
             sb.append(" $").append(rt).append(", ").append(imm);
             break;
-        case MEM:
+        case RT_OFFSET_BASE:
             sb.append(" $").append(rt).append(", ").append(imm).append("($").append(rs).append(')');
             break;
-        case FMEM:
+        case FRT_OFFSET_BASE:
             sb.append(" $f").append(rt).append(", ").append(imm).append("($").append(rs).append(')');
             break;
-        case BR2:
+        case RS_RT_DISP:
             sb.append(" $").append(rs).append(", $").append(rt).append(", ").append(disp(imm));
             target = branchBracket(symbols, address, imm);
             break;
-        case BR1:
+        case RS_DISP:
             sb.append(" $").append(rs).append(' ').append(disp(imm));
             target = branchBracket(symbols, address, imm);
             break;
-        case BC:
+        case CC_DISP:
             sb.append(rt >> 2).append(' ').append(disp(imm));
             target = branchBracket(symbols, address, imm);
             break;
-        case JUMP: {
+        case TARGET28: {
             int index = word & 0x03ffffff;
             sb.append(' ').append(hex(index << 2));
             if (o != COP2_OP && symbols != null) {
@@ -445,26 +445,26 @@ public final class Disassembler {
             }
             break;
         }
-        case F2:
+        case FD_FS:
             sb.append(" $f").append(sa).append(", $f").append(rd);
             break;
-        case F3:
+        case FD_FS_FT:
             sb.append(" $f").append(sa).append(", $f").append(rd).append(", $f").append(rt);
             break;
-        case FCMP:
+        case CC_FS_FT:
             sb.append(' ');
             if (sa != 0) {
                 sb.append(sa >> 2).append(", ");
             }
             sb.append("$f").append(rd).append(", $f").append(rt);
             break;
-        case FCMP_WORD:
+        case FD_FT:
             sb.append(" $f").append(sa).append(", $f").append(rt);
             break;
-        case FMOVC:
+        case FD_FS_CC:
             sb.append(" $f").append(sa).append(", $f").append(rd).append(", ").append(rt >> 2);
             break;
-        case FMOVC_WORD:
+        case F0_FD_CC:
             sb.append(" $f0, $f").append(sa).append(", ").append(rt >> 2);
             break;
         default:
