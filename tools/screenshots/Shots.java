@@ -452,10 +452,7 @@ public final class Shots {
             sceneStart("47");
             pcAndLoneTunnels(ref, demo); // V-08
         }
-        if (want(scenes, "48")) {
-            sceneStart("48");
-            firstRunWindow(demo); // X-01
-        }
+        // 48(첫 실행)은 run.sh가 별도 JVM(FirstRun.java)으로 찍는다(Y-04): 이 JVM은 이미 파일이 열려 있다
         if (want(scenes, "49")) {
             sceneStart("49");
             toolbarOverflow(demo); // X-02

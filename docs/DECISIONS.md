@@ -1310,3 +1310,11 @@
 - **이유:** v1.0.2 50-panels-960에서 "No messages", Cycle 0/0인데 RegWrite·regfile › we3 임시 줄이 남아 있었다.
 - **대안:** 임시 줄을 저장하지 않고 메시지를 누른 동안만 보이기(학생이 표를 살펴볼 시간이 없다).
 - **테스트:** `CycleViewGuiTest.pinnedRowsGoAwayWhenTheMessageIsFixedOrTheRecordingResets`(원인 고침 뒤 다시 돌리면 걷힘, Reset 뒤 걷힘).
+
+## D-115 진짜 첫 실행 장면과 튜토리얼 검사(Y-04)
+
+- **날짜:** 2026-09-27
+- **결정:** 장면 48은 환경설정·최근 파일이 없는 새 사용자의 첫 실행이어야 하므로, 스크린샷 실행기의 JVM(이미 파일이 열려 있다) 대신 `tools/screenshots/FirstRun.java`가 빈 설정 폴더로 인자 없이 앱을 띄워 튜토리얼 첫 장이 뜬 화면을 찍는다(run.sh가 48을 요청하면 실행). 튜토리얼은 창이 활성화되기 전에도 뜨도록, 맨 앞 창이 없으면 열린 프로젝트의 첫 창을 쓰고 그것도 없으면 0.3초 간격으로 다시 찾는다(파일을 열며 시작한 windows-smoke에서는 창 활성화 알림 전이라 튜토리얼 대신 Getting Started 카드가 떴다). 말풍선은 유리판 폭에 맞추고, 높이가 모자라면 그림을 빼서 작은 창(683×512)에서도 Next·Close가 보인다. windows-smoke는 `-Dsmoke.mode=tutorial`로 1024×768 100%·150%, 1920×1080 125%에서 튜토리얼이 떴는지, 말풍선이 창·작업 영역 안인지, Next·Close가 보이는지 검사하고 아니면 실패한다.
+- **이유:** v1.0.2 장면 48은 다른 파일이 열린 상태였고, windows-smoke에는 튜토리얼 화면이 없었다.
+- **대안:** 실행기 안에서 설정을 지우고 새 창 열기(최근 파일·열린 탭이 남는다).
+- **테스트:** `TourGuiTest.bubbleFitsTheSmallestLaptopWindow`(683×512에서 12장 모두 말풍선이 유리판 안, Next·Close 보임), FirstRun 로그 `tutorial true`, CI tutorial smoke.

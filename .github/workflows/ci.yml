@@ -110,6 +110,11 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "smoke at 100% failed" }
           & $java "-Dsun.java2d.uiScale=1.5" "-Dhcs.configDir=smoke/config150" "-Djava.util.prefs.userRoot=smoke/prefs150" -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/mips/sum.s smoke/screenshot-150.png
           if ($LASTEXITCODE -ne 0) { throw "smoke at 150% failed" }
+          # Y-04(v1.0.3): 튜토리얼이 뜬 첫 실행 화면. 말풍선이 창·작업 영역 안에 들어오고 Next·Close가 보여야 한다
+          & $java "-Dsmoke.mode=tutorial" "-Dsun.java2d.uiScale=1" "-Dhcs.configDir=smoke/config-tut100" "-Djava.util.prefs.userRoot=smoke/prefs-tut100" -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/mips/sum.s smoke/screenshot-tutorial-100.png
+          if ($LASTEXITCODE -ne 0) { throw "tutorial smoke at 100% failed" }
+          & $java "-Dsmoke.mode=tutorial" "-Dsun.java2d.uiScale=1.5" "-Dhcs.configDir=smoke/config-tut150" "-Djava.util.prefs.userRoot=smoke/prefs-tut150" -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/mips/sum.s smoke/screenshot-tutorial-150.png
+          if ($LASTEXITCODE -ne 0) { throw "tutorial smoke at 150% failed" }
       # X-05(v1.0.2): 러너가 허용하면 1920×1080에서도 첫 실행(빈 환경설정)을 100%·125%로 찍는다. 못 바꾸면 건너뛰고 로그에 남긴다.
       - name: First run at 1920x1080 (100% and 125%, if the runner allows)
         shell: pwsh
@@ -124,6 +129,8 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "smoke at 1920x1080 100% failed" }
             & $java "-Dsun.java2d.uiScale=1.25" "-Dhcs.configDir=smoke/config1920-125" "-Djava.util.prefs.userRoot=smoke/prefs1920-125" -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/mips/sum.s smoke/screenshot-1920-125.png
             if ($LASTEXITCODE -ne 0) { throw "smoke at 1920x1080 125% failed" }
+            & $java "-Dsmoke.mode=tutorial" "-Dsun.java2d.uiScale=1.25" "-Dhcs.configDir=smoke/config-tut1920-125" "-Djava.util.prefs.userRoot=smoke/prefs-tut1920-125" -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/mips/sum.s smoke/screenshot-tutorial-1920-125.png
+            if ($LASTEXITCODE -ne 0) { throw "tutorial smoke at 1920x1080 125% failed" }
           } else {
             Write-Host "::notice::1920x1080 first-run scenes skipped: $res"
             Set-Content -Path smoke/1920-skipped.txt -Value "$res"

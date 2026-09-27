@@ -117,12 +117,41 @@ public final class Tour {
         } catch (IOException e) {
             // 저장하지 못하면 다음에 또 보일 뿐이다
         }
-        java.awt.Window top = Projects.getTopFrame();
-        if (top instanceof Frame) {
-            SwingUtilities.invokeLater(() -> show((Frame) top));
+        Frame f = firstFrame();
+        if (f != null) {
+            SwingUtilities.invokeLater(() -> show(f));
             return true;
         }
-        return false;
+        // 창이 아직 활성화되지 않았을 수 있다(파일을 열며 시작, Y-04): 잠시 뒤 다시 찾는다
+        retryShow(10);
+        return true;
+    }
+
+    /** 맨 앞 창, 없으면 열린 프로젝트 중 첫 창. 없으면 null. */
+    static Frame firstFrame() {
+        java.awt.Window top = Projects.getTopFrame();
+        if (top instanceof Frame) {
+            return (Frame) top;
+        }
+        for (com.cburch.logisim.proj.Project p : Projects.getOpenProjects()) {
+            if (p.getFrame() != null) {
+                return p.getFrame();
+            }
+        }
+        return null;
+    }
+
+    private static void retryShow(int left) {
+        javax.swing.Timer t = new javax.swing.Timer(300, e -> {
+            Frame f = firstFrame();
+            if (f != null && f.isShowing()) {
+                show(f);
+            } else if (left > 1) {
+                retryShow(left - 1);
+            }
+        });
+        t.setRepeats(false);
+        t.start();
     }
 
     /** 창 위에 튜토리얼을 연다(열려 있으면 처음으로). */
@@ -137,6 +166,7 @@ public final class Tour {
         root.setGlassPane(o);
         o.setVisible(true);
         o.go(0);
+        frame.repaint(); // 캔버스의 빈 회로 안내를 유리판 아래에서 지운다(Y-04)
         return o;
     }
 
@@ -341,18 +371,43 @@ public final class Tour {
         }
 
         void layoutBubble() {
-            int w = BUBBLE_W + (picture.isVisible() ? QuickStart.IMAGE_SIZE + Tokens.SPACE_4 : 0);
-            bubble.setSize(w, Integer.MAX_VALUE);
-            body.setSize(w - 2 * Tokens.SPACE_4 - 4 - (picture.isVisible() ? QuickStart.IMAGE_SIZE + Tokens.SPACE_4 : 0),
-                    Integer.MAX_VALUE);
-            Dimension pref = new Dimension(w, bubble.getPreferredSize().height);
             Dimension pane = getSize().width == 0 ? frame.getRootPane().getSize() : getSize();
             if (pane.width == 0) {
                 pane = frame.getSize();
             }
+            // 작은 화면(Y-04): 말풍선은 유리판 안에 들어가야 한다. 폭은 유리판 폭에 맞추고, 높이가 모자라면 그림을 뺀다
+            boolean wantPicture = picture.getIcon() != null;
+            picture.setVisible(wantPicture);
+            int maxW = Math.max(200, pane.width - 2 * PAD);
+            Dimension pref = bubblePref(maxW);
+            if (wantPicture && (pref.height > pane.height - 2 * PAD || pref.width > maxW)) {
+                picture.setVisible(false);
+                pref = bubblePref(maxW);
+            }
             Rectangle r = place(pref, hole, pane);
             bubble.setBounds(r);
             bubble.validate();
+        }
+
+        private Dimension bubblePref(int maxW) {
+            int pic = picture.isVisible() ? QuickStart.IMAGE_SIZE + Tokens.SPACE_4 : 0;
+            int w = Math.min(BUBBLE_W + pic, maxW);
+            bubble.setSize(w, Integer.MAX_VALUE);
+            body.setSize(Math.max(80, w - 2 * Tokens.SPACE_4 - 4 - pic), Integer.MAX_VALUE);
+            return new Dimension(w, bubble.getPreferredSize().height);
+        }
+
+        /** 말풍선 자리(유리판 좌표, 테스트·smoke). */
+        public Rectangle bubbleBounds() {
+            return bubble.getBounds();
+        }
+
+        /** Next(마지막 장이 아닐 때)와 Close/Finish 단추가 보이는가(테스트·smoke). */
+        public boolean buttonsShowing() {
+            boolean last = at == STEPS.size() - 1;
+            return close.isShowing() && (last || next.isShowing())
+                    && SwingUtilities.convertRectangle(close.getParent(), close.getBounds(), this)
+                            .intersects(new Rectangle(0, 0, getWidth(), getHeight()));
         }
 
         @Override

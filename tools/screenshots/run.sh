@@ -20,6 +20,14 @@ jar=app/build/stage/hallym-circuit-studio.jar
 screen="-screen 0 1920x1080x24 -dpi 96"
 opts=(-Duser.language=ko -Duser.country=KR -Dsun.java2d.uiScale=1 -Dawt.useSystemAAFontSettings=on)
 
+# 장면 48(Y-04): 환경설정·최근 파일 없는 진짜 첫 실행은 별도 JVM으로(인자 없이 시작, 튜토리얼 첫 장)
+if [ $# -eq 0 ] || printf '%s\n' "$@" | grep -qx '48'; then
+    "$JAVAC" -encoding UTF-8 -nowarn -cp "$jar" -d "$B/classes" tools/screenshots/FirstRun.java
+    rm -rf "$B/prefs-first" "$B/config-first"
+    xvfb-run -a -s "$screen" "$JAVA" "${opts[@]}" -Djava.util.prefs.userRoot="$B/prefs-first" \
+        -Dhcs.configDir="$B/config-first" -cp "$B/classes:$jar" FirstRun "$out/48-first-run.png" | tee -a "$out/log-first.txt"
+fi
+
 # 포크: 저장소 루트에서 상대 경로로 연다
 xvfb-run -a -s "$screen" "$JAVA" "${opts[@]}" -Djava.util.prefs.userRoot="$B/prefs-fork" \
     -Dhcs.configDir="$B/config-fork" -cp "$B/classes:$jar" Shots fork "$out" "$@"

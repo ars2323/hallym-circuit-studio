@@ -119,6 +119,48 @@ public final class Smoke {
         }
     }
 
+    static void checkTutorial() throws Exception {
+        java.awt.Frame top = Projects.getTopFrame();
+        java.util.List<String> problems = new java.util.ArrayList<>();
+        for (int i = 0; i < 40; i++) { // 튜토리얼은 창이 활성화된 뒤 잠시 뒤에 뜬다
+            boolean[] up = new boolean[1];
+            SwingUtilities.invokeAndWait(() -> up[0] = ((javax.swing.JFrame) top).getRootPane()
+                    .getGlassPane() instanceof kr.ac.hallym.hcs.app.tutorial.Tour.Overlay);
+            if (up[0]) {
+                break;
+            }
+            Thread.sleep(250);
+        }
+        SwingUtilities.invokeAndWait(() -> {
+            java.awt.Component glass = ((javax.swing.JFrame) top).getRootPane().getGlassPane();
+            if (!(glass instanceof kr.ac.hallym.hcs.app.tutorial.Tour.Overlay)) {
+                problems.add("the first-run tutorial did not open");
+                return;
+            }
+            kr.ac.hallym.hcs.app.tutorial.Tour.Overlay o = (kr.ac.hallym.hcs.app.tutorial.Tour.Overlay) glass;
+            Rectangle pane = new Rectangle(0, 0, o.getWidth(), o.getHeight());
+            Rectangle b = o.bubbleBounds();
+            Rectangle work = java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
+            Rectangle onScreen = new Rectangle(b);
+            java.awt.Point p = o.getLocationOnScreen();
+            onScreen.translate(p.x, p.y);
+            System.out.println("SMOKE: tutorial bubble " + b + " pane " + pane + " on screen " + onScreen + " work " + work);
+            if (!pane.contains(b)) {
+                problems.add("tutorial bubble " + b + " leaves the window " + pane);
+            }
+            if (!work.contains(onScreen)) {
+                problems.add("tutorial bubble " + onScreen + " leaves the work area " + work);
+            }
+            if (!o.buttonsShowing()) {
+                problems.add("tutorial Next/Close buttons are not visible");
+            }
+        });
+        if (!problems.isEmpty()) {
+            System.err.println("SMOKE: " + String.join("; ", problems));
+            System.exit(7);
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         File circ = new File(args[0]).getAbsoluteFile();
         File asm = new File(args[1]).getAbsoluteFile();
@@ -145,6 +187,17 @@ public final class Smoke {
         // X-01/X-02(v1.0.2): 환경설정이 없는 첫 실행 창은 작업 영역의 90% 이상이고, 도구 모음 단추는 잘리지 않으며
         // Run·Load .s는 도구 모음에 남아 있어야 한다. 아니면 실패로 끝난다
         checkFirstRunWindow();
+        // Y-04(v1.0.3): "tutorial" 모드는 첫 실행 튜토리얼이 떠 있는지, 말풍선이 창 안에 들어오고 Next·Close가 보이는지
+        // 검사하고 화면을 찍은 뒤 끝난다
+        if (System.getProperty("smoke.mode", "").equals("tutorial")) {
+            checkTutorial();
+            Robot robot0 = new Robot();
+            BufferedImage img0 = robot0.createScreenCapture(new Rectangle(Toolkit.getDefaultToolkit().getScreenSize()));
+            out.getParentFile().mkdirs();
+            ImageIO.write(img0, "png", out);
+            System.out.println("SMOKE: wrote " + out);
+            System.exit(0);
+        }
         // .s 불러오기: 부품 메뉴가 여는 파일 선택 창에 경로를 넣는다
         Thread loader = new Thread(() -> {
             try {
