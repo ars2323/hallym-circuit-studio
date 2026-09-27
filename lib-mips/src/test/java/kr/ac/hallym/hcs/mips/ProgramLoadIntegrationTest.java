@@ -133,6 +133,8 @@ class ProgramLoadIntegrationTest {
                 assertNull(l.image, name);
                 assertNull(l.check, name);
                 assertEquals(List.of(AssemblySource.FACT.en), l.errors, name);
+                assertEquals(1, l.problems.size()); // v2 엔진(D-147): 같은 문장 두 벌
+                assertEquals(AssemblySource.FACT, l.problems.get(0).text);
             }
             // 한국어 문장은 공용 Msg가 가진다(원조 2.7.1 언어 목록에 ko가 없어 여기서 바꿔 볼 수 없다, AssemblySourceTest)
             assertEquals(List.of(AssemblySource.FACT.get(Text.korean())),
