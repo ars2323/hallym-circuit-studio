@@ -1350,3 +1350,26 @@
 - **이유:** 최종 세트 17~31 검토에서 17c·17d·17g의 "0x00" 값 칩이 배지 첫 글자를 덮었다(v1.0.1부터 "접함"으로 적어 두던 항목이 글자를 가리는 것으로 확인됨).
 - **대안:** 값 칩 배치에 배지를 장애물로 넣기(영향 경로를 켤 때마다 값 칩이 움직인다).
 - **테스트:** `InfluenceOverlayTest.placesChipAvoidsLabelChips`, `placesChipAvoidsTunnelLinksAndPicksTheLeastCoveredSpot`, 스크린샷 17 재촬영(17c 배지가 점선을 피함, 17g 25%에서 배지 없음).
+
+## D-122 MSI를 배포하지 않는다. 설치 파일은 v1.1.0부터 Hallym MIPS와 같은 setup exe 하나(Y-07)
+
+- **날짜:** 2026-09-27
+- **결정(사용자 지시):**
+  1. v1.0.3부터 MSI를 배포하지 않는다. v1.0.3은 게시 전이라 MSI를 첨부하지 않는다. CI windows 잡은 MSI를 만들지 않고, release 잡은 올리지 않는다. 릴리스 노트, 학생·조교 안내서(PDF의 원본 md), README에서 MSI 언급을 지운다. Windows zip은 그대로 둔다. 이미 게시된 v1.0.0~v1.0.2의 MSI는 그대로 둔다. `tools/package-windows.ps1`의 MSI는 `-Msi`를 줄 때만 만든다(아래 7의 검사용).
+  2. v1.1.0부터 Windows 설치 파일은 `HallymCircuitStudio-<버전>-win-x64-setup.exe` 하나다(Hallym MIPS의 `HallymMIPS-<버전>-win-x64-setup.exe`와 같은 꼴). `jpackage --type app-image`(런타임 포함) 결과를 **NSIS**로 묶는다.
+  3. 동작은 Hallym MIPS(커밋 749841e의 `electron/packaging/installer.nsh`, `electron/tools/package.ts`, `electron/docs/PORTING.md` 13절)와 같게 한다. 한 번에 끝나는 설치(one-click), 관리자 권한 없음(사용자별), 설치 폴더 `%LOCALAPPDATA%\Programs\Hallym Circuit Studio`, 시작 메뉴 바로가기 "Hallym Circuit Studio", 바탕화면 바로가기 없음, 제거 항목은 HKCU의 "Hallym Circuit Studio <버전>", 이전 버전 위에 덮어 설치(같은 폴더, 같은 제거 항목), 설치 뒤 자동 실행 없음, 자동 업데이트 없음(업데이트용 설치 파일 사본을 남기지 않는다), 제거해도 사용자 설정은 남긴다.
+  4. `.circ` 파일 연결은 하지 않는다.
+  5. 코드 서명이 없으므로 학생 안내서에 SmartScreen 안내(추가 정보 → 실행)를 넣는다.
+  6. v1.0.x MSI 설치본: setup exe가 HKCU 제거 항목에서 v1.0.x MSI(표시 이름 `HallymCircuitStudio`, Windows Installer 항목)를 찾으면 `msiexec /x <제품 코드> /qn`으로 조용히 제거한 뒤 설치한다. v1.0.x MSI는 사용자별 설치(`--win-per-user-install`)라 관리자 권한 없이 제거된다. 제거가 실패하면 "설정 › 앱에서 HallymCircuitStudio를 제거하세요" 안내를 띄우고 설치는 계속한다. 환경설정·자동 저장은 설치 폴더 밖에 있어 그대로 이어진다.
+  7. CI(v1.1.0): v1.0.x MSI를 조용히 설치 → setup exe `/S` → 제거 항목·설치 폴더·시작 메뉴 바로가기가 하나씩만 남고 실행 검사(`tools/winsmoke/Smoke.java`)를 통과하는지 본다. v1.0.3은 MSI를 게시하지 않으므로, 옛 MSI는 v1.0.3 태그 소스로 `package-windows.ps1 -Msi`를 돌려 만든 것과 공개 릴리스의 v1.0.2 MSI(학생 PC에 실제로 있을 수 있는 가장 새 MSI) 두 가지로 돌린다.
+  8. 배포 후 검증(v1.1.0부터 릴리스 게시 뒤): 공개 주소에서 setup exe를 받아 SHA-256을 CI 산출물과 대조 → `/S` 조용한 설치 → 실행 검사 → `/S` 제거 → 설치 폴더·시작 메뉴 바로가기·제거 항목이 남지 않는지 본다. Hallym MIPS `.github/workflows/release-check.yml`과 같은 순서다.
+  9. zip은 v1.1.0에서도 남긴다.
+- **이유:**
+  - 학생이 두 도구를 같은 방식으로 설치하고 지운다. MSI는 여러 단계 대화 상자에 폴더 선택이 있어 설치 위치가 흩어졌다.
+  - NSIS: Hallym MIPS의 설치 파일이 NSIS(electron-builder)라 같은 동작(one-click, 사용자별, HKCU 제거 항목)을 그대로 옮길 수 있다. `makensis`는 Linux에서도 돌아 CI와 로컬에서 같은 설치 파일을 만든다. Inno Setup은 컴파일러가 Windows 전용이고 설치 화면과 제거 방식이 Hallym MIPS와 달라진다.
+  - `.circ` 연결 안 함: 실습실·학생 PC에서 `.circ`가 원조 Logisim에 연결돼 있을 수 있고, 과제 확인은 원조로도 한다. 설치 파일이 연결을 가져가면 원조로 열던 흐름이 바뀐다. Windows 10·11은 설치 프로그램이 기본 앱을 조용히 바꾸지 못하게 해서, 해도 "연결 프로그램" 목록에 더하는 정도다. Hallym MIPS도 `.s`를 연결하지 않고, v1.0.x(D-094)도 연결하지 않았다.
+  - 바탕화면 바로가기 없음: Hallym MIPS와 같다(`createDesktopShortcut: false`). one-click 설치에는 선택 화면이 없고, 실습실 공용 바탕화면을 어지럽히지 않는다.
+  - MSI 조용히 제거: 사용자별 MSI라 권한 문제가 없다. 두 설치본이 남으면 시작 메뉴에 이름이 둘(HallymCircuitStudio, Hallym Circuit Studio) 보여 학생이 옛 버전을 열 수 있다.
+  - zip 유지: 복원 소프트웨어로 사용자별 설치가 재부팅 때 지워지는 실습실 PC에서도 네트워크·USB 폴더에서 바로 실행할 수 있다. 트랙 A zip과 같은 방식이다.
+- **대안:** Inno Setup. MSI 유지. `.circ` 연결을 설치 옵션으로(one-click에는 옵션 화면이 없다). MSI 설치본은 두고 안내만. 바탕화면 바로가기도 만들기(v1.0.x MSI처럼). zip 없애기(Hallym MIPS 2.1.0처럼).
+- **테스트:** CI windows 잡은 배포물 폴더에 `.msi`가 있으면 실패한다. v1.0.3 게시 뒤 릴리스 자산에 `.msi`가 없는지 확인한다(Y-06). setup exe의 검사는 위 7·8(#334).

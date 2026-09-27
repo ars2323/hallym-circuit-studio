@@ -4,7 +4,7 @@
 
 ## 1. 설치
 
-**Windows(권장):** `hallym-circuit-studio-<버전>-windows.zip`을 원하는 폴더에 풀고 `HallymCircuitStudio.exe`를 실행합니다. Java를 따로 설치할 필요가 없고 관리자 권한도 필요 없습니다. 설치형이 필요하면 `.msi`를 씁니다(시작 메뉴·바탕화면 바로가기).
+**Windows(권장):** `hallym-circuit-studio-<버전>-windows.zip`을 원하는 폴더에 풀고 `HallymCircuitStudio.exe`를 실행합니다. Java를 따로 설치할 필요가 없고 관리자 권한도 필요 없습니다.
 
 **다른 운영체제:** Java 21 이상을 설치하고 `java -jar hallym-circuit-studio.jar`로 실행합니다.
 

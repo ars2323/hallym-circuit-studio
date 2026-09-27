@@ -158,3 +158,4 @@
 | Y-04 | 진짜 첫 실행(장면 48, windows-smoke 튜토리얼) | #322 | 완료 | #328 | 48-first-run(y04b), TourGuiTest, windows-smoke tutorial |
 | Y-05 | 작은 것(빈 Attributes 칸, 아이콘만 모드 글자 단추) | #323 | 완료 | #329 | 01·49(y05), EmptyAttributesGuiTest, OverflowToolbarTest |
 | Y-06 | 확인과 릴리스(review-shots v103, v1.0.3, needs-human) | #324 | 진행 | #330, #331 | 최종 세트·windows-smoke |
+| Y-07 | MSI 배포 중단(zip만), setup exe 결정(v1.1.0, #334) | #333 | 완료 | (이 PR) | 없음(화면 변경 없음), CI windows 잡 .msi 검사 |

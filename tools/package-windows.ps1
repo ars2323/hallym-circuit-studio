@@ -1,11 +1,12 @@
-# Windows 배포물(R-01): jpackage로 JRE를 포함한 앱 폴더(zip, 관리자 권한 없이 풀어 실행)와 MSI를 만든다.
+# Windows 배포물(R-01): jpackage로 JRE를 포함한 앱 폴더(zip, 관리자 권한 없이 풀어 실행)를 만든다.
+# MSI는 배포하지 않는다(D-122). -Msi는 v1.0.x MSI 설치본 위에 setup exe를 까는 검사(v1.1.0)에서만 쓴다.
 #   pwsh tools/package-windows.ps1 -Version 1.0.0 -Dest dist
 # 앞서 `gradlew :app:stage :lib-mips:jar`와 hcs-asm.exe 빌드가 끝나 있어야 한다(app/build/stage/, native/hcs-asm/build/).
-# .circ 파일 연결은 넣지 않는다(설치 옵션으로만 두기로 한 결정, D-094). MSI는 사용자별 설치, 시작 메뉴·바로가기, 폴더 선택.
+# .circ 파일 연결은 넣지 않는다(D-094, D-122).
 param(
   [string]$Version = "1.0.0",
   [string]$Dest = "dist",
-  [switch]$NoMsi
+  [switch]$Msi
 )
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
@@ -33,13 +34,13 @@ $common = @(
 if ($LASTEXITCODE -ne 0) { throw "jpackage app-image failed" }
 Copy-Item LICENSE "$Dest/$name/LICENSE.txt"
 Copy-Item NOTICE "$Dest/$name/NOTICE.txt"
-Copy-Item docs/GUIDE-ko.md "$Dest/$name/GUIDE-ko.md"  # ASCII 이름: WiX(MSI)가 코드 페이지 밖 파일 이름을 거부한다(LGHT0311)
+Copy-Item docs/GUIDE-ko.md "$Dest/$name/GUIDE-ko.md"  # ASCII 이름: 설치 도구(WiX·NSIS)가 코드 페이지 밖 파일 이름에서 막히지 않게
 $zip = "$Dest/hallym-circuit-studio-$Version-windows.zip"
 if (Test-Path $zip) { Remove-Item $zip }
 Compress-Archive -Path "$Dest/$name" -DestinationPath $zip
 Write-Host "zip: $zip"
-# 2) MSI(설치형): 파일 연결 없음, 사용자별, 시작 메뉴·바탕화면 바로가기, 폴더 선택
-if (-not $NoMsi) {
+# 2) MSI(검사용, 배포하지 않음): v1.0.x와 같은 옵션(사용자별, 시작 메뉴·바탕화면 바로가기, 폴더 선택, 파일 연결 없음)
+if ($Msi) {
   & jpackage --type msi --app-image "$Dest/$name" --dest $Dest --name $name --app-version $Version --vendor "AIAC Lab, Hallym University" --win-menu --win-shortcut --win-dir-chooser --win-per-user-install --win-menu-group "Hallym Circuit Studio"
   if ($LASTEXITCODE -ne 0) { throw "jpackage msi failed" }
   Get-ChildItem $Dest -Filter *.msi | ForEach-Object { Rename-Item $_.FullName "hallym-circuit-studio-$Version-windows.msi" -Force; Write-Host "msi: $($_.Name)" }
