@@ -10,7 +10,7 @@
    A panel too short or too narrow for the character keeps the words alone
    (shared.css, the container query on .notice-host). */
 
-import { character, h } from './dom.ts';
+import { character, h, prose } from './dom.ts';
 
 export const NOTICE_CHARACTER = 120;
 
@@ -23,7 +23,7 @@ export interface Notice {
 
 export function notice(n: Notice): HTMLElement {
   return h('div', { class: 'notice' },
-    h('div', { class: 'say' }, h('h3', {}, n.title), n.body ? h('p', {}, n.body) : null, ...(n.more ?? [])),
+    h('div', { class: 'say' }, h('h3', {}, prose(n.title)), n.body ? h('p', {}, prose(n.body)) : null, ...(n.more ?? [])),
     n.pose ? character(n.pose, NOTICE_CHARACTER) : null);
 }
 

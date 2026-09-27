@@ -1,5 +1,7 @@
 /* What the window says about a circuit and about the engine: facts only,
-   counted from what the engine sent (logic only). */
+   counted from what the engine sent (logic only).  A fact is a name, in
+   English (Ready, 35 components, Engine starting); a sentence to the
+   student is Korean (엔진을 시작하지 못했습니다) -- D-135. */
 
 import type { EngineStatus, Snapshot } from '../../../main/protocol.ts';
 
@@ -27,8 +29,8 @@ export function circuitFacts(s: Snapshot): CircuitFacts {
 // The engine's state in the status bar (null: nothing to say).
 export function engineFact(s: EngineStatus): { cls: '' | 'err' | 'warn'; text: string } | null {
   switch (s.state) {
-    case 'starting': return { cls: '', text: '엔진 시작 중' };
-    case 'restarting': return { cls: 'warn', text: '엔진 다시 시작 중' };
+    case 'starting': return { cls: '', text: 'Engine starting' };
+    case 'restarting': return { cls: 'warn', text: 'Engine restarting' };
     case 'failed': return { cls: 'err', text: s.error ?? '엔진을 시작하지 못했습니다' };
     case 'stopped': return { cls: 'err', text: '엔진이 꺼져 있습니다' };
     default: return null;
@@ -41,3 +43,5 @@ export const engineVersion = (s: EngineStatus): string =>
 
 // "1,234": counts in the status bar and the empty states.
 export const count = (n: number): string => n.toLocaleString('en-US');
+// "1 wire", "41 wires".
+export const counted = (n: number, what: string): string => `${count(n)} ${what}${n === 1 ? '' : 's'}`;

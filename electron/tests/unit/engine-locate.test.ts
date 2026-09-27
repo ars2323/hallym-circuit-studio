@@ -38,7 +38,7 @@ test('HCS_ENGINE_JAR: java -jar it; missing: not found, with where it looked', (
     const missing = locateEngine({ env: { HCS_ENGINE_JAR: path.join(dir, 'nope.jar') }, runDir, resources: null, repoRoot: null });
     assert.equal(missing.ok, false);
     if (!missing.ok) {
-      assert.match(missing.reason, /hcs-engine\.jar/);
+      assert.equal(missing.reason, '엔진 파일이 없습니다: nope.jar'); // the file tried, by its name
       assert.deepEqual(missing.looked, [path.join(dir, 'nope.jar')]);
     }
   } finally {
@@ -71,6 +71,7 @@ test('next to the app: the packaged engine and runtime first, then the source tr
     assert.ok(named.ok && named.engine.args.at(-1) === path.join(other, 'engine/build/libs/engine-0.1.jar'));
     const none = locateEngine({ env: {}, runDir, resources: null, repoRoot: path.join(repo, 'nothing') });
     assert.equal(none.ok, false);
+    if (!none.ok) assert.equal(none.reason, '엔진 파일이 없습니다: hcs-engine.jar');
   } finally {
     rmSync(staged, { recursive: true, force: true });
     rmSync(other, { recursive: true, force: true });

@@ -4,9 +4,10 @@
    command line opens with no first screen at all. */
 
 import { expect, test, type Page } from '@playwright/test';
+import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { answerOpen, DATAPATH, GATES, launch, repo, sample } from './harness.ts';
+import { answerOpen, answerSave, DATAPATH, GATES, launch, repo, sample, visibleCharacters } from './harness.ts';
 import { pixelDiff } from './png.ts';
 
 // The card, and the part of it that is the step's own: the choices and the
@@ -53,6 +54,8 @@ test('the first screen: greeting, lead in two lines, two ways in; no toolbar', a
     await expect(page.locator('.wcard .back')).toHaveCSS('visibility', 'hidden');
     await expect(page.locator('.titlebar .toolbar')).toBeHidden();
     await expect(page.locator('.wcard img.char')).toHaveAttribute('src', /haram-hari-greeting\.png$/);
+    // The status bar's facts are names, in English.
+    await expect(page.locator('.status > span').first()).toHaveText('Ready');
     // Every choice's two lines within its box.
     for (const sub of await page.locator('.action .sub').all()) {
       expect(await sub.evaluate((e) => e.scrollWidth <= e.clientWidth + 1)).toBe(true);
@@ -123,7 +126,7 @@ test('바로 시작 → 새 회로: an empty circuit from the engine, its main c
     await expect(page.locator('.filebar .ptab')).toHaveText(['untitled.circ']);
     await expect(page.locator('.circuitbar .ptab')).toHaveText(['main']);
     await expect(page.locator('.titlebar .file')).toHaveText('untitled.circ');
-    await expect(page.locator('.status')).toContainText('main · 부품 0개 · 선 0개');
+    await expect(page.locator('.status')).toContainText('main · 0 components · 0 wires');
     await expect(page.locator('.upper .pbody:visible .list > li')).not.toHaveCount(0); // Components: the engine's library
     await expect(page).toHaveTitle('untitled.circ — Hallym Circuit Studio');
   } finally {
@@ -143,7 +146,10 @@ test('바로 시작 → 파일 열기: the open dialog, then the engine opens it
     await expect(page.locator('.canvas h3')).toHaveText('이 회로에는 부품 35개와 선 41개가 있습니다');
     // Circuits: the file's three, main marked; one opens as a tab.
     await page.getByRole('tab', { name: 'Circuits' }).click();
-    await expect(page.locator('.upper .pbody:visible .list > li')).toHaveText(['mainmain', 'regfile', 'alu']);
+    await expect(page.locator('.upper .pbody:visible .list > li')).toHaveText(['main', 'regfile', 'alu']);
+    // The main circuit: a mark with its name for screen readers, not the word "main" a second time.
+    await expect(page.locator('.upper .pbody:visible .list > li').first().getByRole('img', { name: 'Main circuit' })).toBeVisible();
+    await expect(page.locator('.upper .pbody:visible .list .mainmark')).toHaveCount(1);
     if (!(await page.locator('.shell.narrow').count())) {
       await expect(page.locator('section.right h3')).toHaveText('고른 부품이 없습니다'); // Attributes stays in its column
     }
@@ -175,19 +181,58 @@ test('a .circ on the command line opens with no first screen', async () => {
   }
 });
 
-test('a file that cannot be opened: the window\'s own dialog, no character, the first screen stays', async () => {
+test('a file that cannot be opened: the window\'s own words, the file\'s name alone, no character anywhere, the first screen stays', async () => {
   const r = await launch();
   const { page } = r;
   try {
-    await answerOpen(r.app, path.join(r.dir, 'missing.circ'));
+    expect(await visibleCharacters(page)).toBe(1); // the greeting
+    await answerOpen(r.app, path.join(r.dir, 'lab3.circ'));
     await page.keyboard.press('Control+o');
     const dialog = page.locator('dialog.ask');
-    await expect(dialog).toContainText('파일을 열지 못했습니다');
-    await expect(dialog).toContainText('missing.circ');
-    await expect(dialog.locator('img.char')).toHaveCount(0);
-    await dialog.getByRole('button', { name: '닫기' }).click();
+    await expect(dialog.locator('h2')).toHaveText('파일을 열지 못했습니다');
+    await expect(dialog.locator('.askfile')).toHaveText('File: lab3.circ');
+    await expect(dialog.locator('.asktext > p').last()).toHaveText('그 자리에 파일이 없습니다. 파일을 옮기거나 이름을 바꿨다면 Open으로 다시 골라 여세요.');
+    // The engine's own words (English, with the whole path) are not the student's.
+    const text = await dialog.innerText();
+    expect(text).not.toContain('no such file');
+    expect(text).not.toContain(r.dir);
+    await expect(dialog.getByRole('button')).toHaveText(['Close']);
+    // No character anywhere while the error is up; the greeting again after.
+    expect(await visibleCharacters(page)).toBe(0);
+    await dialog.getByRole('button', { name: 'Close' }).click();
     await expect(dialog).toHaveCount(0);
     await expect(page.locator('.wcard')).toBeVisible();
+    expect(await visibleCharacters(page)).toBe(1);
+  } finally {
+    await r.close();
+  }
+});
+
+test('a file Logisim cannot read, a file that cannot be saved: the same kind of dialog, the loader\'s words in the detail', async () => {
+  const r = await launch();
+  const { page } = r;
+  try {
+    const notCirc = path.join(r.dir, 'notes.circ');
+    writeFileSync(notCirc, 'not a circuit\n');
+    await answerOpen(r.app, notCirc);
+    await page.keyboard.press('Control+o');
+    const dialog = page.locator('dialog.ask');
+    await expect(dialog.locator('.askfile')).toHaveText('File: notes.circ');
+    await expect(dialog).toContainText('Logisim이 이 파일을 회로로 읽지 못했습니다.');
+    await expect(dialog.locator('.askdetail')).toContainText('does not appear to be a Logisim project file');
+    await dialog.getByRole('button', { name: 'Close' }).click();
+    // Saving where nothing can be written (a folder that is not there).
+    await page.getByRole('button', { name: /바로 시작/ }).click();
+    await page.getByRole('button', { name: /새 회로/ }).click();
+    await page.locator('.canvas h3').waitFor();
+    await answerSave(r.app, path.join(r.dir, 'no-such-folder', 'mine.circ'));
+    await page.keyboard.press('Control+s');
+    await expect(dialog.locator('h2')).toHaveText('파일을 저장하지 못했습니다');
+    await expect(dialog.locator('.askfile')).toHaveText('File: mine.circ');
+    await expect(dialog).toContainText('Save As(Ctrl+Shift+S)');
+    expect(await visibleCharacters(page)).toBe(0); // the Canvas's guide too
+    await dialog.getByRole('button', { name: 'Close' }).click();
+    await expect.poll(() => visibleCharacters(page)).toBe(1);
   } finally {
     await r.close();
   }

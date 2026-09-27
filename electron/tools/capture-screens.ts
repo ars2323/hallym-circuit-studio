@@ -121,7 +121,7 @@ for (const [name, size, scale] of [
 
 // No engine: the dialog (no character: an error) over the first screen and its band.
 {
-  const r = await launch(FHD, { env: { HCS_ENGINE_CMD: '', HCS_ENGINE_JAR: '/opt/hcs/engine.jar' } });
+  const r = await launch(FHD, { env: { HCS_ENGINE_CMD: '', HCS_ENGINE_JAR: '/opt/hcs/hcs-engine.jar' } });
   await r.page.locator('dialog.ask').waitFor();
   await shot(r, 'engine-failed');
   await r.close();

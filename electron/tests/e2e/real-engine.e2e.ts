@@ -34,13 +34,13 @@ test('the real engine: hello, a new circuit, a .circ with the MIPS library, the 
     await openFile(r, sample(r.dir, DATAPATH));
     await expect(page.locator('.canvas h3')).toContainText('이 회로에는 부품');
     await page.getByRole('tab', { name: 'Circuits' }).click();
-    await expect(page.locator('.upper .pbody:visible .list > li')).toHaveText(['mainmain', 'regfile', 'alu']);
+    await expect(page.locator('.upper .pbody:visible .list > li')).toHaveText(['main', 'regfile', 'alu']);
     await expect(page.locator('.lower .list li').first()).toBeVisible();   // its tunnels
     // The clock (docs/engine-api.md sim.*): the engine's sim.state in the status bar.
     await page.keyboard.press('F10');
     await expect(page.locator('.status')).toContainText('Cycle 1');
     await page.keyboard.press('F5');
-    await expect(page.locator('.status .run')).toHaveText('실행 중 (1 Hz)');
+    await expect(page.locator('.status .run')).toHaveText('Running (1 Hz)');
     await page.keyboard.press('F5');
     await expect(page.locator('.status .run')).toHaveCount(0);
     await page.getByRole('button', { name: /Reset/ }).click();

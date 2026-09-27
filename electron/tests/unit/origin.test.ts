@@ -39,6 +39,24 @@ test('nothing taken is SPIM\'s or leans on it', () => {
   for (const t of TAKEN) for (const n of NEVER) assert.ok(!t.from.includes(n), `${t.from} (${n})`);
 });
 
+// D-133 point 5, file by file: every text file taken from Hallym MIPS, read
+// here one at a time -- no import of its src/core, src/sim or native/, and
+// none of SPIM's names or strings (its op table and instruction classes, its
+// addon, its core's folder, its name).  The fonts and icons are binary or
+// drawings; the copies among them are checked byte for byte above.
+const SPIM_IMPORT = /(?:from|import)\s*\(?\s*['"][^'"]*\/(?:core|sim|native)\//;
+const SPIM_WORDS = /op-table|OP_TABLE|R3_TYPE_INST|I2_TYPE_INST|spim\.node|\bspim\b|SPIM|QtSpim|\bCPU\/|syscall|explain\.ts|decoder\.ts|instruction-text|asm-errors|mips-syntax/;
+for (const t of TAKEN.filter((x) => /\.(ts|cjs|css|html|json|md|nsh)$/.test(x.to) || x.to === '.gitignore' || x.to === '.gitattributes')) {
+  test(`taken, not from SPIM: ${t.to}`, () => {
+    const lines = readFileSync(path.join(root, t.to), 'utf8').split('\n');
+    const bad = lines.map((line, i) => [i + 1, line] as const)
+      .filter(([, line]) => SPIM_IMPORT.test(line) || SPIM_WORDS.test(line))
+      // (tools/mutants.ts names this app's own TextDecoder field; the list of what is never taken names what it never takes)
+      .filter(([, line]) => !(t.to === 'tools/mutants.ts' && /this\.decoder\.decode/.test(line)));
+    assert.deepEqual(bad.map(([i, line]) => `${i}: ${line.trim()}`), []);
+  });
+}
+
 test('no source, test or tool here refers to SPIM\'s tables, its core or its addon', () => {
   const bad = /op-table|OP_TABLE|R3_TYPE_INST|spim\.node|vendor\/spim|\bCPU\/|from '[^']*\/(core|sim|native)\//;
   const hits = ours().filter((f) => !f.endsWith(path.join('tools', 'import-hmips.ts')) && !f.endsWith(path.join('unit', 'origin.test.ts')))

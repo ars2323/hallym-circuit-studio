@@ -6,6 +6,8 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { EventEmitter } from 'node:events';
+import { copyFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { PassThrough } from 'node:stream';
 import { test } from 'node:test';
@@ -178,10 +180,10 @@ test('no answer to hello in time: failed, with the reason; calls reject at once'
 });
 
 test('a launch that throws (no engine found): failed, the reason in the detail', async () => {
-  const engine = new EngineClient({ launch: () => { throw new Error('엔진 파일(engine.jar)을 찾지 못했습니다\n  /x/engine.jar'); }, client: CLIENT });
+  const engine = new EngineClient({ launch: () => { throw new Error('엔진 파일이 없습니다: hcs-engine.jar\n  /x/hcs-engine.jar'); }, client: CLIENT });
   await assert.rejects(engine.start(), /엔진을 시작하지 못했습니다/);
   assert.equal(engine.status().state, 'failed');
-  assert.match(engine.status().detail ?? '', /engine\.jar/);
+  assert.match(engine.status().detail ?? '', /엔진 파일이 없습니다: hcs-engine\.jar\n {2}\/x\/hcs-engine\.jar/);
 });
 
 // ---- the fake engine, a real child process ------------------------------------------------
@@ -213,7 +215,8 @@ test('the fake engine: hello, file.new, model.circuit, file.open of a real .circ
     assert.deepEqual(o.circuits.map((c) => c.name), ['main', 'regfile', 'alu']);
     const s = await engine.call<Snapshot>('model.circuit', { fileId: o.fileId, circuitId: o.main });
     assert.ok(s.components.some((c) => c.name === 'Tunnel' && c.attrs.label === 'RegWrite'));
-    await assert.rejects(engine.call('file.open', { path: path.join(REPO, 'no-such.circ') }), (e: unknown) => e instanceof EngineError && e.code === 2);
+    await assert.rejects(engine.call('file.open', { path: path.join(REPO, 'no-such.circ') }),
+      (e: unknown) => e instanceof EngineError && e.code === 2 && (e.data as { reason: string }).reason === 'notFound');
     await assert.rejects(engine.call('no.such.method'), (e: unknown) => e instanceof EngineError && e.code === -32601);
   } finally {
     await engine.shutdown();
@@ -230,8 +233,15 @@ test('the fake engine speaking in 5-byte pieces with noise first: every answer a
     await engine.start();
     const n = await engine.call<NewResult>('file.new');
     await engine.call('sim.cycles', { fileId: n.fileId, n: 3 });
+    // A Hangul file name: its three-byte characters cut across the 5-byte pieces.
+    const dir = mkdtempSync(path.join(tmpdir(), 'hcs-split-'));
+    const hangul = path.join(dir, '논리회로 과제.circ');
+    copyFileSync(path.join(REPO, 'tests/circ/gates.circ'), hangul);
+    const o = await engine.call<OpenResult>('file.open', { path: hangul });
+    assert.equal(o.name, '논리회로 과제');
+    rmSync(dir, { recursive: true, force: true });
     await new Promise((r) => setTimeout(r, 100));
-    assert.deepEqual(notes[0], ['engine.log', { level: 'info', message: '가짜 엔진이 시작했습니다' }]);
+    assert.deepEqual(notes[0], ['engine.log', { level: 'info', message: 'fake engine started' }]);
     assert.equal((notes.at(-1)![1] as { cycle: number }).cycle, 3);
     assert.ok(logs.some((l) => l.includes('Picked up JAVA_TOOL_OPTIONS')));
   } finally {

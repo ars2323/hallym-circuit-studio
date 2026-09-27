@@ -98,12 +98,12 @@ const EMPTY = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 
 function fileOf(p: Params): File {
   const f = files.get(String(p.fileId));
-  if (!f) throw new Failure(1, `no file ${String(p.fileId)}`);
+  if (!f) throw new Failure(1, `no such file id: ${String(p.fileId)}`, { kind: 'file', id: String(p.fileId) });
   return f;
 }
 function circuitOf(p: Params): Circuit {
   const c = fileOf(p).circuits.find((x) => x.circuitId === p.circuitId);
-  if (!c) throw new Failure(1, `no circuit ${String(p.circuitId)}`);
+  if (!c) throw new Failure(1, `no such circuit id: ${String(p.circuitId)}`, { kind: 'circuit', id: String(p.circuitId) });
   return c;
 }
 const refs = (f: File) => f.circuits.map((c) => ({ circuitId: c.circuitId, name: c.name }));
@@ -137,10 +137,12 @@ const methods: Record<string, (p: Params) => unknown> = {
     if (open) return { fileId: open.fileId, name: open.name, circuits: refs(open), main: mainId(open), libraries: libRefs(open), messages: [], alreadyOpen: true };
     let bytes: Buffer;
     try { bytes = readFileSync(file); } catch (e) {
-      throw new Failure(2, `${path.basename(file)}을(를) 읽지 못했습니다`, { path: file, reason: (e as NodeJS.ErrnoException).code ?? String(e) });
+      // The real engine's words and reasons (engine/ Files.open, docs/engine-api.md 2): English, for developers.
+      if ((e as NodeJS.ErrnoException).code === 'ENOENT') throw new Failure(2, `no such file: ${file}`, { path: file, reason: 'notFound' });
+      throw new Failure(2, `cannot read: ${file}`, { path: file, reason: 'unreadable' });
     }
     const text = bytes.toString('utf8');
-    if (!text.includes('<project')) throw new Failure(2, `${path.basename(file)}은(는) Logisim 회로 파일이 아닙니다`, { path: file, reason: 'no <project>' });
+    if (!text.includes('<project')) throw new Failure(2, `The file does not appear to be a Logisim project file: ${file}`, { path: file, reason: 'loadFailed' });
     const r = readCirc(text);
     const f: File = { fileId: `f${nextFile++}`, name: stem(path.basename(file)), path: file, bytes, circuits: r.circuits, main: r.main, libs: r.libs, cycle: 0, ticking: false, hz: 1, on: true };
     files.set(f.fileId, f);
@@ -150,10 +152,10 @@ const methods: Record<string, (p: Params) => unknown> = {
   'file.save': (p) => {
     const f = fileOf(p);
     const target = typeof p.path === 'string' ? p.path : f.path;
-    if (!target) throw new Failure(2, 'no path to save to', { reason: 'no path' });
+    if (!target) throw new Failure(-32602, 'path is required for a file that was never saved');
     const bytes = f.bytes ?? Buffer.from(EMPTY, 'utf8');
     try { writeFileSync(target, bytes); } catch (e) {
-      throw new Failure(2, `${path.basename(target)}에 저장하지 못했습니다`, { path: target, reason: (e as NodeJS.ErrnoException).code ?? String(e) });
+      throw new Failure(2, `cannot write ${target}`, { path: target, reason: 'writeFailed' });
     }
     f.path = target;
     f.name = stem(path.basename(target));
@@ -184,11 +186,11 @@ const methods: Record<string, (p: Params) => unknown> = {
   'sim.reset': (p) => { const f = fileOf(p); f.cycle = 0; f.ticking = false; f.on = true; setImmediate(() => notify('sim.state', simState(f))); return {}; },
   'sim.cycles': (p) => {
     const f = fileOf(p);
-    if (!f.on) throw new Failure(4, 'simulation off', { reason: 'oscillating' });
+    if (!f.on) throw new Failure(4, 'the simulation stopped because the circuit oscillates', { reason: 'oscillating' });
     f.cycle += Number(p.n ?? 1);
     if (modes.has('oscillate')) {
       f.on = false;
-      setImmediate(() => notify('engine.log', { level: 'warn', message: '회로가 발진해서 시뮬레이션을 껐습니다' }));
+      setImmediate(() => notify('engine.log', { level: 'warn', message: 'cycles stopped: the simulation is off (oscillation)' }));
     }
     setImmediate(() => notify('sim.state', simState(f)));
     return {};
@@ -230,7 +232,7 @@ if (modes.has('exit-at-start')) {
 }
 if (modes.has('noise')) {
   process.stdout.write('Picked up JAVA_TOOL_OPTIONS: something a JVM prints\n');
-  notify('engine.log', { level: 'info', message: '가짜 엔진이 시작했습니다' });
+  notify('engine.log', { level: 'info', message: 'fake engine started' });
 }
 process.stderr.write('fake engine ready\n');
 let rest = '';

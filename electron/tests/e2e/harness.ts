@@ -118,3 +118,7 @@ export async function newCircuit(r: Running): Promise<void> {
 }
 
 export const statusText = (page: Page) => page.locator('.status').innerText();
+
+// The university's characters visible anywhere on the page (none may be, next to an error).
+export const visibleCharacters = (page: Page): Promise<number> => page.evaluate(() =>
+  [...document.querySelectorAll('img.char')].filter((e) => e.checkVisibility({ visibilityProperty: true })).length);

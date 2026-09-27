@@ -29,6 +29,12 @@ async function clipped(page: Page): Promise<string[]> {
   });
 }
 
+// English names inside Korean sentences broken across two lines ("Data" / "Bits").
+async function brokenNames(page: Page): Promise<string[]> {
+  return page.evaluate(() => [...document.querySelectorAll<HTMLElement>('.name')]
+    .filter((e) => e.checkVisibility({ visibilityProperty: true }) && e.getClientRects().length > 1).map((e) => e.textContent ?? ''));
+}
+
 const SCREENS = [
   { scale: 1, size: { width: 1920, height: 1032 } },
   { scale: 1.25, size: { width: 1536, height: 816 } },
@@ -53,6 +59,9 @@ for (const { scale, size } of SCREENS) {
       }
       await expect(page.locator('.shell')).not.toHaveClass(/narrow/);
       expect(await clipped(page)).toEqual([]);
+      // Every English name in a sentence on one line; the Attributes panel's (Data Bits) among them.
+      expect(await page.locator('section.right .notice .name').allInnerTexts()).toEqual(['Canvas', 'Data Bits', 'Facing', 'Label']);
+      expect(await brokenNames(page)).toEqual([]);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
       // The title bar: its right end clear of the caption buttons, every toolbar button whole and inside the window.
       expect(await page.evaluate(() => {
@@ -90,6 +99,7 @@ test('half a 1920 screen: no right column, Attributes a tab of the left panel; b
     await page.locator('.upper').getByRole('tab', { name: 'Attributes' }).click();
     await expect(page.locator('.upper .pbody:visible h3')).toHaveText('고른 부품이 없습니다');
     expect(await clipped(page)).toEqual([]);
+    expect(await brokenNames(page)).toEqual([]);
     await expect(page.locator('.toolbar button, .toolbar select')).toHaveCount(17);
     for (const b of await page.locator('.toolbar button, .toolbar select').all()) await expect(b).toBeVisible();
     // Wide again: Attributes in its own column, the left panel back on Components.

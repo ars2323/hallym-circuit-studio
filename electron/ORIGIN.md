@@ -10,7 +10,7 @@ Hallym Circuit Studio 2의 화면(`electron/`)은 **Hallym MIPS Simulator**(`ars
 
 Hallym MIPS `electron/`에는 SPIM의 `CPU/op.h`에서 만든 `src/core/op-table.ts`(생성 파일)와, SPIM 코어를 같은 프로세스에 링크하는 `native/`(`binding.gyp`, `src/addon.cc`, `src/run-win.cpp`)가 있다. 이것들과, 그 표나 SPIM의 문자열에 기대는 파일 — `src/core/*`(디코더, 명령어 글자, 설명, 어셈블 오류 해석, 문법 강조, 레지스터·메모리 표), `src/sim/*`(시뮬레이터 프로세스), 편집기, Text·Data·Registers·Inspector·Console 패널, MIPS 튜토리얼 — 은 **하나도 가져오지 않았다.** 아래 표의 파일은 모두 Hallym MIPS가 직접 쓴 화면 코드·디자인 값·도구·테스트 틀이거나 서드파티 글꼴·아이콘이다.
 
-**SPIM 유래가 아님을 확인한 근거:** 표의 코드 파일은 `src/core/`, `src/sim/`, `native/`의 어떤 파일도 import하지 않는다(upstream의 `dom.ts`가 `src/core/explain.ts`에서 가져오던 `codeParts`는 두 줄짜리 백틱 나누기라 여기서 직접 썼다). 명령어 표·레지스터 이름·SPIM 메시지 같은 SPIM의 표나 문자열이 들어 있지 않다. `tests/unit/origin.test.ts`가 `electron/`의 소스·테스트·도구 어디에도 `op-table`, `OP_TABLE`, `spim.node`, SPIM 코어 경로, `src/core`·`src/sim`·`native` import가 없는지 매번 확인한다.
+**SPIM 유래가 아님을 확인한 근거:** 표의 코드 파일은 `src/core/`, `src/sim/`, `native/`의 어떤 파일도 import하지 않는다(upstream의 `dom.ts`가 `src/core/explain.ts`에서 가져오던 `codeParts`는 두 줄짜리 백틱 나누기라 여기서 직접 썼다). 명령어 표·레지스터 이름·SPIM 메시지 같은 SPIM의 표나 문자열이 들어 있지 않다. **이것은 사람의 확인에 기대지 않는다: `tests/unit/origin.test.ts`가 아래 표의 글 파일(코드·CSS·HTML·설정·문서, 31개)을 하나씩 따로 읽어 파일마다 테스트 하나로 확인한다**("taken, not from SPIM: <파일>"). 파일마다 보는 것: ① Hallym MIPS의 `src/core/`, `src/sim/`, `native/`를 import하지 않는다(`from`·`import(…)`의 경로), ② SPIM의 이름과 문자열이 없다 — 명령어 표(`op-table`, `OP_TABLE`, `R3_TYPE_INST` 같은 명령어 분류), 애드온(`spim.node`), 코어 폴더(`CPU/`), `syscall`, SPIM·QtSpim이라는 이름, SPIM에 기대는 upstream 모듈 이름(`decoder.ts`, `explain.ts`, `instruction-text`, `asm-errors`, `mips-syntax`). 나머지 17개(글꼴·아이콘 그림·라이선스 글)는 `copy`라 태그의 파일과 바이트까지 같은지 본다. 이 파일별 자동 검사가 D-133 5항의 근거다. 같은 테스트가 가져온 파일의 upstream 경로가 가져오지 않는 목록(`NEVER`)에 걸리지 않는지, 그리고 `electron/`의 소스·테스트·도구 전체에 SPIM 표·코어·애드온 참조가 없는지도 본다.
 
 ## 가져온 파일
 
@@ -62,6 +62,6 @@ Hallym MIPS `electron/`에는 SPIM의 `CPU/op.h`에서 만든 `src/core/op-table
 
 ## Hallym MIPS가 아닌 곳에서 온 것
 
-- **Lucide 아이콘(더한 것):** `src/renderer/assets/icons/lucide/`의 `undo-2`, `redo-2`, `mouse-pointer-2`, `pointer`, `workflow`, `type`, `square-dot`, `tag`, `crosshair`, `activity`, `fast-forward`, `gauge`, `file-code`, `info`, `x`, `cpu`, `circuit-board`. npm 패키지 `lucide-static` **1.48.0**의 `icons/`에서 가져와 Hallym MIPS의 아이콘과 같은 모양으로 만들었다(첫 줄 라이선스 주석과 `class` 속성만 뺌, 그림은 그대로: `tools/import-hmips.ts --lucide`). 라이선스는 같은 `LICENSE.txt`(ISC, Feather 유래는 MIT).
+- **Lucide 아이콘(더한 것, 18개):** `src/renderer/assets/icons/lucide/`의 `undo-2`, `redo-2`, `mouse-pointer-2`, `pointer`, `workflow`, `type`, `square-dot`, `tag`, `crosshair`, `activity`, `fast-forward`, `gauge`, `file-code`, `info`, `x`, `cpu`, `circuit-board`, `house`. npm 패키지 `lucide-static` **1.48.0**의 `icons/`에서 가져와 Hallym MIPS의 아이콘과 같은 모양으로 만들었다(첫 줄 라이선스 주석과 `class` 속성만 뺌, 그림은 그대로: `tools/import-hmips.ts --lucide`). 라이선스는 같은 `LICENSE.txt`(ISC, Feather 유래는 MIT).
 - **학교 식별요소:** 로고와 캐릭터는 복사하지 않는다. 화면은 이 저장소의 원본 `assets/hallym/`(Hallym MIPS가 쓰는 것과 바이트까지 같은 파일, `assets/MANIFEST.sha256`)을 그대로 불러 크기만 줄인다.
 - **나머지(`src/main/engine.ts`, `rpc.ts`, `engine-locate.ts`, `run-folder.ts`, `protocol.ts`, `src/renderer/app/*`, `src/renderer/shared/band.ts`, `tests/fake-engine/`, 나머지 테스트):** 이 앱을 위해 새로 썼다.

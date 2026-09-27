@@ -3,7 +3,7 @@
   "version": "2.0.0-alpha.0",
   "private": true,
   "description": "Hallym Circuit Studio 2: the screen (Electron) of a Logisim 2.7.1-based circuit tool; circuits run in the Java engine (../engine, ../docs/engine-api.md)",
-  "license": "GPL-3.0-or-later",
+  "license": "GPL-2.0-or-later",
   "type": "module",
   "scripts": {
     "build:ui": "node tools/build-ui.ts",

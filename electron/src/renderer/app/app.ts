@@ -33,7 +33,8 @@ import { splitter } from '../shared/splitter.ts';
 import { button, iconButton, titleBar } from '../shared/titlebar.ts';
 import { headButton, panelHead, tabStrip, tabsHead } from '../shared/ui.ts';
 import type { CallError, Opened } from './api.ts';
-import { circuitFacts, count, engineFact, engineVersion } from './logic/facts.ts';
+import { commandError, fileError } from './logic/errors.ts';
+import { circuitFacts, count, counted, engineFact, engineVersion } from './logic/facts.ts';
 import { Files, type OpenFile } from './logic/files.ts';
 import { arrange, nothingDragged, PAD, SPLITTER } from './logic/layout.ts';
 import { startScreen } from './start.ts';
@@ -58,8 +59,6 @@ let untitled = 0;
 const FREQUENCIES: [string, number][] = [['1 Hz', 1], ['4 Hz', 4], ['16 Hz', 16], ['64 Hz', 64], ['256 Hz', 256], ['1 kHz', 1024], ['4 kHz', 4096]];
 
 const key = (fileId: string, circuitId: string) => `${fileId} ${circuitId}`;
-// A failed call's words (preload.cjs rejects with { name, message, code?, data? }).
-const why = (e: unknown): string => (typeof e === 'object' && e !== null && 'message' in e ? String((e as CallError).message) : String(e));
 
 // ---- the title bar ------------------------------------------------------------
 
@@ -263,8 +262,9 @@ function render(): void {
 
 function renderCircuits(f: OpenFile): void {
   circuitsBody.fill(h('ul', { class: 'list' }, ...f.circuits.map((c: CircuitRef) => {
-    const b = h('button', { type: 'button', title: c.name }, h('span', { class: 'mono' }, c.name),
-      c.circuitId === f.main ? h('span', { class: 'tag' }, 'main') : null);
+    // The main circuit (the one Logisim simulates first): a mark, not a second "main".
+    const b = h('button', { type: 'button', title: c.circuitId === f.main ? `${c.name} (main circuit)` : c.name }, h('span', { class: 'mono' }, c.name),
+      c.circuitId === f.main ? h('span', { class: 'mainmark', role: 'img', 'aria-label': 'Main circuit', title: 'Main circuit' }, icon('house')) : null);
     b.addEventListener('click', () => { files.openCircuit(f.fileId, c.circuitId); render(); });
     return h('li', { class: c.circuitId === f.circuit ? 'on' : undefined }, b);
   })));
@@ -276,11 +276,11 @@ function renderComponents(f: OpenFile): void {
     componentsBody.fill();
     void loadLibrary(f.fileId);
   } else if (typeof lib === 'string') {
-    componentsBody.empty({ title: '부품 목록을 받지 못했습니다', body: lib });
+    componentsBody.empty({ title: '부품 목록을 받지 못했습니다', body: '엔진이 이 파일의 부품 목록을 보내지 않았습니다. 파일을 닫았다가 다시 열어 보세요.' });
   } else {
     // The first group is this file's circuits (lib null); the bundled Hallym MIPS is listed before it is in the file (pending).
     componentsBody.fill(...lib.map((g, i) => h('details', { class: 'libgroup', open: i < 2 },
-      h('summary', {}, g.lib === null ? f.name : g.display ?? g.lib, g.pending ? h('span', { class: 'dim' }, '(아직 파일에 없음)') : null,
+      h('summary', {}, g.lib === null ? f.name : g.display ?? g.lib, g.pending ? h('span', { class: 'dim', title: 'Placed first, it is added to the file' }, 'not in the file yet') : null,
         h('span', { class: 'count' }, count(g.tools.length))),
       h('ul', { class: 'list' }, ...g.tools.map((t) => h('li', {}, h('span', { class: 'item', title: t.name }, t.circuitId ? code(t.display) : t.display)))))));
   }
@@ -290,7 +290,7 @@ async function loadLibrary(fileId: string): Promise<void> {
   try {
     libraries.set(fileId, await api.call<LibraryGroup[]>('model.library', { fileId }));
   } catch (e) {
-    libraries.set(fileId, why(e));
+    libraries.set(fileId, (e as CallError).message ?? 'failed');
   }
   if (files.active()?.fileId === fileId) renderComponents(files.active()!);
 }
@@ -323,7 +323,7 @@ async function loadSnapshot(fileId: string, circuitId: string): Promise<void> {
   try {
     snapshots.set(k, await api.call<Snapshot>('model.circuit', { fileId, circuitId }));
   } catch (e) {
-    note = { cls: 'err', text: `model.circuit — ${why(e)}` };
+    note = { cls: 'err', text: commandError('Canvas', e as CallError) };
   }
   if (wanted === k) wanted = '';
   const f = files.active();
@@ -356,16 +356,17 @@ function renderStatus(): void {
   const ef = engineFact(engine);
   if (ef) parts.push(span(ef.cls, ef.text));
   const f = files.active();
-  if (opening) parts.push(span('', '파일을 여는 중'));
-  if (!f && engine.state === 'ready' && !opening) parts.push(span('', '준비'));
+  // Facts are names, in English (Ready, 35 components, Cycle 2, Running); a sentence to the student is Korean.
+  if (opening) parts.push(span('', 'Opening file'));
+  if (!f && engine.state === 'ready' && !opening) parts.push(span('', 'Ready'));
   if (f) {
     const s = snapshots.get(key(f.fileId, f.circuit));
     parts.push(span('', code(files.circuitName(f, f.circuit)),
-      s ? ` · 부품 ${count(s.components.length)}개 · 선 ${count(s.wires.length)}개` : ''));
+      s ? ` · ${counted(s.components.length, 'component')} · ${counted(s.wires.length, 'wire')}` : ''));
     if (f.sim) {
       parts.push(span('', `Cycle ${count(f.sim.cycle)}`));
       const speed = FREQUENCIES.find(([, hz]) => hz === f.sim?.hz)?.[0];
-      if (f.sim.ticking) parts.push(span('run', speed ? `실행 중 (${speed})` : '실행 중'));
+      if (f.sim.ticking) parts.push(span('run', speed ? `Running (${speed})` : 'Running'));
       if (!f.sim.running) parts.push(span('err', f.sim.oscillating ? '발진으로 시뮬레이션이 꺼졌습니다' : '시뮬레이션이 꺼져 있습니다'));
     }
   }
@@ -410,19 +411,19 @@ async function newCircuit(): Promise<void> {
     untitled += 1;
     added({ fileId: r.fileId, name: untitled === 1 ? 'untitled.circ' : `untitled-${untitled}.circ`, path: null, circuits: r.circuits, main: r.main });
   } catch (e) {
-    note = { cls: 'err', text: `새 회로를 만들지 못했습니다 — ${why(e)}` };
-    renderStatus();
+    fileErrorDialog('new', e);
   }
+}
+
+// A file that could not be opened, saved or made: the window's own words (logic/errors.ts), no character.
+function fileErrorDialog(action: 'open' | 'save' | 'new', e: unknown, name?: string): void {
+  const d = fileError(action, e as CallError, name);
+  void ask({ title: d.title, file: d.file, body: d.body, detail: d.detail, ok: 'Close', cancel: null, character: false });
 }
 
 function openedOrError(r: Opened | null, e?: unknown): void {
   if (e) {
-    const err = e as CallError;
-    const data = err.data as { path?: string } | undefined;
-    void ask({
-      title: '파일을 열지 못했습니다', file: data?.path ? data.path.split(/[\\/]/).pop() : undefined,
-      body: err.message, ok: '닫기', cancel: null, character: false,
-    });
+    fileErrorDialog('open', e);
     return;
   }
   if (!r) return;
@@ -453,7 +454,8 @@ async function save(saveAs: boolean): Promise<void> {
     files.saved(f.fileId, r.name, r.path);
     note = { cls: 'ok', text: `저장했습니다 · ${r.name}${r.needsMipsJar ? ' · 원조 Logisim 2.7.1에서 열려면 옆에 hcs-mips.jar가 있어야 합니다' : ''}` };
   } catch (e) {
-    note = { cls: 'err', text: `저장하지 못했습니다 — ${why(e)}` };
+    note = null;
+    fileErrorDialog('save', e, f.name);
   }
   render();
 }
@@ -466,7 +468,7 @@ async function closeFile(fileId: string): Promise<void> {
   if (dirty) {
     const go = await ask({
       title: '저장하지 않은 변경이 있습니다', file: f.name,
-      body: '닫으면 저장하지 않은 내용은 사라집니다.', ok: '버리고 닫기', cancel: '돌아가기', danger: true,
+      body: '닫으면 저장하지 않은 내용은 사라집니다. 남기려면 Cancel을 누르고 저장하세요(Ctrl+S).', ok: 'Discard', cancel: 'Cancel', danger: true,
     });
     if (!go) return;
   }
@@ -488,7 +490,7 @@ async function edit(method: 'edit.undo' | 'edit.redo', name: string): Promise<vo
     await api.call(method, { fileId: f.fileId, circuitId: f.circuit });
     note = null;
   } catch (e) {
-    note = { cls: 'err', text: `${name} — ${why(e)}` };
+    note = { cls: 'err', text: commandError(name, e as CallError) };
   }
   renderStatus();
 }
@@ -500,7 +502,7 @@ async function simCall(method: 'sim.run' | 'sim.cycles' | 'sim.reset', params: R
     await api.call(method, { fileId: f.fileId, ...params });
     note = null;
   } catch (e) {
-    note = { cls: 'err', text: `${name} — ${why(e)}` };
+    note = { cls: 'err', text: commandError(name, e as CallError) };
   }
   renderStatus();
 }
@@ -517,8 +519,8 @@ async function engineFailed(): Promise<void> {
   failureOpen = true;
   const retry = await ask({
     title: '엔진을 시작하지 못했습니다',
-    body: '회로를 열고 돌리는 엔진(Java)이 시작되지 않았습니다. 엔진 없이는 회로를 만들거나 열 수 없습니다.',
-    detail: engine.detail ?? undefined, ok: '다시 시도', cancel: '닫기', character: false,
+    body: '회로를 열고 돌리는 엔진(Java)이 시작되지 않았습니다. 엔진 없이는 회로를 만들거나 열 수 없습니다. 아래에 적힌 파일이 있는지 확인한 뒤 Try Again을 누르세요.',
+    detail: engine.detail ?? undefined, ok: 'Try Again', cancel: 'Close', character: false,
   });
   failureOpen = false;
   if (retry) onEngine(await api.retryEngine());
@@ -557,9 +559,10 @@ api.onNotify((method, params) => {
     libraries.delete(fileId); // the first part of a pending library puts it in the file
     if (typeof p.dirty === 'boolean') files.setDirty(fileId, p.dirty);
     render();
-  } else if (method === 'engine.log' && (p.level === 'warn' || p.level === 'error')) {
-    note = { cls: 'err', text: String(p.message) };
-    renderStatus();
+  } else if (method === 'engine.log') {
+    // The engine's log is English, for developers: the window says what it means
+    // from sim.state (an oscillation) and from the answers; the log goes to the console only.
+    console.info(`[engine] ${String(p.level)}: ${String(p.message)}`);
   }
 });
 

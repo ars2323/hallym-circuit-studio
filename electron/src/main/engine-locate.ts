@@ -80,7 +80,7 @@ export function locateEngine(o: LocateOptions): Located {
     let cmd: unknown;
     try { cmd = JSON.parse(o.env.HCS_ENGINE_CMD); } catch { cmd = null; }
     if (!Array.isArray(cmd) || cmd.length === 0 || !cmd.every((c) => typeof c === 'string')) {
-      return { ok: false, reason: 'HCS_ENGINE_CMD는 문자열 JSON 배열이어야 합니다', looked: [o.env.HCS_ENGINE_CMD] };
+      return { ok: false, reason: '엔진 명령을 읽을 수 없습니다(HCS_ENGINE_CMD: 문자열 JSON 배열)', looked: [o.env.HCS_ENGINE_CMD] };
     }
     const [command, ...args] = cmd as string[];
     return { ok: true, engine: { command, args, cwd: o.runDir, describe: (cmd as string[]).join(' ') } };
@@ -101,7 +101,8 @@ export function locateEngine(o: LocateOptions): Located {
       if (jar && existsSync(built)) mips = built;
     }
   }
-  if (!jar) return { ok: false, reason: `엔진 파일(${ENGINE_JAR})을 찾지 못했습니다`, looked };
+  // The file named is the one looked for (no particle after a name: the name after a colon).
+  if (!jar) return { ok: false, reason: `엔진 파일이 없습니다: ${path.basename(looked[0] ?? ENGINE_JAR)}`, looked };
   const java = javaFor(o);
   const args = jvmArgs(o.runDir, jar, mips);
   return { ok: true, engine: { command: java, args, cwd: o.runDir, describe: `${java} -jar ${jar}` } };

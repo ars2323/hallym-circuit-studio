@@ -1,10 +1,10 @@
 /* The shared parts' look (derived from Hallym MIPS v2.3.0
-   electron/src/renderer/app/app.css): its tokens (the Qt build's
-   QtSpim/edu/theme/tokens.h), its fonts, and the rules of the parts this
-   app takes -- title bar, buttons, panel heads, splitters, empty states,
-   first screen, dialogs, About, status bar, band.  The SPIM panels' rules
-   (Editor, Assemble, Text, Data, Registers, Inspector, Console) and the
-   tutorial's are not here.
+   electron/src/renderer/app/app.css): its tokens (the colours of Hallym
+   MIPS's own theme, the same as its 1.x edition's), its fonts, and the
+   rules of the parts this app takes -- title bar, buttons, panel heads,
+   splitters, empty states, first screen, dialogs, About, status bar, band.
+   The rules of its simulator panels (Editor, Assemble, Text, Data,
+   Registers, Inspector, Console) and of its tutorial are not here.
 
    Every place a hexadecimal literal or a name with the digit 0 can appear
    is set in D2Coding (.mono): Pretendard draws 0x1 as 0×1, and its 0 next
@@ -44,6 +44,11 @@ body {
 .mono { overflow-wrap: anywhere; }
 button, select { font: inherit; color: inherit; cursor: pointer; }
 .mono { font-family: var(--code); }
+/* An English name inside a Korean sentence stays on one line (dom.ts codeText). */
+.name { white-space: nowrap; }
+/* The university's characters never stand next to an error: none on screen
+   while an error dialog (ask.ts) or the band (band.ts) is up. */
+body.error-dialog img.char, body.band-shown img.char { visibility: hidden; }
 .linkbtn { border: 0; background: none; padding: 0; color: var(--blue); font-weight: 500; }
 .linkbtn:hover { text-decoration: underline; }
 
