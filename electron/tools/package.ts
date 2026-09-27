@@ -1,7 +1,8 @@
 /* Packages the app with electron-builder (derived from Hallym MIPS v2.3.0
    electron/tools/package.ts).  A skeleton: the real installer, its checks
-   against earlier installs and its CI job are item N-23; the bundled Java
-   runtime is N-04.
+   against earlier installs and its CI job are item N-23.  The engine and
+   its bundled Java runtime (N-04) go in, built first on the OS packaged
+   for:  ./gradlew :engine:stage :engine:runtime
 
      node tools/package.ts            Windows: the NSIS installer, one file
      node tools/package.ts --dir      this platform, unpacked only (a check)
@@ -11,9 +12,13 @@
       the window, its assets, the university's marks and characters (the
       repository's originals, copied byte for byte), and the notices.  No
       node_modules: everything is bundled.
-   2. Runs electron-builder on it.  The engine (engine/engine.jar) and its
-      runtime (runtime/) go into resources/ once N-03 and N-04 make them;
-      src/main/engine-locate.ts looks for them there.
+   2. Stages the engine beside it: build/package/engine/ (hcs-engine.jar,
+      hcs-mips.jar from ../engine/build/stage) and build/package/runtime/
+      (the jlink runtime with its AppCDS archive, ../engine/build/runtime).
+   3. Runs electron-builder on it: those two go into resources/engine and
+      resources/runtime (extraResources), where src/main/engine-locate.ts
+      looks for them -- packaged, the app runs the engine on that runtime
+      only.
 
    Like Hallym MIPS: per user, one click, no elevation, no desktop shortcut,
    no file association yet (.circ is N-23's to decide), nothing kept in
@@ -38,6 +43,22 @@ const dirOnly = process.argv.includes('--dir');
 export const APP_ID = 'kr.ac.hallym.circuit-studio';
 // The marks and characters the window shows, from the page (renderer/app/): renderer/hallym/.
 export const PACKAGED_HALLYM = '../hallym';
+
+// The engine's jars and its runtime, as the Gradle build left them (N-04).
+export const ENGINE_STAGE = path.join(repo, 'engine/build/stage');
+export const ENGINE_RUNTIME = path.join(repo, 'engine/build/runtime');
+
+function stageEngine(): void {
+  const javaExe = process.platform === 'win32' ? 'java.exe' : 'java';
+  for (const [need, task] of [[path.join(ENGINE_STAGE, 'hcs-engine.jar'), ':engine:stage'], [path.join(ENGINE_STAGE, 'hcs-mips.jar'), ':engine:stage'],
+    [path.join(ENGINE_RUNTIME, 'bin', javaExe), ':engine:runtime']]) {
+    if (!existsSync(need)) throw new Error(`${need} is missing: ./gradlew ${task} (on this OS) first`);
+  }
+  const out = path.join(root, 'build/package');
+  for (const d of ['engine', 'runtime']) rmSync(path.join(out, d), { recursive: true, force: true });
+  cpSync(ENGINE_STAGE, path.join(out, 'engine'), { recursive: true, preserveTimestamps: true });
+  cpSync(ENGINE_RUNTIME, path.join(out, 'runtime'), { recursive: true, preserveTimestamps: true });
+}
 
 async function stageApp(): Promise<void> {
   rmSync(stage, { recursive: true, force: true });
@@ -77,10 +98,10 @@ export const config: Configuration = {
   electronLanguages: ['ko', 'en-US'],
   npmRebuild: false,
   nodeGypRebuild: false,
-  // The engine and its runtime, once there (N-03, N-04).
+  // The engine and its runtime (N-03, N-04; stageEngine()).
   extraResources: [
-    ...(existsSync(path.join(root, 'build/package/engine')) ? [{ from: path.join(root, 'build/package/engine'), to: 'engine' }] : []),
-    ...(existsSync(path.join(root, 'build/package/runtime')) ? [{ from: path.join(root, 'build/package/runtime'), to: 'runtime' }] : []),
+    { from: path.join(root, 'build/package/engine'), to: 'engine' },
+    { from: path.join(root, 'build/package/runtime'), to: 'runtime' },
   ],
   // The notices next to the executable as well as in About.
   extraFiles: [{ from: path.join(repo, 'LICENSE'), to: 'LICENSE.txt' }, { from: path.join(repo, 'NOTICE'), to: 'NOTICE.txt' }],
@@ -106,6 +127,7 @@ export const config: Configuration = {
 };
 
 if (import.meta.main) {
+  stageEngine();
   await stageApp();
   await electronBuild({ config, dir: dirOnly, publish: 'never' });
 }
