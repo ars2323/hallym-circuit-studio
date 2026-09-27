@@ -40,6 +40,7 @@ export const LICENSES: { name: string; title: string }[] = [
   { name: 'NOTICE', title: 'NOTICE — Logisim 2.7.1, Hallym MIPS, Electron, fonts, icons, the university\'s marks' },
   { name: 'LICENSE.hallym-mips.txt', title: 'Hallym MIPS Simulator — BSD 3-Clause License (the screen code taken from it)' },
   { name: 'hallym-assets.md', title: 'Hallym University assets (marks, characters, app icon)' },
+  { name: 'LICENSE.openjdk.txt', title: 'OpenJDK runtime (Eclipse Temurin 21.0.12) — GNU General Public License, version 2, with the Classpath Exception' },
   { name: 'OFL-Pretendard.txt', title: 'Pretendard — SIL Open Font License 1.1' },
   { name: 'OFL-D2Coding.txt', title: 'D2Coding — SIL Open Font License 1.1' },
   { name: 'lucide-LICENSE.txt', title: 'Lucide icons — ISC License' },
@@ -52,6 +53,7 @@ export const LICENSE_SOURCES: Record<string, string> = {
   'NOTICE': '../NOTICE',
   'LICENSE.hallym-mips.txt': 'LICENSE.hallym-mips.txt',
   'hallym-assets.md': 'hallym-assets.md',
+  'LICENSE.openjdk.txt': 'LICENSE.openjdk.txt',   // the bundled runtime's (N-04); its full texts are in runtime/legal/
   'OFL-Pretendard.txt': 'src/renderer/assets/fonts/OFL-Pretendard.txt',
   'OFL-D2Coding.txt': 'src/renderer/assets/fonts/OFL-D2Coding.txt',
   'lucide-LICENSE.txt': 'src/renderer/assets/icons/lucide/LICENSE.txt',

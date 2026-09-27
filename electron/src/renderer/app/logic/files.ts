@@ -4,8 +4,10 @@
    engine listed, the circuits opened as tabs (the main one first), the one
    on show, and whether it has unsaved changes.  One file is on show.
    Closing the file on show shows its neighbour (the one on its left, or
-   the first).  When the engine starts again, every file is gone (their ids
-   were the old engine's): clear(). */
+   the first).  When the engine dies and starts again, the main process opens
+   every file again under the same ids (src/main/recovery.ts): a file keeps
+   its tabs and the circuit on show, its simulation starts over (reopened());
+   one that could not be opened again is closed. */
 
 import type { CircuitRef, SimState } from '../../../main/protocol.ts';
 
@@ -81,6 +83,14 @@ export class Files {
   }
 
   setDirty(fileId: string, dirty: boolean): void { const f = this.get(fileId); if (f) f.dirty = dirty; }
+
+  // Opened again by a new engine: the same tabs; unsaved or not as it says; the simulation from Reset.
+  reopened(fileId: string, dirty: boolean): void {
+    const f = this.get(fileId);
+    if (!f) return;
+    f.dirty = dirty;
+    f.sim = null;
+  }
   setSim(state: SimState): void { const f = this.get(state.fileId); if (f) f.sim = state; }
 
   clear(): void {

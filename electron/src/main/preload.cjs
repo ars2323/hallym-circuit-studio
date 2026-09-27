@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld('app', {
   retryEngine: () => ipcRenderer.invoke('engine:retry').then(unwrap),
   onEngineStatus: (listener) => ipcRenderer.on('engine:status', (_e, s) => listener(s)),
   onNotify: (listener) => ipcRenderer.on('engine:notify', (_e, method, params) => listener(method, params)),
+  onEngineRecovered: (listener) => ipcRenderer.on('engine:recovered', (_e, report) => listener(report)),
   startupFile: () => ipcRenderer.invoke('file:startup'),
   openStartupFile: () => ipcRenderer.invoke('file:openStartup').then(unwrap),
   openFile: () => ipcRenderer.invoke('file:open').then(unwrap),

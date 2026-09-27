@@ -9,14 +9,20 @@
                       ../engine/build/libs/hcs-engine.jar (the bundled MIPS
                       library then from ../lib-mips/build/libs/hcs-mips.jar)
 
-   and for a jar, java from HCS_JAVA, <resources>/runtime (the bundled
-   runtime, N-04), JAVA_HOME, or the PATH.
+   and for a jar, java from HCS_JAVA, then: packaged, only the bundled
+   runtime <resources>/runtime (N-04: jlink, Java 21 -- a lab PC's own Java,
+   if any, is not used); in the source tree, JAVA_HOME or the PATH.  A
+   runtime of ours (engine/build/runtime, the bundled one) has its AppCDS
+   archive next to bin/ (hcs-engine.jsa): given to the JVM, it starts the
+   engine about a third faster (D-142).
 
    The lab-PC rule reaches into the JVM too (docs/engine-api.md 1): it runs
    in this run's own folder (removed after quit), without the performance
    data file every JVM writes to the temp folder (-XX:-UsePerfData), with
    its crash report and Java preferences in that folder, and it speaks
-   UTF-8 on stdout whatever the system's code page (Korean Windows: MS949). */
+   UTF-8 on stdout whatever the system's code page (Korean Windows: MS949).
+   The JVM's own warnings (unified logging, stdout by default) go to stderr:
+   stdout carries JSON-RPC lines only. */
 
 import { existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
@@ -38,9 +44,13 @@ export interface LocateOptions {
   platform?: NodeJS.Platform;
 }
 
-export function jvmArgs(runDir: string, jar: string, bundledMips: string | null = null): string[] {
+export const APPCDS = 'hcs-engine.jsa';
+
+export function jvmArgs(runDir: string, jar: string, bundledMips: string | null = null, archive: string | null = null): string[] {
   return [
     ...(bundledMips ? [`-Dhcs.bundledMips=${bundledMips}`] : []),
+    ...(archive ? [`-XX:SharedArchiveFile=${archive}`] : []),
+    '-Xlog:disable', '-Xlog:all=warning:stderr',
     '-Djava.awt.headless=true',
     '-Dfile.encoding=UTF-8', '-Dstdout.encoding=UTF-8', '-Dstderr.encoding=UTF-8',
     '-XX:-UsePerfData',
@@ -51,18 +61,26 @@ export function jvmArgs(runDir: string, jar: string, bundledMips: string | null 
   ];
 }
 
-function javaFor(o: LocateOptions): string {
+// The java to run, and its AppCDS archive when it is one of our runtimes; a
+// reason when the packaged app has none.
+function javaFor(o: LocateOptions): { java: string; archive: string | null } | { reason: string; looked: string } {
   const exe = (o.platform ?? process.platform) === 'win32' ? 'java.exe' : 'java';
-  if (o.env.HCS_JAVA) return o.env.HCS_JAVA;
+  // <runtime>/bin/java -> <runtime>/hcs-engine.jsa
+  const archiveOf = (java: string) => {
+    const a = path.join(path.dirname(path.dirname(java)), APPCDS);
+    return path.isAbsolute(java) && existsSync(a) ? a : null;
+  };
+  if (o.env.HCS_JAVA) return { java: o.env.HCS_JAVA, archive: archiveOf(o.env.HCS_JAVA) };
   if (o.resources) {
     const bundled = path.join(o.resources, 'runtime', 'bin', exe);
-    if (existsSync(bundled)) return bundled;
+    if (existsSync(bundled)) return { java: bundled, archive: archiveOf(bundled) };
+    return { reason: `Java 런타임이 없습니다: ${path.join('runtime', 'bin', exe)}`, looked: bundled };
   }
   if (o.env.JAVA_HOME) {
     const home = path.join(o.env.JAVA_HOME, 'bin', exe);
-    if (existsSync(home)) return home;
+    if (existsSync(home)) return { java: home, archive: null };
   }
-  return 'java';
+  return { java: 'java', archive: null };
 }
 
 export const ENGINE_JAR = 'hcs-engine.jar';
@@ -101,9 +119,17 @@ export function locateEngine(o: LocateOptions): Located {
       if (jar && existsSync(built)) mips = built;
     }
   }
+  // hcs-mips.jar beside the engine (packaged, staged) is named to it outright
+  // (-Dhcs.bundledMips): the engine need not find it through its own code
+  // source, which an AppCDS archive made without the same flag hides (D-142).
+  if (jar && !mips) {
+    const beside = path.join(path.dirname(jar), 'hcs-mips.jar');
+    if (existsSync(beside)) mips = beside;
+  }
   // The file named is the one looked for (no particle after a name: the name after a colon).
   if (!jar) return { ok: false, reason: `엔진 파일이 없습니다: ${path.basename(looked[0] ?? ENGINE_JAR)}`, looked };
-  const java = javaFor(o);
-  const args = jvmArgs(o.runDir, jar, mips);
-  return { ok: true, engine: { command: java, args, cwd: o.runDir, describe: `${java} -jar ${jar}` } };
+  const runtime = javaFor(o);
+  if ('reason' in runtime) return { ok: false, reason: runtime.reason, looked: [...looked, runtime.looked] };
+  const args = jvmArgs(o.runDir, jar, mips, runtime.archive);
+  return { ok: true, engine: { command: runtime.java, args, cwd: o.runDir, describe: `${runtime.java} -jar ${jar}` } };
 }

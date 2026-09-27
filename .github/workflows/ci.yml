@@ -94,6 +94,71 @@ jobs:
           name: electron-e2e
           path: electron/test-results/
 
+  # N-04(D-142): 엔진만 돌리는 jlink 런타임(Java 21, AppCDS). OS마다 따로 만든다. 크기·시작 시간·메모리를 재서
+  # 로그와 요약에 남기고, 그 런타임으로 진짜 엔진 e2e(충돌 뒤 되살리기, 고아 java 없음)를 돌린다.
+  runtime:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      # The OpenJDK release NOTICE names (engine/build.gradle.kts runtimeJdk; another fails the build)
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21.0.12'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build the engine and its runtime (jlink, AppCDS)
+        shell: bash
+        run: ./gradlew --no-daemon :engine:stage :engine:runtime :engine:runtimeZip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: electron/package-lock.json
+      - name: Measure the engine on the bundled runtime (size, start to engine.hello, memory)
+        shell: bash
+        working-directory: electron
+        run: node tools/engine-measure.ts --runs 5 --json ../engine/build/engine-runtime-measure.json
+      - name: Install Xvfb (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb && sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - name: Window dependencies
+        working-directory: electron
+        run: npm ci
+      - name: The window with the real engine on the bundled runtime (Linux, all)
+        if: runner.os == 'Linux'
+        working-directory: electron
+        env:
+          HCS_E2E_REAL_ENGINE: '1'
+        run: |
+          npm run build:ui
+          HCS_JAVA="$GITHUB_WORKSPACE/engine/build/runtime/bin/java" xvfb-run -a -s '-screen 0 2400x1400x24' npx playwright test real-engine
+      - name: The window with the real engine on the bundled runtime (Windows, crash recovery and no orphan)
+        if: runner.os == 'Windows'
+        shell: bash
+        working-directory: electron
+        env:
+          HCS_E2E_REAL_ENGINE: '1'
+        run: |
+          npm run build:ui
+          HCS_JAVA="$GITHUB_WORKSPACE/engine/build/runtime/bin/java.exe" npx playwright test real-engine -g "ended by a crash|killed after edits|no orphan java"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: engine-runtime-${{ runner.os }}
+          path: |
+            engine/build/distributions/hcs-runtime-*.zip
+            engine/build/engine-runtime-measure.json
+      - name: e2e results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-e2e-${{ runner.os }}
+          path: electron/test-results/
+
   # Windows: 포장(jpackage zip)과 포장한 런타임으로 실제 실행. hcs-asm.exe 빌드는 D-141에서 없어졌다.
   windows:
     runs-on: windows-2022

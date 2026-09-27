@@ -1,20 +1,22 @@
 /* The window with the real engine (engine/, N-03) instead of the fake one:
    the same flows end to end -- hello, a new circuit, a .circ with the MIPS
-   library, the clock, saving, a crash, quitting.  Opt-in, as it needs the
-   engine built and a Java 21:
+   library, the clock, saving, a crash and the unsaved edits replayed
+   (N-04), no orphan java, quitting.  Opt-in, as it needs the engine built
+   and a Java 21:
 
-     ./gradlew :engine:stage          (engine/build/stage/hcs-engine.jar, hcs-mips.jar beside it)
-     HCS_E2E_REAL_ENGINE=1 HCS_JAVA=<a Java 21>/bin/java xvfb-run -a npx playwright test real-engine
+     ./gradlew :engine:stage :engine:runtime    (engine/build/stage: the jars; engine/build/runtime: the bundled JRE)
+     HCS_E2E_REAL_ENGINE=1 HCS_JAVA=$PWD/../engine/build/runtime/bin/java xvfb-run -a npx playwright test real-engine
 
-   CI's electron job runs the window against the fake engine only; N-04
-   (the bundled runtime) makes this part of CI. */
+   CI's runtime job runs it with the bundled runtime (its AppCDS archive too). */
 
 import { expect, test } from '@playwright/test';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
+import type { Snapshot } from '../../src/main/protocol.ts';
 import { answerOpen, answerSave, DATAPATH, launch, newCircuit, openFile, repo, sample, type LaunchOptions } from './harness.ts';
+import { alive, call, circuitsOf, enginePid, fileModel, journalLength, killEngine, killMainAndSeeEngineEnd, openFileIds } from './model.ts';
 
 const JAR = path.join(repo, 'engine/build/stage/hcs-engine.jar');
 const real: LaunchOptions['env'] = { HCS_ENGINE_CMD: '', HCS_ENGINE_JAR: JAR };
@@ -101,19 +103,83 @@ test('the real engine: its file errors in the window\'s words (a file that is no
   }
 });
 
-test('the real engine ended by a crash: started again, the band, files open again', async () => {
+test('the real engine ended by a crash: started again, the file back in its tab, the dialog and the band', async () => {
   const r = await launch(undefined, { env: real });
   const { page } = r;
   try {
     const file = sample(r.dir, DATAPATH);
     await openFile(r, file);
-    await r.app.evaluate(() => (globalThis as unknown as { __hcs: { engine: { kill(): void } } }).__hcs.engine.kill());
-    await expect(page.locator('.band')).toHaveText('엔진이 멈춰서 다시 시작했습니다 · 열려 있던 파일 1개를 닫았습니다');
-    await openFile(r, file);
+    await killEngine(r.app);
+    await expect(page.locator('dialog.ask h2')).toHaveText('엔진이 멈췄다가 다시 시작했습니다');
+    await expect(page.locator('dialog.ask .askdetail')).toContainText('다시 엶: demo-datapath.circ');
+    await page.locator('dialog.ask').getByRole('button', { name: 'Close' }).click();
+    await expect(page.locator('.band')).toHaveText('엔진이 멈춰서 다시 시작했습니다 · 파일 1개를 되살렸습니다 · 시뮬레이션은 Reset 상태입니다');
+    await expect(page.locator('.filebar .ptab')).toHaveText(['demo-datapath.circ']);
     await expect(page.locator('.canvas h3')).toContainText('이 회로에는 부품');
+    await expect(page.locator('.status .engine')).toContainText('Logisim 2.7.1 · Java 21');
   } finally {
     await r.close();
   }
+});
+
+test('the real engine killed after edits: the replayed model equals the one before, in every circuit of both files', async () => {
+  const r = await launch(undefined, { env: real });
+  const { page } = r;
+  try {
+    await openFile(r, sample(r.dir, DATAPATH));
+    await page.getByTitle('New circuit (Ctrl+N)').click();
+    await expect(page.locator('.filebar .ptab')).toHaveCount(2);
+    const [datapath, untitled] = await openFileIds(r.app);
+    const dc = await circuitsOf(page, datapath);
+    const uc = await circuitsOf(page, untitled);
+    // Logisim's own editing: a part placed and changed, a part moved with its wires, a wire drawn,
+    // taken back and done again, a part deleted; in the new file, two pins and the wire that joins them.
+    const and = await call<{ id: string }>(page, 'edit.addComponent', { fileId: datapath, circuitId: dc.alu, lib: 'Gates', name: 'AND Gate', loc: [600, 600] });
+    await call(page, 'edit.setAttr', { fileId: datapath, circuitId: dc.alu, ids: [and.id], attr: 'inputs', value: '3' });
+    const main = await call<Snapshot>(page, 'model.circuit', { fileId: datapath, circuitId: dc.main });
+    const tunnel = main.components.find((c) => c.name === 'Tunnel')!;
+    await call(page, 'edit.move', { fileId: datapath, circuitId: dc.main, ids: [tunnel.id], dx: 0, dy: 10 });
+    await call(page, 'edit.addWire', { fileId: datapath, circuitId: dc.main, points: [[1000, 1000], [1100, 1000]] });
+    await call(page, 'edit.undo', { fileId: datapath, circuitId: dc.main });
+    await call(page, 'edit.redo', { fileId: datapath, circuitId: dc.main });
+    const alu = await call<Snapshot>(page, 'model.circuit', { fileId: datapath, circuitId: dc.alu });
+    const victim = alu.components.find((c) => c.name !== 'AND Gate' && c.name !== 'Pin')!;
+    await call(page, 'edit.delete', { fileId: datapath, circuitId: dc.alu, ids: [victim.id] });
+    await call(page, 'edit.addComponent', { fileId: untitled, circuitId: uc.main, lib: 'Wiring', name: 'Pin', loc: [100, 100] });
+    await call(page, 'edit.addComponent', { fileId: untitled, circuitId: uc.main, lib: 'Wiring', name: 'Pin', loc: [300, 100], attrs: { facing: 'west', output: 'true' } });
+    await call(page, 'edit.addWire', { fileId: untitled, circuitId: uc.main, points: [[100, 100], [300, 100]] });
+    expect(await journalLength(r.app, datapath)).toBe(7);
+    expect(await journalLength(r.app, untitled)).toBe(3);
+    const before = { [datapath]: await fileModel(page, datapath), [untitled]: await fileModel(page, untitled) };
+    // The edits took: the gate with three inputs, the new file's two pins joined by one wire.
+    expect(JSON.stringify(before[datapath])).toContain('[\\"inputs\\",\\"3\\"]');
+    expect((before[untitled].main as { comps: string[]; wires: string[] }).comps).toHaveLength(2);
+    expect((before[untitled].main as { comps: string[]; wires: string[] }).wires).toEqual(['100,100-300,100']);
+
+    const pid = await killEngine(r.app);
+    await expect(page.locator('dialog.ask')).toContainText('열려 있던 파일 2개를 다시 열고 저장하지 않은 편집 10개를 다시 적용했습니다.');
+    await page.locator('dialog.ask').getByRole('button', { name: 'Close' }).click();
+    expect(alive(pid)).toBe(false);
+    expect(await openFileIds(r.app)).toEqual([datapath, untitled]);
+    expect({ [datapath]: await fileModel(page, datapath), [untitled]: await fileModel(page, untitled) }).toEqual(before);
+    expect((await call<{ dirty: boolean }>(page, 'file.dirty', { fileId: datapath })).dirty).toBe(true);
+    await expect(page.locator('.filebar .ptab')).toHaveText(['demo-datapath.circ•', 'untitled.circ•']);
+    // Undo still walks back through the replayed edits (Logisim's own history, built again).
+    const undone = await call<{ changed: boolean }>(page, 'edit.undo', { fileId: untitled, circuitId: uc.main });
+    expect(undone.changed).toBe(true);
+  } finally {
+    await r.close();
+  }
+});
+
+test('the real engine and no orphan java: killing the window\'s process ends the engine (its stdin closes, or it sees its parent end)', async () => {
+  const r = await launch(undefined, { env: real });
+  const pid = (await enginePid(r.app))!;
+  await openFile(r, sample(r.dir, DATAPATH));
+  expect(alive(pid)).toBe(true);
+  expect(await killMainAndSeeEngineEnd(r.app, pid, 20_000)).toBe('both ended');
+  await Promise.race([r.app.close().catch(() => {}), new Promise((done) => setTimeout(done, 5_000))]);
+  rmSync(r.dir, { recursive: true, force: true });
 });
 
 test('the real engine and the lab-PC rule: after quit nothing in HOME but the JDK\'s font list cache (Linux)', async () => {

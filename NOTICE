@@ -133,6 +133,30 @@ Gson 2.13.2
   distributed under GPL version 3.
 
 --------------------------------------------------------------------------
+OpenJDK runtime (Eclipse Temurin 21.0.12), Hallym Circuit Studio 2
+  A reduced Java runtime made with jlink from Eclipse Temurin 21.0.12, the
+  OpenJDK build of the Eclipse Adoptium project (the exact build is what
+  runtime/bin/java -version prints, e.g. 21.0.12+1). jlink leaves out the modules the engine
+  does not use and strips debug information; the OpenJDK code is not
+  changed. It has the modules java.base, java.datatransfer, java.desktop,
+  java.logging, java.prefs, java.sql, java.transaction.xa, java.xml,
+  jdk.charsets and jdk.unsupported, and a class data archive of the engine
+  (hcs-engine.jsa), and runs the engine (hcs-engine.jar) and nothing else.
+  Copyright (c) Oracle and/or its affiliates, and the OpenJDK contributors.
+  License: GNU General Public License, version 2, with the Classpath
+           Exception (and the OpenJDK Assembly Exception); the libraries
+           OpenJDK includes carry their own notices.
+  Location: runtime/ in the installed program (resources/runtime/, built by
+            ./gradlew :engine:runtime). The full license texts are in
+            runtime/legal/<module>/: LICENSE, ASSEMBLY_EXCEPTION,
+            ADDITIONAL_LICENSE_INFO and a notice for each included library
+            (e.g. runtime/legal/java.desktop/freetype.md). About > Licenses
+            shows the first three (electron/LICENSE.openjdk.txt).
+  Source:  https://adoptium.net/temurin/ (Eclipse Temurin 21; its source at
+           https://github.com/adoptium/jdk21u, tag jdk-<that build>, e.g.
+           jdk-21.0.12+1) and https://openjdk.org/
+
+--------------------------------------------------------------------------
 Hallym MIPS Simulator test files
   Copyright (c) 2026, Hakhyeon Kim (AIAC Lab, Hallym University).
   License: BSD 3-Clause (tests/hmx/hallym-mips-v2.4.0/LICENSE)

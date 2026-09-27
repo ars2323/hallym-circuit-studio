@@ -342,3 +342,58 @@ test('shutdown of an engine that does not end: killed after the timeout', async 
   assert.equal(engine.status().state, 'stopped');
   assert.ok(proc.sent.some((m) => m.method === 'engine.shutdown'));
 });
+
+test('every answer is told as an event (method, params, result, the caller\'s tag) before the call settles; errors are not', async () => {
+  const proc = new HandProcess();
+  const engine = hand(proc);
+  const told: unknown[] = [];
+  let settled = false;
+  engine.on('answer', (a) => told.push({ ...a, settled }));
+  await engine.start();
+  const call = engine.call('file.dirty', { fileId: 'f1' }, { tag: 'window' }).then((v) => { settled = true; return v; });
+  const req = await next(proc);
+  proc.reply(req.id, { dirty: true });
+  assert.deepEqual(await call, { dirty: true });
+  assert.deepEqual(told.at(-1), { method: 'file.dirty', params: { fileId: 'f1' }, result: { dirty: true }, tag: 'window', settled: false });
+  const bad = engine.call('file.dirty', { fileId: 'f9' });
+  proc.out(JSON.stringify({ jsonrpc: '2.0', id: (await next(proc)).id, error: { code: 1, message: 'no such file' } }));
+  await assert.rejects(bad, EngineError);
+  assert.equal(told.filter((t) => (t as { method: string }).method === 'file.dirty').length, 1);
+  // A listener that throws does not take the answer with it.
+  engine.on('answer', () => { throw new Error('boom'); });
+  const again = engine.call('file.dirty', { fileId: 'f1' });
+  proc.reply((await next(proc)).id, { dirty: false });
+  assert.deepEqual(await again, { dirty: false });
+});
+
+test('engine.hello takes more parameters at every start (helloParams: the restarted engine\'s idFloor)', async () => {
+  let floor = 0;
+  const procs: HandProcess[] = [];
+  const engine = new EngineClient({
+    client: CLIENT, restartDelayMs: 10, helloParams: () => (floor ? { idFloor: floor } : {}),
+    launch: () => { const p = new HandProcess(); procs.push(p); return p as unknown as EngineProcess; },
+  });
+  await engine.start();
+  assert.deepEqual(procs[0].sent[0].params, CLIENT);
+  floor = 41;
+  procs[0].exit(1);
+  await new Promise<void>((done) => engine.on('status', (s) => { if (s.state === 'ready') done(); }));
+  assert.deepEqual(procs[1].sent[0].params, { ...CLIENT, idFloor: 41 });
+});
+
+test('crash(): how the last engine ended on its own, and its last log lines (for the dialog after a restart)', async () => {
+  const engine = fake({ FAKE_ENGINE_CRASH_ON: 'file.dirty' });
+  try {
+    await engine.start();
+    assert.equal(engine.crash(), null);
+    const n = await engine.call<NewResult>('file.new');
+    await assert.rejects(engine.call('file.dirty', { fileId: n.fileId }), EngineGone);
+    const c = engine.crash();
+    assert.equal(c?.how, 'exit code 70');
+    assert.ok(c?.log.includes('fake engine ready'));
+    await until(engine, (s) => s.state === 'ready' && s.generation === 2);
+    assert.equal(engine.crash()?.how, 'exit code 70');   // kept after the restart
+  } finally {
+    await engine.shutdown();
+  }
+});

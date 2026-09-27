@@ -32,7 +32,7 @@ test('security: context isolation, no Node in the page; the page may call only t
     expect(await page.evaluate(() => ['require', 'process', 'module', 'ipcRenderer', 'contextBridge']
       .map((n) => typeof (globalThis as Record<string, unknown>)[n]))).toEqual(['undefined', 'undefined', 'undefined', 'undefined', 'undefined']);
     expect(await page.evaluate(() => Object.isFrozen(window.app) || Object.getOwnPropertyDescriptor(window, 'app')?.writable === false)).toBe(true);
-    expect(await page.evaluate(() => Object.keys(window.app).sort())).toEqual(['about', 'call', 'engineStatus', 'license', 'onEngineStatus', 'onNotify',
+    expect(await page.evaluate(() => Object.keys(window.app).sort())).toEqual(['about', 'call', 'engineStatus', 'license', 'onEngineRecovered', 'onEngineStatus', 'onNotify',
       'openCredits', 'openFile', 'openStartupFile', 'retryEngine', 'saveFile', 'setOverlay', 'startupFile']);
     for (const method of ['file.open', 'file.save', 'engine.shutdown', 'engine.hello']) {
       const answer = await page.evaluate((m) => window.app.call(m as never, { path: '/etc/passwd' }).then(() => 'answered', (e: { message: string }) => e.message), method);
@@ -114,13 +114,15 @@ test('About: the version, Logisim 2.7.1 by Carl Burch, the marks\' owner, not of
     }
     await about.getByRole('tab', { name: 'Licenses' }).click();
     const items = about.locator('details');
-    await expect(items).toHaveCount(9);
-    for (let i = 0; i < 9; i += 1) {
+    await expect(items).toHaveCount(10);
+    for (let i = 0; i < 10; i += 1) {
       await items.nth(i).locator('summary').click();
       await expect(items.nth(i).locator('pre')).not.toBeEmpty();
     }
     await expect(items.nth(2).locator('pre')).toContainText('BSD 3-Clause License');
     await expect(items.nth(3).locator('pre')).toContainText('not an official product of Hallym University');
+    await expect(items.nth(4).locator('summary')).toContainText('OpenJDK runtime (Eclipse Temurin 21.0.12)');
+    await expect(items.nth(4).locator('pre')).toContainText('"CLASSPATH" EXCEPTION TO THE GPL');
     expect(await about.innerText()).not.toContain('한림');
     await about.getByRole('button', { name: 'Close' }).click();
     await expect(about).toBeHidden();

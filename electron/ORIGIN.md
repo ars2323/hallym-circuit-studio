@@ -30,9 +30,9 @@ Hallym MIPS `electron/`에는 SPIM의 `CPU/op.h`에서 만든 `src/core/op-table
 | `src/renderer/shared/splitter.ts` | `electron/src/renderer/app/app.ts` | derived | 편집기·Run 사이 분할선과 Console·Assemble 위 손잡이를 한 부품으로(두 방향). 접기 버튼은 뺌 |
 | `src/renderer/shared/shared.css` | `electron/src/renderer/app/app.css` | derived | 토큰, 글꼴, 제목 줄, 버튼, 패널 머리, 분할선, 빈 상태, 시작 화면, 대화상자, About, 상태 표시줄, 띠. SPIM 패널(편집기, Assemble, Text, Data, Registers, Inspector, Console)과 튜토리얼 규칙은 뺌. 도구 모음 묶음·제 줄·선택 상자 규칙을 더함 |
 | `src/renderer/app/index.html` | `electron/src/renderer/app/index.html` | derived | 같은 CSP. 제목과 스타일 시트만 다름 |
-| `src/main/main.ts` | `electron/src/main/main.ts` | derived | 창(시스템 제목 줄 없음, `titleBarOverlay`, 매번 최대화), 실행마다 임시 폴더의 프로필과 끝난 뒤 지우기, 창 버튼 자리 색, About. 시뮬레이터 부분은 엔진 클라이언트(`src/main/engine.ts`, 새로 씀)로 바뀜 |
+| `src/main/main.ts` | `electron/src/main/main.ts` | derived | 창(시스템 제목 줄 없음, `titleBarOverlay`, 매번 최대화), 실행마다 임시 폴더의 프로필과 끝난 뒤 지우기, 창 버튼 자리 색, About. 시뮬레이터 부분은 엔진 클라이언트(`src/main/engine.ts`, 새로 씀)와 충돌 복구(`src/main/recovery.ts`, 새로 씀, N-04)로 바뀜 |
 | `src/main/paths.ts` | `electron/src/main/paths.ts` | derived | 이 앱의 고지 목록, 엔진 자리 |
-| `src/main/preload.cjs` | `electron/src/main/preload.cjs` | derived | 같은 방식(좁은 `window.app`, 결과 풀기). 이 앱의 호출과 엔진 오류 코드 |
+| `src/main/preload.cjs` | `electron/src/main/preload.cjs` | derived | 같은 방식(좁은 `window.app`, 결과 풀기). 이 앱의 호출과 엔진 오류 코드, 엔진을 되살린 알림(N-04) |
 | `src/renderer/assets/fonts/Pretendard-Regular.subset.woff2` | `electron/src/renderer/assets/fonts/Pretendard-Regular.subset.woff2` | copy | — |
 | `src/renderer/assets/fonts/Pretendard-Medium.subset.woff2` | `electron/src/renderer/assets/fonts/Pretendard-Medium.subset.woff2` | copy | — |
 | `src/renderer/assets/fonts/Pretendard-SemiBold.subset.woff2` | `electron/src/renderer/assets/fonts/Pretendard-SemiBold.subset.woff2` | copy | — |
@@ -54,7 +54,7 @@ Hallym MIPS `electron/`에는 SPIM의 `CPU/op.h`에서 만든 `src/core/op-table
 | `tools/e2e-widths.ts` | `electron/tools/e2e-widths.ts` | derived | 이 앱의 창 크기(실습실 1920×1080의 100·125·150 %, 화면 절반) |
 | `tools/capture-screens.ts` | `electron/tools/capture-screens.ts` | derived | PNG 메타데이터 빼기, 크기 한도, 마우스·포커스 치우기, `shot()` 그대로. 장면은 이 앱의 것 |
 | `tools/mutants.ts` | `electron/tools/mutants.ts` | derived | 임시 폴더에 복사해 돌연변이마다 테스트하는 틀 그대로. 돌연변이 목록은 이 앱의 것, 네이티브 빌드 없음 |
-| `tools/package.ts` | `electron/tools/package.ts` | derived | electron-builder 뼈대: NSIS, 사용자별, 원클릭, 권한 상승 없음. 실제 설치본은 N-23 |
+| `tools/package.ts` | `electron/tools/package.ts` | derived | electron-builder 뼈대: NSIS, 사용자별, 원클릭, 권한 상승 없음. 엔진 jar와 번들 JRE를 `resources/`에(N-04). 실제 설치본은 N-23 |
 | `packaging/installer.nsh` | `electron/packaging/installer.nsh` | derived | 설치 폴더 이름을 이 프로그램 이름으로. 업데이터 사본 지우기 |
 | `tests/e2e/harness.ts` | `electron/tests/e2e/harness.ts` | derived | 매번 새 실행 폴더·새 HOME, 크기와 배율 스위치, 파일 대화상자를 테스트에서 답함. 가짜 엔진 |
 | `tests/unit/overlay.test.ts` | `electron/tests/renderer/overlay.test.ts` | derived | 같은 테스트. import 경로 |
