@@ -29,15 +29,29 @@ final class Fixtures {
     private Fixtures() {
     }
 
-    /** tests/circ의 .circ 전부(이름 순). */
-    static List<File> circFiles() {
+    /** tests/circ 아래(하위 폴더 faults·flow·libs 포함)의 .circ 전부(경로 순). */
+    static List<File> circFiles() throws IOException {
         List<File> ret = new ArrayList<>();
-        File[] fs = CIRC_DIR.listFiles((d, n) -> n.endsWith(".circ"));
-        if (fs != null) {
-            java.util.Arrays.sort(fs);
-            ret.addAll(java.util.Arrays.asList(fs));
+        try (java.util.stream.Stream<Path> s = Files.walk(CIRC_DIR.toPath())) {
+            s.filter(p -> p.toString().endsWith(".circ")).sorted().forEach(p -> ret.add(p.toFile()));
         }
         return ret;
+    }
+
+    /** 테스트 이름: tests/circ 기준 상대 경로. */
+    static String name(File f) {
+        return CIRC_DIR.toPath().relativize(f.toPath()).toString().replace(File.separatorChar, '/');
+    }
+
+    /** f가 든 폴더의 .circ·.jar를 dir로 복사하고 복사본을 돌려준다(상대 경로 라이브러리가 그대로 풀리게). */
+    static File copyWithSiblings(File f, Path dir) throws IOException {
+        File[] sibs = f.getAbsoluteFile().getParentFile().listFiles((d, n) -> n.endsWith(".circ") || n.endsWith(".jar"));
+        if (sibs != null) {
+            for (File s : sibs) {
+                Files.copy(s.toPath(), dir.resolve(s.getName()));
+            }
+        }
+        return dir.resolve(f.getName()).toFile();
     }
 
     /** MIPS 부품 라이브러리(JAR)를 쓰는 파일인가. */

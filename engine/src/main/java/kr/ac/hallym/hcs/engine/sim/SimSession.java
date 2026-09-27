@@ -5,6 +5,7 @@
  */
 package kr.ac.hallym.hcs.engine.sim;
 
+import java.awt.HeadlessException;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -27,6 +28,7 @@ import com.cburch.logisim.data.Location;
 import com.cburch.logisim.data.Value;
 import com.cburch.logisim.gui.main.Canvas;
 import com.cburch.logisim.proj.Project;
+import com.cburch.logisim.std.wiring.Pin;
 import com.cburch.logisim.tools.Caret;
 import com.cburch.logisim.tools.Pokable;
 import com.google.gson.JsonArray;
@@ -239,11 +241,29 @@ public final class SimSession implements SimulatorListener {
         } else {
             doc.show(c);
         }
+        if (comp.getFactory() instanceof Pin && proj.getCircuitState().isSubstate()
+                && !Boolean.TRUE.equals(comp.getAttributeSet().getValue(Pin.ATTR_TYPE))) {
+            // 원조는 서브회로 안의 입력 핀을 누르면 "상태를 복제할까" 창을 연다. 엔진은 그 창의 취소처럼 한다
+            throw RpcError.simState("frozenPin", "an input pin inside a subcircuit follows the parent circuit");
+        }
         Canvas canvas = doc.canvas();
         if (at == null) {
             Bounds b = comp.getBounds();
             at = Location.create(b.getX() + b.getWidth() / 2, b.getY() + b.getHeight() / 2);
         }
+        boolean poked = false;
+        try {
+            poked = pokeCaret(canvas, comp, at, action);
+        } catch (HeadlessException e) {
+            throw RpcError.simState("needsDialog", "this poke needs a dialog in the original tool");
+        }
+        sim.requestPropagate(); // Canvas.completeAction
+        valuesDirty = true;
+        return poked;
+    }
+
+    /** PokeTool.mousePressed / mouseReleased. */
+    private boolean pokeCaret(Canvas canvas, Component comp, Location at, String action) {
         boolean poked = false;
         if (!action.equals("release")) {
             if (caret != null && caretComponent != comp) {
@@ -267,8 +287,6 @@ public final class SimSession implements SimulatorListener {
             caret.mouseReleased(mouse(canvas, MouseEvent.MOUSE_RELEASED, at));
             poked = true;
         }
-        sim.requestPropagate(); // Canvas.completeAction
-        valuesDirty = true;
         return poked;
     }
 

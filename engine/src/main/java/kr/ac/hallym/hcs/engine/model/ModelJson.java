@@ -23,7 +23,9 @@ import com.cburch.logisim.data.AttributeSet;
 import com.cburch.logisim.data.Bounds;
 import com.cburch.logisim.data.Location;
 import com.cburch.logisim.file.LogisimFile;
+import com.cburch.logisim.tools.AddTool;
 import com.cburch.logisim.tools.Library;
+import com.cburch.logisim.tools.Tool;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
@@ -229,12 +231,26 @@ public final class ModelJson {
             return null;
         }
         for (Library lib : file.getLibraries()) {
-            if (lib.contains(f)) {
+            if (provides(lib, f)) {
                 libNames.put(f, lib.getName());
                 return lib.getName();
             }
         }
         return null;
+    }
+
+    /**
+     * lib의 도구가 f를 만드는가. 원조 {@link Library#contains}는 도구마다 팩토리를 불러오는데(지연 로딩), 불러온
+     * 도구는 다음 저장에서 {@code <tool>} 속성 묶음으로 적힌다(2.7.1 XmlWriter). 그러면 엔진이 연 것만으로 저장 결과가
+     * 원조와 달라지므로 이미 불러온 팩토리만 비교한다. 부품이 있으면 그 팩토리는 이미 불러온 것이다.
+     */
+    static boolean provides(Library lib, ComponentFactory f) {
+        for (Tool t : lib.getTools()) {
+            if (t instanceof AddTool && ((AddTool) t).getFactory(false) == f) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static JsonArray point(Location at) {

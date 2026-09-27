@@ -37,10 +37,13 @@ tasks.withType<JavaCompile>().configureEach {
         "-Xlint:-deprecation", "-Xlint:-removal", "-Xlint:-processing", "-Xlint:-classfile"))
 }
 
+// ./gradlew :engine:run 은 개발용. 배포물은 단일 jar(N-04가 JRE와 함께 싼다)라 배포 묶음(zip/tar)은 만들지 않는다.
 application {
     mainClass = "kr.ac.hallym.hcs.engine.Main"
     applicationDefaultJvmArgs = listOf("-Djava.awt.headless=true")
 }
+tasks.named("distZip") { enabled = false }
+tasks.named("distTar") { enabled = false }
 
 // 실행 가능한 단일 jar(D-134): 엔진 + 포크 클래스·Logisim 리소스 + Gson. 화면 전용 짐(도움말 HTML, FlatLaf,
 // 글꼴, 캐릭터 그림)은 뺀다. hcs-mips.jar는 넣지 않고 옆에 둔다(원조와 같은 JAR 라이브러리 방식, D-007).
@@ -84,6 +87,8 @@ tasks.test {
     systemProperty("hcs.engineStage", layout.buildDirectory.dir("stage").get().asFile.absolutePath)
     systemProperty("hcs.refMips", rootProject.file("tests/mips/ref-mips.circ").absolutePath)
     systemProperty("hcs.circDir", rootProject.file("tests/circ").absolutePath)
+    // 시작 시간·메모리 측정 결과(SubprocessTest.measureStartTimeAndMemory)
+    systemProperty("hcs.measureFile", layout.buildDirectory.file("engine-measure.txt").get().asFile.absolutePath)
     systemProperty("user.language", "en")
     systemProperty("user.country", "US")
     testLogging {

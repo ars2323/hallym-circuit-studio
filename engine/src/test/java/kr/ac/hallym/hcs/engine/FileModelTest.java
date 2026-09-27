@@ -90,15 +90,15 @@ class FileModelTest {
         return n;
     }
 
-    static List<File> allCircuits() {
+    static List<File> allCircuits() throws Exception {
         List<File> ret = new ArrayList<>(Fixtures.circFiles());
         ret.add(Fixtures.REF_MIPS);
         return ret;
     }
 
     @TestFactory
-    Stream<DynamicTest> snapshotsMatchTheFile() {
-        return allCircuits().stream().map(f -> DynamicTest.dynamicTest(f.getName(), () -> {
+    Stream<DynamicTest> snapshotsMatchTheFile() throws Exception {
+        return allCircuits().stream().map(f -> DynamicTest.dynamicTest(Fixtures.name(f), () -> {
             JsonObject opened = open(f);
             String xml = read(f);
             assertEquals(new JsonArray(), opened.getAsJsonArray("messages"), "no load errors");
@@ -132,10 +132,8 @@ class FileModelTest {
                         assertTrue(p.get("width").getAsInt() >= 1);
                         ports.add(c.get("id").getAsString() + "#" + p.get("i").getAsInt());
                     }
-                    if (!c.get("lib").isJsonNull()) {
-                        assertFalse(c.has("subcircuit"));
-                    } else {
-                        assertTrue(c.has("subcircuit"), "a component without a library is a subcircuit");
+                    if (c.get("lib").isJsonNull()) {
+                        assertTrue(c.has("subcircuit"), "a component without a library is a subcircuit of this file");
                     }
                 }
                 Set<String> wireIds = new HashSet<>();
@@ -263,9 +261,11 @@ class FileModelTest {
             }
         }
         assertFalse(plain.isEmpty());
-        return plain.stream().map(f -> DynamicTest.dynamicTest(f.getName(), () -> {
-            JsonObject opened = open(f);
-            File saved = tmp.resolve(f.getName()).toFile();
+        return plain.stream().map(f -> DynamicTest.dynamicTest(Fixtures.name(f), () -> {
+            // 같은 폴더에 저장해야 .circ 라이브러리의 상대 경로가 그대로다: 폴더째 복사한 곳에서 연다
+            File copy = Fixtures.copyWithSiblings(f, Files.createTempDirectory(tmp, "p"));
+            JsonObject opened = open(copy);
+            File saved = new File(copy.getParentFile(), "saved-" + f.getName());
             JsonObject r = e.client.callObject("file.save", params("fileId", opened.get("fileId").getAsString(),
                     "path", saved.getPath()));
             assertEquals(saved.getPath(), r.get("path").getAsString());
@@ -285,7 +285,7 @@ class FileModelTest {
             }
         }
         assertFalse(mips.isEmpty());
-        return mips.stream().map(f -> DynamicTest.dynamicTest(f.getName(), () -> {
+        return mips.stream().map(f -> DynamicTest.dynamicTest(Fixtures.name(f), () -> {
             Path dir = Files.createTempDirectory(tmp, "m");
             File once = dir.resolve("once.circ").toFile();
             File twice = dir.resolve("twice.circ").toFile();
@@ -390,6 +390,39 @@ class FileModelTest {
         Client.Failure f = e.client.fail("model.circuit", params("fileId", a.get("fileId").getAsString(),
                 "circuitId", "c999999"));
         assertEquals(1, f.code);
+    }
+
+    @Test
+    void circuitsOfACircLibraryAreReadOnly() throws Exception {
+        File copy = Fixtures.copyWithSiblings(new File(Fixtures.CIRC_DIR, "libs/adder_check.circ"),
+                Files.createTempDirectory(tmp, "l"));
+        JsonObject a = open(copy);
+        String fileId = a.get("fileId").getAsString();
+        JsonObject circLib = null;
+        for (JsonElement l : a.getAsJsonArray("libraries")) {
+            if (l.getAsJsonObject().get("kind").getAsString().equals("circ")) {
+                circLib = l.getAsJsonObject();
+            }
+        }
+        assertNotNull(circLib);
+        assertEquals("1bit_adder.circ", circLib.get("path").getAsString());
+        JsonObject s = snapshot(fileId, a.get("main").getAsString());
+        JsonObject inst = null;
+        for (JsonElement ce : s.getAsJsonArray("components")) {
+            if (ce.getAsJsonObject().has("subcircuit")) {
+                inst = ce.getAsJsonObject();
+            }
+        }
+        assertNotNull(inst);
+        assertEquals("1bit_adder", inst.get("lib").getAsString(), "the instance comes from the .circ library");
+        String sub = inst.get("subcircuit").getAsString();
+        JsonObject inside = snapshot(fileId, sub);
+        assertEquals("1bit_adder", inside.get("name").getAsString());
+        assertTrue(inside.getAsJsonArray("components").size() > 5);
+        Client.Failure f = e.client.fail("edit.addComponent", params("fileId", fileId, "circuitId", sub, "lib",
+                "Gates", "name", "AND Gate", "loc", Client.xy(600, 600)));
+        assertEquals(3, f.code);
+        assertEquals("cannotModify", f.reason());
     }
 
     @Test

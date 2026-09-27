@@ -9,10 +9,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.cburch.logisim.circuit.Circuit;
+import com.cburch.logisim.circuit.SubcircuitFactory;
 import com.cburch.logisim.comp.Component;
 import com.cburch.logisim.file.LogisimFile;
 import com.cburch.logisim.gui.main.Canvas;
 import com.cburch.logisim.proj.Project;
+import com.cburch.logisim.proj.ProjectEvent;
+import com.cburch.logisim.proj.ProjectListener;
+import com.cburch.logisim.tools.AddTool;
+import com.cburch.logisim.tools.Library;
+import com.cburch.logisim.tools.Tool;
 import com.cburch.logisim.util.LocaleManager;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -40,6 +46,17 @@ public final class Doc {
     private final ModelTracker tracker;
     private boolean readOnly;
     private Canvas canvas;
+    /**
+     * Swing 앱의 Canvas가 프로젝트 사건마다 하는 전파 요청(Canvas.completeAction)과 같다. 원조 목록은 약한 참조라
+     * 필드로 붙들어 둔다.
+     */
+    private final ProjectListener propagate = e -> {
+        int act = e.getAction();
+        if (act != ProjectEvent.ACTION_SELECTION && act != ProjectEvent.ACTION_START
+                && act != ProjectEvent.UNDO_START) {
+            e.getProject().getSimulator().requestPropagate();
+        }
+    };
 
     Doc(String id, EngineLoader loader, LogisimFile file, boolean readOnly) {
         this.id = id;
@@ -48,6 +65,8 @@ public final class Doc {
         this.readOnly = readOnly;
         this.proj = new Project(file);
         RedoStack.of(proj); // 되돌리기 사건을 처음부터 듣는다
+        proj.addProjectListener(propagate);
+        proj.getSimulator().requestPropagate(); // 연 회로의 첫 전파(Swing은 창이 뜨며 한다)
         this.tracker = new ModelTracker(new ModelJson(ids, file), file);
         tracker.baseline();
     }
@@ -92,13 +111,34 @@ public final class Doc {
         return proj.isFileDirty();
     }
 
-    /** 이 파일의 회로. 없으면 오류 1. */
+    /**
+     * 이 파일의 회로 또는 파일이 쓰는 .circ 라이브러리의 회로(읽기 전용: 편집은 오류 3). 없으면 오류 1.
+     */
     public Circuit circuit(String circuitId) throws RpcError {
         Circuit c = ids.circuit(circuitId);
-        if (c == null || !file.contains(c)) {
+        if (c == null || !(file.contains(c) || inLibraries(file, c, new java.util.HashSet<>()))) {
             throw RpcError.notFound("circuit", circuitId);
         }
         return c;
+    }
+
+    /** c가 lib(와 그 안의 라이브러리)의 서브회로 도구인가. 팩토리를 새로 불러오지 않는다. */
+    private static boolean inLibraries(Library lib, Circuit c, java.util.Set<Library> seen) {
+        for (Library l : lib.getLibraries()) {
+            if (!seen.add(l)) {
+                continue;
+            }
+            for (Tool t : l.getTools()) {
+                if (t instanceof AddTool && ((AddTool) t).getFactory(false) instanceof SubcircuitFactory
+                        && ((SubcircuitFactory) ((AddTool) t).getFactory(false)).getSubcircuit() == c) {
+                    return true;
+                }
+            }
+            if (inLibraries(l, c, seen)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** 회로 c 안의 부품·선. 없으면 오류 1. */
