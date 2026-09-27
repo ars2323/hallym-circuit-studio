@@ -10,15 +10,22 @@
    circuits, components and wires with a few regular expressions -- enough
    for a snapshot, nothing like Logisim's loader), file.save (the bytes it
    opened, or an empty circuit), file.close, file.dirty, model.circuit,
-   model.library, edit.undo/redo ({changed:false}), sim.reset/cycles/run
-   (a cycle count, told back as sim.state).  Anything else: -32601.
+   model.library (this file's circuits first, as the engine lists them),
+   edit.undo/redo ({changed:false}), sim.reset/cycles/run/enable/state (a
+   cycle count and the clock, told back as sim.state).  The same shapes as
+   the real engine's (docs/engine-api.md, engine/ D-134): Logisim's project
+   name (Untitled, a file's name without .circ), alreadyOpen, messages,
+   needsMipsJar.  Anything else: -32601.
 
    FAKE_ENGINE_MODE (comma-separated) for the tests of the client:
      silent-hello   never answers engine.hello
      exit-at-start  writes a line to stderr and exits (code 3)
      noise          a line that is not JSON and an engine.log notification first
      split          writes every message in small pieces (a Hangul name cut inside a character)
-   FAKE_ENGINE_CRASH_ON=<method>  exits (code 70) on that call, unanswered */
+     oscillate      sim.cycles turns the simulation off (oscillation), with an engine.log warning
+     needs-mips     file.save says the saved .circ needs hcs-mips.jar beside it
+   FAKE_ENGINE_CRASH_ON=<method>  exits (code 70) on that call, unanswered
+   FAKE_ENGINE_OPEN_MESSAGE=<text> file.open reports it as a loader message */
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -26,7 +33,7 @@ import path from 'node:path';
 type Params = Record<string, unknown>;
 interface Comp { id: string; lib: string; name: string; loc: [number, number]; attrs: Record<string, string> }
 interface Circuit { circuitId: string; name: string; comps: Comp[]; wires: { id: string; a: [number, number]; b: [number, number] }[] }
-interface File { fileId: string; name: string; path: string | null; bytes: Buffer | null; circuits: Circuit[]; main: string; libs: string[]; cycle: number; running: boolean }
+interface File { fileId: string; name: string; path: string | null; bytes: Buffer | null; circuits: Circuit[]; main: string; libs: string[]; cycle: number; ticking: boolean; hz: number; on: boolean }
 
 const modes = new Set((process.env.FAKE_ENGINE_MODE ?? '').split(',').filter(Boolean));
 const crashOn = process.env.FAKE_ENGINE_CRASH_ON ?? '';
@@ -101,7 +108,9 @@ function circuitOf(p: Params): Circuit {
 }
 const refs = (f: File) => f.circuits.map((c) => ({ circuitId: c.circuitId, name: c.name }));
 const mainId = (f: File) => f.circuits.find((c) => c.name === f.main)?.circuitId ?? f.circuits[0]?.circuitId ?? '';
-const simState = (f: File) => ({ fileId: f.fileId, running: f.running, ticking: f.running, cycle: f.cycle, oscillating: false });
+const simState = (f: File) => ({ fileId: f.fileId, running: f.on, ticking: f.ticking, cycle: f.cycle, oscillating: !f.on, hz: f.hz });
+const libRefs = (f: File) => (f.libs.length ? f.libs : BUILTIN).map((lib) => ({ lib, display: lib === 'I/O' ? 'Input/Output' : lib, kind: 'builtin' }));
+const BUILTIN = ['Wiring', 'Gates', 'Plexers', 'Arithmetic', 'Memory', 'I/O', 'Base'];
 
 const LIBRARY = [
   { lib: 'Wiring', tools: ['Splitter', 'Pin', 'Probe', 'Tunnel', 'Pull Resistor', 'Clock', 'Constant'] },
@@ -109,20 +118,23 @@ const LIBRARY = [
   { lib: 'Plexers', tools: ['Multiplexer', 'Demultiplexer', 'Decoder', 'Priority Encoder', 'Bit Selector'] },
   { lib: 'Arithmetic', tools: ['Adder', 'Subtractor', 'Multiplier', 'Divider', 'Negator', 'Comparator', 'Shifter'] },
   { lib: 'Memory', tools: ['D Flip-Flop', 'Register', 'Counter', 'RAM', 'ROM'] },
-  { lib: 'Input/Output', tools: ['Button', 'LED', 'Hex Digit Display'] },
+  { lib: 'I/O', tools: ['Button', 'LED', 'Hex Digit Display'] },
 ];
+const stem = (name: string) => name.replace(/\.circ$/i, '');
 
 const methods: Record<string, (p: Params) => unknown> = {
-  'engine.hello': () => ({ engine: 'fake-engine', version: '0', logisim: '2.7.1', java: 'none (fake engine, Node)' }),
+  'engine.hello': () => ({ engine: 'fake-engine', version: '0', logisim: '2.7.1', java: 'none (fake engine, Node)', api: '0' }),
   'engine.shutdown': () => { setImmediate(() => process.exit(0)); return {}; },
   'file.new': () => {
     const c: Circuit = { circuitId: `c${nextCircuit++}`, name: 'main', comps: [], wires: [] };
-    const f: File = { fileId: `f${nextFile++}`, name: 'untitled.circ', path: null, bytes: null, circuits: [c], main: 'main', libs: [], cycle: 0, running: false };
+    const f: File = { fileId: `f${nextFile++}`, name: 'Untitled', path: null, bytes: null, circuits: [c], main: 'main', libs: [], cycle: 0, ticking: false, hz: 1, on: true };
     files.set(f.fileId, f);
-    return { fileId: f.fileId, circuits: refs(f), main: mainId(f) };
+    return { fileId: f.fileId, name: f.name, circuits: refs(f), main: mainId(f), libraries: libRefs(f) };
   },
   'file.open': (p) => {
     const file = String(p.path ?? '');
+    const open = [...files.values()].find((x) => x.path === file);
+    if (open) return { fileId: open.fileId, name: open.name, circuits: refs(open), main: mainId(open), libraries: libRefs(open), messages: [], alreadyOpen: true };
     let bytes: Buffer;
     try { bytes = readFileSync(file); } catch (e) {
       throw new Failure(2, `${path.basename(file)}을(를) 읽지 못했습니다`, { path: file, reason: (e as NodeJS.ErrnoException).code ?? String(e) });
@@ -130,9 +142,10 @@ const methods: Record<string, (p: Params) => unknown> = {
     const text = bytes.toString('utf8');
     if (!text.includes('<project')) throw new Failure(2, `${path.basename(file)}은(는) Logisim 회로 파일이 아닙니다`, { path: file, reason: 'no <project>' });
     const r = readCirc(text);
-    const f: File = { fileId: `f${nextFile++}`, name: path.basename(file), path: file, bytes, circuits: r.circuits, main: r.main, libs: r.libs, cycle: 0, running: false };
+    const f: File = { fileId: `f${nextFile++}`, name: stem(path.basename(file)), path: file, bytes, circuits: r.circuits, main: r.main, libs: r.libs, cycle: 0, ticking: false, hz: 1, on: true };
     files.set(f.fileId, f);
-    return { fileId: f.fileId, name: f.name, circuits: refs(f), main: mainId(f), libraries: f.libs.map((lib) => ({ lib, kind: 'builtin' })) };
+    const messages = process.env.FAKE_ENGINE_OPEN_MESSAGE ? [process.env.FAKE_ENGINE_OPEN_MESSAGE] : [];
+    return { fileId: f.fileId, name: f.name, circuits: refs(f), main: mainId(f), libraries: libRefs(f), messages };
   },
   'file.save': (p) => {
     const f = fileOf(p);
@@ -143,8 +156,8 @@ const methods: Record<string, (p: Params) => unknown> = {
       throw new Failure(2, `${path.basename(target)}에 저장하지 못했습니다`, { path: target, reason: (e as NodeJS.ErrnoException).code ?? String(e) });
     }
     f.path = target;
-    f.name = path.basename(target);
-    return { path: target, bytes: bytes.length };
+    f.name = stem(path.basename(target));
+    return { path: target, bytes: bytes.length, needsMipsJar: modes.has('needs-mips') };
   },
   'file.close': (p) => { fileOf(p); files.delete(String(p.fileId)); return {}; },
   'file.dirty': (p) => { fileOf(p); return { dirty: false }; },
@@ -159,12 +172,36 @@ const methods: Record<string, (p: Params) => unknown> = {
       wires: c.wires, nets: [], junctions: [],
     };
   },
-  'model.library': (p) => { fileOf(p); return LIBRARY.map((g) => ({ lib: g.lib, tools: g.tools.map((name) => ({ name, display: name })) })); },
-  'edit.undo': (p) => { circuitOf(p); return { changed: false }; },
-  'edit.redo': (p) => { circuitOf(p); return { changed: false }; },
-  'sim.reset': (p) => { const f = fileOf(p); f.cycle = 0; f.running = false; setImmediate(() => notify('sim.state', simState(f))); return {}; },
-  'sim.cycles': (p) => { const f = fileOf(p); f.cycle += Number(p.n ?? 1); setImmediate(() => notify('sim.state', simState(f))); return {}; },
-  'sim.run': (p) => { const f = fileOf(p); f.running = Boolean(p.on); setImmediate(() => notify('sim.state', simState(f))); return {}; },
+  'model.library': (p) => {
+    const f = fileOf(p);
+    return [
+      { lib: null, display: f.name, tools: f.circuits.map((c) => ({ name: c.name, display: c.name, circuitId: c.circuitId })) },
+      ...LIBRARY.map((g) => ({ lib: g.lib, display: g.lib === 'I/O' ? 'Input/Output' : g.lib, tools: g.tools.map((name) => ({ name, display: name })) })),
+    ];
+  },
+  'edit.undo': (p) => { fileOf(p); return { changed: false }; },
+  'edit.redo': (p) => { fileOf(p); return { changed: false }; },
+  'sim.reset': (p) => { const f = fileOf(p); f.cycle = 0; f.ticking = false; f.on = true; setImmediate(() => notify('sim.state', simState(f))); return {}; },
+  'sim.cycles': (p) => {
+    const f = fileOf(p);
+    if (!f.on) throw new Failure(4, 'simulation off', { reason: 'oscillating' });
+    f.cycle += Number(p.n ?? 1);
+    if (modes.has('oscillate')) {
+      f.on = false;
+      setImmediate(() => notify('engine.log', { level: 'warn', message: '회로가 발진해서 시뮬레이션을 껐습니다' }));
+    }
+    setImmediate(() => notify('sim.state', simState(f)));
+    return {};
+  },
+  'sim.run': (p) => {
+    const f = fileOf(p);
+    f.ticking = Boolean(p.on);
+    if (typeof p.hz === 'number') f.hz = p.hz;
+    setImmediate(() => notify('sim.state', simState(f)));
+    return {};
+  },
+  'sim.enable': (p) => { const f = fileOf(p); f.on = Boolean(p.on); setImmediate(() => notify('sim.state', simState(f))); return {}; },
+  'sim.state': (p) => simState(fileOf(p)),
   'sim.watch': (p) => { circuitOf(p); return {}; },
 };
 

@@ -209,7 +209,7 @@ test('the fake engine: hello, file.new, model.circuit, file.open of a real .circ
     const empty = await engine.call<Snapshot>('model.circuit', { fileId: n.fileId, circuitId: n.main });
     assert.deepEqual([empty.components.length, empty.wires.length], [0, 0]);
     const o = await engine.call<OpenResult>('file.open', { path: path.join(REPO, 'tests/circ/demo-datapath.circ') });
-    assert.equal(o.name, 'demo-datapath.circ');
+    assert.equal(o.name, 'demo-datapath'); // Logisim's project name; the window shows the file's own name
     assert.deepEqual(o.circuits.map((c) => c.name), ['main', 'regfile', 'alu']);
     const s = await engine.call<Snapshot>('model.circuit', { fileId: o.fileId, circuitId: o.main });
     assert.ok(s.components.some((c) => c.name === 'Tunnel' && c.attrs.label === 'RegWrite'));

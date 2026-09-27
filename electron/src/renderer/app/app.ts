@@ -54,8 +54,8 @@ let dragged = nothingDragged();
 let bottomCollapsed = false;
 let startSeen = false;
 let untitled = 0;
-const FREQUENCIES: [string, number][] = [['4.1 kHz', 4096], ['2.0 kHz', 2048], ['1.0 kHz', 1024], ['512 Hz', 512], ['256 Hz', 256],
-  ['128 Hz', 128], ['64 Hz', 64], ['32 Hz', 32], ['16 Hz', 16], ['8 Hz', 8], ['4 Hz', 4], ['2 Hz', 2], ['1 Hz', 1], ['0.5 Hz', 0.5], ['0.25 Hz', 0.25]];
+// The clock's speed, ticks per second: v1's list (and the engine's, docs/engine-api.md sim.run).
+const FREQUENCIES: [string, number][] = [['1 Hz', 1], ['4 Hz', 4], ['16 Hz', 16], ['64 Hz', 64], ['256 Hz', 256], ['1 kHz', 1024], ['4 kHz', 4096]];
 
 const key = (fileId: string, circuitId: string) => `${fileId} ${circuitId}`;
 // A failed call's words (preload.cjs rejects with { name, message, code?, data? }).
@@ -81,6 +81,8 @@ const bCycles = button('N Cycles', 'fast-forward', '', () => {});
 const bReset = button('Reset', 'rotate-ccw', '', () => void reset());
 const frequency = h('select', { title: 'Clock speed', 'aria-label': 'Clock speed' },
   ...FREQUENCIES.map(([label, hz]) => h('option', { value: String(hz), selected: hz === 1 }, label)));
+// A new speed while the clock runs applies at once (as v1's menu did).
+frequency.addEventListener('change', () => { if (files.active()?.sim?.ticking) void simCall('sim.run', { on: true, hz: Number(frequency.value) }, 'Run'); });
 const bLoad = button('Load Program…', 'file-code', '', () => {});
 const toolbar = h('span', { class: 'toolbar', role: 'toolbar', 'aria-label': 'Toolbar' },
   h('span', { class: 'tgroup' }, bSave, bUndo, bRedo),
@@ -240,10 +242,10 @@ function render(): void {
   frequency.disabled = !f || !ready;
   bCycles.disabled = true;   // N-07: the count to go
   bLoad.disabled = true;     // N-16: .hmx and .s
-  const running = f?.sim?.running ?? false;
-  bRun.replaceChildren(icon(running ? 'square' : 'play'), h('span', { class: 'label' }, running ? 'Stop' : 'Run'), h('kbd', {}, 'F5'));
-  bRun.title = running ? 'Stop (F5)' : 'Run (F5)';
-  bRun.classList.toggle('primary', running);
+  const ticking = f?.sim?.ticking ?? false;
+  bRun.replaceChildren(icon(ticking ? 'square' : 'play'), h('span', { class: 'label' }, ticking ? 'Stop' : 'Run'), h('kbd', {}, 'F5'));
+  bRun.title = ticking ? 'Stop (F5)' : 'Run (F5)';
+  bRun.classList.toggle('primary', ticking);
   if (f) {
     fileStrip.set(files.list().map((x) => ({ id: x.fileId, label: x.name, title: x.path ?? x.name, dirty: x.dirty })), f.fileId);
     circuitStrip.set(f.tabs.map((c) => ({ id: c, label: files.circuitName(f, c) })), f.circuit);
@@ -276,9 +278,11 @@ function renderComponents(f: OpenFile): void {
   } else if (typeof lib === 'string') {
     componentsBody.empty({ title: '부품 목록을 받지 못했습니다', body: lib });
   } else {
+    // The first group is this file's circuits (lib null); the bundled Hallym MIPS is listed before it is in the file (pending).
     componentsBody.fill(...lib.map((g, i) => h('details', { class: 'libgroup', open: i < 2 },
-      h('summary', {}, g.lib, h('span', { class: 'count' }, count(g.tools.length))),
-      h('ul', { class: 'list' }, ...g.tools.map((t) => h('li', {}, h('span', { class: 'item', title: t.name }, t.display)))))));
+      h('summary', {}, g.lib === null ? f.name : g.display ?? g.lib, g.pending ? h('span', { class: 'dim' }, '(아직 파일에 없음)') : null,
+        h('span', { class: 'count' }, count(g.tools.length))),
+      h('ul', { class: 'list' }, ...g.tools.map((t) => h('li', {}, h('span', { class: 'item', title: t.name }, t.circuitId ? code(t.display) : t.display)))))));
   }
 }
 
@@ -360,8 +364,9 @@ function renderStatus(): void {
       s ? ` · 부품 ${count(s.components.length)}개 · 선 ${count(s.wires.length)}개` : ''));
     if (f.sim) {
       parts.push(span('', `Cycle ${count(f.sim.cycle)}`));
-      if (f.sim.running) parts.push(span('run', '실행 중'));
-      if (f.sim.oscillating) parts.push(span('err', '발진'));
+      const speed = FREQUENCIES.find(([, hz]) => hz === f.sim?.hz)?.[0];
+      if (f.sim.ticking) parts.push(span('run', speed ? `실행 중 (${speed})` : '실행 중'));
+      if (!f.sim.running) parts.push(span('err', f.sim.oscillating ? '발진으로 시뮬레이션이 꺼졌습니다' : '시뮬레이션이 꺼져 있습니다'));
     }
   }
   if (note) parts.push(span(note.cls, note.text));
@@ -421,8 +426,13 @@ function openedOrError(r: Opened | null, e?: unknown): void {
     return;
   }
   if (!r) return;
-  if (r.already) { showFile(r.fileId); return; }
+  if (r.already && files.get(r.fileId)) { showFile(r.fileId); return; }
   added({ fileId: r.fileId, name: r.name, path: r.path, circuits: r.circuits, main: r.main });
+  // What the original loader would have shown in its dialogs (e.g. a component it does not know).
+  if (r.messages?.length) {
+    note = { cls: 'err', text: `불러오며 알린 것 ${r.messages.length}개 — ${r.messages[0]}` };
+    renderStatus();
+  }
 }
 
 async function openFile(): Promise<void> {
@@ -441,7 +451,7 @@ async function save(saveAs: boolean): Promise<void> {
     const r = await api.saveFile(f.fileId, { name: f.name, saveAs });
     if (!r) return;
     files.saved(f.fileId, r.name, r.path);
-    note = { cls: 'ok', text: `저장했습니다 · ${r.name}` };
+    note = { cls: 'ok', text: `저장했습니다 · ${r.name}${r.needsMipsJar ? ' · 원조 Logisim 2.7.1에서 열려면 옆에 hcs-mips.jar가 있어야 합니다' : ''}` };
   } catch (e) {
     note = { cls: 'err', text: `저장하지 못했습니다 — ${why(e)}` };
   }
@@ -494,7 +504,7 @@ async function simCall(method: 'sim.run' | 'sim.cycles' | 'sim.reset', params: R
   }
   renderStatus();
 }
-const run = () => simCall('sim.run', { on: !(files.active()?.sim?.running ?? false), hz: Number(frequency.value) }, 'Run');
+const run = () => simCall('sim.run', { on: !(files.active()?.sim?.ticking ?? false), hz: Number(frequency.value) }, 'Run');
 const cycles = (n: number) => simCall('sim.cycles', { n }, n === 1 ? '1 Cycle' : 'N Cycles');
 const reset = () => simCall('sim.reset', {}, 'Reset');
 
@@ -537,13 +547,19 @@ api.onEngineStatus(onEngine);
 api.onNotify((method, params) => {
   const p = params as Record<string, unknown>;
   if (method === 'sim.state') {
-    files.setSim(p as unknown as SimState);
+    const st = p as unknown as SimState;
+    files.setSim(st);
+    if (st.fileId === files.active()?.fileId && FREQUENCIES.some(([, hz]) => hz === st.hz)) frequency.value = String(st.hz);
     render();
   } else if (method === 'model.changed') {
     const fileId = String(p.fileId);
     snapshots.delete(key(fileId, String(p.circuitId)));
+    libraries.delete(fileId); // the first part of a pending library puts it in the file
     if (typeof p.dirty === 'boolean') files.setDirty(fileId, p.dirty);
     render();
+  } else if (method === 'engine.log' && (p.level === 'warn' || p.level === 'error')) {
+    note = { cls: 'err', text: String(p.message) };
+    renderStatus();
   }
 });
 

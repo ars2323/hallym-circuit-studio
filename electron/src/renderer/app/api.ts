@@ -24,7 +24,7 @@ export interface AppApi {
   startupFile(): Promise<{ name: string } | null>;      // a .circ named on the command line
   openStartupFile(): Promise<Opened | null>;
   openFile(): Promise<Opened | null>;                   // the open dialog, then the engine
-  saveFile(fileId: string, file: { name: string; saveAs?: boolean }): Promise<{ path: string; name: string; bytes: number } | null>;
+  saveFile(fileId: string, file: { name: string; saveAs?: boolean }): Promise<{ path: string; name: string; bytes: number; needsMipsJar: boolean } | null>;
   about(): Promise<AboutInfo>;
   license(index: number): Promise<string>;  // LICENSES[index]; one past the end: Electron's
   openCredits(): Promise<void>;             // LICENSES.chromium.html, in the browser

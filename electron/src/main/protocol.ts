@@ -9,6 +9,7 @@ export interface Hello {
   version: string;
   logisim: string;
   java: string;
+  api?: string;
 }
 
 export interface CircuitRef {
@@ -18,24 +19,30 @@ export interface CircuitRef {
 
 export interface LibRef {
   lib: string;
+  display?: string;
   kind: 'builtin' | 'jar' | 'circ';
   path?: string;
 }
 
 export interface NewResult {
   fileId: string;
+  name?: string;            // Logisim's project name ("Untitled"; a file's name without .circ)
   circuits: CircuitRef[];
   main: string;
+  libraries?: LibRef[];
 }
 
 export interface OpenResult extends NewResult {
   name: string;
   libraries: LibRef[];
+  messages?: string[];      // what the original loader showed in its dialogs
+  alreadyOpen?: boolean;    // the same path was open: its fileId
 }
 
 export interface SaveResult {
   path: string;
   bytes: number;
+  needsMipsJar?: boolean;   // uses MIPS parts, and no hcs-mips.jar next to the saved .circ
 }
 
 export interface Port {
@@ -48,7 +55,7 @@ export interface Port {
 
 export interface Component {
   id: string;
-  lib: string;
+  lib: string | null;       // null: a circuit of this file
   name: string;
   loc: Point;
   bounds: [number, number, number, number];
@@ -81,16 +88,19 @@ export interface Snapshot {
 }
 
 export interface LibraryGroup {
-  lib: string;
-  tools: { name: string; display: string }[];
+  lib: string | null;       // null: this file's circuits (the first group)
+  display?: string;
+  pending?: boolean;        // the bundled Hallym MIPS, not in the file until its first part is placed
+  tools: { name: string; display: string; circuitId?: string }[];
 }
 
 export interface SimState {
   fileId: string;
-  running: boolean;
-  ticking: boolean;
+  running: boolean;         // Logisim's Simulation Enabled (off: oscillation)
+  ticking: boolean;         // the clock ticks (Run)
   cycle: number;
   oscillating: boolean;
+  hz?: number;              // ticks per second
 }
 
 // Error codes (docs/engine-api.md 2).
@@ -106,8 +116,8 @@ export const ERR_NO_METHOD = -32601;
 export const WINDOW_METHODS = [
   'file.new', 'file.close', 'file.dirty',
   'model.circuit', 'model.library',
-  'edit.undo', 'edit.redo',
-  'sim.reset', 'sim.cycles', 'sim.run', 'sim.watch',
+  'edit.addComponent', 'edit.addWire', 'edit.move', 'edit.delete', 'edit.setAttr', 'edit.undo', 'edit.redo',
+  'sim.reset', 'sim.poke', 'sim.cycles', 'sim.run', 'sim.enable', 'sim.watch', 'sim.state',
 ] as const;
 export type WindowMethod = typeof WINDOW_METHODS[number];
 

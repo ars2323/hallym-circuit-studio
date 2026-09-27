@@ -102,9 +102,10 @@ async function openPath(p: string): Promise<Opened> {
       return { fileId, path: p, name: path.basename(p), circuits: [], main: '', libraries: [], already: true };
     }
   }
-  const r = await engine.call<OpenResult>('file.open', { path: p });
+  const r = await engine.call<OpenResult>('file.open', { path: path.resolve(p) });
   openFiles.set(r.fileId, p);
-  return { ...r, name: r.name || path.basename(p), path: p, already: false };
+  // The tab shows the file's own name (with .circ), not Logisim's project name.
+  return { ...r, name: path.basename(p), path: p, already: r.alreadyOpen === true };
 }
 
 async function main(): Promise<void> {
@@ -180,7 +181,7 @@ async function main(): Promise<void> {
     }
     const saved = await engine.call<SaveResult>('file.save', { fileId, path: target });
     openFiles.set(fileId, saved.path || target);
-    return { path: saved.path || target, name: path.basename(saved.path || target), bytes: saved.bytes };
+    return { path: saved.path || target, name: path.basename(saved.path || target), bytes: saved.bytes, needsMipsJar: saved.needsMipsJar === true };
   }));
 
   ipcMain.handle('about:info', () => ({

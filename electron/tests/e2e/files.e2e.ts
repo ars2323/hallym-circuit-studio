@@ -68,3 +68,31 @@ test('Undo and Redo go to the engine (a new circuit has nothing to undo: nothing
     await r.close();
   }
 });
+
+test('what the engine says about a file reaches the window: the loader\'s messages, a saved .circ that needs hcs-mips.jar', async () => {
+  const r = await launch(undefined, { env: { FAKE_ENGINE_OPEN_MESSAGE: 'Unknown component: Foo', FAKE_ENGINE_MODE: 'needs-mips' } });
+  const { page } = r;
+  try {
+    const file = sample(r.dir, DATAPATH);
+    await openFile(r, file);
+    await expect(page.locator('.status .err')).toHaveText('불러오며 알린 것 1개 — Unknown component: Foo');
+    await page.keyboard.press('Control+s');
+    await expect(page.locator('.status .ok')).toHaveText('저장했습니다 · demo-datapath.circ · 원조 Logisim 2.7.1에서 열려면 옆에 hcs-mips.jar가 있어야 합니다');
+  } finally {
+    await r.close();
+  }
+});
+
+test('Components: this file\'s circuits first (under the file\'s name), then the libraries by their shown names', async () => {
+  const r = await launch();
+  const { page } = r;
+  try {
+    await openFile(r, sample(r.dir, DATAPATH));
+    const groups = page.locator('.upper .libgroup summary');
+    await expect(groups.first()).toContainText('demo-datapath.circ');
+    await expect(groups.first().locator('.count')).toHaveText('3');
+    await expect(groups.last()).toContainText('Input/Output');
+  } finally {
+    await r.close();
+  }
+});

@@ -55,11 +55,32 @@ test('the engine\'s notifications reach the window: 1 Cycle, Run, Reset in the s
     await page.keyboard.press('F10');
     await expect(page.locator('.status')).toContainText('Cycle 2');
     await page.getByRole('button', { name: /^Run/ }).click();
-    await expect(page.locator('.status .run')).toHaveText('실행 중');
+    await expect(page.locator('.status .run')).toHaveText('실행 중 (1 Hz)');
     await expect(page.getByRole('button', { name: /^Stop/ })).toBeVisible();
+    // A new speed while it runs goes to the engine at once.
+    await page.getByRole('combobox', { name: 'Clock speed' }).selectOption('64');
+    await expect(page.locator('.status .run')).toHaveText('실행 중 (64 Hz)');
     await page.keyboard.press('F5');
     await expect(page.locator('.status .run')).toHaveCount(0);
     await page.getByRole('button', { name: /Reset/ }).click();
+    await expect(page.locator('.status')).toContainText('Cycle 0');
+  } finally {
+    await r.close();
+  }
+});
+
+test('the engine\'s warnings reach the status bar: an oscillation turns the simulation off until Reset', async () => {
+  const r = await launch(undefined, { env: { FAKE_ENGINE_MODE: 'oscillate' } });
+  const { page } = r;
+  try {
+    await newCircuit(r);
+    await page.keyboard.press('F10');
+    await expect(page.locator('.status')).toContainText('회로가 발진해서 시뮬레이션을 껐습니다');
+    await expect(page.locator('.status')).toContainText('발진으로 시뮬레이션이 꺼졌습니다');
+    await page.keyboard.press('F10');
+    await expect(page.locator('.status .err').last()).toHaveText('1 Cycle — simulation off');
+    await page.getByRole('button', { name: /Reset/ }).click();
+    await expect(page.locator('.status')).not.toContainText('꺼졌습니다');
     await expect(page.locator('.status')).toContainText('Cycle 0');
   } finally {
     await r.close();

@@ -3,8 +3,11 @@
      HCS_ENGINE_CMD   a JSON array, the whole command (the tests' fake
                       engine: ["node", ".../fake-engine.ts"])
      HCS_ENGINE_JAR   the engine's jar
-     next to the app  <resources>/engine/engine.jar (packaged, N-23), or
-                      ../engine/build/libs/*.jar (the source tree, N-03)
+     next to the app  <resources>/engine/hcs-engine.jar (packaged, N-23), or
+                      in the source tree ../engine/build/stage/hcs-engine.jar
+                      (./gradlew :engine:stage: hcs-mips.jar beside it), then
+                      ../engine/build/libs/hcs-engine.jar (the bundled MIPS
+                      library then from ../lib-mips/build/libs/hcs-mips.jar)
 
    and for a jar, java from HCS_JAVA, <resources>/runtime (the bundled
    runtime, N-04), JAVA_HOME, or the PATH.
@@ -35,8 +38,9 @@ export interface LocateOptions {
   platform?: NodeJS.Platform;
 }
 
-export function jvmArgs(runDir: string, jar: string): string[] {
+export function jvmArgs(runDir: string, jar: string, bundledMips: string | null = null): string[] {
   return [
+    ...(bundledMips ? [`-Dhcs.bundledMips=${bundledMips}`] : []),
     '-Djava.awt.headless=true',
     '-Dfile.encoding=UTF-8', '-Dstdout.encoding=UTF-8', '-Dstderr.encoding=UTF-8',
     '-XX:-UsePerfData',
@@ -61,9 +65,10 @@ function javaFor(o: LocateOptions): string {
   return 'java';
 }
 
-// The engine module's jar in the source tree: the one without -sources/-javadoc/-plain.
-function builtJar(repoRoot: string): string | null {
-  const dir = path.join(repoRoot, 'engine', 'build', 'libs');
+export const ENGINE_JAR = 'hcs-engine.jar';
+
+// Another engine jar in the libs folder (a build under another name): the one without -sources/-javadoc/-plain.
+function otherJar(dir: string): string | null {
   let names: string[];
   try { names = readdirSync(dir); } catch { return null; }
   const jar = names.filter((n) => n.endsWith('.jar') && !/-(sources|javadoc|plain)\.jar$/.test(n)).sort()[0];
@@ -82,22 +87,22 @@ export function locateEngine(o: LocateOptions): Located {
   }
   const looked: string[] = [];
   let jar: string | null = null;
+  let mips: string | null = null;
+  const found = (p: string) => { looked.push(p); return existsSync(p) ? p : null; };
   if (o.env.HCS_ENGINE_JAR) {
-    looked.push(o.env.HCS_ENGINE_JAR);
-    if (existsSync(o.env.HCS_ENGINE_JAR)) jar = o.env.HCS_ENGINE_JAR;
+    jar = found(o.env.HCS_ENGINE_JAR);
   } else {
-    if (o.resources) {
-      const packaged = path.join(o.resources, 'engine', 'engine.jar');
-      looked.push(packaged);
-      if (existsSync(packaged)) jar = packaged;
-    }
+    if (o.resources) jar = found(path.join(o.resources, 'engine', ENGINE_JAR));
+    if (!jar && o.repoRoot) jar = found(path.join(o.repoRoot, 'engine', 'build', 'stage', ENGINE_JAR));
     if (!jar && o.repoRoot) {
-      looked.push(path.join(o.repoRoot, 'engine', 'build', 'libs', '*.jar'));
-      jar = builtJar(o.repoRoot);
+      const libs = path.join(o.repoRoot, 'engine', 'build', 'libs');
+      jar = found(path.join(libs, ENGINE_JAR)) ?? otherJar(libs);
+      const built = path.join(o.repoRoot, 'lib-mips', 'build', 'libs', 'hcs-mips.jar');
+      if (jar && existsSync(built)) mips = built;
     }
   }
-  if (!jar) return { ok: false, reason: '엔진 파일(engine.jar)을 찾지 못했습니다', looked };
+  if (!jar) return { ok: false, reason: `엔진 파일(${ENGINE_JAR})을 찾지 못했습니다`, looked };
   const java = javaFor(o);
-  const args = jvmArgs(o.runDir, jar);
+  const args = jvmArgs(o.runDir, jar, mips);
   return { ok: true, engine: { command: java, args, cwd: o.runDir, describe: `${java} -jar ${jar}` } };
 }

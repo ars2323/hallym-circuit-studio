@@ -29,16 +29,16 @@ test('HCS_ENGINE_CMD: the whole command, as a JSON array', () => {
 });
 
 test('HCS_ENGINE_JAR: java -jar it; missing: not found, with where it looked', () => {
-  const dir = tree(['e/engine.jar']);
+  const dir = tree(['e/hcs-engine.jar']);
   try {
-    const r = locateEngine({ env: { HCS_ENGINE_JAR: path.join(dir, 'e/engine.jar'), HCS_JAVA: '/opt/jdk/bin/java' }, runDir, resources: null, repoRoot: null });
+    const r = locateEngine({ env: { HCS_ENGINE_JAR: path.join(dir, 'e/hcs-engine.jar'), HCS_JAVA: '/opt/jdk/bin/java' }, runDir, resources: null, repoRoot: null });
     assert.ok(r.ok);
     assert.equal(r.engine.command, '/opt/jdk/bin/java');
-    assert.deepEqual(r.engine.args.slice(-2), ['-jar', path.join(dir, 'e/engine.jar')]);
+    assert.deepEqual(r.engine.args.slice(-2), ['-jar', path.join(dir, 'e/hcs-engine.jar')]);
     const missing = locateEngine({ env: { HCS_ENGINE_JAR: path.join(dir, 'nope.jar') }, runDir, resources: null, repoRoot: null });
     assert.equal(missing.ok, false);
     if (!missing.ok) {
-      assert.match(missing.reason, /engine\.jar/);
+      assert.match(missing.reason, /hcs-engine\.jar/);
       assert.deepEqual(missing.looked, [path.join(dir, 'nope.jar')]);
     }
   } finally {
@@ -46,23 +46,34 @@ test('HCS_ENGINE_JAR: java -jar it; missing: not found, with where it looked', (
   }
 });
 
-test('next to the app: the packaged engine and runtime first, then the source tree\'s build', () => {
-  const resources = tree(['engine/engine.jar', 'runtime/bin/java', 'runtime/bin/java.exe']);
-  const repo = tree(['engine/build/libs/engine-sources.jar', 'engine/build/libs/hcs-engine.jar']);
+test('next to the app: the packaged engine and runtime first, then the source tree\'s stage, then its build', () => {
+  const resources = tree(['engine/hcs-engine.jar', 'runtime/bin/java', 'runtime/bin/java.exe']);
+  const repo = tree(['engine/build/libs/hcs-engine-sources.jar', 'engine/build/libs/hcs-engine.jar', 'lib-mips/build/libs/hcs-mips.jar']);
+  const staged = tree(['engine/build/stage/hcs-engine.jar', 'engine/build/stage/hcs-mips.jar', 'engine/build/libs/hcs-engine.jar']);
+  const other = tree(['engine/build/libs/an-engine-sources.jar', 'engine/build/libs/engine-0.1.jar']);
   try {
     const packaged = locateEngine({ env: {}, runDir, resources, repoRoot: repo, platform: 'linux' });
     assert.ok(packaged.ok);
     assert.equal(packaged.engine.command, path.join(resources, 'runtime/bin/java'));
-    assert.deepEqual(packaged.engine.args.slice(-1), [path.join(resources, 'engine/engine.jar')]);
+    assert.deepEqual(packaged.engine.args.slice(-1), [path.join(resources, 'engine/hcs-engine.jar')]);
+    assert.ok(!packaged.engine.args.some((a) => a.startsWith('-Dhcs.bundledMips')));  // the engine finds hcs-mips.jar beside itself
     const win = locateEngine({ env: {}, runDir, resources, repoRoot: repo, platform: 'win32' });
     assert.ok(win.ok && win.engine.command.endsWith('java.exe'));
+    const stage = locateEngine({ env: {}, runDir, resources: null, repoRoot: staged });
+    assert.ok(stage.ok);
+    assert.deepEqual(stage.engine.args.slice(-1), [path.join(staged, 'engine/build/stage/hcs-engine.jar')]);
     const source = locateEngine({ env: {}, runDir, resources: null, repoRoot: repo });
     assert.ok(source.ok);
     assert.deepEqual(source.engine.args.slice(-1), [path.join(repo, 'engine/build/libs/hcs-engine.jar')]); // not -sources
+    assert.ok(source.engine.args.includes(`-Dhcs.bundledMips=${path.join(repo, 'lib-mips/build/libs/hcs-mips.jar')}`));
     assert.equal(source.engine.command, 'java');
+    const named = locateEngine({ env: {}, runDir, resources: null, repoRoot: other });
+    assert.ok(named.ok && named.engine.args.at(-1) === path.join(other, 'engine/build/libs/engine-0.1.jar'));
     const none = locateEngine({ env: {}, runDir, resources: null, repoRoot: path.join(repo, 'nothing') });
     assert.equal(none.ok, false);
   } finally {
+    rmSync(staged, { recursive: true, force: true });
+    rmSync(other, { recursive: true, force: true });
     rmSync(resources, { recursive: true, force: true });
     rmSync(repo, { recursive: true, force: true });
   }

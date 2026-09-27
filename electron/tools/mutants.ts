@@ -102,6 +102,8 @@ export const MUTANTS: Mutant[] = [
   { module: 'window', file: 'src/main/main.ts', what: 'the page may call any engine method (paths too)',
     find: "    if (!allowed.has(method)) throw new Error(`not a method the window may call: ${method}`);\n", replace: '',
     tests: ['tests/e2e/window.e2e.ts'] },
+  { module: 'window', file: 'src/renderer/app/app.ts', what: 'Run follows Simulation Enabled instead of the clock',
+    find: '  const ticking = f?.sim?.ticking ?? false;', replace: '  const ticking = f?.sim?.running ?? false;', tests: ['tests/e2e/engine.e2e.ts'] },
   { module: 'window', file: 'src/main/main.ts', what: 'the engine\'s notifications not forwarded',
     find: "  engine.on('notification', (method, params) => send('engine:notify', method, params));", replace: '',
     tests: ['tests/e2e/engine.e2e.ts'] },
