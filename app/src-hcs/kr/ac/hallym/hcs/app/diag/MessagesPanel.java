@@ -42,6 +42,10 @@ public final class MessagesPanel {
     private final JList<Diagnostic> list = new JList<>(model);
     private final JLabel empty = new JLabel(Messages.get("messages.none"));
     private final JPanel body = new JPanel(new BorderLayout());
+    /** 목록을 담는 스크롤 칸은 하나만 둔다: 새로 고칠 때마다 새로 만들면 초점 가진 목록이 창에서 빠져 초점이 딴 데로 간다. */
+    private final JScrollPane listScroll = new JScrollPane(list);
+    private java.awt.Component shown;
+    private boolean resetShown;
     private final JTabbedPane tabs = new JTabbedPane(JTabbedPane.TOP);
     private final JLabel status = new JLabel();
     /** 진동(D-02) 메시지가 있을 때만 보이는 Reset 단추 줄. */
@@ -128,16 +132,26 @@ public final class MessagesPanel {
                 }
             }
         }
-        body.removeAll();
-        body.add(ds.isEmpty() ? empty : new JScrollPane(list), ds.isEmpty() ? BorderLayout.NORTH : BorderLayout.CENTER);
         boolean osc = false;
         for (Diagnostic d : ds) {
             osc |= d.kind == Diagnostic.Kind.OSCILLATION;
         }
-        if (osc) {
-            body.add(resetBar, BorderLayout.SOUTH);
+        java.awt.Component want = ds.isEmpty() ? empty : listScroll;
+        if (want != shown || osc != resetShown) {
+            // 칸 구성이 바뀔 때만 다시 짠다(메시지를 누른 뒤의 새로 고침에서 목록이 초점을 잃지 않게)
+            boolean hadFocus = list.isFocusOwner();
+            body.removeAll();
+            body.add(want, ds.isEmpty() ? BorderLayout.NORTH : BorderLayout.CENTER);
+            if (osc) {
+                body.add(resetBar, BorderLayout.SOUTH);
+            }
+            shown = want;
+            resetShown = osc;
+            body.revalidate();
+            if (hadFocus && want == listScroll) {
+                list.requestFocusInWindow();
+            }
         }
-        body.revalidate();
         body.repaint();
         status.setText(statusText(ds.size()));
         status.setForeground(ds.isEmpty() ? Tokens.TEXT_2 : Tokens.ERROR_TEXT);
@@ -368,6 +382,11 @@ public final class MessagesPanel {
     }
 
     /** 지금 목록(테스트). */
+    /** 메시지 목록(테스트). */
+    javax.swing.JList<Diagnostic> listForTest() {
+        return list;
+    }
+
     List<Diagnostic> rows() {
         java.util.List<Diagnostic> ret = new java.util.ArrayList<>();
         for (int i = 0; i < model.size(); i++) {

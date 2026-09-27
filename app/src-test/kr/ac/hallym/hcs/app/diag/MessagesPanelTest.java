@@ -45,6 +45,24 @@ class MessagesPanelTest {
         return f;
     }
 
+    /**
+     * 메시지를 누른 뒤와 새로 고칠 때 목록은 같은 스크롤 칸에 그대로 남는다. 전에는 새로 고칠 때마다 스크롤 칸을 새로
+     * 만들어 목록이 창에서 잠깐 빠졌고, 초점이 목록에서 다른 부품(검색 칸 등)으로 옮겨 갔다.
+     */
+    @Test
+    void refreshKeepsTheListInTheSameScrollPane() throws Exception {
+        Project proj = new Project(broken());
+        MessagesPanel panel = new MessagesPanel(proj);
+        javax.swing.JList<Diagnostic> list = panel.listForTest();
+        java.awt.Container scroll = list.getParent().getParent();
+        assertTrue(scroll instanceof javax.swing.JScrollPane);
+        Diagnostics diags = Diagnostics.of(proj);
+        diags.go(panel.rows().get(0));
+        diags.refresh();
+        assertSame(scroll, list.getParent().getParent(), "the same scroll pane after go and refresh");
+        assertTrue(javax.swing.SwingUtilities.isDescendingFrom(list, panel.tabs()), "the list is still in the panel");
+    }
+
     @Test
     void listsDiagnosticsAndGoesToTheCause() throws Exception {
         Project proj = new Project(broken());
