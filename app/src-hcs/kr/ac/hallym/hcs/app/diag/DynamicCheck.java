@@ -18,7 +18,6 @@ import com.cburch.logisim.data.Location;
 import com.cburch.logisim.data.Value;
 import com.cburch.logisim.instance.StdAttr;
 
-import kr.ac.hallym.hcs.app.Messages;
 import kr.ac.hallym.hcs.app.model.InstancePaths;
 import kr.ac.hallym.hcs.app.model.Kinds;
 import kr.ac.hallym.hcs.app.model.Names;
@@ -90,7 +89,7 @@ public final class DynamicCheck {
             }
             out.add(new Diagnostic(Diagnostic.Kind.E_APPEARED, o.node.circuit, o.node.instances, o.step,
                     components(o), wires(o), location(o), cycleOf(o.step), OriginText.netLabel(top, en),
-                    Messages.get("diag.causePrefix", cause(o)), OriginText.errorLabel(o, en))
+                    Diagnostic.Text.of("diag.causePrefix", cause(o)), OriginText.errorLabelText(o, en))
                     .appearedAt(path, c, at));
         }
     }
@@ -175,7 +174,7 @@ public final class DynamicCheck {
         }
         String where = Names.path(InstancePaths.describe(top, path), Names.name(c, x));
         String portName = Kinds.portName(x, port);
-        String because = o == null ? "" : Messages.get("diag.causePrefix", cause(o));
+        Object because = o == null ? "" : Diagnostic.Text.of("diag.causePrefix", cause(o));
         if (o == null) {
             out.add(new Diagnostic(kind, c, path, before, Collections.singletonList(x),
                     Collections.<Wire>emptyList(), x.getEnd(port).getLocation(), cycleOf(before), where, portName,
@@ -238,8 +237,8 @@ public final class DynamicCheck {
         return path.isEmpty() ? top : ((SubcircuitFactory) path.get(path.size() - 1).getFactory()).getSubcircuit();
     }
 
-    private String cause(OriginTrace.Origin o) {
-        return OriginText.cause(top, o);
+    private Diagnostic.Text cause(OriginTrace.Origin o) {
+        return OriginText.causeText(top, o);
     }
 
     private static RefKey key(OriginTrace.Origin o) {
