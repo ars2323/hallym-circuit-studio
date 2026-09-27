@@ -26,6 +26,8 @@ public final class PanelBalance {
     public static final int CANVAS_MIN = 480;
     public static final int LEFT_MIN = 180;
     public static final int DOCK_MIN = 160;
+    /** 왼쪽 칸 나눔선과 캔버스 스크롤 영역 테두리처럼 계산에 들지 않는 폭. */
+    static final int FIXED_CHROME = 12;
 
     private static final Map<Object, PanelBalance> ALL = new WeakHashMap<>();
 
@@ -97,7 +99,13 @@ public final class PanelBalance {
     /** 결과 계산(GUI 없이 테스트): {왼쪽 폭, Attributes 폭(0이면 접음)}. */
     public static int[] plan(int width, double userFraction, int dockWidth, boolean dockCollapsed, int stripWidth,
             int divider) {
-        int canvasMin = Math.min(width, Math.max(CANVAS_MIN, width / 2));
+        return plan(width, userFraction, dockWidth, dockCollapsed, stripWidth, divider, 0);
+    }
+
+    /** 나눔선·테두리처럼 계산에 없는 고정 폭(fixed)을 캔버스 몫에서 뺀 계산(Y-01 CI: 경계에서 몇 px 모자랐다). */
+    public static int[] plan(int width, double userFraction, int dockWidth, boolean dockCollapsed, int stripWidth,
+            int divider, int fixed) {
+        int canvasMin = Math.min(width, Math.max(CANVAS_MIN, width / 2)) + fixed;
         int leftW = (int) Math.round(width * userFraction);
         int rightW = dockCollapsed ? 0 : dockWidth + divider;
         int chrome = dockCollapsed ? stripWidth : 0;
@@ -125,7 +133,7 @@ public final class PanelBalance {
             return;
         }
         int[] p = plan(width, userFraction, dock.userWidth(), dock.isUserCollapsed(), dock.stripWidth(),
-                dock.dividerSize());
+                dock.dividerSize(), FIXED_CHROME);
         boolean auto = p[0] != (int) Math.round(width * userFraction)
                 || (!dock.isUserCollapsed() && (p[1] == 0 || p[1] != dock.userWidth()));
         last = "width " + width + " fraction " + userFraction + " dock " + dock.userWidth() + (dock.isUserCollapsed()

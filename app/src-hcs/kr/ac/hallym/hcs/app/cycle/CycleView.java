@@ -230,6 +230,8 @@ public final class CycleView {
         side.addTab(Messages.get("mem.tab"), memTab);
         side.addTab(Messages.get("inspect.tab"), inspectTab);
         modeTabs.putClientProperty("JTabbedPane.tabType", "underlined");
+        side.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT); // 좁은 Registers 칸에서 탭 머리가 두 줄로 꺾이지 않게(검토)
+        modeTabs.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
         side.addChangeListener(e -> updateFieldOverlay());
         modeTabs.addChangeListener(e -> updateFieldOverlay());
         side.setMinimumSize(new Dimension(0, 0));
@@ -835,6 +837,8 @@ public final class CycleView {
             int want = split.getWidth() - plan.side - split.getDividerSize();
             if (Math.abs(split.getDividerLocation() - want) > 1) {
                 split.setDividerLocation(want);
+                split.doLayout(); // 값과 실제 자리가 어긋나지 않게(Y-02 CI)
+                split.validate();
             }
         }
     }

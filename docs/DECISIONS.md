@@ -1326,3 +1326,11 @@
 - **이유:** v1.0.2 windows-smoke 1024 100%에서 Attributes 칸이 비어 있었고, 아이콘만 모드에서 "Signal Flow"·"Icons Only" 두 글자 단추만 남아 Icons Only 토글의 뜻이 헷갈렸다.
 - **대안:** 빈 칸에 안내 한 줄("부품을 고르면 속성이 보입니다")만 두기(회로 속성을 바로 고칠 수 없다), Signal Flow에 아이콘을 만들어 붙이기(새 그림이 필요하고 토글 뜻이 덜 드러난다).
 - **테스트:** `EmptyAttributesGuiTest`(새 창의 Attributes 칸 제목에 회로 이름, 속성 줄 ≥ 1), `OverflowToolbarTest.styleToggleMovesToTheMenuWhenIconsOnlyIsAutomatic`.
+
+## D-117 칸 배분의 CI 흔들림과 최종 세트 검토 반영(v1.0.3)
+
+- **날짜:** 2026-09-27
+- **결정:** (1) 캔버스 아래·왼쪽·사이클 칸의 높이·폭은 `JSplitPane.getDividerLocation()` 대신 실제로 놓인 자식 칸의 크기로 잰다(배치가 끝난 뒤). 프로그램이 나눔선을 옮기면 곧바로 `doLayout`/`validate`한다. CI 러너에서 값은 464인데 위 칸은 325로 놓여 있어 규칙이 "이미 작다"고 판단한 경우가 있었다. (2) 왼쪽 칸·Attributes 칸 폭 계산에 계산 밖의 나눔선·테두리 12px를 넣고, Attributes 나눔 칸의 폭이 바뀌면 오른쪽 칸을 원하는 폭으로 다시 둔다(resizeWeight 1.0이 옛 폭을 남겼다). X-03 GUI 테스트가 바꾼 왼쪽 칸 비율(0.3)은 끝나면 되돌린다. (3) 여섯 크기 GUI 테스트는 화면을 그릴 때처럼 창을 validate한 뒤 잰다. (4) 최종 세트 검토 반영: Registers 칸 탭 머리는 좁을 때 두 줄로 꺾이지 않게 스크롤 탭으로 둔다. 스크린샷 실행기는 장면마다 떠 있는 첫 실행 튜토리얼을 닫는다(Y-04 뒤로 튜토리얼이 파일을 열며 시작해도 뜨기 때문에 실행기 JVM에서도 떠서 11·25·27 장면을 가렸다).
+- **이유:** 여섯 크기 테스트가 CI에서 세 번에 한 번꼴로 실패했다(로컬·CI 화면 크기에서 재현되지 않음). 실패 때 찍은 배치 덤프로 원인을 가렸다.
+- **대안:** 테스트 허용 오차만 늘리기(실제 앱에서 같은 어긋남이 남는다).
+- **테스트:** `VerticalBalanceGuiTest`(CI 4회 연속 통과), `PanelBalanceTest.fixedChromeLeavesRoomForDividersAndBorders`, 스크린샷 재촬영.

@@ -152,9 +152,9 @@
 
 | ID | 제목 | 이슈 | 상태 | PR | 스크린샷·근거 |
 | --- | --- | --- | --- | --- | --- |
-| Y-01 | 세로 공간 배분(캔버스 높이 ≥ 50%, 아래 칸·왼쪽 칸 줄이기·접기, 배지) | #319 | 진행 |  |  |
-| Y-02 | 사이클 표 폭(≥ 3열, Registers 칸 좁히기·접기, 이름 열 상한) | #320 | 진행 |  | 51(y02) |
-| Y-03 | 고정 줄 수명 | #321 | 진행 |  | CycleViewGuiTest |
-| Y-04 | 진짜 첫 실행(장면 48, windows-smoke 튜토리얼) | #322 | 진행 |  | 48-first-run(y04), TourGuiTest |
-| Y-05 | 작은 것(빈 Attributes 칸, 아이콘만 모드 글자 단추) | #323 | 진행 |  | EmptyAttributesGuiTest, OverflowToolbarTest |
-| Y-06 | 확인과 릴리스(review-shots v103, v1.0.3, needs-human) | #324 | 진행 |  | 최종 세트·windows-smoke |
+| Y-01 | 세로 공간 배분(캔버스 높이 ≥ 50%, 아래 칸·왼쪽 칸 줄이기·접기, 배지) | #319 | 완료 | #325 | 51-laptop-*(y01) |
+| Y-02 | 사이클 표 폭(≥ 3열, Registers 칸 좁히기·접기, 이름 열 상한) | #320 | 완료 | #326 | 51-laptop-*(y03), CycleWidthGuiTest |
+| Y-03 | 고정 줄 수명 | #321 | 완료 | #327 | CycleViewGuiTest |
+| Y-04 | 진짜 첫 실행(장면 48, windows-smoke 튜토리얼) | #322 | 완료 | #328 | 48-first-run(y04b), TourGuiTest, windows-smoke tutorial |
+| Y-05 | 작은 것(빈 Attributes 칸, 아이콘만 모드 글자 단추) | #323 | 완료 | #329 | 01·49(y05), EmptyAttributesGuiTest, OverflowToolbarTest |
+| Y-06 | 확인과 릴리스(review-shots v103, v1.0.3, needs-human) | #324 | 진행 | #330, #331 | 최종 세트·windows-smoke |

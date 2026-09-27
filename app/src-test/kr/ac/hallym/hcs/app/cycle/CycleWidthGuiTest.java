@@ -97,6 +97,9 @@ class CycleWidthGuiTest {
                 }
             }
             assertTrue(problems.isEmpty(), String.join("\n", problems) + "\nseen: " + seen);
+            // Registers 칸 탭 머리는 좁아도 두 줄로 꺾이지 않는다(스크롤 탭, v1.0.3 최종 세트 검토)
+            assertTrue(view.sideTabs().getTabLayoutPolicy() == javax.swing.JTabbedPane.SCROLL_TAB_LAYOUT,
+                    "the side tabs scroll instead of wrapping");
             // 이름 열은 상한 안에서 가장 긴 이름을 따른다
             assertTrue(view.nameWidth() >= 80 && view.nameWidth() <= CycleView.NAME_W, "name column " + view.nameWidth());
         } finally {

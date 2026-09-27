@@ -107,6 +107,23 @@ public final class AttrDock {
             }
         });
         collapsed = Settings.get().getBoolean(COLLAPSED, false);
+        // 나눔 칸 폭이 바뀌면 오른쪽 칸을 원하는 폭으로 다시 둔다(resizeWeight 1.0은 옛 폭을 남긴다: Y-01 CI에서 줄인 폭이
+        // 적용되지 않았다)
+        split.addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override
+            public void componentResized(java.awt.event.ComponentEvent e) {
+                if (isCollapsed() || split.getRightComponent() != panel) {
+                    return;
+                }
+                int w = autoWidth > 0 ? autoWidth : userWidth();
+                int want = split.getWidth() - w - split.getDividerSize();
+                if (want > 0 && Math.abs(split.getDividerLocation() - want) > 1) {
+                    programmaticUntil = System.currentTimeMillis() + 800;
+                    split.setDividerLocation(want);
+                    split.doLayout();
+                }
+            }
+        });
         layout();
     }
 
@@ -246,6 +263,8 @@ public final class AttrDock {
             javax.swing.SwingUtilities.invokeLater(() -> {
                 if (split.getWidth() > w) {
                     split.setDividerLocation(split.getWidth() - w - split.getDividerSize());
+                    split.doLayout(); // 값과 실제 자리가 어긋나지 않게 곧바로 배치한다(CI에서 캔버스 폭 0으로 남았다)
+                    split.validate();
                 }
             });
         }
