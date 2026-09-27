@@ -307,8 +307,16 @@ public final class Shots {
             sleep(1500);
             closeDialogs();
             snapFull("01-first-screen");
-            // 부품 트리 위 검색창(검토 반영 1): "mux"를 치면 트리 자리에 걸러진 목록
+            // 01은 첫 실행 튜토리얼이 뜬 모습 그대로 찍고, 그 뒤 장면(01b부터)은 튜토리얼을 닫고 찍는다(v1.0.3 최종 세트 검토)
             Project first = project();
+            edt(() -> {
+                Component g = first.getFrame().getRootPane().getGlassPane();
+                if (g instanceof kr.ac.hallym.hcs.app.tutorial.Tour.Overlay) {
+                    ((kr.ac.hallym.hcs.app.tutorial.Tour.Overlay) g).end();
+                }
+            });
+            sleep(400);
+            // 부품 트리 위 검색창(검토 반영 1): "mux"를 치면 트리 자리에 걸러진 목록
             JTextField ts = (JTextField) find(first.getFrame(), x -> x instanceof JTextField && x.isShowing()
                     && x.getParent() != null && x.getParent().getParent() != null
                     && x.getParent().getParent().getClass().getSimpleName().equals("ToolboxSearch"));

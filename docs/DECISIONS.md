@@ -1334,3 +1334,11 @@
 - **이유:** 여섯 크기 테스트가 CI에서 세 번에 한 번꼴로 실패했다(로컬·CI 화면 크기에서 재현되지 않음). 실패 때 찍은 배치 덤프로 원인을 가렸다.
 - **대안:** 테스트 허용 오차만 늘리기(실제 앱에서 같은 어긋남이 남는다).
 - **테스트:** `VerticalBalanceGuiTest`(CI 4회 연속 통과), `PanelBalanceTest.fixedChromeLeavesRoomForDividersAndBorders`, 스크린샷 재촬영.
+
+## D-119 선택기의 포트 이름 select·enable은 번역하지 않는다(v1.0.3 최종 세트 검토)
+
+- **날짜:** 2026-09-27
+- **결정:** 찾기 결과와 진단 문장에 나오는 선택기류(MUX·Decoder 등)의 포트 이름 `select`·`enable`은 이름 묶음(`names.properties`, 모든 언어 영어)에 둔다. 한국어 설명 묶음에 있어 "Multiplexer #1 (선택)", "Mux #1 선택이(가) …"로 번역돼 보였다(GLOSSARY: 포트 이름은 번역하지 않는다). `input`·`output`·`끝`은 일반 명사라 설명 묶음에 그대로 둔다(V-02의 "AND #3 출력"). 스크린샷 01 장면은 첫 실행 튜토리얼이 뜬 모습을 찍은 뒤 튜토리얼을 닫고 01b를 찍는다.
+- **이유:** 최종 세트 01~16 검토에서 위반 3건(01b 튜토리얼 막, 09d·14a~c의 "선택")이 나왔다. v1.0.1부터 있던 문구지만 규칙에 어긋난다.
+- **대안:** 모든 포트 낱말을 영어로(v1.0.1의 "AND #3 출력" 결정과 진단 골든이 바뀐다).
+- **테스트:** `UiLanguageTest.readablePortNamesAreNamesNotDescriptions`, 스크린샷 01b·09d·14a 재촬영.
