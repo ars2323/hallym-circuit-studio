@@ -83,7 +83,7 @@
     </comp>
     <comp lib="0" loc="(80,100)" name="Constant">
       <a name="width" val="32"/>
-      <a name="value" val="0x7fffffec"/>
+      <a name="value" val="0x7ffbfffc"/>
     </comp>
     <comp lib="0" loc="(80,100)" name="Tunnel">
       <a name="width" val="32"/>
@@ -94,9 +94,6 @@
       <a name="label" val="clk"/>
     </comp>
     <comp lib="0" loc="(80,200)" name="Constant"/>
-    <comp lib="7" loc="(600,300)" name="Stack">
-      <a name="size" val="0x10"/>
-    </comp>
     <comp lib="0" loc="(900,100)" name="Tunnel">
       <a name="width" val="32"/>
       <a name="label" val="data"/>
@@ -110,6 +107,10 @@
     <comp lib="0" loc="(360,260)" name="Tunnel">
       <a name="width" val="32"/>
       <a name="label" val="addr"/>
+    </comp>
+    <comp lib="7" loc="(600,300)" name="Data Memory">
+      <a name="base" val="0x10000000"/>
+      <a name="stacksize" val="0x40000"/>
     </comp>
   </circuit>
 </project>

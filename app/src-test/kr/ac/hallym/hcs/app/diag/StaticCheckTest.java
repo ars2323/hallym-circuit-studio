@@ -318,23 +318,69 @@ class StaticCheckTest {
         one(only(f), Diagnostic.Kind.INPUT_UNCONNECTED, "main › DMem #1", "MemWrite");
     }
 
+    /** v1 파일의 Data Memory와 같은 속성(저장 기준값: base 0x10010000, 스택 영역 없음, D-140). */
+    static final String[] OLD_DM = {"base", "0x10010000", "stacksize", "0x0"};
+
     @Test
     void dataAndStackRegionsMustNotOverlap() throws Exception {
+        // 옛 구조(v1 파일): 스택 영역이 없는 Data Memory와 옛 Stack은 떨어져 있다
+        LogisimFile f = mipsFile();
+        CircuitBuilder b = new CircuitBuilder(f, f.getMainCircuit());
+        drivers(b);
+        memory(b, "Data Memory", 600, 300, null, OLD_DM);
+        memory(b, "Stack", 600, 600, null);
+        b.commit();
+        assertEquals(new ArrayList<Diagnostic>(), only(f), "v1 default regions are apart (SPIM layout)");
+
+        LogisimFile g = mipsFile();
+        CircuitBuilder gb = new CircuitBuilder(g, g.getMainCircuit());
+        drivers(gb);
+        memory(gb, "Data Memory", 600, 300, null, "base", "0x7ff80000", "stacksize", "0x0");
+        memory(gb, "Stack", 600, 600, null);
+        gb.commit();
+        one(only(g), Diagnostic.Kind.MEMORY_OVERLAP, "main › DMem #1", "main › Stack #1", "7ff80000-7fffffff");
+    }
+
+    /** D-140: 데이터와 스택을 함께 맡는 새 Data Memory 하나는 정상이다(자기 두 영역은 한 메모리). */
+    @Test
+    void oneMergedDataMemoryIsNormal() throws Exception {
+        LogisimFile f = mipsFile();
+        CircuitBuilder b = new CircuitBuilder(f, f.getMainCircuit());
+        drivers(b);
+        Component dm = memory(b, "Data Memory", 600, 300, null);
+        b.commit();
+        assertEquals(new ArrayList<Diagnostic>(), only(f));
+        List<long[]> regions = StaticCheck.regions(dm);
+        assertEquals(2, regions.size());
+        assertEquals("[268435456, 269484032]", java.util.Arrays.toString(regions.get(0)), "0x10000000-0x100FFFFF");
+        assertEquals("[2147221504, 2147483648]", java.util.Arrays.toString(regions.get(1)), "0x7FFC0000-0x7FFFFFFF");
+        // 학생이 두 영역을 겹치게 두어도 한 메모리라 알리지 않는다
+        LogisimFile g = mipsFile();
+        CircuitBuilder gb = new CircuitBuilder(g, g.getMainCircuit());
+        drivers(gb);
+        memory(gb, "Data Memory", 600, 300, null, "base", "0x7fff0000", "size", "0x10000");
+        gb.commit();
+        assertEquals(new ArrayList<Diagnostic>(), only(g));
+    }
+
+    /** D-140: 새 Data Memory 옆에 옛 Stack을 두면 두 스택 영역이 겹친다. */
+    @Test
+    void anOldStackNextToAMergedDataMemoryOverlaps() throws Exception {
         LogisimFile f = mipsFile();
         CircuitBuilder b = new CircuitBuilder(f, f.getMainCircuit());
         drivers(b);
         memory(b, "Data Memory", 600, 300, null);
         memory(b, "Stack", 600, 600, null);
         b.commit();
-        assertEquals(new ArrayList<Diagnostic>(), only(f), "default regions are apart (SPIM layout)");
-
+        one(only(f), Diagnostic.Kind.MEMORY_OVERLAP, "main › DMem #1", "main › Stack #1", "7ffc0000-7fffffff");
+        // 두 새 Data Memory: 데이터 영역부터 겹친다(두 부품마다 한 줄)
         LogisimFile g = mipsFile();
         CircuitBuilder gb = new CircuitBuilder(g, g.getMainCircuit());
         drivers(gb);
-        memory(gb, "Data Memory", 600, 300, null, "base", "0x7ff80000");
-        memory(gb, "Stack", 600, 600, null);
+        memory(gb, "Data Memory", 600, 300, null);
+        memory(gb, "Data Memory", 600, 600, null, "label", "B");
         gb.commit();
-        one(only(g), Diagnostic.Kind.MEMORY_OVERLAP, "main › DMem #1", "main › Stack #1", "7ff80000-7fffffff");
+        one(only(g), Diagnostic.Kind.MEMORY_OVERLAP, "main › DMem #1", "main › B", "10000000-100fffff");
     }
 
     // ---- 게이트 빈 입력과 프로젝트 옵션 gateUndefined(2c 검토 반영) ----

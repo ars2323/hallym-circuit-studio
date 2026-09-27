@@ -203,7 +203,8 @@ public final class MachineState {
 
     /**
      * 지금 회로 상태(rootState, 보고 있는 사이클)의 Data Memory·Stack 내용. Data는 낮은 주소부터(.data 라벨과 함께, 0
-     * 구간은 한 줄로 접는다), Stack은 높은 주소가 위이고 $sp 화살표·깊이·최고 수위가 있다.
+     * 구간은 한 줄로 접는다), Stack은 높은 주소가 위이고 $sp 화살표·깊이·최고 수위가 있다. 데이터와 스택을 함께 맡는
+     * Data Memory(D-140)는 같은 이름으로 데이터 하나, 스택 하나를 낸다.
      */
     public List<Memory> memories(CircuitState rootState, int cycle) {
         List<Memory> out = new ArrayList<>();
@@ -228,7 +229,14 @@ public final class MachineState {
                         name = InstancePaths.describe(root(), path).substring(root().getName().length()
                                 + Names.SEP.length()) + Names.SEP + name;
                     }
-                    out.add(m.growsDown() ? stack(name, m, spAddr) : data(name, m));
+                    if (m.growsDown()) {
+                        out.add(stack(name, m, spAddr));
+                    } else {
+                        out.add(data(name, m));
+                        if (m.merged()) {
+                            out.add(stack(name, m, spAddr)); // 합친 Data Memory의 스택 영역(D-140)
+                        }
+                    }
                 }
             } else if (x.getFactory() instanceof SubcircuitFactory) {
                 Object d = s.getData(x);

@@ -80,9 +80,7 @@
       <a name="width" val="32"/>
       <a name="label" val="addr"/>
     </comp>
-    <comp lib="7" loc="(600,500)" name="Stack">
-      <a name="top" val="0x1001003c"/>
-    </comp>
+    <comp lib="7" loc="(600,500)" name="Stack"/>
     <comp lib="0" loc="(360,500)" name="Tunnel">
       <a name="width" val="32"/>
       <a name="label" val="addr"/>
@@ -96,7 +94,10 @@
     <comp lib="0" loc="(460,260)" name="Tunnel">
       <a name="label" val="zero"/>
     </comp>
-    <comp lib="7" loc="(600,200)" name="Data Memory"/>
+    <comp lib="7" loc="(600,200)" name="Data Memory">
+      <a name="base" val="0x10000000"/>
+      <a name="stacksize" val="0x40000"/>
+    </comp>
     <comp lib="0" loc="(530,560)" name="Tunnel">
       <a name="label" val="zero"/>
     </comp>

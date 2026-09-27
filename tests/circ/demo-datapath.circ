@@ -98,6 +98,7 @@
     <wire from="(860,260)" to="(940,260)"/>
     <comp lib="7" loc="(1440,440)" name="Data Memory">
       <a name="base" val="0x0"/>
+      <a name="stacksize" val="0x40000"/>
     </comp>
     <comp lib="0" loc="(1240,500)" name="Tunnel">
       <a name="facing" val="north"/>
