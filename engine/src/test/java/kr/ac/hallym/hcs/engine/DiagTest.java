@@ -83,9 +83,14 @@ class DiagTest {
 
     /** 목록이 want개가 될 때까지 diag.list를 다시 묻는다(동적 진단은 시뮬레이터 스레드에서 찾는다). */
     JsonArray listUntil(int want) throws InterruptedException {
+        return listUntil(l -> l.size() == want);
+    }
+
+    /** 목록이 조건을 채울 때까지 diag.list를 다시 묻는다(시간이 넘으면 마지막 목록). */
+    JsonArray listUntil(java.util.function.Predicate<JsonArray> ok) throws InterruptedException {
         long end = System.currentTimeMillis() + Client.TIMEOUT_MS;
         JsonArray l = list();
-        while (l.size() != want && System.currentTimeMillis() < end) {
+        while (!ok.test(l) && System.currentTimeMillis() < end) {
             Thread.sleep(20);
             l = list();
         }
@@ -160,7 +165,10 @@ class DiagTest {
             JsonArray l = list();
             if (!name.startsWith("static-")) {
                 cycles(4); // v1 고장 회로 모음과 같은 8스텝
-                l = listUntil(1);
+                // 동적 진단·진동은 시뮬레이터 스레드에서 찾으므로 sim.state보다 늦을 수 있다: 동적 메시지 한 줄을 기다린다
+                // (발진 회로는 그 전까지 정적 조합 루프 한 줄이다)
+                l = listUntil(x -> x.size() == 1 && x.get(0).getAsJsonObject().get("kind").getAsString()
+                        .equals("dynamic"));
             }
             if (l.size() != 1) {
                 problems.add(name + ": " + l);

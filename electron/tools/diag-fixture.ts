@@ -103,8 +103,14 @@ try {
         if (st.cycle >= fx.cycles || !st.running) break;
         await sleep(20);
       }
-      await sleep(300); // the last step's dynamic check (the simulator's thread)
-      const after = (await call<{ messages: Json[] }>('diag.list', { fileId: opened.fileId })).messages;
+      // The dynamic checks and the oscillation are found on the simulator's thread, after sim.state
+      // can say the cycles are done: ask until the list stays the same for half a second.
+      let after = (await call<{ messages: Json[] }>('diag.list', { fileId: opened.fileId })).messages;
+      for (let still = 0; still < 25; still++) {
+        await sleep(20);
+        const again = (await call<{ messages: Json[] }>('diag.list', { fileId: opened.fileId })).messages;
+        if (JSON.stringify(again) !== JSON.stringify(after)) { after = again; still = 0; }
+      }
       entry.cycles = fx.cycles;
       entry.afterCycles = await Promise.all(after.map((m) => portable(opened.fileId, names, m)));
     }

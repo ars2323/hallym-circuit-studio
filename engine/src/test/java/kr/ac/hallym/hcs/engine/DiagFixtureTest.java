@@ -57,14 +57,19 @@ class DiagFixtureTest {
                     e.client.call("sim.cycles", params("fileId", fileId, "n", n));
                     e.client.awaitNotificationAfter(mark, "sim.state", s -> s.get("fileId").getAsString()
                             .equals(fileId) && (s.get("cycle").getAsLong() >= n || !s.get("running").getAsBoolean()));
-                    JsonArray after = spec.getAsJsonArray("afterCycles");
-                    JsonArray now = list(e, fileId);
-                    for (int i = 0; i < 100 && now.size() != after.size(); i++) {
-                        Thread.sleep(20); // 마지막 스텝의 동적 검사(시뮬레이터 스레드)
-                        now = list(e, fileId);
+                    // 동적 검사와 진동은 원조 시뮬레이터 스레드에서 찾으므로 sim.state보다 늦을 수 있다: 같아질 때까지 기다린다
+                    List<String> w = new ArrayList<>();
+                    describe(entry.getKey() + " after " + n, spec.getAsJsonArray("afterCycles"), w);
+                    List<String> g = new ArrayList<>();
+                    for (long end = System.currentTimeMillis() + Client.TIMEOUT_MS; ; Thread.sleep(20)) {
+                        g.clear();
+                        describe(entry.getKey() + " after " + n, list(e, fileId), g);
+                        if (g.equals(w) || System.currentTimeMillis() > end) {
+                            break;
+                        }
                     }
-                    describe(entry.getKey() + " after " + n, after, want);
-                    describe(entry.getKey() + " after " + n, now, got);
+                    want.addAll(w);
+                    got.addAll(g);
                 }
                 e.client.call("file.close", params("fileId", fileId));
             }
