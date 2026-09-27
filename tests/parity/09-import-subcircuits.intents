@@ -1,0 +1,10 @@
+# 09 서브회로 가져오기(v1 P-05, File › Import Subcircuits…): 파일을 고르고, 가져올 회로에 표시하고, 계획 창에서
+# Apply. 쓰는 서브회로가 먼저 따라오고, 이미 있는 이름은 번호를 붙인다. 가져온 회로는 이 파일의 회로가 된다.
+{"method":"edit.createCircuit","name":"half_adder"}
+{"method":"edit.addComponent","circuit":"half_adder","lib":"Gates","name":"NOT Gate","loc":[200,100]}
+{"method":"edit.importCircuits","path":"inputs/adders.circ","circuits":["full_adder"]}
+{"method":"edit.importCircuits","path":"inputs/adders.circ","circuits":["parity3"]}
+{"method":"edit.addComponent","circuit":"main","name":"full_adder","loc":[300,200],"as":"fa"}
+{"method":"edit.addComponent","name":"parity3","loc":[300,400]}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[100,200],"attrs":{"label":"a"}}
+{"method":"edit.addWire","points":[[100,200],[270,200]]}

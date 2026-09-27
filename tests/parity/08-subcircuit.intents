@@ -1,0 +1,39 @@
+# 08 서브회로: Project › Add Circuit…(이름 창), 그 회로에 핀·게이트·선, main에 인스턴스 놓기(부품 목록의 회로),
+# 인스턴스 우클릭 Port Order…(변마다 ▲로 순서를 바꾸고 Apply, 끊어질 연결 확인 창에서 Apply)와 Auto Appearance,
+# 회로 이름 바꾸기(회로 속성), Set As Main Circuit.
+{"method":"edit.createCircuit","name":"half_adder"}
+{"method":"edit.addComponent","circuit":"half_adder","lib":"Wiring","name":"Pin","loc":[100,80],"attrs":{"label":"a"}}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[100,220],"attrs":{"label":"b"}}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[400,100],"attrs":{"facing":"west","output":"true","label":"s"}}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[400,200],"attrs":{"label":"c"}}
+{"method":"edit.addComponent","lib":"Gates","name":"XOR Gate","loc":[300,100],"attrs":{"inputs":"2"}}
+{"method":"edit.addComponent","lib":"Gates","name":"AND Gate","loc":[300,200],"attrs":{"inputs":"2"}}
+{"method":"edit.addWire","points":[[100,80],[240,80]]}
+{"method":"edit.addWire","points":[[200,80],[200,180],[250,180]]}
+{"method":"edit.addWire","points":[[100,220],[250,220]]}
+{"method":"edit.addWire","points":[[170,220],[170,120],[240,120]]}
+{"method":"edit.addWire","points":[[300,100],[400,100]]}
+{"method":"edit.addWire","points":[[300,200],[400,200]]}
+# main에 인스턴스 두 개(기본 모양: 입력 a·b 왼쪽, 출력 s·c 오른쪽)
+{"method":"edit.addComponent","circuit":"main","name":"half_adder","loc":[300,200],"as":"ha1"}
+{"method":"edit.addComponent","name":"half_adder","loc":[300,400],"as":"ha2"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[100,200],"attrs":{"facing":"east","output":"false","label":"x"}}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[100,260],"attrs":{"label":"y"}}
+{"method":"edit.addWire","points":[[100,200],[270,200]]}
+{"method":"edit.addWire","points":[[100,260],[240,260],[240,210]]}
+{"method":"edit.addWire","points":[[240,210],[270,210]]}
+{"method":"edit.addWire","points":[[300,210],[320,210],[320,350]]}
+{"method":"edit.addWire","points":[[320,350],[250,350],[250,400]]}
+{"method":"edit.addWire","points":[[250,400],[270,400]]}
+# Port Order…: 왼쪽 b, a / 오른쪽 c, s. 인스턴스 포트 자리가 바뀌어 끊어질 연결을 알리는 창에서 Apply
+{"method":"edit.portOrder","target":"half_adder","order":{"west":["b","a"],"east":["c","s"]}}
+# Auto Appearance: 기본 순서로 다시(또 끊어질 연결 확인)
+{"method":"edit.autoAppearance","target":"half_adder"}
+# 아래를 향한 인스턴스(도구 속성 facing)
+{"method":"edit.addComponent","name":"half_adder","loc":[500,300],"attrs":{"facing":"south"},"as":"ha3"}
+# 회로 이름 바꾸기: 인스턴스는 새 이름을 따라간다
+{"method":"edit.setCircuitAttr","target":"half_adder","attr":"circuit","value":"ha"}
+# 새 회로를 주 회로로
+{"method":"edit.createCircuit","name":"top"}
+{"method":"edit.addComponent","circuit":"top","name":"main","loc":[300,200]}
+{"method":"edit.setMainCircuit","target":"top"}

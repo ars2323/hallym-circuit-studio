@@ -1,0 +1,17 @@
+# 12 번들 Hallym MIPS(v1 V-01, D-096): 부품 목록에 늘 보이는 그림자 라이브러리에서 MIPS 부품을 처음 놓는 순간
+# 라이브러리가 파일에 들어간다(jar#hcs-mips.jar, .circ 옆 jar). 그 놓기를 되돌리면 라이브러리도 빠지고, 다시 실행하면
+# 다시 들어간다. 놓은 MIPS 부품의 속성은 속성 표로 바꾼다.
+{"method":"edit.addComponent","lib":"Hallym MIPS","name":"Instruction Memory","loc":[300,200],"as":"imem"}
+{"method":"edit.undo"}
+{"method":"edit.redo"}
+{"method":"edit.addComponent","lib":"Hallym MIPS","name":"Data Memory","loc":[800,400],"as":"dmem"}
+{"method":"edit.addComponent","lib":"Hallym MIPS","name":"Radix Probe","loc":[400,100],"as":"probe"}
+{"method":"edit.addComponent","lib":"Hallym MIPS","name":"Console","loc":[800,100]}
+{"method":"edit.addComponent","lib":"Hallym MIPS","name":"Stack","loc":[800,700]}
+{"method":"edit.addWire","points":[[300,200],[400,200],[400,100]]}
+{"method":"edit.setAttr","ids":["dmem"],"attr":"label","value":"DMEM"}
+{"method":"edit.setAttr","ids":["imem"],"attr":"label","value":"IMEM"}
+{"method":"edit.setAttr","ids":["probe"],"attr":"radix","value":"dec"}
+{"method":"edit.addComponent","lib":"Memory","name":"Register","loc":[60,200],"attrs":{"width":"32","label":"PC"}}
+{"method":"edit.addWire","points":[[60,200],[100,200]]}
+{"method":"edit.move","ids":["imem"],"dx":0,"dy":40}

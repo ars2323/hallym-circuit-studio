@@ -1,0 +1,30 @@
+# 03 따라오는 선(v1, D-055·W-03): Edit Tool로 고른 부품 안을 눌러 끌어 놓는다. 포트에 붙은 선이 따라오고(고무줄,
+# 연결 유지 길 찾기, ㄱ자), 다른 넷은 그대로다. Shift를 누른 채 끌면 선 없이 옮긴다(원조 Keep Connected 반대).
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[100,130],"attrs":{"label":"a"},"as":"a"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[100,170],"attrs":{"label":"b"},"as":"b"}
+{"method":"edit.addComponent","lib":"Gates","name":"AND Gate","loc":[300,150],"attrs":{"inputs":"2"},"as":"and"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[450,150],"attrs":{"facing":"west","output":"true","label":"y"},"as":"y"}
+{"method":"edit.addWire","points":[[100,130],[250,130]]}
+{"method":"edit.addWire","points":[[100,170],[250,170]]}
+{"method":"edit.addWire","points":[[300,150],[450,150]]}
+# 세로로 옮기기: 가로선 세 개가 따라온다
+{"method":"edit.move","ids":["and"],"dx":0,"dy":40}
+# 가로로 옮기기: 나란한 선이 늘고 준다
+{"method":"edit.move","ids":["and"],"dx":40,"dy":0}
+# 대각선으로 옮기기
+{"method":"edit.move","ids":["and"],"dx":-20,"dy":-60}
+# 출력 핀을 옮기기
+{"method":"edit.move","ids":["y"],"dx":60,"dy":30}
+# 선 없이 옮기기(끄는 동안 Shift)
+{"method":"edit.move","ids":["a"],"dx":0,"dy":-60,"keepConnected":false}
+# 두 부품을 함께 옮기기(사이 선은 같이 옮겨지고 바깥 선이 따라온다)
+{"method":"edit.move","ids":["and","y"],"dx":60,"dy":80}
+# 선이 없는 부품
+{"method":"edit.addComponent","lib":"Gates","name":"NOT Gate","loc":[300,400],"as":"not"}
+{"method":"edit.move","ids":["not"],"dx":100,"dy":-10}
+# 따라오는 선은 다른 부품의 포트를 지나지 않는다(PLAN.md 부록 A.4): 곧게 늘인 다리가 핀 d의 포트를 지날 자리
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[100,600],"attrs":{"facing":"east","output":"false","label":"c"}}
+{"method":"edit.addComponent","lib":"Gates","name":"NOT Gate","loc":[300,600],"as":"n2"}
+{"method":"edit.addWire","points":[[100,600],[270,600]]}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[100,640],"attrs":{"label":"d"}}
+{"method":"edit.move","ids":["n2"],"dx":0,"dy":60}

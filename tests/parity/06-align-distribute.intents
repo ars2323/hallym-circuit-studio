@@ -1,0 +1,26 @@
+# 06 정렬·같은 간격(v1 E-01, 여러 개를 고른 우클릭 Align ›·Distribute ›). 포트가 이어지지 않은 부품만 옮긴다.
+# 이어진 부품이 있으면 알리고 옮기지 않는다(D-084). 정렬은 부품을 지우고 새로 놓는다: 기호는 같은 변경에서
+# 지워지고 놓인 같은 종류·같은 속성의 부품을 따라간다(그래서 같은 게이트 여럿은 라벨로 가리킨다).
+{"method":"edit.addComponent","lib":"Gates","name":"NOT Gate","loc":[200,120],"attrs":{"label":"n1"}}
+{"method":"edit.addComponent","lib":"Gates","name":"NOT Gate","loc":[330,170],"attrs":{"label":"n2"}}
+{"method":"edit.addComponent","lib":"Gates","name":"NOT Gate","loc":[410,90],"attrs":{"label":"n3"}}
+{"method":"edit.addComponent","lib":"Gates","name":"NOT Gate","loc":[620,140],"attrs":{"label":"n4"}}
+{"method":"edit.align","ids":["label:n1","label:n2","label:n3","label:n4"],"mode":"top"}
+{"method":"edit.distribute","ids":["label:n1","label:n2","label:n3","label:n4"],"axis":"h"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[100,260],"attrs":{"label":"p1"}}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[140,330],"attrs":{"label":"p2"}}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[120,470],"attrs":{"label":"p3","width":"8"}}
+{"method":"edit.align","ids":["label:p1","label:p2","label:p3"],"mode":"left"}
+{"method":"edit.distribute","ids":["label:p1","label:p2","label:p3"],"axis":"v"}
+{"method":"edit.align","ids":["label:p1","label:p3"],"mode":"right"}
+# 왼쪽·가운데 맞춤. 옮긴 자리의 포트가 다른 부품 포트에 닿으면 v1 검사기(W-05)가 옮기지 않는다(마지막 줄).
+{"method":"edit.addComponent","lib":"Arithmetic","name":"Adder","loc":[400,200],"as":"add"}
+{"method":"edit.addComponent","lib":"Arithmetic","name":"Subtractor","loc":[460,300],"as":"sub"}
+{"method":"edit.addComponent","lib":"Memory","name":"Register","loc":[520,420],"attrs":{"label":"reg"},"as":"reg"}
+{"method":"edit.align","ids":["add","sub","reg"],"mode":"left"}
+{"method":"edit.align","ids":["add","sub","reg"],"mode":"centerX"}
+{"method":"edit.align","ids":["sub","reg"],"mode":"bottom"}
+# 이어진 부품: 옮기지 않는다
+{"method":"edit.addComponent","lib":"Gates","name":"NOT Gate","loc":[300,560],"attrs":{"label":"n5"}}
+{"method":"edit.addWire","points":[[300,560],[380,560]]}
+{"method":"edit.align","ids":["label:n5","label:n4"],"mode":"bottom"}

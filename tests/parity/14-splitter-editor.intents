@@ -1,0 +1,11 @@
+# 14 Splitter 편집기(v1 #105): 여러 비트 선 우클릭 Split Bits Here…(새 스플리터), 스플리터 우클릭 Edit Splitter…
+# (비트 범위 글·팔 이름·MSB/LSB 위, Apply). 팔 자리가 바뀌면 원조 Splitter 속성(fanout·bitN)이 바뀌고, 팔 이름은
+# hcs:ext에 저장된다.
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[200,200],"attrs":{"width":"8","label":"bus"}}
+{"method":"edit.addWire","points":[[200,200],[400,200]]}
+{"method":"edit.splitterSplit","wire":"wire:300,200","at":[300,200],"ranges":"7:4, 3:0","names":["hi","lo"]}
+{"method":"edit.addComponent","lib":"Wiring","name":"Splitter","loc":[400,400],"attrs":{"incoming":"32","fanout":"2"},"as":"sp"}
+{"method":"edit.splitterEdit","id":"sp","ranges":"31:26 op, 25:21 rs, 20:16 rt, 15:11 rd, 10:6 shamt, 5:0 funct"}
+{"method":"edit.splitterEdit","id":"sp","ranges":"31:26, 25:21, 20:16, 15:0","names":["op","rs","rt","imm"]}
+{"method":"edit.addComponent","lib":"Wiring","name":"Splitter","loc":[400,700],"attrs":{"incoming":"8","fanout":"2"},"as":"sp2"}
+{"method":"edit.splitterEdit","id":"sp2","ranges":"0, 1, 7:2","lsbTop":true,"names":["b0","b1","rest"]}

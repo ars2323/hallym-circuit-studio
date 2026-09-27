@@ -1,0 +1,42 @@
+# 10 되돌리기·다시 실행: Edit › Undo(원조 되돌리기 기록, 한 번에 한 단계)와 Edit › Redo(v1). 새로 고치면 다시 실행
+# 기록이 비워진다. 도구 속성 바꾸기도 한 단계이고, 되돌리면 저장되는 <lib><tool> 값도 돌아간다.
+{"method":"edit.addComponent","lib":"Gates","name":"AND Gate","loc":[300,200],"attrs":{"inputs":"2"},"as":"and"}
+{"method":"edit.addComponent","lib":"Gates","name":"OR Gate","loc":[300,400],"attrs":{"inputs":"2"},"as":"or"}
+{"method":"edit.addWire","points":[[300,200],[350,200],[350,300]]}
+{"method":"edit.move","ids":["and"],"dx":40,"dy":0}
+{"method":"edit.setAttr","ids":["and"],"attr":"inputs","value":"3"}
+# 속성 바꾸기, 옮기기 되돌리기 → 옮기기 다시 실행
+{"method":"edit.undo"}
+{"method":"edit.undo"}
+{"method":"edit.redo"}
+# 옮기기, 선 되돌리기 → 선 다시 실행
+{"method":"edit.undo"}
+{"method":"edit.undo"}
+{"method":"edit.redo"}
+# 새로 고치면 다시 실행할 것이 없어진다
+{"method":"edit.addComponent","lib":"Gates","name":"NOT Gate","loc":[500,200],"as":"not"}
+{"method":"edit.redo"}
+{"method":"edit.undo"}
+{"method":"edit.redo"}
+# 지우기 되돌리기와 다시 실행
+{"method":"edit.delete","ids":["or"]}
+{"method":"edit.undo"}
+{"method":"edit.redo"}
+{"method":"edit.undo"}
+# 붙여넣고 옮긴 것은 한 단계
+{"method":"edit.copy","ids":["not"]}
+{"method":"edit.paste"}
+{"method":"edit.move","dx":0,"dy":100}
+{"method":"edit.select","ids":[]}
+{"method":"edit.undo"}
+{"method":"edit.redo"}
+# 도구 속성 바꾸기를 되돌리면 저장되는 도구 속성도 돌아간다
+{"method":"edit.setToolAttr","lib":"Gates","name":"XOR Gate","attr":"inputs","value":"3"}
+{"method":"edit.setToolAttr","lib":"Gates","name":"XOR Gate","attr":"size","value":"30"}
+{"method":"edit.undo"}
+{"method":"edit.addComponent","lib":"Gates","name":"XOR Gate","loc":[300,600]}
+# 도구 속성과 함께 놓은 부품: 되돌리기 두 번(놓기, 도구 속성)
+{"method":"edit.addComponent","lib":"Gates","name":"NAND Gate","loc":[500,600],"attrs":{"size":"70"}}
+{"method":"edit.undo"}
+{"method":"edit.undo"}
+{"method":"edit.addComponent","lib":"Gates","name":"NAND Gate","loc":[500,600]}

@@ -1,0 +1,11 @@
+# 17 있는 파일 열어 고치기(File › Open → 편집 → File › Save): 서브회로가 여러 개인 파일. 파일에 저장된 도구 속성은
+# 열 때 도구에 얹힌다. 선 가운데에 부품 포트를 놓으면 원조가 그 자리에서 선을 나눠 잇는다.
+{"method":"file.open","path":"inputs/adders.circ"}
+{"method":"edit.addComponent","circuit":"full_adder","lib":"Wiring","name":"Probe","loc":[500,300],"attrs":{"facing":"south"}}
+{"method":"edit.move","ids":["at:500,400/OR Gate"],"dx":0,"dy":40}
+{"method":"edit.delete","circuit":"parity3","ids":["label:x"]}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[100,200]}
+{"method":"edit.setAttr","circuit":"half_adder","ids":["label:s"],"attr":"label","value":"sum"}
+{"method":"edit.setCircuitAttr","target":"parity3","attr":"circuit","value":"odd3"}
+{"method":"edit.addComponent","circuit":"main","name":"full_adder","loc":[300,200]}
+{"method":"edit.addComponent","name":"odd3","loc":[300,300]}
