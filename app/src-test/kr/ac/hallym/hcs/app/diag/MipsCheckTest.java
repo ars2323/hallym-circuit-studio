@@ -52,7 +52,8 @@ class MipsCheckTest {
         b.constant("addr1", 32, 0x10010002, 80, 100);
         b.constant("addr2", 32, 0x20000002, 80, 140);
         Component m1 = b.add(mips, "Data Memory", 600, 300);
-        Component m2 = b.add(mips, "Data Memory", 600, 600, "base", "0x20000000", "size", "0x1000");
+        Component m2 = b.add(mips, "Data Memory", 600, 600, "base", "0x20000000", "size", "0x1000",
+                "stacksize", "0x0"); // 스택 영역은 m1만(D-140)
         int k = 1;
         for (Component m : new Component[] {m1, m2}) {
             b.tunnel(m, 0, "addr" + k);

@@ -165,13 +165,14 @@ public final class FaultCircuits {
             b.output("q", 1, 700, 100);
             b.commit();
         });
+        // 스택 영역을 함께 맡는 새 Data Memory(D-140) 옆에 옛 Stack을 둔 회로: 두 스택 영역이 7ffc0000부터 겹친다
         add("static-memory-overlap", Diagnostic.Kind.MEMORY_OVERLAP, (f, mips) -> {
             CircuitBuilder b = main(f);
             clock(b);
             b.constant("addr", 32, 0x10010000, 80, 100);
             b.constant("zero", 1, 0, 80, 240);
             Component data = b.add(mips, "Data Memory", 600, 200);
-            Component stack = b.add(mips, "Stack", 600, 500, "top", "0x1001003c");
+            Component stack = b.add(mips, "Stack", 600, 500);
             for (Component m : new Component[] {data, stack}) {
                 b.tunnel(m, 0, "addr");
                 b.tunnel(m, 1, "addr");
@@ -251,8 +252,9 @@ public final class FaultCircuits {
         // ---- MIPS 부품 값(D-04, #41). 문구는 몸체의 빨간 글자 ----
         add("mips-unaligned", Diagnostic.Kind.MIPS_STATUS, (f, mips) -> memory(f, mips, "Data Memory", 0x10010002));
         add("mips-no-region", Diagnostic.Kind.MIPS_STATUS, (f, mips) -> memory(f, mips, "Data Memory", 0x20000000));
-        add("mips-stack-limit", Diagnostic.Kind.MIPS_STATUS, (f, mips) -> memory(f, mips, "Stack", 0x7FFFFFEC,
-                "size", "0x10"));
+        // 새 Data Memory의 스택 영역(0x7FFC0000부터, 한계 256KB) 바로 아래(D-140)
+        add("mips-stack-limit", Diagnostic.Kind.MIPS_STATUS, (f, mips) -> memory(f, mips, "Data Memory",
+                0x7FFBFFFC));
         add("mips-imem-unaligned", Diagnostic.Kind.MIPS_STATUS, (f, mips) -> {
             CircuitBuilder b = main(f);
             Component im = b.add(mips, "Instruction Memory", 400, 200);

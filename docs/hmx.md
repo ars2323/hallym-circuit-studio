@@ -32,7 +32,7 @@
 
 - `.text`는 파일 주소 그대로(시작 코드 포함, 자르거나 옮기지 않음) 그 구간을 담는 Instruction Memory에, `.data`는 그 구간을 담는 Data Memory에 넣는다. 담는 부품이 없으면 구간과 범위를 말하고 아무것도 넣지 않는다(전부 아니면 전무, D-126).
 - **레지스터에는 아무 값도 넣지 않는다.** PC 시작과 레지스터 시작 값은 학생 회로의 몫이다(CLAUDE.md 2.6).
-- `reg $sp`가 있으면 그 값 바로 아래 워드를 담는 Stack의 깊이 기준이 된다(SPIM 시작 `$sp` 0x7FFFEFFC 규칙보다 먼저). 코드에서 이 일을 하는 곳은 `ProgramLoader.stackDepthBase` 하나다.
+- `reg $sp`가 있으면 그 값 바로 아래 워드를 스택 영역에 담는 부품(데이터와 스택을 함께 맡는 Data Memory, 옛 파일은 Stack, D-140)의 깊이 기준이 된다(SPIM 시작 `$sp` 0x7FFFEFFC 규칙보다 먼저). 스택 내용은 파일에 없으므로 0이다. 코드에서 이 일을 하는 곳은 `ProgramLoader.stackDepthBase` 하나다.
 - 기호는 표시(디스어셈블의 `[main]`)에 쓴다.
 - **요약(Z-03, `StartFacts`).** 첫 줄은 `entry 0x00400024 (main)`(entry 주소의 기호, 여럿이면 파일 순서, 없으면 괄호 없음, entry가 없으면 `no entry`), 이어서 `reg` 줄마다 한 줄(`reg $sp 0x7fffffe4`, 파일 순서, 표준 이름). 이름·숫자라 두 언어 모두 영어다(D-049).
 - **사실 줄**(설명 문장, 언어 설정을 따른다):

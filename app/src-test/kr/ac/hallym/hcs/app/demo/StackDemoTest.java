@@ -13,6 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -31,7 +32,10 @@ import kr.ac.hallym.hcs.app.record.Recording;
 import kr.ac.hallym.hcs.regress.CircNormalizer;
 import kr.ac.hallym.hcs.regress.CircuitBuilder;
 
-/** 스크린샷용 stack-demo.circ: 생성기와 커밋 파일이 같고, k사이클 뒤 $sp 깊이가 4k이며 Stack 화살표가 그 칸에 있다. */
+/**
+ * 스크린샷용 stack-demo.circ: 생성기와 커밋 파일이 같고, k사이클 뒤 $sp 깊이가 4k이며 스택 화살표가 그 칸에 있다. 스택은
+ * Data Memory 하나의 스택 영역이다(D-140): 메모리 패널에 같은 부품의 데이터·스택 두 칸이 나온다.
+ */
 class StackDemoTest {
     static final File MIPS_JAR = new File(System.getProperty("hcs.mipsJar"));
     static final File COMMITTED = new File(System.getProperty("hcs.circDir"), "stack-demo.circ");
@@ -86,7 +90,10 @@ class StackDemoTest {
         for (int k = 1; k <= 6; k++) {
             assertEquals(4L * k, MachineState.depth(ms.sp(k)), "cycle " + k);
         }
-        MachineState.Memory stack = ms.memories(root, 6).get(0);
+        List<MachineState.Memory> mems = ms.memories(root, 6);
+        assertEquals(2, mems.size(), "the Data Memory gives its data part and its stack part");
+        assertTrue(!mems.get(0).stack && mems.get(0).name.equals(mems.get(1).name));
+        MachineState.Memory stack = mems.get(1);
         assertTrue(stack.stack);
         assertEquals(24, stack.depth);
         assertEquals(24, stack.peak);

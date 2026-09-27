@@ -10,7 +10,8 @@ import java.lang.reflect.Method;
 /**
  * lib-mips Data Memory·Stack의 상태를 읽는 창(C-06). lib-mips는 JAR 라이브러리로 따로 불려서 포크가 그 클래스를
  * 컴파일 때 알 수 없다. 그래서 상태 객체의 공개 메서드(readWord, pageAddresses, region, growsDown, isDefined,
- * lowestAccess, depthBase)를 이름으로 부른다. 읽기만 한다.
+ * lowestAccess, depthBase, stackRegion)를 이름으로 부른다. 읽기만 한다. 합친 Data Memory(D-140)는 데이터 영역과
+ * 스택 영역(stackRegion)을 함께 가진다.
  */
 final class MipsMemory {
     private final Object state;
@@ -21,6 +22,8 @@ final class MipsMemory {
     private final Method growsDown;
     private final Method lowest;
     private final Method base;
+    /** 스택 영역(D-140). D-140 전 lib-mips에는 없다: null. */
+    private final Method stackRegion;
 
     private MipsMemory(Object state) throws ReflectiveOperationException {
         this.state = state;
@@ -32,6 +35,13 @@ final class MipsMemory {
         growsDown = open(c.getMethod("growsDown"));
         lowest = open(c.getMethod("lowestAccess"));
         base = open(c.getMethod("depthBase"));
+        Method sr = null;
+        try {
+            sr = open(c.getMethod("stackRegion"));
+        } catch (NoSuchMethodException e) {
+            // 옛 lib-mips: 스택 영역은 옛 Stack(growsDown)뿐
+        }
+        stackRegion = sr;
     }
 
     private static Method open(Method m) {
@@ -86,5 +96,18 @@ final class MipsMemory {
 
     long depthBase() {
         return (Long) call(base);
+    }
+
+    /** 스택 영역 {낮은 주소, 높은 주소(제외)}. 없으면 null(스택 영역이 없는 옛 Data Memory). */
+    long[] stackRegion() {
+        if (stackRegion == null) {
+            return growsDown() ? region() : null;
+        }
+        return (long[]) call(stackRegion);
+    }
+
+    /** 데이터 영역과 스택 영역을 함께 맡는 Data Memory(D-140)인가. */
+    boolean merged() {
+        return !growsDown() && stackRegion() != null;
     }
 }

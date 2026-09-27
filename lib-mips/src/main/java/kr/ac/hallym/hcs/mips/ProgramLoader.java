@@ -33,9 +33,11 @@ import kr.ac.hallym.hcs.mips.image.StartFacts;
  *
  * <ul>
  *   <li>.text는 파일의 주소 그대로 Instruction Memory에 넣는다(시작 코드 포함, 자르거나 옮기지 않는다).</li>
- *   <li>.data는 그 구간을 담는 Data Memory(Stack 제외)에 넣는다.</li>
+ *   <li>.data는 그 구간을 담는 Data Memory의 데이터 영역에 넣는다(옛 Stack 제외).</li>
  *   <li>어느 부품도 담지 않는 구간이 있으면 구간과 범위를 말하고 아무것도 넣지 않는다(전부 아니면 전무).</li>
- *   <li>{@code reg $sp}가 있으면 그 값을 품는 Stack의 깊이 기준이 된다(0x7FFFEFFC 규칙보다 파일 값이 먼저).</li>
+ *   <li>{@code reg $sp}가 있으면 그 값 바로 아래 워드를 스택 영역에 품는 부품(데이터와 스택을 함께 맡는 Data Memory,
+ *       D-140, 또는 옛 Stack)의 깊이 기준이 된다(0x7FFFEFFC 규칙보다 파일 값이 먼저). 스택 내용은 파일에 없으므로
+ *       넣지 않는다(쓰지 않은 칸은 0이다).</li>
  * </ul>
  *
  * <p>요약은 entry 줄과 {@code reg} 줄로 시작하고, 진입 루틴에 {@code jr $ra}가 있으면 사실 줄을 더한다(공용
@@ -72,7 +74,10 @@ final class ProgramLoader {
         /** 목록에 보일 이름. 예: {@code datapath › IMem (00400000-004fffff)}. */
         String describe() {
             String label = component.getAttributeSet().getValue(StdAttr.LABEL);
-            String name = label == null || label.isEmpty() ? component.getFactory().getDisplayName() : label;
+            ComponentFactory f = component.getFactory();
+            String name = label != null && !label.isEmpty() ? label
+                    : f instanceof MemoryFactory ? ((MemoryFactory) f).title().get() // "Stack"(목록 이름은 "Stack (old circuits)")
+                    : f.getDisplayName();
             long[] r = region();
             return circuit.getName() + " › " + name + " (" + WordImage.hex(r[0]) + "-" + WordImage.hex(r[1] - 1) + ")";
         }
@@ -143,7 +148,7 @@ final class ProgramLoader {
         final Map<Target, List<ExecutableImage.Segment>> data = new LinkedHashMap<Target, List<ExecutableImage.Segment>>();
         /** .data가 없어 비운 Data Memory. 없으면 null. */
         Target emptiedData;
-        /** reg $sp를 깊이 기준으로 기억한 Stack들. */
+        /** reg $sp를 깊이 기준으로 기억한 부품들(옛 Stack, 스택 영역을 가진 Data Memory). */
         final List<Target> stackBase = new ArrayList<Target>();
         /** 이미지 .text의 명령어 이름(알파벳 순). */
         final List<String> instructions = new ArrayList<String>();
@@ -310,7 +315,7 @@ final class ProgramLoader {
             plan.notes.add(".data: " + ExecutableImage.describe(e.getValue()) + " → " + e.getKey().describe());
         }
 
-        stackDepthBase(plan, img.reg("$sp"), stacks);
+        stackDepthBase(plan, img.reg("$sp"), stacks, datas);
 
         plan.instructions.addAll(usedInstructions(img));
         plan.notes.add(Text.name("Instructions used: ").get() + String.join(", ", plan.instructions));
@@ -318,24 +323,43 @@ final class ProgramLoader {
     }
 
     /**
-     * {@code reg $sp}를 Stack 깊이 기준으로 기억한다(D-126 4번, D-138): 파일의 {@code $sp} 바로 아래 워드를 담는 Stack의
-     * {@code contents}에 주소만 있는 줄로 적고, {@code reg $sp}가 없는 이미지면 기준을 지운다. 파일 값이 0x7FFFEFFC 규칙보다
-     * 먼저다. 레지스터에는 아무것도 넣지 않는다. $sp를 다루는 곳은 여기 하나다(Data Memory와 Stack을 한 부품으로 합치면 이
-     * 메서드만 그 부품의 스택 영역을 보도록 바꾼다).
+     * {@code reg $sp}를 스택 깊이 기준으로 기억한다(D-126 4번, D-138, D-140): 파일의 {@code $sp} 바로 아래 워드를 스택
+     * 영역에 담는 부품(데이터와 스택을 함께 맡는 Data Memory, 옛 파일은 Stack)의 {@code contents}에 주소만 있는 줄로
+     * 적고, {@code reg $sp}가 없는 이미지거나 스택 영역이 그 워드를 담지 않으면 기준을 지운다. 파일 값이 0x7FFFEFFC
+     * 규칙보다 먼저다. 스택 영역이 없는 옛 Data Memory는 건드리지 않는다. .data를 넣은 바뀜이 이미 있으면 그 값에 더한다
+     * (한 부품의 contents는 바뀜 하나). 스택 내용은 파일에 없으므로 넣지 않는다. 레지스터에는 아무것도 넣지 않는다.
+     * $sp를 다루는 곳은 여기 하나다.
      */
-    static void stackDepthBase(Plan plan, Long sp, List<Target> stacks) {
-        for (Target st : stacks) {
-            WordImage now = st.component.getAttributeSet().getValue(MemoryFactory.CONTENTS);
+    static void stackDepthBase(Plan plan, Long sp, List<Target> stacks, List<Target> datas) {
+        List<Target> holders = new ArrayList<Target>(stacks);
+        holders.addAll(datas);
+        for (Target t : holders) {
+            long[] stack = MemoryFactory.stackRegion(t.component.getAttributeSet());
+            if (stack == null) {
+                continue; // 스택 영역이 없는 옛 Data Memory
+            }
+            Long want = sp != null && MemoryFactory.contains(stack, (int) (sp - 4)) ? sp : null;
+            int at = -1;
+            for (int i = 0; i < plan.changes.size(); i += 1) {
+                Change c = plan.changes.get(i);
+                if (c.target.equals(t) && c.attr == MemoryFactory.CONTENTS) {
+                    at = i;
+                }
+            }
+            WordImage now = at >= 0 ? (WordImage) plan.changes.get(at).value
+                    : t.component.getAttributeSet().getValue(MemoryFactory.CONTENTS);
             now = now == null ? WordImage.EMPTY : now;
-            Long want = sp != null && st.contains(sp - 4) ? sp : null;
             WordImage next = now.withInitialSp(want);
-            if (!next.equals(now)) {
-                plan.changes.add(new Change(st, MemoryFactory.CONTENTS, next));
+            if (at >= 0) {
+                plan.changes.set(at, new Change(t, MemoryFactory.CONTENTS, next));
+            } else if (!next.equals(now)) {
+                plan.changes.add(new Change(t, MemoryFactory.CONTENTS, next));
             }
             if (want != null) {
-                plan.stackBase.add(st);
+                plan.stackBase.add(t);
+                boolean merged = MemoryFactory.dataRegion(t.component.getAttributeSet()) != null;
                 plan.notes.add(Text.name("$sp ").get() + ExecutableImage.hex(sp) + Text.name(": Stack depth base of ")
-                        .get() + st.describe());
+                        .get() + t.describe() + (merged ? Text.name(", stack ").get() + MemoryFactory.range(stack) : ""));
             }
         }
     }

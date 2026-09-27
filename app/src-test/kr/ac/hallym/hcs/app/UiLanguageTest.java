@@ -209,8 +209,9 @@ class UiLanguageTest {
                 }
             }
             assertEquals(new ArrayList<String>(), bad);
-            assertTrue(seen.containsAll(Arrays.asList("Instruction Memory", "Data Memory", "Stack", "Console",
-                    "Radix Probe", "Start Address")), seen.toString());
+            assertTrue(seen.containsAll(Arrays.asList("Instruction Memory", "Data Memory", "Stack (old circuits)",
+                    "Console", "Radix Probe", "Start Address", "Stack Top Word Address", "Stack Limit (bytes)")),
+                    seen.toString());
         } finally {
             LocaleManager.setLocale(old);
         }

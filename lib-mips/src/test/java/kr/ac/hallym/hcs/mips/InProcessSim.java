@@ -35,6 +35,12 @@ final class InProcessSim {
         b = new CircuitBuilder(file, file.getMainCircuit());
     }
 
+    /** 이미 연 파일(예: 커밋된 옛 .circ)을 돌린다. MIPS 부품은 그 파일이 불러온 JAR 라이브러리의 것이다. */
+    InProcessSim(LogisimFile file) {
+        this.file = file;
+        b = new CircuitBuilder(file, file.getMainCircuit());
+    }
+
     void start() {
         b.commit();
         state = new CircuitState(new Project(file), file.getMainCircuit());

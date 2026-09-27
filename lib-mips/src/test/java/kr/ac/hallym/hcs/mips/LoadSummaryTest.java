@@ -48,7 +48,7 @@ class LoadSummaryTest {
             assertEquals(".text: 1 word (0x00400000–0x00400000), entry 0x00400000 → main › Instruction Memory"
                     + " (00400000-004fffff)", plan.notes.get(1));
             assertEquals(".data: 8 bytes = 2 words (0x10010000–0x10010007) → main › Data Memory"
-                    + " (10010000-1010ffff)", plan.notes.get(2));
+                    + " (10000000-100fffff)", plan.notes.get(2)); // 새 Data Memory의 데이터 영역(D-140)
             assertEquals("Instructions used: addi", plan.notes.get(plan.notes.size() - 1));
             assertEquals(List.of("addi"), plan.instructions);
             for (String n : plan.notes) {
@@ -78,7 +78,7 @@ class LoadSummaryTest {
         assertEquals("Executable image example.hmx, Hallym MIPS 2.2.0, 2026-09-27T13:15+09:00", l.notes.get(0));
         InProcessSim sim = new InProcessSim();
         sim.b.add(sim.mips, "Instruction Memory", 400, 200);
-        sim.b.add(sim.mips, "Data Memory", 400, 500);
+        sim.b.add(sim.mips, "Data Memory", 400, 500, StackRegionTest.OLD_DM); // 옛 구조(v1 파일, D-140)
         sim.b.add(sim.mips, "Stack", 400, 800);
         sim.b.commit();
         ProgramLoader.Plan plan = ProgramLoader.plan(l, sim.file.getCircuits(), null, null, "example.hmx");

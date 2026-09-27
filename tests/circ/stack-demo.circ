@@ -127,7 +127,6 @@
       <a name="width" val="32"/>
       <a name="label" val="sp"/>
     </comp>
-    <comp lib="7" loc="(1160,460)" name="Stack"/>
     <comp lib="0" loc="(920,460)" name="Tunnel">
       <a name="facing" val="east"/>
       <a name="width" val="32"/>
@@ -149,6 +148,10 @@
       <a name="facing" val="east"/>
       <a name="width" val="32"/>
       <a name="label" val="next"/>
+    </comp>
+    <comp lib="7" loc="(1160,460)" name="Data Memory">
+      <a name="base" val="0x10000000"/>
+      <a name="stacksize" val="0x40000"/>
     </comp>
   </circuit>
 </project>

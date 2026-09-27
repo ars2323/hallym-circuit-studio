@@ -162,18 +162,19 @@ class HallymMipsGoldenTest {
 
     // ---- (b) 불러오기와 되읽기 ----
 
-    /** 주소를 세는 회로: 사이클마다 4씩 늘어 Instruction Memory·Data Memory를 차례로 읽는다. */
+    /**
+     * 주소를 세는 회로: 사이클마다 4씩 늘어 Instruction Memory·Data Memory를 차례로 읽는다. Data Memory는 데이터와 스택
+     * 영역을 함께 맡는 새 부품 하나다(D-140).
+     */
     static final class Reader {
         final InProcessSim sim;
         final Component imem;
         final Component dmem;
-        final Component stack;
 
         Reader(long textStart, long dataStart) throws Exception {
             sim = new InProcessSim();
             imem = sim.b.add(sim.mips, "Instruction Memory", 1200, 200);
             dmem = sim.b.add(sim.mips, "Data Memory", 1200, 600);
-            stack = sim.b.add(sim.mips, "Stack", 1200, 1000);
             Component clock = sim.b.add("Wiring", "Clock", 100, 100);
             sim.b.tunnel(clock, 0, "clk");
             sim.b.constant("one", 1, 1, 100, 200);
@@ -256,8 +257,15 @@ class HallymMipsGoldenTest {
                 r.sim.cycle();
             }
             assertEquals(img.dataBytes().size(), bytes, "every byte read back");
-            // reg $sp: Stack 깊이 기준(파일 값), 레지스터에는 넣지 않는다
-            assertEquals(img.reg("$sp"), r.stack.getAttributeSet().getValue(MemoryFactory.CONTENTS).initialSp());
+            // reg $sp: Data Memory 스택 영역의 깊이 기준(파일 값, D-140), 레지스터에는 넣지 않는다. 스택 내용은 파일에 없어 0
+            assertEquals(img.reg("$sp"), r.dmem.getAttributeSet().getValue(MemoryFactory.CONTENTS).initialSp());
+            DataMemory.State dst = (DataMemory.State) r.sim.data(r.dmem);
+            assertNull(dst.problem, "one Data Memory, no overlapping part");
+            if (img.reg("$sp") != null) {
+                for (long a = img.reg("$sp"); a < 0x80000000L; a += 4) {
+                    assertEquals(0, dst.readWord((int) a), String.format("stack %08x", a));
+                }
+            }
             assertEquals(name + ".hmx", r.imem.getAttributeSet().getValue(MemoryFactory.SOURCE));
         }));
     }

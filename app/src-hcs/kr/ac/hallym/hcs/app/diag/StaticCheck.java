@@ -104,8 +104,9 @@ public final class StaticCheck {
 
     /**
      * Data Memory·Stack 영역 겹침(PLAN.md 4.2·6.2, #28). 두 부품은 한 주소 선을 나눠 쓰고 주소가 속한 쪽만 답하므로,
-     * 영역이 겹치면 어느 쪽이 답할지 정할 수 없다. 영역은 속성만으로 정해진다(Data: [base, base+size), Stack:
-     * [top+4−size, top+4)).
+     * 영역이 겹치면 어느 쪽이 답할지 정할 수 없다. 영역은 속성만으로 정해진다(데이터: [base, base+size), 옛 Stack:
+     * [top+4−size, top+4), 합친 Data Memory의 스택 영역: stacksize가 0이 아니면 [stacktop+4−stacksize, stacktop+4),
+     * D-140). 한 부품 안의 두 영역은 한 메모리라 서로 겹쳐도 보지 않는다. 두 부품마다 처음 겹치는 곳 하나를 말한다.
      */
     static List<Diagnostic> memoryOverlaps(LogisimFile file) {
         List<Component> mems = new ArrayList<>();
@@ -113,7 +114,7 @@ public final class StaticCheck {
         for (Circuit c : file.getCircuits()) {
             for (Component x : sorted(c.getNonWires())) {
                 String f = x.getFactory().getName();
-                if ((f.equals("Data Memory") || f.equals("Stack")) && region(x) != null) {
+                if ((f.equals("Data Memory") || f.equals("Stack")) && !regions(x).isEmpty()) {
                     mems.add(x);
                     where.put(x, c);
                 }
@@ -122,11 +123,10 @@ public final class StaticCheck {
         List<Diagnostic> ret = new ArrayList<>();
         for (int i = 0; i < mems.size(); i++) {
             for (int j = i + 1; j < mems.size(); j++) {
-                long[] a = region(mems.get(i));
-                long[] b = region(mems.get(j));
-                long lo = Math.max(a[0], b[0]);
-                long hi = Math.min(a[1], b[1]);
-                if (lo < hi) {
+                long[] at = overlap(regions(mems.get(i)), regions(mems.get(j)));
+                if (at != null) {
+                    long lo = at[0];
+                    long hi = at[1];
                     Component x = mems.get(i);
                     Component y = mems.get(j);
                     Circuit cx = where.get(x);
@@ -141,24 +141,51 @@ public final class StaticCheck {
         return ret;
     }
 
-    /** 속성으로 정한 영역 [low, high). 속성이 없으면 null. */
-    static long[] region(Component c) {
+    /** 두 영역 목록이 처음 겹치는 곳 [low, high). 겹치지 않으면 null. */
+    static long[] overlap(List<long[]> a, List<long[]> b) {
+        for (long[] x : a) {
+            for (long[] y : b) {
+                long lo = Math.max(x[0], y[0]);
+                long hi = Math.min(x[1], y[1]);
+                if (lo < hi) {
+                    return new long[] {lo, hi};
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 속성으로 정한 영역들 [low, high): 데이터 영역(base), 스택 영역(옛 Stack의 top, 합친 Data Memory의 stacktop·stacksize,
+     * D-140) 순. 속성이 없으면 빈 목록. lib-mips의 MemoryFactory.regions와 같은 규칙이다(StaticCheckTest가 대조).
+     */
+    static List<long[]> regions(Component c) {
+        List<long[]> out = new ArrayList<>();
         Object size = One.attr(c, "size");
         Object top = One.attr(c, "top");
         Object base = One.attr(c, "base");
         if (!(size instanceof Integer)) {
-            return null;
+            return out;
         }
         long s = (Integer) size & 0xffffffffL;
-        if (top instanceof Integer) {
-            long high = ((Integer) top & 0xffffffffL) + 4;
-            return new long[] {Math.max(0, high - s), high};
-        }
         if (base instanceof Integer) {
             long low = (Integer) base & 0xffffffffL;
-            return new long[] {low, Math.min(low + s, 0x100000000L)};
+            out.add(new long[] {low, Math.min(low + s, 0x100000000L)});
         }
-        return null;
+        if (top instanceof Integer) {
+            out.add(down((Integer) top, s));
+        }
+        Object stackTop = One.attr(c, "stacktop");
+        Object stackSize = One.attr(c, "stacksize");
+        if (stackTop instanceof Integer && stackSize instanceof Integer && (Integer) stackSize != 0) {
+            out.add(down((Integer) stackTop, (Integer) stackSize & 0xffffffffL));
+        }
+        return out;
+    }
+
+    private static long[] down(int top, long size) {
+        long high = (top & 0xffffffffL) + 4;
+        return new long[] {Math.max(0, high - size), high};
     }
 
     /** 프로젝트 옵션(Project › Options › Simulation "Gate Output When Undefined")이 error인가. 기본은 ignore. */

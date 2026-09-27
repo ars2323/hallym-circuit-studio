@@ -20,6 +20,10 @@ import kr.ac.hallym.hcs.regress.CircuitBuilder;
  * <p>기계어는 QtSpim 그대로이므로(D-010) 분기 가산기는 PC 기준(PC + imm×4)이다. 연결은 모두 라벨 터널이고, 부품은
  * 서로 포트가 겹치지 않게 넓은 격자에 놓는다. 레지스터 파일은 main 회로에 펼쳐 두어 테스트가 값을 바로 읽는다.
  *
+ * <p>실제 MIPS처럼 데이터 메모리는 하나다(D-140): lw/sw와 $sp 접근이 모두 Data Memory 한 개(데이터
+ * 0x10000000~0x100FFFFF, 스택 0x7FFC0000~0x7FFFFFFF)로 간다. 옛 구조(Data Memory + Stack)로 만든 v1 파일은
+ * tests/mips/ref-mips-v1-stack.circ에 그대로 두고 LegacyStackFileTest가 전과 같이 도는지 본다.
+ *
  * <p>명령어: add addu sub subu and or xor nor slt sltu sll srl sra sllv srlv srav jr syscall, mul(SPECIAL2),
  * addi addiu slti sltiu andi ori xori lui lw sw beq bne bgez bltz, j jal. SPIM 의사 명령어(li, la, move, blt,
  * bge, b 등)는 이것들로 펼쳐진다.
@@ -53,8 +57,8 @@ final class RefMips {
     /** 레지스터 1~31(0번은 상수), Console, 메모리. 테스트가 읽는다. */
     final Component[] regs = new Component[32];
     Component imem;
+    /** 데이터와 스택을 함께 맡는 Data Memory(D-140). */
     Component dmem;
-    Component stack;
     Component console;
 
     /** 리셋 때 PC(Hallym MIPS 배치의 entry). */
@@ -377,17 +381,15 @@ final class RefMips {
         mux("rsVal", "rs", 5, 32, regNames);
         mux("rtVal", "rt", 5, 32, regNames);
 
-        // 메모리
+        // 메모리: 데이터와 스택을 함께 맡는 Data Memory 하나(D-140)
         dmem = addMips("Data Memory");
-        stack = addMips("Stack");
-        for (Component m : new Component[] {dmem, stack}) {
-            t(m, DataMemory.ADDR, "aluResult");
-            t(m, DataMemory.WRITE_DATA, "rtVal");
-            t(m, DataMemory.MEM_WRITE, "MemWrite");
-            t(m, DataMemory.MEM_READ, "MemRead");
-            t(m, DataMemory.CLK, "clk");
-            t(m, DataMemory.READ_DATA, "memData");
-        }
+        next(); // 옛 Stack이 있던 칸은 비워 둔다: 뒤 부품의 좌표가 v1 파일과 같다(커밋 파일의 변경이 작다)
+        t(dmem, DataMemory.ADDR, "aluResult");
+        t(dmem, DataMemory.WRITE_DATA, "rtVal");
+        t(dmem, DataMemory.MEM_WRITE, "MemWrite");
+        t(dmem, DataMemory.MEM_READ, "MemRead");
+        t(dmem, DataMemory.CLK, "clk");
+        t(dmem, DataMemory.READ_DATA, "memData");
 
         // Console
         console = addMips("Console");

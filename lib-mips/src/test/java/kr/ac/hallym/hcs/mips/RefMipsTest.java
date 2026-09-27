@@ -39,7 +39,7 @@ import kr.ac.hallym.hcs.mips.image.ExecutableImage;
  * 참조 single-cycle MIPS 회로(#16)로 예제를 돌린 결과(레지스터, 메모리, Console)가 원본 spim 실행과 같다(D-126).
  * 예제는 실행 이미지(tests/hmx/mips/*.hmx, Hallym MIPS 배치)로 불러오고, 회로의 PC는 entry(main, 0x00400024)에서
  * 시작한다. spim은 예외 처리기를 불러온 채(시작 코드가 0x00400000~0x00400020) {@code run 0x00400024}로 main부터
- * 돌려 회로와 조건을 맞춘다.
+ * 돌려 회로와 조건을 맞춘다. 참조 회로의 lw/sw와 $sp 접근은 모두 Data Memory 한 개로 간다(D-140).
  */
 class RefMipsTest {
     static final Path PROGRAMS = Path.of(System.getProperty("hcs.testsDir"), "mips");
@@ -67,7 +67,7 @@ class RefMipsTest {
         as.setValue(a, value);
     }
 
-    /** 회로에서 exit까지 돌린다. tweak은 시작 전 속성 변경(예: Stack 한계). */
+    /** 회로에서 exit까지 돌린다. tweak은 시작 전 속성 변경(예: 스택 영역 한계). */
     static Result runCircuit(ExecutableImage prog, java.util.function.Consumer<RefMips> tweak) throws Exception {
         return runCircuit(prog, tweak, true);
     }
@@ -79,7 +79,7 @@ class RefMipsTest {
         return l.image;
     }
 
-    /** 상승 에지마다 본 Stack 문제들. */
+    /** 상승 에지마다 본 Data Memory 문제들. */
     static final Set<DataMemory.Problem> stackProblems = new HashSet<>();
 
     static Result runCircuit(ExecutableImage prog, java.util.function.Consumer<RefMips> tweak,
@@ -99,7 +99,7 @@ class RefMipsTest {
         for (int n = 0; n < MAX_CYCLES; n += 1) {
             sim.cycle();
             console = (Console.State) sim.data(cpu.console);
-            DataMemory.State st = (DataMemory.State) sim.data(cpu.stack);
+            DataMemory.State st = (DataMemory.State) sim.data(cpu.dmem);
             if (st != null && st.problem != null) {
                 stackProblems.add(st.problem);
             }
@@ -131,8 +131,7 @@ class RefMipsTest {
     /** 이미지를 불러오기와 같은 길(ProgramLoader)로 참조 회로의 메모리에 넣는다. */
     static void load(com.cburch.logisim.circuit.Circuit main, RefMips cpu, ExecutableImage prog) {
         ProgramLoader.Plan plan = ProgramLoader.plan(prog, List.of(new ProgramLoader.Target(main, cpu.imem)),
-                List.of(new ProgramLoader.Target(main, cpu.dmem)), List.of(new ProgramLoader.Target(main, cpu.stack)),
-                null, null, "program.hmx");
+                List.of(new ProgramLoader.Target(main, cpu.dmem)), List.of(), null, null, "program.hmx");
         AssemblerIntegrationTest.apply(plan);
     }
 
@@ -216,24 +215,40 @@ class RefMipsTest {
         }));
     }
 
-    /** 재귀 팩토리얼: $sp가 내려갔다가 제자리로 돌아오고, Stack 최대 깊이는 호출 7번 × 8바이트다(시작 $sp 기준). */
+    /**
+     * 재귀 팩토리얼: 데이터와 스택을 한 Data Memory가 함께 맡는다(D-140). .data 문자열("6! = ")은 데이터 영역에서
+     * print_string이 읽고, 호출마다 $ra와 인자가 스택 영역에 들어갔다 나온다. $sp는 제자리로 돌아오고, 스택 최대 깊이는
+     * 호출 7번 × 8바이트다(시작 $sp 기준).
+     */
     @Test
     void recursionMovesTheStackAndReturns() throws Exception {
         ExecutableImage prog = image("factorial.s");
         Result r = runCircuit(prog, cpu -> { });
         assertEquals("6! = 720", r.console);
         assertEquals(0x7fffeffc, r.regs[29]); // 복귀 후 $sp
-        DataMemory.State st = (DataMemory.State) lastSim.data(lastCpu.stack);
+        DataMemory.State st = (DataMemory.State) lastSim.data(lastCpu.dmem);
         long lowest = 0x7fffeffcL - 7 * 8;
         assertEquals(7 * 8, st.usedBytes()); // SPIM 시작 $sp에서 잰다(#134)
         assertEquals(0x7fffeffcL - lowest, st.usedBytes());
+        assertEquals(lowest, st.lowestAccess());
+        assertEquals(DataMemory.SPIM_INITIAL_SP, st.depthBase());
+        assertEquals(2, st.dataWords(), ".data \"6! = \" is 6 bytes = 2 words");
+        assertEquals("data 2 words, stack peak 56 B", DataMemory.mergedUsageLine(st));
+        assertEquals(java.util.Arrays.toString(new long[] {0x10000000L, 0x10100000L}),
+                java.util.Arrays.toString(st.dataRegion()));
+        assertEquals(java.util.Arrays.toString(new long[] {0x7FFC0000L, 0x80000000L}),
+                java.util.Arrays.toString(st.stackRegion()));
         assertNull(st.problem);
+        assertTrue(stackProblems.isEmpty(), stackProblems.toString());
+        // 가장 깊은 프레임(fact(0))이 스택 영역에 남아 있다: 0($sp) = $a0 = 0, 4($sp) = $ra(recurse의 jal fact 다음)
+        assertEquals(0, st.readWord((int) lowest));
+        assertEquals(prog.symbols().get("recurse").intValue() + 8, st.readWord((int) lowest + 4));
     }
 
-    /** Stack 맨 위를 프로그램의 $sp(0x7FFFEFFC)에 맞추고 한계를 256바이트로 줄인다. */
+    /** 스택 영역 맨 위를 프로그램의 $sp(0x7FFFEFFC)에 맞추고 한계를 256바이트로 줄인다. */
     static void smallStack(RefMips cpu) {
-        set(cpu.stack.getAttributeSet(), MemoryFactory.TOP, 0x7fffeffc);
-        set(cpu.stack.getAttributeSet(), MemoryFactory.SIZE, 0x100);
+        set(cpu.dmem.getAttributeSet(), MemoryFactory.STACK_TOP, 0x7fffeffc);
+        set(cpu.dmem.getAttributeSet(), MemoryFactory.STACK_SIZE, 0x100);
     }
 
     /** 한계를 256바이트로 줄이면 fact(6)의 깊이(56바이트)는 괜찮고, fact(40)은 한계를 넘는다. */
@@ -246,7 +261,7 @@ class RefMipsTest {
         // 한계 밖에는 쓰지 못해 복귀 주소가 깨지므로 exit까지 가지 않는다. 한계 초과가 알려지는지만 본다.
         runCircuit(prog, RefMipsTest::smallStack, false);
         assertTrue(stackProblems.contains(DataMemory.Problem.STACK_LIMIT), stackProblems.toString());
-        DataMemory.State st = (DataMemory.State) lastSim.data(lastCpu.stack);
+        DataMemory.State st = (DataMemory.State) lastSim.data(lastCpu.dmem);
         assertEquals(0x100, st.usedBytes()); // 영역 안에서는 맨 아래까지 썼다
         ExecutableImage ok = image("factorial.s");
         Result r = runCircuit(ok, RefMipsTest::smallStack);

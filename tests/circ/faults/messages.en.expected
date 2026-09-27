@@ -6,7 +6,7 @@ static-input-undriven: main › AND #1 input 2: connected to a wire that nothing
 static-tunnel-unpaired: In main, there is no other tunnel named RegDest. Similar names: RegDst
 static-subcircuit-port-unconnected: main › buf #1: subcircuit input port A is not connected.
 static-combinational-loop: In main, there is a combinational loop: AND #1 → NOT #1.
-static-memory-overlap: The regions of main › DMem #1 and main › Stack #1 overlap at 10010000-1001003f.
+static-memory-overlap: The regions of main › DMem #1 and main › Stack #1 overlap at 7ffc0000-7fffffff.
 dynamic-e-conflict: Cycle 1: E (conflicting value) appeared at main › Const #2. Cause: in main, one wire is driven with different values by main › Const #2 and main › CtrlBuf #1.
 dynamic-e-undefined-input: Cycle 1: E (error value) appeared at main › AND #1 output. Cause: input pin main › RegWrite has no defined value.
 dynamic-x-write-control: Cycle 0: main › R1: the write input en was undefined at the clock edge. Cause: input pin main › RegWrite has no defined value.
@@ -14,6 +14,6 @@ dynamic-x-write-data: Cycle 0: main › PC was written while its input D was und
 dynamic-oscillation: Cycle 0: in main, values keep changing and never settle (oscillation). Loop: q, NAND #1. The simulation stopped.
 mips-unaligned: Cycle 0: main › DMem #1: Addr not word-aligned. 
 mips-no-region: Cycle 0: main › DMem #1: 20000000 is in no memory region. 
-mips-stack-limit: Cycle 0: main › Stack #1: Stack use exceeds its limit (16B). 
+mips-stack-limit: Cycle 0: main › DMem #1: Stack use exceeds its limit (256KB). 
 mips-imem-unaligned: Cycle 0: main › IMem #1: Addr not word-aligned. 
 mips-console-syscall: Cycle 1: main › Console #1: syscall 99 not supported. 

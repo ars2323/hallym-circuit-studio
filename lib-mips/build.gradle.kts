@@ -112,7 +112,7 @@ pitest {
     targetTests = setOf("kr.ac.hallym.hcs.mips.image.*", "kr.ac.hallym.hcs.mips.disasm.*",
         "kr.ac.hallym.hcs.mips.ProgramLoaderTest", "kr.ac.hallym.hcs.mips.LoadSummaryTest",
         "kr.ac.hallym.hcs.mips.HmxConsistencyTest",
-        "kr.ac.hallym.hcs.mips.HallymMipsGoldenTest")
+        "kr.ac.hallym.hcs.mips.HallymMipsGoldenTest", "kr.ac.hallym.hcs.mips.MergedLoadTest")
     threads = 4
     mutationThreshold = 95 // 지금 98.7%(D-138). 남은 8개는 같은 동작(equivalent) 돌연변이다
     timestampedReports = false

@@ -71,6 +71,8 @@
     <comp lib="7" loc="(800,100)" name="Console"/>
     <comp lib="7" loc="(800,700)" name="Stack"/>
     <comp lib="7" loc="(800,400)" name="Data Memory">
+      <a name="base" val="0x10000000"/>
+      <a name="stacksize" val="0x40000"/>
       <a name="label" val="DMEM"/>
     </comp>
     <comp lib="7" loc="(400,100)" name="Radix Probe">

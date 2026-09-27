@@ -15,12 +15,14 @@ import kr.ac.hallym.hcs.regress.CircuitBuilder;
 /**
  * 스크린샷용 작은 회로 tests/circ/stack-demo.circ의 생성기(C-06 검토, 체크리스트 10). 학생이 스택 동작을 확인하려고 그린
  * 것 같은 회로: 사이클마다 카운터가 1씩 오르고, $sp = 0x7FFFEFF8 − 4 × count를 계산해 레지스터 "$sp"에 넣고 같은
- * 주소의 Stack 칸에 count를 쓴다. 그래서 스택이 SPIM처럼 시작 $sp(0x7FFFEFFC) 아래로 4바이트씩 깊어진다. 자동 배치한
- * ref-mips와 달리 부품을 왼쪽에서 오른쪽으로 흐름대로 놓고 터널 이름을 붙였다.
+ * 주소의 스택 칸에 count를 쓴다. 그래서 스택이 SPIM처럼 시작 $sp(0x7FFFEFFC) 아래로 4바이트씩 깊어진다. 자동 배치한
+ * ref-mips와 달리 부품을 왼쪽에서 오른쪽으로 흐름대로 놓고 터널 이름을 붙였다. 스택은 데이터와 스택 영역을 함께 맡는
+ * Data Memory 하나의 스택 영역이다(D-140, 옛 Stack 부품 대신).
  */
 public final class StackDemo {
     public Component counter;
     public Component sp;
+    /** 데이터와 스택 영역을 함께 맡는 Data Memory(D-140). */
     public Component stack;
 
     private StackDemo() {
@@ -51,13 +53,13 @@ public final class StackDemo {
         b.tunnelOutward(sub, 1, "offset");
         b.tunnelOutward(sub, 2, "next");
 
-        // $sp 레지스터(레지스터 패널의 $29)와 Stack
+        // $sp 레지스터(레지스터 패널의 $29)와 Data Memory(스택 영역)
         d.sp = b.add("Memory", "Register", 1000, 200, "width", "32", "label", "$sp");
         b.tunnelOutward(d.sp, 1, "next");
         b.tunnelOutward(d.sp, 2, "clk");
         b.tunnelOutward(d.sp, 0, "sp");
         b.constant("one", 1, 1, 560, 560);
-        d.stack = b.add(mips, "Stack", 1160, 460);
+        d.stack = b.add(mips, "Data Memory", 1160, 460);
         b.tunnelOutward(d.stack, 0, "next");
         b.tunnelOutward(d.stack, 1, "count");
         b.tunnelOutward(d.stack, 2, "one");

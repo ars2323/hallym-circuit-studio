@@ -95,7 +95,10 @@
       <a name="width" val="32"/>
       <a name="label" val="addr"/>
     </comp>
-    <comp lib="7" loc="(600,300)" name="Data Memory"/>
+    <comp lib="7" loc="(600,300)" name="Data Memory">
+      <a name="base" val="0x10000000"/>
+      <a name="stacksize" val="0x40000"/>
+    </comp>
     <comp lib="0" loc="(100,700)" name="Tunnel">
       <a name="label" val="clk"/>
     </comp>

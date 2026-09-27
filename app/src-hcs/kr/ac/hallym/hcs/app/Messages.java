@@ -35,7 +35,8 @@ public final class Messages {
         return get(LocaleManager.getLocale(), key, args);
     }
 
-    static String get(Locale locale, String key, Object... args) {
+    /** 한 언어의 문구(v2 엔진이 화면에 영어·한국어 두 벌을 함께 보낼 때, D-140 사실 줄). */
+    public static String get(Locale locale, String key, Object... args) {
         String pattern;
         ResourceBundle names = ResourceBundle.getBundle(NAMES, Locale.ROOT, NO_FALLBACK);
         if (names.containsKey(key)) {

@@ -24,9 +24,11 @@ import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 
 import kr.ac.hallym.hcs.app.libs.MipsShadow;
+import kr.ac.hallym.hcs.app.model.Kinds;
 import kr.ac.hallym.hcs.engine.doc.Doc;
 import kr.ac.hallym.hcs.engine.doc.Files;
 import kr.ac.hallym.hcs.engine.edit.Intents;
+import kr.ac.hallym.hcs.engine.mips.CircuitFacts;
 import kr.ac.hallym.hcs.engine.rpc.Params;
 import kr.ac.hallym.hcs.engine.rpc.RpcError;
 import kr.ac.hallym.hcs.engine.rpc.Server;
@@ -50,6 +52,7 @@ public final class Engine {
         registerEngine();
         registerFile();
         registerModel();
+        registerMips();
         registerEdit();
         registerSim();
         server.onShutdown(this::closeAll);
@@ -211,7 +214,8 @@ public final class Engine {
                 }
                 JsonArray tools = new JsonArray();
                 for (Tool t : lib.getTools()) {
-                    if (t instanceof AddTool) {
+                    // 옛 파일을 위해서만 남긴 부품(Stack)은 새로 놓는 목록에 보이지 않는다(D-140, Kinds)
+                    if (t instanceof AddTool && Kinds.offeredForNewPlacement(t.getName())) {
                         JsonObject to = new JsonObject();
                         to.addProperty("name", t.getName());
                         to.addProperty("display", t.getDisplayName());
@@ -222,6 +226,16 @@ public final class Engine {
                 out.add(o);
             }
             return out;
+        });
+    }
+
+    // ---- mips ----
+
+    private void registerMips() {
+        // 파일의 MIPS 사실(진단이 아님, 상태 표시줄 한 줄, D-140): 따로 된 Stack 부품 등
+        server.register("mips.facts", (p, call) -> {
+            Doc d = files.get(p.str("fileId"));
+            return CircuitFacts.json(d.file(), d.ids());
         });
     }
 

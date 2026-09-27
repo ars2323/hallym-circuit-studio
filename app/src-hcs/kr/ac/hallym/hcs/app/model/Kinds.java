@@ -81,6 +81,23 @@ public final class Kinds {
         public List<String> quickAttrs() {
             return quickAttrs;
         }
+
+        /** 새로 놓는 부품 목록에 보이는가. 옛 파일을 위해서만 남긴 종류는 false({@link #offeredForNewPlacement}). */
+        public boolean offered() {
+            return offeredForNewPlacement(factory);
+        }
+    }
+
+    /**
+     * 옛 .circ를 열기 위해서만 남긴 종류(저장 이름). 새 회로 부품 목록(v2 엔진의 model.library)에서 뺀다. 파일 안의 부품은
+     * 전과 같이 열리고 동작한다. Stack: 스택 영역을 함께 맡는 Data Memory로 합쳤다(사용자 결정, D-140). 원조 2.7.1은
+     * JAR 라이브러리의 부품을 도구 목록에서만 찾으므로 lib-mips의 도구 목록에는 남는다.
+     */
+    private static final java.util.Set<String> NOT_OFFERED = java.util.Collections.singleton("Stack");
+
+    /** factory(저장 이름) 부품을 새로 놓는 목록에 보이는가. */
+    public static boolean offeredForNewPlacement(String factory) {
+        return !NOT_OFFERED.contains(factory);
     }
 
     private static final Map<String, Kind> BY_FACTORY = new HashMap<>();
