@@ -48,7 +48,7 @@ class LoadSummaryTest {
             assertEquals(".text: 1 word (0x00400000–0x00400000), entry 0x00400000 → main › Instruction Memory"
                     + " (00400000-004fffff)", plan.notes.get(1));
             assertEquals(".data: 8 bytes = 2 words (0x10010000–0x10010007) → main › Data Memory"
-                    + " (10010000-1010ffff)", plan.notes.get(2));
+                    + " (10000000-100fffff)", plan.notes.get(2)); // 새 Data Memory의 데이터 영역(D-140)
             assertEquals("Instructions used: addi", plan.notes.get(plan.notes.size() - 1));
             assertEquals(List.of("addi"), plan.instructions);
             for (String n : plan.notes) {

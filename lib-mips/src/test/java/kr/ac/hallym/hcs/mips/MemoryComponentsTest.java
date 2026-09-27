@@ -152,11 +152,12 @@ class MemoryComponentsTest {
     }
 
     /**
-     * Data Memory와 Stack의 ReadData를 한 선에 잇는다. 첫 16사이클에 두 영역에 쓰고(MemRead 0이라 아무도
-     * 구동하지 않음), 다음 16사이클에 읽는다. 주소가 속한 쪽만 값을 낸다.
+     * 옛 구조(v1 파일): 스택 영역이 없는 Data Memory와 옛 Stack의 ReadData를 한 선에 잇는다. 첫 16사이클에 두 영역에
+     * 쓰고(MemRead 0이라 아무도 구동하지 않음), 다음 16사이클에 읽는다. 주소가 속한 쪽만 값을 낸다. 합친 Data Memory
+     * 하나로 같은 일을 하는 것은 MergedDataMemoryTest가 본다.
      */
     @Test
-    void dataMemoryAndStackShareReadDataAndOnlyTheOwnerDrives() throws Exception {
+    void oldDataMemoryAndStackShareReadDataAndOnlyTheOwnerDrives() throws Exception {
         OriginalLogisim o = new OriginalLogisim(tmp);
         CircuitBuilder b = o.b;
         clock(b);
@@ -180,7 +181,7 @@ class MemoryComponentsTest {
 
         String[] kinds = {"Data Memory", "Stack"};
         for (int i = 0; i < 2; i += 1) {
-            Component m = b.add(o.mips, kinds[i], 1400, 300 + 200 * i);
+            Component m = b.add(o.mips, kinds[i], 1400, 300 + 200 * i, i == 0 ? StackRegionTest.OLD_DM : new String[0]);
             b.tunnel(m, DataMemory.ADDR, "addr");
             b.tunnel(m, DataMemory.WRITE_DATA, "wdata");
             b.tunnel(m, DataMemory.MEM_WRITE, "we");

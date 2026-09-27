@@ -21,7 +21,11 @@ import com.cburch.logisim.data.Value;
 
 import kr.ac.hallym.hcs.regress.CircuitBuilder;
 
-/** Data Memory는 위로, Stack은 아래로 자라고, 동작하지 않는 경우만 알린다(요구사항 6, D-018). */
+/**
+ * 옛 구조(D-018): 스택 영역이 없는 Data Memory는 위로, 옛 Stack은 아래로 자라고, 동작하지 않는 경우만 알린다. D-140의
+ * 합친 Data Memory가 들어온 뒤에도 옛 파일의 두 부품은 전과 같다({@link #oldDataMemory}는 v1 파일의 Data Memory와 같은
+ * 속성이다). 합친 부품은 MergedDataMemoryTest가 본다.
+ */
 class StackRegionTest {
     @TempDir
     Path tmp;
@@ -37,12 +41,26 @@ class StackRegionTest {
         return sb.toString().trim() + "\n";
     }
 
+    /** v1 파일의 Data Memory(속성이 적히지 않음)와 같은 속성: 저장 기준값 base 0x10010000, 스택 영역 없음. */
+    static final String[] OLD_DM = {"base", "0x10010000", "stacksize", "0x0"};
+
+    static String[] oldDataMemory(String... more) {
+        String[] out = java.util.Arrays.copyOf(OLD_DM, OLD_DM.length + more.length);
+        System.arraycopy(more, 0, out, OLD_DM.length, more.length);
+        return out;
+    }
+
     @Test
-    void defaultRegionsGrowFromTheirStart() {
-        assertArrayEquals(new long[] {0x10010000L, 0x10110000L},
-                MemoryFactory.region(new DataMemory().createAttributeSet()));
+    void oldRegionsGrowFromTheirStart() {
+        DataMemory dm = new DataMemory();
+        com.cburch.logisim.data.AttributeSet old = dm.createAttributeSet();
+        old.setValue(MemoryFactory.BASE, (Integer) dm.getDefaultAttributeValue(MemoryFactory.BASE, null));
+        old.setValue(MemoryFactory.STACK_SIZE, (Integer) dm.getDefaultAttributeValue(MemoryFactory.STACK_SIZE, null));
+        assertArrayEquals(new long[] {0x10010000L, 0x10110000L}, MemoryFactory.region(old));
+        assertNull(MemoryFactory.stackRegion(old), "a v1 Data Memory has no stack region");
         assertArrayEquals(new long[] {0x7FF00000L, 0x80000000L},
                 MemoryFactory.region(new StackMemory().createAttributeSet()));
+        assertNull(MemoryFactory.dataRegion(new StackMemory().createAttributeSet()));
     }
 
     /** 네 번 밀어 넣고(쓰기) 세 번 꺼낸다(읽기). 깊이는 맨 위에서 마지막 접근 주소까지다. */
@@ -91,13 +109,13 @@ class StackRegionTest {
         }
     }
 
-    /** 한 주소만 읽는 Data Memory와 Stack. 반환: {data, stack}. */
+    /** 한 주소만 읽는 옛 Data Memory와 Stack. 반환: {data, stack}. */
     static Component[] probe(InProcessSim sim, long addr, String... stackAttrs) {
         CircuitBuilder b = sim.b;
         b.constant("addr", 32, (int) addr, 80, 100);
         b.constant("one", 1, 1, 80, 200);
         b.constant("zero", 1, 0, 80, 240);
-        Component data = b.add(sim.mips, "Data Memory", 600, 200);
+        Component data = b.add(sim.mips, "Data Memory", 600, 200, OLD_DM);
         Component stack = b.add(sim.mips, "Stack", 600, 500, stackAttrs);
         for (Component m : new Component[] {data, stack}) {
             b.tunnel(m, DataMemory.ADDR, "addr");
@@ -196,8 +214,7 @@ class StackRegionTest {
     @Test
     void usedBytesStartAtSpimInitialStackPointerAndKeepThePeak() {
         DataMemory.State st = new DataMemory.State(WordImage.EMPTY);
-        st.region = new long[] {0x7FF00000L, 0x80000000L};
-        st.growsDown = true;
+        st.stack = new long[] {0x7FF00000L, 0x80000000L};
         assertEquals(0, st.usedBytes());
         st.accessed(0x7FFFEFF8); // addi $sp,$sp,-4; sw $ra,0($sp)
         assertEquals(4, st.usedBytes());
@@ -208,8 +225,7 @@ class StackRegionTest {
         assertEquals("used 12 B (peak)", DataMemory.usageLine(st), "only the peak on the body");
 
         DataMemory.State top = new DataMemory.State(WordImage.EMPTY);
-        top.region = new long[] {0x7FF00000L, 0x80000000L};
-        top.growsDown = true;
+        top.stack = new long[] {0x7FF00000L, 0x80000000L};
         top.accessed(0x7FFFFFFC); // 영역 맨 위부터 쓰는 회로(학생 설정): 예전처럼
         assertEquals(4, top.usedBytes());
     }
@@ -221,15 +237,14 @@ class StackRegionTest {
         init.put(0x10010000L, 0x3d202136);
         init.put(0x10010004L, 0x20);
         DataMemory.State st = new DataMemory.State(WordImage.of(init));
-        st.region = new long[] {0x10010000L, 0x10110000L};
+        st.data = new long[] {0x10010000L, 0x10110000L};
         assertEquals(0x3d202136, st.readWord(0x10010000));
         assertEquals(0x20, st.readWord(0x10010006), "low two bits ignored");
         assertEquals(0, st.readWord(0x10020000), "never written: 0 like SPIM");
         assertEquals(java.util.Arrays.toString(new long[] {0x10010000L}), java.util.Arrays.toString(st.pageAddresses()));
         assertEquals(-1, st.lowestAccess());
         DataMemory.State stack = new DataMemory.State(WordImage.EMPTY);
-        stack.region = new long[] {0x7FF00000L, 0x80000000L};
-        stack.growsDown = true;
+        stack.stack = new long[] {0x7FF00000L, 0x80000000L};
         stack.accessed(0x7FFFEFF0);
         assertEquals(0x7FFFEFF0L, stack.lowestAccess());
         assertEquals(DataMemory.SPIM_INITIAL_SP, stack.depthBase());

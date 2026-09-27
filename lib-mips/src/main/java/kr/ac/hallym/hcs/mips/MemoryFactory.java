@@ -27,8 +27,12 @@ import com.cburch.logisim.util.GraphicsUtil;
  * MIPS 메모리 부품의 공통 부분(PLAN.md 6.2). 32비트 byte 주소를 그대로 받고, 워드 단위로만 접근하며,
  * 자기 영역 밖의 주소에서는 출력을 구동하지 않는다.
  *
- * <p>속성 이름은 .circ에 저장되므로 바꾸지 않는다: {@code base}, {@code size}, {@code contents},
- * {@code source}, {@code label}.
+ * <p>속성 이름은 .circ에 저장되므로 바꾸지 않는다: {@code base}, {@code size}, {@code top}, {@code stacktop},
+ * {@code stacksize}, {@code contents}, {@code source}, {@code label}.
+ *
+ * <p>영역은 둘까지다(D-140). 데이터 영역은 {@code base}부터 위로 [base, base+size), 스택 영역은 맨 위 워드부터 아래로
+ * 자란다: 옛 Stack 부품은 [top+4−size, top+4), 합친 Data Memory는 {@code stacksize}가 0이 아니면
+ * [stacktop+4−stacksize, stacktop+4).
  */
 abstract class MemoryFactory extends InstanceFactory {
     static final BitWidth W32 = BitWidth.create(32);
@@ -41,6 +45,12 @@ abstract class MemoryFactory extends InstanceFactory {
     /** Stack의 맨 위 워드 주소. Stack은 여기서 아래로 자란다. */
     static final Attribute<Integer> TOP =
             Attributes.forHexInteger("top", Text.name("Top Word Address"));
+    /** 합친 Data Memory(D-140)의 스택 영역 맨 위 워드 주소. 스택 영역은 여기서 아래로 자란다. */
+    static final Attribute<Integer> STACK_TOP =
+            Attributes.forHexInteger("stacktop", Text.name("Stack Top Word Address"));
+    /** 합친 Data Memory의 스택 영역 한계(바이트). 0이면 스택 영역이 없다(옛 Data Memory). */
+    static final Attribute<Integer> STACK_SIZE =
+            Attributes.forHexInteger("stacksize", Text.name("Stack Limit (bytes)"));
     static final WordImageAttribute CONTENTS =
             new WordImageAttribute("contents", Text.name("Initial Contents"));
     static final Attribute<String> SOURCE =
@@ -56,30 +66,87 @@ abstract class MemoryFactory extends InstanceFactory {
      * @param start 위로 자라는 메모리는 시작 주소({@code base}), 아래로 자라는 Stack은 맨 위 워드({@code top})
      */
     MemoryFactory(String name, Text displayName, Text title, boolean growsDown, int start, int defaultSize) {
-        super(name, displayName);
-        this.title = title;
-        setAttributes(
+        this(name, displayName, title,
                 new Attribute<?>[] {growsDown ? TOP : BASE, SIZE, CONTENTS, SOURCE, StdAttr.LABEL, StdAttr.LABEL_FONT},
                 new Object[] {start, defaultSize, WordImage.EMPTY, "", "", StdAttr.DEFAULT_LABEL_FONT});
     }
 
+    /** 속성과 새로 놓을 때의 값을 직접 준다(합친 Data Memory, D-140). */
+    MemoryFactory(String name, Text displayName, Text title, Attribute<?>[] attrs, Object[] defaults) {
+        super(name, displayName);
+        this.title = title;
+        setAttributes(attrs, defaults);
+    }
+
+    /** 부품 몸체 맨 위의 제목(부품 이름, 늘 영어, D-049). */
+    Text title() {
+        return title;
+    }
+
     /**
-     * 영역 {낮은 주소, 높은 주소(제외)}. 부호 없는 32비트. 위로 자라면 [base, base+size), 아래로 자라면
-     * [top+4−size, top+4). 2^32를 넘거나 0 아래로 가면 자른다.
+     * 데이터 영역 [base, base+size)(위로 자람). 부호 없는 32비트이고 2^32를 넘으면 자른다. base 속성이 없으면(옛 Stack
+     * 부품) null.
      */
-    static long[] region(AttributeSet attrs) {
-        long size = attrs.getValue(SIZE) & 0xffffffffL;
-        if (attrs.containsAttribute(TOP)) {
-            long high = (attrs.getValue(TOP) & 0xffffffffL) + 4;
-            return new long[] {Math.max(0, high - size), high};
+    static long[] dataRegion(AttributeSet attrs) {
+        if (!attrs.containsAttribute(BASE)) {
+            return null;
         }
+        long size = attrs.getValue(SIZE) & 0xffffffffL;
         long low = attrs.getValue(BASE) & 0xffffffffL;
         return new long[] {low, Math.min(low + size, 0x100000000L)};
     }
 
+    /**
+     * 스택 영역(아래로 자람). 옛 Stack 부품은 [top+4−size, top+4), 합친 Data Memory는 stacksize가 0이 아니면
+     * [stacktop+4−stacksize, stacktop+4). 스택 영역이 없으면 null. 0 아래로 가면 자른다.
+     */
+    static long[] stackRegion(AttributeSet attrs) {
+        if (attrs.containsAttribute(TOP)) {
+            return down(attrs.getValue(TOP), attrs.getValue(SIZE));
+        }
+        if (attrs.containsAttribute(STACK_SIZE)) {
+            int size = attrs.getValue(STACK_SIZE);
+            return size == 0 ? null : down(attrs.getValue(STACK_TOP), size);
+        }
+        return null;
+    }
+
+    private static long[] down(int top, int size) {
+        long high = (top & 0xffffffffL) + 4;
+        return new long[] {Math.max(0, high - (size & 0xffffffffL)), high};
+    }
+
+    /**
+     * 주 영역 {낮은 주소, 높은 주소(제외)}: 데이터 영역이 있으면 그것(Instruction Memory, Data Memory), 없으면 스택
+     * 영역(옛 Stack). 실행 이미지의 구간을 담는지 볼 때 쓴다.
+     */
+    static long[] region(AttributeSet attrs) {
+        long[] data = dataRegion(attrs);
+        return data != null ? data : stackRegion(attrs);
+    }
+
+    /** 이 부품의 모든 영역(데이터, 스택 순). */
+    static long[][] regions(AttributeSet attrs) {
+        long[] data = dataRegion(attrs);
+        long[] stack = stackRegion(attrs);
+        if (data != null && stack != null) {
+            return new long[][] {data, stack};
+        }
+        return data != null ? new long[][] {data} : stack != null ? new long[][] {stack} : new long[0][];
+    }
+
     static boolean contains(long[] region, int addr) {
         long a = addr & 0xffffffffL;
-        return a >= region[0] && a < region[1];
+        return region != null && a >= region[0] && a < region[1];
+    }
+
+    static boolean contains(long[][] regions, int addr) {
+        for (long[] r : regions) {
+            if (contains(r, addr)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     static boolean contains(InstanceState state, int addr) {
@@ -129,7 +196,7 @@ abstract class MemoryFactory extends InstanceFactory {
         painter.drawLabel();
         g.setColor(Color.BLACK);
         g.setFont(TITLE_FONT);
-        GraphicsUtil.drawCenteredText(g, getDisplayName(), cx, b.getY() + 10); // 부품 이름은 늘 영어(D-049)
+        GraphicsUtil.drawCenteredText(g, title.get(), cx, b.getY() + 10); // 부품 이름은 늘 영어(D-049)
         g.setFont(BODY_FONT);
         String[] lines = bodyLines(painter);
         for (int i = 0; i < lines.length; i += 1) {
@@ -183,7 +250,11 @@ abstract class MemoryFactory extends InstanceFactory {
     }
 
     static String region(InstancePainter painter) {
-        long[] r = region(painter.getAttributeSet());
+        return range(region(painter.getAttributeSet()));
+    }
+
+    /** 영역 글자: {@code 10000000-100fffff}. */
+    static String range(long[] r) {
         return WordImage.hex(r[0]) + "-" + WordImage.hex(r[1] - 1);
     }
 }

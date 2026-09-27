@@ -13,7 +13,7 @@ import java.util.WeakHashMap;
 import com.cburch.logisim.proj.Project;
 
 /**
- * 한 프로젝트(시뮬레이션)에 있는 Data Memory·Stack의 지금 상태. Console의 print_string이 문자열을 바이트
+ * 한 프로젝트(시뮬레이션)에 있는 Data Memory(옛 Stack 포함)의 지금 상태. Console의 print_string이 문자열을 바이트
  * 단위로 읽고, 메모리 부품이 "어느 영역에도 없는 주소", "영역 겹침"을 알아낼 때 쓴다. 원조 2.7.1은 다른 부품의
  * 상태를 얻는 공개 API가 없어서, 메모리 부품이 전파될 때마다 스스로 등록한다. 부품(Instance)마다 가장 최근
  * 상태 하나만 둔다. 시뮬레이션을 리셋하면 새 상태가 옛 상태를 밀어낸다.
@@ -27,11 +27,11 @@ final class MemoryRegistry {
     interface View {
         boolean contains(int addr);
 
-        /** 영역 {낮은 주소, 높은 주소(제외)}. */
-        long[] region();
+        /** 모든 영역 {낮은 주소, 높은 주소(제외)}: 데이터 영역, 스택 영역 순(D-140). */
+        long[][] regions();
 
-        /** Stack이면 true. 한계 아래 주소를 "스택 사용량 초과"로 본다. */
-        boolean growsDown();
+        /** 스택 영역(옛 Stack 부품의 영역, 합친 Data Memory의 스택 영역). 한계 아래 주소를 "스택 사용량 초과"로 본다. 없으면 null. */
+        long[] stackRegion();
 
         boolean isDefined(int addr);
 

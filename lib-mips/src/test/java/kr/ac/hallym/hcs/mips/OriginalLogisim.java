@@ -50,6 +50,13 @@ final class OriginalLogisim {
         b.commit();
         Path circ = dir.resolve(name + ".circ");
         CircuitBuilder.save(file, circ.toFile());
+        return runFile(circ);
+    }
+
+    /** 저장된 .circ(옆에 hcs-mips.jar)를 원조 jar -tty table로 돌린다. */
+    static List<String[]> runFile(Path circ) throws Exception {
+        Path dir = circ.toAbsolutePath().getParent();
+        String name = circ.getFileName().toString().replaceAll("\\.circ$", "");
         List<String> cmd = new ArrayList<>(List.of(Path.of(System.getProperty("java.home"), "bin", "java").toString(),
                 "-Djava.awt.headless=true", "-jar", LOGISIM_JAR.toString(), circ.toString(), "-tty", "table"));
         String prefs = System.getProperty("java.util.prefs.userRoot");

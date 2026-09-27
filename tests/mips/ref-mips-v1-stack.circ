@@ -405,6 +405,11 @@
       <a name="facing" val="north"/>
       <a name="label" val="clk"/>
     </comp>
+    <comp lib="0" loc="(4360,7600)" name="Tunnel">
+      <a name="facing" val="east"/>
+      <a name="width" val="32"/>
+      <a name="label" val="rtVal"/>
+    </comp>
     <comp lib="0" loc="(2160,2740)" name="Tunnel">
       <a name="facing" val="east"/>
       <a name="width" val="32"/>
@@ -1183,6 +1188,7 @@
       <a name="facing" val="east"/>
       <a name="label" val="dec24"/>
     </comp>
+    <comp lib="7" loc="(4600,7600)" name="Stack"/>
     <comp lib="0" loc="(5800,2800)" name="Tunnel">
       <a name="width" val="32"/>
       <a name="label" val="writeData"/>
@@ -1276,6 +1282,10 @@
       <a name="width" val="32"/>
       <a name="label" val="pc"/>
     </comp>
+    <comp lib="0" loc="(4530,7660)" name="Tunnel">
+      <a name="facing" val="north"/>
+      <a name="label" val="MemRead"/>
+    </comp>
     <comp lib="0" loc="(420,3520)" name="Tunnel">
       <a name="label" val="dec24"/>
     </comp>
@@ -1340,6 +1350,10 @@
       <a name="width" val="32"/>
       <a name="label" val="r21"/>
     </comp>
+    <comp lib="0" loc="(4460,7660)" name="Tunnel">
+      <a name="facing" val="north"/>
+      <a name="label" val="MemWrite"/>
+    </comp>
     <comp lib="0" loc="(2220,1180)" name="Tunnel">
       <a name="facing" val="north"/>
       <a name="label" val="Special2"/>
@@ -1397,6 +1411,11 @@
     <comp lib="0" loc="(5770,6010)" name="Tunnel">
       <a name="facing" val="east"/>
       <a name="label" val="we22"/>
+    </comp>
+    <comp lib="0" loc="(4360,7560)" name="Tunnel">
+      <a name="facing" val="east"/>
+      <a name="width" val="32"/>
+      <a name="label" val="aluResult"/>
     </comp>
     <comp lib="0" loc="(6370,2010)" name="Tunnel">
       <a name="facing" val="east"/>
@@ -1658,10 +1677,7 @@
       <a name="width" val="32"/>
       <a name="label" val="zero32"/>
     </comp>
-    <comp lib="7" loc="(4000,7600)" name="Data Memory">
-      <a name="base" val="0x10000000"/>
-      <a name="stacksize" val="0x40000"/>
-    </comp>
+    <comp lib="7" loc="(4000,7600)" name="Data Memory"/>
     <comp lib="0" loc="(4600,5200)" name="Tunnel">
       <a name="width" val="32"/>
       <a name="label" val="r15"/>
@@ -2348,6 +2364,10 @@
       <a name="facing" val="north"/>
       <a name="label" val="clk"/>
     </comp>
+    <comp lib="0" loc="(4400,7660)" name="Tunnel">
+      <a name="facing" val="north"/>
+      <a name="label" val="clk"/>
+    </comp>
     <comp lib="0" loc="(3360,7750)" name="Tunnel">
       <a name="facing" val="east"/>
       <a name="width" val="32"/>
@@ -2513,6 +2533,10 @@
       <a name="facing" val="east"/>
       <a name="width" val="32"/>
       <a name="label" val="r22"/>
+    </comp>
+    <comp lib="0" loc="(4600,7600)" name="Tunnel">
+      <a name="width" val="32"/>
+      <a name="label" val="memData"/>
     </comp>
     <comp lib="0" loc="(2800,8400)" name="Tunnel">
       <a name="label" val="take"/>
