@@ -61,9 +61,13 @@ tasks.jar {
         exclude("META-INF/MANIFEST.MF", "META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
         exclude("module-info.class", "META-INF/versions/**")
         exclude("doc/**") // Logisim 도움말(Swing Help 메뉴)
-        exclude("com/formdev/**", "LICENSE-FlatLaf.txt") // FlatLaf(Swing 화면)
+        // FlatLaf(Swing 화면)는 싣지 않으므로 그 라이선스 글도 뺀다
+        exclude("com/formdev/**", "META-INF/LICENSE", "META-INF/LICENSE-FlatLaf.txt", "LICENSE-FlatLaf.txt")
         exclude("kr/ac/hallym/hcs/app/fonts/**", "kr/ac/hallym/hcs/app/character/**", "kr/ac/hallym/hcs/app/logo/**")
     }
+    // Gson(Apache-2.0) 라이선스 전문. GPL 전문은 포크 클래스와 함께 COPYING.TXT로 들어간다
+    from("licenses") { into("META-INF") }
+    from(rootProject.file("NOTICE")) { into("META-INF") }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
@@ -77,8 +81,17 @@ val stage by tasks.registering(Sync::class) {
     from(mipsJar)
 }
 
+// D-129: identity hash를 ID로 쓰지 않는지 상수 identity hash JVM에서 확인할 때: ./gradlew :engine:test -Phcs.constantHash=true
+// (@Tag("timing") 측정 테스트는 뺀다). 엔진 id는 동일성(==) 표의 일련번호라 해시 값에 기대지 않는다.
+val constantHash = (findProperty("hcs.constantHash") ?: "false").toString() == "true"
+
 tasks.test {
-    useJUnitPlatform()
+    if (constantHash) {
+        useJUnitPlatform { excludeTags("timing") }
+        jvmArgs("-XX:+UnlockExperimentalVMOptions", "-XX:hashCode=2")
+    } else {
+        useJUnitPlatform()
+    }
     dependsOn(stage)
     systemProperty("java.awt.headless", "true")
     // 같은 JVM 안의 테스트도 엔진과 같이 메모리 전용 환경설정으로 돈다(Main이 하는 일과 같다)

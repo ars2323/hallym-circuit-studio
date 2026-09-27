@@ -26,6 +26,7 @@ import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -200,6 +201,7 @@ class SubprocessTest {
 
     /** 시작 시간(프로세스 시작 → engine.hello 응답)과 ref-mips를 연 뒤의 상주 메모리를 잰다. */
     @Test
+    @Tag("timing")
     void measureStartTimeAndMemory() throws Exception {
         StringBuilder report = new StringBuilder();
         for (List<String> flags : List.of(List.<String>of(), List.of("-XX:+UseSerialGC", "-XX:TieredStopAtLevel=1"))) {
