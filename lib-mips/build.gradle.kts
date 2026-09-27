@@ -85,10 +85,11 @@ tasks.test {
         events("failed")
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
     }
-    // D-127: 디스어셈블러 골든 대조 줄 수를 빌드 로그에 남긴다
+    // D-127: 디스어셈블러 골든 대조 줄 수, D-138: Hallym MIPS 골든에서 비교한 레지스터와 비교하지 않은 것을 빌드 로그에 남긴다
     addTestOutputListener(object : TestOutputListener {
         override fun onOutput(test: TestDescriptor, event: TestOutputEvent) {
-            if (event.message.startsWith("disasm goldens:")) logger.lifecycle(event.message.trim())
+            val m = event.message
+            if (m.startsWith("disasm goldens:") || m.startsWith("hmx goldens:")) logger.lifecycle(m.trim())
         }
     })
 }

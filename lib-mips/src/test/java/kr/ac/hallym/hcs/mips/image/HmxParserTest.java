@@ -22,7 +22,10 @@ import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** 실행 이미지(.hmx 1판) 파서와 원본 대조(Z-01, Z-06). 시험 파일은 tests/hmx(docs/hmx.md의 해석). */
+/**
+ * 실행 이미지(.hmx 1판) 파서와 원본 대조(Z-01, Z-06, D-138). 기준은 Hallym MIPS 명세 docs/hmx-format.md(v2.4.0), 명세가
+ * 말하지 않은 곳은 docs/hmx.md. 시험 파일은 tests/hmx. Hallym MIPS가 낸 골든은 {@code HallymMipsGoldenTest}.
+ */
 class HmxParserTest {
     static final Path HMX = Path.of(System.getProperty("hcs.testsDir", "../tests"), "hmx");
 
@@ -86,15 +89,15 @@ class HmxParserTest {
     @Test
     void dataLengthNotAMultipleOfFourIsPaddedWithZeros() throws Exception {
         ExecutableImage img = ok("data-odd.hmx");
-        // 0x10010000: 41 42 43 44 | 45 46 00 00 ; 0x10010008: 00 61 62 63
-        assertEquals(Map.of(0x10010000L, 0x44434241, 0x10010004L, 0x00004645, 0x10010008L, 0x63626100),
+        // 0x10010000: 00 00 41 42 | 43 44 45 46 | 47 00 00 00 (구간이 주지 않은 바이트는 0)
+        assertEquals(Map.of(0x10010000L, 0x42410000, 0x10010004L, 0x46454443, 0x10010008L, 0x00000047),
                 img.dataWords());
-        assertEquals(9, img.dataBytes().size(), "byte addresses stay as they are");
-        assertFalse(img.dataBytes().containsKey(0x10010006L));
-        assertEquals(0x61, (int) img.dataBytes().get(0x10010009L));
-        assertEquals("6 bytes = 2 words (0x10010000\u20130x10010005)",
-                ExecutableImage.describe(img.segments(ExecutableImage.Kind.DATA).subList(0, 1)));
-        assertEquals("9 bytes = 3 words (0x10010000\u20130x10010005, 0x10010009\u20130x1001000b)",
+        assertEquals(7, img.dataBytes().size(), "byte addresses stay as they are");
+        assertFalse(img.dataBytes().containsKey(0x10010001L));
+        assertFalse(img.dataBytes().containsKey(0x10010009L));
+        assertEquals(0x41, (int) img.dataBytes().get(0x10010002L));
+        assertEquals(0x47, (int) img.dataBytes().get(0x10010008L));
+        assertEquals("7 bytes = 3 words (0x10010002\u20130x10010008)",
                 ExecutableImage.describe(img.segments(ExecutableImage.Kind.DATA)));
     }
 
@@ -157,11 +160,87 @@ class HmxParserTest {
         assertEquals(1, r.errors.size(), "the rest of a version 2 file is not read");
     }
 
+    /** 명세 "What a reader must do" 4: 모르는 필드는 읽지 않는다(새 필드는 판을 올리지 않는다). */
     @Test
-    void unknownKeyMeansANewVersion() throws Exception {
-        List<String> e = errorsKo(read("unknown-key.hmx"));
-        assertEquals(1, e.size(), e.toString());
-        assertTrue(e.get(0).startsWith("4번째 줄: 이 도구가 모르는 키입니다: checksum."), e.get(0));
+    void unknownFieldsAreIgnored() throws Exception {
+        HmxParser.Result r = read("unknown-key.hmx");
+        assertEquals(List.of(), r.errors);
+        assertEquals(Map.of(5, "checksum"), r.ignoredFields);
+        assertEquals(Map.of(0x00400024L, 0x0000000c), r.image.textWords());
+        // 여러 모양: 값 없음, 값 여럿, 하이픈, 알려진 필드 사이
+        HmxParser.Result many = HmxParser.parse("HALLYM-EXEC 1\nendian little\nline-numbers\nentry 0x00400000\n"
+                + "text-panel a b c\nregs2 $sp 0x7fffeffc\n.text 0x00400000 words 1\n0000000c\n");
+        assertEquals(List.of(), many.errors);
+        assertEquals(Map.of(3, "line-numbers", 5, "text-panel", 6, "regs2"), many.ignoredFields);
+        assertEquals(List.of(), new ArrayList<>(many.image.regs().keySet()));
+    }
+
+    /** 명세 "What a reader must do" 3: endian·entry·.text가 없거나, 모르는 구간, 같은 종류 두 번째 구간은 오류다. */
+    @Test
+    void requiredLinesAndSections() {
+        List<String> none = errorsKo(HmxParser.parse("HALLYM-EXEC 1\n# 머리 줄만\n"));
+        assertEquals(List.of(
+                "endian 줄이 없습니다. 실행 이미지에는 바이트 순서 줄이 있어야 합니다: endian little 또는 endian big."
+                        + " Hallym MIPS에서 다시 내보내세요.",
+                "entry 줄이 없습니다. 실행 이미지에는 시작 주소 줄이 있어야 합니다. Hallym MIPS에서 다시 내보내세요.",
+                ".text 구간이 없습니다. 실행 이미지에는 프로그램의 명령어 워드 구간이 있어야 합니다. Hallym MIPS에서 다시"
+                        + " 내보내세요."), none);
+        HmxParser.Result noText = HmxParser.parse("HALLYM-EXEC 1\nendian little\nentry 0x10010000\n"
+                + ".data 0x10010000 bytes 1\n01\n");
+        assertEquals("There is no .text section. An executable image holds the program's instruction words."
+                + " Export it again from Hallym MIPS.", noText.errors.get(0).text(false));
+        String head = "HALLYM-EXEC 1\nendian little\nentry 0x00400000\n";
+        List<String> unknown = errorsKo(HmxParser.parse(head + ".text 0x00400000 words 1\n0000000c\n"
+                + ".rdata 0x10000000 bytes 1\n01\nzz\n"));
+        assertEquals(List.of("6번째 줄: 이 도구가 모르는 구간입니다: .rdata. 실행 이미지 1판의 구간은 .text, .data 둘뿐입니다."
+                + " Hallym MIPS에서 다시 내보내세요."), unknown, "the lines of an unknown section are skipped");
+        List<String> second = errorsKo(HmxParser.parse(head + ".text 0x00400000 words 1\n0000000c\n"
+                + ".text 0x00400100 words 1\n0000000c\n"));
+        assertEquals(List.of("6번째 줄: 4번째 줄에 이미 .text 구간이 있습니다. 구간은 종류마다 하나만 있을 수 있습니다."
+                + " Hallym MIPS에서 다시 내보내세요."), second);
+        List<String> twoData = errorsKo(HmxParser.parse(head + ".text 0x00400000 words 1\n0000000c\n"
+                + ".data 0x10010000 bytes 1\n01\n.data 0x10010100 bytes 1\n02\n"));
+        assertEquals(1, twoData.size(), twoData.toString());
+        assertTrue(twoData.get(0).startsWith("8번째 줄: 6번째 줄에 이미 .data 구간이 있습니다."), twoData.toString());
+        // 필드는 첫 구간 앞에만
+        List<String> late = errorsKo(HmxParser.parse("HALLYM-EXEC 1\nendian little\n.text 0x00400000 words 1\n"
+                + "0000000c\nentry 0x00400000\n"));
+        assertEquals(List.of("5번째 줄: entry 줄은 첫 구간(.text, .data)보다 앞에 있어야 합니다. Hallym MIPS에서 다시 내보내세요.",
+                "entry 줄이 없습니다. 실행 이미지에는 시작 주소 줄이 있어야 합니다. Hallym MIPS에서 다시 내보내세요."), late);
+        // 구간 밖의 워드·바이트 줄
+        List<String> outside = errorsKo(HmxParser.parse(head + "8fa40000 27a50004\n.text 0x00400000 words 1\n"
+                + "0000000c\n"));
+        assertEquals(List.of("4번째 줄: 워드·바이트 줄과 zero 줄은 구간(.text, .data) 안에만 올 수 있습니다: 8fa40000 27a50004."
+                + " Hallym MIPS에서 다시 내보내세요."), outside);
+    }
+
+    /** 명세 "Lines": 한 줄에 워드·바이트 여럿, 앞뒤 공백·탭, CRLF, 16진수 대소문자, 머리 줄 앞의 주석. */
+    @Test
+    void linesFollowTheSpec() {
+        String text = "# 머리 줄 앞 주석\n\n  HALLYM-EXEC\t1  \n\tendian little\nentry\t0x0040000C\n"
+                + "symbol main 0X0040000C\n.text 0x00400000 words 5\n 8FA40000 27a50004\t24A60004 \nzero 1\n0000000C\n"
+                + ".data 0x10010000 bytes 5\nAB cd\n  Ef 01 02  \n";
+        for (String variant : new String[] {text, text.replace("\n", "\r\n")}) {
+            HmxParser.Result r = HmxParser.parse(variant);
+            assertEquals(List.of(), r.errors);
+            ExecutableImage img = r.image;
+            assertEquals(0x0040000cL, (long) img.entry());
+            assertEquals(0x0040000cL, (long) img.symbols().get("main"));
+            assertEquals(Map.of(0x00400000L, 0x8fa40000, 0x00400004L, 0x27a50004, 0x00400008L, 0x24a60004,
+                    0x0040000cL, 0, 0x00400010L, 0x0000000c), img.textWords());
+            assertEquals(Map.of(0x10010000L, 0x01efcdab, 0x10010004L, 0x02), img.dataWords());
+        }
+        // zero 0은 칸이 없는 0 구간이다(명세의 <count>는 10진수 정수)
+        HmxParser.Result z = HmxParser.parse("HALLYM-EXEC 1\nendian little\nentry 0x00400000\n"
+                + ".text 0x00400000 words 1\nzero 0\n0000000c\n");
+        assertEquals(List.of(), z.errors);
+        assertTrue(z.image.segments().get(0).zeroRuns().isEmpty());
+        // 빈 구간
+        HmxParser.Result empty = HmxParser.parse("HALLYM-EXEC 1\nendian little\nentry 0x00400000\n"
+                + ".text 0x00400000 words 0\n.data 0x10010000 bytes 0\n");
+        assertEquals(List.of(), empty.errors);
+        assertEquals(0, empty.image.textWords().size());
+        assertEquals(2, empty.image.segments().size());
     }
 
     @Test
@@ -174,16 +253,16 @@ class HmxParserTest {
     }
 
     @Test
-    void overlappingSegments() throws Exception {
+    void overlappingSections() throws Exception {
         List<String> e = errorsKo(read("overlap.hmx"));
-        assertEquals(List.of("7번째 줄: 이 구간이 4번째 줄의 구간과 겹칩니다: .text 0x00400004\u20130x00400004,"
+        assertEquals(List.of("8번째 줄: 이 구간이 5번째 줄의 구간과 겹칩니다: .data 0x00400004\u20130x00400007,"
                 + " .text 0x00400000\u20130x00400004. Hallym MIPS에서 다시 내보내세요."), e);
     }
 
     @Test
     void unalignedText() throws Exception {
         List<String> e = errorsKo(read("unaligned-text.hmx"));
-        assertEquals(List.of("4번째 줄: .text 시작 주소가 4바이트 워드 경계에 있지 않습니다: 0x00400002."
+        assertEquals(List.of("5번째 줄: .text 시작 주소가 4바이트 워드 경계에 있지 않습니다: 0x00400002."
                 + " Hallym MIPS에서 다시 내보내세요."), e);
     }
 
@@ -195,43 +274,118 @@ class HmxParserTest {
 
     @Test
     void otherFormatErrorsHaveLineNumbers() {
-        String head = "HALLYM-EXEC 1\nentry 0x00400000\n";
-        // 개수보다 많음
-        List<String> more = errorsKo(HmxParser.parse(head + ".text 0x00400000 words 1\n0000000c\n0000000c\n"));
-        assertEquals(List.of("5번째 줄: 3번째 줄의 .text 구간은 워드 1개라고 적혀 있지만 그보다 많습니다. Hallym MIPS에서 다시 내보내세요."),
+        String head = "HALLYM-EXEC 1\nendian little\nentry 0x00400000\n";
+        // 개수보다 많음(구간마다 한 번)
+        List<String> more = errorsKo(HmxParser.parse(head + ".text 0x00400000 words 1\n0000000c\n0000000c\n0000000c\n"));
+        assertEquals(List.of("6번째 줄: 4번째 줄의 .text 구간은 워드 1개라고 적혀 있지만 그보다 많습니다. Hallym MIPS에서 다시 내보내세요."),
                 more);
-        List<String> moreBytes = errorsKo(HmxParser.parse(head + ".data 0x10010000 bytes 2\n01 02 03\n"));
-        assertTrue(moreBytes.get(0).startsWith("4번째 줄: 3번째 줄의 .data 구간은 바이트 2개라고"), moreBytes.toString());
-        // 워드 형식
-        List<String> word = errorsKo(HmxParser.parse(head + ".text 0x00400000 words 1\n8fa4000\n"));
-        assertTrue(word.get(0).startsWith("4번째 줄: .text 줄에는 16진수 8자리 워드가 하나씩 있어야 합니다: 8fa4000."), word.toString());
-        // 바이트 형식
-        List<String> bytes = errorsKo(HmxParser.parse(head + ".data 0x10010000 bytes 1\n4g\n"));
-        assertTrue(bytes.get(0).startsWith("4번째 줄: .data 바이트는 16진수 2자리여야 합니다: 4g."), bytes.toString());
-        // 주소 형식
-        List<String> addr = errorsKo(HmxParser.parse("HALLYM-EXEC 1\nentry 400024\n"));
-        assertTrue(addr.get(0).startsWith("2번째 줄: entry 값을 읽을 수 없습니다: 400024. 값은 0x 뒤에 16진수"), addr.toString());
+        List<String> moreBytes = errorsKo(HmxParser.parse(head + ".text 0x00400000 words 0\n"
+                + ".data 0x10010000 bytes 2\n01 02 03\n"));
+        assertEquals(List.of("6번째 줄: 5번째 줄의 .data 구간은 바이트 2개라고 적혀 있지만 그보다 많습니다. Hallym MIPS에서 다시"
+                + " 내보내세요."), moreBytes);
+        List<String> moreZero = errorsKo(HmxParser.parse(head + ".text 0x00400000 words 2\n0000000c\nzero 5\n"));
+        assertTrue(moreZero.get(0).startsWith("6번째 줄: 4번째 줄의 .text 구간은 워드 2개라고"), moreZero.toString());
+        // 워드 형식: 16진수 정확히 8자리, 0x 없이
+        for (String w : new String[] {"8fa4000", "0x8fa40000", "8fa400000", "8fa4000g"}) {
+            List<String> word = errorsKo(HmxParser.parse(head + ".text 0x00400000 words 1\n" + w + "\n"));
+            assertEquals("5번째 줄: .text 워드는 16진수 8자리여야 합니다: " + w + ". Hallym MIPS에서 다시 내보내세요.", word.get(0));
+        }
+        // 바이트 형식: 16진수 정확히 2자리
+        for (String b : new String[] {"4g", "1", "123", "0x1"}) {
+            List<String> bytes = errorsKo(HmxParser.parse(head + ".text 0x00400000 words 0\n.data 0x10010000 bytes 1\n"
+                    + b + "\n"));
+            assertEquals("6번째 줄: .data 바이트는 16진수 2자리여야 합니다: " + b + ". Hallym MIPS에서 다시 내보내세요.",
+                    bytes.get(0));
+        }
+        // 주소 형식: 0x 뒤에 16진수 정확히 8자리
+        for (String a : new String[] {"400024", "0x400024", "0x004000240", "0x0040002g"}) {
+            List<String> addr = errorsKo(HmxParser.parse("HALLYM-EXEC 1\nendian little\nentry " + a + "\n"
+                    + ".text 0x00400000 words 0\n"));
+            assertEquals("3번째 줄: entry 값을 읽을 수 없습니다: " + a + ". 값은 0x 뒤에 16진수 8자리를 적은 모양입니다."
+                    + " Hallym MIPS에서 다시 내보내세요.", addr.get(0));
+        }
+        String text = ".text 0x00400000 words 0\n";
         // 레지스터 이름, endian 값, zero 위치
-        assertTrue(errorsKo(HmxParser.parse(head + "reg $xx 0x0\n")).get(0)
-                .startsWith("3번째 줄: 레지스터 이름을 읽을 수 없습니다: $xx."));
-        assertTrue(errorsKo(HmxParser.parse(head + "endian middle\n")).get(0)
-                .startsWith("3번째 줄: endian 값으로 읽을 수 없습니다: middle."));
-        assertTrue(errorsKo(HmxParser.parse(head + "zero 4\n")).get(0)
-                .startsWith("3번째 줄: zero 줄은 구간(.text, .data) 안에만 올 수 있습니다."));
-        // 구간 머리 형식: 뒤따르는 워드 줄은 키로 읽지 않는다(오류 하나)
+        assertTrue(errorsKo(HmxParser.parse(head + "reg $xx 0x00000000\n" + text)).get(0)
+                .startsWith("4번째 줄: 레지스터 이름을 읽을 수 없습니다: $xx."));
+        assertTrue(errorsKo(HmxParser.parse("HALLYM-EXEC 1\nendian middle\nentry 0x00400000\n" + text)).get(0)
+                .startsWith("2번째 줄: endian 값으로 읽을 수 없습니다: middle."));
+        assertTrue(errorsKo(HmxParser.parse(head + "zero 4\n" + text)).get(0)
+                .startsWith("4번째 줄: 워드·바이트 줄과 zero 줄은 구간(.text, .data) 안에만 올 수 있습니다: zero 4."));
+        assertTrue(errorsKo(HmxParser.parse(head + ".text 0x00400000 words 1\nzero x\n")).get(0)
+                .startsWith("5번째 줄: zero 줄의 형식이 틀렸습니다. 형식: zero <개수>."));
+        assertTrue(errorsKo(HmxParser.parse(head + ".text 0x00400000 words 1\nzero 1 2\n")).get(0)
+                .startsWith("5번째 줄: zero 줄의 형식이 틀렸습니다."));
+        // 구간 머리 형식: 뒤따르는 워드 줄은 읽지 않는다(오류 하나)
         List<String> bad = errorsKo(HmxParser.parse(head + ".text 0x00400000 bytes 1\n0000000c\n"));
         assertEquals(1, bad.size(), bad.toString());
-        assertTrue(bad.get(0).startsWith("3번째 줄: .text 줄의 형식이 틀렸습니다. 형식: .text <주소> words <개수>."));
-        // 다음 키가 오기 전에 구간이 끝나지 않음
-        List<String> early = errorsKo(HmxParser.parse(head + ".text 0x00400000 words 2\n0000000c\nsymbol main 0x00400000\n"));
-        assertTrue(early.get(0).startsWith("3번째 줄: .text 줄에는 워드 2개라고 적혀 있지만 실제로는 1개입니다."), early.toString());
-        // 첫 줄이 머리가 아님
+        assertTrue(bad.get(0).startsWith("4번째 줄: .text 줄의 형식이 틀렸습니다. 형식: .text <주소> words <개수>."));
+        assertEquals(1, errorsKo(HmxParser.parse(head + ".text 0x00400000 words\n")).size());
+        assertEquals(1, errorsKo(HmxParser.parse(head + ".text 0x00400000 words x\n")).size());
+        assertEquals(1, errorsKo(HmxParser.parse(head + ".data 0x10010000 words 1\n.text 0x00400000 words 0\n")).size());
+        // 다음 구간이 오기 전에 구간이 덜 참
+        List<String> early = errorsKo(HmxParser.parse(head + ".text 0x00400000 words 2\n0000000c\n"
+                + ".data 0x10010000 bytes 1\n01\n"));
+        assertEquals(List.of("4번째 줄: .text 줄에는 워드 2개라고 적혀 있지만 실제로는 1개입니다. 파일이 잘렸을 수 있습니다."
+                + " Hallym MIPS에서 다시 내보내세요."), early);
+        assertEquals("Line 4: The .text line declares 2 words, but there is 1. The file may be cut off. Export it"
+                + " again from Hallym MIPS.", HmxParser.parse(head + ".text 0x00400000 words 2\n0000000c\n").errors
+                .get(0).text(false));
+        // 첫 줄이 머리가 아님(주석·빈 줄 다음 첫 줄), 빈 파일
         List<String> notHmx = errorsKo(HmxParser.parse("{\"text\": []}\n"));
         assertEquals(List.of("1번째 줄: 첫 줄이 HALLYM-EXEC 머리 줄이 아니라서 실행 이미지 파일이 아닙니다."
                 + " Hallym MIPS에서 내보낸 .hmx 파일을 고르세요."), notHmx);
-        // 32비트 너머
-        assertTrue(errorsKo(HmxParser.parse(head + ".data 0xfffffffe bytes 3\n01 02 03\n")).get(0)
-                .startsWith("3번째 줄: .data 구간이 주소 0xffffffff 너머까지 이어집니다."));
+        assertEquals(1, errorsKo(HmxParser.parse("# c\n\nHALLYM-EXEC 1 x\nendian little\n")).size());
+        assertTrue(errorsKo(HmxParser.parse("# c\n\nHALLYM-EXEC 1 x\n")).get(0).startsWith("3번째 줄: 첫 줄이"));
+        assertTrue(errorsKo(HmxParser.parse("HALLYM-EXE 1\n")).get(0).startsWith("1번째 줄: 첫 줄이"));
+        assertEquals(List.of("첫 줄이 HALLYM-EXEC 머리 줄이 아니라서 실행 이미지 파일이 아닙니다. Hallym MIPS에서 내보낸 .hmx 파일을"
+                + " 고르세요."), errorsKo(HmxParser.parse("")));
+        assertEquals(1, errorsKo(HmxParser.parse(null)).size());
+        assertTrue(errorsKo(HmxParser.parse("HALLYM-EXEC one\n")).get(0).startsWith("1번째 줄: 판 번호가 숫자가 아닙니다: one."));
+        assertTrue(errorsKo(HmxParser.parse("HALLYM-EXEC 0\n")).get(0).startsWith("1번째 줄: 이 파일은 실행 이미지 0판입니다."));
+        // 32비트 너머, 너무 큰 구간
+        assertTrue(errorsKo(HmxParser.parse(head + ".text 0x00400000 words 0\n.data 0xfffffffe bytes 3\n01 02 03\n"))
+                .get(0).startsWith("5번째 줄: .data 구간이 주소 0xffffffff 너머까지 이어집니다."));
+        assertEquals(List.of(), HmxParser.parse(head + ".text 0x00400000 words 0\n.data 0xfffffffe bytes 2\n01 02\n")
+                .errors, "up to 0xffffffff is fine");
+        assertTrue(errorsKo(HmxParser.parse(head + ".text 0x00400000 words 16777217\n")).get(0)
+                .startsWith("4번째 줄: .text 구간이 너무 큽니다: 워드 16777217개(최대 16777216개)."));
+        // 값 모양
+        assertTrue(errorsKo(HmxParser.parse(head + "entry\n" + text)).get(0).startsWith("4번째 줄: entry 줄에 값이 없습니다."));
+        assertTrue(errorsKo(HmxParser.parse(head + "source\n" + text)).get(0).startsWith("4번째 줄: source 줄에 값이 없습니다."));
+        assertTrue(errorsKo(HmxParser.parse(head + "source a.s\nsource b.s\n" + text)).get(0)
+                .startsWith("5번째 줄: source 키가 4번째 줄에 이미 있습니다."));
+        assertTrue(errorsKo(HmxParser.parse("HALLYM-EXEC 1\nendian little big\nentry 0x00400000\n" + text)).get(0)
+                .startsWith("2번째 줄: endian 줄에 값이 둘 이상입니다: endian little big."));
+        assertTrue(errorsKo(HmxParser.parse(head + "source-sha256 12\n" + text)).get(0)
+                .startsWith("4번째 줄: source-sha256 값이 16진수 64자리가 아닙니다: 12."));
+        assertTrue(errorsKo(HmxParser.parse(head + "reg $sp\n" + text)).get(0)
+                .startsWith("4번째 줄: reg 줄의 형식이 틀렸습니다."));
+        assertTrue(errorsKo(HmxParser.parse(head + "reg $sp 0x7fffeffc\nreg $29 0x7fffeffc\n" + text)).get(0)
+                .startsWith("5번째 줄: reg $sp 키가 4번째 줄에 이미 있습니다."));
+        assertTrue(errorsKo(HmxParser.parse(head + "reg $sp 12\n" + text)).get(0)
+                .startsWith("4번째 줄: reg $sp 값을 읽을 수 없습니다: 12."));
+        assertTrue(errorsKo(HmxParser.parse(head + "symbol x\n" + text)).get(0)
+                .startsWith("4번째 줄: symbol 줄의 형식이 틀렸습니다."));
+        assertTrue(errorsKo(HmxParser.parse(head + "symbol x 12\n" + text)).get(0)
+                .startsWith("4번째 줄: symbol x 값을 읽을 수 없습니다: 12."));
+        // source 값은 줄의 나머지 전부(공백 포함), source-sha256은 소문자로
+        HmxParser.Result named = HmxParser.parse(head + "source  my lab 04.s \nsource-sha256 "
+                + "ABCDEF0123456789abcdef0123456789ABCDEF0123456789abcdef0123456789\nproduced-by Hallym MIPS 2.4.0\n"
+                + "assembled 2026-09-27T19:05+09:00\n" + text);
+        assertEquals(List.of(), named.errors);
+        assertEquals("my lab 04.s", named.image.source());
+        assertEquals("abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789", named.image.sourceSha256());
+        assertEquals("Hallym MIPS 2.4.0", named.image.producedBy());
+        assertEquals("2026-09-27T19:05+09:00", named.image.assembled());
+        // 오류는 줄 번호 순(줄이 없는 오류는 뒤)
+        HmxParser.Result sorted = HmxParser.parse("HALLYM-EXEC 1\n.text 0x00400000 words 2\n0000000c\n"
+                + ".data 0x10010000 bytes 1\n0g\n");
+        List<Integer> lines = new ArrayList<>();
+        for (HmxError e : sorted.errors) {
+            lines.add(e.line);
+        }
+        assertEquals(List.of(2, 5, 0, 0), lines);
     }
 
     /**
@@ -250,7 +404,12 @@ class HmxParserTest {
         String head = "HALLYM-EXEC 1\nentry 0x00400000\n";
         for (String bad : Arrays.asList(".text 0x00400000 words 1\n0000000c\n0000000c\n", "reg $xx 0x0\n",
                 "endian middle\n", "zero 4\n", ".text 0x00400000 bytes 1\n", "entry\n", "source-sha256 12\n",
-                "reg $sp\n", "symbol x\n", "zero\n", ".text 0x00400000 words 2\n0000000c\nzero 5\n", "x y z\n")) {
+                "reg $sp\n", "symbol x\n", "zero\n", ".text 0x00400000 words 2\n0000000c\nzero 5\n", "x y z\n",
+                ".rdata 0x0 bytes 1\n", ".text 0x00400000 words 0\n.text 0x00400000 words 0\n",
+                ".text 0x00400000 words 0\nentry 0x00400000\n", "ab cd\n", ".text 0x00400000 words 1\nzero x\n",
+                ".text 0x00400000 words 1\n0x1\n", ".data 0x10010000 bytes 1\n123\n", "endian a b\n",
+                ".text 0x00400002 words 1\n", ".text 0x00400000 words 16777217\n", ".data 0xffffffff bytes 2\n",
+                ".text 0x00400000 words 1\n.data 0x00400000 bytes 1\n01\n", "source\n", "symbol x 1\n")) {
             for (HmxError e : HmxParser.parse(head + bad).errors) {
                 all.add(e.text(true));
             }
@@ -311,7 +470,8 @@ class HmxParserTest {
     void sourceIsFoundByRelativePathOrBesideTheImage() throws Exception {
         byte[] s = Files.readAllBytes(HMX.resolve("example.s"));
         String sha = SourceCheck.sha256(HMX.resolve("example.s").toFile());
-        String body = "HALLYM-EXEC 1\nsource-sha256 " + sha + "\nentry 0x00400024\n";
+        String body = "HALLYM-EXEC 1\nsource-sha256 " + sha + "\nendian little\nentry 0x00400024\n"
+                + ".text 0x00400024 words 1\n0000000c\n";
         Path dir = Files.createDirectories(tmp.resolve("lab"));
         // (1) source 상대 경로
         Files.createDirectories(dir.resolve("src"));

@@ -1,5 +1,6 @@
 HALLYM-EXEC 1
 # 손 작성: zero 줄. .text 안에서는 워드, .data 안에서는 바이트 단위다. .data에는 0 구간이 둘이다.
+endian little
 entry 0x00400000
 .text 0x00400000 words 5
 24020001

@@ -3,6 +3,7 @@ HALLYM-EXEC 1
 
    # 들여 쓴 주석
 source example.s
+endian little
 
 entry     0x00400024
 # 구간 머리 앞 주석

@@ -4,5 +4,6 @@ entry         0x00400024
 symbol main   0x00400024
 entry         0x00400028
 symbol main   0x00400028
+endian        little
 .text 0x00400024 words 1
 0000000c
