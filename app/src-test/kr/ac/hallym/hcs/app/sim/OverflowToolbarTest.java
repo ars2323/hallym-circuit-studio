@@ -24,12 +24,12 @@ class OverflowToolbarTest {
     static OverflowToolbar bar(boolean text) {
         OverflowToolbar tb = new OverflowToolbar(text);
         for (int i = 0; i < 12; i++) {
-            tb.addItem(new JButton("Command " + i, new BarIcons("run")), "k" + i, 0);
+            tb.addItem(new JButton("Command " + i, kr.ac.hallym.hcs.app.theme.Icons.toolbar("run", 16)), "k" + i, 0);
             if (i % 4 == 3) {
                 tb.addGap();
             }
         }
-        tb.addItem(new JButton("Run", new BarIcons("run")), "run", OverflowToolbar.KEEP);
+        tb.addItem(new JButton("Run", kr.ac.hallym.hcs.app.theme.Icons.toolbar("run", 16)), "run", OverflowToolbar.KEEP);
         tb.addItem(new JToggleButton("Flow"), "flow", 0);
         tb.addItem(new JButton("Style"), "style", OverflowToolbar.FIRST);
         return tb;
@@ -118,7 +118,7 @@ class OverflowToolbarTest {
     void styleToggleMovesToTheMenuWhenIconsOnlyIsAutomatic() {
         OverflowToolbar tb = new OverflowToolbar(true);
         for (int i = 0; i < 8; i++) {
-            tb.addItem(new JButton("Command " + i, new BarIcons("run")), "k" + i, 0);
+            tb.addItem(new JButton("Command " + i, kr.ac.hallym.hcs.app.theme.Icons.toolbar("run", 16)), "k" + i, 0);
         }
         JButton style = new JButton("Icons Only");
         tb.addMenuWhenAutoItem(style, "style", OverflowToolbar.FIRST);

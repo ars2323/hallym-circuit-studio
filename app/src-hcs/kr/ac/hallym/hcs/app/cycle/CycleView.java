@@ -153,7 +153,7 @@ public final class CycleView {
         kr.ac.hallym.hcs.app.diag.Diagnostics.of(proj).addListener(diagListener);
         recorder.addListener(recListener);
         proj.addProjectListener(projListener);
-        Font mono = new Font(Font.MONOSPACED, Font.PLAIN, Tokens.FONT_SMALL);
+        Font mono = kr.ac.hallym.hcs.app.theme.Theme.codeFont(Tokens.FONT_SMALL); // D2Coding(Z-12b)
         body.setFont(mono);
         head.setFont(mono);
         rowNames.setFont(new Font(Tokens.UI_FONT, Font.PLAIN, Tokens.FONT_SMALL));

@@ -53,7 +53,7 @@ final class InstructionPanel extends JComponent {
 
     InstructionPanel(Supplier<CycleModel> model) {
         this.model = model;
-        setFont(new Font(Font.MONOSPACED, Font.PLAIN, Tokens.FONT_UI));
+        setFont(kr.ac.hallym.hcs.app.theme.Theme.codeFont(Tokens.FONT_UI)); // D2Coding(Z-12b)
     }
 
     /** 보고 있는 사이클의 명령어 워드. 정해지지 않았으면 null. */

@@ -1441,3 +1441,15 @@
 - **덧붙임:** 원조의 JAR 라이브러리 클래스 로더(`ZipClassLoader`)는 부모를 먼저 찾는다. 그래서 포크 안에서는 hcs-mips.jar 코드도 포크 jar에 든 공용 클래스 사본을 쓰고(형도 하나), 원조 2.7.1에서는 hcs-mips.jar 자신의 사본을 쓴다.
 - **대안:** 앱 클래스 경로에 hcs-mips.jar를 넣어 한 클래스 로더로 합치기(D-007의 번들·그림자 라이브러리 방식과 원조 호환 경로를 흔든다). 반사로 lib-mips 쪽 파서 부르기(형이 없어 실수하기 쉽다).
 - **테스트:** `SharedSourceTest`(트랙 A jar에 Java 8 바이트코드로 들어감), `SharedSourceAppTest`(포크 jar에 들어감).
+
+## D-131 디자인 정합: Hallym MIPS v2.3.0과 같은 값·글꼴·아이콘(Z-12b)
+
+- **날짜:** 2026-09-27
+- **결정:**
+  1. Hallym MIPS v2.3.0 `electron/src/renderer/app/app.css`의 CSS 변수와 부품 치수(색 27, 글꼴·줄·틀, 단추, 패널 머리·탭, 빈 상태, 시작 카드, 대화상자, 튜토리얼 카드, Inspector 필드 색 14)를 `docs/design-parity.md` 표로 뽑고(태그·줄 번호), `Tokens`를 그 값에 맞춘다. `DesignParityTest`가 표와 `Tokens`를 한 줄씩 비교한다(처음 100줄 모두 같음). 일부러 다른 값은 표에 "다름: 이유"로 적고, 우리에게만 있는 값은 따로 표로 이유를 적는다.
+  2. FlatLaf 설정은 `theme/FlatLightLaf.properties` 한 파일에 모은다(색 변수는 `Tokens`와 같아야 한다: `ThemeTest.propertiesVariablesEqualTokens`). 모서리 6px(arc 12), 단추 높이 28, 표·트리 줄 22, 탭 높이 34·가로 10·밑줄 2, 고른 탭 navy·나머지 muted.
+  3. 글꼴: Pretendard(UI)에 D2Coding(OFL, 원본 TTF 그대로)을 더해 주소·기계어·레지스터 값(Registers, Memory, Instruction, 사이클 표, About의 라이선스 글)에 쓴다. D2Coding에서 0과 O가 다른 모양인지 테스트로 본다(O-07을 이것으로 푼다). Console 출력은 Hallym MIPS `.clog`처럼 UI 글꼴이다. MIPS 부품 몸체의 캔버스 글꼴(lib-mips, 원조 2.7.1에서도 쓰는 코드)은 이 PR에서 바꾸지 않고 OPEN-ISSUES U-29로 둔다.
+  4. 아이콘: Hallym MIPS가 쓰는 Lucide SVG를 같은 이름으로 번들하고, 없는 자리는 같은 Lucide(lucide-static 1.48.0)에서 가져온다. FlatLaf Extras의 FlatSVGIcon으로 그리고 선 색은 부르는 쪽이 정한다(기본 navy). 도구 모음의 손으로 그린 아이콘(`BarIcons`)은 지웠다.
+- **이유:** 두 프로그램을 같은 학생이 나란히 쓴다. 그림을 보고 비슷하게 맞추면 값이 흐트러지므로, 값을 원본에서 직접 가져오고 기계가 확인하게 한다(사용자 지시).
+- **대안:** Electron으로 옮기기(사용자가 하지 않기로 함). 아이콘을 새로 그리기(같은 재료가 아니다).
+- **테스트:** `DesignParityTest`, `ThemeTest`(설치 뒤 값, 속성 변수 = Tokens, D2Coding 등록과 0/O 모양 차이, 단추 높이 28), `IconsTest`(도구 모음 아이콘이 모두 그려지고 요청한 색만 쓰는지, 번들 SVG = assets 파일).
