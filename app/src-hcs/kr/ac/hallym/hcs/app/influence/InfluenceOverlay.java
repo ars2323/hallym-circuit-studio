@@ -346,8 +346,7 @@ public final class InfluenceOverlay {
                 }
                 outline(g, e.getKey().getBounds(), FORWARD, Math.max(1.5f, px(STOP_PX, z)), null, z);
                 if (e.getValue() > 0) {
-                    placesChip(g, e.getKey(), e.getValue(), z, canvas == null ? java.util.Collections.emptyList()
-                            : kr.ac.hallym.hcs.app.labels.LabelOverlay.chipRects(canvas));
+                    placesChip(g, e.getKey(), e.getValue(), z, badgeObstacles(circ, e.getKey(), v, canvas));
                 }
             }
         } finally {
@@ -394,7 +393,7 @@ public final class InfluenceOverlay {
         return Messages.get("influence.places", inst.getFactory().getName(), n);
     }
 
-    private static void placesChip(Graphics2D g, Component inst, int n, double z, java.util.List<Rectangle> chips) {
+    private static void placesChip(Graphics2D g, Component inst, int n, double z, java.util.List<Obstacle> obstacles) {
         String text = placesText(inst, n);
         g.setFont(new Font(Tokens.UI_FONT, Font.BOLD, 1).deriveFont(px(11, z)));
         FontMetrics fm = g.getFontMetrics();
@@ -403,8 +402,13 @@ public final class InfluenceOverlay {
         float padY = px(2, z);
         float w = fm.stringWidth(text) + 2 * padX;
         float h = fm.getAscent() + fm.getDescent() + 2 * padY;
-        java.awt.geom.Point2D.Float at = placesAt(new Rectangle(b.getX(), b.getY(), b.getWidth(), b.getHeight()), w, h,
-                px(6, z), chips);
+        Rectangle body = new Rectangle(b.getX(), b.getY(), b.getWidth(), b.getHeight());
+        java.awt.geom.Point2D.Float at = placesAtWeighted(body, w, h, px(6, z), obstacles);
+        if (z < 0.5) {
+            // 50% 미만에서는 그리지 않는다: 화면 11px 글자가 회로에 비해 너무 커서 둘레 어디에 두어도 칩 글자를 가린다.
+            // 닿은 부품은 테두리로 이미 보인다(v1.0.3 최종 세트 17g)
+            return;
+        }
         float x = at.x;
         float y = at.y;
         g.setColor(Tokens.WHITE);
@@ -415,33 +419,101 @@ public final class InfluenceOverlay {
         g.drawString(text, x + padX, y + padY + fm.getAscent());
     }
 
-    /**
-     * "N places" 칩 자리(회로 좌표): 부품 오른쪽 위 바깥이 기본이고, 라벨·값 칩(chips)과 겹치면 왼쪽 위, 오른쪽 아래,
-     * 왼쪽 아래 순으로 옮긴다. 모두 겹치면 겹침이 가장 적은 자리(v1.0.3 최종 세트: "0x00" 칩이 "regfile" 첫 글자를 덮었다).
-     */
-    static java.awt.geom.Point2D.Float placesAt(Rectangle body, float w, float h, float gap, java.util.List<Rectangle> chips) {
-        float[][] tries = {
-            {body.x + body.width - w, body.y - gap - h},
-            {body.x, body.y - gap - h},
-            {body.x + body.width - w, body.y + body.height + gap},
-            {body.x, body.y + body.height + gap},
-        };
-        float[] best = tries[0];
-        long bestOverlap = Long.MAX_VALUE;
-        for (float[] t : tries) {
-            Rectangle r = new Rectangle(Math.round(t[0]) - 2, Math.round(t[1]) - 2, Math.round(w) + 4, Math.round(h) + 4);
-            long overlap = 0;
-            for (Rectangle c : chips) {
-                Rectangle i = r.intersection(c);
-                if (!i.isEmpty()) {
-                    overlap += (long) i.width * i.height;
+    /** "N places" 칩이 피할 것: 라벨·값 칩, 같은 이름 터널 사이 점선, 선, 다른 부품 몸체(무게를 달리해 센다). */
+    static final class Obstacle {
+        final Rectangle rect;
+        final int weight;
+
+        Obstacle(Rectangle rect, int weight) {
+            this.rect = rect;
+            this.weight = weight;
+        }
+    }
+
+    static java.util.List<Obstacle> badgeObstacles(Circuit circ, Component inst, Influence.View v, Canvas canvas) {
+        java.util.List<Obstacle> out = new ArrayList<>();
+        if (canvas != null) {
+            for (Rectangle r : kr.ac.hallym.hcs.app.labels.LabelOverlay.chipRects(canvas)) {
+                out.add(new Obstacle(r, 10)); // 칩 글자를 가리면 안 된다
+            }
+        }
+        for (List<Location> link : v.tunnelLinks) {
+            for (int i = 1; i < link.size(); i++) {
+                Location a = link.get(i - 1);
+                Location b = link.get(i);
+                // 비스듬한 점선은 짧은 조각으로 나눠 사각형들로 둔다
+                int steps = Math.max(1, (int) (Math.hypot(b.getX() - a.getX(), b.getY() - a.getY()) / 6));
+                for (int k = 0; k <= steps; k++) {
+                    int x = a.getX() + (b.getX() - a.getX()) * k / steps;
+                    int y = a.getY() + (b.getY() - a.getY()) * k / steps;
+                    out.add(new Obstacle(new Rectangle(x - 3, y - 3, 6, 6), 10));
                 }
             }
-            if (overlap == 0) {
+        }
+        for (Wire w : circ.getWires()) {
+            Bounds b = w.getBounds();
+            out.add(new Obstacle(new Rectangle(b.getX() - 2, b.getY() - 2, b.getWidth() + 4, b.getHeight() + 4), 3));
+        }
+        for (Component c : circ.getNonWires()) {
+            if (c != inst) {
+                Bounds b = c.getBounds();
+                out.add(new Obstacle(new Rectangle(b.getX(), b.getY(), b.getWidth(), b.getHeight()), 3));
+            }
+        }
+        return out;
+    }
+
+    /** 자리 at의 칩이 라벨·값 칩이나 터널 점선(무게 10)을 가리는가. */
+    static boolean coversText(java.awt.geom.Point2D.Float at, float w, float h, java.util.List<Obstacle> obstacles) {
+        Rectangle r = new Rectangle(Math.round(at.x) - 2, Math.round(at.y) - 2, Math.round(w) + 4, Math.round(h) + 4);
+        for (Obstacle o : obstacles) {
+            if (o.weight >= 10 && r.intersects(o.rect)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 라벨 칩만 피할 때(테스트·기존 호출). */
+    static java.awt.geom.Point2D.Float placesAt(Rectangle body, float w, float h, float gap, java.util.List<Rectangle> chips) {
+        java.util.List<Obstacle> obs = new ArrayList<>();
+        for (Rectangle r : chips) {
+            obs.add(new Obstacle(r, 10));
+        }
+        return placesAtWeighted(body, w, h, gap, obs);
+    }
+
+    /**
+     * "N places" 칩 자리(회로 좌표): 부품 둘레의 여러 자리 가운데 가리는 것이 없는 첫 자리. 없으면 가리는 넓이×무게가 가장
+     * 작은 자리(v1.0.3 최종 세트: 값 칩이 배지 첫 글자를 덮었고, 옮긴 자리가 터널 점선을 덮었다).
+     */
+    static java.awt.geom.Point2D.Float placesAtWeighted(Rectangle body, float w, float h, float gap,
+            java.util.List<Obstacle> obstacles) {
+        float right = body.x + body.width - w;
+        float left = body.x;
+        float above = body.y - gap - h;
+        float below = body.y + body.height + gap;
+        float[][] tries = {
+            {right, above}, {left, above}, {right, below}, {left, below},
+            {right, above - h - gap}, {left, above - h - gap}, {right, below + h + gap}, {left, below + h + gap},
+            {body.x + body.width + gap, body.y}, {body.x - gap - w, body.y},
+        };
+        float[] best = tries[0];
+        long bestScore = Long.MAX_VALUE;
+        for (float[] t : tries) {
+            Rectangle r = new Rectangle(Math.round(t[0]) - 2, Math.round(t[1]) - 2, Math.round(w) + 4, Math.round(h) + 4);
+            long score = 0;
+            for (Obstacle o : obstacles) {
+                Rectangle i = r.intersection(o.rect);
+                if (!i.isEmpty()) {
+                    score += (long) i.width * i.height * o.weight;
+                }
+            }
+            if (score == 0) {
                 return new java.awt.geom.Point2D.Float(t[0], t[1]);
             }
-            if (overlap < bestOverlap) {
-                bestOverlap = overlap;
+            if (score < bestScore) {
+                bestScore = score;
                 best = t;
             }
         }
