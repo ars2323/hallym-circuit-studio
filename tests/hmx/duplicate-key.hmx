@@ -1,0 +1,8 @@
+HALLYM-EXEC 1
+# 손 작성: entry와 symbol main이 두 번 나온다.
+entry         0x00400024
+symbol main   0x00400024
+entry         0x00400028
+symbol main   0x00400028
+.text 0x00400024 words 1
+0000000c

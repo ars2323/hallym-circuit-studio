@@ -1,0 +1,21 @@
+HALLYM-EXEC 1
+# 손 작성: .text words 14인데 워드가 13개(파일이 잘림). 오류는 .text 줄(8번째 줄)에 붙는다.
+source        example.s
+endian        little
+entry         0x00400024
+symbol main   0x00400024
+
+.text 0x00400000 words 14
+8fa40000
+27a50004
+24a60004
+00041080
+00c23021
+0c100009
+00000000
+3402000a
+0000000c
+3c041001
+34020004
+0000000c
+3402000a
