@@ -55,7 +55,9 @@ D2Coding 1.3.2
 --------------------------------------------------------------------------
 Lucide icons
   Copyright (c) Lucide Icons and Contributors (and Feather, Cole Bemis).
-  License: ISC License
+  License: ISC License; the icons that come from Feather (chevron-*, crosshair,
+           search, square, type, x) are under the MIT License. Both texts are in
+           assets/icons/lucide/LICENSE.txt.
   Source:  https://lucide.dev/ (the same SVG files and names as Hallym MIPS
            v2.3.0; the others from lucide-static 1.48.0)
   Location: assets/icons/lucide/ (LICENSE.txt included)
