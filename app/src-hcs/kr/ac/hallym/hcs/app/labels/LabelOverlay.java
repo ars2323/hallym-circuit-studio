@@ -44,6 +44,7 @@ import kr.ac.hallym.hcs.app.Settings;
 import kr.ac.hallym.hcs.app.model.Kinds;
 import kr.ac.hallym.hcs.app.model.Names;
 import kr.ac.hallym.hcs.app.model.Netlist;
+import kr.ac.hallym.hcs.app.model.RefKey;
 import kr.ac.hallym.hcs.app.probe.QuickProbe;
 import kr.ac.hallym.hcs.app.theme.Tokens;
 
@@ -82,7 +83,8 @@ public final class LabelOverlay {
     private Component hovered;
     /** 이번 그리기의 원조 라벨들(wrap이 채우고 paint가 쓴다). */
     private List<LabelField> labels = new ArrayList<>();
-    private long cachedSig;
+    /** 지난 배치의 입력(부품·선의 정체, 글자, 자리, 배율). 같으면 배치를 다시 하지 않는다(D-129: 해시가 아니라 입력을 비교). */
+    private RefKey cachedSig;
     /** 칩과 선 사이 최소 간격(회로 단위): 강조 띠의 반 폭보다 3 크다(X-04, D-108; 150%에서도 띠 밖 4px 이상). */
     public static final int WIRE_GAP = (int) (kr.ac.hallym.hcs.app.cycle.FieldOverlay.BAND / 2) + 3;
     private List<LabelLayout.Placed> cached = new ArrayList<>();
@@ -401,19 +403,28 @@ public final class LabelOverlay {
 
     // ---- 터널 색 ----
 
-    private long tunnelSig;
+    private RefKey tunnelSig;
     private Map<String, Color> tunnelColors = new HashMap<>();
 
-    private void tunnels(Graphics2D g, Circuit circuit, java.util.Set<Component> hidden) {
-        com.cburch.logisim.file.LogisimFile file = canvas.getProject().getLogisimFile();
-        long sig = System.identityHashCode(circuit) + 31L * CircExtensionsSig.of(file, circuit);
+    /**
+     * 터널 색 배정의 입력: 회로, 직접 지정한 색(확장 항목), 터널마다 부품과 이름. 부품·회로는 ==로 가른다(D-129:
+     * identity hash 합은 서로 다른 터널 배치를 같게 볼 수 있다).
+     */
+    static RefKey tunnelSignature(com.cburch.logisim.file.LogisimFile file, Circuit circuit) {
+        RefKey.Builder sig = RefKey.builder().ref(circuit).value(CircExtensionsSig.of(file, circuit));
         for (Component c : circuit.getNonWires()) {
             String n = TunnelColorStore.name(c);
             if (n != null) {
-                sig = sig * 31 + System.identityHashCode(c) + n.hashCode();
+                sig.ref(c).value(n);
             }
         }
-        if (sig != tunnelSig) {
+        return sig.build();
+    }
+
+    private void tunnels(Graphics2D g, Circuit circuit, java.util.Set<Component> hidden) {
+        com.cburch.logisim.file.LogisimFile file = canvas.getProject().getLogisimFile();
+        RefKey sig = tunnelSignature(file, circuit);
+        if (!sig.equals(tunnelSig)) {
             tunnelColors = TunnelColorStore.colors(file, circuit); // 이름 배정은 회로가 바뀔 때만
             tunnelSig = sig;
         }
@@ -463,10 +474,12 @@ public final class LabelOverlay {
     /** 포트가 있는 변에서 칩이 비워 둘 폭(회로 좌표): 맞닿은 부품 테두리 굵기(2)와 칩 테두리(1.5)가 겹치지 않게. */
     static final int EDGE_CLEAR = 3;
 
-    /** 직접 지정한 터널 색이 바뀌면 배정을 다시 하도록 서명에 넣는다. */
+    /** 직접 지정한 터널 색이 바뀌면 배정을 다시 하도록 서명에 넣는다(항목 목록의 복사본, 항목은 바뀌지 않는 값). */
     static final class CircExtensionsSig {
-        static int of(com.cburch.logisim.file.LogisimFile file, Circuit circuit) {
-            return file == null ? 0 : kr.ac.hallym.hcs.app.ext.CircExtensions.of(file).items(circuit.getName()).hashCode();
+        static List<kr.ac.hallym.hcs.app.ext.CircExtension.Item> of(com.cburch.logisim.file.LogisimFile file,
+                Circuit circuit) {
+            return file == null ? java.util.Collections.<kr.ac.hallym.hcs.app.ext.CircExtension.Item>emptyList()
+                    : kr.ac.hallym.hcs.app.ext.CircExtensions.of(file).items(circuit.getName());
         }
     }
 
@@ -708,14 +721,14 @@ public final class LabelOverlay {
 
         List<LabelLayout.Req> reqs = new ArrayList<>();
         Map<Object, String> texts = new HashMap<>();
-        long sig = 17L * circuit.hashCode() + Double.hashCode(z) * 31L + d.ordinal();
+        RefKey.Builder sig = RefKey.builder().ref(circuit).value(z).value(d);
         for (LabelField f : labels) {
             if (hidden.contains(f.comp) || !shown(d, f.comp) || namedByTunnel(circuit, f.comp, f.text)) {
                 continue;
             }
             reqs.add(new LabelLayout.Req(f.comp, f.bounds, fm.stringWidth(f.text) + 2 * padX, h, 0));
             texts.put(f.comp, f.text);
-            sig = sig * 31 + System.identityHashCode(f.comp) + f.text.hashCode() + f.bounds.hashCode();
+            sig.ref(f.comp).value(f.text).value(new Rectangle(f.bounds));
         }
         for (Component c : circuit.getNonWires()) {
             if (!defaultSubcircuit(c) || hidden.contains(c) || !shown(d, c)) {
@@ -734,7 +747,7 @@ public final class LabelOverlay {
             Caption key = new Caption(c);
             reqs.add(new LabelLayout.Req(key, new Rectangle(b.getX() + (b.getWidth() - tw) / 2, y, tw, h), tw, h, 0));
             texts.put(key, name);
-            sig = sig * 31 + System.identityHashCode(c) * 3 + name.hashCode();
+            sig.value("caption").ref(c).value(name);
         }
         // 버스 이름(밀도가 "마우스 올린 것만"이 아니면)과 시뮬레이션 중 값(C-08). 배치는 값 자리에 가장 넓은 글자를 넣어
         // 계산하므로 값이 바뀌어도 칩이 움직이지 않는다
@@ -767,26 +780,27 @@ public final class LabelOverlay {
                 reqs.add(new LabelLayout.Req(w, anchor, tw, h, 1, new java.awt.geom.Line2D.Double(w.getEnd0().getX(),
                         w.getEnd0().getY(), w.getEnd1().getX(), w.getEnd1().getY())));
                 texts.put(w, text);
-                sig = sig * 31 + System.identityHashCode(w) + text.hashCode();
+                sig.value("bus").ref(w).value(text);
             }
         }
         List<Rectangle> obstacles = new ArrayList<>();
+        sig.refSet(circuit.getNonWires()); // 부품은 옮기면 새 객체가 된다(원조)
         for (Component c : circuit.getNonWires()) {
-            sig = sig * 31 + System.identityHashCode(c);
             Bounds b = c.getBounds();
             obstacles.add(new Rectangle(b.getX(), b.getY(), b.getWidth(), b.getHeight()));
         }
         // 선도 피한다(S-05: 칩이 옆 선 위에 놓이지 않게). 피할 수 없으면 칩 위에 선을 다시 그린다(redrawWires).
         // 강조 띠(Active Path·필드 색, 선 둘레 BAND)만큼 더 띄운다(X-04: 칩이 강조된 버스에 닿지 않게)
+        sig.value(new HashSet<Wire>(circuit.getWires())); // 선은 끝점으로 같다(Wire.equals)
         for (Wire w : circuit.getWires()) {
-            sig = sig * 31 + w.hashCode();
             Bounds b = w.getBounds();
             obstacles.add(new Rectangle(b.getX() - WIRE_GAP, b.getY() - WIRE_GAP, b.getWidth() + 2 * WIRE_GAP,
                     b.getHeight() + 2 * WIRE_GAP));
         }
-        if (sig != cachedSig || !texts.equals(cachedText)) {
+        RefKey now = sig.build();
+        if (!now.equals(cachedSig) || !texts.equals(cachedText)) {
             cached = LabelLayout.layout(reqs, obstacles, Math.max(3, Math.round(px / 3)), 14);
-            cachedSig = sig;
+            cachedSig = now;
             cachedText = texts;
         }
         Map<Wire, kr.ac.hallym.hcs.app.groups.SignalGroups.Group> groups =

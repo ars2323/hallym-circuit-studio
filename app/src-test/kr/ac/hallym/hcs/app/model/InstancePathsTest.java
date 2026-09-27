@@ -228,6 +228,27 @@ class InstancePathsTest {
         assertEquals(2, broken.size(), "a and b are on each other's tunnels");
     }
 
+    /**
+     * D-129: 인스턴스·핀 열쇠는 부품을 ==로 가른다. identity hash 문자열 열쇠는 같은 서브회로의 두 인스턴스를 하나로 봐서,
+     * 아무것도 바꾸지 않았는데 이어진 inst1의 포트를 이어지지 않은 inst2의 포트와 비교해 "끊겼다"고 했다.
+     */
+    @Test
+    void twoInstancesOfOneSubcircuitKeepTheirOwnPorts() throws Exception {
+        Component first = tunnelled(); // 포트마다 터널이 붙은 인스턴스
+        CircuitBuilder b = new CircuitBuilder(file, file.getMainCircuit());
+        Component second = b.addSubcircuit(blk, 300, 400); // 아무것도 잇지 않은 인스턴스(정렬상 뒤)
+        b.commit();
+        List<InstancePaths.PortUse> before = InstancePaths.snapshot(file, blk);
+        assertTrue(before.stream().filter(u -> u.instance == first).allMatch(u -> u.connected));
+        assertTrue(before.stream().filter(u -> u.instance == second).noneMatch(u -> u.connected));
+        assertEquals(List.of(), InstancePaths.broken(before, InstancePaths.snapshot(file, blk)), "nothing changed");
+        // 이웃 포트: 부품 정체로 가른다(같은 포트 번호의 서로 다른 터널은 다른 이웃)
+        Netlist nl = Netlist.of(file.getMainCircuit());
+        assertEquals(1, InstancePaths.partners(nl, first, 0).size());
+        assertTrue(!InstancePaths.partners(nl, first, 0).equals(InstancePaths.partners(nl, first, 1)),
+                "t0 and t1 are different tunnels, both at their port 0");
+    }
+
     /** 알림 문구: 되살린 것이 없으면 뒷문장을 빼고, 하나면 단수. */
     @Test
     void brokenNoticeWording() {

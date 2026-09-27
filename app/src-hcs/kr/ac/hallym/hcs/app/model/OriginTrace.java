@@ -168,7 +168,7 @@ public final class OriginTrace {
         }
         List<Trace.Node> chain = new ArrayList<>();
         List<Integer> steps = new ArrayList<>();
-        Set<String> seen = new HashSet<>();
+        Set<RefKey> seen = new HashSet<>();
         Trace.Node n = start;
         int s = step;
         int bit = -1; // 스플리터를 건넌 뒤 따라가는 비트(-1: 넷 전체)
@@ -247,8 +247,12 @@ public final class OriginTrace {
         return null;
     }
 
-    private static String key(Trace.Node n, int step, int bit) {
-        return n.hashCode() + ":" + System.identityHashCode(n.net) + ":" + n.instances.size() + "@" + step + "#" + bit;
+    /**
+     * 지난 곳 표시의 열쇠: 넷(경로·회로·넷 객체)과 스텝, 따라가는 비트. 객체는 ==로 가른다(D-129: identity hash는 고유하지
+     * 않아 서로 다른 넷을 같은 곳으로 보면 없는 고리를 말한다).
+     */
+    static RefKey key(Trace.Node n, int step, int bit) {
+        return RefKey.builder().refs(n.instances).ref(n.circuit).ref(n.net).value(step).value(bit).build();
     }
 
     /** 메모리처럼 읽기는 조합으로 하는 상태 부품: 주소·읽기 입력이 정해지지 않았으면 그쪽을 먼저 따라간다. */
@@ -311,7 +315,7 @@ public final class OriginTrace {
     }
 
     /** 구동자가 없는 넷: 스플리터 건너편에서 따라가는 비트(정해지지 않은 비트)가 오는 넷으로. 없으면 null. */
-    private Hop splitterHop(Trace.Node n, Value v, int bit, int step, Set<String> seen) {
+    private Hop splitterHop(Trace.Node n, Value v, int bit, int step, Set<RefKey> seen) {
         Netlist nl = trace.netlist(n.circuit);
         for (Netlist.BitLink l : nl.bitLinks()) {
             Netlist.Net other;

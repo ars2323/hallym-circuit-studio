@@ -20,22 +20,22 @@ import kr.ac.hallym.hcs.app.model.InstancePaths;
 import kr.ac.hallym.hcs.app.model.Names;
 import kr.ac.hallym.hcs.app.model.Netlist;
 import kr.ac.hallym.hcs.app.model.OriginTrace;
+import kr.ac.hallym.hcs.app.model.RefKey;
 
 /** E·X 출처(D-01)를 말하는 문장과 강조할 자리. 학생이 붙인 이름으로, 사실과 위치까지만(PLAN.md 4.4). */
 public final class OriginText {
     private OriginText() {
     }
 
-    /** 같은 원인인지 가르는 열쇠: 까닭, 경로, 부품 또는 넷. */
-    static String key(OriginTrace.Origin o) {
-        StringBuilder sb = new StringBuilder(o.cause.name()).append('|');
-        for (Component c : o.node.instances) {
-            sb.append(System.identityHashCode(c)).append('/');
-        }
+    /**
+     * 같은 원인인지 가르는 열쇠: 까닭, 경로, 부품 또는 넷. 부품·회로는 ==로 가른다(D-129: identity hash는 고유하지
+     * 않아 서로 다른 원인을 하나로 볼 수 있다).
+     */
+    static RefKey key(OriginTrace.Origin o) {
+        RefKey.Builder b = RefKey.builder().value("origin").value(o.cause).refs(o.node.instances);
         // 넷은 검사마다 다시 만들므로 객체가 아니라 회로와 가장 작은 자리로 가린다
-        sb.append(o.component != null ? "c" + System.identityHashCode(o.component)
-                : "n" + System.identityHashCode(o.node.circuit) + "@" + firstLocation(o.node.net));
-        return sb.toString();
+        return o.component != null ? b.value("c").ref(o.component).build()
+                : b.value("n").ref(o.node.circuit).value(firstLocation(o.node.net)).build();
     }
 
     private static Location firstLocation(Netlist.Net n) {

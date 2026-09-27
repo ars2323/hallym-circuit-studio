@@ -111,9 +111,18 @@ val stage by tasks.registering(Sync::class) {
     }
 }
 
-// 단위 테스트와 GUI 테스트(@Tag("gui"), 화면이 필요)가 함께 쓰는 설정
-fun Test.hcsTestSetup(headless: Boolean) {
+// D-129: 모든 객체의 identity hash가 같은 상수인 JVM. System.identityHashCode는 고유하지 않으므로 열쇠·서명으로
+// 쓰면 이 JVM에서 드러난다(촬영 도구가 같은 옵션으로 돈다).
+val constantIdentityHash = listOf("-XX:+UnlockExperimentalVMOptions", "-XX:hashCode=2")
+
+// 단위 테스트와 GUI 테스트(@Tag("gui"), 화면이 필요)가 함께 쓰는 설정.
+// prefs·config: 환경설정 폴더 이름(build/ 아래). 같은 테스트를 다른 JVM 옵션으로 도는 작업은 따로 둔다.
+fun Test.hcsTestSetup(headless: Boolean, prefs: String = "test-prefs", config: String = "test-config") {
     dependsOn(tasks.jar, mipsJar)
+    // GUI 테스트 등을 상수 identity hash로 한 번 돌려 볼 때: ./gradlew :app:guiTest -Phcs.constantHash=true (D-129)
+    if ((findProperty("hcs.constantHash") ?: "false").toString() == "true") {
+        jvmArgs(constantIdentityHash)
+    }
     systemProperty("hcs.mipsJar", mipsJar.get().archiveFile.get().asFile.absolutePath)
     systemProperty("hcs.refMips", rootProject.file("tests/mips/ref-mips.circ").absolutePath)
     systemProperty("java.awt.headless", headless.toString())
@@ -121,10 +130,10 @@ fun Test.hcsTestSetup(headless: Boolean) {
     // 언어를 바꾼 테스트가 환경설정에 남기므로 매번 비운 채 시작한다.
     systemProperty("user.language", "en")
     systemProperty("user.country", "US")
-    doFirst { delete(layout.buildDirectory.dir("test-prefs")) }
+    doFirst { delete(layout.buildDirectory.dir(prefs)) }
     // Logisim은 언어 등을 Java 환경설정에 저장한다. 테스트가 개발자 PC의 설정을 바꾸지 않게 따로 둔다.
-    systemProperty("java.util.prefs.userRoot", layout.buildDirectory.dir("test-prefs").get().asFile.absolutePath)
-    systemProperty("hcs.configDir", layout.buildDirectory.dir("test-config").get().asFile.absolutePath)
+    systemProperty("java.util.prefs.userRoot", layout.buildDirectory.dir(prefs).get().asFile.absolutePath)
+    systemProperty("hcs.configDir", layout.buildDirectory.dir(config).get().asFile.absolutePath)
     systemProperty("hcs.forkJar", tasks.jar.get().archiveFile.get().asFile.absolutePath)
     systemProperty("hcs.logisimJar", logisimJar.absolutePath)
     systemProperty("hcs.circDir", rootProject.file("tests/circ").absolutePath)
@@ -142,6 +151,20 @@ fun Test.hcsTestSetup(headless: Boolean) {
 tasks.test {
     useJUnitPlatform { excludeTags("gui") }
     hcsTestSetup(headless = true)
+}
+
+// D-129: 단위 테스트 전체를 identity hash가 모두 같은 JVM에서 한 번 더 돈다. identityHashCode를 열쇠·방문 표시·서명으로
+// 쓰면(고유하지 않다) 여기서 틀린다. CI Linux 작업이 보통 테스트 뒤에 돌린다. 벽시계 시간을 재는 @Tag("timing")은 뺀다:
+// 이 JVM에서는 원조 엔진의 해시 표도 한 칸에 몰려 ref-mips가 수십 배 느리게 돌아 시간 상한이 뜻이 없다.
+val testConstantIdentityHash by tasks.registering(Test::class) {
+    description = "Runs the unit tests with every identity hash code equal (-XX:hashCode=2, D-129)."
+    group = "verification"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform { excludeTags("gui", "timing") }
+    hcsTestSetup(headless = true, prefs = "hash-test-prefs", config = "hash-test-config")
+    jvmArgs(constantIdentityHash)
+    mustRunAfter(tasks.test)
 }
 
 // GUI 스모크 테스트(PLAN.md 11.16): 실제 창을 만든다. 화면이 필요하다: xvfb-run -a ./gradlew :app:guiTest

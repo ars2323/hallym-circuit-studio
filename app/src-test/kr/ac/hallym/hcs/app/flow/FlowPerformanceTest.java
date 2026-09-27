@@ -18,6 +18,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -29,6 +30,8 @@ import com.cburch.logisim.file.Loader;
  * P-07 성능(CI 로그에 수치를 남기고 넘으면 실패): ref-mips.circ 전체와 demo-datapath.circ에서 경로 계산 50ms 이하,
  * 프레임 그리기 4ms 이하. 중앙값으로 잰다(처음 몇 번은 JIT 예열로 버린다).
  */
+// 벽시계 시간을 잰다: 상수 identity hash 실행(testConstantIdentityHash)에서는 뺀다(D-129)
+@Tag("timing")
 class FlowPerformanceTest {
     static final double PATH_MS = 50;
     static final double FRAME_MS = 4;

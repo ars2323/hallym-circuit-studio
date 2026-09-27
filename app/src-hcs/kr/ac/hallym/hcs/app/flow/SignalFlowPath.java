@@ -25,6 +25,7 @@ import com.cburch.logisim.data.Location;
 import kr.ac.hallym.hcs.app.model.Kinds;
 import kr.ac.hallym.hcs.app.model.Names;
 import kr.ac.hallym.hcs.app.model.Netlist;
+import kr.ac.hallym.hcs.app.model.RefKey;
 import kr.ac.hallym.hcs.app.model.Trace;
 
 /**
@@ -283,7 +284,7 @@ public final class SignalFlowPath {
         final List<Jump> jumps = new ArrayList<>();
         final List<Pass> passes = new ArrayList<>();
         /** 부품마다 한 번만 빛난다(여러 입력으로 닿아도). */
-        final Set<String> passed = new HashSet<>();
+        final Set<RefKey> passed = new HashSet<>();
         final List<Endpoint> ends = new ArrayList<>();
 
         Timing(Trace t, Trace.Result r, SignalFlowPath path, Map<Trace.Node, List<Location>> entries, Options o) {
@@ -527,7 +528,7 @@ public final class SignalFlowPath {
         }
 
         void endpoints(Map<Trace.Node, Trace.Step> firstStep) {
-            Set<String> seen = new HashSet<>();
+            Set<RefKey> seen = new HashSet<>();
             Set<Trace.Node> goesOn = new HashSet<>();
             for (Trace.Step s : r.steps) {
                 goesOn.add(s.from);
@@ -592,7 +593,7 @@ public final class SignalFlowPath {
                             end = p.end;
                         }
                     }
-                    if (far != null && c != null && seen.add("u" + key(n.instances, c, end) + far)) {
+                    if (far != null && c != null && seen.add(key(n.instances, c, end, far))) {
                         ends.add(new Endpoint(n.instances, n.circuit, c, end, far, best, EndKind.UNCONNECTED,
                                 end >= 0 ? label(n, c, end, EndKind.UNCONNECTED)
                                         : Names.label(c) != null ? Names.label(c) : c.getFactory().getName()));
@@ -612,12 +613,14 @@ public final class SignalFlowPath {
             return false;
         }
 
-        static String key(List<Component> inst, Component c, int end) {
-            StringBuilder b = new StringBuilder();
-            for (Component i : inst) {
-                b.append(System.identityHashCode(i)).append('/');
-            }
-            return b.append(System.identityHashCode(c)).append('#').append(end).toString();
+        /** 경로 속 부품의 포트 하나. 부품은 ==로 가른다(D-129: identity hash는 고유하지 않다). */
+        static RefKey key(List<Component> inst, Component c, int end) {
+            return RefKey.builder().refs(inst).ref(c).value(end).build();
+        }
+
+        /** 이어지지 않은 끝(far 자리)의 열쇠: 포트 끝 열쇠와 겹치지 않는다. */
+        static RefKey key(List<Component> inst, Component c, int end, Location far) {
+            return RefKey.builder().value("u").refs(inst).ref(c).value(end).value(far).build();
         }
 
         /** "PC (D)", "ALUResult", "regfile › WD": 학생 라벨을 먼저, 서브회로 안이면 경로를 붙인다. */

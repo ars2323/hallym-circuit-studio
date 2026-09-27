@@ -13,6 +13,7 @@ import com.cburch.logisim.comp.Component;
 import com.cburch.logisim.data.Value;
 
 import kr.ac.hallym.hcs.app.model.Kinds;
+import kr.ac.hallym.hcs.app.model.RefKey;
 import kr.ac.hallym.hcs.app.model.Trace;
 
 /**
@@ -22,8 +23,8 @@ import kr.ac.hallym.hcs.app.model.Trace;
  */
 public final class ActivePath implements Trace.Pass {
     private final ValueSource values;
-    /** 선택 미확정 부품(경로 → 부품). 같은 부품은 한 번. */
-    private final Map<String, Component> undetermined = new LinkedHashMap<>();
+    /** 선택 미확정 부품(경로와 부품 → 부품). 같은 부품은 한 번. 열쇠는 부품을 ==로 가른다(D-129). */
+    private final Map<RefKey, Component> undetermined = new LinkedHashMap<>();
 
     public ActivePath(ValueSource values) {
         this.values = values;
@@ -119,11 +120,6 @@ public final class ActivePath implements Trace.Pass {
     }
 
     private void mark(List<Component> instances, Component c) {
-        StringBuilder key = new StringBuilder();
-        for (Component i : instances) {
-            key.append(System.identityHashCode(i)).append('/');
-        }
-        key.append(System.identityHashCode(c));
-        undetermined.putIfAbsent(key.toString(), c);
+        undetermined.putIfAbsent(RefKey.builder().refs(instances).ref(c).build(), c);
     }
 }
