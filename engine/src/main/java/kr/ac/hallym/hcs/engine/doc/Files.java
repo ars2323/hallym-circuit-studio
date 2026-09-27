@@ -13,11 +13,13 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.cburch.logisim.file.LoadFailedException;
 import com.cburch.logisim.file.LogisimFile;
 import com.cburch.logisim.prefs.AppPreferences;
 import com.cburch.logisim.tools.Library;
+import com.cburch.logisim.tools.Tool;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
@@ -180,10 +182,14 @@ public final class Files {
         String path = dest.getPath();
         d.loader().drainErrors(); // 앞에 남은 글은 이 저장과 무관하다
         boolean ok;
+        // 원조 저장은 부품의 라이브러리를 찾으며 앞 라이브러리의 도구를 불러온다: 저장이 만든 것은 되돌린다(D-149)
+        Set<Tool> untouched = OwnTools.untouched(d.loader(), d.file());
         try {
             ok = d.loader().save(d.file(), dest);
         } catch (HeadlessException | IllegalStateException e) {
             ok = false; // 원조가 오류 창을 열려던 자리
+        } finally {
+            OwnTools.afterSave(d.loader(), d.file(), untouched);
         }
         List<String> errs = d.loader().drainErrors();
         if (!ok) {

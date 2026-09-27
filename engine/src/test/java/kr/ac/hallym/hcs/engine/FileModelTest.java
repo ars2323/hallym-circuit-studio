@@ -38,6 +38,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
+import kr.ac.hallym.hcs.engine.doc.OwnTools;
 import kr.ac.hallym.hcs.engine.rpc.RpcError;
 import kr.ac.hallym.hcs.regress.CircEquivalence;
 import kr.ac.hallym.hcs.regress.CircNormalizer;
@@ -244,8 +245,11 @@ class FileModelTest {
                 "a new file needs a path");
         File saved = tmp.resolve("new.circ").toFile();
         e.client.call("file.save", params("fileId", fileId, "path", saved.getPath()));
-        // 원조 2.7.1의 File › New → Save와 같은 글자
-        LogisimFile ref = CircuitBuilder.newFile(new Loader(null), tmp.toFile());
+        // 원조 2.7.1을 새로 켜서 File › New → Save 한 것과 같은 글자. 같은 JVM의 앞 테스트가 연 파일의 Wiring 도구
+        // 기본값(원조가 static으로 나눠 쓰는 것)이 기준에 끼지 않게 새로 켠 원조처럼 제 도구를 준다(D-149)
+        Loader refLoader = new Loader(null);
+        OwnTools.unshare(refLoader.getBuiltin());
+        LogisimFile ref = CircuitBuilder.newFile(refLoader, tmp.toFile());
         File refFile = tmp.resolve("ref.circ").toFile();
         CircuitBuilder.save(ref, refFile);
         assertEquals(CircNormalizer.normalize(read(refFile)), CircNormalizer.normalize(read(saved)));
