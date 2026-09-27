@@ -6,7 +6,6 @@
 package kr.ac.hallym.hcs.app.diag;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -32,41 +31,15 @@ public final class Diagnostics {
     private final Project proj;
     private final List<Runnable> listeners = new CopyOnWriteArrayList<>();
     private final javax.swing.Timer timer;
-    private List<Diagnostic> list = Collections.emptyList();
     /** 원조 Project는 리스너를 약하게 잡으므로 여기서 붙잡아 둔다(놓치면 GC 뒤 편집에 반응하지 않는다). */
     private final com.cburch.logisim.proj.ProjectListener onEdit;
     /** 마지막으로 누른 진단(캔버스에서 굵게 강조). */
     private Diagnostic focused;
-
-    // ---- 동적 진단(D-01·D-03): 기록 엔진이 적는 스텝마다 시뮬레이터 스레드에서 새 스텝만 본다 ----
-    private final Object dynLock = new Object();
-    /** 동적 진단과 그것을 찾은 스텝. */
-    private final List<Diagnostic> dynamic = new ArrayList<>();
-    private final List<Integer> dynamicAt = new ArrayList<>();
-    /** 이미 말한 원인 열쇠 → 처음 말한 스텝. */
-    private final java.util.Map<Object, Integer> seen = new java.util.HashMap<>();
-    private kr.ac.hallym.hcs.app.record.Recording dynRecording;
-    private int scanned = Integer.MIN_VALUE;
-    /** 진동(D-02): 원조가 전파를 그만둔 동안의 진단 하나. 없으면 null. */
-    private volatile Diagnostic oscillation;
-    private final com.cburch.logisim.circuit.SimulatorListener simListener =
-            new com.cburch.logisim.circuit.SimulatorListener() {
-                @Override
-                public void propagationCompleted(com.cburch.logisim.circuit.SimulatorEvent e) {
-                    checkOscillation();
-                }
-
-                @Override
-                public void tickCompleted(com.cburch.logisim.circuit.SimulatorEvent e) {
-                }
-
-                @Override
-                public void simulatorStateChanged(com.cburch.logisim.circuit.SimulatorEvent e) {
-                    checkOscillation();
-                }
-            };
-    /** 원조처럼 기록기는 청취자를 강하게 잡는다: 약한 참조로 이 객체를 가리키는 청취자를 필드로 둔다. */
-    private final kr.ac.hallym.hcs.app.record.Recorder.Listener recListener;
+    /**
+     * 화면 없는 부분(D-143): 정적·동적 진단과 진동. 동적 진단·진동이 바뀌면 시뮬레이터 스레드에서 알려 오고, 여기서
+     * GUI 스레드로 넘긴다.
+     */
+    private final DiagnosticSet set;
 
     private Diagnostics(Project proj) {
         this.proj = proj;
@@ -80,99 +53,17 @@ public final class Diagnostics {
             }
         };
         proj.addProjectListener(onEdit);
-        java.lang.ref.WeakReference<Diagnostics> me = new java.lang.ref.WeakReference<>(this);
-        recListener = r -> {
-            Diagnostics d = me.get();
-            if (d != null) {
-                d.onRecording(r);
-            }
-        };
-        kr.ac.hallym.hcs.app.record.Recorder.of(proj).addListener(recListener);
-        if (proj.getSimulator() != null) {
-            proj.getSimulator().addSimulatorListener(simListener);
-        }
-    }
-
-    /** 맨 위 회로의 지금 상태(시뮬레이터가 돌리는 것). */
-    private com.cburch.logisim.circuit.CircuitState liveRoot() {
-        com.cburch.logisim.circuit.CircuitState s = proj.getSimulator() == null ? null
-                : proj.getSimulator().getCircuitState();
-        while (s != null && s.getParentState() != null) {
-            s = s.getParentState();
-        }
-        return s;
+        set = new DiagnosticSet(proj, () -> javax.swing.SwingUtilities.invokeLater(this::fire));
     }
 
     /** 원조가 진동으로 전파를 그만뒀는지 본다(시뮬레이터 스레드). 바뀌면 알린다. */
     void checkOscillation() {
-        boolean osc = proj.getSimulator() != null && proj.getSimulator().isOscillating();
-        Diagnostic before = oscillation;
-        if (osc && before == null) {
-            com.cburch.logisim.circuit.CircuitState root = liveRoot();
-            kr.ac.hallym.hcs.app.record.Recording r = kr.ac.hallym.hcs.app.record.Recorder.of(proj).current();
-            int step = r == null || r.isEmpty() ? 0 : r.last();
-            oscillation = root == null ? null
-                    : Oscillation.diagnose(root.getCircuit(), Oscillation.points(root), step);
-        } else if (!osc && before != null) {
-            oscillation = null;
-        }
-        if (oscillation != before) {
-            javax.swing.SwingUtilities.invokeLater(this::fire);
-        }
+        set.checkOscillation();
     }
 
     /** 기록이 바뀌었다(시뮬레이터 스레드): 다시 적힌 스텝부터 끝까지 동적 진단을 다시 본다. */
     void onRecording(kr.ac.hallym.hcs.app.record.Recording r) {
-        boolean changed = false;
-        synchronized (dynLock) {
-            int dirty = r.takeDirtyFrom();
-            if (r != dynRecording) {
-                dynRecording = r;
-                dirty = Integer.MIN_VALUE;
-            }
-            if (dirty == Integer.MAX_VALUE && scanned >= r.last()) {
-                return;
-            }
-            if (dirty == Integer.MIN_VALUE) {
-                changed = !dynamic.isEmpty();
-                dynamic.clear();
-                dynamicAt.clear();
-                seen.clear();
-                scanned = r.first() - 1;
-            } else if (dirty <= scanned) {
-                for (int i = dynamic.size() - 1; i >= 0; i--) {
-                    if (dynamicAt.get(i) >= dirty) {
-                        dynamic.remove(i);
-                        dynamicAt.remove(i);
-                        changed = true;
-                    }
-                }
-                final int cut = dirty;
-                seen.values().removeIf(v -> v >= cut);
-                scanned = dirty - 1;
-            }
-            DynamicCheck check = new DynamicCheck(r.circuit(), r);
-            for (int s = Math.max(scanned + 1, r.first()); s <= r.last(); s++) {
-                for (Diagnostic d : check.step(s, seen)) {
-                    dynamic.add(d);
-                    dynamicAt.add(s);
-                    changed = true;
-                }
-            }
-            // MIPS 부품의 값 문제(D-04): 지금 상태가 마지막 스텝일 때만(지난 사이클을 보는 동안은 상태가 바뀌어 있다)
-            com.cburch.logisim.circuit.CircuitState root = liveRoot();
-            if (!r.isViewingPast() && root != null && root.getCircuit() == r.circuit() && !r.isEmpty()) {
-                for (Diagnostic d : MipsCheck.check(r.circuit(), root, r, r.last(), seen)) {
-                    dynamic.add(d);
-                    dynamicAt.add(r.last());
-                    changed = true;
-                }
-            }
-            scanned = r.last();
-        }
-        if (changed) {
-            javax.swing.SwingUtilities.invokeLater(this::fire);
-        }
+        set.onRecording(r);
     }
 
     /** 동적 진단을 누르면 그 스텝을 보이는 쪽(사이클 뷰가 등록한다). */
@@ -193,9 +84,7 @@ public final class Diagnostics {
 
     /** 동적 진단(찾은 차례). */
     public List<Diagnostic> dynamic() {
-        synchronized (dynLock) {
-            return new ArrayList<>(dynamic);
-        }
+        return set.dynamic();
     }
 
     private void fire() {
@@ -223,9 +112,7 @@ public final class Diagnostics {
 
     /** 지금 다시 돈다. */
     public void refresh() {
-        List<Diagnostic> next = proj.getLogisimFile() == null ? Collections.<Diagnostic>emptyList()
-                : StaticCheck.run(proj.getLogisimFile());
-        list = Collections.unmodifiableList(new ArrayList<>(next));
+        set.refreshStatic();
         if (focused != null && !contains(focused)) {
             focused = null;
         }
@@ -254,51 +141,10 @@ public final class Diagnostics {
 
     /**
      * 정적 진단 뒤에 동적 진단. 원인이 정적 진단과 같은 곳(같은 회로의 같은 부품이나 선)인 동적 진단은 뺀다: 원인은
-     * 한 곳만 말한다(PLAN.md 4.4).
+     * 한 곳만 말한다(PLAN.md 4.4). 합치는 규칙은 {@link DiagnosticSet#list()}에 있다.
      */
     public List<Diagnostic> list() {
-        List<Diagnostic> dyn = dynamic();
-        Diagnostic osc = oscillation;
-        if (dyn.isEmpty() && osc == null) {
-            return list;
-        }
-        List<Diagnostic> ret = new ArrayList<>();
-        for (Diagnostic s : list) {
-            // 진동 중이면 같은 고리를 말하는 정적 "조합 루프"는 진동 한 줄로 바꾼다(원인 한 곳)
-            if (osc != null && s.kind == Diagnostic.Kind.COMBINATIONAL_LOOP && s.circuit == osc.circuit
-                    && !java.util.Collections.disjoint(s.components, osc.components)) {
-                continue;
-            }
-            ret.add(s);
-        }
-        if (osc != null) {
-            ret.add(osc);
-        }
-        for (Diagnostic d : dyn) {
-            if (!coveredByStatic(d)) {
-                ret.add(d);
-            }
-        }
-        return Collections.unmodifiableList(ret);
-    }
-
-    private boolean coveredByStatic(Diagnostic d) {
-        for (Diagnostic s : list) {
-            if (s.circuit != d.circuit) {
-                continue;
-            }
-            for (com.cburch.logisim.comp.Component c : d.components) {
-                if (s.components.contains(c)) {
-                    return true;
-                }
-            }
-            for (com.cburch.logisim.circuit.Wire w : d.wires) {
-                if (s.wires.contains(w)) {
-                    return true;
-                }
-            }
-        }
-        return false;
+        return set.list();
     }
 
     /** 한 회로의 진단(캔버스 표시). */

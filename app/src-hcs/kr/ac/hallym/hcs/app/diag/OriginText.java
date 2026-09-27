@@ -78,7 +78,7 @@ public final class OriginText {
     }
 
     /** 넷 하나를 가리키는 이름: 값을 내는 첫 포트, 없으면 읽는 첫 포트(학생이 붙인 이름으로). */
-    static String netLabel(Circuit top, kr.ac.hallym.hcs.app.model.Trace.Node n) {
+    public static String netLabel(Circuit top, kr.ac.hallym.hcs.app.model.Trace.Node n) {
         List<Netlist.PortRef> ports = new ArrayList<>(n.net.drivers());
         if (ports.isEmpty()) {
             ports.addAll(n.net.readers());
@@ -100,13 +100,18 @@ public final class OriginText {
      * 거친 것과 (d) 그 밖 → "오류 값". "충돌"은 (a)일 때만 쓴다.
      */
     static String errorLabel(OriginTrace.Origin o, kr.ac.hallym.hcs.app.model.Trace.Node at) {
+        return errorLabelText(o, at).toString();
+    }
+
+    /** {@link #errorLabel}의 언어 없는 꼴(D-143): 키만 고르고 글자는 쓰는 언어로 그때 만든다. */
+    static Diagnostic.Text errorLabelText(OriginTrace.Origin o, kr.ac.hallym.hcs.app.model.Trace.Node at) {
         if (o.cause == OriginTrace.Cause.CONFLICT) {
-            return Messages.get("diag.eConflict");
+            return Diagnostic.Text.of("diag.eConflict");
         }
         if (widthMismatch(at.net) || widthMismatch(o.node.net)) {
-            return Messages.get("diag.eWidth");
+            return Diagnostic.Text.of("diag.eWidth");
         }
-        return Messages.get("diag.eValue");
+        return Diagnostic.Text.of("diag.eValue");
     }
 
     static boolean widthMismatch(Netlist.Net n) {
@@ -129,26 +134,32 @@ public final class OriginText {
 
     /** 원인 한 곳의 문장(사실과 위치까지만, PLAN.md 4.4). */
     public static String cause(Circuit top, OriginTrace.Origin o) {
+        return causeText(top, o).toString();
+    }
+
+    /** {@link #cause}의 언어 없는 꼴(D-143): 문구 키와 이름만 들고, 글자는 쓰는 언어로 그때 만든다. */
+    public static Diagnostic.Text causeText(Circuit top, OriginTrace.Origin o) {
         switch (o.cause) {
         case COMPONENT:
         case STORED:
-            return Messages.get("diag.cause.COMPONENT", name(top, o, o.component), valueName(o.value));
+            return Diagnostic.Text.of("diag.cause.COMPONENT", name(top, o, o.component), valueName(o.value));
         case UNDRIVEN:
-            return Messages.get("diag.cause.UNDRIVEN", netName(top, o));
+            return Diagnostic.Text.of("diag.cause.UNDRIVEN", netName(top, o));
         case CONFLICT:
-            return Messages.get("diag.cause.CONFLICT", where(top, o), name(top, o, o.drivers.get(0)),
+            return Diagnostic.Text.of("diag.cause.CONFLICT", where(top, o), name(top, o, o.drivers.get(0)),
                     name(top, o, o.drivers.get(1)));
         case ALL_OFF: {
             List<String> ds = new ArrayList<>();
             for (Component d : o.drivers) {
                 ds.add(Names.name(o.node.circuit, d));
             }
-            return Messages.get("diag.cause.ALL_OFF", netName(top, o), String.join(", ", ds));
+            return Diagnostic.Text.of("diag.cause.ALL_OFF", netName(top, o), String.join(", ", ds));
         }
         case INPUT_PIN:
-            return Messages.get("diag.cause.INPUT_PIN", name(top, o, o.component));
+            return Diagnostic.Text.of("diag.cause.INPUT_PIN", name(top, o, o.component));
         default:
-            return Messages.get("diag.cause.LOOP", o.component == null ? where(top, o) : name(top, o, o.component));
+            return Diagnostic.Text.of("diag.cause.LOOP", o.component == null ? where(top, o)
+                    : name(top, o, o.component));
         }
     }
 
@@ -156,7 +167,7 @@ public final class OriginText {
      * 강조할 부품: 원인 부품 또는 구동자들. 구동자 없는 선이면 그 선에 닿은 부품들(떠 있는 입력을 가진 부품, 짝 없는
      * 터널)이다. 정적 진단과 같은 자리인지도 이것으로 가린다.
      */
-    static List<Component> components(OriginTrace.Origin o) {
+    public static List<Component> components(OriginTrace.Origin o) {
         List<Component> out = new ArrayList<>();
         if (o.component != null) {
             out.add(o.component);
@@ -172,11 +183,11 @@ public final class OriginText {
         return out;
     }
 
-    static List<Wire> wires(OriginTrace.Origin o) {
+    public static List<Wire> wires(OriginTrace.Origin o) {
         return o.component == null ? new ArrayList<>(o.node.net.wires()) : Collections.<Wire>emptyList();
     }
 
-    static Location location(OriginTrace.Origin o) {
+    public static Location location(OriginTrace.Origin o) {
         if (o.component != null) {
             return o.component.getLocation();
         }

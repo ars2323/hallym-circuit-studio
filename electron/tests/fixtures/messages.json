@@ -1,0 +1,275 @@
+{
+  "broken-datapath.circ": {
+    "from": "electron/tests/fixtures/broken-datapath.circ",
+    "static": [
+      {
+        "code": "CLOCK_UNCONNECTED",
+        "kind": "static",
+        "severity": "error",
+        "text": {
+          "ko": "main › PC (Register) 부품은 클럭 입력 clk 포트가 연결되지 않아 값이 바뀌지 않습니다.",
+          "en": "main › PC (Register): the clock input clk is not connected, so the value never changes."
+        },
+        "location": {
+          "circuit": "main",
+          "root": "main",
+          "path": [],
+          "components": [
+            {
+              "name": "Register",
+              "loc": [
+                300,
+                200
+              ]
+            }
+          ],
+          "wires": [],
+          "at": [
+            280,
+            220
+          ]
+        }
+      },
+      {
+        "code": "TUNNEL_UNPAIRED",
+        "kind": "static",
+        "severity": "error",
+        "text": {
+          "ko": "main 회로에는 RegWirte 터널과 이름이 같은 다른 터널이 없습니다. 혹시 RegWrite?",
+          "en": "In main, no other tunnel is named RegWirte. Did you mean RegWrite?"
+        },
+        "location": {
+          "circuit": "main",
+          "root": "main",
+          "path": [],
+          "components": [
+            {
+              "name": "Tunnel",
+              "loc": [
+                715,
+                320
+              ]
+            }
+          ],
+          "wires": [],
+          "at": [
+            715,
+            320
+          ]
+        },
+        "near": "RegWrite"
+      }
+    ],
+    "cycles": 1,
+    "afterCycles": [
+      {
+        "code": "CLOCK_UNCONNECTED",
+        "kind": "static",
+        "severity": "error",
+        "text": {
+          "ko": "main › PC (Register) 부품은 클럭 입력 clk 포트가 연결되지 않아 값이 바뀌지 않습니다.",
+          "en": "main › PC (Register): the clock input clk is not connected, so the value never changes."
+        },
+        "location": {
+          "circuit": "main",
+          "root": "main",
+          "path": [],
+          "components": [
+            {
+              "name": "Register",
+              "loc": [
+                300,
+                200
+              ]
+            }
+          ],
+          "wires": [],
+          "at": [
+            280,
+            220
+          ]
+        }
+      },
+      {
+        "code": "TUNNEL_UNPAIRED",
+        "kind": "static",
+        "severity": "error",
+        "text": {
+          "ko": "main 회로에는 RegWirte 터널과 이름이 같은 다른 터널이 없습니다. 혹시 RegWrite?",
+          "en": "In main, no other tunnel is named RegWirte. Did you mean RegWrite?"
+        },
+        "location": {
+          "circuit": "main",
+          "root": "main",
+          "path": [],
+          "components": [
+            {
+              "name": "Tunnel",
+              "loc": [
+                715,
+                320
+              ]
+            }
+          ],
+          "wires": [],
+          "at": [
+            715,
+            320
+          ]
+        },
+        "near": "RegWrite"
+      },
+      {
+        "code": "X_WRITE_CONTROL",
+        "kind": "dynamic",
+        "severity": "error",
+        "text": {
+          "ko": "사이클 0에 main › DMem #1 부품의 쓰기 입력 MemWrite 포트가 클럭 에지에서 정해지지 않았습니다. 원인: main › MemWrite 입력 핀의 값이 정해지지 않았습니다.",
+          "en": "Cycle 0: main › DMem #1: the write input MemWrite was undefined at the clock edge. Cause: input pin main › MemWrite has no defined value."
+        },
+        "location": {
+          "circuit": "main",
+          "root": "main",
+          "path": [],
+          "components": [
+            {
+              "name": "Pin",
+              "loc": [
+                100,
+                520
+              ]
+            },
+            {
+              "name": "Data Memory",
+              "loc": [
+                1440,
+                440
+              ]
+            }
+          ],
+          "wires": [],
+          "at": [
+            100,
+            520
+          ],
+          "cycle": 0
+        }
+      }
+    ]
+  },
+  "dynamic-x-write-data.circ": {
+    "from": "tests/circ/faults/dynamic-x-write-data.circ",
+    "static": [],
+    "cycles": 1,
+    "afterCycles": [
+      {
+        "code": "X_WRITE_DATA",
+        "kind": "dynamic",
+        "severity": "error",
+        "text": {
+          "ko": "사이클 0에 main › PC 부품에 쓸 때 D 입력이 정해지지 않아 값이 바뀌지 않았습니다. 원인: main › next 입력 핀의 값이 정해지지 않았습니다.",
+          "en": "Cycle 0: main › PC was written while its input D was undefined, so its value did not change. Cause: input pin main › next has no defined value."
+        },
+        "location": {
+          "circuit": "main",
+          "root": "main",
+          "path": [],
+          "components": [
+            {
+              "name": "Pin",
+              "loc": [
+                100,
+                100
+              ]
+            },
+            {
+              "name": "Register",
+              "loc": [
+                400,
+                200
+              ]
+            }
+          ],
+          "wires": [],
+          "at": [
+            100,
+            100
+          ],
+          "cycle": 0
+        }
+      }
+    ]
+  },
+  "dynamic-oscillation.circ": {
+    "from": "tests/circ/faults/dynamic-oscillation.circ",
+    "static": [
+      {
+        "code": "COMBINATIONAL_LOOP",
+        "kind": "static",
+        "severity": "error",
+        "text": {
+          "ko": "main 회로에 조합 루프가 있습니다: NAND #1.",
+          "en": "In main, there is a combinational loop: NAND #1."
+        },
+        "location": {
+          "circuit": "main",
+          "root": "main",
+          "path": [],
+          "components": [
+            {
+              "name": "NAND Gate",
+              "loc": [
+                400,
+                200
+              ]
+            }
+          ],
+          "wires": [],
+          "at": [
+            400,
+            200
+          ]
+        }
+      }
+    ],
+    "cycles": 1,
+    "afterCycles": [
+      {
+        "code": "OSCILLATION",
+        "kind": "dynamic",
+        "severity": "error",
+        "text": {
+          "ko": "사이클 0에 main 회로에서 값이 멈추지 않고 계속 바뀝니다(발진). 고리: q, NAND #1. 시뮬레이션이 멈췄습니다.",
+          "en": "Cycle 0: in main, values keep changing and never settle (oscillation). Loop: q, NAND #1. The simulation stopped."
+        },
+        "location": {
+          "circuit": "main",
+          "root": "main",
+          "path": [],
+          "components": [
+            {
+              "name": "Pin",
+              "loc": [
+                700,
+                100
+              ]
+            },
+            {
+              "name": "NAND Gate",
+              "loc": [
+                400,
+                200
+              ]
+            }
+          ],
+          "wires": [],
+          "at": [
+            700,
+            100
+          ],
+          "cycle": 0
+        }
+      }
+    ]
+  }
+}

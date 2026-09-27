@@ -103,6 +103,51 @@ export interface SimState {
   hz?: number;              // ticks per second
 }
 
+// ---- Messages and E/X origin (docs/engine-api.md "diag·trace", D-143) ----
+
+/* Where a message points: the circuit the cause is in; for a message found
+   while the simulation ran, the top circuit (root) and the subcircuit
+   instances down to it (path, component ids); the parts, wires and nets to
+   show; the point to go to; the Cycle View column (dynamic only). */
+export interface DiagLocation {
+  circuitId: string;
+  root: string;
+  path: string[];
+  components: string[];
+  wires: string[];
+  nets: string[];
+  at: Point | null;
+  cycle?: number;
+}
+
+export type DiagCode =
+  | 'CLOCK_UNCONNECTED' | 'SHORT' | 'WIDTH_MISMATCH' | 'INPUT_UNCONNECTED' | 'INPUT_UNDRIVEN' | 'TUNNEL_UNPAIRED'
+  | 'SUBCIRCUIT_PORT_UNCONNECTED' | 'COMBINATIONAL_LOOP' | 'MEMORY_OVERLAP'
+  | 'E_APPEARED' | 'X_WRITE_DATA' | 'X_WRITE_CONTROL' | 'OSCILLATION' | 'MIPS_STATUS';
+
+export interface DiagMessage {
+  id: string;                 // stable while the same cause stays in the list
+  code: DiagCode;
+  kind: 'static' | 'dynamic'; // found from the wiring, or while the simulation ran
+  severity: 'error';          // every message is a circuit that cannot work (CLAUDE.md 2.6)
+  text: { ko: string; en: string };
+  near?: string;              // TUNNEL_UNPAIRED: the one near name ("혹시 RegWrite?")
+  location: DiagLocation;
+  appeared?: { circuitId: string; root: string; path: string[]; at: Point; netId?: string };
+}
+
+export interface DiagList {
+  fileId: string;
+  messages: DiagMessage[];
+}
+
+export interface TraceOrigin {
+  found: boolean;
+  text?: { ko: string; en: string };          // found: false -- why there is nothing to follow
+  origin?: DiagLocation & { cause: string; value: 'E' | 'x'; text: { ko: string; en: string } };
+  chain: { circuitId: string; path: string[]; netId: string }[];
+}
+
 // Error codes (docs/engine-api.md 2).
 export const ERR_NOT_FOUND = 1;
 export const ERR_FILE = 2;
@@ -118,6 +163,7 @@ export const WINDOW_METHODS = [
   'model.circuit', 'model.library',
   'edit.addComponent', 'edit.addWire', 'edit.move', 'edit.delete', 'edit.setAttr', 'edit.undo', 'edit.redo',
   'sim.reset', 'sim.poke', 'sim.cycles', 'sim.run', 'sim.enable', 'sim.watch', 'sim.state',
+  'diag.list', 'trace.origin',
 ] as const;
 export type WindowMethod = typeof WINDOW_METHODS[number];
 

@@ -4,6 +4,9 @@ static-width-mismatch: In main, one wire joins main › Const #1 (32 bits) and m
 static-input-unconnected: main › Add #1: the b port is not connected.
 static-input-undriven: main › AND #1 input 2: connected to a wire that nothing drives.
 static-tunnel-unpaired: In main, there is no other tunnel named RegDest. Similar names: RegDst
+static-tunnel-near-hit: In main, there is no other tunnel named RegWirte. Similar names: RegWrite
+static-tunnel-near-width: In main, there is no other tunnel named RegWirte. Similar names: RegWrite
+static-tunnel-near-ambiguous: In main, there is no other tunnel named ALUSrc. Similar names: ALUSrcA, ALUSrcB
 static-subcircuit-port-unconnected: main › buf #1: subcircuit input port A is not connected.
 static-combinational-loop: In main, there is a combinational loop: AND #1 → NOT #1.
 static-memory-overlap: The regions of main › DMem #1 and main › Stack #1 overlap at 7ffc0000-7fffffff.

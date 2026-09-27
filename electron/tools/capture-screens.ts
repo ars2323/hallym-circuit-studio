@@ -105,6 +105,24 @@ const kill = (r: Running) => r.app.evaluate(() => (globalThis as unknown as { __
   await r.close();
 }
 
+// Messages (N-13): a broken circuit after one cycle, a message chosen; a circuit with nothing to say.
+{
+  const r = await launch(FHD);
+  const { page } = r;
+  await openFile(r, sample(r.dir, 'electron/tests/fixtures/broken-datapath.circ'));
+  await page.locator('.msg').nth(1).waitFor();
+  await page.keyboard.press('F10');
+  await page.locator('.msg').nth(2).waitFor();
+  await page.locator('.msg').nth(1).click();
+  await page.locator('.msg.on').waitFor();
+  await shot(r, 'messages-list');
+  await openFile(r, sample(r.dir, DATAPATH));
+  await page.locator('.status .msgcount', { hasText: 'No messages' }).waitFor();
+  await page.locator('.pbody.bottom .notice h3', { hasText: '메시지가 없습니다' }).waitFor();
+  await shot(r, 'messages-empty');
+  await r.close();
+}
+
 // The lab PCs at 125 % and 150 % (1536x816 and 1280x672 CSS px), and half a screen.
 for (const [name, size, scale] of [
   ['lab-125', { width: 1536, height: 816 }, '1.25'],

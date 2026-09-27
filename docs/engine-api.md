@@ -16,7 +16,7 @@ Hallym Circuit Studio 2의 화면(Electron)과 Java 엔진(headless Logisim 2.7.
 - stdin·stdout: **JSON-RPC 2.0, 한 줄에 한 JSON 객체**(UTF-8, 줄 끝 `\n`). 요청은 `{"jsonrpc":"2.0","id":N,"method":"…","params":{…}}`, 응답은 `{"jsonrpc":"2.0","id":N,"result":…}` 또는 `"error":{"code","message","data"}`.
   - `id`는 숫자·글자 모두 된다(받은 그대로 돌려준다). `params`는 이름 있는 객체만 받는다(배열이면 -32602). 여러 요청을 배열로 묶은 요청(batch)은 받지 않는다(-32600).
   - 화면이 `id` 없이 보낸 것(알림)은 처리만 하고 응답하지 않는다.
-- 엔진이 먼저 보내는 알림은 `id`가 없다(`model.changed`, `sim.values`, `sim.state`, `engine.log`).
+- 엔진이 먼저 보내는 알림은 `id`가 없다(`model.changed`, `sim.values`, `sim.state`, `diag.changed`, `engine.log`).
 - stdout에는 규약 줄만 나온다. Logisim 코드가 `System.out`에 쓰는 것도 stderr로 돌린다. stderr는 사람이 읽는 로그다(화면은 파일에 남기지 않는다).
 - 요청은 순서대로 처리한다. 긴 일(N Cycles, Run Until)은 곧바로 응답하고 진행은 알림으로 보낸다. 편집의 `model.changed`는 그 편집의 응답 **뒤에**, 그 뒤의 `sim.values`보다 **앞에** 온다.
 - 끝: `engine.shutdown`에 응답한 뒤, 또는 stdin이 닫히면 열린 파일을 닫고 종료 코드 0으로 끝난다(저장하지 않는다). 메모리 전용 환경설정을 켜지 못하면 코드 3으로 바로 끝난다.
@@ -203,6 +203,61 @@ Component = {
 
 `sim.state = {fileId, running, ticking, cycle, oscillating, hz}` — 무엇이든 바뀌면 보내고(사이클 수만 바뀐 것은 프레임마다 많아야 한 번), N Cycles가 끝날 때와 Reset 뒤에도 보낸다. `running`은 원조 Simulation Enabled, `ticking`은 틱 켜짐, `cycle`은 Reset 뒤 끝난 틱 수의 절반, `hz`는 틱 주파수다.
 
+### diag·trace(Messages와 E/X 출처, N-13, D-143)
+
+| 메서드 | params | result |
+| --- | --- | --- |
+| `diag.list` | `{fileId}` | `{fileId, messages:[Message]}` |
+| `trace.origin` | `{fileId, circuitId, path?:[componentId], netId}` | `{found, text?, origin?, chain:[{circuitId, path, netId}]}` |
+
+알림 `diag.changed = {fileId, messages:[Message]}` — 목록 전체.
+
+```
+Message = {
+  id,                        // "d7": 같은 원인이 목록에 머무는 동안 그대로(문구·사이클이 바뀌어도)
+  code,                      // 아래 표
+  kind: "static"|"dynamic",  // 연결만 보고 찾음 | 시뮬레이션 중에 찾음
+  severity: "error",         // 모든 메시지는 "동작할 수 없는 회로"다(CLAUDE.md 2.6). 다른 값은 아직 없다
+  text: {ko, en},            // 한 문장(원인 한 곳, 학생이 붙인 이름, 사실과 위치까지만)
+  near?,                     // TUNNEL_UNPAIRED: 가까운 이름 하나("혹시 RegWrite?"), 확신할 때만
+  location: {
+    circuitId,               // 원인이 있는 회로
+    root, path:[componentId],// 맨 위 회로와 거기서 circuitId 인스턴스까지의 서브회로 부품들(static은 root = circuitId, path [])
+    components:[id], wires:[id], nets:[netId],   // 보일 부품·선·넷(원인 부품이 맨 앞)
+    at:[x,y]|null,           // 갈 곳(원인 포트나 부품 자리)
+    cycle?                   // dynamic: 사이클 뷰의 열(스텝 2c-1, 2c가 열 c)
+  },
+  appeared?: {circuitId, root, path, at, netId?}  // dynamic: E·X가 처음 보인(쓰려던) 자리. 원인 자리와 다를 수 있다
+}
+```
+
+| code | kind | 뜻(v1 `Diagnostic.Kind`와 같다) |
+| --- | --- | --- |
+| `CLOCK_UNCONNECTED` | static | 클럭 입력이 비어 값이 바뀌지 않는 부품(Register, 플립플롭, 쓰기가 있는 Data Memory, syscall이 있는 Console 등) |
+| `SHORT` | static | 떠 있을 수 없는 출력 둘이 한 선을 구동 |
+| `WIDTH_MISMATCH` | static | 한 선의 비트 폭 불일치(원조 계산) |
+| `INPUT_UNCONNECTED` | static | 비면 동작할 수 없는 입력(게이트의 빈 입력은 프로젝트 옵션 gateUndefined = error일 때만) |
+| `INPUT_UNDRIVEN` | static | 입력이 이어진 선에 값을 내는 것이 없음 |
+| `TUNNEL_UNPAIRED` | static | 값을 받는 터널의 이름이 회로에 하나뿐(`near`) |
+| `SUBCIRCUIT_PORT_UNCONNECTED` | static | 서브회로 인스턴스의 입력 포트가 비었음 |
+| `COMBINATIONAL_LOOP` | static | 조합 루프(발진 중이면 `OSCILLATION` 한 줄로 바뀐다) |
+| `MEMORY_OVERLAP` | static | Data Memory·Stack 영역 겹침 |
+| `E_APPEARED` | dynamic | E가 새로 생김, 원인 한 곳(E·X 출처) |
+| `X_WRITE_DATA` | dynamic | 클럭 에지에 쓸 값·주소가 정해지지 않아 쓰지 못함 |
+| `X_WRITE_CONTROL` | dynamic | 클럭 에지에 쓰기 허용 입력(en, MemWrite)이 정해지지 않음 |
+| `OSCILLATION` | dynamic | 원조가 발진으로 전파를 그만둠(`sim.state.oscillating`). 고리의 부품·선·넷 |
+| `MIPS_STATUS` | dynamic | Hallym MIPS 부품의 값 문제(영역 밖 주소, 워드 정렬, 스택 한계, syscall). 부품 몸체의 사실 |
+
+- **어느 회로가 동작할 수 없는지만 말한다.** 정상 회로(tests/circ의 엔진 회귀 회로·데모, 참조 CPU)는 열 때도, 사이클을 돌린 뒤에도 0건이다(`DiagTest`). 원인이 같으면 한 줄이다: 정적 진단과 같은 부품·선을 말하는 동적 진단은 빼고, 발진 중이면 같은 고리의 조합 루프 대신 발진 한 줄이다(v1 `DiagnosticSet`).
+- **순서:** 정적 진단(파일의 회로 순서, 그 안에서 표의 순서), 발진, 동적 진단(찾은 차례).
+- **문구:** 영어·한국어 두 벌을 함께 보내고 화면이 고른다. 이름(부품·포트·터널·회로)은 어느 PC에서나 영어이고 학생이 붙인 이름 그대로다(엔진의 원조 언어는 영어로 고정). 한국어 문장은 이름 바로 뒤에 조사를 붙이지 않는다(v2 지시 7절: "main › PC (Register) 부품은 …", "RegWirte 터널과 …"). 고장 회로 모음의 두 벌 문구가 `tests/circ/faults/messages.v2.{ko,en}.expected`에 있다.
+- **가까운 이름(`near`, D-143):** 짝 없는 터널과 가까운 다른 터널 이름이 **하나뿐**이고 그 이름의 터널에 같은 비트 폭이 있을 때만 짚는다. 가깝다 = 대소문자만 다름, 또는 두 이름 모두 4글자 이상이고 숫자만 다른 것이 아니며(`ALUOp0`·`ALUOp1`) 편집 거리(넣기·빼기·바꾸기·붙은 두 글자 맞바꾸기, 대소문자 무시)가 짧은 쪽 7글자까지 1, 8글자부터 2 이하. 3글자 이하(`rs`·`rt`)는 대소문자만 다를 때만. 후보가 둘 이상이거나 폭이 다르면 짚지 않는다.
+- **언제 바뀌나:** 편집·되돌리기 뒤 120ms 동안 다른 편집이 없으면 정적 검사를 다시 돈다(ref-mips 약 70ms, 엔진 스레드). 동적 진단은 기록 엔진이 스텝을 적을 때마다 새 스텝만 본다(원조 시뮬레이터 스레드). `sim.reset`은 기록을 스텝 0부터 다시 적으므로 동적 진단이 걷힌다. 발진은 원조가 전파를 그만둘 때 생기고 Reset으로 걷힌다.
+- **`diag.changed`:** 화면이 마지막으로 받은 목록(앞의 `diag.list` 결과나 `diag.changed`)과 다를 때만, 화면 프레임(16ms)에 묶어 보낸다. 파일을 연 직후 화면이 아는 목록은 빈 목록이다: 첫 검사에서 메시지가 나오면 곧 `diag.changed`가 온다(화면은 열자마자 `diag.list`를 물어도 된다). 넷 번호는 모델이 바뀔 때마다 다시 매기므로(`model.changed`와 같다) 편집 뒤 `location.nets`만 바뀐 목록도 온다. 그때도 `id`와 문구는 그대로다.
+- **파일을 열 때:** 기록 엔진이 붙은 뒤 첫 상태가 스텝 0으로 적힐 때까지 `file.open`·`file.new` 안에서 잠깐(많아야 2초) 기다린다. 그래야 곧바로 이어지는 `sim.cycles`에서도 사이클 번호가 v1과 같다.
+- **`trace.origin`:** 보이는 상태(맨 위 `circuitId`, 거기서 `path`로 내려간 인스턴스; 사이클 뷰가 지난 사이클을 보이면 그 상태)에서 넷 `netId`의 E·X가 처음 생긴 곳을 입력 쪽으로 거슬러 찾는다(v1 Find E/X Origin, D-01: MUX는 고른 입력만, 서브회로 경계와 스플리터 비트를 건넌다, 메모리는 주소·읽기 입력을 따라간다). `found:false`면 `text`가 따라갈 것이 없다는 문장이다. `origin`은 위 `location`과 같은 모양에 `cause`(`COMPONENT`·`UNDRIVEN`·`CONFLICT`·`ALL_OFF`·`INPUT_PIN`·`STORED`·`LOOP`), `value`(`"E"`·`"x"`), `text`(원인 문장 두 벌)가 붙는다. `chain`은 시작 넷부터 원인까지 지난 넷들(강조용)이다. 없는 넷·인스턴스는 오류 1.
+- **화면의 "이곳 보이기"(reveal):** 화면은 메시지를 누르면 `location`을 그대로 담은 사건(`electron/src/renderer/app/reveal.ts`, `hcs:reveal`: `{fileId, messageId, circuitId, root, path, components, wires, nets, at, cycle}`)을 보낸다. Canvas(N-05)가 그 회로·인스턴스로 가서 부품·선·넷을 표시하고, Cycle View(N-14)가 `cycle`로 간다.
+
 ## 6. 확장
 
-진단(Messages), E/X 출처, 영향 경로, Signal Flow, 기록(사이클 표, Registers·Memory·Instruction), MIPS(.hmx 불러오기, 디스어셈블, Console)는 각 N 항목에서 이 문서에 절을 더하며 늘린다. 메서드 이름은 `diag.*`, `trace.*`, `record.*`, `mips.*`로 묶는다(`mips.facts`는 5절에 있다).
+영향 경로, Signal Flow, 기록(사이클 표, Registers·Memory·Instruction), MIPS(.hmx 불러오기, 디스어셈블, Console)는 각 N 항목에서 이 문서에 절을 더하며 늘린다. 메서드 이름은 `trace.*`, `record.*`, `mips.*`로 묶는다(`mips.facts`는 5절, `diag.*`·`trace.origin`은 5절 끝에 있다).

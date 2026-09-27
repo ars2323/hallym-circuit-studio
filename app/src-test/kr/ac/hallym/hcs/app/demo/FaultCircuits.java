@@ -132,6 +132,13 @@ public final class FaultCircuits {
             b.output("w", 5, 500, 100);
             b.commit();
         });
+        // 가까운 이름(v2 D-143): 짚는 경우(하나, 같은 폭)와 짚지 않는 경우(폭이 다름, 후보 둘). 메시지는 모두 짝 없는 터널 하나
+        add("static-tunnel-near-hit", Diagnostic.Kind.TUNNEL_UNPAIRED, (f, mips) -> nearCase(f, "RegWirte",
+                "RegWrite", 1));
+        add("static-tunnel-near-width", Diagnostic.Kind.TUNNEL_UNPAIRED, (f, mips) -> nearCase(f, "RegWirte",
+                "RegWrite", 32));
+        add("static-tunnel-near-ambiguous", Diagnostic.Kind.TUNNEL_UNPAIRED, (f, mips) -> nearCase(f, "ALUSrc",
+                "ALUSrcA", 1, "ALUSrcB", 1));
         add("static-subcircuit-port-unconnected", Diagnostic.Kind.SUBCIRCUIT_PORT_UNCONNECTED, (f, mips) -> {
             Circuit sub = new Circuit("buf");
             f.addCircuit(sub);
@@ -277,6 +284,26 @@ public final class FaultCircuits {
             b.tunnel(con, 3, "clk");
             b.commit();
         });
+    }
+
+    /**
+     * 받는 터널 receiver(1비트, MUX 선택)와 보내기만 하는 상수 터널들(senders: 이름, 폭 번갈아). receiver만 짝이
+     * 없다(보내기만 하는 터널은 동작을 막지 않는다).
+     */
+    static void nearCase(LogisimFile f, String receiver, Object... senders) {
+        CircuitBuilder b = main(f);
+        for (int i = 0; i < senders.length; i += 2) {
+            b.constant((String) senders[i], (Integer) senders[i + 1], 0, 100, 100 + 50 * i);
+        }
+        Component mux = b.add("Plexers", "Multiplexer", 300, 400, "width", "5", "enable", "false");
+        b.constant("x", 5, 1, 100, 500);
+        b.constant("z", 5, 2, 100, 550);
+        b.tunnel(mux, 0, "x");
+        b.tunnel(mux, 1, "z");
+        b.tunnel(mux, 2, receiver);
+        b.tunnel(mux, 3, "w");
+        b.output("w", 5, 500, 100);
+        b.commit();
     }
 
     /** 한 주소를 읽는 메모리 하나(쓰기 없음). */

@@ -12,7 +12,13 @@
    opened, or an empty circuit), file.close, file.dirty, model.circuit,
    model.library (this file's circuits first, as the engine lists them),
    edit.undo/redo ({changed:false}), sim.reset/cycles/run/enable/state (a
-   cycle count and the clock, told back as sim.state).  The same shapes as
+   cycle count and the clock, told back as sim.state), diag.list and
+   diag.changed (D-143: the real engine's words for the circuits in
+   tests/fixtures/messages.json -- written by tools/diag-fixture.ts --
+   matched by file name; the list after cycles once the file has run the
+   fixture's cycles, the first one again at Reset; every other file has no
+   messages), trace.origin
+   (nothing to follow).  The same shapes as
    the real engine's (docs/engine-api.md, engine/ D-134): Logisim's project
    name (Untitled, a file's name without .circ), alreadyOpen, messages,
    needsMipsJar.  Anything else: -32601.
@@ -33,7 +39,18 @@ import path from 'node:path';
 type Params = Record<string, unknown>;
 interface Comp { id: string; lib: string; name: string; loc: [number, number]; attrs: Record<string, string> }
 interface Circuit { circuitId: string; name: string; comps: Comp[]; wires: { id: string; a: [number, number]; b: [number, number] }[] }
-interface File { fileId: string; name: string; path: string | null; bytes: Buffer | null; circuits: Circuit[]; main: string; libs: string[]; cycle: number; ticking: boolean; hz: number; on: boolean }
+interface File { fileId: string; name: string; path: string | null; bytes: Buffer | null; circuits: Circuit[]; main: string; libs: string[]; cycle: number; ticking: boolean; hz: number; on: boolean; diag: Diag | null; ran: boolean }
+
+// Messages (diag.*): the real engine's, for a few circuits (tests/fixtures/messages.json).
+interface Place { name: string; loc: [number, number] }
+interface FixtureMessage {
+  code: string; kind: string; severity: string; text: { ko: string; en: string }; near?: string;
+  location: { circuit: string; root: string; path: Place[]; components: Place[]; wires: { a: [number, number]; b: [number, number] }[]; at: [number, number] | null; cycle?: number };
+}
+interface Diag { static: FixtureMessage[]; afterCycles?: FixtureMessage[]; cycles?: number }
+const DIAG: Record<string, Diag> = (() => {
+  try { return JSON.parse(readFileSync(path.join(import.meta.dirname, '../fixtures/messages.json'), 'utf8')) as Record<string, Diag>; } catch { return {}; }
+})();
 
 const modes = new Set((process.env.FAKE_ENGINE_MODE ?? '').split(',').filter(Boolean));
 const crashOn = process.env.FAKE_ENGINE_CRASH_ON ?? '';
@@ -106,6 +123,36 @@ function circuitOf(p: Params): Circuit {
   if (!c) throw new Failure(1, `no such circuit id: ${String(p.circuitId)}`, { kind: 'circuit', id: String(p.circuitId) });
   return c;
 }
+// A fixture message with this fake engine's ids (found by circuit name, part name and place, wire ends).
+function diagMessage(f: File, m: FixtureMessage, i: number): unknown {
+  const byName = (n: string) => f.circuits.find((c) => c.name === n);
+  const c = byName(m.location.circuit);
+  const root = byName(m.location.root) ?? c;
+  const same = (a: [number, number], b: [number, number]) => a[0] === b[0] && a[1] === b[1];
+  const comp = (in_: Circuit | undefined, x: Place) => in_?.comps.find((k) => k.name === x.name && same(k.loc, x.loc))?.id ?? '';
+  const pathIds: string[] = [];
+  let above = root;
+  for (const x of m.location.path) {
+    const k = above?.comps.find((y) => y.name === x.name && same(y.loc, x.loc));
+    pathIds.push(k?.id ?? '');
+    above = k ? byName(k.name) : undefined;
+  }
+  return {
+    id: `d${i + 1}`, code: m.code, kind: m.kind, severity: m.severity, text: m.text, ...(m.near ? { near: m.near } : {}),
+    location: {
+      circuitId: c?.circuitId ?? '', root: root?.circuitId ?? '', path: pathIds,
+      components: m.location.components.map((x) => comp(c, x)),
+      wires: m.location.wires.map((w) => c?.wires.find((y) => (same(y.a, w.a) && same(y.b, w.b)) || (same(y.a, w.b) && same(y.b, w.a)))?.id ?? ''),
+      nets: [], at: m.location.at, ...(typeof m.location.cycle === 'number' ? { cycle: m.location.cycle } : {}),
+    },
+  };
+}
+const diagList = (f: File) => {
+  const list = f.diag ? (f.ran && f.diag.afterCycles ? f.diag.afterCycles : f.diag.static) : [];
+  return list.map((m, i) => diagMessage(f, m, i));
+};
+const diagChanged = (f: File) => setImmediate(() => notify('diag.changed', { fileId: f.fileId, messages: diagList(f) }));
+
 const refs = (f: File) => f.circuits.map((c) => ({ circuitId: c.circuitId, name: c.name }));
 const mainId = (f: File) => f.circuits.find((c) => c.name === f.main)?.circuitId ?? f.circuits[0]?.circuitId ?? '';
 const simState = (f: File) => ({ fileId: f.fileId, running: f.on, ticking: f.ticking, cycle: f.cycle, oscillating: !f.on, hz: f.hz });
@@ -127,7 +174,7 @@ const methods: Record<string, (p: Params) => unknown> = {
   'engine.shutdown': () => { setImmediate(() => process.exit(0)); return {}; },
   'file.new': () => {
     const c: Circuit = { circuitId: `c${nextCircuit++}`, name: 'main', comps: [], wires: [] };
-    const f: File = { fileId: `f${nextFile++}`, name: 'Untitled', path: null, bytes: null, circuits: [c], main: 'main', libs: [], cycle: 0, ticking: false, hz: 1, on: true };
+    const f: File = { fileId: `f${nextFile++}`, name: 'Untitled', path: null, bytes: null, circuits: [c], main: 'main', libs: [], cycle: 0, ticking: false, hz: 1, on: true, diag: null, ran: false };
     files.set(f.fileId, f);
     return { fileId: f.fileId, name: f.name, circuits: refs(f), main: mainId(f), libraries: libRefs(f) };
   },
@@ -144,7 +191,7 @@ const methods: Record<string, (p: Params) => unknown> = {
     const text = bytes.toString('utf8');
     if (!text.includes('<project')) throw new Failure(2, `The file does not appear to be a Logisim project file: ${file}`, { path: file, reason: 'loadFailed' });
     const r = readCirc(text);
-    const f: File = { fileId: `f${nextFile++}`, name: stem(path.basename(file)), path: file, bytes, circuits: r.circuits, main: r.main, libs: r.libs, cycle: 0, ticking: false, hz: 1, on: true };
+    const f: File = { fileId: `f${nextFile++}`, name: stem(path.basename(file)), path: file, bytes, circuits: r.circuits, main: r.main, libs: r.libs, cycle: 0, ticking: false, hz: 1, on: true, diag: DIAG[path.basename(file)] ?? null, ran: false };
     files.set(f.fileId, f);
     const messages = process.env.FAKE_ENGINE_OPEN_MESSAGE ? [process.env.FAKE_ENGINE_OPEN_MESSAGE] : [];
     return { fileId: f.fileId, name: f.name, circuits: refs(f), main: mainId(f), libraries: libRefs(f), messages };
@@ -183,11 +230,22 @@ const methods: Record<string, (p: Params) => unknown> = {
   },
   'edit.undo': (p) => { fileOf(p); return { changed: false }; },
   'edit.redo': (p) => { fileOf(p); return { changed: false }; },
-  'sim.reset': (p) => { const f = fileOf(p); f.cycle = 0; f.ticking = false; f.on = true; setImmediate(() => notify('sim.state', simState(f))); return {}; },
+  'sim.reset': (p) => {
+    const f = fileOf(p);
+    f.cycle = 0; f.ticking = false; f.on = true;
+    setImmediate(() => notify('sim.state', simState(f)));
+    if (f.ran) { f.ran = false; if (f.diag?.afterCycles) diagChanged(f); }
+    return {};
+  },
   'sim.cycles': (p) => {
     const f = fileOf(p);
     if (!f.on) throw new Failure(4, 'the simulation stopped because the circuit oscillates', { reason: 'oscillating' });
     f.cycle += Number(p.n ?? 1);
+    if (!f.ran && f.diag?.afterCycles && f.cycle >= (f.diag.cycles ?? 1)) {
+      f.ran = true;
+      if (f.diag.afterCycles.some((m) => m.code === 'OSCILLATION')) f.on = false; // the real engine turns the simulation off
+      diagChanged(f);
+    }
     if (modes.has('oscillate')) {
       f.on = false;
       setImmediate(() => notify('engine.log', { level: 'warn', message: 'cycles stopped: the simulation is off (oscillation)' }));
@@ -205,6 +263,11 @@ const methods: Record<string, (p: Params) => unknown> = {
   'sim.enable': (p) => { const f = fileOf(p); f.on = Boolean(p.on); setImmediate(() => notify('sim.state', simState(f))); return {}; },
   'sim.state': (p) => simState(fileOf(p)),
   'sim.watch': (p) => { circuitOf(p); return {}; },
+  'diag.list': (p) => { const f = fileOf(p); return { fileId: f.fileId, messages: diagList(f) }; },
+  'trace.origin': (p) => {
+    circuitOf(p);
+    return { found: false, text: { ko: '이 선의 값은 정해져 있어 따라갈 E·X 값이 없습니다.', en: "This wire's value is defined, so there is no E/X to trace." }, chain: [] };
+  },
 };
 
 function handle(line: string): void {

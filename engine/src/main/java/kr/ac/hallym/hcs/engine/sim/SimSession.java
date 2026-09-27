@@ -147,7 +147,8 @@ public final class SimSession implements SimulatorListener {
     }
 
     private void resetNow() {
-        sim.requestReset();
+        // 원조 Reset과 같고, 기록 엔진에도 스텝 0부터 새로 적으라고 알린다(동적 진단이 걷힌다, D-143)
+        kr.ac.hallym.hcs.app.record.Recorder.requestReset(doc.project());
         ticks = 0;
         valuesDirty = true;
     }

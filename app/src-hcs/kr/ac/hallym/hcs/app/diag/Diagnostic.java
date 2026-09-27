@@ -106,12 +106,78 @@ public final class Diagnostic {
 
     /** 지금 언어의 문구. */
     public String message() {
-        return Messages.get(key(), args);
+        return message(com.cburch.logisim.util.LocaleManager.getLocale());
     }
 
-    /** 문구 인자(테스트용). */
+    /** 한 언어의 문구(v2 엔진이 영어·한국어 두 벌을 함께 보낸다, D-143). */
+    public String message(java.util.Locale locale) {
+        return Messages.get(locale, key(), Text.render(locale, args));
+    }
+
+    /** 문구 인자(테스트용). 뒤에 붙는 문장({@link Text})은 지금 언어의 글자다. */
     public List<Object> args() {
+        return Collections.unmodifiableList(java.util.Arrays.asList(Text.render(
+                com.cburch.logisim.util.LocaleManager.getLocale(), args)));
+    }
+
+    /** 문구 인자 그대로: 이름·수와 언어마다 다시 쓰는 문장({@link Text}). v2 엔진이 자기 문구로 다시 쓸 때 읽는다. */
+    public List<Object> rawArgs() {
         return Collections.unmodifiableList(java.util.Arrays.asList(args));
+    }
+
+    /**
+     * 문구 안에 들어가는 문장 하나(원인 문장, E 표기): 문구 키와 인자만 들고, 글자는 쓰는 언어로 그때 만든다(D-143).
+     * 만들 때 언어를 정해 두면 v2 엔진이 한 진단을 영어·한국어 두 벌로 보낼 수 없다.
+     */
+    public static final class Text {
+        public final String key;
+        private final Object[] args;
+
+        private Text(String key, Object... args) {
+            this.key = key;
+            this.args = args.clone();
+        }
+
+        public static Text of(String key, Object... args) {
+            return new Text(key, args);
+        }
+
+        /** 인자 그대로(이름·수와 안쪽 Text). */
+        public List<Object> args() {
+            return Collections.unmodifiableList(java.util.Arrays.asList(args));
+        }
+
+        /** 한 언어의 글자. */
+        public String render(java.util.Locale locale) {
+            return Messages.get(locale, key, render(locale, args));
+        }
+
+        /** 인자 가운데 Text를 그 언어의 글자로 바꾼 사본. */
+        static Object[] render(java.util.Locale locale, Object[] args) {
+            Object[] out = args.clone();
+            for (int i = 0; i < out.length; i++) {
+                if (out[i] instanceof Text) {
+                    out[i] = ((Text) out[i]).render(locale);
+                }
+            }
+            return out;
+        }
+
+        /** 지금 언어의 글자(v1 화면과 원조 문구 틀에 그대로 들어간다). */
+        @Override
+        public String toString() {
+            return render(com.cburch.logisim.util.LocaleManager.getLocale());
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            return o instanceof Text && ((Text) o).key.equals(key) && java.util.Arrays.equals(((Text) o).args, args);
+        }
+
+        @Override
+        public int hashCode() {
+            return key.hashCode() * 31 + java.util.Arrays.hashCode(args);
+        }
     }
 
     @Override

@@ -17,7 +17,6 @@ import com.cburch.logisim.circuit.Wire;
 import com.cburch.logisim.comp.Component;
 import com.cburch.logisim.data.Value;
 
-import kr.ac.hallym.hcs.app.Messages;
 import kr.ac.hallym.hcs.app.model.InstancePaths;
 import kr.ac.hallym.hcs.app.model.Kinds;
 import kr.ac.hallym.hcs.app.model.Names;
@@ -85,7 +84,7 @@ public final class MipsCheck {
                     continue;
                 }
                 String where = Names.path(InstancePaths.describe(top, path), Names.name(c, x));
-                String because = "";
+                Object because = "";
                 List<Component> comps = new ArrayList<>(Collections.singletonList(x));
                 List<Wire> wires = new ArrayList<>();
                 if (cause >= 0) {
@@ -95,7 +94,7 @@ public final class MipsCheck {
                         if (seen.putIfAbsent(OriginText.key(o), step) != null) {
                             continue; // 같은 원인을 이미 말했다
                         }
-                        because = Messages.get("diag.causePrefix", OriginText.cause(top, o));
+                        because = Diagnostic.Text.of("diag.causePrefix", OriginText.causeText(top, o));
                     }
                 }
                 out.add(new Diagnostic(Diagnostic.Kind.MIPS_STATUS, c, path, step, comps, wires,

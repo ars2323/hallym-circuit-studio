@@ -147,7 +147,7 @@ test('the empty panels say what fills them; only the Canvas has a character', as
       right: '고른 부품이 없습니다 / Canvas에서 부품을 고르면 그 속성(Data Bits, Facing, Label …)이 여기에 나옵니다.',
       Tunnels: '터널이 없습니다 / 이 회로에 Tunnel을 놓으면 이름별로 여기에 모입니다.',
       Minimap: '회로 전체가 작게 나옵니다 / Canvas에 그린 회로의 전체 모습과 지금 보는 곳이 여기에 나옵니다.',
-      Messages: '메시지가 없습니다 / 동작할 수 없는 연결(떠 있는 입력, 짝 없는 터널, 폭이 다른 선 …)이 있으면 여기에 나옵니다.',
+      Messages: '메시지가 없습니다 / 동작할 수 없는 연결(떠 있는 입력, 짝 없는 터널, 폭이 다른 선 …)이 있으면 여기에 나옵니다. 시뮬레이션 중에 생긴 E·X 값과 발진은 그 사이클과 함께 나옵니다.',
       'Cycle View': '아직 사이클이 없습니다 / 1 Cycle이나 Run으로 클럭을 진행하면 사이클마다 값이 여기에 쌓입니다.',
       Console: '아직 출력이 없습니다 / 회로의 Console 부품이 출력하면 여기에 나옵니다.',
     });

@@ -1,0 +1,22 @@
+dynamic-e-conflict: Cycle 1: E (conflicting value) appeared at main › Const #2. Cause: in main, one wire is driven with different values by main › Const #2 and main › CtrlBuf #1.
+dynamic-e-undefined-input: Cycle 1: E (error value) appeared at main › AND #1 output. Cause: input pin main › RegWrite has no defined value.
+dynamic-oscillation: Cycle 0: in main, values keep changing and never settle (oscillation). Loop: q, NAND #1. The simulation stopped.
+dynamic-x-write-control: Cycle 0: main › R1: the write input en was undefined at the clock edge. Cause: input pin main › RegWrite has no defined value.
+dynamic-x-write-data: Cycle 0: main › PC was written while its input D was undefined, so its value did not change. Cause: input pin main › next has no defined value.
+mips-console-syscall: Cycle 1: main › Console #1: syscall 99 not supported.
+mips-imem-unaligned: Cycle 0: main › IMem #1: Addr not word-aligned.
+mips-no-region: Cycle 0: main › DMem #1: 20000000 is in no memory region.
+mips-stack-limit: Cycle 0: main › DMem #1: Stack use exceeds its limit (256KB).
+mips-unaligned: Cycle 0: main › DMem #1: Addr not word-aligned.
+static-clock-unconnected: main › PC (Register): the clock input clk is not connected, so the value never changes.
+static-combinational-loop: In main, there is a combinational loop: AND #1 → NOT #1.
+static-input-unconnected: main › Add #1: the b port is not connected.
+static-input-undriven: main › AND #1 input 2: connected to a wire that nothing drives.
+static-memory-overlap: The regions of main › DMem #1 and main › Stack #1 overlap at 7ffc0000-7fffffff.
+static-short: In main, one wire is driven by both main › NOT #1 output and main › Buf #1 output.
+static-subcircuit-port-unconnected: main › buf #1: subcircuit input port A is not connected.
+static-tunnel-near-ambiguous: In main, no other tunnel is named ALUSrc.
+static-tunnel-near-hit: In main, no other tunnel is named RegWirte. Did you mean RegWrite?
+static-tunnel-near-width: In main, no other tunnel is named RegWirte.
+static-tunnel-unpaired: In main, no other tunnel is named RegDest. Did you mean RegDst?
+static-width-mismatch: In main, one wire joins main › Const #1 (32 bits) and main › rs (5 bits).

@@ -1,0 +1,22 @@
+dynamic-e-conflict: 사이클 1에 main › Const #2 자리에서 E(충돌) 값이 생겼습니다. 원인: main 회로의 한 선을 main › Const #2 부품과 main › CtrlBuf #1 부품이 서로 다른 값으로 구동합니다.
+dynamic-e-undefined-input: 사이클 1에 main › AND #1 output 자리에서 E(오류) 값이 생겼습니다. 원인: main › RegWrite 입력 핀의 값이 정해지지 않았습니다.
+dynamic-oscillation: 사이클 0에 main 회로에서 값이 멈추지 않고 계속 바뀝니다(발진). 고리: q, NAND #1. 시뮬레이션이 멈췄습니다.
+dynamic-x-write-control: 사이클 0에 main › R1 부품의 쓰기 입력 en 포트가 클럭 에지에서 정해지지 않았습니다. 원인: main › RegWrite 입력 핀의 값이 정해지지 않았습니다.
+dynamic-x-write-data: 사이클 0에 main › PC 부품에 쓸 때 D 입력이 정해지지 않아 값이 바뀌지 않았습니다. 원인: main › next 입력 핀의 값이 정해지지 않았습니다.
+mips-console-syscall: 사이클 1에 main › Console #1: 지원하지 않는 syscall 번호 99입니다.
+mips-imem-unaligned: 사이클 0에 main › IMem #1: Addr 포트의 주소가 워드 정렬이 아닙니다.
+mips-no-region: 사이클 0에 main › DMem #1: 20000000 주소는 어느 메모리 영역에도 없습니다.
+mips-stack-limit: 사이클 0에 main › DMem #1: Stack 사용량이 한계(256KB)를 넘었습니다.
+mips-unaligned: 사이클 0에 main › DMem #1: Addr 포트의 주소가 워드 정렬이 아닙니다.
+static-clock-unconnected: main › PC (Register) 부품은 클럭 입력 clk 포트가 연결되지 않아 값이 바뀌지 않습니다.
+static-combinational-loop: main 회로에 조합 루프가 있습니다: AND #1 → NOT #1.
+static-input-unconnected: main › Add #1 부품의 b 포트가 연결되지 않았습니다.
+static-input-undriven: main › AND #1 input 2 포트가 이어진 선에 값을 내는 부품이 없습니다.
+static-memory-overlap: main › DMem #1 부품과 main › Stack #1 부품의 영역이 7ffc0000-7fffffff 구간에서 겹칩니다.
+static-short: main 회로의 한 선을 main › NOT #1 output 포트와 main › Buf #1 output 포트가 함께 구동합니다.
+static-subcircuit-port-unconnected: main › buf #1 서브회로의 입력 A 포트가 연결되지 않았습니다.
+static-tunnel-near-ambiguous: main 회로에는 ALUSrc 터널과 이름이 같은 다른 터널이 없습니다.
+static-tunnel-near-hit: main 회로에는 RegWirte 터널과 이름이 같은 다른 터널이 없습니다. 혹시 RegWrite?
+static-tunnel-near-width: main 회로에는 RegWirte 터널과 이름이 같은 다른 터널이 없습니다.
+static-tunnel-unpaired: main 회로에는 RegDest 터널과 이름이 같은 다른 터널이 없습니다. 혹시 RegDst?
+static-width-mismatch: main 회로의 한 선에서 비트 폭이 맞지 않습니다: main › Const #1 32비트 ↔ main › rs 5비트.
