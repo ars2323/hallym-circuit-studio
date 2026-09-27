@@ -58,15 +58,6 @@ public final class RefKey {
         return builder().refSet(c.getNonWires()).refSet(c.getWires()).build();
     }
 
-    /** 부분이 모두 객체(==)인 열쇠. */
-    public static RefKey of(Object... refs) {
-        Builder b = new Builder();
-        for (Object r : refs) {
-            b.ref(r);
-        }
-        return b.build();
-    }
-
     @Override
     public boolean equals(Object o) {
         if (o == this) {
