@@ -43,7 +43,7 @@
 
 ## 4. MIPS 프로그램 올리기와 돌리기
 
-1. Instruction Memory를 놓고(왼쪽 목록 Hallym MIPS, 또는 Ctrl+K에서 `instruction memory`) 오른쪽 클릭 **Load .s…** 또는 도구 모음 **Load .s**로 어셈블리 파일을 고릅니다. 기계어는 QtSpim(Hallym MIPS Simulator)과 같고, `.text`는 `0x00400000`, `.data`는 `0x10010000`부터입니다. `.data`가 있으면 Data Memory에도 함께 올라갑니다.
+1. Instruction Memory를 놓고(왼쪽 목록 Hallym MIPS, 또는 Ctrl+K에서 `instruction memory`) 오른쪽 클릭 **Load Program…** 또는 도구 모음 **Load .s**로 Hallym MIPS가 내보낸 실행 이미지(`.hmx`, 전환 기간에는 .s 파일도)를 고릅니다. 기계어와 주소는 Hallym MIPS Simulator와 같습니다: 시작 코드 9워드가 `0x00400000`부터, `main`(entry)은 `0x00400024`, `.data`는 `0x10010000`부터입니다. `.data`가 있으면 Data Memory에도 함께 올라갑니다. 회로의 PC는 entry 값 `0x00400024`에서 시작하게 합니다(D-126).
 2. .s 파일을 고쳐 저장하면 자동으로 다시 불러오고 시뮬레이션을 리셋합니다(상태 표시줄에 알림).
 3. **1 Cycle**은 한 사이클(클럭 두 틱), **N Cycles**는 정한 수만큼, **Run**은 계속 돌립니다. **Reset**은 처음으로.
 4. **Cycle View**에서 사이클 표를 보고, 열을 누르면 그 사이클의 회로가 보입니다. Run Until…로 조건(PC 값, 사이클 수, halt)까지 돌립니다. Registers·Memory·Instruction 탭에 레지스터 파일(오른쪽 클릭 Mark as Register File로 지정)과 메모리, 지금 명령어의 필드가 보입니다.
