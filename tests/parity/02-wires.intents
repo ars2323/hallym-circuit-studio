@@ -24,10 +24,13 @@
 {"method":"edit.addWire","points":[[100,600],[300,600]]}
 {"method":"edit.addWire","points":[[100,600],[300,600]]}
 # 포트 위를 지나는 선: AND의 입력 포트 줄을 세로로 지나간다(원조는 포트 자리에서 선을 나눠 잇는다)
-{"method":"edit.addComponent","lib":"Gates","name":"AND Gate","loc":[700,200],"attrs":{"inputs":"3"},"as":"and"}
+{"method":"edit.setToolAttr","lib":"Gates","name":"AND Gate","attr":"inputs","value":"3"}
+{"method":"edit.addComponent","lib":"Gates","name":"AND Gate","loc":[700,200],"as":"and"}
 {"method":"edit.addWire","points":[[650,150],[650,250]]}
 # 포트에서 시작하는 선: 출력에서 출력 핀까지
-{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[800,200],"attrs":{"facing":"west","output":"true"},"as":"out"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"facing","value":"west"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"output","value":"true"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[800,200],"as":"out"}
 {"method":"edit.addWire","points":[[700,200],[800,200]]}
 # 수리: OR 입력 쪽으로 긋다가 몸통 안(포트 한 칸 안쪽)에서 끝나면 포트에서 끝나게 고친다
 {"method":"edit.addComponent","lib":"Gates","name":"OR Gate","loc":[700,400],"as":"or"}

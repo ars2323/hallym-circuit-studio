@@ -291,7 +291,11 @@ final class SwingReplayer implements AutoCloseable {
             addComponent(i);
             break;
         case "edit.setToolAttr":
-            edt(() -> setToolAttr(addTool(i), i.str("attr"), i.text("value"), i));
+            edt(() -> {
+                AddTool t = addTool(i);
+                use(t); // 부품 목록에서 도구를 고르면 속성 표가 그 도구의 속성을 보인다
+                setToolAttr(t, i.str("attr"), i.text("value"), i);
+            });
             break;
         case "edit.addWire":
             addWire(i);
@@ -384,19 +388,12 @@ final class SwingReplayer implements AutoCloseable {
         }
     }
 
-    /** 부품 목록에서 도구를 고르고(필요하면 속성 표에서 도구 속성을 바꾸고) 캔버스를 누른다. */
+    /**
+     * 부품 목록에서 도구를 고르고 캔버스를 누른다. 도구 속성(앞의 edit.setToolAttr)으로 놓이고, 원조처럼 놓은 뒤 Edit
+     * Tool로 바뀌고 놓은 부품이 골라진다.
+     */
     private void addComponent(Intent i) throws Exception {
-        AtomicReference<AddTool> tool = new AtomicReference<>();
-        edt(() -> {
-            tool.set(addTool(i));
-            use(tool.get());
-            for (Map.Entry<String, Object> e : i.map("attrs").entrySet()) {
-                if (e.getValue() == null) {
-                    throw i.error("attribute " + e.getKey() + " has no value");
-                }
-                setToolAttr(tool.get(), e.getKey(), text(e.getValue()), i);
-            }
-        });
+        edt(() -> use(addTool(i)));
         flush();
         Set<Component> before = edtGet(() -> identity(canvas.getCircuit().getNonWires()));
         Location at = i.loc("loc");
@@ -516,7 +513,7 @@ final class SwingReplayer implements AutoCloseable {
         return comps;
     }
 
-    /** Edit Tool로 고른 것 안을 눌러 (dx, dy)만큼 끌어 놓는다. keepConnected=false면 끄는 동안 Shift. */
+    /** Edit Tool로 고른 것 안을 눌러 (dx, dy)만큼 끌어 놓는다. connect=false면 끄는 동안 Shift(원조 Keep Connected 반대). */
     private void move(Intent i) throws Exception {
         edt(() -> use(baseTool("Edit Tool")));
         if (i.params.containsKey("ids")) {
@@ -524,7 +521,7 @@ final class SwingReplayer implements AutoCloseable {
         }
         int dx = i.integer("dx");
         int dy = i.integer("dy");
-        boolean keep = i.bool("keepConnected", true);
+        boolean keep = i.bool("connect", true);
         Location p = edtGet(() -> pressPoint(i));
         drag(List.of(p, p.translate(dx, dy)), false, !keep);
     }
@@ -953,7 +950,7 @@ final class SwingReplayer implements AutoCloseable {
         }
     }
 
-    /** 도구를 고른 채 속성 표에서 값을 바꾼다(값이 이미 같으면 손대지 않는다). */
+    /** 도구를 고른 채 속성 표에서 값을 바꾼다(ToolAttributeAction). 값이 이미 같으면 손대지 않는다. */
     private void setToolAttr(Tool tool, String attr, String value, Intent i) throws Exception {
         AttrTableToolModel m = new AttrTableToolModel(proj, tool);
         @SuppressWarnings("unchecked")
@@ -1310,11 +1307,6 @@ final class SwingReplayer implements AutoCloseable {
         Set<Component> s = Collections.newSetFromMap(new IdentityHashMap<>());
         s.addAll(c);
         return s;
-    }
-
-    private static String text(Object v) {
-        return v instanceof Double && ((Double) v) == Math.rint((Double) v) ? Long.toString(((Double) v).longValue())
-                : String.valueOf(v);
     }
 
     /** 라이브러리 도구들의 도구 속성을 처음 값으로(다음에 읽을 때 부품 팩토리의 기본 속성으로 새로 만든다). */

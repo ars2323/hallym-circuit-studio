@@ -1,7 +1,9 @@
 # 10 되돌리기·다시 실행: Edit › Undo(원조 되돌리기 기록, 한 번에 한 단계)와 Edit › Redo(v1). 새로 고치면 다시 실행
 # 기록이 비워진다. 도구 속성 바꾸기도 한 단계이고, 되돌리면 저장되는 <lib><tool> 값도 돌아간다.
-{"method":"edit.addComponent","lib":"Gates","name":"AND Gate","loc":[300,200],"attrs":{"inputs":"2"},"as":"and"}
-{"method":"edit.addComponent","lib":"Gates","name":"OR Gate","loc":[300,400],"attrs":{"inputs":"2"},"as":"or"}
+{"method":"edit.setToolAttr","lib":"Gates","name":"AND Gate","attr":"inputs","value":"2"}
+{"method":"edit.addComponent","lib":"Gates","name":"AND Gate","loc":[300,200],"as":"and"}
+{"method":"edit.setToolAttr","lib":"Gates","name":"OR Gate","attr":"inputs","value":"2"}
+{"method":"edit.addComponent","lib":"Gates","name":"OR Gate","loc":[300,400],"as":"or"}
 {"method":"edit.addWire","points":[[300,200],[350,200],[350,300]]}
 {"method":"edit.move","ids":["and"],"dx":40,"dy":0}
 {"method":"edit.setAttr","ids":["and"],"attr":"inputs","value":"3"}
@@ -36,7 +38,8 @@
 {"method":"edit.undo"}
 {"method":"edit.addComponent","lib":"Gates","name":"XOR Gate","loc":[300,600]}
 # 도구 속성과 함께 놓은 부품: 되돌리기 두 번(놓기, 도구 속성)
-{"method":"edit.addComponent","lib":"Gates","name":"NAND Gate","loc":[500,600],"attrs":{"size":"70"}}
+{"method":"edit.setToolAttr","lib":"Gates","name":"NAND Gate","attr":"size","value":"70"}
+{"method":"edit.addComponent","lib":"Gates","name":"NAND Gate","loc":[500,600]}
 {"method":"edit.undo"}
 {"method":"edit.undo"}
 {"method":"edit.addComponent","lib":"Gates","name":"NAND Gate","loc":[500,600]}

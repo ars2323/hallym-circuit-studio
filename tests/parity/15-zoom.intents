@@ -1,7 +1,8 @@
 # 15 배율: 같은 편집을 200%·50%·150%에서 한다. 캔버스의 화면 점 = 논리 좌표 × 배율 + 원점이고 원조 Canvas가
 # 배율로 나눠 도구에 넘긴다(view.zoom은 화면 상태라 엔진은 아무것도 하지 않는다). 결과는 100%와 같아야 한다.
 {"method":"view.zoom","factor":2.0}
-{"method":"edit.addComponent","lib":"Gates","name":"AND Gate","loc":[300,200],"attrs":{"inputs":"2"},"as":"and"}
+{"method":"edit.setToolAttr","lib":"Gates","name":"AND Gate","attr":"inputs","value":"2"}
+{"method":"edit.addComponent","lib":"Gates","name":"AND Gate","loc":[300,200],"as":"and"}
 {"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[100,180],"as":"a"}
 {"method":"edit.addWire","points":[[100,180],[250,180]]}
 {"method":"edit.move","ids":["and"],"dx":30,"dy":20}

@@ -1,19 +1,46 @@
 # 01 부품 놓기: 부품 목록에서 도구를 고르고, 속성 표에서 도구 속성(방향·폭·입력 수·선택 비트·라벨)을 바꾼 뒤
 # 캔버스를 누른다. 도구 속성은 원조처럼 도구에 남아 다음에 놓을 때도 쓰이고 .circ의 <lib><tool>에 저장된다.
-{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[100,100],"attrs":{"width":"8","label":"A"},"as":"pinA"}
-{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[100,200],"attrs":{"label":"B"},"as":"pinB"}
-{"method":"edit.addComponent","lib":"Gates","name":"AND Gate","loc":[260,100],"attrs":{"inputs":"3"},"as":"and3"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"width","value":"8"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"label","value":"A"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[100,100],"as":"pinA"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"label","value":"B"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[100,200],"as":"pinB"}
+{"method":"edit.setToolAttr","lib":"Gates","name":"AND Gate","attr":"inputs","value":"3"}
+{"method":"edit.addComponent","lib":"Gates","name":"AND Gate","loc":[260,100],"as":"and3"}
 {"method":"edit.addComponent","lib":"Gates","name":"AND Gate","loc":[260,600],"as":"and3again"}
-{"method":"edit.addComponent","lib":"Gates","name":"OR Gate","loc":[260,260],"attrs":{"facing":"north","inputs":"4"},"as":"or4"}
-{"method":"edit.addComponent","lib":"Gates","name":"NOT Gate","loc":[340,100],"attrs":{"facing":"west"},"as":"not"}
-{"method":"edit.addComponent","lib":"Gates","name":"XOR Gate","loc":[260,380],"attrs":{"inputs":"2","size":"30"},"as":"xor"}
-{"method":"edit.addComponent","lib":"Gates","name":"NAND Gate","loc":[260,500],"attrs":{"facing":"south","inputs":"2","negate0":"true"}}
-{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[560,100],"attrs":{"facing":"west","output":"true","width":"16","label":"Y"},"as":"pinY"}
-{"method":"edit.addComponent","lib":"Wiring","name":"Constant","loc":[400,200],"attrs":{"width":"4","value":"0xa"}}
-{"method":"edit.addComponent","lib":"Plexers","name":"Multiplexer","loc":[440,380],"attrs":{"select":"2","width":"8"},"as":"mux"}
-{"method":"edit.addComponent","lib":"Memory","name":"Register","loc":[600,380],"attrs":{"width":"16","label":"PC"}}
-{"method":"edit.addComponent","lib":"Wiring","name":"Tunnel","loc":[700,100],"attrs":{"label":"bus","width":"8","facing":"west"}}
-{"method":"edit.addComponent","lib":"Wiring","name":"Splitter","loc":[700,260],"attrs":{"fanout":"4","incoming":"8"}}
+{"method":"edit.setToolAttr","lib":"Gates","name":"OR Gate","attr":"facing","value":"north"}
+{"method":"edit.setToolAttr","lib":"Gates","name":"OR Gate","attr":"inputs","value":"4"}
+{"method":"edit.addComponent","lib":"Gates","name":"OR Gate","loc":[260,260],"as":"or4"}
+{"method":"edit.setToolAttr","lib":"Gates","name":"NOT Gate","attr":"facing","value":"west"}
+{"method":"edit.addComponent","lib":"Gates","name":"NOT Gate","loc":[340,100],"as":"not"}
+{"method":"edit.setToolAttr","lib":"Gates","name":"XOR Gate","attr":"inputs","value":"2"}
+{"method":"edit.setToolAttr","lib":"Gates","name":"XOR Gate","attr":"size","value":"30"}
+{"method":"edit.addComponent","lib":"Gates","name":"XOR Gate","loc":[260,380],"as":"xor"}
+{"method":"edit.setToolAttr","lib":"Gates","name":"NAND Gate","attr":"facing","value":"south"}
+{"method":"edit.setToolAttr","lib":"Gates","name":"NAND Gate","attr":"inputs","value":"2"}
+{"method":"edit.setToolAttr","lib":"Gates","name":"NAND Gate","attr":"negate0","value":"true"}
+{"method":"edit.addComponent","lib":"Gates","name":"NAND Gate","loc":[260,500]}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"facing","value":"west"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"output","value":"true"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"width","value":"16"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"label","value":"Y"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[560,100],"as":"pinY"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Constant","attr":"width","value":"4"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Constant","attr":"value","value":"0xa"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Constant","loc":[400,200]}
+{"method":"edit.setToolAttr","lib":"Plexers","name":"Multiplexer","attr":"select","value":"2"}
+{"method":"edit.setToolAttr","lib":"Plexers","name":"Multiplexer","attr":"width","value":"8"}
+{"method":"edit.addComponent","lib":"Plexers","name":"Multiplexer","loc":[440,380],"as":"mux"}
+{"method":"edit.setToolAttr","lib":"Memory","name":"Register","attr":"width","value":"16"}
+{"method":"edit.setToolAttr","lib":"Memory","name":"Register","attr":"label","value":"PC"}
+{"method":"edit.addComponent","lib":"Memory","name":"Register","loc":[600,380]}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Tunnel","attr":"label","value":"bus"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Tunnel","attr":"width","value":"8"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Tunnel","loc":[700,100]}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Splitter","attr":"fanout","value":"4"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Splitter","attr":"incoming","value":"8"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Splitter","loc":[700,260]}
 {"method":"edit.addComponent","lib":"Wiring","name":"Clock","loc":[100,500]}
-{"method":"edit.addComponent","lib":"Arithmetic","name":"Adder","loc":[440,520],"attrs":{"width":"8"}}
-{"method":"edit.addComponent","lib":"Wiring","name":"Probe","loc":[700,500],"attrs":{"facing":"west"}}
+{"method":"edit.addComponent","lib":"Arithmetic","name":"Adder","loc":[440,520]}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Probe","attr":"facing","value":"west"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Probe","loc":[700,500]}

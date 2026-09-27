@@ -12,6 +12,8 @@
 {"method":"edit.setAttr","ids":["dmem"],"attr":"label","value":"DMEM"}
 {"method":"edit.setAttr","ids":["imem"],"attr":"label","value":"IMEM"}
 {"method":"edit.setAttr","ids":["probe"],"attr":"radix","value":"dec"}
-{"method":"edit.addComponent","lib":"Memory","name":"Register","loc":[60,200],"attrs":{"width":"32","label":"PC"}}
+{"method":"edit.setToolAttr","lib":"Memory","name":"Register","attr":"width","value":"32"}
+{"method":"edit.setToolAttr","lib":"Memory","name":"Register","attr":"label","value":"PC"}
+{"method":"edit.addComponent","lib":"Memory","name":"Register","loc":[60,200]}
 {"method":"edit.addWire","points":[[60,200],[100,200]]}
 {"method":"edit.move","ids":["imem"],"dx":0,"dy":40}

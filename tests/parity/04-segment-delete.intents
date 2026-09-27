@@ -1,7 +1,11 @@
 # 04 선분 끌기(v1, #81)와 지우기: 선 하나만 골라 그 선과 수직으로 끌면 양쪽 다리가 늘고 줄어 꺾임이 따라온다.
 # 지우기는 Edit › Delete(부품만, 선만, 섞어서, 사각형으로 고른 것).
-{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[100,100],"attrs":{"label":"in"},"as":"in"}
-{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[450,100],"attrs":{"facing":"west","output":"true","label":"out"},"as":"out"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"label","value":"in"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[100,100],"as":"in"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"facing","value":"west"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"output","value":"true"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"label","value":"out"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[450,100],"as":"out"}
 {"method":"edit.addWire","points":[[100,100],[150,100],[150,200]]}
 {"method":"edit.addWire","points":[[150,200],[350,200],[350,100]]}
 {"method":"edit.addWire","points":[[350,100],[450,100]]}
@@ -10,7 +14,8 @@
 # 다리 하나(세로)를 오른쪽으로
 {"method":"edit.move","ids":["wire:150,180"],"dx":40,"dy":0}
 # 부품과 선이 섞인 그림
-{"method":"edit.addComponent","lib":"Gates","name":"OR Gate","loc":[300,420],"attrs":{"inputs":"2"},"as":"or"}
+{"method":"edit.setToolAttr","lib":"Gates","name":"OR Gate","attr":"inputs","value":"2"}
+{"method":"edit.addComponent","lib":"Gates","name":"OR Gate","loc":[300,420],"as":"or"}
 {"method":"edit.addComponent","lib":"Gates","name":"NOT Gate","loc":[200,400],"as":"n1"}
 {"method":"edit.addComponent","lib":"Gates","name":"NOT Gate","loc":[200,440],"as":"n2"}
 {"method":"edit.addWire","points":[[200,400],[250,400]]}

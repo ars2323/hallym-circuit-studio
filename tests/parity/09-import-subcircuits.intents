@@ -6,5 +6,6 @@
 {"method":"edit.importCircuits","path":"inputs/adders.circ","circuits":["parity3"]}
 {"method":"edit.addComponent","circuit":"main","name":"full_adder","loc":[300,200],"as":"fa"}
 {"method":"edit.addComponent","name":"parity3","loc":[300,400]}
-{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[100,200],"attrs":{"label":"a"}}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"label","value":"a"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[100,200]}
 {"method":"edit.addWire","points":[[100,200],[270,200]]}

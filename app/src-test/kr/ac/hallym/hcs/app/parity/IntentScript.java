@@ -30,11 +30,11 @@ final class IntentScript {
     static {
         spec("file.open", "!path");
         spec("view.zoom", "!factor");
-        spec("edit.addComponent", "lib", "!name", "!loc", "attrs", "as", "circuit");
-        spec("edit.setToolAttr", "lib", "!name", "!attr", "!value");
+        spec("edit.addComponent", "lib", "!name", "!loc", "as", "circuit");
+        spec("edit.setToolAttr", "lib", "!name", "!attr", "!value", "circuit");
         spec("edit.addWire", "!points", "circuit");
         spec("edit.select", "ids", "rect", "add", "filter", "circuit");
-        spec("edit.move", "ids", "!dx", "!dy", "keepConnected", "circuit");
+        spec("edit.move", "ids", "!dx", "!dy", "connect", "circuit");
         spec("edit.delete", "ids", "circuit");
         spec("edit.setAttr", "ids", "!attr", "!value", "circuit");
         spec("edit.setCircuitAttr", "!target", "!attr", "!value");

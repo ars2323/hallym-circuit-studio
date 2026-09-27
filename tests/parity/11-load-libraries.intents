@@ -6,7 +6,8 @@
 {"method":"edit.addComponent","lib":"I/O","name":"LED","loc":[500,100]}
 {"method":"edit.loadLibrary","kind":"circ","path":"inputs/adders.circ"}
 {"method":"edit.addComponent","lib":"adders","name":"full_adder","loc":[300,200],"as":"fa"}
-{"method":"edit.addComponent","lib":"adders","name":"parity3","loc":[300,400],"attrs":{"facing":"west"}}
+{"method":"edit.setToolAttr","lib":"adders","name":"parity3","attr":"facing","value":"west"}
+{"method":"edit.addComponent","lib":"adders","name":"parity3","loc":[300,400]}
 {"method":"edit.loadLibrary","kind":"jar","path":"hcs-mips.jar"}
 {"method":"edit.addComponent","lib":"Hallym MIPS","name":"Data Memory","loc":[800,300],"as":"dmem"}
 {"method":"edit.addComponent","lib":"Hallym MIPS","name":"Radix Probe","loc":[500,500]}
