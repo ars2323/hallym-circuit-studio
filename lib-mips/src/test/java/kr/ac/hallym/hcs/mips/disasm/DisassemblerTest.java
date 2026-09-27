@@ -67,6 +67,10 @@ class DisassemblerTest {
         assertEquals("j 0x00000258", Disassembler.text(0x08000096, 0x004006fc, kernel));
         assertEquals("j 0x00000258 [l17a]", Disassembler.text(0x08000096, 0x80000100, kernel));
         assertEquals("cop2 0x08296c00", Disassembler.text(0x4a0a5b00, 0, symbols(0x08296c00, "x"))); // 점프 아님
+        // 256MB 구역의 마지막 워드: PC+4의 위 4비트가 다음 구역이다
+        Map<Integer, String> next = symbols(0x10000040, "far", 0x00000040, "near");
+        assertEquals("jal 0x00000040 [far]", Disassembler.text(0x0c000010, 0x0ffffffc, next));
+        assertEquals("jal 0x00000040 [near]", Disassembler.text(0x0c000010, 0x0ffffff8, next));
     }
 
     @Test

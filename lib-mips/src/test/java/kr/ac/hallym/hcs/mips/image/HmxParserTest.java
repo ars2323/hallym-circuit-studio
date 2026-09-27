@@ -118,6 +118,10 @@ class HmxParserTest {
         assertEquals(Map.of(0x10010000L, 0x00000001, 0x10010004L, 0x02000000, 0x10010008L, 0x00000003,
                 0x1001000cL, 0), img.dataWords());
         assertEquals(1, img.segments(ExecutableImage.Kind.TEXT).get(0).zeroRuns().size());
+        ExecutableImage.ZeroRun textZeros = img.segments(ExecutableImage.Kind.TEXT).get(0).zeroRuns().get(0);
+        assertEquals(0x00400004L, textZeros.start, "a .text zero run starts after the words before it");
+        assertEquals(3, textZeros.count);
+        assertEquals(7, textZeros.line);
     }
 
     @Test
@@ -245,6 +249,8 @@ class HmxParserTest {
 
     @Test
     void duplicateKeysNameTheFirstLine() throws Exception {
+        assertEquals("Line 5: The entry key is already on line 3. A key can appear only once. Export it again from"
+                + " Hallym MIPS.", read("duplicate-key.hmx").errors.get(0).toString());
         List<String> e = errorsKo(read("duplicate-key.hmx"));
         assertEquals(List.of(
                 "5번째 줄: entry 키가 3번째 줄에 이미 있습니다. 키는 한 번만 적을 수 있습니다. Hallym MIPS에서 다시 내보내세요.",
@@ -341,7 +347,8 @@ class HmxParserTest {
         assertEquals(List.of("첫 줄이 HALLYM-EXEC 머리 줄이 아니라서 실행 이미지 파일이 아닙니다. Hallym MIPS에서 내보낸 .hmx 파일을"
                 + " 고르세요."), errorsKo(HmxParser.parse("")));
         assertEquals(1, errorsKo(HmxParser.parse(null)).size());
-        assertTrue(errorsKo(HmxParser.parse("HALLYM-EXEC one\n")).get(0).startsWith("1번째 줄: 판 번호가 숫자가 아닙니다: one."));
+        assertEquals(List.of("1번째 줄: 판 번호가 숫자가 아닙니다: one. Hallym MIPS에서 다시 내보내세요."),
+                errorsKo(HmxParser.parse("HALLYM-EXEC one\n")), "nothing after a bad header is read");
         assertTrue(errorsKo(HmxParser.parse("HALLYM-EXEC 0\n")).get(0).startsWith("1번째 줄: 이 파일은 실행 이미지 0판입니다."));
         // 32비트 너머, 너무 큰 구간
         assertTrue(errorsKo(HmxParser.parse(head + ".text 0x00400000 words 0\n.data 0xfffffffe bytes 3\n01 02 03\n"))
@@ -350,6 +357,8 @@ class HmxParserTest {
                 .errors, "up to 0xffffffff is fine");
         assertTrue(errorsKo(HmxParser.parse(head + ".text 0x00400000 words 16777217\n")).get(0)
                 .startsWith("4번째 줄: .text 구간이 너무 큽니다: 워드 16777217개(최대 16777216개)."));
+        assertTrue(errorsKo(HmxParser.parse(head + ".text 0x00400000 words 16777216\n")).get(0)
+                .startsWith("4번째 줄: .text 줄에는 워드 16777216개라고 적혀 있지만 실제로는 0개입니다."), "16M is allowed");
         // 값 모양
         assertTrue(errorsKo(HmxParser.parse(head + "entry\n" + text)).get(0).startsWith("4번째 줄: entry 줄에 값이 없습니다."));
         assertTrue(errorsKo(HmxParser.parse(head + "source\n" + text)).get(0).startsWith("4번째 줄: source 줄에 값이 없습니다."));
@@ -378,6 +387,44 @@ class HmxParserTest {
         assertEquals("abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789", named.image.sourceSha256());
         assertEquals("Hallym MIPS 2.4.0", named.image.producedBy());
         assertEquals("2026-09-27T19:05+09:00", named.image.assembled());
+        // 오류가 난 줄의 값은 쓰지 않는다: 틀린 값·두 번째 값 뒤에 오류가 더 붙지 않는다
+        assertEquals(1, errorsKo(HmxParser.parse(head + "reg $sp 12\nreg $sp 0x7fffeffc\n" + text)).size());
+        assertEquals(1, errorsKo(HmxParser.parse(head + "symbol x 12\nsymbol x 0x00000010\n" + text)).size());
+        assertEquals(1, errorsKo(HmxParser.parse("HALLYM-EXEC 1\nendian little\nendian middle\nentry 0x00400000\n"
+                + text)).size());
+        assertEquals(1, errorsKo(HmxParser.parse("HALLYM-EXEC 1\nendian little\nentry 1 2\n"
+                + "entry 0x00400000\n" + text)).size());
+        assertEquals(1, errorsKo(HmxParser.parse(head + ".text 0x00400000 words 0\n.data 12 bytes 1\n01\n")).size());
+        // .text 워드 수로 32비트 끝을 잰다
+        assertTrue(errorsKo(HmxParser.parse(head + ".text 0xfffffffc words 2\n00000000 00000000\n")).get(0)
+                .startsWith("4번째 줄: .text 구간이 주소 0xffffffff 너머까지 이어집니다."));
+        assertEquals(List.of(), HmxParser.parse(head + ".text 0xfffffffc words 1\n0000000c\n").errors);
+        // 구간 끝이 다른 구간 시작과 맞닿으면 겹침이 아니다(두 순서), 빈 구간은 어디에 있어도 겹치지 않는다
+        for (String adjacent : new String[] {".text 0x00400000 words 2\n0 0\n.data 0x00400008 bytes 1\n01\n",
+            ".data 0x003ffffc bytes 4\n01 02 03 04\n.text 0x00400000 words 1\n0000000c\n",
+            ".text 0x00400000 words 2\n00000000 0000000c\n.data 0x00400004 bytes 0\n",
+            ".data 0x10010000 bytes 8\nzero 8\n.text 0x10010004 words 0\n",
+            ".text 0x10010004 words 0\n.data 0x10010000 bytes 8\nzero 8\n",
+            ".text 0x00400000 words 1\n0000000c\n.data 0x003ffffc bytes 4\n01 02 03 04\n"}) {
+            String body = head + adjacent.replace("\n0 0\n", "\n00000000 0000000c\n");
+            assertEquals(List.of(), HmxParser.parse(body).errors, adjacent);
+        }
+        assertEquals(1, errorsKo(HmxParser.parse(head + ".text 0x00400004 words 1\n0000000c\n"
+                + ".data 0x00400000 bytes 5\nzero 5\n")).size(), "one byte of overlap");
+        // 구간이 4096칸보다 크면 칸 배열을 늘린다
+        HmxParser.Result big = HmxParser.parse(head + ".text 0x00400000 words 5000\nzero 4999\n0000000c\n");
+        assertEquals(List.of(), big.errors);
+        assertEquals(0x0000000c, (int) big.image.textWords().get(0x00400000L + 4999 * 4));
+        assertEquals(5000, big.image.textWords().size());
+        // 오류는 줄 번호 순(줄이 없는 오류는 뒤). 모자란 구간의 오류(머리 줄)는 나중에 알게 되지만 앞에 온다
+        List<Integer> order = new ArrayList<>();
+        for (HmxError e : HmxParser.parse(head + ".text 0x00400000 words 2\n0000000c\nentry 0x00400000\n").errors) {
+            order.add(e.line);
+        }
+        assertEquals(List.of(4, 6), order);
+        assertEquals("Line 6: The entry line must come before the first section (.text, .data). Export it again"
+                + " from Hallym MIPS.", HmxParser.parse(head + ".text 0x00400000 words 2\n0000000c\nentry 0x00400000\n")
+                .errors.get(1).toString());
         // 오류는 줄 번호 순(줄이 없는 오류는 뒤)
         HmxParser.Result sorted = HmxParser.parse("HALLYM-EXEC 1\n.text 0x00400000 words 2\n0000000c\n"
                 + ".data 0x10010000 bytes 1\n0g\n");
@@ -486,7 +533,22 @@ class HmxParserTest {
         Path c = Files.writeString(dir.resolve("lab06.hmx"), body);
         assertEquals(SourceCheck.Status.NOT_FOUND, SourceCheck.check(c.toFile(), HmxParser.read(c.toFile()).image).status);
         Files.write(dir.resolve("lab06.s"), s);
-        assertEquals(SourceCheck.Status.SAME, SourceCheck.check(c.toFile(), HmxParser.read(c.toFile()).image).status);
+        SourceCheck byName = SourceCheck.check(c.toFile(), HmxParser.read(c.toFile()).image);
+        assertEquals(SourceCheck.Status.SAME, byName.status);
+        assertEquals("lab06.s", byName.name, "without source, the name is the file found");
+        assertEquals("원본 파일 lab06.s: 내보낸 때와 같음.", byName.message().ko);
+        // 이름이 점으로 시작하는 .hmx: 확장자로 보지 않는다
+        Path dot = Files.writeString(dir.resolve(".hmx"), body);
+        Files.write(dir.resolve(".hmx.s"), s);
+        assertEquals(SourceCheck.Status.SAME, SourceCheck.check(dot.toFile(), HmxParser.read(dot.toFile()).image).status);
+        // 읽을 수 없는 원본은 찾지 못한 것과 같다
+        Path locked = Files.writeString(dir.resolve("lab07.hmx"), body);
+        File lockedSource = Files.write(dir.resolve("lab07.s"), s).toFile();
+        if (lockedSource.setReadable(false, false) && !lockedSource.canRead()) {
+            assertEquals(SourceCheck.Status.NOT_FOUND, SourceCheck.check(locked.toFile(),
+                    HmxParser.read(locked.toFile()).image).status);
+            lockedSource.setReadable(true, false);
+        }
         Files.write(dir.resolve("lab06.s"), (new String(s, "UTF-8") + "# edited\n").getBytes("UTF-8"));
         assertEquals(SourceCheck.Status.CHANGED, SourceCheck.check(c.toFile(), HmxParser.read(c.toFile()).image).status);
     }

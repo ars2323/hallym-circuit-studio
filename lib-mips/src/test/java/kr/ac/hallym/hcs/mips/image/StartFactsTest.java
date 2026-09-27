@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -250,6 +251,40 @@ class StartFactsTest {
         assertNull(StartFacts.jrRaFact(read("example.hmx")));
         assertNull(StartFacts.jrRaFact(read("mips/factorial.hmx")), "fact's jr $ra is in a called routine");
         assertEquals("entry 0x00400028 (main)", StartFacts.entryLine(read("asm/main-not-first.hmx")).en);
+    }
+
+    // ---- 예외 처리기 없이 어셈블한 이미지 ----
+
+    /** 기호에 __start가 있으면 처리기 없이 어셈블한 이미지다(명세: 처리기의 라벨은 기호에 넣지 않는다). */
+    @Test
+    void noExceptionHandler() {
+        ExecutableImage nh = new ExecutableImage.Builder().entry(0x00400000L).symbol("__start", 0x00400000L)
+                .text(0x00400000L, ADDI, JR_RA, SYSCALL).build();
+        assertTrue(StartFacts.withoutExceptionHandler(nh));
+        Msg m = StartFacts.noHandlerFact(nh);
+        assertEquals("Assembled without the exception handler: no start-up code, entry = the program's own __start.",
+                m.en);
+        assertEquals("예외 처리기 없이 어셈블한 이미지: 시작 코드 없음, 진입점 = 프로그램의 __start.", m.ko);
+        assertEquals(List.of(0x00400004L), StartFacts.jrRaInEntryRoutine(nh), "the data is still there");
+        assertNull(StartFacts.jrRaFact(nh), "no start-up code, so no jal main and no $ra fact");
+        assertEquals(List.of(m.en), en(StartFacts.facts(nh)));
+        // __start와 main이 둘 다 있고 entry가 main
+        ExecutableImage both = new ExecutableImage.Builder().entry(0x00400008L).symbol("__start", 0x00400000L)
+                .symbol("main", 0x00400008L).text(0x00400000L, jal(0x00400008L), NOP, JR_RA).build();
+        assertEquals("Assembled without the exception handler: no start-up code, the program's own __start ="
+                + " 0x00400000.", StartFacts.noHandlerFact(both).en);
+        assertEquals("예외 처리기 없이 어셈블한 이미지: 시작 코드 없음, 프로그램의 __start = 0x00400000.",
+                StartFacts.noHandlerFact(both).ko);
+        assertNull(StartFacts.jrRaFact(both));
+        // entry가 없어도 사실 줄은 __start 주소를 말한다
+        ExecutableImage noEntry = new ExecutableImage.Builder().symbol("__start", 0x00400000L).build();
+        assertEquals("Assembled without the exception handler: no start-up code, the program's own __start ="
+                + " 0x00400000.", StartFacts.noHandlerFact(noEntry).en);
+        // 처리기를 불러온 이미지: 사실 줄이 없다
+        ExecutableImage handler = withStartup(JR_RA).build();
+        assertFalse(StartFacts.withoutExceptionHandler(handler));
+        assertNull(StartFacts.noHandlerFact(handler));
+        assertEquals(1, StartFacts.facts(handler).size());
     }
 
     // ---- 상태 표시줄 ----

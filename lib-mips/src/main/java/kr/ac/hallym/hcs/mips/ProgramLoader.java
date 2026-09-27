@@ -276,8 +276,7 @@ final class ProgramLoader {
             if (plan.errors.isEmpty()) {
                 plan.errors.add(Text.of("Nothing was loaded.", "아무것도 불러오지 않았습니다.").get()); // 고르기 취소
             }
-            plan.changes.clear();
-            return plan;
+            return plan; // 바꿀 것(changes)은 아직 하나도 없다
         }
         plan.text.putAll(textTo);
         plan.data.putAll(dataTo);
