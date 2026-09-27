@@ -62,10 +62,6 @@
     <wire from="(100,400)" to="(300,400)"/>
     <wire from="(100,450)" to="(300,450)"/>
     <wire from="(200,100)" to="(400,100)"/>
-    <comp lib="0" loc="(200,100)" name="Tunnel">
-      <a name="facing" val="east"/>
-      <a name="label" val="ctl"/>
-    </comp>
     <comp lib="0" loc="(400,100)" name="Tunnel">
       <a name="label" val="ctl"/>
     </comp>
@@ -78,6 +74,10 @@
       <a name="width" val="8"/>
       <a name="label" val="data"/>
     </comp>
+    <comp lib="0" loc="(200,100)" name="Tunnel">
+      <a name="facing" val="east"/>
+      <a name="label" val="ctl"/>
+    </comp>
   </circuit>
   <hcs:ext xmlns:hcs="urn:hallym-circuit-studio:ext" version="1">
     <hcs:circuit name="main">
@@ -85,7 +85,7 @@
       <hcs:tunnel label="ctl" color="#332288"/>
       <hcs:group net="@100,400" group="control"/>
       <hcs:group net="ctl" group="control"/>
-      <hcs:memo x="150" y="60" w="300" h="80" color="2" text="control bus"/>
+      <hcs:memo x="170" y="70" w="260" h="60" color="2" text="control bus"/>
       <hcs:memo x="850" y="250" w="160" h="100" color="5" text="메모 &amp; &lt;특수&gt; &quot;문자&quot;"/>
     </hcs:circuit>
   </hcs:ext>

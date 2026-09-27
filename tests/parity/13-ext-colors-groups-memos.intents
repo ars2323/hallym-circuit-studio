@@ -23,8 +23,9 @@
 {"method":"edit.signalGroup","wire":"wire:200,500","group":"address"}
 {"method":"edit.signalGroup","wire":"wire:200,450"}
 {"method":"edit.signalGroup","wire":"wire:250,100","group":"control"}
-# 영역 메모: 고른 터널 넷을 감싸기, 창에서 자리와 크기 정하기(한글·특수 문자), 그리고 하나 지우기
-{"method":"edit.areaMemo","at":[600,600],"ids":["t1","t2"],"text":"control bus","color":2}
+# 영역 메모: 고른 선을 감싸기, 창에서 자리와 크기 정하기(한글·특수 문자), 그리고 하나 지우기. 터널을 감싸지 않는
+# 까닭: 원조 터널의 경계는 그려질 때 글꼴 크기로 정해져(Tunnel.paintGhost) 기계·그림 여부에 따라 달라진다.
+{"method":"edit.areaMemo","at":[600,600],"ids":["wire:300,100"],"text":"control bus","color":2}
 {"method":"edit.areaMemo","at":[700,700],"text":"지울 메모","bounds":[650,650,200,120]}
 {"method":"edit.areaMemo","at":[900,300],"text":"메모 & <특수> \"문자\"","color":5,"bounds":[850,250,160,100]}
 {"method":"edit.areaMemo","at":[750,700],"delete":true}

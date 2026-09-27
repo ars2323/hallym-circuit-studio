@@ -62,11 +62,11 @@
     <wire from="(100,400)" to="(100,450)"/>
     <wire from="(100,400)" to="(300,400)"/>
     <wire from="(100,450)" to="(300,450)"/>
-    <comp lib="0" loc="(200,100)" name="Tunnel">
-      <a name="facing" val="east"/>
+    <comp lib="0" loc="(500,100)" name="Tunnel">
       <a name="label" val="ctl"/>
     </comp>
-    <comp lib="0" loc="(500,100)" name="Tunnel">
+    <comp lib="0" loc="(200,100)" name="Tunnel">
+      <a name="facing" val="east"/>
       <a name="label" val="ctl"/>
     </comp>
   </circuit>
@@ -75,7 +75,7 @@
       <hcs:group group="control" net="@100,400"/>
       <hcs:group group="control" net="ctl"/>
       <hcs:tunnel label="ctl" color="#882255"/>
-      <hcs:memo x="150" y="60" w="300" h="80" color="2" text="control bus"/>
+      <hcs:memo x="170" y="70" w="260" h="60" color="2" text="control bus"/>
       <hcs:memo x="600" y="640" w="200" h="120" color="7" text="새 메모"/>
     </hcs:circuit>
   </hcs:ext>
