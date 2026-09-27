@@ -254,7 +254,12 @@ class HmxConsistencyTest {
         List<String> asked = new ArrayList<>();
         ProgramLoader.Plan chosen = ProgramLoader.plan(l, two.file.getCircuits(), null, (cands, what) -> {
             asked.add(what + " " + cands.size());
-            return cands.get(1);
+            for (ProgramLoader.Target t : cands) { // 부품 순서는 정해져 있지 않다: 라벨로 고른다
+                if ("IM2".equals(t.component.getAttributeSet().getValue(com.cburch.logisim.instance.StdAttr.LABEL))) {
+                    return t;
+                }
+            }
+            return null;
         }, "example.hmx");
         assertEquals(List.of(".text 0x00400000–0x00400034 2"), asked);
         assertEquals(List.of(), chosen.errors);
