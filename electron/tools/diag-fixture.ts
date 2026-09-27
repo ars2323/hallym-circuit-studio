@@ -24,11 +24,13 @@ const repo = path.join(root, '..');
 const jar = process.env.HCS_ENGINE_JAR ?? path.join(repo, 'engine/build/stage/hcs-engine.jar');
 const java = process.env.HCS_JAVA ?? 'java';
 
-// The circuits, and how many cycles to run before the second list (0: none).
+// The circuits, and how many cycles to run before the second list (0: none):
+// one, as the e2e tests and the screenshots press 1 Cycle once -- the fake
+// engine shows the second list once the file has run that many cycles.
 export const FIXTURES: { file: string; cycles: number }[] = [
-  { file: 'electron/tests/fixtures/broken-datapath.circ', cycles: 2 },
-  { file: 'tests/circ/faults/dynamic-x-write-data.circ', cycles: 4 },
-  { file: 'tests/circ/faults/dynamic-oscillation.circ', cycles: 3 },
+  { file: 'electron/tests/fixtures/broken-datapath.circ', cycles: 1 },
+  { file: 'tests/circ/faults/dynamic-x-write-data.circ', cycles: 1 },
+  { file: 'tests/circ/faults/dynamic-oscillation.circ', cycles: 1 },
 ];
 
 type Json = Record<string, unknown>;

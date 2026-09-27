@@ -60,7 +60,7 @@
         "near": "RegWrite"
       }
     ],
-    "cycles": 2,
+    "cycles": 1,
     "afterCycles": [
       {
         "code": "CLOCK_UNCONNECTED",
@@ -160,7 +160,7 @@
   "dynamic-x-write-data.circ": {
     "from": "tests/circ/faults/dynamic-x-write-data.circ",
     "static": [],
-    "cycles": 4,
+    "cycles": 1,
     "afterCycles": [
       {
         "code": "X_WRITE_DATA",
@@ -232,7 +232,7 @@
         }
       }
     ],
-    "cycles": 3,
+    "cycles": 1,
     "afterCycles": [
       {
         "code": "OSCILLATION",

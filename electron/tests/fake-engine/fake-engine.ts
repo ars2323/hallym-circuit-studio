@@ -15,8 +15,9 @@
    cycle count and the clock, told back as sim.state), diag.list and
    diag.changed (D-143: the real engine's words for the circuits in
    tests/fixtures/messages.json -- written by tools/diag-fixture.ts --
-   matched by file name; the list after cycles once the clock ran, the first
-   one again at Reset; every other file has no messages), trace.origin
+   matched by file name; the list after cycles once the file has run the
+   fixture's cycles, the first one again at Reset; every other file has no
+   messages), trace.origin
    (nothing to follow).  The same shapes as
    the real engine's (docs/engine-api.md, engine/ D-134): Logisim's project
    name (Untitled, a file's name without .circ), alreadyOpen, messages,
@@ -240,7 +241,7 @@ const methods: Record<string, (p: Params) => unknown> = {
     const f = fileOf(p);
     if (!f.on) throw new Failure(4, 'the simulation stopped because the circuit oscillates', { reason: 'oscillating' });
     f.cycle += Number(p.n ?? 1);
-    if (!f.ran && f.diag?.afterCycles) {
+    if (!f.ran && f.diag?.afterCycles && f.cycle >= (f.diag.cycles ?? 1)) {
       f.ran = true;
       if (f.diag.afterCycles.some((m) => m.code === 'OSCILLATION')) f.on = false; // the real engine turns the simulation off
       diagChanged(f);

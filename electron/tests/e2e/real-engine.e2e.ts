@@ -66,8 +66,8 @@ test('the real engine: a broken circuit\'s Messages (N-13), the same words as th
     await openFile(r, sample(r.dir, 'electron/tests/fixtures/broken-datapath.circ'));
     await expect(page.locator('.msg .say')).toHaveText(fixture['broken-datapath.circ'].static.map((m) => m.text.ko));
     await expect(page.locator('.status .msgcount')).toHaveText('2 messages');
-    await page.keyboard.press('F10');
-    await page.keyboard.press('F10');
+    await page.keyboard.press('F10'); // the fixture's one cycle
+    await expect(page.locator('.status')).toContainText('Cycle 1');
     await expect(page.locator('.msg .say')).toHaveText(fixture['broken-datapath.circ'].afterCycles.map((m) => m.text.ko));
     await expect(page.locator('.msg[data-kind="dynamic"] .where')).toHaveText('main · Cycle 0');
     await page.locator('.msg').first().click();
