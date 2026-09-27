@@ -69,6 +69,12 @@ class PanelBalanceGuiTest {
                 }
                 int[] got = new int[3];
                 boolean[] coll = new boolean[1];
+                for (int i = 0; i < 10 && got[0] <= 0; i++) { // CI에서 배치가 늦으면 폭 0으로 읽힌다: 잡힐 때까지
+                    if (i > 0) {
+                        Thread.sleep(200);
+                    }
+                    SwingUtilities.invokeAndWait(() -> got[0] = frame.getCanvas().getParent().getParent().getWidth());
+                }
                 SwingUtilities.invokeAndWait(() -> {
                     frame.validate();
                     got[0] = frame.getCanvas().getParent().getParent().getWidth(); // 캔버스 스크롤 영역

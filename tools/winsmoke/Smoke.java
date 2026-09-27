@@ -23,7 +23,7 @@ import com.cburch.logisim.proj.Projects;
  * Windows 실제 실행 검증(R-02): 포장한 런타임으로 앱을 띄워 demo-datapath를 열고, .s를 불러오고, 10사이클 돌린 뒤 화면을
  * 찍는다. 배율은 -Dsun.java2d.uiScale로 준다. 쓰기: java -cp "<app jar>;tools/winsmoke" Smoke <circ> <asm> <out.png>
  * 실패하면 0이 아닌 코드로 끝난다. 환경설정 폴더가 비어 있으면(첫 실행) 창이 작업 영역의 90% 이상인지, 도구 모음 단추가
- * 잘리지 않고 Run·Load .s가 보이는지도 확인한다(v1.0.2 X-05).
+ * 잘리지 않고 Run·Load .s가 보이는지, 캔버스가 창 내부의 절반 이상인지도 확인한다(v1.0.2 X-05, v1.0.3 Y-01).
  */
 public final class Smoke {
     static Project project() {
@@ -93,6 +93,25 @@ public final class Smoke {
             }
             System.out.println("SMOKE: toolbar " + tb.getWidth() + "px shown " + ot.shownKeys().size() + " icons-only "
                     + ot.iconsOnlyNow() + " overflow " + ot.overflowKeys());
+        });
+        // Y-01(v1.0.3): 캔버스(스크롤 영역)가 창 내부의 절반 이상(가로·세로)이어야 한다
+        SwingUtilities.invokeAndWait(() -> {
+            java.awt.Component canvas = find(top, com.cburch.logisim.gui.main.Canvas.class);
+            java.awt.Component sp = canvas == null ? null
+                    : SwingUtilities.getAncestorOfClass(javax.swing.JScrollPane.class, canvas);
+            java.awt.Container content = ((javax.swing.JFrame) top).getContentPane();
+            if (sp == null) {
+                problems.add("no canvas");
+                return;
+            }
+            System.out.println("SMOKE: canvas " + sp.getWidth() + "x" + sp.getHeight() + " of content "
+                    + content.getWidth() + "x" + content.getHeight());
+            if (sp.getWidth() < content.getWidth() / 2) {
+                problems.add("canvas width " + sp.getWidth() + " < half of " + content.getWidth());
+            }
+            if (sp.getHeight() < content.getHeight() / 2) {
+                problems.add("canvas height " + sp.getHeight() + " < half of " + content.getHeight());
+            }
         });
         if (!problems.isEmpty()) {
             System.err.println("SMOKE: " + String.join("; ", problems));

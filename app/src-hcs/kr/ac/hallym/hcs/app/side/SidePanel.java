@@ -43,21 +43,117 @@ public final class SidePanel extends JPanel {
         split.setResizeWeight(0.5);
         split.setBorder(null);
         split.setContinuousLayout(true);
+        tabs.setMinimumSize(new java.awt.Dimension(0, 0));
+        // Y-01: 트리가 왼쪽 칸 높이의 절반 이상을 갖는다. 아래 탭은 학생이 정한 높이(처음엔 절반)에서 줄이고, 모자라면
+        // 탭 줄만 남기고 접는다. 접힌 탭을 누르면 편다. 직접 끈 높이는 창이 커지면 되돌아온다
+        javax.swing.plaf.basic.BasicSplitPaneUI ui = split.getUI() instanceof javax.swing.plaf.basic.BasicSplitPaneUI
+                ? (javax.swing.plaf.basic.BasicSplitPaneUI) split.getUI() : null;
+        if (ui != null) {
+            ui.getDivider().addMouseListener(new java.awt.event.MouseAdapter() {
+                @Override
+                public void mousePressed(java.awt.event.MouseEvent e) {
+                    dragging = true;
+                }
+
+                @Override
+                public void mouseReleased(java.awt.event.MouseEvent e) {
+                    dragging = false;
+                    userTabs = tabsHeight();
+                    holdOpen = true;
+                    autoCollapsed = false;
+                }
+            });
+        }
+        tabs.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mousePressed(java.awt.event.MouseEvent e) {
+                if (autoCollapsed && tabs.indexAtLocation(e.getX(), e.getY()) >= 0) {
+                    javax.swing.SwingUtilities.invokeLater(() -> {
+                        holdOpen = true;
+                        autoCollapsed = false;
+                        int h = split.getHeight();
+                        split.setDividerLocation(Math.max(h / 3, h - userTabs - split.getDividerSize()));
+                    });
+                }
+            }
+        });
         split.addComponentListener(new ComponentAdapter() {
             @Override
             public void componentResized(ComponentEvent e) {
-                if (split.getHeight() > 0) {
-                    split.removeComponentListener(this);
-                    split.setDividerLocation(0.5);
-                }
+                holdOpen = false;
+                balance();
             }
         });
         this.split = split;
         add(split, BorderLayout.CENTER);
     }
 
+    private boolean dragging;
+    private boolean holdOpen;
+    private boolean autoCollapsed;
+    /** 학생이 정한 아래 탭 높이. 0이면 아직 없음(처음엔 왼쪽 칸의 절반). */
+    private int userTabs;
+
     JSplitPane split() {
         return split;
+    }
+
+    /** 아래 탭(Tunnels·Minimap) 칸의 지금 높이. */
+    public int tabsHeight() {
+        return split.getHeight() - split.getDividerLocation() - split.getDividerSize();
+    }
+
+    /** 트리 칸의 지금 높이(테스트). */
+    public int treeHeight() {
+        return split.getDividerLocation();
+    }
+
+    public boolean isAutoCollapsed() {
+        return autoCollapsed;
+    }
+
+    private int stripHeight() {
+        try {
+            java.awt.Rectangle r = tabs.getBoundsAt(0);
+            return r == null ? 30 : r.y + r.height + 2;
+        } catch (RuntimeException e) {
+            return 30;
+        }
+    }
+
+    /** 왼쪽 칸 높이에 맞춰 아래 탭을 잡는다(Y-01). */
+    void balance() {
+        int h = split.getHeight();
+        if (h <= 0 || dragging) {
+            return;
+        }
+        if (userTabs <= 0) {
+            userTabs = h / 2 - split.getDividerSize() / 2; // 처음: 절반(S-11)
+        }
+        int strip = stripHeight();
+        int want = holdOpen ? userTabs
+                : kr.ac.hallym.hcs.app.window.VerticalBalance.sideTabs(h, userTabs, split.getDividerSize(), strip);
+        want = Math.min(want, Math.max(0, h - split.getDividerSize()));
+        autoCollapsed = !holdOpen && kr.ac.hallym.hcs.app.window.VerticalBalance.collapsed(want, strip);
+        if (Math.abs(tabsHeight() - want) > 1) {
+            split.setDividerLocation(h - want - split.getDividerSize());
+        }
+    }
+
+    /** 창 안의 왼쪽 칸(테스트). */
+    public static SidePanel of(java.awt.Component root) {
+        if (root instanceof SidePanel) {
+            return (SidePanel) root;
+        }
+        if (root instanceof java.awt.Container) {
+            for (java.awt.Component c : ((java.awt.Container) root).getComponents()) {
+                SidePanel p = of(c);
+                if (p != null) {
+                    return p;
+                }
+            }
+        }
+        return null;
     }
 
     public TunnelList tunnels() {

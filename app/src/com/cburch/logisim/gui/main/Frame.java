@@ -237,6 +237,10 @@ public class Frame extends LFrame implements LocaleListener {
 		kr.ac.hallym.hcs.app.props.QuickBar.install(this, layoutCanvas, hcsDock);
 		// HCS: Messages tab below the canvas, diagnostic count in the status bar (#27)
 		hcsMessages = kr.ac.hallym.hcs.app.diag.MessagesPanel.install(this);
+		hcsMessages.setCanvasHeight(() -> { // HCS: Y-01 the canvas keeps half of the window height
+			java.awt.Component sp = javax.swing.SwingUtilities.getAncestorOfClass(javax.swing.JScrollPane.class, layoutCanvas);
+			return sp == null ? -1 : sp.getHeight();
+		});
 		mainPanelSuper.add(hcsMessages.around(hcsDock.component()), BorderLayout.CENTER);
 		kr.ac.hallym.hcs.app.cycle.CycleView.install(this, hcsMessages); // HCS: C-02 Cycle View tab below the canvas
 		// HCS: file tabs, circuit tabs and simulation path above the canvas (#68);

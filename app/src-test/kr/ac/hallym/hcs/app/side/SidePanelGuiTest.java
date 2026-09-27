@@ -89,10 +89,12 @@ class SidePanelGuiTest {
             assertNotNull(side, "the left panel has the lower tabs");
             assertEquals(Messages.get("side.tunnels"), side.tabs().getTitleAt(0));
             assertEquals(Messages.get("side.minimap"), side.tabs().getTitleAt(1));
-            // 처음 나눔은 칸 높이의 절반(S-11 검토: 트리 선호 크기대로면 탭이 아래 1/3뿐이었다)
+            // 처음 나눔은 칸 높이의 절반(S-11 검토: 트리 선호 크기대로면 탭이 아래 1/3뿐이었다). Y-01의 트리 절반 규칙이
+            // 경계 여유를 몇 px 더한다
             javax.swing.JSplitPane split = side.split();
             int half = (split.getHeight() - split.getDividerSize()) / 2;
-            assertTrue(Math.abs(split.getDividerLocation() - half) <= 2, split.getDividerLocation() + " vs " + half);
+            assertTrue(split.getDividerLocation() >= half - 2 && split.getDividerLocation() <= half + 12,
+                    split.getDividerLocation() + " vs " + half);
             List<TunnelList.Entry> shown = side.tunnels().shown();
             assertEquals(1, shown.size());
             SwingUtilities.invokeAndWait(() -> side.tunnels().goTo(side.tunnels().shown().get(0)));
