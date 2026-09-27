@@ -25,6 +25,7 @@ import com.google.gson.JsonObject;
 
 import kr.ac.hallym.hcs.app.libs.MipsShadow;
 import kr.ac.hallym.hcs.app.model.Kinds;
+import kr.ac.hallym.hcs.engine.diag.DiagService;
 import kr.ac.hallym.hcs.engine.doc.Doc;
 import kr.ac.hallym.hcs.engine.doc.Files;
 import kr.ac.hallym.hcs.engine.edit.Intents;
@@ -46,9 +47,12 @@ public final class Engine {
     private final Server server;
     private final Files files = new Files();
     private final Map<String, SimSession> sims = new HashMap<>();
+    /** Messages·E/X 출처(diag.*, trace.*, D-143). */
+    private final DiagService diags;
 
     public Engine(Server server) {
         this.server = server;
+        this.diags = new DiagService(server, files);
         registerEngine();
         registerFile();
         registerModel();
@@ -82,6 +86,12 @@ public final class Engine {
                 server.log("error", "sim frame: " + t, false);
             }
         }
+        diags.frame();
+    }
+
+    /** 진단(테스트). */
+    public DiagService diags() {
+        return diags;
     }
 
     private void closeAll() {
@@ -89,6 +99,7 @@ public final class Engine {
             s.close();
         }
         sims.clear();
+        diags.closeAll();
         files.closeAll();
     }
 
@@ -163,6 +174,7 @@ public final class Engine {
             if (s != null) {
                 s.close();
             }
+            diags.detach(d);
             files.close(d);
             return new JsonObject();
         });
@@ -176,6 +188,7 @@ public final class Engine {
 
     private void attach(Doc d) {
         sims.put(d.id(), new SimSession(d, server));
+        diags.attach(d);
     }
 
     // ---- model ----
@@ -277,6 +290,7 @@ public final class Engine {
         if (s != null) {
             s.modelChanged();
         }
+        diags.modelChanged(d);
     }
 
     private void registerEdit() {

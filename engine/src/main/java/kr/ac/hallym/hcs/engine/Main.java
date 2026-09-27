@@ -35,6 +35,9 @@ public final class Main {
     public static void main(String[] args) throws Exception {
         MemoryPreferencesFactory.install();
         System.setProperty("java.awt.headless", "true");
+        // 원조·포크 문구의 언어는 영어로 둔다: 이름(부품·포트)은 어느 PC에서나 영어이고, 학생에게 하는 문장은 엔진이
+        // 영어·한국어 두 벌로 보낸다(D-143, v2 지시 7절). 한국어 Windows의 기본 로캘을 따르면 포트 이름이 "출력"이 된다
+        com.cburch.logisim.util.LocaleManager.setLocale(java.util.Locale.ENGLISH);
         locateMipsJar();
         OutputStream protocol = new FileOutputStream(FileDescriptor.out);
         PrintStream log = new PrintStream(new FileOutputStream(FileDescriptor.err), true, StandardCharsets.UTF_8);

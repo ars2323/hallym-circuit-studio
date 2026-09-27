@@ -100,8 +100,12 @@ tasks.test {
     systemProperty("hcs.engineStage", layout.buildDirectory.dir("stage").get().asFile.absolutePath)
     systemProperty("hcs.refMips", rootProject.file("tests/mips/ref-mips.circ").absolutePath)
     systemProperty("hcs.circDir", rootProject.file("tests/circ").absolutePath)
+    // 화면 가짜 엔진의 Messages 고정 답(electron/tests/fixtures/messages.json, D-143)이 이 엔진의 말과 같은지 본다
+    systemProperty("hcs.electronFixtures", rootProject.file("electron/tests/fixtures").absolutePath)
     // 시작 시간·메모리 측정 결과(SubprocessTest.measureStartTimeAndMemory)
     systemProperty("hcs.measureFile", layout.buildDirectory.file("engine-measure.txt").get().asFile.absolutePath)
+    // 고장 회로 v2 문구 골든(tests/circ/faults/messages.v2.*.expected) 다시 쓰기: ./gradlew :engine:test -Phcs.update=true
+    systemProperty("hcs.update", (findProperty("hcs.update") ?: "false").toString())
     systemProperty("user.language", "en")
     systemProperty("user.country", "US")
     testLogging {
