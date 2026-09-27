@@ -837,6 +837,8 @@ public final class CycleView {
             int want = split.getWidth() - plan.side - split.getDividerSize();
             if (Math.abs(split.getDividerLocation() - want) > 1) {
                 split.setDividerLocation(want);
+                split.doLayout(); // 값과 실제 자리가 어긋나지 않게(Y-02 CI)
+                split.validate();
             }
         }
     }

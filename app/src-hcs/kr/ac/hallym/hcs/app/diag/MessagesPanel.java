@@ -177,7 +177,7 @@ public final class MessagesPanel {
         autoCollapsed = false;
         int h = split.getHeight();
         if (h > 0 && bottomHeight() < height) {
-            split.setDividerLocation(Math.max(h / 3, h - height - split.getDividerSize()));
+            placeDivider(Math.max(h / 3, h - height - split.getDividerSize()));
         }
         badge();
     }
@@ -209,7 +209,7 @@ public final class MessagesPanel {
         want = Math.min(want, Math.max(0, h - split.getDividerSize()));
         autoCollapsed = !holdOpen && VerticalBalance.collapsed(want, strip);
         if (Math.abs(bottomHeight() - want) > 1) {
-            split.setDividerLocation(h - want - split.getDividerSize());
+            placeDivider(h - want - split.getDividerSize());
         }
         badge();
         // 캔버스 높이는 위쪽 배치가 끝난 뒤에야 정확하다(회로 탭 줄 등): 한 번 더 재서 모자라면 다시 잡는다
@@ -338,7 +338,23 @@ public final class MessagesPanel {
 
     /** 아래 탭 칸의 지금 높이(테스트). */
     public int bottomHeight() {
-        return split == null ? 0 : split.getHeight() - split.getDividerLocation() - split.getDividerSize();
+        if (split == null) {
+            return 0;
+        }
+        // 실제로 놓인 자리로 잰다: JSplitPane.getDividerLocation()은 배치 도중 바뀐 값과 어긋날 수 있다(CI에서 본 경우:
+        // 값은 464인데 위 칸은 325로 놓여 있었다)
+        java.awt.Component top = split.getTopComponent();
+        if (top != null && top.getParent() == split && split.getHeight() > 0 && split.isValid()) {
+            return split.getHeight() - top.getHeight() - split.getDividerSize();
+        }
+        return split.getHeight() - split.getDividerLocation() - split.getDividerSize();
+    }
+
+    /** 나눔선을 옮기고 곧바로 다시 배치한다(값과 실제 자리가 어긋나지 않게). */
+    private void placeDivider(int location) {
+        split.setDividerLocation(location);
+        split.doLayout();
+        split.validate();
     }
 
     /** 진동 Reset 단추가 보이는가(테스트). */

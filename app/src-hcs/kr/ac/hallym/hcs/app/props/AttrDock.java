@@ -246,6 +246,8 @@ public final class AttrDock {
             javax.swing.SwingUtilities.invokeLater(() -> {
                 if (split.getWidth() > w) {
                     split.setDividerLocation(split.getWidth() - w - split.getDividerSize());
+                    split.doLayout(); // 값과 실제 자리가 어긋나지 않게 곧바로 배치한다(CI에서 캔버스 폭 0으로 남았다)
+                    split.validate();
                 }
             });
         }

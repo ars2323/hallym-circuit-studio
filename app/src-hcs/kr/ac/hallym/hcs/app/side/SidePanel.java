@@ -100,12 +100,17 @@ public final class SidePanel extends JPanel {
 
     /** 아래 탭(Tunnels·Minimap) 칸의 지금 높이. */
     public int tabsHeight() {
+        java.awt.Component top = split.getTopComponent();
+        if (top != null && top.getParent() == split && split.getHeight() > 0 && split.isValid()) {
+            return split.getHeight() - top.getHeight() - split.getDividerSize(); // 실제 자리로
+        }
         return split.getHeight() - split.getDividerLocation() - split.getDividerSize();
     }
 
     /** 트리 칸의 지금 높이(테스트). */
     public int treeHeight() {
-        return split.getDividerLocation();
+        java.awt.Component top = split.getTopComponent();
+        return top != null && top.getParent() == split && split.isValid() ? top.getHeight() : split.getDividerLocation();
     }
 
     public boolean isAutoCollapsed() {
@@ -137,6 +142,8 @@ public final class SidePanel extends JPanel {
         autoCollapsed = !holdOpen && kr.ac.hallym.hcs.app.window.VerticalBalance.collapsed(want, strip);
         if (Math.abs(tabsHeight() - want) > 1) {
             split.setDividerLocation(h - want - split.getDividerSize());
+            split.doLayout(); // 값과 실제 자리가 어긋나지 않게(Y-01 CI)
+            split.validate();
         }
     }
 
