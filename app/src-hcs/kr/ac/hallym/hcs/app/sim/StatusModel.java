@@ -95,7 +95,7 @@ public final class StatusModel {
         if (direct != null) {
             return direct;
         }
-        // 조합 부품 한 단계 너머(ref-mips: PC 레지스터와 0x00400000 상수를 가산기·XOR로 합쳐 pc 넷을 낸다): 그 부품의
+        // 조합 부품 한 단계 너머(ref-mips: PC 레지스터와 entry 상수 0x00400024를 XOR로 합쳐 pc 넷을 낸다): 그 부품의
         // 입력을 내는 레지스터·카운터. 한 단계만 거슬러 간다(학생 데이터패스를 해석하지 않는다, D-010)
         kr.ac.hallym.hcs.app.model.Netlist.Net net = nl.netOf(pc, 0);
         if (net != null) {

@@ -1,0 +1,4 @@
+HALLYM-EXEC 2
+# 손 작성: 2판 파일. 이 도구는 1판만 읽는다.
+entry         0x00400024
+future-key    anything

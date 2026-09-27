@@ -28,7 +28,9 @@ import com.cburch.logisim.comp.Component;
 import com.cburch.logisim.data.Value;
 import com.cburch.logisim.util.ZipClassLoader;
 
-/** hcs-asm과 붙는 부분(.s 불러오기, PLAN.md 6.3·6.6). */
+import kr.ac.hallym.hcs.mips.image.ExecutableImage;
+
+/** hcs-asm과 붙는 부분(전환용 .s 불러오기 {@link AssemblyTransition}, PLAN.md 6.3·6.6, D-126). */
 class AssemblerIntegrationTest {
     static final Path TESTS = Path.of(System.getProperty("hcs.testsDir"));
     static final File HCS_ASM = new File(System.getProperty("hcs.asm"));
@@ -38,11 +40,28 @@ class AssemblerIntegrationTest {
     @TempDir
     Path tmp;
 
-    static AssembledProgram assemble(Path source, String... flags) throws Exception {
+    static AssemblyTransition.Program assemble(Path source, String... flags) throws Exception {
         assertTrue(HCS_ASM.canExecute(), "먼저 make -C native/hcs-asm 을 돌린다: " + HCS_ASM);
-        HcsAsm.Run run = HcsAsm.run(HCS_ASM, source.toFile(), List.of(flags));
+        AssemblyTransition.Run run = AssemblyTransition.run(HCS_ASM, source.toFile(), List.of(flags));
         assertTrue(run.exit == 0 || run.exit == 1, run.stderr);
-        return AssembledProgram.fromJson(run.stdout);
+        return AssemblyTransition.Program.fromJson(run.stdout);
+    }
+
+    /** 전환용 .s 경로와 같게: hcs-asm -exception(Hallym MIPS 배치)으로 어셈블한 실행 이미지. 오류가 없어야 한다. */
+    static ExecutableImage image(Path source) throws Exception {
+        AssemblyTransition.Program p = assemble(source, AssemblyTransition.FLAGS.toArray(new String[0]));
+        assertEquals(List.of(), p.errors.stream().map(Object::toString).toList(), source.toString());
+        return AssemblyTransition.toImage(p, source.getFileName().toString());
+    }
+
+    /** 이미지를 plan대로 부품 속성에 넣는다(메뉴의 되돌리기 동작 대신). */
+    static void apply(ProgramLoader.Plan plan) {
+        assertEquals(List.of(), plan.errors);
+        for (ProgramLoader.Change ch : plan.changes) {
+            @SuppressWarnings("unchecked")
+            com.cburch.logisim.data.Attribute<Object> a = (com.cburch.logisim.data.Attribute<Object>) ch.attr;
+            ch.target.component.getAttributeSet().setValue(a, ch.value);
+        }
     }
 
     /** tests/asm의 골든 JSON을 모두 읽는다. */
@@ -51,26 +70,29 @@ class AssemblerIntegrationTest {
         int files = 0;
         try (var list = Files.list(TESTS.resolve("asm"))) {
             for (Path p : (Iterable<Path>) list.filter(f -> f.toString().endsWith(".json"))::iterator) {
-                AssembledProgram prog = AssembledProgram.fromJson(Files.readString(p));
+                AssemblyTransition.Program prog = AssemblyTransition.Program.fromJson(Files.readString(p));
                 assertEquals(false, prog.settings.get("delayed_branches"), p.toString());
                 files += 1;
             }
         }
         assertTrue(files >= 10);
-        AssembledProgram mem = AssembledProgram.fromJson(Files.readString(TESTS.resolve("asm/memory.json")));
+        AssemblyTransition.Program mem = AssemblyTransition.Program.fromJson(
+                Files.readString(TESTS.resolve("asm/memory.json")));
         assertEquals(0x00400000L, (long) mem.entry);
         assertEquals(0x10010000L, (long) mem.labels.get("arr"));
         assertEquals(10, (int) mem.data.get(0x10010000L));
-        assertEquals(14, mem.textImage().size());
-        AssembledProgram bad = AssembledProgram.fromJson(Files.readString(TESTS.resolve("asm/syntax-error.json")));
+        assertEquals(14, mem.text.size());
+        AssemblyTransition.Program bad = AssemblyTransition.Program.fromJson(
+                Files.readString(TESTS.resolve("asm/syntax-error.json")));
         assertEquals(4, bad.errors.get(0).line);
         assertEquals("addi  $t0, $t0,", bad.errors.get(0).context);
     }
 
     @Test
     void listsTheInstructionsAProgramUses() throws Exception {
-        AssembledProgram p = AssembledProgram.fromJson(Files.readString(TESTS.resolve("asm/pseudo.json")));
-        List<String> used = p.usedInstructions();
+        AssemblyTransition.Program p = AssemblyTransition.Program.fromJson(
+                Files.readString(TESTS.resolve("asm/pseudo.json")));
+        List<String> used = ProgramLoader.usedInstructions(AssemblyTransition.toImage(p, "pseudo.s"));
         // li 큰 값 = lui+ori, blt = slt+bne, move = addu, neg = sub, not = nor, b = bgez
         for (String m : List.of("lui", "ori", "slt", "bne", "addu", "nor", "sub", "syscall")) {
             assertTrue(used.contains(m), m + " in " + used);
@@ -122,17 +144,19 @@ class AssemblerIntegrationTest {
         assertTrue(unknown > 0); // tt.core.s에는 부동소수점 명령이 있다
     }
 
-    /** 어셈블한 .text·.data를 메모리에 넣고 원조 엔진에서 읽으면 SPIM이 둔 워드가 나온다. */
+    /** 어셈블한 .text·.data를 메모리에 넣고 원조 엔진에서 읽으면 SPIM이 둔 워드가 나온다(Hallym MIPS 배치). */
     @Test
     void loadedProgramIsWhatTheMemoriesServe() throws Exception {
-        AssembledProgram prog = assemble(TESTS.resolve("asm/memory.s"));
+        ExecutableImage img = image(TESTS.resolve("asm/memory.s"));
+        assertEquals(0x00400024L, (long) img.entry(), "main after the 9-word start code");
+        assertEquals(0x8fa40000, (int) img.textWords().get(0x00400000L), "start code kept at its address");
         InProcessSim sim = new InProcessSim();
         Component im = sim.b.add(sim.mips, "Instruction Memory", 600, 100);
         Component dm = sim.b.add(sim.mips, "Data Memory", 600, 400);
         sim.b.add(sim.mips, "Stack", 600, 700);
-        sim.b.constant("pc", 32, prog.entry.intValue() + 4, 100, 100);
+        sim.b.constant("pc", 32, img.entry().intValue() + 4, 100, 100);
         sim.b.tunnel(im, InstructionMemory.ADDR, "pc");
-        sim.b.constant("addr", 32, prog.labels.get("arr").intValue() + 12, 100, 400);
+        sim.b.constant("addr", 32, img.symbols().get("arr").intValue() + 12, 100, 400);
         sim.b.tunnel(dm, DataMemory.ADDR, "addr");
         sim.b.constant("one", 1, 1, 100, 500);
         sim.b.tunnel(dm, DataMemory.MEM_READ, "one");
@@ -143,25 +167,26 @@ class AssemblerIntegrationTest {
         List<ProgramLoader.Target> datas = ProgramLoader.find(circuits, false);
         assertEquals(1, texts.size());
         assertEquals(1, datas.size()); // Stack은 .data 후보가 아니다
-        ProgramLoader.Plan plan = ProgramLoader.plan(prog, texts.get(0), datas.get(0), "memory.s");
-        for (ProgramLoader.Change ch : plan.changes) {
-            @SuppressWarnings("unchecked")
-            com.cburch.logisim.data.Attribute<Object> a = (com.cburch.logisim.data.Attribute<Object>) ch.attr;
-            ch.target.component.getAttributeSet().setValue(a, ch.value);
-        }
+        ProgramLoader.Plan plan = ProgramLoader.plan(img, texts, datas, ProgramLoader.findStacks(circuits), null,
+                null, "memory.s");
+        apply(plan);
         sim.start();
-        assertEquals(prog.text.get(1).word, sim.port(im, InstructionMemory.INSTR).toIntValue());
+        assertEquals((int) img.textWords().get(0x00400028L), sim.port(im, InstructionMemory.INSTR).toIntValue());
         assertEquals(40, sim.port(dm, DataMemory.READ_DATA).toIntValue()); // arr[3]
         assertEquals("memory.s", im.getAttributeSet().getValue(MemoryFactory.SOURCE));
         assertTrue(plan.notes.get(plan.notes.size() - 1).contains("lw"), plan.notes.toString());
     }
 
+    /** 담을 부품이 없으면 구간과 범위를 말하고 아무것도 바꾸지 않는다(전부 아니면 전무). */
     @Test
     void reportsWhatHasNoMemory() throws Exception {
-        AssembledProgram prog = assemble(TESTS.resolve("asm/strings.s"));
-        ProgramLoader.Plan plan = ProgramLoader.plan(prog, null, null, "strings.s");
+        ExecutableImage img = image(TESTS.resolve("asm/strings.s"));
+        ProgramLoader.Plan plan = ProgramLoader.plan(img, List.of(), List.of(), List.of(), null, null, "strings.s");
         assertTrue(plan.changes.isEmpty());
-        assertEquals(2, plan.notes.stream().filter(n -> n.contains("Memory") || n.contains("메모리가 없음")).count(), plan.notes.toString());
+        assertEquals(2, plan.errors.size(), plan.errors.toString());
+        String e = String.join("\n", plan.errors); // 설명 문장은 언어 설정을 따른다
+        assertTrue(e.contains(".text 0x00400000\u20130x0040004c") && e.contains("Instruction Memory"), e);
+        assertTrue(e.contains(".data 0x10010000\u2013") && e.contains("Data Memory"), e);
     }
 
     @Test
@@ -185,20 +210,43 @@ class AssemblerIntegrationTest {
         Path jar = dir.resolve("hcs-mips.jar");
         Files.copy(OriginalLogisim.MIPS_JAR, jar, StandardCopyOption.REPLACE_EXISTING);
         ZipClassLoader loader = new ZipClassLoader(jar.toFile());
-        java.net.URL url = loader.findResource("kr/ac/hallym/hcs/mips/HcsAsm.class");
+        java.net.URL url = loader.findResource("kr/ac/hallym/hcs/mips/AssemblyTransition.class");
         assertNotNull(url);
         assertEquals("jar", url.getProtocol());
-        assertEquals(dir.toFile().getCanonicalFile(), HcsAsm.jarDirectory(url).getCanonicalFile());
-        assertEquals(null, HcsAsm.jarDirectory(new File(tmp.toFile(), "x.class").toURI().toURL()));
+        assertEquals(dir.toFile().getCanonicalFile(), AssemblyTransition.jarDirectory(url).getCanonicalFile());
+        assertEquals(null, AssemblyTransition.jarDirectory(new File(tmp.toFile(), "x.class").toURI().toURL()));
     }
 
+    /** hcs-asm 명령줄의 기본값(예외 처리기 없음)은 그대로이고, 불러오기는 -exception(Hallym MIPS 배치)을 켠다(D-126). */
     @Test
     void settingsMapKeepsHcsAsmNames() throws Exception {
-        AssembledProgram prog = assemble(TESTS.resolve("asm/branches.s"));
+        AssemblyTransition.Program prog = assemble(TESTS.resolve("asm/branches.s"));
         Map<String, Object> s = prog.settings;
         assertEquals(false, s.get("delayed_branches")); // QtSpim 기본 설정 그대로(D-010)
         assertEquals(false, s.get("bare_machine"));
-        assertEquals(false, s.get("exception_handler"));
+        assertEquals(false, s.get("exception_handler"), "hcs-asm CLI default unchanged");
+        assertEquals(0x00400000L, (long) prog.entry);
+        AssemblyTransition.Program loaded = assemble(TESTS.resolve("asm/branches.s"),
+                AssemblyTransition.FLAGS.toArray(new String[0]));
+        assertEquals(true, loaded.settings.get("exception_handler"), "the loader uses the Hallym MIPS layout");
+        assertEquals(false, loaded.settings.get("delayed_branches"));
+        assertEquals(0x00400024L, (long) loaded.entry);
         assertEquals(Value.TRUE, Value.TRUE); // 형식상
+    }
+
+    /** 전환용 .s 경로: 요약에 ".s 임시 지원"이 보이고, 시작 코드 9워드가 파일 주소 그대로 들어간다. */
+    @Test
+    void readingAnAssemblyFileGoesThroughTheTransitionClass() throws Exception {
+        ProgramLoader.Loaded l = ProgramLoader.read(TESTS.resolve("mips/sum.s").toFile());
+        assertEquals(List.of(), l.errors);
+        assertTrue(l.transition);
+        assertTrue(l.notes.get(0).startsWith(".s temporary support (hcs-asm -exception, Hallym MIPS layout)")
+                || l.notes.get(0).startsWith(".s 임시 지원"), l.notes.toString());
+        assertEquals(0x00400024L, (long) l.image.entry());
+        assertEquals(9, l.image.textWords().headMap(0x00400024L).size(), "start code words");
+        assertEquals(0x00400000L, (long) l.image.textWords().firstKey());
+        ProgramLoader.Loaded bad = ProgramLoader.read(TESTS.resolve("asm/syntax-error.s").toFile());
+        assertEquals(null, bad.image);
+        assertTrue(bad.errors.size() >= 2 && bad.errors.get(1).startsWith("4: syntax error"), bad.errors.toString());
     }
 }

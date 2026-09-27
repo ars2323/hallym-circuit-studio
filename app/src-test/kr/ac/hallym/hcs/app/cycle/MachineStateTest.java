@@ -90,7 +90,7 @@ class MachineStateTest {
         // $29는 라벨로 찾았다(ref-mips 레지스터 라벨 $1~$31)
         List<MachineState.Reg> regs = ms.registers(last);
         assertTrue(regs.stream().anyMatch(x -> x.number == 29), "$29 found by its label");
-        // X-04: ref-mips의 pc 라벨은 터널에 있고 그 넷은 가산기(PC 레지스터 + 0x00400000)가 낸다. 가산기 입력을 내는
+        // X-04: ref-mips의 pc 라벨은 터널에 있고 그 넷은 XOR(PC 레지스터, entry 0x00400024)이 낸다. 그 입력을 내는
         // (라벨 없는) 레지스터가 "PC"로 보이고 원래 이름(Register #n)이 곁에 따라온다
         MachineState.Reg viaAdder = regs.stream().filter(x -> "PC".equals(x.name)).findFirst().orElse(null);
         assertNotNull(viaAdder, "the register behind the pc adder is listed as PC");

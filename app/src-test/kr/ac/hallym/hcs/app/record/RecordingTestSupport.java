@@ -77,8 +77,9 @@ public final class RecordingTestSupport {
     }
 
     public static String assemble(Path source) throws Exception {
-        Process p = new ProcessBuilder(System.getProperty("hcs.asm"), source.toString()).redirectErrorStream(false)
-                .start();
+        // 불러오기와 같은 Hallym MIPS 배치(-exception, D-126): 참조 회로의 PC가 entry 0x00400024에서 시작한다
+        Process p = new ProcessBuilder(System.getProperty("hcs.asm"), "-exception", source.toString())
+                .redirectErrorStream(false).start();
         byte[] out = p.getInputStream().readAllBytes();
         if (!p.waitFor(30, TimeUnit.SECONDS) || p.exitValue() != 0) {
             throw new IllegalStateException("hcs-asm failed for " + source);

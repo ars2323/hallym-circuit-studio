@@ -1,0 +1,34 @@
+HALLYM-EXEC 1
+# hcs-asm -exception으로 생성: Hallym MIPS 내보내기가 나오면 교체
+# 명세 예시(docs/hmx.md) 모양대로 손으로 옮겼다. 워드는 hcs-asm -exception example.s 결과다.
+source        example.s
+source-sha256 254029244d04e3f07f12c64464d7ca66902ee0a4b9492b39e9e5d8a94eb1c4e4
+produced-by   Hallym MIPS 2.2.0
+assembled     2026-09-27T13:15+09:00
+endian        little
+
+entry         0x00400024
+reg $sp       0x7ffff000
+reg $gp       0x10008000
+
+symbol main   0x00400024
+symbol str    0x10010000
+
+.text 0x00400000 words 14
+8fa40000
+27a50004
+24a60004
+00041080
+00c23021
+0c100009
+00000000
+3402000a
+0000000c
+3c041001
+34020004
+0000000c
+3402000a
+0000000c
+
+.data 0x10010000 bytes 12
+48 65 6c 6c 6f 20 4d 49 50 53 0a 00

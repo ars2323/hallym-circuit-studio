@@ -99,11 +99,13 @@ public final class ProgramSource {
 
     static ProgramSource load(File source) {
         File exe = kr.ac.hallym.hcs.app.BundledLibraries.hcsAsm();
-        if (exe == null) {
-            return EMPTY;
+        if (exe == null || !ProgramReload.isAssembly(source)) {
+            return EMPTY; // .hmx에는 원래 줄이 없다(머리는 디스어셈블로)
         }
         try {
-            Process proc = new ProcessBuilder(exe.getPath(), source.getPath()).redirectErrorStream(false).start();
+            // 불러오기와 같은 Hallym MIPS 배치(-exception, D-126): 주소가 메모리의 워드와 맞는다
+            Process proc = new ProcessBuilder(exe.getPath(), "-exception", source.getPath()).redirectErrorStream(false)
+                    .start();
             proc.getOutputStream().close();
             byte[] out = proc.getInputStream().readAllBytes();
             if (!proc.waitFor(30, TimeUnit.SECONDS)) {

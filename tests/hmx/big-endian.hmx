@@ -1,0 +1,8 @@
+HALLYM-EXEC 1
+# 손 작성: big endian. 주소가 낮은 바이트가 워드의 높은 8비트다.
+endian big
+entry 0x00400000
+.text 0x00400000 words 1
+0000000c
+.data 0x10010000 bytes 5
+12 34 56 78 9a

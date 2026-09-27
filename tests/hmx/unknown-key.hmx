@@ -1,0 +1,6 @@
+HALLYM-EXEC 1
+# 손 작성: 1판에 없는 키(checksum). 1판에서 새 키는 새 판이다.
+entry         0x00400024
+checksum      1234
+.text 0x00400024 words 1
+0000000c

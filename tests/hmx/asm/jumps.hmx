@@ -1,0 +1,32 @@
+HALLYM-EXEC 1
+# hcs-asm -exception으로 생성: Hallym MIPS 내보내기가 나오면 교체
+source        ../../asm/jumps.s
+source-sha256 412e100d8262deeae129ba08ee22ce09d0c1d7a8b18b6ede120a244d1ac70e53
+produced-by   hcs-asm 0.1.0 -exception
+endian        little
+
+entry         0x00400024
+
+symbol end    0x00400040
+symbol main   0x00400024
+symbol square 0x00400034
+
+.text 0x00400000 words 18
+8fa40000
+27a50004
+24a60004
+00041080
+00c23021
+0c100009
+00000000
+3402000a
+0000000c
+34040003
+0c10000d
+00028021
+08100010
+00840018
+00001012
+03e00008
+3402000a
+0000000c

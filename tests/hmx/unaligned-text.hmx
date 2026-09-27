@@ -1,0 +1,5 @@
+HALLYM-EXEC 1
+# 손 작성: .text 시작 주소가 워드 경계가 아니다.
+entry 0x00400002
+.text 0x00400002 words 1
+0000000c

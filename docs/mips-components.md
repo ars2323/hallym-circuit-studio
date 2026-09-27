@@ -83,16 +83,27 @@
 - 정의되지 않은 비트는 `x`, 오류 비트는 `E`로 자리마다 보인다(16진수는 그 비트를 포함한 자리).
 - 부품 폭은 2진수 줄이 들어가게 입력 폭에 따라 정해진다(32비트: 260).
 
-## .s 불러오기
+## 프로그램 불러오기 (Load Program)
 
-Instruction Memory나 Data Memory를 우클릭하면 "Load .s..."가 있다(PLAN.md 6.3). 한 번 불러온 뒤에는 "Reload 파일 이름"도 보인다.
+Instruction Memory나 Data Memory를 우클릭하면 "Load Program..."이 있다(PLAN.md 6.3, D-126). 한 번 불러온 뒤에는 "Reload 파일 이름"도 보인다.
 
-1. .s 파일을 고르면 `hcs-asm`(docs/hcs-asm.md)으로 과제 표준 설정으로 어셈블한다. `hcs-asm`은 시스템 속성 `hcs.asm`, 환경 변수 `HCS_ASM`, `hcs-mips.jar`와 같은 폴더 순서로 찾는다. 트랙 A 배포 zip은 두 파일을 한 폴더에 둔다.
-2. 어셈블 오류가 있으면 줄 번호와 메시지(최대 10개)를 보이고 아무것도 바꾸지 않는다.
-3. .text는 Instruction Memory, .data는 Data Memory(Stack 제외)의 `contents`에 넣는다. 우클릭한 부품이 한쪽을 받고, 다른 쪽은 파일의 모든 회로에서 찾는다. 후보가 둘 이상일 때만 목록에서 고르게 한다. 주소는 SPIM 그대로라 확인할 것이 없다.
-4. `source` 속성에 .s 경로를 저장한다. .circ와 같은 폴더나 그 아래면 상대 경로(`prog.s`, `asm/prog.s`), 아니면 절대 경로다.
-5. 바꾼 속성은 Edit › Undo 한 번으로 되돌린다.
-6. 넣은 워드 수, 영역 밖 워드, hcs-asm 경고(`main` 위치 등), 프로그램이 쓰는 명령어 목록(PLAN.md 6.6)을 보인다.
+1. Hallym MIPS가 내보낸 실행 이미지(`.hmx`, docs/hmx.md)를 고른다. 파일 고르기 창의 거르개는 "Executable image (*.hmx)"이고, 전환 기간에는 `.s`도 고를 수 있다(기본 거르개가 둘 다 보인다).
+2. `.hmx`는 lib-mips 안의 공용 파서(D-125)가 읽는다. hcs-asm이 필요 없다. `.s`는 전환용 클래스 `AssemblyTransition` 하나가 `hcs-asm -exception`(Hallym MIPS 기본 배치)으로 어셈블해 같은 이미지 모델로 바꾼다(#373에서 지운다). `hcs-asm`은 시스템 속성 `hcs.asm`, 환경 변수 `HCS_ASM`, `hcs-mips.jar`와 같은 폴더 순서로 찾는다.
+3. 파일에 오류가 있으면 줄 번호와 문장(앞 12개)을 보이고 아무것도 바꾸지 않는다.
+4. `.text`는 파일 주소 그대로(시작 코드 포함) 그 구간을 담는 Instruction Memory의 `contents`에, `.data`는 그 구간을 담는 Data Memory(Stack 제외)에 넣는다. 우클릭한 부품이 그 종류면 그 부품이 구간을 모두 담아야 한다. 아니면 담는 부품이 하나면 그것, 둘 이상이면 목록에서 고르게 한다. 담는 부품이 없으면 구간과 범위를 말하고 아무것도 넣지 않는다. `.data`가 없는 프로그램은 그 Data Memory를 비운다.
+5. `reg $sp`가 있으면 그 값을 품은 Stack의 `contents`에 깊이 기준으로 기억한다(아래 "Stack 깊이 기준").
+6. `source` 속성에 고른 파일 경로를 저장한다. .circ와 같은 폴더나 그 아래면 상대 경로(`prog.hmx`, `asm/prog.s`), 아니면 절대 경로다. 옛 파일의 `.s` 경로도 그대로 다시 읽는다.
+7. 바꾼 속성은 Edit › Undo 한 번으로 되돌린다.
+8. 요약 창: 어디서 온 이미지인가(`.s`면 ".s 임시 지원"), 넣은 영역과 양(`14 words (0x00400000–0x00400034), entry 0x00400024`, `12 bytes = 3 words (0x10010000–0x1001000b)`), `$sp` 깊이 기준, 이미지의 명령어 목록(PLAN.md 6.6, 시작 코드 포함), 원본 `.s` 대조 결과(바뀌었으면 노란 줄).
+
+### Stack 깊이 기준
+
+Stack 몸체의 `used N B (peak)`는 시작 `$sp`에서 잰다. 실행 이미지에 `reg $sp`가 있으면 그 값, 없으면 SPIM의 `0x7FFFEFFC`다(#134). 새 속성 이름을 더하지 않으려고(규칙: 기존 부품에 속성 추가 금지) 이 값은 Stack의 `contents`에 **주소만 있는 줄**로 저장한다. 워드가 없는 줄이라 메모리 내용은 그대로이고, 옛 lib-mips도 이 줄을 오류 없이 건너뛴다.
+
+```text
+hcs-words 1
+7ffff000
+```
 
 명령어 이름은 `Disassembler`가 MIPS32 명세의 opcode·funct 표로 직접 정한다. SPIM의 표는 옮기지 않았다(규칙 2.5). 정수 명령어와 syscall, 코프로세서 이동, TLB·eret을 알고, 부동소수점은 모른다(`?`). 테스트는 원본 spim의 디스어셈블(`tt.core.s` 등 2000워드 이상)과 이름을 대조한다.
 
@@ -105,8 +116,8 @@ Instruction Memory나 Data Memory를 우클릭하면 "Load .s..."가 있다(PLAN
 | `base` | 시작 주소(높은 쪽으로 자람) | `0x00400000` | `0x10010000` | 없음 |
 | `top` | 맨 위 워드 주소(낮은 쪽으로 자람) | 없음 | 없음 | `0x7ffffffc` |
 | `size` | 한계(바이트) | `0x100000` | `0x100000` | `0x100000` |
-| `contents` | 초기 내용(.s의 .text / .data) | 비어 있음 | 비어 있음 | 비어 있음 |
-| `source` | 불러온 .s 경로 | `""` | `""` | `""` |
+| `contents` | 초기 내용(실행 이미지의 .text / .data, Stack은 깊이 기준) | 비어 있음 | 비어 있음 | 비어 있음 |
+| `source` | 불러온 프로그램(.hmx, 전환 기간 .s) 경로. 속성 창 이름은 `Program` | `""` | `""` | `""` |
 | `label` | 라벨 | `""` | `""` | `""` |
 
 영역은 Data가 [`base`, `base`+`size`), Stack이 [`top`+4−`size`, `top`+4)다. 기본 Stack 영역 `0x7FF00000`~`0x7FFFFFFF`에는 SPIM의 `$sp` 초기값 `0x7FFFEFFC`가 들어 있다.

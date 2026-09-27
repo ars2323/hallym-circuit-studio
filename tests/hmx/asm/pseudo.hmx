@@ -1,0 +1,47 @@
+HALLYM-EXEC 1
+# hcs-asm -exception으로 생성: Hallym MIPS 내보내기가 나오면 교체
+source        ../../asm/pseudo.s
+source-sha256 ddd4995e8827c3ee6e7cf6196ed64b9d101655659128ea6560461ac167540ae6
+produced-by   hcs-asm 0.1.0 -exception
+endian        little
+
+entry         0x00400024
+
+symbol done   0x0040006c
+symbol main   0x00400024
+symbol next   0x00400058
+symbol val    0x10010000
+
+.text 0x00400000 words 29
+8fa40000
+27a50004
+24a60004
+00041080
+00c23021
+0c100009
+00000000
+3402000a
+0000000c
+34080005
+3c01ffff
+3429fffb
+3c011234
+342a5678
+3c0b1001
+00086021
+01006827
+00087022
+0109082a
+14200008
+0128082a
+14200001
+0128082a
+10200004
+0109082a
+10200002
+04010001
+3402000a
+0000000c
+
+.data 0x10010000 bytes 4
+78 56 34 12

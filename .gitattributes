@@ -5,3 +5,5 @@ docs/DECISIONS.md merge=union
 # vendor/와 app/은 원본 바이트 그대로 두어야 하므로(규칙 2.2) 넣지 않는다.
 tests/asm/** text eol=lf
 tests/mips/*.s text eol=lf
+# 실행 이미지 시험 파일: source-sha256이 원본 .s 바이트와 맞아야 하므로 LF로 둔다(D-126).
+tests/hmx/** text eol=lf

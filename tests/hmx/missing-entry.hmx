@@ -1,0 +1,5 @@
+HALLYM-EXEC 1
+# 손 작성: entry 줄이 없다.
+symbol main 0x00400024
+.text 0x00400024 words 1
+0000000c

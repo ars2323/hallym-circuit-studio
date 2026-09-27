@@ -7,7 +7,7 @@
 | 주제 | 결론 | 반영 |
 | --- | --- | --- |
 | SPIM 코어 | `ref/CPU/`와 `vendor/spim-9.1.24/CPU/`는 `diff -rq` 결과 완전히 같다 | `hcs-asm`은 vendor `CPU/`를 링크한다. 같은 설정이면 Hallym MIPS와 기계어가 같다 |
-| 어셈블 기본값 | Hallym MIPS = 원본 QtSpim: bare 끔, 의사 명령어 켬, 지연 분기·지연 로드 끔, mapped I/O 끔, **예외 처리기(내장 `CPU/exceptions.s`) 켬** | `hcs-asm`은 과제 표준 설정(예외 처리기 끔)을 기본값으로 하고 모든 설정을 JSON `settings`에 남긴다. 예외 처리기를 켜면 학생 코드가 `0x00400024`부터라는 점은 #42에서 다룬다 |
+| 어셈블 기본값 | Hallym MIPS = 원본 QtSpim: bare 끔, 의사 명령어 켬, 지연 분기·지연 로드 끔, mapped I/O 끔, **예외 처리기(내장 `CPU/exceptions.s`) 켬** | `hcs-asm` 명령줄 기본값은 예외 처리기 끔이고 모든 설정을 JSON `settings`에 남긴다. 불러오기(전환용 .s 경로)는 Hallym MIPS와 같게 `-exception`으로 돌려 학생 코드가 `0x00400024`부터다(D-126). 실행 이미지(.hmx)도 이 배치다 |
 | 디자인 토큰 | `docs/design/tokens.md`보다 코드 `QtSpim/edu/theme/tokens.h`가 최신이다. 라이트 전용 | Swing 이식(#21)은 `tokens.h` 값을 쓴다. 다크 모드는 새로 설계하고 대비 근거를 남긴다 |
 | 변경된 레지스터 값 | "굵은 청록색"이 아니라 굵기 없이 글자 `#00736F` + 배경 `#E6F6F5`(1.2.0부터). 고정폭 열에 굵기를 쓰면 정렬이 깨진다 | 레지스터 패널(#32)·다중 진법 프로브(#14)도 같은 규칙. PLAN.md 5.1 문구를 고친다 |
 | 로고 원본 | `assets/ci/marks/*.svg`가 마크별로 잘라 치수선을 지운 결과다. 자르기 스크립트가 없어 다시 만들 수 없다 | 로고는 이 SVG를 그대로 가져와 쓴다(#7). PNG는 SVG에서 렌더해 커밋한다 |
