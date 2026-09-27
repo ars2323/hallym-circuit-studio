@@ -1,0 +1,26 @@
+HALLYM-EXEC 1
+# hcs-asm -exception으로 생성: Hallym MIPS 내보내기가 나오면 교체
+source        ../../asm/main-not-first.s
+source-sha256 4d6c4d2db684fee6eb6583a83cfd8c481496a9f7a5184aa73b1bea13981a5a57
+produced-by   hcs-asm 0.1.0 -exception
+endian        little
+
+entry         0x00400028
+
+symbol helper 0x00400024
+symbol main   0x00400028
+
+.text 0x00400000 words 13
+8fa40000
+27a50004
+24a60004
+00041080
+00c23021
+0c10000a
+00000000
+3402000a
+0000000c
+03e00008
+0c100009
+3402000a
+0000000c

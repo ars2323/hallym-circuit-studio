@@ -2470,7 +2470,7 @@
     </comp>
     <comp lib="0" loc="(3400,400)" name="Constant">
       <a name="width" val="32"/>
-      <a name="value" val="0x400000"/>
+      <a name="value" val="0x400024"/>
     </comp>
     <comp lib="0" loc="(5760,2780)" name="Tunnel">
       <a name="facing" val="east"/>

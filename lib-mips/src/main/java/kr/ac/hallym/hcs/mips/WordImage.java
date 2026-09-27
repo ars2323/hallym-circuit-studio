@@ -18,6 +18,14 @@ import java.util.TreeMap;
  * 00400000 3c041001 34020004 0000000c
  * 10010000 000a6968
  * </pre>
+ *
+ * <p>Stack은 실행 이미지의 {@code reg $sp}를 깊이 기준으로 기억한다(D-126). 새 속성 이름을 더하지 않으려고 이 형식에
+ * <b>주소만 있는 줄</b> 하나로 적는다(워드를 적지 않으므로 메모리 내용은 그대로다). 옛 lib-mips의 {@link #parse}도
+ * 이 줄을 오류 없이 건너뛴다.
+ * <pre>
+ * hcs-words 1
+ * 7ffff000
+ * </pre>
  */
 final class WordImage {
     static final String HEADER = "hcs-words 1";
@@ -26,10 +34,17 @@ final class WordImage {
 
     /** 주소(부호 없는 32비트) → 워드. */
     private final TreeMap<Long, Integer> words;
+    /** Stack 깊이 기준으로 기억한 $sp 시작 값(주소만 있는 줄). 없으면 null. */
+    private final Long initialSp;
     private final SparseMemory memory = new SparseMemory();
 
     private WordImage(TreeMap<Long, Integer> words) {
+        this(words, null);
+    }
+
+    private WordImage(TreeMap<Long, Integer> words, Long initialSp) {
         this.words = words;
+        this.initialSp = initialSp;
         for (Map.Entry<Long, Integer> e : words.entrySet()) {
             memory.write((int) (long) e.getKey(), e.getValue());
         }
@@ -45,6 +60,20 @@ final class WordImage {
 
     int size() {
         return words.size();
+    }
+
+    /** 실행 이미지의 {@code reg $sp}(Stack 깊이 기준). 없으면 null. */
+    Long initialSp() {
+        return initialSp;
+    }
+
+    /** 같은 워드에 깊이 기준만 바꾼 것. sp가 null이면 기준을 지운다. */
+    WordImage withInitialSp(Long sp) {
+        Long v = sp == null ? null : sp & 0xffffffffL;
+        if (v == null ? initialSp == null : v.equals(initialSp)) {
+            return this;
+        }
+        return new WordImage(words, v);
     }
 
     boolean isEmpty() {
@@ -71,6 +100,9 @@ final class WordImage {
 
     String format() {
         StringBuilder sb = new StringBuilder(HEADER).append('\n');
+        if (initialSp != null) {
+            sb.append(hex(initialSp)).append('\n'); // 주소만 있는 줄: Stack 깊이 기준
+        }
         long next = -1;
         int inLine = 0;
         for (Map.Entry<Long, Integer> e : words.entrySet()) {
@@ -103,18 +135,23 @@ final class WordImage {
             throw new IllegalArgumentException("expected '" + HEADER + "'");
         }
         TreeMap<Long, Integer> words = new TreeMap<Long, Integer>();
+        Long sp = null;
         for (int i = 1; i < lines.length; i += 1) {
             StringTokenizer tok = new StringTokenizer(lines[i]);
             if (!tok.hasMoreTokens()) {
                 continue;
             }
             long addr = Long.parseLong(tok.nextToken(), 16);
+            if (!tok.hasMoreTokens()) {
+                sp = addr & 0xffffffffL; // 주소만 있는 줄
+                continue;
+            }
             while (tok.hasMoreTokens()) {
                 words.put(addr & 0xfffffffcL, (int) Long.parseLong(tok.nextToken(), 16));
                 addr += 4;
             }
         }
-        return new WordImage(words);
+        return new WordImage(words, sp);
     }
 
     static String hex(long v) {
@@ -124,11 +161,15 @@ final class WordImage {
 
     @Override
     public boolean equals(Object o) {
-        return o instanceof WordImage && ((WordImage) o).words.equals(words);
+        if (!(o instanceof WordImage)) {
+            return false;
+        }
+        WordImage w = (WordImage) o;
+        return w.words.equals(words) && (initialSp == null ? w.initialSp == null : initialSp.equals(w.initialSp));
     }
 
     @Override
     public int hashCode() {
-        return words.hashCode();
+        return words.hashCode() * 31 + (initialSp == null ? 0 : initialSp.hashCode());
     }
 }

@@ -44,7 +44,7 @@ abstract class MemoryFactory extends InstanceFactory {
     static final WordImageAttribute CONTENTS =
             new WordImageAttribute("contents", Text.name("Initial Contents"));
     static final Attribute<String> SOURCE =
-            Attributes.forString("source", Text.name("Program (.s)"));
+            Attributes.forString("source", Text.name("Program"));
 
     static final Font TITLE_FONT = new Font("SansSerif", Font.BOLD, 11);
     static final Font BODY_FONT = new Font("Monospaced", Font.PLAIN, 10);

@@ -9,7 +9,6 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import javax.swing.JFileChooser;
@@ -27,11 +26,17 @@ import com.cburch.logisim.tools.MenuExtender;
 import com.cburch.logisim.tools.SetAttributeAction;
 
 /**
- * Instruction Memory·Data Memory의 우클릭 메뉴 ".s 프로그램 불러오기"(PLAN.md 6.3). .s를 hcs-asm으로
- * 어셈블해 .text와 .data를 두 메모리의 {@code contents}에 넣는다. 같은 부품이 둘 이상일 때만 어느 쪽인지 묻는다.
- * 속성 변경은 되돌리기 한 번으로 취소된다.
+ * Instruction Memory·Data Memory의 우클릭 메뉴 "Load Program..."(PLAN.md 6.3, Z-01). Hallym MIPS의 실행 이미지(.hmx)를
+ * 읽어 .text와 .data를 메모리의 {@code contents}에 넣는다. 전환 기간에는 .s도 고를 수 있다({@link AssemblyTransition}).
+ * 고른 파일은 .circ 기준 상대 경로로 {@code source} 속성에 둔다(옛 .s 경로도 그대로 다시 읽는다). 속성 변경은 되돌리기
+ * 한 번으로 취소된다. 파일에 오류가 있거나 담을 부품이 없으면 아무것도 바꾸지 않는다.
  */
 final class LoadProgramMenu implements MenuExtender, ActionListener {
+    /** 결과 창에서 한 번에 보일 오류 수. */
+    static final int MAX_ERRORS = 12;
+    /** 노란 사실 줄의 바탕(Hallym MIPS warning 토큰의 옅은 바탕). */
+    static final String WARN_BACKGROUND = "#FFF4C2";
+
     private final Instance instance;
     private Project proj;
     private JMenuItem load;
@@ -45,7 +50,7 @@ final class LoadProgramMenu implements MenuExtender, ActionListener {
     public void configureMenu(JPopupMenu menu, Project proj) {
         this.proj = proj;
         menu.addSeparator();
-        load = new JMenuItem(Text.name("Load .s...").get());
+        load = new JMenuItem(Text.name("Load Program...").get());
         load.addActionListener(this);
         menu.add(load);
         String source = instance.getAttributeValue(MemoryFactory.SOURCE);
@@ -60,65 +65,46 @@ final class LoadProgramMenu implements MenuExtender, ActionListener {
     public void actionPerformed(ActionEvent e) {
         File circ = proj.getLogisimFile().getLoader().getMainFile();
         if (e.getSource() == reload) {
-            File f = new File(instance.getAttributeValue(MemoryFactory.SOURCE));
-            if (!f.isAbsolute() && circ != null) {
-                f = new File(circ.getAbsoluteFile().getParentFile(), f.getPath());
-            }
-            load(f);
+            load(ProgramLoader.resolveSource(circ, instance.getAttributeValue(MemoryFactory.SOURCE)));
             return;
         }
         JFileChooser chooser = new JFileChooser(circ == null ? null : circ.getAbsoluteFile().getParentFile());
-        chooser.setFileFilter(new FileNameExtensionFilter(Text.name("MIPS Assembly (*.s, *.asm)").get(), "s", "asm"));
+        FileNameExtensionFilter hmx = new FileNameExtensionFilter(Text.name("Executable image (*.hmx)").get(), "hmx");
+        chooser.setFileFilter(hmx);
+        AssemblyTransition.addFilters(chooser, hmx);
         if (chooser.showOpenDialog(proj.getFrame()) == JFileChooser.APPROVE_OPTION) {
             load(chooser.getSelectedFile());
         }
     }
 
-    private void load(File source) {
-        File exe = HcsAsm.locate();
-        if (exe == null) {
-            error(Text.of("Cannot find hcs-asm. Put " + HcsAsm.executableName() + " in the same folder as hcs-mips.jar.",
-                    "hcs-asm을 찾을 수 없습니다. hcs-mips.jar와 같은 폴더에 " + HcsAsm.executableName()
-                            + "을 두세요.").get());
+    private void load(File file) {
+        ProgramLoader.Loaded loaded = ProgramLoader.read(file);
+        if (!loaded.ok()) {
+            error(file.getName(), loaded.errors);
             return;
         }
-        AssembledProgram program;
-        try {
-            HcsAsm.Run run = HcsAsm.run(exe, source, Collections.<String>emptyList());
-            if (run.exit == 2) {
-                error(run.stderr.trim());
-                return;
-            }
-            program = AssembledProgram.fromJson(run.stdout);
-        } catch (Exception ex) {
-            error(String.valueOf(ex.getMessage()));
-            return;
-        }
-        if (!program.errors.isEmpty()) {
-            StringBuilder sb = new StringBuilder(Text.of("Assembly errors in ", "어셈블 오류: ").get())
-                    .append(source.getName()).append('\n');
-            for (int i = 0; i < program.errors.size() && i < 10; i += 1) {
-                sb.append('\n').append(program.errors.get(i));
-            }
-            error(sb.toString());
-            return;
-        }
-
         List<Circuit> circuits = proj.getLogisimFile().getCircuits();
         Component clicked = Instance.getComponentFor(instance);
         ProgramLoader.Target self = new ProgramLoader.Target(proj.getCurrentCircuit(), clicked);
-        boolean clickedText = ProgramLoader.isText(clicked.getFactory());
-        ProgramLoader.Target text = clickedText ? self : choose(ProgramLoader.find(circuits, true), ".text");
-        ProgramLoader.Target data = clickedText ? choose(ProgramLoader.find(circuits, false), ".data") : self;
-        if (text == null && data == null) {
+        String sourceAttr = ProgramLoader.relativeSource(proj.getLogisimFile().getLoader().getMainFile(), file);
+        ProgramLoader.Plan plan = ProgramLoader.plan(loaded, circuits, self, new ProgramLoader.Chooser() {
+            @Override
+            public ProgramLoader.Target choose(List<ProgramLoader.Target> candidates, String what) {
+                Object picked = JOptionPane.showInputDialog(proj.getFrame(),
+                        Text.of("Which memory gets " + what + "?", what + " 구간을 넣을 메모리를 고르세요.").get(),
+                        Text.name("Load Program").get(), JOptionPane.QUESTION_MESSAGE, null, candidates.toArray(),
+                        candidates.get(0));
+                return (ProgramLoader.Target) picked;
+            }
+        }, sourceAttr);
+        if (!plan.errors.isEmpty()) {
+            error(file.getName(), plan.errors);
             return;
         }
-        String sourceAttr = ProgramLoader.relativeSource(proj.getLogisimFile().getLoader().getMainFile(), source);
-        ProgramLoader.Plan plan = ProgramLoader.plan(program, text, data, sourceAttr);
 
         Action action = null;
         for (Circuit c : circuitsOf(plan)) {
-            SetAttributeAction act = new SetAttributeAction(c, Text.name("Load .s"));
+            SetAttributeAction act = new SetAttributeAction(c, Text.name("Load Program"));
             for (ProgramLoader.Change ch : plan.changes) {
                 if (ch.target.circuit == c) {
                     act.set(ch.target.component, ch.attr, ch.value);
@@ -129,8 +115,41 @@ final class LoadProgramMenu implements MenuExtender, ActionListener {
         if (action != null) {
             proj.doAction(action);
         }
-        JOptionPane.showMessageDialog(proj.getFrame(), String.join("\n", plan.notes),
-                source.getName(), JOptionPane.INFORMATION_MESSAGE);
+        JOptionPane.showMessageDialog(proj.getFrame(), summaryHtml(plan), file.getName(),
+                JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    /** 요약 창의 글: 요약 줄, 사실 줄, 노란 사실 줄. */
+    static String summaryHtml(ProgramLoader.Plan plan) {
+        StringBuilder sb = new StringBuilder("<html>");
+        for (String n : plan.notes) {
+            sb.append(escape(n)).append("<br>");
+        }
+        for (String f : plan.facts) {
+            sb.append(escape(f)).append("<br>");
+        }
+        for (String w : plan.warnings) {
+            sb.append("<div style='background:").append(WARN_BACKGROUND).append(";padding:2px 4px'>")
+                    .append(escape(w)).append("</div>");
+        }
+        return sb.append("</html>").toString();
+    }
+
+    static String escape(String s) {
+        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+    }
+
+    /** 오류 목록(앞 {@link #MAX_ERRORS}개와 나머지 개수). */
+    static String errorText(List<String> errors) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < errors.size() && i < MAX_ERRORS; i += 1) {
+            sb.append(i == 0 ? "" : "\n").append(errors.get(i));
+        }
+        int more = errors.size() - MAX_ERRORS;
+        if (more > 0) {
+            sb.append('\n').append(Text.of("… and " + more + " more", "… 그 밖에 " + more + "개").get());
+        }
+        return sb.toString();
     }
 
     private static List<Circuit> circuitsOf(ProgramLoader.Plan plan) {
@@ -143,19 +162,8 @@ final class LoadProgramMenu implements MenuExtender, ActionListener {
         return out;
     }
 
-    /** 후보가 하나면 그것, 여럿이면 묻는다. 없으면 null. */
-    private ProgramLoader.Target choose(List<ProgramLoader.Target> candidates, String segment) {
-        if (candidates.size() <= 1) {
-            return candidates.isEmpty() ? null : candidates.get(0);
-        }
-        Object picked = JOptionPane.showInputDialog(proj.getFrame(),
-                Text.of("Which memory gets " + segment + "?", segment + "를 넣을 메모리를 고르세요.").get(),
-                segment, JOptionPane.QUESTION_MESSAGE, null, candidates.toArray(), candidates.get(0));
-        return (ProgramLoader.Target) picked;
-    }
-
-    private void error(String message) {
-        JOptionPane.showMessageDialog(proj.getFrame(), message,
-                Text.name("Load .s").get(), JOptionPane.ERROR_MESSAGE);
+    private void error(String file, List<String> errors) {
+        JOptionPane.showMessageDialog(proj.getFrame(), errorText(errors),
+                Text.name("Load Program").get() + ": " + file, JOptionPane.ERROR_MESSAGE);
     }
 }

@@ -33,12 +33,19 @@ import org.junit.jupiter.api.io.TempDir;
 import com.cburch.logisim.data.Attribute;
 import com.cburch.logisim.data.AttributeSet;
 
+import kr.ac.hallym.hcs.mips.image.ExecutableImage;
+
 /**
- * 참조 single-cycle MIPS 회로(#16)로 예제 .s를 돌린 결과(레지스터, 메모리, Console)가 원본 spim 실행과 같다.
- * spim은 예외 처리기 없이 {@code run 0x00400000}으로 main부터 돌려 회로와 조건을 맞춘다.
+ * 참조 single-cycle MIPS 회로(#16)로 예제를 돌린 결과(레지스터, 메모리, Console)가 원본 spim 실행과 같다(D-126).
+ * 예제는 실행 이미지(tests/hmx/mips/*.hmx, Hallym MIPS 배치)로 불러오고, 회로의 PC는 entry(main, 0x00400024)에서
+ * 시작한다. spim은 예외 처리기를 불러온 채(시작 코드가 0x00400000~0x00400020) {@code run 0x00400024}로 main부터
+ * 돌려 회로와 조건을 맞춘다.
  */
 class RefMipsTest {
     static final Path PROGRAMS = Path.of(System.getProperty("hcs.testsDir"), "mips");
+    static final Path IMAGES = Path.of(System.getProperty("hcs.testsDir"), "hmx", "mips");
+    /** Hallym MIPS 기본 배치의 entry(main). 참조 회로의 PC가 리셋 때 여기서 시작한다. */
+    static final long ENTRY = 0x00400024L;
     static final File ORACLE = new File(System.getProperty("hcs.spimOracle"));
     static final int MAX_CYCLES = 5000;
     /** spim이 실행 전에 채우는 레지스터: $a1, $a2, $gp. 프로그램이 쓰지 않으면 비교하지 않는다. */
@@ -61,22 +68,32 @@ class RefMipsTest {
     }
 
     /** 회로에서 exit까지 돌린다. tweak은 시작 전 속성 변경(예: Stack 한계). */
-    static Result runCircuit(AssembledProgram prog, java.util.function.Consumer<RefMips> tweak) throws Exception {
+    static Result runCircuit(ExecutableImage prog, java.util.function.Consumer<RefMips> tweak) throws Exception {
         return runCircuit(prog, tweak, true);
+    }
+
+    /** 예제의 실행 이미지(tests/hmx/mips/이름.hmx). 불러오기와 같은 길로 읽는다. */
+    static ExecutableImage image(String name) {
+        ProgramLoader.Loaded l = ProgramLoader.readImage(IMAGES.resolve(name.replaceAll("\\.s$", ".hmx")).toFile());
+        assertEquals(List.of(), l.errors, name);
+        return l.image;
     }
 
     /** 상승 에지마다 본 Stack 문제들. */
     static final Set<DataMemory.Problem> stackProblems = new HashSet<>();
 
-    static Result runCircuit(AssembledProgram prog, java.util.function.Consumer<RefMips> tweak,
+    static Result runCircuit(ExecutableImage prog, java.util.function.Consumer<RefMips> tweak,
             boolean requireExit) throws Exception {
         stackProblems.clear();
         InProcessSim sim = new InProcessSim();
         RefMips cpu = RefMips.build(sim.b, sim.mips);
-        set(cpu.imem.getAttributeSet(), MemoryFactory.CONTENTS, prog.textImage());
-        set(cpu.dmem.getAttributeSet(), MemoryFactory.CONTENTS, prog.dataImage());
+        sim.b.commit();
+        load(sim.file.getMainCircuit(), cpu, prog);
         tweak.accept(cpu);
         sim.start();
+        assertEquals(ENTRY, sim.port(cpu.imem, InstructionMemory.ADDR).toIntValue() & 0xffffffffL,
+                "the reference CPU starts at the entry");
+        assertEquals(ENTRY, (long) prog.entry());
         Result r = new Result();
         Console.State console = null;
         for (int n = 0; n < MAX_CYCLES; n += 1) {
@@ -100,7 +117,7 @@ class RefMipsTest {
             r.regs[i] = sim.port(cpu.regs[i], 0).toIntValue();
         }
         DataMemory.State data = (DataMemory.State) sim.data(cpu.dmem);
-        for (Long addr : prog.data.keySet()) {
+        for (Long addr : prog.dataWords().keySet()) {
             r.data.put(addr, data.memory.read((int) (long) addr));
         }
         lastSim = sim;
@@ -111,15 +128,24 @@ class RefMipsTest {
     static InProcessSim lastSim;
     static RefMips lastCpu;
 
-    /** 원본 spim(예외 처리기 없음)으로 main부터 돌린다. */
-    static Result runSpim(Path source, AssembledProgram prog, Path work) throws Exception {
-        StringBuilder cmd = new StringBuilder("load \"" + source + "\"\nrun 0x00400000\nprint_all_regs hex\n");
-        for (Long addr : prog.data.keySet()) {
+    /** 이미지를 불러오기와 같은 길(ProgramLoader)로 참조 회로의 메모리에 넣는다. */
+    static void load(com.cburch.logisim.circuit.Circuit main, RefMips cpu, ExecutableImage prog) {
+        ProgramLoader.Plan plan = ProgramLoader.plan(prog, List.of(new ProgramLoader.Target(main, cpu.imem)),
+                List.of(new ProgramLoader.Target(main, cpu.dmem)), List.of(new ProgramLoader.Target(main, cpu.stack)),
+                null, null, "program.hmx");
+        AssemblerIntegrationTest.apply(plan);
+    }
+
+    /** 원본 spim(예외 처리기를 불러온 Hallym MIPS 배치)으로 main(entry)부터 돌린다. */
+    static Result runSpim(Path source, ExecutableImage prog, Path work) throws Exception {
+        StringBuilder cmd = new StringBuilder("load \"" + source + "\"\nrun " + ExecutableImage.hex(prog.entry())
+                + "\nprint_all_regs hex\n");
+        for (Long addr : prog.dataWords().keySet()) {
             cmd.append("print 0x").append(Long.toHexString(addr)).append('\n');
         }
         Path in = work.resolve("cmd.txt");
         Files.writeString(in, cmd.toString());
-        Process p = new ProcessBuilder(ORACLE.getPath(), "-noexception").redirectInput(in.toFile())
+        Process p = new ProcessBuilder(ORACLE.getPath(), "-exception").redirectInput(in.toFile())
                 .redirectErrorStream(true).start();
         String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
         assertTrue(p.waitFor(60, TimeUnit.SECONDS));
@@ -137,14 +163,17 @@ class RefMipsTest {
         return r;
     }
 
-    /** 프로그램이 값을 쓰는 레지스터(기계어의 목적지 필드). */
-    static Set<Integer> written(AssembledProgram prog) {
+    /**
+     * 프로그램이 값을 쓰는 레지스터(기계어의 목적지 필드). entry(main)부터의 워드만 본다: 회로와 spim 모두 시작 코드를
+     * 건너뛰고 main부터 돌린다(예제는 main이 사용자 .text 처음이다).
+     */
+    static Set<Integer> written(ExecutableImage prog) {
         Set<Integer> out = new HashSet<>();
-        for (AssembledProgram.Word w : prog.text) {
-            int op = w.word >>> 26;
-            int rt = (w.word >>> 16) & 31;
-            int rd = (w.word >>> 11) & 31;
-            int funct = w.word & 63;
+        for (int word : prog.textWords().tailMap(prog.entry()).values()) {
+            int op = word >>> 26;
+            int rt = (word >>> 16) & 31;
+            int rd = (word >>> 11) & 31;
+            int funct = word & 63;
             if (op == 0 && funct != 8 && funct != 12) {
                 out.add(rd);
             } else if (op == 0x1c || op == 0 && funct == 9) {
@@ -166,8 +195,7 @@ class RefMipsTest {
         }
         assertTrue(programs.size() >= 5);
         return programs.stream().map(p -> DynamicTest.dynamicTest(p.getFileName().toString(), () -> {
-            AssembledProgram prog = AssemblerIntegrationTest.assemble(p);
-            assertEquals(List.of(), prog.errors);
+            ExecutableImage prog = image(p.getFileName().toString());
             Result circuit = runCircuit(prog, cpu -> { });
             Result spim = runSpim(p, prog, Files.createTempDirectory(tmp, "spim"));
             assertEquals(spim.console, circuit.console, "Console");
@@ -191,7 +219,7 @@ class RefMipsTest {
     /** 재귀 팩토리얼: $sp가 내려갔다가 제자리로 돌아오고, Stack 최대 깊이는 호출 7번 × 8바이트다(시작 $sp 기준). */
     @Test
     void recursionMovesTheStackAndReturns() throws Exception {
-        AssembledProgram prog = AssemblerIntegrationTest.assemble(PROGRAMS.resolve("factorial.s"));
+        ExecutableImage prog = image("factorial.s");
         Result r = runCircuit(prog, cpu -> { });
         assertEquals("6! = 720", r.console);
         assertEquals(0x7fffeffc, r.regs[29]); // 복귀 후 $sp
@@ -214,13 +242,13 @@ class RefMipsTest {
         String deep = Files.readString(PROGRAMS.resolve("factorial.s"))
                 .replace("li    $a0, 6", "li    $a0, 40");
         Path source = Files.writeString(tmp.resolve("deep.s"), deep);
-        AssembledProgram prog = AssemblerIntegrationTest.assemble(source);
+        ExecutableImage prog = AssemblerIntegrationTest.image(source); // 만든 .hmx가 없는 변형: 전환용 .s 경로
         // 한계 밖에는 쓰지 못해 복귀 주소가 깨지므로 exit까지 가지 않는다. 한계 초과가 알려지는지만 본다.
         runCircuit(prog, RefMipsTest::smallStack, false);
         assertTrue(stackProblems.contains(DataMemory.Problem.STACK_LIMIT), stackProblems.toString());
         DataMemory.State st = (DataMemory.State) lastSim.data(lastCpu.stack);
         assertEquals(0x100, st.usedBytes()); // 영역 안에서는 맨 아래까지 썼다
-        AssembledProgram ok = AssemblerIntegrationTest.assemble(PROGRAMS.resolve("factorial.s"));
+        ExecutableImage ok = image("factorial.s");
         Result r = runCircuit(ok, RefMipsTest::smallStack);
         assertEquals("6! = 720", r.console);
         assertTrue(stackProblems.isEmpty(), stackProblems.toString());
@@ -254,17 +282,21 @@ class RefMipsTest {
         assertEquals(List.of(), kr.ac.hallym.hcs.regress.CircEquivalence.compare(committed.toFile(), fresh.toFile()));
     }
 
-    /** 원조 2.7.1 jar -tty로 sum.s를 끝까지 돌리면 Console Exit에 이은 halt로 exit 직후 멈춘다. */
+    /**
+     * 원조 2.7.1 jar -tty로 sum을 끝까지 돌리면 Console Exit에 이은 halt로 exit 직후 멈춘다. 첫 줄의 PC는 entry다
+     * (이미지는 .hmx로 읽는다: 트랙 A는 hcs-asm 없이 .hmx만으로 동작한다).
+     */
     @Test
     void originalLogisimRunsTheReferenceCpuToExit() throws Exception {
-        AssembledProgram prog = AssemblerIntegrationTest.assemble(PROGRAMS.resolve("sum.s"));
+        ExecutableImage prog = image("sum.s");
         OriginalLogisim o = new OriginalLogisim(tmp);
         RefMips cpu = RefMips.build(o.b, o.mips);
-        set(cpu.imem.getAttributeSet(), MemoryFactory.CONTENTS, prog.textImage());
-        set(cpu.dmem.getAttributeSet(), MemoryFactory.CONTENTS, prog.dataImage());
+        o.b.commit();
+        load(o.file.getMainCircuit(), cpu, prog);
         List<String[]> rows = o.run("ref-sum");
-        long exitSyscall = prog.text.get(prog.text.size() - 1).addr;
+        assertEquals(ENTRY, (long) OriginalLogisim.value(rows.get(0)[0]), "first row: PC at the entry");
+        long exitSyscall = prog.textWords().lastKey();
         assertEquals(exitSyscall + 4, (long) OriginalLogisim.value(rows.get(rows.size() - 1)[0]));
-        assertEquals(runCircuit(prog, c -> { }).cycles + 1, rows.size()); // PC 0x00400000 줄 + 사이클마다 한 줄
+        assertEquals(runCircuit(prog, c -> { }).cycles + 1, rows.size()); // PC entry 줄 + 사이클마다 한 줄
     }
 }

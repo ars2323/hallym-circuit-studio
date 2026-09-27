@@ -16,10 +16,14 @@ final class WordImageAttribute extends Attribute<WordImage> {
 
     @Override
     public String toDisplayString(WordImage value) {
-        if (value == null || value.isEmpty()) {
+        if (value == null) {
             return Text.name("(empty)").get();
         }
-        return Text.count(value.size(), "word") + " from 0x" + WordImage.hex(value.firstAddress());
+        String sp = value.initialSp() == null ? "" : ", $sp 0x" + WordImage.hex(value.initialSp());
+        if (value.isEmpty()) {
+            return Text.name("(empty)").get() + sp;
+        }
+        return Text.count(value.size(), "word") + " from 0x" + WordImage.hex(value.firstAddress()) + sp;
     }
 
     @Override

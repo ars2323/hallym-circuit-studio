@@ -277,14 +277,14 @@ final class RefMips {
         konst("zero1", 1, 0);
         konst("zero32", 32, 0);
 
-        // PC: 레지스터는 PC XOR 0x00400000을 담아 리셋 때 PC = 0x00400000이다.
+        // PC: 레지스터는 PC XOR 0x00400024를 담아 리셋 때 PC = 0x00400024(Hallym MIPS 배치의 entry, main)다(D-126).
         Component pcReg = add("Memory", "Register", "width", "32");
         t(pcReg, 0, "pcx");
         t(pcReg, 1, "npcx");
         t(pcReg, 2, "clk");
         t(pcReg, 3, "zero1");
         t(pcReg, 4, "one");
-        konst("textbase", 32, 0x00400000L);
+        konst("textbase", 32, 0x00400024L); // 이름은 그대로 두고 값만 entry로(D-126)
         gate("XOR Gate", "pc", 32, "pcx", "textbase");
         gate("XOR Gate", "npcx", 32, "npc", "textbase");
         konst("four", 32, 4);

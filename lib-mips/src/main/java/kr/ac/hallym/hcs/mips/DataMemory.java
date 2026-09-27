@@ -138,20 +138,22 @@ class DataMemory extends MemoryFactory {
             return problemText;
         }
 
-        /** Stack 깊이를 재는 기준 주소(SPIM 시작 $sp 또는 영역 맨 위, {@link #base()}). */
+        /** Stack 깊이를 재는 기준 주소(실행 이미지의 $sp, SPIM 시작 $sp 또는 영역 맨 위, {@link #base()}). */
         public long depthBase() {
             return base();
         }
 
         /**
-         * 깊이를 재는 기준(#134). SPIM은 프로그램을 시작할 때 $sp를 {@link #SPIM_INITIAL_SP}에 둔다(그 위 4KB는
-         * 시작 코드 몫이다). 그래서 접근이 모두 그 아래이고 영역이 그 주소를 품으면 거기서 잰다. 그 밖(학생이 영역
-         * 맨 위부터 쓰는 경우)은 영역 맨 위에서 잰다.
+         * 깊이를 재는 기준(#134, D-126). 실행 이미지가 {@code reg $sp}를 적었으면(불러오기가 Stack 내용에 기억한다)
+         * 그 값이, 없으면 SPIM이 프로그램을 시작할 때 두는 {@link #SPIM_INITIAL_SP}(그 위 4KB는 시작 코드 몫)가
+         * 시작 $sp다. 접근이 모두 그 아래이고 영역이 그 주소를 품으면 거기서 잰다. 그 밖(학생이 영역 맨 위부터 쓰는
+         * 경우)은 영역 맨 위에서 잰다.
          */
         long base() {
-            boolean spimStack = highest >= 0 && highest < SPIM_INITIAL_SP && region[0] <= SPIM_INITIAL_SP
-                    && region[1] > SPIM_INITIAL_SP + 4; // 영역이 $sp 위까지 있어 그 사이가 비어 있을 때만
-            return spimStack ? SPIM_INITIAL_SP : region[1];
+            long sp = image.initialSp() != null ? image.initialSp() : SPIM_INITIAL_SP;
+            boolean fromSp = highest >= 0 && highest < sp && region[0] <= sp
+                    && region[1] > sp + 4; // 영역이 $sp 위까지 있어 그 사이가 비어 있을 때만
+            return fromSp ? sp : region[1];
         }
 
         /**
