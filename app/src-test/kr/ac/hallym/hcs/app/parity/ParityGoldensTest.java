@@ -136,10 +136,11 @@ class ParityGoldensTest {
                 new File(new File(System.getProperty("java.home"), "bin"), "java").getPath(),
                 "-Djava.awt.headless=true", "-jar", System.getProperty("hcs.logisimJar"), name + ".circ", "-tty",
                 "stats"));
-        String prefs = System.getProperty("java.util.prefs.userRoot");
-        if (prefs != null) {
-            cmd.add(1, "-Djava.util.prefs.userRoot=" + prefs);
-        }
+        // 원조는 환경설정(최근 파일 등)을 쓴다. 장면마다 따로 둔다: 개발자 PC의 설정을 건드리지 않고, 함께 도는 JVM들이
+        // 한 설정 파일의 잠금을 다투지 않게(다투면 "Couldn't flush user prefs" 경고가 난다)
+        Path prefs = dir.resolveSibling("prefs-" + name);
+        Files.createDirectories(prefs);
+        cmd.add(1, "-Djava.util.prefs.userRoot=" + prefs);
         Process p = new ProcessBuilder(cmd).directory(dir.toFile()).start();
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         ByteArrayOutputStream err = new ByteArrayOutputStream();
@@ -158,6 +159,9 @@ class ParityGoldensTest {
         assertEquals(0, p.exitValue(), name + ": original exit code\n" + stdout + stderr);
         for (String line : stderr.split("\n")) {
             String l = line.toLowerCase();
+            if (l.contains("java.util.prefs") || l.contains("user prefs")) {
+                continue; // JVM 환경설정 저장 경고는 파일을 여는 것과 무관하다
+            }
             assertTrue(!l.contains("error") && !l.contains("exception"), name + ": original stderr: " + line);
         }
         String total = null;
