@@ -18,6 +18,7 @@ hcs-asm [options] <file.s>
   -pseudo / -nopseudo     의사 명령어 허용(기본: 허용)
   -exception / -noexception   예외 처리기를 먼저 올림 / 올리지 않음(기본)
   -exception_file <f>     예외 처리기 파일(기본: 실행 파일 옆 exceptions.s)
+  -disasm                 JSON 대신 라벨과 텍스트 세그먼트를 SPIM 목록 글로 낸다(D-127, 아래)
   -version
 ```
 
@@ -74,8 +75,20 @@ hcs-asm은 QtSpim·Hallym MIPS 기본 설정(확장 기계, 지연 분기 끔, �
 
 ## 테스트
 
-`native/hcs-asm/tests/check.py`가 두 가지를 확인한다.
+`native/hcs-asm/tests/check.py`가 네 가지를 확인한다.
 
 1. **골든:** `tests/asm/<이름>.s`(+ `<이름>.flags`)의 출력이 `tests/asm/<이름>.json`과 글자 단위로 같다. 산술, lw/sw, 앞·뒤 분기, j/jal/jr, 의사 명령어, `.data` 문자열·지시어, 문법 오류, 미정의 라벨, `main` 위치 경고, 예외 처리기를 다룬다. 출력을 바꿨으면 `python3 native/hcs-asm/tests/check.py --update`로 다시 만들고 diff를 검토한다.
 2. **오라클:** 오류 없는 모든 입력과 SPIM 원본 테스트 프로그램(`helloworld.s`, `Tests/tt.core.s` 등 6개)을 수정하지 않은 원본 `spim` 명령줄(`build/oracle/spim -dump`, 배포하지 않음)로도 어셈블해 텍스트·데이터 워드가 모두 같은지 본다.
 3. **QtSpim GUI 출력:** Hallym MIPS 저장소에 있는 원본 QtSpim GUI의 Save Log File 골든(`tests/asm/qtspim/`, `helloworld.s`와 `tt.core.s`의 사용자 텍스트 약 4700워드)을 `hcs-asm -exception` 출력과 주소·워드 단위로 비교한다. 분기를 포함해 모든 명령이 같다.
+4. **`-disasm` 골든:** `tests/disasm/*.txt`마다 첫 줄에 적힌 명령(`# hcs-asm <옵션> -disasm <파일>`)으로 다시 뽑으면 글자까지 같다.
+
+## `-disasm`: 디스어셈블러 골든 (D-127)
+
+`hcs-asm [옵션] -disasm <file.s>`는 평소처럼 어셈블한 뒤 JSON 대신 다음을 낸다.
+
+```text
+label 00400024 main
+00400014 0c100009 jal 0x00400024 [main]
+```
+
+`label <주소> <이름>` 줄은 JSON의 `labels`와 같고, 그다음 텍스트 세그먼트의 워드마다 `<주소> <워드> <글>` 한 줄이다. `<글>`은 SPIM 자신의 명령어 출력 함수(`format_an_inst`)가 기계어 워드 다음, `;` 원래 줄 주석 앞까지 찍는 글이다(QtSpim 창의 글과 같다). 공용 디스어셈블러(`kr.ac.hallym.hcs.mips.disasm`)의 골든을 만드는 데만 쓴다: `tools/gen-disasm-golden.sh`가 `tests/disasm/`을 다시 만들고, CI는 다시 만든 결과가 저장소와 다르면 실패한다.

@@ -11,6 +11,7 @@
 | `./gradlew :app:testConstantIdentityHash` | app 단위 테스트를 identity hash가 모두 같은 JVM(`-XX:hashCode=2`)에서 한 번 더(D-129). `@Tag("timing")`은 뺀다. GUI 테스트도 같은 옵션으로: `xvfb-run -a ./gradlew :app:guiTest -Phcs.constantHash=true` |
 | `bash tools/check-engine-unchanged.sh` | 엔진 패키지가 원본과 같은지(허용한 패치 1개 제외, 규칙 2.1) |
 | `make -C native/hcs-asm test` | hcs-asm 어셈블 결과를 기대 JSON·QtSpim 오라클과 비교 |
+| `tools/gen-disasm-golden.sh` | 디스어셈블러 골든(tests/disasm)을 hcs-asm `-disasm`으로 다시 만든다. CI는 다시 만든 결과가 저장소와 같은지 본다(D-127) |
 | `bash tools/screenshots/run.sh <폴더> <장면…>` | 스크린샷(docs/SCREENSHOTS.md). 장면 번호는 칸으로 나눈다 |
 
 CI(`.github/workflows/ci.yml`)는 push·PR마다 Linux에서 vendor·assets 검사, 엔진 불변, hcs-asm, `build`(단위 테스트 포함), 상수 identity hash 단위 테스트, GUI 테스트를 돌리고, Windows에서 hcs-asm을 빌드해 확인한다.
@@ -23,6 +24,7 @@ CI(`.github/workflows/ci.yml`)는 push·PR마다 Linux에서 vendor·assets 검�
 | --- | --- |
 | 엔진 회귀·저장 호환(규칙 2.1·2.3) | `ForkEngineRegressionTest`(tests/circ/*.expected를 원조 2.7.1 jar와 같은 결과로), `ForkSaveCompatTest`·`LocaleSaveCompatTest`(새 부품 없는 .circ는 원조 저장과 바이트 동일) |
 | MIPS 부품(lib-mips) | `MemoryComponentsTest`, `StackRegionTest`, `ConsoleTest`, `RefMipsTest`(참조 CPU가 SPIM 결과와 같은지), `JarLibraryTest`(원조 2.7.1에서 불러오기) |
+| 디스어셈블러(공용, D-127) | `DisassemblerGoldenTest`(tests/disasm 골든 12709줄을 SPIM 목록과 한 줄씩, QtSpim 창 글 4717줄), `DisassemblerTest`, `AssemblerIntegrationTest.disassemblyMatchesTheOriginalSpim`(원본 spim -dump) |
 | 넷 모델·추적 | `NetlistTest`, `InfluenceTest`, `OriginTraceTest` |
 | 정적 진단 | `StaticCheckTest`(정상 회로 0건, 종류마다 한 건), `MessagesPanelTest`, `DiagMarksTest` |
 | 동적 진단 | `DynamicCheckTest`, `FaultCollectionTest`(tests/circ/faults 18개가 기대 메시지 한 건씩) |
