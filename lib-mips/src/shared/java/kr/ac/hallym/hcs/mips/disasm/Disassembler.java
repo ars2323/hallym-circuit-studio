@@ -13,9 +13,10 @@ import java.util.TreeMap;
  * 줄 주석 앞까지다. 예: {@code lw $4, 0($29)}, {@code jal 0x00400024 [main]}, {@code bne $8, $9, -4
  * [loop-0x00400030]}, {@code nop}, SPIM이 모르는 워드는 {@code <unknown instruction 0>}.
  *
- * <p>MIPS32 명세의 opcode 표를 보고 직접 썼다. SPIM의 소스·표·문구는 옮기지 않는다(CLAUDE.md 규칙 2.5). SPIM과 같은지는
- * SPIM이 실제로 낸 출력(tests/disasm/ 골든, {@code hcs-asm -disasm})과 한 줄씩 대조해 확인한다. 명세와 SPIM의 출력이
- * 다른 곳(예: SPECIAL3 전체가 {@code ext}, 단정도 funct 8이 {@code swxc1})은 SPIM의 출력을 따르고 그 자리에 적어 둔다.
+ * <p>MIPS32 명세의 opcode 표를 보고 직접 썼다. SPIM의 소스와 표는 옮기지 않는다(CLAUDE.md 규칙 2.5). 내는 글은 SPIM이
+ * 내는 글과 글자까지 같게 만든다(예: 모르는 워드의 {@code <unknown instruction 0>}). 같은지는 SPIM이 실제로 낸 출력
+ * (tests/disasm/ 골든, {@code hcs-asm -disasm})과 한 줄씩 대조해 확인한다. 명세와 SPIM의 출력이 다른 곳(예: SPECIAL3
+ * 전체가 {@code ext}, 단정도 funct 8이 {@code swxc1})은 SPIM의 출력을 따르고 그 자리에 적어 둔다.
  *
  * <p>SPIM은 같은 워드라도 어셈블한 줄과 {@code .word}로 둔 워드를 몇몇 명령에서 다르게 보인다(부동소수점 비교·조건
  * 이동, {@code movt}, {@code bc1fl} 등). 이 클래스는 학생이 QtSpim에서 보는 쪽, 곧 어셈블한 목록을 따른다.

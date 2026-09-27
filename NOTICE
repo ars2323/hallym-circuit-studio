@@ -65,6 +65,16 @@ Gson 2.13.2
   distributed under GPL version 3.
 
 --------------------------------------------------------------------------
+Hallym MIPS Simulator test files
+  Copyright (c) 2026, Hakhyeon Kim (AIAC Lab, Hallym University).
+  License: BSD 3-Clause (tests/hmx/hallym-mips-v2.4.0/LICENSE)
+  Source:  ars2323/hallym-mips-simulator, tag v2.4.0 (electron/tests/hmx/,
+           the executable image goldens of its docs/hmx-format.md), and
+           commit 8ebd3c9 (tests/golden/text-*.txt, QtSpim output)
+  Location: tests/hmx/hallym-mips-v2.4.0/, tests/asm/qtspim/ (test data
+            only; not part of the distributed program)
+
+--------------------------------------------------------------------------
 Hallym University identity assets (logo, emblem, signature, characters
 Haram & Hari)
   Owned by Hallym University (Hallym University 소유). Commercial use is
