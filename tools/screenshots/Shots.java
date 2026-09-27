@@ -460,6 +460,10 @@ public final class Shots {
             sceneStart("50");
             panelBalance(demo); // X-03
         }
+        if (want(scenes, "51")) {
+            sceneStart("51");
+            laptopSizes(demo); // Y-01
+        }
         if (want(scenes, "45")) {
             sceneStart("45");
             sameNameTabs(); // V-05
@@ -1380,6 +1384,42 @@ public final class Shots {
                     edt(() -> javax.swing.MenuSelectionManager.defaultManager().clearSelectedPath());
                     sleep(300);
                 }
+            }
+        } finally {
+            edt(() -> {
+                f.setMinimumSize(min);
+                f.setBounds(0, 0, W, H);
+                f.validate();
+            });
+            sleep(600);
+        }
+    }
+
+    /**
+     * 51: 학생 노트북 기준 창 크기 6가지(Y-01, D-112)에서 demo-datapath 창 전체(Cycle View를 편 상태). 캔버스가 창
+     * 내부의 절반 이상(가로·세로)인지 로그에 적는다.
+     */
+    void laptopSizes(Project p) throws Exception {
+        activate(p);
+        Frame f = p.getFrame();
+        java.awt.Dimension min = f.getMinimumSize();
+        try {
+            edt(() -> kr.ac.hallym.hcs.app.cycle.CycleView.of(p).open());
+            sleep(500);
+            for (int[] sz : new int[][] {{1920, 1040}, {1280, 800}, {1093, 582}, {1024, 728}, {910, 505}, {683, 512}}) {
+                edt(() -> {
+                    f.setExtendedState(Frame.NORMAL);
+                    f.setMinimumSize(new java.awt.Dimension(200, 150));
+                    f.setBounds(0, 0, sz[0], sz[1]);
+                    f.validate();
+                });
+                sleep(1200);
+                Component sp = SwingUtilities.getAncestorOfClass(javax.swing.JScrollPane.class, canvas(p));
+                java.awt.Container content = ((javax.swing.JFrame) f).getContentPane();
+                boolean ok = sp.getWidth() * 2 >= content.getWidth() && sp.getHeight() * 2 >= content.getHeight();
+                log.add("51: " + sz[0] + "x" + sz[1] + " canvas " + sp.getWidth() + "x" + sp.getHeight() + " content "
+                        + content.getWidth() + "x" + content.getHeight() + (ok ? "" : " CANVAS SMALL"));
+                snapCrop(new Rectangle(0, 0, sz[0], sz[1]), "51-laptop-" + sz[0] + "x" + sz[1]);
             }
         } finally {
             edt(() -> {
