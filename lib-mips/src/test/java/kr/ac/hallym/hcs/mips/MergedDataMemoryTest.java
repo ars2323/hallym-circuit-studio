@@ -390,15 +390,18 @@ class MergedDataMemoryTest {
                 MemoryFactory.stackRegion(find(again, "Stack").getAttributeSet()));
     }
 
-    /** 새 회로 부품 목록: Stack은 옛 회로용으로 맨 끝에 남는다(원조가 옛 파일의 Stack을 이 목록에서 찾는다). */
+    /**
+     * 부품 목록: Stack은 옛 회로용 이름으로 v1 자리에 남는다(원조가 옛 파일의 Stack을 이 목록에서 찾고, 목록 순서가
+     * 옛 파일을 다시 저장할 때의 {@code <tool>} 순서다).
+     */
     @Test
-    void toolListOffersOneDataMemoryAndKeepsTheOldStackLast() {
+    void toolListKeepsTheOldStackInItsV1PlaceForOldCircuits() {
         MipsLibrary lib = new MipsLibrary();
         List<String> names = new ArrayList<>();
         for (Tool t : lib.getTools()) {
             names.add(t.getName());
         }
-        assertEquals(List.of("Instruction Memory", "Data Memory", "Console", "Radix Probe", "Stack"), names);
+        assertEquals(List.of("Instruction Memory", "Data Memory", "Stack", "Console", "Radix Probe"), names);
         AddTool stack = (AddTool) lib.getTool("Stack");
         assertEquals("Stack (old circuits)", stack.getDisplayName());
         assertEquals("Stack", ((MemoryFactory) stack.getFactory()).title().get(), "body title unchanged");

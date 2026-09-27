@@ -18,17 +18,17 @@ import com.cburch.logisim.tools.Tool;
  * <p>.circ에는 {@code <lib desc="jar#<경로>#kr.ac.hallym.hcs.mips.MipsLibrary">}로 저장되므로
  * 이 클래스의 이름과 패키지, 부품 이름은 바꾸지 않는다(PLAN.md 6.2, 6.9).
  *
- * <p>D-140: Data Memory 하나가 데이터와 스택 영역을 함께 맡는다. 옛 Stack은 목록 맨 끝에 "Stack (old circuits)"로
- * 남는다. 원조 2.7.1은 JAR 라이브러리를 LoadedLibrary로 감싸고 부품을 이 목록에서만 찾으므로(Library.getTool),
+ * <p>D-140: Data Memory 하나가 데이터와 스택 영역을 함께 맡는다. 옛 Stack은 v1과 같은 자리에 "Stack (old circuits)"로
+ * 남는다(자리를 옮기면 옛 파일을 다시 저장할 때 {@code <lib>} 아래 {@code <tool>} 순서가 바뀐다). 원조 2.7.1은 JAR 라이브러리를 LoadedLibrary로 감싸고 부품을 이 목록에서만 찾으므로(Library.getTool),
  * 목록에서 빼면 Stack이 든 옛 .circ를 열 수 없다.
  */
 public class MipsLibrary extends Library {
     private final List<Tool> tools = Arrays.<Tool>asList(
             new AddTool(new InstructionMemory()),
             new PlacementTool(new DataMemory()),
+            new AddTool(new StackMemory()), // 옛 회로용(D-140). 자리는 v1 그대로: <lib> 아래 <tool> 순서가 같다
             new AddTool(new Console()),
-            new AddTool(new RadixProbe()),
-            new AddTool(new StackMemory())); // 옛 회로용(D-140)
+            new AddTool(new RadixProbe()));
 
     public MipsLibrary() {
     }

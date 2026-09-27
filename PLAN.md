@@ -199,7 +199,7 @@ MIPS 32비트 주소를 그대로 쓰는 Instruction Memory, Data Memory(데이�
 | Instruction Memory | 입력 `Addr`(32), 출력 `Instr`(32). 클럭 없음, 읽기 전용 | `0x00400000`부터 (.text) | .s의 .text |
 | Data Memory(데이터+스택) | 입력 `Addr`(32), `WriteData`(32), `MemWrite`, `MemRead`, clk. 출력 `ReadData`(32) | 데이터 `0x10000000`~`0x100FFFFF`(높은 주소 쪽으로, `.data`는 `0x10010000`부터), 스택 `0x7FFC0000`~`0x7FFFFFFF`(낮은 주소 쪽으로) | 실행 이미지의 .data. 스택은 비어 있음(0) |
 
-기본 주소는 QtSpim(SPIM 9.1.24)과 같다: 데이터는 `DATA_BOT`부터 `DATA_LIMIT` 1MB, 스택은 `STACK_TOP`(`0x80000000`) 바로 아래 `STACK_LIMIT` 256KB(소스 줄은 docs/mips-components.md). Hallym MIPS에서 본 주소가 회로에서도 그대로 보인다. **실제 MIPS처럼 데이터 메모리는 하나다**(사용자 결정, D-140): 학생의 단일 사이클 데이터패스에서 `lw`/`sw`와 `$sp` 접근이 같은 Data Memory 한 개로 간다. 따로 있던 Stack 부품은 옛 파일을 위해 남기되 새로 놓는 부품 목록에서 뺐다(v2 목록에서 빠지고, 원조 2.7.1 목록에는 옛 파일을 열기 위해 "Stack (old circuits)"로 맨 끝에 남는다). 옛 .circ의 Stack과 스택 영역이 없는 Data Memory는 저장된 속성대로 전과 똑같이 열리고 동작한다. QtSpim 기반 시뮬레이터는 .bss와 힙을 쓰지 않으므로 그 영역은 따로 두지 않는다. 데이터와 스택 영역 사이 주소에 접근하면 어느 영역에도 없는 주소로 진단된다.
+기본 주소는 QtSpim(SPIM 9.1.24)과 같다: 데이터는 `DATA_BOT`부터 `DATA_LIMIT` 1MB, 스택은 `STACK_TOP`(`0x80000000`) 바로 아래 `STACK_LIMIT` 256KB(소스 줄은 docs/mips-components.md). Hallym MIPS에서 본 주소가 회로에서도 그대로 보인다. **실제 MIPS처럼 데이터 메모리는 하나다**(사용자 결정, D-140): 학생의 단일 사이클 데이터패스에서 `lw`/`sw`와 `$sp` 접근이 같은 Data Memory 한 개로 간다. 따로 있던 Stack 부품은 옛 파일을 위해 남기되 새로 놓는 부품 목록에서 뺐다(v2 목록에서 빠지고, 원조 2.7.1 목록에는 옛 파일을 열기 위해 "Stack (old circuits)"로 남는다). 옛 .circ의 Stack과 스택 영역이 없는 Data Memory는 저장된 속성대로 전과 똑같이 열리고 동작한다. QtSpim 기반 시뮬레이터는 .bss와 힙을 쓰지 않으므로 그 영역은 따로 두지 않는다. 데이터와 스택 영역 사이 주소에 접근하면 어느 영역에도 없는 주소로 진단된다.
 
 **공통 동작.**
 

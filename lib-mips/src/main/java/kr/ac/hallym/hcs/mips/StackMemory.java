@@ -15,7 +15,7 @@ import com.cburch.logisim.instance.StdAttr;
  *
  * <p>D-140(사용자 결정)부터 새 회로는 스택 영역을 함께 맡는 Data Memory 하나를 쓴다. 이 부품은 옛 .circ가 전과 똑같이
  * 열리고 동작하도록 남긴다: 저장 이름·속성·기본값·동작을 바꾸지 않는다. 원조 2.7.1은 JAR 라이브러리의 부품을 도구
- * 목록({@link MipsLibrary#getTools()})에서만 찾으므로 목록에서 뺄 수는 없고, 목록 맨 끝에 "Stack (old circuits)"로
+ * 목록({@link MipsLibrary#getTools()})에서만 찾으므로 목록에서 뺄 수는 없고, v1과 같은 자리(Data Memory 다음)에 "Stack (old circuits)"로
  * 둔다. v2 화면의 부품 목록은 엔진이 이 부품을 빼고 보인다(Kinds 등록표).
  */
 final class StackMemory extends DataMemory {

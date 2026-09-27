@@ -101,7 +101,7 @@
 
 D-140 전의 따로 된 스택 부품이다. 옛 .circ가 전과 똑같이 열리고 동작하도록 lib-mips와 엔진에 남긴다. 저장 이름·속성(`top`, `size`, `contents`, `source`, `label`)·기본값(`top` `0x7FFFFFFC`, `size` 1MB → `0x7FF00000`~`0x7FFFFFFF`)·동작을 바꾸지 않았다.
 
-- **새로 놓는 목록:** v2(엔진 `model.library`)는 이 부품을 보이지 않는다(Kinds 등록표 `offeredForNewPlacement`). 원조 2.7.1(트랙 A)은 JAR 라이브러리를 `LoadedLibrary`로 감싸고 파일의 부품을 도구 목록(`Library.getTool` → `getTools()`)에서만 찾으므로 목록에서 빼면 Stack이 든 옛 파일을 열 수 없다. 그래서 트랙 A 목록에는 맨 끝에 **"Stack (old circuits)"** 로 남는다(몸체 제목은 그대로 "Stack", 도움말 한 줄).
+- **새로 놓는 목록:** v2(엔진 `model.library`)는 이 부품을 보이지 않는다(Kinds 등록표 `offeredForNewPlacement`). 원조 2.7.1(트랙 A)은 JAR 라이브러리를 `LoadedLibrary`로 감싸고 파일의 부품을 도구 목록(`Library.getTool` → `getTools()`)에서만 찾으므로 목록에서 빼면 Stack이 든 옛 파일을 열 수 없다. 그래서 트랙 A 목록에는 v1과 같은 자리(Data Memory 다음)에 **"Stack (old circuits)"** 로 남는다(자리를 옮기면 옛 파일을 다시 저장할 때 `<lib>` 아래 `<tool>` 순서가 바뀐다)(몸체 제목은 그대로 "Stack", 도움말 한 줄).
 - 옛 Stack과 스택 영역이 없는 옛 Data Memory의 `ReadData`는 한 선에 이을 수 있고, 주소가 속한 쪽만 값을 낸다(`MemoryComponentsTest`). 새 Data Memory 옆에 옛 Stack을 두면 스택 영역이 겹쳐 "메모리 영역이 7ffc0000에서 겹침"을 알린다.
 - 파일에 옛 Stack이 있으면 v2 상태 표시줄에 사실 한 줄을 둔다(진단이 아님, 엔진 `mips.facts`): "이 회로는 따로 된 Stack 부품을 씁니다. 새 Data Memory는 스택 영역을 함께 맡습니다."
 - 몸체의 `used N B (peak)`와 깊이 기준(`reg $sp` 또는 `0x7FFFEFFC`)은 전과 같다.
