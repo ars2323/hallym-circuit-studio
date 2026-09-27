@@ -108,6 +108,32 @@ class RunUntilTest {
         assertFalse(RunUntil.halted(model, o.cycle - 1), "the first cycle after exit");
     }
 
+    /**
+     * 부하에서도(D-123) PC 조건으로 멈춘 사이클이 부하 없을 때와 같고, 그 사이클에서 바로 멈춘다(지나치지 않는다). Run Until은
+     * 한 사이클(틱 두 번)씩만 요청하고 기록이 그 사이클을 적은 뒤 다음을 요청하므로 엔진의 틱 한도(16)에 닿지 않는다.
+     */
+    @Test
+    void untilPcStopsAtTheSameCycleUnderLoad() throws Exception {
+        refMips("mips/factorial.s");
+        RunUntilRunner.Outcome calm = run(RunUntil.pc(0x00400034, 1000));
+        assertEquals(RunUntil.Result.MET, calm.result);
+
+        Recorder.requestReset(proj);
+        RecorderTest.waitFor(() -> model.recording().last() == 0, "reset");
+        Thread.sleep(300);
+        proj.getSimulator().addSimulatorListener(kr.ac.hallym.hcs.app.record.TickLoadTestSupport.slow(5));
+        RunUntilRunner.Outcome loaded;
+        try (kr.ac.hallym.hcs.app.record.TickLoadTestSupport.Burner b =
+                new kr.ac.hallym.hcs.app.record.TickLoadTestSupport.Burner(4)) {
+            loaded = run(RunUntil.pc(0x00400034, 1000));
+        }
+        assertEquals(RunUntil.Result.MET, loaded.result);
+        assertEquals(calm.cycle, loaded.cycle, "the same stop cycle under load");
+        assertEquals(0x00400034, model.pc(loaded.cycle).toIntValue());
+        Thread.sleep(300);
+        assertEquals(CycleModel.stepOf(loaded.cycle), model.recording().last(), "stopped right there, not past it");
+    }
+
     @Test
     void untilARowChangesAndTheLimit() throws Exception {
         refMips("record/busy-loop.s");
