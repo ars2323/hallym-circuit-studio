@@ -96,3 +96,12 @@ test('the opened file is not written by opening it; the only file written is the
     rmSync(work, { recursive: true, force: true });
   }
 });
+
+test('no spell checker: on Windows it would keep word lists in %APPDATA%\\Microsoft\\Spelling', async () => {
+  const r = await launch();
+  try {
+    expect(await r.app.evaluate(({ session }) => session.defaultSession.isSpellCheckerEnabled())).toBe(false);
+  } finally {
+    await r.close();
+  }
+});

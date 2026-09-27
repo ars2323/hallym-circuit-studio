@@ -236,3 +236,4 @@ try {
 
 if ($script:failures -gt 0) { Write-Host "RESULT  FAIL ($($script:failures))"; Add-Content $log "RESULT  FAIL ($($script:failures)) -- $Phase"; exit 1 }
 Write-Host 'RESULT  PASS'; Add-Content $log "RESULT  PASS -- $Phase"
+exit 0   # (not the exit code of the last program run, e.g. assoc's)

@@ -324,6 +324,8 @@ export const MUTANTS: Mutant[] = [
     find: "(c.where === 'registry' && c.after === 'key' &&", replace: "(c.where === 'registry' &&", tests: ['tests/unit/state.test.ts'] },
   { module: 'state', file: 'tools/windows/state.ts', what: 'the default value named by the system\'s language',
     find: "/^\\((Default|기본값)\\)$/.test(m[1]) ? '(Default)' : m[1]", replace: 'm[1]', tests: ['tests/unit/state.test.ts'] },
+  { module: 'labpc', file: 'src/main/main.ts', what: 'the system\'s spell checker on (word lists in %APPDATA%)',
+    find: '  session.defaultSession.setSpellCheckerEnabled(false);\n', replace: '', tests: ['tests/e2e/labpc.e2e.ts'] },
   { module: 'run-folder', file: 'src/main/run-folder.ts', what: 'the runs\' folder left in the temp folder',
     find: 'try{rmdirSync(runs)}catch{}', replace: '', tests: ['tests/unit/run-folder.test.ts'] },
 ];

@@ -21,7 +21,7 @@
    files opened.  Chromium's profile is this run's folder in the temp folder
    (run-folder.ts), removed after quit; the engine runs in it too. */
 
-import { app, BrowserWindow, dialog, ipcMain, Menu, screen, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu, screen, session, shell } from 'electron';
 import { spawn } from 'node:child_process';
 import { mkdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -132,6 +132,9 @@ async function openPath(p: string): Promise<Opened> {
 async function main(): Promise<void> {
   Menu.setApplicationMenu(null); // no default zoom/reload accelerators; the window has its own keys
   await app.whenReady();
+  // No spell checker (with webPreferences.spellcheck below): on Windows it is the system's,
+  // which keeps the user's word lists in %APPDATA%\Microsoft\Spelling (the lab-PC rule, N-23).
+  session.defaultSession.setSpellCheckerEnabled(false);
   void engine.start().catch(() => { /* status says so; the window shows the dialog */ });
 
   // Every start opens the window over the whole work area, maximised --
@@ -157,6 +160,7 @@ async function main(): Promise<void> {
       contextIsolation: true,
       sandbox: true,
       nodeIntegration: false,
+      spellcheck: false,   // (session.setSpellCheckerEnabled above)
     },
   });
 
