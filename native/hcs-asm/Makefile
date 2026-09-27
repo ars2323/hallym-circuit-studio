@@ -17,7 +17,7 @@ CORE_SRCS := data.cpp display-utils.cpp inst.cpp mem.cpp run.cpp spim-utils.cpp 
              string-stream.cpp sym-tbl.cpp syscall.cpp
 CORE_OBJS := $(addprefix $(BUILD_DIR)/core/,$(CORE_SRCS:.cpp=.o)) \
              $(BUILD_DIR)/core/parser_yacc.o $(BUILD_DIR)/core/lex.scanner.o
-OWN_OBJS  := $(BUILD_DIR)/hcs-asm.o $(BUILD_DIR)/frontend.o
+OWN_OBJS  := $(BUILD_DIR)/hcs-asm.o $(BUILD_DIR)/frontend.o $(BUILD_DIR)/disasm.o
 
 TARGET := $(BUILD_DIR)/hcs-asm
 
