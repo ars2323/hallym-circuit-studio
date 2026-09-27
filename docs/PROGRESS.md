@@ -209,9 +209,9 @@ Swing판 v1.1.0은 내지 않는다(D-132). 엔진 쪽 항목은 v2의 N-00에�
 | --- | --- | --- | --- | --- | --- |
 | N-00 | 전환: 최종 라운드 정리(멈춤·마무리·넘김), OPEN-ISSUES 등 main 이동, v1.0.3 게시 확인, swing-final 태그 | #376 | 완료 | #405, #407, #408, #409, #414 | v1.0.3 게시·해시 확인 끝(#324). swing-final 태그(c628668). 닫은 PR: #375(Z-12b, Swing). 멈춘 작업: Z-23 setup exe 에이전트(PR 없음), feat/ui-parts(PR 없음). #341(Swing 촬영 도구)은 전환 지시 전에 이미 머지됐다: OPEN-ISSUES·D-118·D-121·hmx.md가 main에 있고, 촬영 도구는 N-27에서 지운다. 엔진 쪽 마무리 끝: Z-01·02(#407, D-126), Z-04(#409, D-127), Z-22(#374), E-02 identity 키(#408, D-129), Z-21(#337 D-123, #341: 부하 테스트와 촬영 대기 제한 시간), Z-03·06·24(#414, D-138: .hmx 명세 v2.4.0 따르기, Hallym MIPS 골든 7쌍과 SPIM 오라클, PIT 98.7%). 화면 쪽은 표의 N 항목으로 넘김. |
 | N-01 | 편집 동등성 골든 채집(Swing 삭제 전, 의도 단위 시나리오) | #377 | 완료 | #412 | tests/parity 장면 18개, 의도 456줄, 골든 18개 모두 원조 2.7.1 `-tty stats`로 열림, Swing 재생 guiTest 18/18(상수 해시 JVM 포함), D-136. N-09에서 맞출 차이는 engine-api.md "N-09에서 맞출 차이" |
-| N-02 | electron/ 기반: Hallym MIPS 스택·공유 코드 가져오기(ORIGIN.md, shared/), 빌드·테스트·e2e·스크린샷·패키징 뼈대 | #378 | 대기 |  |  |
+| N-02 | electron/ 기반: Hallym MIPS 스택·공유 코드 가져오기(ORIGIN.md, shared/), 빌드·테스트·e2e·스크린샷·패키징 뼈대 | #378 | 완료 | #413 | electron/(Hallym MIPS v2.3.0에서 48개 파일, ORIGIN.md, import-hmips.ts), 엔진 클라이언트·가짜 엔진, 시작 화면, 단위 88·e2e 32(폭 4종)·돌연변이 37/37, 스크린샷 14장(electron/docs/screens), D-135(14항: v2 문구 규칙) |
 | N-03 | Java 엔진 서버: headless Logisim, JSON-RPC, 파일·모델·시뮬레이션 API, GUI 없는 기존 코드 이전 | #379 | 완료 | #411 | engine/ 모듈(hcs-engine.jar), :engine:test 139개(상수 해시 138), tests/circ 저장 원조와 바이트 같음(D-006), EditParityTest 11, hello 응답 약 81ms·빈 엔진 42~46MB·ref-mips 약 115MB(Linux, D-134 12항). GUI 없는 기존 코드의 engine/ 이전은 N-27 |
-| N-04 | jlink JRE 번들, 엔진 시작·종료·재시작·복구 | #380 | 대기 |  |  |
+| N-04 | jlink JRE 번들, 엔진 시작·종료·재시작·복구 | #380 | 완료 | #422 | jlink 런타임(Temurin 21.0.12, AppCDS): zip 32~36MB, hello 52~109ms, ref-mips 열기 304ms(Linux CI)·454ms(Windows CI), 부모 감시, 메모리 저널로 엔진 복구(디스크 기록 없음), NOTICE·About에 OpenJDK, 테스트 수와 측정은 D-142(머지 시점 main 누계: 단위 132·e2e 44·돌연변이 66/66) |
 | N-05 | 캔버스 보기: 그리기 엔진, 부품 렌더러 등록표(수업 부품 전부), 선·연결점·점프·버스, 라벨·터널 색·포트 이름·값 칩, 배율·이동 | #381 | 대기 |  |  |
 | N-06 | 기하 동등성 검사(부품 × 속성, 엔진 포트 위치 = 렌더러 포트) | #382 | 대기 |  |  |
 | N-07 | 시뮬레이션 연결: Poke, 1 Cycle, N Cycles, Run, Reset, 주파수, 값 스트림, 진동 | #383 | 대기 |  |  |
@@ -220,7 +220,7 @@ Swing판 v1.1.0은 내지 않는다(D-132). 엔진 쪽 항목은 v2의 N-00에�
 | N-10 | Attributes(Inspector 형식), Quick Attributes, 우클릭 메뉴 | #386 | 대기 |  |  |
 | N-11 | 여러 파일 탭, 탭 간 라이브러리, 서브회로(들어가기, 포트 순서, Auto Appearance, 모양 편집, 가져오기), 창 분리·나란히 보기 | #387 | 대기 |  |  |
 | N-12 | 부품 목록·검색 팔레트, Splitter 편집기, 찾기, Tunnels, Minimap | #388 | 대기 |  |  |
-| N-13 | Messages(정적·동적 진단), E/X 출처, 진동, 가까운 이름 | #389 | 대기 |  |  |
+| N-13 | Messages(정적·동적 진단), E/X 출처, 진동, 가까운 이름 | #389 | 완료 | #421 | engine diag.*·trace.origin, Messages 패널·상태 표시줄 개수, 정상 회로 11개 0건·고장 회로 22개 한 줄씩, 가까운 이름(짝 없는 터널, 후보 하나일 때만), hcs:reveal 이벤트(캔버스 연결은 N-05), D-143 |
 | N-14 | Cycle View, Run Until, Registers·Memory·Instruction(Hallym MIPS 패널), Mark as PC, Register Mapping | #390 | 대기 |  |  |
 | N-15 | Signal Flow, 영향 경로, 활성 경로, 버스 값 칩, 신호 그룹, 영역 메모 | #391 | 대기 |  |  |
 | N-16 | MIPS: Load Program(.hmx·.s), 요약, entry·시작 값, 디스어셈블, Console, 자동 재로드, 실패 시 유지 띠 | #392 | 대기 |  |  |
@@ -236,3 +236,14 @@ Swing판 v1.1.0은 내지 않는다(D-132). 엔진 쪽 항목은 v2의 N-00에�
 | N-26 | PLAN 개정, CLAUDE.md, 안내서·PDF, README | #402 | 대기 |  |  |
 | N-27 | Swing 화면 코드 삭제, 빌드·CI 정리 | #403 | 대기 |  |  |
 | N-28 | v2.0.0 릴리스, 배포 후 검증, needs-human 갱신, 최종 보고 | #404 | 대기 |  |  |
+
+### 사용자 추가 지시(2026-09-28)
+
+.hmx 명세 확정(Hallym MIPS v2.4.0), .s 제거, Data Memory·Stack 합치기, 부품 그리기 방식(벡터 정의). 원문의 결정은 DECISIONS D-138·D-140·D-141에 옮겨 적었고, 부품 그리기 방식은 N-05 PR의 D-137에 적는다.
+
+| ID | 항목 | 이슈 | 상태 | PR | 증거 |
+| --- | --- | --- | --- | --- | --- |
+| A-01 | .hmx 명세 v2.4.0 따르기, 명세 골든 7쌍 대조, hmx-feedback 줄이기 | #348 | 완료 | #414 | 모르는 필드 무시·no-handler 받기, tests/hmx/hallym-mips-v2.4.0(7쌍+.regs 오라클), ref-mips 레지스터 대조(pseudo $s0은 div/mfhi가 없어 미실행), D-138 |
+| A-02 | .s 불러오기·hcs-asm·native·vendor/spim 제거, SPIM 오라클 굳힘 | #419 | 완료 | #420 | tests/spim-oracle(run 5, dump 11=5825줄, memory-layout), 옛 .s 속성은 읽기만 하고 사실+할 일 표시, D-141 |
+| A-03 | Data Memory와 Stack을 한 부품으로(SPIM 두 영역) | #415 | 완료 | #417 | 데이터 0x10000000~0x100FFFFF·스택 0x7FFC0000~0x7FFFFFFF, 옛 Stack 파일 동작 불변(LegacyStackFileTest), 새 부품 원조 저장 바이트 같음, mips.facts separateStack, MemoryTable, D-140 |
+| A-04 | 부품 모양을 벡터 정의로(화면 Canvas, 내보내기 같은 정의), Canvas·SVG 측정 | #381 | 진행 |  | N-05와 함께(N-05 PR에서 D-137로 기록) |
