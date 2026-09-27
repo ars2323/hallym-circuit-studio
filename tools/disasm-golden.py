@@ -70,9 +70,9 @@ def keys():
                             out.append((itype(op, rs, fn, 0x1234), "bc", (op, rs, fn)))
                         continue
                     out.append((rtype(op, rs, 10, 11, 12 if op == 17 else 0, fn), "cop", (op, rs, fn)))
-        elif op in (18, 19):  # COP2, COP1X (MIPS32) / COP3: rs, and funct for COP1X
+        elif op in (18, 19):  # COP2, COP1X (MIPS32) / COP3: rs, and a few functs (does funct matter?)
             for rs in range(32):
-                for fn in (0, 1, 32, 63) if op == 19 else (0,):
+                for fn in (0, 1, 32, 63):
                     out.append((rtype(op, rs, 10, 11, 12, fn), "cop", (op, rs, fn)))
             if op == 19:
                 for fn in range(64):
@@ -98,6 +98,7 @@ def variants(word, cls):
         for (rs, rt, rd), sh in zip(REG3, SHAMTS + [16, 5]):
             out.append(rtype(op, rs, rt, rd, sh, fn))
         out.append(rtype(op, 0, 0, 0, 0, fn))  # all fields zero (for sll: nop)
+        out.append(rtype(op, 0, 0, 0, 1, fn))  # only shamt set (for sll: not nop)
     elif cls == "regimm":
         rt = (word >> 16) & 31
         for rs in (0, 1, 31):
