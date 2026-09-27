@@ -211,7 +211,7 @@ Swing판 v1.1.0은 내지 않는다(D-132). 엔진 쪽 항목은 v2의 N-00에�
 | N-01 | 편집 동등성 골든 채집(Swing 삭제 전, 의도 단위 시나리오) | #377 | 완료 | #412 | tests/parity 장면 18개, 의도 456줄, 골든 18개 모두 원조 2.7.1 `-tty stats`로 열림, Swing 재생 guiTest 18/18(상수 해시 JVM 포함), D-136. N-09에서 맞출 차이는 engine-api.md "N-09에서 맞출 차이" |
 | N-02 | electron/ 기반: Hallym MIPS 스택·공유 코드 가져오기(ORIGIN.md, shared/), 빌드·테스트·e2e·스크린샷·패키징 뼈대 | #378 | 완료 | #413 | electron/(Hallym MIPS v2.3.0에서 48개 파일, ORIGIN.md, import-hmips.ts), 엔진 클라이언트·가짜 엔진, 시작 화면, 단위 88·e2e 32(폭 4종)·돌연변이 37/37, 스크린샷 14장(electron/docs/screens), D-135(14항: v2 문구 규칙) |
 | N-03 | Java 엔진 서버: headless Logisim, JSON-RPC, 파일·모델·시뮬레이션 API, GUI 없는 기존 코드 이전 | #379 | 완료 | #411 | engine/ 모듈(hcs-engine.jar), :engine:test 139개(상수 해시 138), tests/circ 저장 원조와 바이트 같음(D-006), EditParityTest 11, hello 응답 약 81ms·빈 엔진 42~46MB·ref-mips 약 115MB(Linux, D-134 12항). GUI 없는 기존 코드의 engine/ 이전은 N-27 |
-| N-04 | jlink JRE 번들, 엔진 시작·종료·재시작·복구 | #380 | 완료 | #422 | jlink 런타임(Temurin 21.0.12, AppCDS): zip 32~36MB, hello 52~109ms, ref-mips 열기 238~454ms(Linux·Windows CI), 부모 감시, 메모리 저널로 엔진 복구(디스크 기록 없음), NOTICE·About에 OpenJDK, 단위 132·e2e 44·실제 엔진 7·엔진 185·돌연변이 66/66, D-142 |
+| N-04 | jlink JRE 번들, 엔진 시작·종료·재시작·복구 | #380 | 완료 | #422 | jlink 런타임(Temurin 21.0.12, AppCDS): zip 32~36MB, hello 52~109ms, ref-mips 열기 304ms(Linux CI)·454ms(Windows CI), 부모 감시, 메모리 저널로 엔진 복구(디스크 기록 없음), NOTICE·About에 OpenJDK, 테스트 수와 측정은 D-142(머지 시점 main 누계: 단위 132·e2e 44·돌연변이 66/66) |
 | N-05 | 캔버스 보기: 그리기 엔진, 부품 렌더러 등록표(수업 부품 전부), 선·연결점·점프·버스, 라벨·터널 색·포트 이름·값 칩, 배율·이동 | #381 | 대기 |  |  |
 | N-06 | 기하 동등성 검사(부품 × 속성, 엔진 포트 위치 = 렌더러 포트) | #382 | 대기 |  |  |
 | N-07 | 시뮬레이션 연결: Poke, 1 Cycle, N Cycles, Run, Reset, 주파수, 값 스트림, 진동 | #383 | 대기 |  |  |
@@ -239,11 +239,11 @@ Swing판 v1.1.0은 내지 않는다(D-132). 엔진 쪽 항목은 v2의 N-00에�
 
 ### 사용자 추가 지시(2026-09-28)
 
-.hmx 명세 확정(Hallym MIPS v2.4.0), .s 제거, Data Memory·Stack 합치기, 부품 그리기 방식(벡터 정의). 원문은 DECISIONS D-138·D-140·D-141·D-137에 옮겨 적었다.
+.hmx 명세 확정(Hallym MIPS v2.4.0), .s 제거, Data Memory·Stack 합치기, 부품 그리기 방식(벡터 정의). 원문의 결정은 DECISIONS D-138·D-140·D-141에 옮겨 적었고, 부품 그리기 방식은 N-05 PR의 D-137에 적는다.
 
 | ID | 항목 | 이슈 | 상태 | PR | 증거 |
 | --- | --- | --- | --- | --- | --- |
 | A-01 | .hmx 명세 v2.4.0 따르기, 명세 골든 7쌍 대조, hmx-feedback 줄이기 | #348 | 완료 | #414 | 모르는 필드 무시·no-handler 받기, tests/hmx/hallym-mips-v2.4.0(7쌍+.regs 오라클), ref-mips 레지스터 대조(pseudo $s0은 div/mfhi가 없어 미실행), D-138 |
 | A-02 | .s 불러오기·hcs-asm·native·vendor/spim 제거, SPIM 오라클 굳힘 | #419 | 완료 | #420 | tests/spim-oracle(run 5, dump 11=5825줄, memory-layout), 옛 .s 속성은 읽기만 하고 사실+할 일 표시, D-141 |
 | A-03 | Data Memory와 Stack을 한 부품으로(SPIM 두 영역) | #415 | 완료 | #417 | 데이터 0x10000000~0x100FFFFF·스택 0x7FFC0000~0x7FFFFFFF, 옛 Stack 파일 동작 불변(LegacyStackFileTest), 새 부품 원조 저장 바이트 같음, mips.facts separateStack, MemoryTable, D-140 |
-| A-04 | 부품 모양을 벡터 정의로(화면 Canvas, 내보내기 같은 정의), Canvas·SVG 측정 | #381 | 진행 |  | N-05와 함께(D-137) |
+| A-04 | 부품 모양을 벡터 정의로(화면 Canvas, 내보내기 같은 정의), Canvas·SVG 측정 | #381 | 진행 |  | N-05와 함께(N-05 PR에서 D-137로 기록) |
