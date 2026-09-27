@@ -24,6 +24,7 @@ import kr.ac.hallym.hcs.app.model.Kinds;
 import kr.ac.hallym.hcs.app.model.Names;
 import kr.ac.hallym.hcs.app.model.Netlist;
 import kr.ac.hallym.hcs.app.model.OriginTrace;
+import kr.ac.hallym.hcs.app.model.RefKey;
 import kr.ac.hallym.hcs.app.model.Trace;
 import kr.ac.hallym.hcs.app.record.Recording;
 
@@ -54,8 +55,8 @@ public final class DynamicCheck {
         return step <= 0 ? 0 : (step + 1) / 2;
     }
 
-    /** 스텝 step의 새 진단. seen은 이미 말한 원인 열쇠 → 처음 말한 스텝(더해 간다). */
-    public List<Diagnostic> step(int step, Map<String, Integer> seen) {
+    /** 스텝 step의 새 진단. seen은 이미 말한 원인 열쇠({@link RefKey}) → 처음 말한 스텝(더해 간다). */
+    public List<Diagnostic> step(int step, Map<Object, Integer> seen) {
         List<Diagnostic> out = new ArrayList<>();
         errors(step, seen, out);
         if (step > rec.first()) {
@@ -66,7 +67,7 @@ public final class DynamicCheck {
 
     // ---- E 발생 ----
 
-    private void errors(int step, Map<String, Integer> seen, List<Diagnostic> out) {
+    private void errors(int step, Map<Object, Integer> seen, List<Diagnostic> out) {
         List<Object[]> errors = new ArrayList<>(rec.newErrors(step));
         // 같은 원인의 E가 여러 넷에 있으면 늘 같은 넷을 말한다(V-02): 바깥 회로부터, 왼쪽 위부터
         errors.sort((a, b) -> {
@@ -130,7 +131,7 @@ public final class DynamicCheck {
         }
     }
 
-    private void writes(int step, Map<String, Integer> seen, List<Diagnostic> out) {
+    private void writes(int step, Map<Object, Integer> seen, List<Diagnostic> out) {
         int before = step - 1;
         for (List<Component> path : rec.paths()) {
             Circuit c = circuitOf(path);
@@ -164,11 +165,11 @@ public final class DynamicCheck {
     }
 
     private void report(Diagnostic.Kind kind, List<Component> path, Circuit c, Component x, int port, int step,
-            Map<String, Integer> seen, List<Diagnostic> out) {
+            Map<Object, Integer> seen, List<Diagnostic> out) {
         int before = step - 1;
         Trace.Node n = trace.node(path, c, x.getEnd(port).getLocation());
         OriginTrace.Origin o = trace.find(n, before);
-        String k = o != null ? key(o) : kind + "|" + System.identityHashCode(x) + ":" + port + ":" + path;
+        RefKey k = o != null ? key(o) : writeKey(kind, x, port, path);
         if (seen.putIfAbsent(k, step) != null) {
             return;
         }
@@ -188,6 +189,11 @@ public final class DynamicCheck {
         }
         out.add(new Diagnostic(kind, o.node.circuit, o.node.instances, before, comps, wires(o), location(o),
                 cycleOf(before), where, portName, because).appearedAt(path, c, x.getEnd(port).getLocation()));
+    }
+
+    /** 원인을 못 찾은 X 쓰기의 열쇠: 종류, 부품, 포트, 경로. 부품·경로는 ==로 가른다(D-129). */
+    static RefKey writeKey(Diagnostic.Kind kind, Component x, int port, List<Component> path) {
+        return RefKey.builder().value("write").value(kind).ref(x).value(port).refs(path).build();
     }
 
     /** before → step 사이에 이 부품의 클럭이 트리거 방향으로 바뀌었는가(상승이 기본, 하강 설정이면 하강). */
@@ -236,7 +242,7 @@ public final class DynamicCheck {
         return OriginText.cause(top, o);
     }
 
-    private static String key(OriginTrace.Origin o) {
+    private static RefKey key(OriginTrace.Origin o) {
         return OriginText.key(o);
     }
 

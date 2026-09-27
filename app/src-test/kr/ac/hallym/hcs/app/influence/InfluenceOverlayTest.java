@@ -244,4 +244,32 @@ class InfluenceOverlayTest {
         java.awt.geom.Point2D.Float r = InfluenceOverlay.placesAtWeighted(body, 90, 16, 6, full);
         org.junit.jupiter.api.Assertions.assertTrue(InfluenceOverlay.coversText(r, 90, 16, full));
     }
+
+    /**
+     * D-129: 부품을 같은 수의 새 부품으로 바꿔도(원조는 옮기거나 속성을 바꾸면 새 객체를 만든다) 회로가 바뀐 것이다.
+     * identity hash 합 서명은 -XX:hashCode=2 JVM에서 이것을 못 알아채 옛 영향 경로를 그렸다.
+     */
+    @Test
+    void replacingAPartClearsItToo() throws Exception {
+        LogisimFile f = CircuitBuilder.newFile(new Loader(null), Files.createTempDirectory(tmp, "f").toFile());
+        CircuitBuilder b = new CircuitBuilder(f, f.getMainCircuit());
+        Component a = b.add("Wiring", "Pin", 100, 100, "label", "A");
+        Component y = b.add("Wiring", "Pin", 300, 100, "facing", "west", "output", "true", "label", "Y");
+        b.wire(Location.create(100, 100), Location.create(300, 100));
+        b.commit();
+        Project proj = new Project(f);
+        proj.getSimulator().setIsRunning(false);
+        Circuit c = f.getMainCircuit();
+        Object before = InfluenceOverlay.sig(c);
+        assertEquals(before, InfluenceOverlay.sig(c), "unchanged circuit, same signature");
+        InfluenceOverlay o = InfluenceOverlay.of(proj);
+        o.show(c, List.of(a), Influence.Mode.FORWARD);
+        assertNotNull(o.viewFor(c));
+        CircuitMutation m = new CircuitMutation(c);
+        m.replace(y, y.getFactory().createComponent(Location.create(300, 100),
+                (com.cburch.logisim.data.AttributeSet) y.getAttributeSet().clone()));
+        m.execute();
+        assertTrue(!before.equals(InfluenceOverlay.sig(c)), "a new part object: a different circuit");
+        assertNull(o.viewFor(c), "the replacement clears the influence");
+    }
 }

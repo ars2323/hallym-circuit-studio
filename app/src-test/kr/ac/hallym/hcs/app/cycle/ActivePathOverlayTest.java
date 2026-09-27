@@ -137,4 +137,43 @@ class ActivePathOverlayTest {
         }
         return true;
     }
+
+    /**
+     * D-129: 넷 목록 캐시는 부품·선의 정체로 다시 쓸지 정한다. MUX를 같은 자리의 새 MUX로 바꾸면(부품 수는 같다) 새
+     * 넷 목록을 만든다. identity hash 합 서명은 -XX:hashCode=2 JVM에서 옛 목록을 다시 써서 새 MUX의 가지를 못 그렸다.
+     */
+    @Test
+    void replacingTheMuxRebuildsTheNetlist() throws Exception {
+        LogisimFile f = kr.ac.hallym.hcs.regress.CircuitBuilder.newFile(new com.cburch.logisim.file.Loader(null),
+                java.nio.file.Files.createTempDirectory(tmp, "r").toFile());
+        kr.ac.hallym.hcs.regress.CircuitBuilder b = new kr.ac.hallym.hcs.regress.CircuitBuilder(f, f.getMainCircuit());
+        Component mux = b.add("Plexers", "Multiplexer", 400, 200);
+        Location in0 = mux.getEnd(0).getLocation();
+        b.add("Wiring", "Constant", in0.getX() - 60, in0.getY(), "value", "0x1");
+        b.wire(Location.create(in0.getX() - 60, in0.getY()), in0);
+        b.constant("sel", 1, 0, 100, 400);
+        b.tunnel(mux, 2, "sel");
+        b.tunnel(mux, mux.getEnds().size() - 1, "y");
+        b.output("y", 1, 700, 200);
+        b.commit();
+        Project proj = new Project(f);
+        proj.getSimulator().setIsRunning(false);
+        Circuit main = f.getMainCircuit();
+        CircuitState st = new CircuitState(proj, main);
+        st.getPropagator().propagate();
+        assertFalse(ActivePathOverlay.selected(main, st).isEmpty(), "select 0: the wired input 0");
+        Netlist before = ActivePathOverlay.netlist(main);
+        assertTrue(before == ActivePathOverlay.netlist(main), "unchanged: the cached netlist");
+        com.cburch.logisim.circuit.CircuitMutation m = new com.cburch.logisim.circuit.CircuitMutation(main);
+        Component fresh = mux.getFactory().createComponent(mux.getLocation(),
+                (com.cburch.logisim.data.AttributeSet) mux.getAttributeSet().clone());
+        m.replace(mux, fresh);
+        m.execute();
+        Netlist after = ActivePathOverlay.netlist(main);
+        assertTrue(before != after, "a new MUX object: a new netlist");
+        assertNotNull(after.netOf(fresh, 0));
+        st = new CircuitState(proj, main);
+        st.getPropagator().propagate();
+        assertFalse(ActivePathOverlay.selected(main, st).isEmpty(), "the new MUX's selected input is shown");
+    }
 }

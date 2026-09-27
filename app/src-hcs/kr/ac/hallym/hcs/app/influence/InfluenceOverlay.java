@@ -33,6 +33,7 @@ import com.cburch.logisim.proj.Project;
 
 import kr.ac.hallym.hcs.app.Messages;
 import kr.ac.hallym.hcs.app.model.Influence;
+import kr.ac.hallym.hcs.app.model.RefKey;
 import kr.ac.hallym.hcs.app.theme.Tokens;
 
 /**
@@ -66,7 +67,7 @@ public final class InfluenceOverlay {
     private int depth = -1;
     private Influence result;
     private final Map<Circuit, Influence.View> views = new HashMap<>();
-    private final Map<Circuit, Long> signature = new HashMap<>();
+    private final Map<Circuit, RefKey> signature = new HashMap<>();
 
     private InfluenceOverlay(Project proj) {
         this.proj = proj;
@@ -180,16 +181,12 @@ public final class InfluenceOverlay {
         }
     }
 
-    /** 회로 모양이 바뀌었는가(부품·선의 수와 정체). */
-    static long sig(Circuit c) {
-        long h = c.getWires().size() * 31L + c.getNonWires().size();
-        for (Wire w : c.getWires()) {
-            h += System.identityHashCode(w);
-        }
-        for (Component x : c.getNonWires()) {
-            h += 7L * System.identityHashCode(x);
-        }
-        return h;
+    /**
+     * 회로 모양이 바뀌었는가(부품·선의 정체). identity hash 합이 아니라 정체를 비교한다(D-129: 합은 부품을 바꿔도
+     * 같을 수 있다).
+     */
+    static RefKey sig(Circuit c) {
+        return RefKey.shape(c);
     }
 
     /** 이 회로에서의 모습. 보여 줄 것이 없으면 null. 회로를 고쳤으면 지우고 null. */
@@ -197,14 +194,14 @@ public final class InfluenceOverlay {
         if (result == null || shown == null) {
             return null;
         }
-        Long before = signature.get(top);
-        if (before != null && before != sig(top)) {
+        RefKey before = signature.get(top);
+        if (before != null && !before.equals(sig(top))) {
             clear();
             return null;
         }
-        Long s = signature.get(shown);
-        long now = sig(shown);
-        if (s != null && s != now) {
+        RefKey s = signature.get(shown);
+        RefKey now = sig(shown);
+        if (s != null && !s.equals(now)) {
             clear();
             return null;
         }

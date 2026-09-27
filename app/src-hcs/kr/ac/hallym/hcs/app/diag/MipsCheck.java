@@ -22,6 +22,7 @@ import kr.ac.hallym.hcs.app.model.InstancePaths;
 import kr.ac.hallym.hcs.app.model.Kinds;
 import kr.ac.hallym.hcs.app.model.Names;
 import kr.ac.hallym.hcs.app.model.OriginTrace;
+import kr.ac.hallym.hcs.app.model.RefKey;
 import kr.ac.hallym.hcs.app.record.Recording;
 
 /**
@@ -39,7 +40,7 @@ public final class MipsCheck {
      * 찾을 수 있으면(Console V0·A0가 정해지지 않음) 에지 직전 기록값으로 출처를 붙인다.
      */
     public static List<Diagnostic> check(Circuit top, CircuitState root, Recording rec, int step,
-            Map<String, Integer> seen) {
+            Map<Object, Integer> seen) {
         List<Diagnostic> out = new ArrayList<>();
         for (List<Component> path : rec.paths()) {
             CircuitState s = InstancePaths.stateFor(root, path);
@@ -78,7 +79,8 @@ public final class MipsCheck {
                 if (text == null) {
                     continue;
                 }
-                String key = "M|" + kind + "|" + System.identityHashCode(x) + ":" + path;
+                // 부품과 경로는 ==로 가른다(D-129)
+                RefKey key = RefKey.builder().value("mips").value(kind).ref(x).refs(path).build();
                 if (seen.putIfAbsent(key, step) != null) {
                     continue;
                 }

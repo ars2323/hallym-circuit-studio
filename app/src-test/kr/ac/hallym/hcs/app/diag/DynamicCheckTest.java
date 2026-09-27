@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -72,7 +73,7 @@ class DynamicCheckTest {
 
         List<Diagnostic> scan() {
             DynamicCheck c = new DynamicCheck(rec.circuit(), rec);
-            Map<String, Integer> seen = new HashMap<>();
+            Map<Object, Integer> seen = new HashMap<>();
             List<Diagnostic> out = new ArrayList<>();
             for (int s = rec.first(); s <= rec.last(); s++) {
                 out.addAll(c.step(s, seen));
@@ -257,13 +258,14 @@ class DynamicCheckTest {
 
     /** 시뮬레이터 스레드에서 스텝마다 도므로 가볍게(PERFORMANCE.md D-01): ref-mips 한 스텝 평균 2ms 안. */
     @Test
+    @Tag("timing") // 상수 identity hash 실행에서는 뺀다(D-129)
     void scanningAStepIsCheap() throws Exception {
         LogisimFile file = RecordingTestSupport.openRefMips(tmp);
         RecordingTestSupport.load(file, RecordingTestSupport.program("mips/factorial.s"));
         Run r = new Run(file);
         r.steps(600);
         DynamicCheck c = new DynamicCheck(r.rec.circuit(), r.rec);
-        Map<String, Integer> seen = new HashMap<>();
+        Map<Object, Integer> seen = new HashMap<>();
         for (int s = 1; s <= 100; s++) {
             c.step(s, seen); // 데우기
         }
@@ -316,5 +318,106 @@ class DynamicCheckTest {
         r.rec.restart(r.root, 0);
         diags.onRecording(r.rec);
         assertEquals(List.of(), diags.dynamic().stream().filter(d -> d.step > 0).toList());
+    }
+
+    /**
+     * D-129 회귀(촬영 장면 31): demo-datapath에서 학생이 RegWrite 입력 핀을 3상태로 두고 6사이클 돌리면, 원인은 값이
+     * 정해지지 않은 입력 핀 main › RegWrite 한 곳이다. identity hash로 만든 방문 열쇠는 서로 다른 넷을 같은 곳으로 봐서
+     * "고리에서 값이 정해지지 않는다"고 말했다(-XX:hashCode=2 JVM에서 늘, 보통 JVM에서도 드물게).
+     */
+    @Test
+    void triStateRegWriteInTheDemoIsThePinNotALoop() throws Exception {
+        LogisimFile file = RecordingTestSupport.openCirc(Files.createTempDirectory(tmp, "demo"), "demo-datapath.circ");
+        Circuit main = file.getMainCircuit();
+        Component rw = null;
+        for (Component x : main.getNonWires()) {
+            if (x.getFactory().getName().equals("Pin")
+                    && "RegWrite".equals(x.getAttributeSet().getValue(com.cburch.logisim.instance.StdAttr.LABEL))) {
+                rw = x;
+            }
+        }
+        assertTrue(rw != null, "the demo has a RegWrite input pin");
+        com.cburch.logisim.circuit.CircuitMutation m = new com.cburch.logisim.circuit.CircuitMutation(main);
+        m.set(rw, com.cburch.logisim.std.wiring.Pin.ATTR_TRISTATE, Boolean.TRUE);
+        m.execute();
+        Run r = new Run(file);
+        Diagnostics diags = Diagnostics.of(r.proj);
+        diags.onRecording(r.rec);
+        for (int i = 0; i < 6 * 2; i++) { // 6사이클 = 12스텝
+            r.steps(1);
+            diags.onRecording(r.rec);
+        }
+        String pinCause = Messages.get("diag.causePrefix", Messages.get("diag.cause.INPUT_PIN", "main › RegWrite"));
+        List<Diagnostic> ds = diags.dynamic();
+        assertTrue(!ds.isEmpty(), "the floating RegWrite is reported");
+        for (Diagnostic d : ds) {
+            assertTrue(d.args().contains(pinCause), d.toString());
+        }
+        // 고리 문구(인자 앞뒤 글자)가 어느 메시지에도 없다
+        String[] loop = Messages.get("diag.cause.LOOP", "@@").split("@@", -1);
+        for (Diagnostic d : diags.list()) {
+            for (String part : loop) {
+                assertTrue(part.isBlank() || !d.message().contains(part.trim()), "never a loop: " + d.message());
+            }
+        }
+        // 같은 기록을 DynamicCheck로 처음부터 다시 봐도 같다
+        List<Diagnostic> again = r.scan();
+        assertEquals(ds.size(), again.size(), again.toString());
+        for (Diagnostic d : again) {
+            assertTrue(d.args().contains(pinCause), d.toString());
+        }
+    }
+
+    /**
+     * D-129: 원인 열쇠는 부품을 ==로 가른다. 서로 다른 두 입력 핀이 두 레지스터의 en을 정하지 못하면 원인이 둘이라 두 번
+     * 말한다(identity hash 열쇠는 둘을 하나로 봐서 한 번만 말했다).
+     */
+    @Test
+    void twoFloatingPinsAreTwoCauses() throws Exception {
+        LogisimFile f = fresh();
+        CircuitBuilder b = new CircuitBuilder(f, f.getMainCircuit());
+        Component clock = b.add("Wiring", "Clock", 100, 500);
+        b.tunnel(clock, 0, "clk");
+        b.constant("d", 8, 7, 100, 100);
+        Component r1 = b.add("Memory", "Register", 400, 200, "width", "8", "label", "R1");
+        Component r2 = b.add("Memory", "Register", 400, 400, "width", "8", "label", "R2");
+        for (Component reg : new Component[] {r1, r2}) {
+            b.tunnel(reg, 1, "d");
+            b.tunnel(reg, 2, "clk");
+        }
+        b.tunnel(r1, 4, "WE1");
+        b.tunnel(r2, 4, "WE2");
+        Component p1 = b.input("WE1", 1, 100, 300); // 3상태 기본값: X
+        Component p2 = b.input("WE2", 1, 100, 400);
+        b.tunnel(r1, 0, "q1");
+        b.output("q1", 8, 700, 100);
+        b.tunnel(r2, 0, "q2");
+        b.output("q2", 8, 700, 300);
+        b.commit();
+        Run r = new Run(f);
+        r.steps(6);
+        List<Diagnostic> ds = r.scan();
+        assertEquals(2, ds.size(), ds.toString());
+        assertTrue(ds.stream().anyMatch(d -> d.components.contains(p1)), ds.toString());
+        assertTrue(ds.stream().anyMatch(d -> d.components.contains(p2)), ds.toString());
+    }
+
+    /** D-129: 원인을 못 찾은 X 쓰기의 열쇠도 부품·경로를 ==로 가른다. */
+    @Test
+    void writeKeysTellComponentsApart() throws Exception {
+        LogisimFile f = fresh();
+        CircuitBuilder b = new CircuitBuilder(f, f.getMainCircuit());
+        Component r1 = b.add("Memory", "Register", 400, 200, "width", "8", "label", "R1");
+        Component r2 = b.add("Memory", "Register", 400, 400, "width", "8", "label", "R2");
+        b.commit();
+        List<Component> top = List.of();
+        assertTrue(!DynamicCheck.writeKey(Diagnostic.Kind.X_WRITE_CONTROL, r1, 4, top)
+                .equals(DynamicCheck.writeKey(Diagnostic.Kind.X_WRITE_CONTROL, r2, 4, top)));
+        assertEquals(DynamicCheck.writeKey(Diagnostic.Kind.X_WRITE_CONTROL, r1, 4, top),
+                DynamicCheck.writeKey(Diagnostic.Kind.X_WRITE_CONTROL, r1, 4, new ArrayList<>()));
+        assertTrue(!DynamicCheck.writeKey(Diagnostic.Kind.X_WRITE_CONTROL, r1, 4, top)
+                .equals(DynamicCheck.writeKey(Diagnostic.Kind.X_WRITE_DATA, r1, 4, top)));
+        assertTrue(!DynamicCheck.writeKey(Diagnostic.Kind.X_WRITE_CONTROL, r1, 4, top)
+                .equals(DynamicCheck.writeKey(Diagnostic.Kind.X_WRITE_CONTROL, r1, 4, List.of(r2))));
     }
 }

@@ -110,10 +110,10 @@ public final class InstancePaths {
         public final Location at;
         public final boolean connected;
         /** 같은 넷의 다른 포트들(부품과 포트 번호). 포트가 밀려 옆 넷에 닿아도 알아보기 위해 둔다. */
-        final java.util.Set<String> partners;
+        final java.util.Set<Netlist.PortRef> partners;
 
         PortUse(Circuit parent, Component instance, Component pin, Location at, boolean connected,
-                java.util.Set<String> partners) {
+                java.util.Set<Netlist.PortRef> partners) {
             this.parent = parent;
             this.instance = instance;
             this.pin = pin;
@@ -150,14 +150,17 @@ public final class InstancePaths {
         return out;
     }
 
-    /** 같은 넷의 다른 포트들(이 인스턴스의 포트는 빼고, 부품 정체와 포트 번호). */
-    static java.util.Set<String> partners(Netlist nl, Component inst, int end) {
-        java.util.Set<String> ret = new java.util.TreeSet<>();
+    /**
+     * 같은 넷의 다른 포트들(이 인스턴스의 포트는 빼고, 부품 정체와 포트 번호). PortRef는 부품을 ==로 가른다(D-129:
+     * identity hash 문자열은 서로 다른 부품을 같게 볼 수 있다).
+     */
+    static java.util.Set<Netlist.PortRef> partners(Netlist nl, Component inst, int end) {
+        java.util.Set<Netlist.PortRef> ret = new java.util.HashSet<>();
         Netlist.Net n = nl.netOf(inst, end);
         if (n != null) {
             for (Netlist.PortRef p : n.ports()) {
                 if (p.component != inst) {
-                    ret.add(System.identityHashCode(p.component) + "#" + p.end);
+                    ret.add(p);
                 }
             }
         }
@@ -226,7 +229,7 @@ public final class InstancePaths {
     }
 
     public static List<Broken> broken(List<PortUse> before, List<PortUse> after) {
-        Map<String, PortUse> now = new LinkedHashMap<>();
+        Map<RefKey, PortUse> now = new LinkedHashMap<>();
         for (PortUse u : after) {
             now.put(key(u.instance, u.pin), u);
         }
@@ -248,11 +251,12 @@ public final class InstancePaths {
 
     /**
      * 인스턴스와 핀을 잇는 열쇠. 핀을 옮기면 원조가 핀 부품을 새로 만들므로 핀은 라벨로 알아본다(라벨이 없으면
-     * 부품 그대로). 인스턴스 부품은 서브회로 모양이 바뀌어도 그대로다.
+     * 부품 그대로). 인스턴스 부품은 서브회로 모양이 바뀌어도 그대로다. 부품은 ==로 가른다(D-129).
      */
-    private static String key(Component inst, Component pin) {
+    private static RefKey key(Component inst, Component pin) {
         String l = Names.label(pin);
-        return System.identityHashCode(inst) + "/" + (l != null ? "label:" + l : "id:" + System.identityHashCode(pin));
+        RefKey.Builder b = RefKey.builder().ref(inst);
+        return l != null ? b.value("label").value(l).build() : b.value("id").ref(pin).build();
     }
 
     /** at에 inst 말고 다른 것(선, 다른 부품의 포트)이 닿아 있는가. */

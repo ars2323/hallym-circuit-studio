@@ -516,4 +516,71 @@ class LabelsTest {
             assertEquals(0xFFFFFF, img.getRGB(edgeX, y) & 0xFFFFFF, "port side edge clear at " + edgeX + "," + y);
         }
     }
+
+    // ---- D-129: 서명은 해시가 아니라 입력(부품 정체)을 비교한다 ----
+
+    /** 같은 이름의 터널을 옮기면(원조는 새 객체를 만든다) 색 배정을 다시 한다. 이름이 그대로여도. */
+    @Test
+    void movingATunnelChangesTheColorSignature() throws Exception {
+        LogisimFile f = CircuitBuilder.newFile(new Loader(null), tmp.toFile());
+        CircuitBuilder b = new CircuitBuilder(f, f.getMainCircuit());
+        b.add("Wiring", "Tunnel", 100, 100, "label", "A");
+        b.add("Wiring", "Tunnel", 100, 300, "label", "B");
+        Component t = b.add("Wiring", "Tunnel", 300, 100, "label", "A"); // 마지막: 바꿔도 이름 차례가 같다
+        b.commit();
+        Circuit c = f.getMainCircuit();
+        Object before = LabelOverlay.tunnelSignature(f, c);
+        assertEquals(before, LabelOverlay.tunnelSignature(f, c), "nothing changed");
+        com.cburch.logisim.circuit.CircuitMutation m = new com.cburch.logisim.circuit.CircuitMutation(c);
+        m.replace(t, t.getFactory().createComponent(Location.create(300, 250),
+                (com.cburch.logisim.data.AttributeSet) t.getAttributeSet().clone()));
+        m.execute();
+        assertFalse(before.equals(LabelOverlay.tunnelSignature(f, c)), "the A tunnel moved");
+    }
+
+    static List<Rectangle> paintChips(com.cburch.logisim.gui.main.Canvas canvas, Project proj, Circuit c) {
+        BufferedImage img = new BufferedImage(1200, 800, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = img.createGraphics();
+        Set<Component> none = Collections.emptySet();
+        Graphics hcsG = LabelOverlay.wrap(canvas, g, c, none);
+        c.draw(new ComponentDrawContext(canvas, c, proj.getCircuitState(), g, hcsG), none);
+        LabelOverlay.paint(canvas, g, c, proj.getCircuitState(), none);
+        g.dispose();
+        return LabelOverlay.chipRects(canvas);
+    }
+
+    /**
+     * 칩 배치는 부품이 바뀌면 다시 한다: 멀리 있던 부품을 칩 자리를 덮는 새 부품으로 바꾸면(부품 수는 같다) 칩이 비켜
+     * 선다. identity hash 합 서명은 -XX:hashCode=2 JVM에서 이것을 못 알아채 칩이 새 부품 위에 남았다.
+     */
+    @Test
+    void chipsMoveOffAPartThatReplacedAnother() throws Exception {
+        LogisimFile f = CircuitBuilder.newFile(new Loader(null), tmp.toFile());
+        CircuitBuilder b = new CircuitBuilder(f, f.getMainCircuit());
+        b.add("Wiring", "Pin", 200, 200, "label", "PCSrc");
+        Component far = b.add("Gates", "NOT Gate", 900, 600);
+        b.commit();
+        Circuit c = f.getMainCircuit();
+        Project proj = new Project(f);
+        proj.getSimulator().setIsRunning(false);
+        com.cburch.logisim.gui.main.Canvas canvas = new com.cburch.logisim.gui.main.Canvas(proj);
+        List<Rectangle> chips = paintChips(canvas, proj, c);
+        assertEquals(1, chips.size(), chips.toString());
+        Rectangle chip = chips.get(0);
+        // 가산기(몸체는 자리에서 왼쪽으로 40, 위아래 20)를 칩 가운데에 오게 놓고 NOT을 뺀다: 한 번의 편집
+        int cx = chip.x + chip.width / 2;
+        int cy = chip.y + chip.height / 2;
+        Component cover = new CircuitBuilder(f, c).add("Arithmetic", "Adder", cx + 20, cy);
+        com.cburch.logisim.data.Bounds cb = cover.getBounds();
+        Rectangle body = new Rectangle(cb.getX(), cb.getY(), cb.getWidth(), cb.getHeight());
+        assertTrue(body.intersects(chip), "the new part covers the old chip spot");
+        com.cburch.logisim.circuit.CircuitMutation m = new com.cburch.logisim.circuit.CircuitMutation(c);
+        m.remove(far);
+        m.add(cover);
+        m.execute();
+        assertEquals(2, c.getNonWires().size());
+        List<Rectangle> again = paintChips(canvas, proj, c);
+        assertEquals(1, again.size(), again.toString());
+        assertFalse(again.get(0).intersects(body), again.get(0) + " still on the new part " + body);
+    }
 }

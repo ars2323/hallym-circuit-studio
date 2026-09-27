@@ -374,4 +374,77 @@ class SignalFlowPathTest {
             assertEquals(first, SignalFlowPath.fromComponent(c, pc, 0, o).fingerprint());
         }
     }
+
+    // ---- D-129: 부품 열쇠는 정체(==)로 ----
+
+    /** 입력 핀 A → NOT 두 개(g1, g2) → 출력 핀 Y1, Y2. */
+    LogisimFile fanOut() throws Exception {
+        LogisimFile f = kr.ac.hallym.hcs.regress.CircuitBuilder.newFile(new Loader(null),
+                Files.createTempDirectory(tmp, "fan").toFile());
+        kr.ac.hallym.hcs.regress.CircuitBuilder b = new kr.ac.hallym.hcs.regress.CircuitBuilder(f, f.getMainCircuit());
+        b.input("A", 1, 100, 100);
+        Component g1 = b.add("Gates", "NOT Gate", 300, 200, "label", "g1");
+        Component g2 = b.add("Gates", "NOT Gate", 300, 300, "label", "g2");
+        b.tunnel(g1, 1, "A");
+        b.tunnel(g2, 1, "A");
+        b.tunnel(g1, 0, "Y1");
+        b.tunnel(g2, 0, "Y2");
+        b.output("Y1", 1, 600, 100);
+        b.output("Y2", 1, 600, 200);
+        b.commit();
+        return f;
+    }
+
+    /**
+     * 한 입력이 두 게이트로 갈라지면 두 게이트를 모두 지나고 두 출력 핀에 모두 닿는다. identity hash 문자열 열쇠는 같은
+     * 포트 번호의 서로 다른 부품을 하나로 봐서, 둘째 게이트의 빛남과 둘째 끝점을 뺐다(-XX:hashCode=2 JVM에서 늘).
+     */
+    @Test
+    void fanOutPassesEveryGateAndReachesEveryOutput() throws Exception {
+        Circuit c = fanOut().getMainCircuit();
+        SignalFlowPath p = SignalFlowPath.fromComponent(c, byLabel(c, "A", "Pin"), -1, forward());
+        List<String> ends = new ArrayList<>(p.endpointSummary());
+        java.util.Collections.sort(ends);
+        assertEquals(List.of("OUTPUT Y1", "OUTPUT Y2"), ends);
+        List<String> passed = new ArrayList<>();
+        for (SignalFlowPath.Pass x : p.passes) {
+            passed.add(Names.label(x.component));
+        }
+        java.util.Collections.sort(passed);
+        assertEquals(List.of("g1", "g2"), passed);
+    }
+
+    /** Active Path Only: 선택이 정해지지 않은 MUX가 둘이면 둘 다 "선택 미확정"이다(부품마다 한 번). */
+    @Test
+    void everyUndeterminedMuxIsListedOnce() throws Exception {
+        LogisimFile f = kr.ac.hallym.hcs.regress.CircuitBuilder.newFile(new Loader(null),
+                Files.createTempDirectory(tmp, "mux2").toFile());
+        kr.ac.hallym.hcs.regress.CircuitBuilder b = new kr.ac.hallym.hcs.regress.CircuitBuilder(f, f.getMainCircuit());
+        b.input("A", 1, 100, 100);
+        Component m1 = b.add("Plexers", "Multiplexer", 300, 200);
+        Component m2 = b.add("Plexers", "Multiplexer", 300, 400);
+        for (Component m : new Component[] {m1, m2}) {
+            b.tunnel(m, 0, "A");
+            b.tunnel(m, 1, "A");
+        }
+        b.tunnel(m1, m1.getEnds().size() - 1, "Y1"); // 출력은 마지막 포트
+        b.tunnel(m2, m2.getEnds().size() - 1, "Y2");
+        b.output("Y1", 1, 600, 100);
+        b.output("Y2", 1, 600, 200);
+        b.commit();
+        Circuit c = f.getMainCircuit();
+        SignalFlowPath.Options o = forward();
+        o.activeValues = (instances, at) -> at.equals(m1.getEnd(2).getLocation()) || at.equals(m2.getEnd(2).getLocation())
+                ? Value.UNKNOWN : Value.FALSE;
+        SignalFlowPath p = SignalFlowPath.fromComponent(c, byLabel(c, "A", "Pin"), -1, o);
+        assertEquals(2, p.undetermined.size(), p.undetermined.toString());
+        assertTrue(p.undetermined.contains(m1) && p.undetermined.contains(m2));
+        // ActivePath 한 개로 같은 MUX를 여러 번 물어도 한 번만 적는다
+        ActivePath ap = new ActivePath(o.activeValues);
+        for (int i = 0; i < 3; i++) {
+            ap.passes(List.of(), m1, 0, m1.getEnds().size() - 1);
+            ap.passes(List.of(), m2, 0, m2.getEnds().size() - 1);
+        }
+        assertEquals(List.of(m1, m2), new ArrayList<>(ap.undetermined()));
+    }
 }

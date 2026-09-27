@@ -211,4 +211,41 @@ class OriginTraceTest {
         assertEquals(0, o.step);
         assertNull(past.find(past.node(out, 0), 1), "defined at step 1");
     }
+
+    /**
+     * D-129: 지난 곳 표시는 넷 객체를 ==로 가른다. identity hash로 만든 열쇠는 같은 스텝의 서로 다른 넷을 같은 곳으로 봐서,
+     * NOT 셋을 거친 떠 있는 입력 핀을 "고리"로 말했다(-XX:hashCode=2 JVM에서 늘, 보통 JVM에서도 드물게).
+     */
+    @Test
+    void aChainOfDifferentNetsIsNotALoop() throws Exception {
+        LogisimFile f = fresh();
+        CircuitBuilder b = new CircuitBuilder(f, f.getMainCircuit());
+        Component pin = b.input("a", 1, 100, 100); // 3상태 기본값: X
+        Component n1 = b.add("Gates", "NOT Gate", 300, 200);
+        Component n2 = b.add("Gates", "NOT Gate", 300, 300);
+        Component n3 = b.add("Gates", "NOT Gate", 300, 400);
+        b.tunnel(n1, 1, "a");
+        b.tunnel(n1, 0, "b");
+        b.tunnel(n2, 1, "b");
+        b.tunnel(n2, 0, "c");
+        b.tunnel(n3, 1, "c");
+        b.tunnel(n3, 0, "y");
+        Component out = b.output("y", 1, 600, 100);
+        b.commit();
+        CircuitState s = run(f);
+        OriginTrace t = new OriginTrace(f.getMainCircuit(), OriginTrace.live(s));
+        OriginTrace.Origin o = t.find(t.node(out, 0), 0);
+        assertNotNull(o);
+        assertEquals(OriginTrace.Cause.INPUT_PIN, o.cause, o.toString());
+        assertEquals(pin, o.component);
+        assertEquals(4, o.chain.size(), "y, c, b, a: four different nets");
+        assertEquals(4, new HashSet<>(o.chain).size());
+        // 열쇠: 다른 넷은 같은 스텝·비트여도 다른 열쇠, 같은 넷은 새로 만든 노드여도 같은 열쇠
+        Trace.Node y = t.node(out, 0);
+        Trace.Node a = t.node(pin, 0);
+        assertTrue(!OriginTrace.key(y, 0, -1).equals(OriginTrace.key(a, 0, -1)));
+        assertEquals(OriginTrace.key(y, 0, -1), OriginTrace.key(t.node(out, 0), 0, -1));
+        assertTrue(!OriginTrace.key(y, 0, -1).equals(OriginTrace.key(y, 1, -1)));
+        assertTrue(!OriginTrace.key(y, 0, -1).equals(OriginTrace.key(y, 0, 0)));
+    }
 }

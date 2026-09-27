@@ -44,7 +44,7 @@ public final class Diagnostics {
     private final List<Diagnostic> dynamic = new ArrayList<>();
     private final List<Integer> dynamicAt = new ArrayList<>();
     /** 이미 말한 원인 열쇠 → 처음 말한 스텝. */
-    private final java.util.Map<String, Integer> seen = new java.util.HashMap<>();
+    private final java.util.Map<Object, Integer> seen = new java.util.HashMap<>();
     private kr.ac.hallym.hcs.app.record.Recording dynRecording;
     private int scanned = Integer.MIN_VALUE;
     /** 진동(D-02): 원조가 전파를 그만둔 동안의 진단 하나. 없으면 null. */

@@ -29,6 +29,7 @@ import com.cburch.logisim.proj.Project;
 import kr.ac.hallym.hcs.app.Settings;
 import kr.ac.hallym.hcs.app.flow.ActivePath;
 import kr.ac.hallym.hcs.app.model.Netlist;
+import kr.ac.hallym.hcs.app.model.RefKey;
 import kr.ac.hallym.hcs.app.theme.Tokens;
 
 /**
@@ -43,7 +44,7 @@ public final class ActivePathOverlay {
     static final float HALO_ALPHA = 0.7f;
 
     private static final Set<Project> SHOWN = Collections.newSetFromMap(new WeakHashMap<>());
-    /** 회로마다 넷 목록(부품·선이 그대로면 다시 쓴다). */
+    /** 회로마다 회로 모양 서명과 넷 목록(부품·선이 그대로면 다시 쓴다). */
     private static final Map<Circuit, Object[]> NETS = new WeakHashMap<>();
 
     private ActivePathOverlay() {
@@ -138,17 +139,12 @@ public final class ActivePathOverlay {
         return out;
     }
 
-    private static Netlist netlist(Circuit circ) {
-        long sig = 17;
-        for (Component c : circ.getNonWires()) {
-            sig = sig * 31 + System.identityHashCode(c);
-        }
-        for (Wire w : circ.getWires()) {
-            sig = sig * 31 + w.hashCode();
-        }
+    /** 부품·선이 그대로면 지난 넷 목록. 서명은 부품·선의 정체를 비교한다(D-129: identity hash 합이 아니라). */
+    static Netlist netlist(Circuit circ) {
+        RefKey sig = RefKey.shape(circ);
         synchronized (NETS) {
             Object[] hit = NETS.get(circ);
-            if (hit != null && (Long) hit[0] == sig) {
+            if (hit != null && hit[0].equals(sig)) {
                 return (Netlist) hit[1];
             }
             Netlist nl = Netlist.of(circ);
