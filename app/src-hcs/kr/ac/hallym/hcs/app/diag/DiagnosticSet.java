@@ -27,12 +27,15 @@ import kr.ac.hallym.hcs.app.record.Recording;
  * 한 줄로 합친 목록을 준다(PLAN.md 4.4). Swing 앱의 {@link Diagnostics}와 v2 엔진이 같은 이것을 쓴다.
  * <p>
  * 스레드: 정적 검사는 부르는 쪽(모델을 바꾸는 스레드)에서 돈다. 동적 진단과 진동은 원조 시뮬레이터 스레드의
- * 청취자에서 본다(기록이 그 스레드에서 적히므로 읽는 동안 바뀌지 않는다). 바뀌면 {@code changed}를 그 스레드에서
- * 부른다: 받는 쪽이 자기 스레드로 넘긴다.
+ * 청취자에서 본다(기록이 그 스레드에서 적히므로 읽는 동안 바뀌지 않는다). 그때 회로 모델(부품·선·넷·이름)을 읽으므로
+ * 원조 회로 읽기 잠금을 쥐고 본다({@link Recorder#readModel}): 모델 스레드의 편집과 겹치지 않는다(D-143). 바뀌면
+ * {@code changed}를 그 스레드에서 부른다: 받는 쪽이 자기 스레드로 넘긴다.
  */
 public final class DiagnosticSet {
     private final Project proj;
     private final Runnable changed;
+    /** 이 프로젝트의 기록기: 기록을 받고, 시뮬레이터 스레드에서 모델을 읽을 때 그 읽기 잠금을 쓴다. */
+    private final Recorder recorder;
     private volatile List<Diagnostic> statics = Collections.emptyList();
 
     private final Object dynLock = new Object();
@@ -77,7 +80,8 @@ public final class DiagnosticSet {
                 d.onRecording(r);
             }
         };
-        Recorder.of(proj).addListener(recListener);
+        recorder = Recorder.of(proj);
+        recorder.addListener(recListener);
         if (proj.getSimulator() != null) {
             proj.getSimulator().addSimulatorListener(simListener);
         }
@@ -130,10 +134,11 @@ public final class DiagnosticSet {
         Diagnostic before = oscillation;
         if (osc && before == null) {
             CircuitState root = liveRoot();
-            Recording r = Recorder.of(proj).current();
+            Recording r = recorder.current();
             int step = r == null || r.isEmpty() ? 0 : r.last();
+            // 고리를 찾으며 회로 모델을 읽는다: 원조 읽기 잠금 안에서(D-143)
             oscillation = root == null ? null
-                    : Oscillation.diagnose(root.getCircuit(), Oscillation.points(root), step);
+                    : recorder.readModel(() -> Oscillation.diagnose(root.getCircuit(), Oscillation.points(root), step));
         } else if (!osc && before != null) {
             oscillation = null;
         }
@@ -142,8 +147,18 @@ public final class DiagnosticSet {
         }
     }
 
-    /** 기록이 바뀌었다(시뮬레이터 스레드): 다시 적힌 스텝부터 끝까지 동적 진단을 다시 본다. */
+    /**
+     * 기록이 바뀌었다(시뮬레이터 스레드): 다시 적힌 스텝부터 끝까지 동적 진단을 다시 본다. 검사는 회로 모델을 읽으므로
+     * 원조 읽기 잠금 안에서 돈다(D-143: 엔진 스레드가 편집하는 동안 부품 집합을 훑으면 ConcurrentModificationException).
+     */
     public void onRecording(Recording r) {
+        if (recorder.readModel(() -> scan(r))) {
+            changed.run();
+        }
+    }
+
+    /** 새 스텝의 동적 진단을 더한다. 목록이 바뀌었으면 true. */
+    private boolean scan(Recording r) {
         boolean any = false;
         synchronized (dynLock) {
             int dirty = r.takeDirtyFrom();
@@ -152,7 +167,7 @@ public final class DiagnosticSet {
                 dirty = Integer.MIN_VALUE;
             }
             if (dirty == Integer.MAX_VALUE && scanned >= r.last()) {
-                return;
+                return false;
             }
             if (dirty == Integer.MIN_VALUE) {
                 any = !dynamic.isEmpty();
@@ -191,9 +206,7 @@ public final class DiagnosticSet {
             }
             scanned = r.last();
         }
-        if (any) {
-            changed.run();
-        }
+        return any;
     }
 
     /** 동적 진단(찾은 차례). */

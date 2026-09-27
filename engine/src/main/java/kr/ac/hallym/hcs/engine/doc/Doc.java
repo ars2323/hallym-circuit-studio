@@ -188,10 +188,27 @@ public final class Doc {
     /** 화면에 붙지 않은 Canvas(선택·Poke 사건용, 그리기 스레드 멈춤). 처음 부를 때 만든다. */
     public Canvas canvas() {
         if (canvas == null) {
-            canvas = new Canvas(proj);
+            canvas = new HiddenCanvas(proj);
             canvas.closeCanvas();
         }
         return canvas;
+    }
+
+    /**
+     * 창이 없는 Canvas는 크기가 없다: 크기 재기를 하지 않는다(D-143). 원조 Canvas는 지금 회로의 무효화 사건마다
+     * 회로 경계를 다시 잰다(completeAction → computeSize → Circuit.getBounds가 부품 집합을 훑는다). 클럭 틱의 무효화
+     * 사건은 원조 시뮬레이터 스레드에서 오므로, 엔진 스레드가 부품을 넣고 빼는 동안 재면
+     * ConcurrentModificationException으로 시뮬레이터 스레드가 끝난다. 전파 요청(completeAction의 나머지)은 그대로다.
+     */
+    private static final class HiddenCanvas extends Canvas {
+        HiddenCanvas(Project proj) {
+            super(proj);
+        }
+
+        @Override
+        public void computeSize(boolean immediate) {
+            // 창이 없다: 잴 크기도, 알릴 스크롤 창도 없다
+        }
     }
 
     /** 회로 목록 [{circuitId, name}]. */
