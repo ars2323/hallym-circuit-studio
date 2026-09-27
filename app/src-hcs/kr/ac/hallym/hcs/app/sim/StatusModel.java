@@ -30,6 +30,11 @@ public final class StatusModel {
             this.left = 2 * cycles;
         }
 
+        /** 남은 틱이 없으면 true. */
+        public boolean isDone() {
+            return left <= 0;
+        }
+
         /** 남은 틱이 있으면 tick을 한 번 부르고 true, 끝났으면 false. */
         public boolean step(Runnable tick) {
             if (left <= 0) {

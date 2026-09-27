@@ -19,7 +19,6 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JToolBar;
 import javax.swing.SwingUtilities;
-import javax.swing.Timer;
 
 import com.cburch.logisim.circuit.Simulator;
 import com.cburch.logisim.circuit.SimulatorEvent;
@@ -221,37 +220,16 @@ public final class SimControls {
     }
 
     /**
-     * 프로젝트의 도구 모음과 같은 방법으로 n 사이클을 실행한다(사이클 표의 Next Cycle). 창이 없으면 바로 틱한다.
-     * 시뮬레이션이 꺼져 있으면 틱하지 않는다(D-091).
+     * 도구 모음의 N Cycles와 같은 방법으로 n 사이클을 실행한다(사이클 표의 Next Cycle). 창이 없어도 같다. 틱은 엔진이
+     * 따라오는 만큼만 요청해 빠지지 않는다(D-123). 시뮬레이션이 꺼져 있으면 틱하지 않는다(D-091). GUI 스레드에서 부른다.
      */
-    public static void runCycles(Project proj, int n) {
-        SimControls s;
-        synchronized (ALL) {
-            s = ALL.get(proj);
-        }
-        if (s != null) {
-            s.cycles(n);
-        } else {
-            for (int i = 0; i < 2 * n; i++) {
-                if (!TickGuard.tick(proj)) {
-                    return;
-                }
-            }
-        }
+    public static CyclePacer runCycles(Project proj, int n) {
+        return CyclePacer.start(proj, n, null);
     }
 
     /** n 사이클: 원조 틱 2n번. 꺼져 있으면 멈추고 알린다. */
     void cycles(int n) {
-        Timer t = new Timer(0, null);
-        StatusModel.Run run = new StatusModel.Run(n);
-        t.addActionListener(e -> {
-            boolean[] ok = {true};
-            if (!run.step(() -> ok[0] = TickGuard.tick(proj)) || !ok[0]) {
-                t.stop();
-            }
-        });
-        t.setDelay(n == 1 ? 0 : 5);
-        t.start();
+        CyclePacer.start(proj, n, null);
     }
 
     /**
