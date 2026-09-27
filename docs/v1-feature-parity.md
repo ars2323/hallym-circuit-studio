@@ -26,7 +26,7 @@ v1(Swing, `swing-final`)의 기능을 v2(Electron 화면 + Java 엔진)로 모�
 | B-13 | 자동 저장·복구 파일 | N-19 |  |  |  |
 | B-14 | Splitter 편집기(범위 입력, R/I/J 프리셋, 팔 라벨) | N-12 |  |  |  |
 | B-15 | MIPS 부품: Instruction·Data Memory, Stack, Console, Radix Probe | N-05·N-16 |  |  |  |
-| B-16 | .s 불러오기와 요약, 실행 이미지(.hmx) 불러오기 | N-16 |  |  |  |
+| B-16 | 실행 이미지(.hmx) 불러오기와 요약(.s 불러오기는 D-141에서 없앰: 옛 .s 경로는 사실 `assemblySource`) | N-16 |  |  |  |
 | B-17 | hcs-mips.jar 복사 알림, 새 파일에서 Hallym MIPS 부품 바로 사용 | N-21 |  |  |  |
 | B-18 | Mark as PC, Register Mapping | N-14 |  |  |  |
 | B-19 | Create Submission, 그림 내보내기(SVG·PDF·고해상도 PNG) | N-21 |  |  |  |
@@ -80,7 +80,7 @@ v1(Swing, `swing-final`)의 기능을 v2(Electron 화면 + Java 엔진)로 모�
 | C-06 | 메모리 패널(#98) | N-14 |  |  |  |
 | C-07 | 명령어 필드 색 | N-14 |  |  |  |
 | C-08 | 버스 값 칩과 활성 경로 | N-15 |  |  |  |
-| C-09 | Console 탭과 .s 자동 재로드 | N-16 |  |  |  |
+| C-09 | Console 탭과 자동 재로드(.hmx. .s 자동 재로드는 D-141에서 없앰) | N-16 |  |  |  |
 | C-10 | 사이클 뷰 테스트 | N-14 |  |  |  |
 | D-01 | E·X 출처 추적 | N-13 |  |  |  |
 | D-02 | 진동 | N-13 |  |  |  |

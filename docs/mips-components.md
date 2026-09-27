@@ -30,7 +30,7 @@
 
 ### 영역: SPIM 9.1.24 소스에서
 
-| 값 | 소스(vendor/spim-9.1.24/CPU) | 뜻 |
+| 값 | 소스(SPIM 9.1.24 `CPU/`, SVN r764. vendor/spim-9.1.24는 D-141에서 지웠다) | 뜻 |
 | --- | --- | --- |
 | `DATA_BOT` = `0x10000000` | `mem.h:67` `#define DATA_BOT ((mem_addr)0x10000000)` | 데이터 세그먼트 시작 |
 | `DATA_LIMIT` = 1MB | `spim.h:125` `#define DATA_LIMIT (K * K)`(`spim.h:90` `#define K 1024`), `mem.cpp:187-193`(`expand_data`가 한계를 넘으면 오류) | 데이터 세그먼트 최대 크기 → 데이터 영역 `0x10000000`~`0x100FFFFF` |
@@ -43,7 +43,7 @@
 | 초기 `$sp` = `0x7FFFEFFC` | `spim-utils.cpp:147` `R[REG_SP] = STACK_TOP - BYTES_PER_WORD - 4096;` | SPIM이 기계를 초기화할 때 |
 | 실행 때 `$sp` | `spim-utils.cpp:237-270` `initialize_run_stack`: `STACK_TOP - 1`에서 환경 문자열·인자를 쌓고 정렬 | Hallym MIPS `.hmx`의 `reg $sp`(예: `0x7fffffe4`)는 이 값이다 |
 
-사용자 지시의 값과 소스가 모두 같다(다른 값 없음). `MergedDataMemoryTest.newPartRegionsAreSpimDataAndStackSegments`가 소스 파일에서 이 `#define`과 식을 읽어 부품 값과 대조한다. `.bss`와 힙(`sbrk`)은 과제에서 쓰지 않으므로 따로 두지 않는다(데이터 영역 1MB 안이다).
+사용자 지시의 값과 소스가 모두 같다(다른 값 없음). vendor/spim이 있는 동안 `MergedDataMemoryTest.newPartRegionsAreSpimDataAndStackSegments`가 소스 파일에서 이 `#define`과 식을 직접 읽어 대조했고, 지우기 전에 값과 자리를 `tests/spim-oracle/memory-layout.txt`에 굳혀 두었다. 지금은 그 파일과 부품 값을 대조한다(D-141). `.bss`와 힙(`sbrk`)은 과제에서 쓰지 않으므로 따로 두지 않는다(데이터 영역 1MB 안이다).
 
 ### 동작
 
@@ -147,16 +147,16 @@ D-140 전의 따로 된 스택 부품이다. 옛 .circ가 전과 똑같이 열�
 
 ## 프로그램 불러오기 (Load Program)
 
-Instruction Memory나 Data Memory를 우클릭하면 "Load Program..."이 있다(PLAN.md 6.3, D-126). 한 번 불러온 뒤에는 "Reload 파일 이름"도 보인다.
+Instruction Memory나 Data Memory를 우클릭하면 "Load Program..."이 있다(PLAN.md 6.3, D-126). 한 번 불러온 뒤에는 "Reload 파일 이름"도 보인다. 받는 것은 실행 이미지(.hmx) 하나다(D-141): Hallym MIPS에서 Ctrl+S로 어셈블한 뒤 제목 줄 오른쪽 아이콘 묶음의 Export executable image (.hmx) 단추로 내보낸다.
 
-1. Hallym MIPS가 내보낸 실행 이미지(`.hmx`, docs/hmx.md)를 고른다. 파일 고르기 창의 거르개는 "Executable image (*.hmx)"이고, 전환 기간에는 `.s`도 고를 수 있다(기본 거르개가 둘 다 보인다).
-2. `.hmx`는 lib-mips 안의 공용 파서(D-125)가 읽는다. hcs-asm이 필요 없다. `.s`는 전환용 클래스 `AssemblyTransition` 하나가 `hcs-asm -exception`(Hallym MIPS 기본 배치)으로 어셈블해 같은 이미지 모델로 바꾼다(#373에서 지운다). `hcs-asm`은 시스템 속성 `hcs.asm`, 환경 변수 `HCS_ASM`, `hcs-mips.jar`와 같은 폴더 순서로 찾는다.
+1. Hallym MIPS가 내보낸 실행 이미지(`.hmx`, docs/hmx.md)를 고른다. 파일 고르기 창의 거르개는 "Executable image (*.hmx)" 하나다("모든 파일" 거르개도 없다).
+2. `.hmx`는 lib-mips 안의 공용 파서(D-125)가 읽는다. `.s`(`.asm`)는 읽지 않는다: 들어오면 이미지 없이 사실과 할 일 한 줄("이 파일은 .s 파일을 가리킵니다. Hallym MIPS에서 Export executable image (.hmx) 단추로 내보낸 파일을 불러오세요.")만 알리고 아무것도 바꾸지 않는다. 전환용 `AssemblyTransition`과 hcs-asm은 지웠다(D-141).
 3. 파일에 오류가 있으면 줄 번호와 문장(앞 12개)을 보이고 아무것도 바꾸지 않는다.
 4. `.text`는 파일 주소 그대로(시작 코드 포함) 그 구간을 담는 Instruction Memory의 `contents`에, `.data`는 그 구간을 데이터 영역에 담는 Data Memory(옛 Stack 제외)에 넣는다. 우클릭한 부품이 그 종류면 그 부품이 구간을 모두 담아야 한다. 아니면 담는 부품이 하나면 그것, 둘 이상이면 목록에서 고르게 한다. 담는 부품이 없으면 구간과 범위를 말하고 아무것도 넣지 않는다. `.data`가 없는 프로그램은 그 Data Memory를 비운다.
 5. `reg $sp`가 있으면 그 값 바로 아래 워드를 스택 영역에 품은 부품(Data Memory, 옛 파일은 Stack)의 `contents`에 깊이 기준으로 기억한다(아래 "스택 깊이 기준"). Data Memory는 .data와 깊이 기준이 한 `contents`에 들어간다. 스택 내용은 파일에 없으므로 넣지 않는다(0이다).
-6. `source` 속성에 고른 파일 경로를 저장한다. .circ와 같은 폴더나 그 아래면 상대 경로(`prog.hmx`, `asm/prog.s`), 아니면 절대 경로다. 옛 파일의 `.s` 경로도 그대로 다시 읽는다.
+6. `source` 속성에 고른 파일 경로를 저장한다. .circ와 같은 폴더나 그 아래면 상대 경로(`prog.hmx`, `hmx/prog.hmx`), 아니면 절대 경로다. 옛 파일의 `source`가 `.s`를 가리키면 메뉴는 "Reload" 대신 "Load .hmx for 이름.s..."이고, 누르면 위 문장과 속성 값을 보인 뒤 `.s`가 있던 폴더에서 고르기 창을 연다(같은 이름의 `.hmx`가 있으면 골라 둔다). `.hmx`를 불러오면 `source`가 그 경로로 바뀐다. 고치지 않은 옛 파일은 같은 바이트로 저장된다.
 7. 바꾼 속성은 Edit › Undo 한 번으로 되돌린다.
-8. 요약 창: 어디서 온 이미지인가(`.s`면 ".s 임시 지원"), 넣은 영역과 양(`14 words (0x00400000–0x00400034), entry 0x00400024`, `12 bytes = 3 words (0x10010000–0x1001000b)`), `$sp` 깊이 기준, 이미지의 명령어 목록(PLAN.md 6.6, 시작 코드 포함), 원본 `.s` 대조 결과(바뀌었으면 노란 줄).
+8. 요약 창: 어디서 온 이미지인가(파일 이름, 만든 도구), 넣은 영역과 양(`14 words (0x00400000–0x00400034), entry 0x00400024`, `12 bytes = 3 words (0x10010000–0x1001000b)`), `$sp` 깊이 기준, 이미지의 명령어 목록(PLAN.md 6.6, 시작 코드 포함), 원본 `.s` 대조 결과(바뀌었으면 노란 줄).
 
 ### 스택 깊이 기준
 
@@ -167,7 +167,7 @@ hcs-words 1
 7ffff000
 ```
 
-명령어 이름은 `Disassembler`가 MIPS32 명세의 opcode·funct 표로 직접 정한다. SPIM의 표는 옮기지 않았다(규칙 2.5). 정수 명령어와 syscall, 코프로세서 이동, TLB·eret을 알고, 부동소수점은 모른다(`?`). 테스트는 원본 spim의 디스어셈블(`tt.core.s` 등 2000워드 이상)과 이름을 대조한다.
+명령어 이름은 `Disassembler`가 MIPS32 명세의 opcode·funct 표로 직접 정한다. SPIM의 표는 옮기지 않았다(규칙 2.5). 정수 명령어와 syscall, 코프로세서 이동, TLB·eret을 알고, 부동소수점은 모른다(`?`). 테스트는 원본 spim의 디스어셈블(`tt.core.s` 등 5000워드 이상, 지우기 전에 `tests/spim-oracle/dump/`에 굳혀 둠)과 글을 대조한다.
 
 원조 2.7.1 GUI(Xvfb)에서 우클릭 → 파일 선택 → 요약 창까지 확인했다. 다만 우클릭 메뉴는 파일의 마우스 매핑(Project › Options › Mouse, 기본: 오른쪽 버튼 = Menu Tool)에 따른다.
 
@@ -181,7 +181,7 @@ hcs-words 1
 | `stacksize` | 스택 영역 한계(바이트), 0이면 스택 영역 없음 | 없음 | `0x40000` / `0` | 없음 |
 | `top` | 맨 위 워드 주소(낮은 쪽으로 자람) | 없음 | 없음 | `0x7ffffffc` |
 | `contents` | 초기 내용(실행 이미지의 .text / .data, 스택 깊이 기준) | 비어 있음 | 비어 있음 | 비어 있음 |
-| `source` | 불러온 프로그램(.hmx, 전환 기간 .s) 경로. 속성 창 이름은 `Program` | `""` | `""` | `""` |
+| `source` | 불러온 프로그램(.hmx) 경로. 옛 파일의 .s 경로는 읽기만 한다(D-141). 속성 창 이름은 `Program` | `""` | `""` | `""` |
 | `label` | 라벨 | `""` | `""` | `""` |
 
 영역은 데이터가 [`base`, `base`+`size`), Data Memory의 스택이 [`stacktop`+4−`stacksize`, `stacktop`+4)(`stacksize`가 0이 아닐 때), 옛 Stack이 [`top`+4−`size`, `top`+4)다. 저장 기준값과 새로 놓는 값이 다른 까닭은 위 "속성 설계"에 있다. 옛 Stack 영역 `0x7FF00000`~`0x7FFFFFFF`에도 SPIM의 `$sp` 초기값 `0x7FFFEFFC`가 들어 있다.

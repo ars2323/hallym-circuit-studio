@@ -5,6 +5,12 @@
 
 명세와 이 도구가 다르면 명세를 따른다(D-138). 이 문서는 명세 본문을 옮기지 않는다. 명세가 정하지 않은 곳에서 이 도구가 고른 것과 불러오기 동작만 적는다. 코드: `lib-mips/src/shared/java/kr/ac/hallym/hcs/mips/image/`(두 트랙 공용, D-125). 명세 골든: `tests/hmx/hallym-mips-v2.4.0/`(README 참고). 손으로 쓴 시험 파일: `tests/hmx/`. 명세 쪽에 바라는 것: [hmx-feedback.md](hmx-feedback.md).
 
+## 받는 파일은 .hmx 하나(D-141)
+
+- **만드는 곳.** Hallym MIPS(2.4.0부터)에서 `.s`를 열고 Ctrl+S로 어셈블한 뒤, 제목 줄 오른쪽 아이콘 묶음의 Export executable image (.hmx) 단추로 내보낸다. 이 도구는 어셈블하지 않는다(hcs-asm과 `vendor/spim`은 지웠다, [hcs-asm.md](hcs-asm.md)).
+- **Load Program...** 파일 고르기 창은 "Executable image (*.hmx)" 거르개 하나뿐이다("모든 파일"도 없다). 그래도 `.s`(`.asm`, 대소문자 무관)가 들어오면 이미지 없이 사실과 할 일 한 줄만 알리고 아무것도 바꾸지 않는다: "이 파일은 .s 파일을 가리킵니다. Hallym MIPS에서 Export executable image (.hmx) 단추로 내보낸 파일을 불러오세요." (영어: "This file points to a .s file. Load the file exported with Export executable image (.hmx) in Hallym MIPS.")
+- **옛 .circ의 .s 경로.** 메모리 부품의 `source` 속성이 `.s`를 가리키는 옛 파일은 전과 똑같이 열리고, 고치지 않으면 같은 바이트로 저장된다(속성은 읽기만 한다). 트랙 A 우클릭 메뉴는 "Reload 이름.s" 대신 "Load .hmx for 이름.s..."이고, 누르면 위 문장과 속성 값을 보인 뒤 `.s`가 있던 폴더에서 `.hmx` 고르기 창을 연다(같은 이름의 `.hmx`가 있으면 골라 둔다). `.hmx`를 불러오면 `source`가 그 경로로 바뀐다. v2 엔진은 파일을 열 때 같은 문장을 사실 `assemblySource`로 준다(docs/engine-api.md `mips.facts`, 화면은 N-16). 공용 규칙과 문장은 `AssemblySource` 한 곳에 있다.
+
 ## 명세대로 하는 것
 
 명세의 "Lines", "Fields", "Sections", "What a reader must do"를 그대로 따른다. 특히:
