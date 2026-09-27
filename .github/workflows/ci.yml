@@ -25,6 +25,8 @@ jobs:
         run: tools/verify-assets.sh
       - name: Engine sources match Logisim 2.7.1
         run: tools/check-engine-unchanged.sh
+      - name: Fork tree marked against upstream 2.7.1 (D-130)
+        run: tools/check-upstream-markers.sh
       - name: hcs-asm build and assembly match
         run: make -s -C native/hcs-asm -j"$(nproc)" test
       - name: Gradle build and tests

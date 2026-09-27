@@ -1441,3 +1441,16 @@
 - **덧붙임:** 원조의 JAR 라이브러리 클래스 로더(`ZipClassLoader`)는 부모를 먼저 찾는다. 그래서 포크 안에서는 hcs-mips.jar 코드도 포크 jar에 든 공용 클래스 사본을 쓰고(형도 하나), 원조 2.7.1에서는 hcs-mips.jar 자신의 사본을 쓴다.
 - **대안:** 앱 클래스 경로에 hcs-mips.jar를 넣어 한 클래스 로더로 합치기(D-007의 번들·그림자 라이브러리 방식과 원조 호환 경로를 흔든다). 반사로 lib-mips 쪽 파서 부르기(형이 없어 실수하기 쉽다).
 - **테스트:** `SharedSourceTest`(트랙 A jar에 Java 8 바이트코드로 들어감), `SharedSourceAppTest`(포크 jar에 들어감).
+
+## D-130 원본 보존: vendor의 ORIGIN.md, upstream 태그, 포크 트리 표시 검사, 고지 문구(Z-22)
+
+- **날짜:** 2026-09-27
+- **결정:**
+  1. `vendor/logisim-2.7.1/ORIGIN.md`, `vendor/spim-9.1.24/ORIGIN.md`에 어디서 언제 가져왔는지와 체크섬을 적는다(Hallym MIPS `CPU/ORIGIN.md`와 같은 방식). D-003의 "vendor/ 안에 파일을 더하지 않는다"에서 이 두 파일만 예외로 두고, `tools/verify-vendor.sh`가 둘이 있는지와 그 밖의 새 파일이 없는지 본다.
+  2. Logisim jar는 SourceForge `circuit` 프로젝트의 배포 파일과 바이트까지 같고(SHA-256 362a78c1…), SPIM 트리는 Hallym MIPS의 `vanilla-9.1.24`(SVN r764)와 모든 파일이 같다(2026-09-27 확인).
+  3. 원본 소스를 그대로 들인 커밋 d483ff8에 태그 `upstream/logisim-2.7.1`을 단다.
+  4. 새 검사 `tools/check-upstream-markers.sh`(CI): `app/src`는 jar의 `src/`와 파일 목록이 같아야 하고, 다른 `.java`에는 `// HCS:`가 있어야 한다. `app/resources`·`app/doc`의 다른 파일은 `docs/upstream-resources.txt`에 D-번호와 함께 있어야 한다. 엔진 패키지는 더 엄격한 `check-engine-unchanged.sh`(D-005)가 따로 본다. compat-reviewer는 PR마다 사람 눈으로 한 번 더 본다.
+  5. About과 NOTICE: 원저작자(Carl Burch), 출처, GPL, 서드파티, 학교 식별요소("Hallym University 소유, 상업적 사용 금지"), "Hallym University의 공식 제품이 아님", 만든 사람을 Hallym MIPS NOTICE와 같은 방식으로 적는다. 화면 문구에 한국어 "한림"을 쓰지 않는다(O-03).
+- **이유:** 최종 라운드 지시(원본 보존). 원본과 무엇이 다른지를 사람 기억이 아니라 태그와 검사로 남긴다.
+- **대안:** 체크섬 파일만 두기(어디서 왔는지가 저장소에 남지 않는다).
+- **테스트:** `verify-vendor.sh`, `check-upstream-markers.sh`(표시 없는 원본 수정과 새 파일에서 실패하는 것을 확인), `AppIdentityTest.aboutAndNoticeStateOriginLicenseMarksAndNotOfficial`.

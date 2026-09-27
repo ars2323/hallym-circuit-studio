@@ -33,7 +33,7 @@ import kr.ac.hallym.hcs.app.theme.Tokens;
 
 /**
  * About 창(E-11): 학교 엠블럼(원형 그대로), 이름·버전·한 줄 설명, 바탕이 된 Logisim 2.7.1과 라이선스, 탭으로
- * License(GPL 원문)와 Notices(NOTICE 원문: 서드파티 라이선스, 학교 식별요소는 한림대학교 소유·상업적 사용 금지). 캐릭터는
+ * License(GPL 원문)와 Notices(NOTICE 원문: 서드파티 라이선스, 학교 식별요소는 Hallym University 소유·상업적 사용 금지). 캐릭터는
  * 기본형 한 장을 흰 바탕에 여백을 두고 크기만 줄여 둔다(요소 더하기·색 바꾸기 없음, CLAUDE.md 8절).
  */
 public final class AboutDialog {
