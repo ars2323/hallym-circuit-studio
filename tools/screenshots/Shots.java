@@ -489,6 +489,10 @@ public final class Shots {
             sceneStart("51");
             laptopSizes(demo); // Y-01
         }
+        if (want(scenes, "52")) {
+            sceneStart("52");
+            fhdSizes(demo); // D-118 실습실 기준 FHD
+        }
         if (want(scenes, "45")) {
             sceneStart("45");
             sameNameTabs(); // V-05
@@ -613,8 +617,9 @@ public final class Shots {
     }
 
     /**
-     * 21: 원조 부품의 포트 이름(S-06, S-07). PC 레지스터와 PC+4 가산기를 100·200·400%로, 원조와 같은 자리에서. 포크는
+     * 21: 원조 부품의 포트 이름(S-06, S-07). PC 레지스터와 PC+4 가산기를 100·400%로, 원조와 같은 자리에서. 포크는
      * 100%에서 이름을 숨기고(마우스를 올리면 보임, 21c) 200% 이상에서 부품 바깥에 그린다. 원조는 늘 안쪽에 그린다.
+     * 200%는 100·400% 사이의 같은 그림이라 뺐다(screens/README.md, D-121).
      */
     void portNames(Project p, String suffix) throws Exception {
         String s = suffix.isEmpty() ? "" : "-" + suffix;
@@ -631,7 +636,7 @@ public final class Shots {
                 add = x;
             }
         }
-        for (double z : new double[] {1.0, 2.0, 4.0}) {
+        for (double z : new double[] {1.0, 4.0}) {
             setZoom(p, z);
             int pct = (int) Math.round(z * 100);
             com.cburch.logisim.comp.Component[] parts = {pc, add};
@@ -674,7 +679,7 @@ public final class Shots {
         setZoom(p, 1.0);
     }
 
-    /** 23: 제어 핀과 같은 이름의 터널(S-12). 핀 라벨 칩 없이 터널 이름만(포크), 원조는 핀 라벨과 터널 글자. */
+    /** 23: 제어 핀과 같은 이름의 터널(S-12). 핀 라벨 칩 없이 터널 이름만(포크), 원조는 핀 라벨과 터널 글자. 100·400%(200%는 뺐다, D-121). */
     void controlPins(Project p, String suffix) throws Exception {
         String s = suffix.isEmpty() ? "" : "-" + suffix;
         if (!orig) {
@@ -682,7 +687,7 @@ public final class Shots {
             deselect(p);
         }
         Bounds area = Bounds.create(60, 380, 140, 300);
-        for (double z : new double[] {1.0, 2.0, 4.0}) {
+        for (double z : new double[] {1.0, 4.0}) {
             setZoom(p, z);
             Bounds shot = z >= 4 ? Bounds.create(60, 390, 140, 90) : area;
             centerOn(p, shot); // 찍는 곳을 가운데에(400%에서 큰 영역을 맞추면 위가 캔버스 밖으로 잘린다)
@@ -1425,6 +1430,22 @@ public final class Shots {
      * 내부의 절반 이상(가로·세로)인지 로그에 적는다.
      */
     void laptopSizes(Project p) throws Exception {
+        windowSizes(p, "51", new int[][] {{1280, 800}, {1093, 582}, {1024, 728}, {910, 505}, {683, 512}},
+                new String[] {"51-laptop-1280x800", "51-laptop-1093x582", "51-laptop-1024x728", "51-laptop-910x505",
+                    "51-laptop-683x512"});
+    }
+
+    /**
+     * 52: 실습실 기준 화면(D-118, 1920×1080 배율 100·125·150%)의 첫 창 전체, Cycle View를 편 상태. 가상 화면은 소수 배율을
+     * 그리지 못하므로 같은 논리 크기(작업 표시줄 40px을 뺀 1920×1040을 배율로 나눈 1920×1040, 1536×832, 1280×693)로 찍는다.
+     * 실제 배율 그림은 windows-smoke가 찍는다.
+     */
+    void fhdSizes(Project p) throws Exception {
+        windowSizes(p, "52", new int[][] {{1920, 1040}, {1536, 832}, {1280, 693}},
+                new String[] {"52-fhd-100", "52-fhd-125", "52-fhd-150"});
+    }
+
+    void windowSizes(Project p, String scene, int[][] sizes, String[] names) throws Exception {
         activate(p);
         Frame f = p.getFrame();
         java.awt.Dimension min = f.getMinimumSize();
@@ -1432,7 +1453,9 @@ public final class Shots {
             resetAndRun(p, 6); // 사이클 열이 여럿 보이게(Y-02 검토)
             edt(() -> kr.ac.hallym.hcs.app.cycle.CycleView.of(p).open());
             sleep(500);
-            for (int[] sz : new int[][] {{1920, 1040}, {1280, 800}, {1093, 582}, {1024, 728}, {910, 505}, {683, 512}}) {
+            for (int i = 0; i < sizes.length; i++) {
+                int[] sz = sizes[i];
+                String name = names[i];
                 edt(() -> {
                     f.setExtendedState(Frame.NORMAL);
                     f.setMinimumSize(new java.awt.Dimension(200, 150));
@@ -1443,9 +1466,9 @@ public final class Shots {
                 Component sp = SwingUtilities.getAncestorOfClass(javax.swing.JScrollPane.class, canvas(p));
                 java.awt.Container content = ((javax.swing.JFrame) f).getContentPane();
                 boolean ok = sp.getWidth() * 2 >= content.getWidth() && sp.getHeight() * 2 >= content.getHeight();
-                log.add("51: " + sz[0] + "x" + sz[1] + " canvas " + sp.getWidth() + "x" + sp.getHeight() + " content "
+                log.add(scene + ": " + sz[0] + "x" + sz[1] + " canvas " + sp.getWidth() + "x" + sp.getHeight() + " content "
                         + content.getWidth() + "x" + content.getHeight() + (ok ? "" : " CANVAS SMALL"));
-                snapCrop(new Rectangle(0, 0, sz[0], sz[1]), "51-laptop-" + sz[0] + "x" + sz[1]);
+                snapCrop(new Rectangle(0, 0, sz[0], sz[1]), name);
             }
         } finally {
             edt(() -> {
@@ -2045,7 +2068,7 @@ public final class Shots {
         edt(() -> kr.ac.hallym.hcs.app.record.Recorder.requestReset(p));
         sleep(900);
         for (int i = 0; i < 2 * n; i++) {
-            edt(() -> p.getSimulator().tick());
+            tickAndWait(p.getSimulator());
             sleep(40);
         }
         sleep(800);
@@ -2228,7 +2251,7 @@ public final class Shots {
         edt(() -> kr.ac.hallym.hcs.app.record.Recorder.requestReset(sd));
         sleep(900);
         for (int i = 0; i < 12; i++) {
-            edt(() -> sd.getSimulator().tick());
+            tickAndWait(sd.getSimulator());
             sleep(40);
         }
         sleep(800);
@@ -2850,10 +2873,7 @@ public final class Shots {
                 span = span == null ? x.getBounds() : span.add(x.getBounds());
             }
         }
-        setZoom(p, 1.5);
-        centerOn(p, span);
-        sleep(700);
-        snapCrop(onScreen(canvas(p).getParent()), "38b-signal-groups-150");
+        // 38b(150%)는 38a와 38e 사이의 같은 그림이라 뺐다(screens/README.md, D-121)
         // 배율 양끝(체크리스트 4): 25% 전체, 400% regfile 왼쪽(RegWrite 테두리)
         setZoom(p, 0.25);
         edt(() -> canvas(p).getHcsZoom().fitCircuit());
@@ -3163,7 +3183,7 @@ public final class Shots {
         edt(() -> kr.ac.hallym.hcs.app.record.Recorder.requestReset(osc));
         sleep(900);
         // 첫 틱에서 발진해 시뮬레이션이 꺼진다. 꺼진 뒤의 틱은 보호기(D-091)가 거절한다
-        edt(() -> osc.getSimulator().tick());
+        tickAndWait(osc.getSimulator());
         sleep(1800);
         edt(() -> canvas(osc).getHcsZoom().fitCircuit());
         messagesTab(osc);
@@ -3184,7 +3204,7 @@ public final class Shots {
         edt(() -> kr.ac.hallym.hcs.app.record.Recorder.requestReset(mem));
         sleep(900);
         for (int i = 0; i < 2; i++) {
-            edt(() -> mem.getSimulator().tick());
+            tickAndWait(mem.getSimulator());
             sleep(200);
         }
         sleep(1500);
@@ -3253,7 +3273,7 @@ public final class Shots {
         edt(() -> kr.ac.hallym.hcs.app.record.Recorder.requestReset(p));
         sleep(900);
         for (int i = 0; i < 6; i++) {
-            edt(() -> p.getSimulator().tick());
+            tickAndWait(p.getSimulator());
             sleep(60);
         }
         sleep(1500);
@@ -3428,7 +3448,7 @@ public final class Shots {
         edt(() -> kr.ac.hallym.hcs.app.record.Recorder.requestReset(cd));
         sleep(900);
         for (int i = 0; i < 20; i++) {
-            edt(() -> cd.getSimulator().tick());
+            tickAndWait(cd.getSimulator());
             sleep(40);
         }
         sleep(800);
@@ -3519,9 +3539,9 @@ public final class Shots {
         }
         int cycles = 0;
         while (cycles < n) {
-            edt(() -> p.getSimulator().tick());
+            tickAndWait(p.getSimulator());
             sleep(8);
-            edt(() -> p.getSimulator().tick());
+            tickAndWait(p.getSimulator());
             sleep(8);
             cycles++;
             if (halt != null) {
@@ -3535,6 +3555,62 @@ public final class Shots {
         }
         sleep(1500);
         return cycles;
+    }
+
+    // ---- 틱 기다리기(D-121): 틱을 요청만 하고 시간으로 기다리면 느린 때 시뮬레이터가 틱을 늦게 처리하거나(값을 너무
+    // 일찍 읽음) 쌓인 틱이 16개를 넘어 버려진다. 틱 하나를 요청하고 그 틱이 끝났다는 알림을 받을 때까지 기다린다.
+    private final java.util.Map<com.cburch.logisim.circuit.Simulator, java.util.concurrent.atomic.AtomicInteger> tickCounts =
+            new java.util.IdentityHashMap<>();
+    private final List<Object> tickListeners = new ArrayList<>();
+
+    void tickAndWait(com.cburch.logisim.circuit.Simulator sim) throws Exception {
+        final java.util.concurrent.atomic.AtomicInteger n;
+        synchronized (tickCounts) {
+            java.util.concurrent.atomic.AtomicInteger c = tickCounts.get(sim);
+            if (c == null) {
+                final java.util.concurrent.atomic.AtomicInteger cc = new java.util.concurrent.atomic.AtomicInteger();
+                com.cburch.logisim.circuit.SimulatorListener l = new com.cburch.logisim.circuit.SimulatorListener() {
+                    public void propagationCompleted(com.cburch.logisim.circuit.SimulatorEvent e) {
+                    }
+
+                    public void tickCompleted(com.cburch.logisim.circuit.SimulatorEvent e) {
+                        synchronized (cc) {
+                            cc.incrementAndGet();
+                            cc.notifyAll();
+                        }
+                    }
+
+                    public void simulatorStateChanged(com.cburch.logisim.circuit.SimulatorEvent e) {
+                    }
+                };
+                sim.addSimulatorListener(l);
+                tickListeners.add(l);
+                tickCounts.put(sim, cc);
+                c = cc;
+            }
+            n = c;
+        }
+        int before = n.get();
+        boolean running = sim.isRunning();
+        edt(sim::tick);
+        if (!running) {
+            return; // 멈춘 시뮬레이터는 틱을 처리하지 않는다(원래대로 요청만)
+        }
+        long end = System.currentTimeMillis() + 10000;
+        synchronized (n) {
+            while (n.get() <= before && System.currentTimeMillis() < end && sim.isRunning()) {
+                n.wait(100);
+            }
+        }
+        if (n.get() <= before) {
+            if (!sim.isRunning()) {
+                log.add("tick dropped: the simulation turned off (oscillation or Run off)");
+                return;
+            }
+            throw new AssertionError("a clock tick did not complete in 10 s"); // 장면 실패로 알린다
+        }
+        edt(() -> {
+        }); // 틱 뒤 GUI 스레드에 쌓인 알림(기록·다시 그리기 요청)을 먼저 처리한다
     }
 
     // ---- 앱 ----
@@ -3680,6 +3756,7 @@ public final class Shots {
     }
 
     Rectangle screenRect(Project p, Bounds b) throws Exception {
+        settle();
         Point a = screen(p, Location.create(b.getX(), b.getY()));
         Point c = screen(p, Location.create(b.getX() + b.getWidth(), b.getY() + b.getHeight()));
         return new Rectangle(a.x, a.y, c.x - a.x, c.y - a.y);
@@ -3853,7 +3930,68 @@ public final class Shots {
         return null;
     }
 
+    /**
+     * 찍기 전에 화면이 가라앉을 때까지 기다린다(D-121): 보이는 창들의 부품 배치(자리·크기·보임)와 키보드 초점이 두 번
+     * 세 번 연달아(200ms 간격) 같을 때까지. 칸 배분은 invokeLater로, 초점은 X 이벤트로 늦게 바뀌어서, 느린 때 그 전에
+     * 찍으면 이미지가 달라졌다. 10초 안에 가라앉지 않으면 장면을 실패시킨다(끝없이 기다리지 않는다). GUI 스레드에서
+     * 부르면 기다리지 않는다.
+     */
+    static void settle() {
+        if (SwingUtilities.isEventDispatchThread()) {
+            return;
+        }
+        String prev = null;
+        int same = 0;
+        long end = System.currentTimeMillis() + SETTLE_LIMIT_MS;
+        while (System.currentTimeMillis() < end) {
+            final String[] sig = new String[1];
+            try {
+                SwingUtilities.invokeAndWait(() -> sig[0] = layoutSignature());
+            } catch (Exception e) {
+                throw new AssertionError("settle: " + e);
+            }
+            same = sig[0].equals(prev) ? same + 1 : 0;
+            if (same >= 2) {
+                return;
+            }
+            prev = sig[0];
+            try {
+                Thread.sleep(200);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
+        throw new AssertionError("the window layout or focus did not settle in " + SETTLE_LIMIT_MS / 1000 + " s");
+    }
+
+    static final long SETTLE_LIMIT_MS = 10_000;
+
+    static String layoutSignature() {
+        StringBuilder b = new StringBuilder();
+        for (java.awt.Window w : java.awt.Window.getWindows()) {
+            if (w.isShowing()) {
+                layoutSignature(w, b);
+            }
+        }
+        Component f = java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+        b.append("focus ").append(f == null ? "-" : f.getClass().getName() + f.getBounds());
+        return b.toString();
+    }
+
+    static void layoutSignature(Component c, StringBuilder b) {
+        b.append(c.getX()).append(',').append(c.getY()).append(',').append(c.getWidth()).append(',')
+                .append(c.getHeight()).append(c.isVisible() ? 'v' : 'h');
+        if (c instanceof java.awt.Container) {
+            for (Component k : ((java.awt.Container) c).getComponents()) {
+                layoutSignature(k, b);
+            }
+        }
+        b.append(';');
+    }
+
     static Rectangle onScreen(Component c) {
+        settle();
         Point o = c.getLocationOnScreen();
         return new Rectangle(o.x, o.y, c.getWidth(), c.getHeight());
     }
@@ -3869,6 +4007,7 @@ public final class Shots {
     /** 앱 창 전체(1920×1080)를 1600px 폭으로. */
     void snapFull(String name) throws Exception {
         sleep(400);
+        settle();
         BufferedImage img = robot.createScreenCapture(new Rectangle(0, 0, W, H));
         int h = Math.round(H * (FULL_WIDTH / (float) W));
         BufferedImage small = new BufferedImage(FULL_WIDTH, h, BufferedImage.TYPE_INT_RGB);
@@ -3883,6 +4022,7 @@ public final class Shots {
     /** 화면 영역을 원본 해상도로(화면 밖은 잘라 낸다). */
     void snapCrop(Rectangle r, String name) throws Exception {
         sleep(300);
+        settle();
         Rectangle c = r.intersection(new Rectangle(0, 0, W, H));
         if (c.isEmpty()) {
             log.add(name + ": empty crop");
