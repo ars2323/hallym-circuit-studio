@@ -172,12 +172,12 @@ Swing판 v1.1.0은 내지 않는다(D-132). 엔진 쪽 항목은 v2의 N-00에�
 | ID | 항목 | 이슈 | 상태 | PR | 증거 |
 | --- | --- | --- | --- | --- | --- |
 | Z-00 | 선행: v1.0.3 마무리, review-shots v103, chore/shots-parallel 머지, OPEN-ISSUES를 main에 | #342 | 완료 | #341 | v1.0.3 게시(https://github.com/ars2323/hallym-circuit-studio/releases/tag/v1.0.3, 공개 주소 해시 확인), review-shots 2026-09-27-v103, #54 갱신, D-121(측정한 것만), OPEN-ISSUES main에 |
-| Z-01 | .hmx 파서·로더(lib-mips, 두 트랙 공용, 해석 선택, 오류 문구) | #343 | 진행(v2 N-00 마무리) |  |  |
-| Z-02 | Hallym MIPS 기본 배치(.s 전환 경로 -exception), 예제·참조 회로 PC = entry, .s 제거 조건 이슈 | #344 | 진행(v2 N-00 마무리, 엔진 쪽만) |  |  |
-| Z-03 | 레지스터 시작 값 표시, PC ≠ entry 사실 줄, jr $ra 안내 | #345 | 진행(v2 N-00: API용 데이터만) |  |  |
-| Z-04 | SPIM 형식 디스어셈블러와 골든 | #346 | 진행(v2 N-00 마무리) |  |  |
+| Z-01 | .hmx 파서·로더(lib-mips, 두 트랙 공용, 해석 선택, 오류 문구) | #343 | 완료 | #407 | D-126. 명세 v2.4.0 따르기는 #414(D-138) |
+| Z-02 | Hallym MIPS 기본 배치(.s 전환 경로 -exception), 예제·참조 회로 PC = entry, .s 제거 조건 이슈 | #344 | 완료 — 엔진 쪽 | #407 | ref-mips PC = entry, spim 대조 run 0x00400024, .s 전환 경로 -exception(D-126). UI는 N-16 |
+| Z-03 | 레지스터 시작 값 표시, PC ≠ entry 사실 줄, jr $ra 안내 | #345 | 완료 — API용 데이터 | #414 | 공용 StartFacts: entry·reg 요약 줄, jr $ra 사실 줄(진입 루틴 = entry 뒤 첫 jal 목적지까지), 처리기 없음 사실 줄, pcFact(D-138). 화면은 N-14·N-16 |
+| Z-04 | SPIM 형식 디스어셈블러와 골든 | #346 | 완료 | #409 | D-127 |
 | Z-05 | Load Program UI, .circ 속성, 자동 재로드, 불러오기 실패 시 유지 띠 | #347 | 멈춤(v2 전환) |  | v2에서 N-16로 다시 만듦 |
-| Z-06 | 대조 검사, Hallym MIPS 골든 CI 골격, hmx-feedback.md | #348 | 진행(v2 N-00 마무리) |  |  |
+| Z-06 | 대조 검사, Hallym MIPS 골든 CI 골격, hmx-feedback.md | #348 | 완료: v2.4.0 골든 대조 | #407, #414 | #407: tests/hmx·일치 검사. #414: 명세 v2.4.0 따르기, Hallym MIPS 골든 7쌍(tests/hmx/hallym-mips-v2.4.0) 읽기·부품 출력 되읽기·SPIM 오라클(.regs)·ref-mips 레지스터 대조, hmx-feedback.md(D-138). pseudo의 $s0(div·mfhi)는 ref-mips에 없어 비교하지 않음: 미실행, 통과 아님 |
 | Z-07 | 실습실 PC 규칙(설정 저장 안 함)과 자동 검사(Linux·Windows), 복구 파일 방식 | #349 | 멈춤(v2 전환) |  | v2에서 N-19로 다시 만듦 |
 | Z-08 | 패널 머리·탭 한 부품 | #350 | 멈춤(v2 전환) |  | 브랜치 feat/ui-parts(Swing 부품, PR 없음) 남김. v2에서 N-17로 다시 만듦 |
 | Z-09 | 빈 상태 한 부품, 빈 패널 0 | #351 | 멈춤(v2 전환) |  | v2에서 N-17로 다시 만듦 |
@@ -193,10 +193,10 @@ Swing판 v1.1.0은 내지 않는다(D-132). 엔진 쪽 항목은 v2의 N-00에�
 | Z-18 | 가까운 이름 짚기("혹시 RegWrite?") | #360 | 멈춤(v2 전환) |  | v2에서 N-13로 다시 만듦 |
 | Z-19 | OPEN-ISSUES 전부 해소 | #361 | 멈춤(v2 전환) |  | v2에서 N-25로 다시 만듦 |
 | Z-20 | 알려진 한계 해소(상태 표시줄·Cycle View 도구 줄 넘침 등) | #362 | 멈춤(v2 전환) |  | v2에서 N-17·N-25로 다시 만듦 |
-| Z-21 | 틱 누락 전 기능 확인, 촬영 대기 제한 시간 | #363 | 진행(v2 N-00: 엔진 호출부, D-123·#337) | #337 |  |
+| Z-21 | 틱 누락 전 기능 확인, 촬영 대기 제한 시간 | #363 | 완료 | #337, #341 | #337 D-123: N Cycles·Next Cycle CyclePacer, Run Until·기록·연속 실행·Console 부하 테스트. #341: 촬영 대기 제한 시간 10초 → 장면 실패 |
 | Z-22 | 원본 보존(ORIGIN.md, upstream 태그)·라이선스 고지 | #364 | 완료 | #374 | D-130, ORIGIN.md, upstream/logisim-2.7.1 태그, check-upstream-markers.sh |
 | Z-23 | setup exe(NSIS, 사용자 설치), MSI 설치본 처리, zip·MSI 금지 CI, windows-smoke 갱신 | #365 | 멈춤(v2 전환) |  | 에이전트 작업 멈춤(PR 없음). v2에서 N-23로 다시 만듦 |
-| Z-24 | 돌연변이 테스트(PIT) | #366 | 진행(v2 N-00: 로더·디스어셈블러) |  |  |
+| Z-24 | 돌연변이 테스트(PIT) | #366 | 완료 — 로더·디스어셈블러 | #414 | PIT(:lib-mips:pitest, CI Linux, 문턱 95%, 로컬 약 40초): 629개 중 621개(98.7%) — image 397/402, disasm 117/119, ProgramLoader 107/108. 남은 8개는 같은 동작 돌연변이(D-138) |
 | Z-25 | CLAUDE.md, PLAN, 안내서, PDF, 문서 | #367 | 멈춤(v2 전환) |  | v2에서 N-26로 다시 만듦 |
 | Z-26 | 스크린샷 규약 전환(screens/ 평평한 폴더, SHA 고정 링크)과 core 세트 재선정 | #368 | 멈춤(v2 전환) |  | v2에서 N-02로 다시 만듦 |
 | Z-27 | v1.1.0 릴리스, 배포 후 검증, needs-human 갱신, 최종 보고 | #369 | 멈춤(v2 전환) |  | v2에서 N-28로 다시 만듦 |
