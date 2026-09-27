@@ -6,6 +6,8 @@
 - 기계어는 QtSpim 그대로라(D-010) 분기 가산기는 PC 기준(PC + imm×4)이다.
 - PC 레지스터는 `PC XOR 0x00400024`를 담아 리셋 때 PC가 entry `0x00400024`(Hallym MIPS 배치의 `main`)다(D-126). 상수 이름(`textbase` 터널)은 그대로 두고 값만 바꿨다.
 - 명령어: add addu sub subu and or xor nor slt sltu sll srl sra sllv srlv srav jr syscall mul, addi addiu slti sltiu andi ori xori lui lw sw beq bne bgez bltz, j jal.
+- 메모리는 데이터와 스택 영역을 함께 맡는 Data Memory 하나다(데이터 `0x10000000`~`0x100FFFFF`, 스택 `0x7FFC0000`~`0x7FFFFFFF`, D-140). `lw`/`sw`와 `$sp` 접근이 모두 이 부품으로 간다.
+- `ref-mips-v1-stack.circ`는 D-140 직전의 `ref-mips.circ`를 그대로 둔 것이다(속성 없는 Data Memory + 따로 된 Stack). 고치지 않는다. `LegacyStackFileTest`가 옛 파일이 새 jar에서 전과 같이 열리고 돌며 다시 저장해도 같은지 본다.
 
 | 프로그램 | 확인하는 것 |
 | --- | --- |
