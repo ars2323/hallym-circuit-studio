@@ -1408,6 +1408,7 @@ public final class Shots {
         Frame f = p.getFrame();
         java.awt.Dimension min = f.getMinimumSize();
         try {
+            resetAndRun(p, 6); // 사이클 열이 여럿 보이게(Y-02 검토)
             edt(() -> kr.ac.hallym.hcs.app.cycle.CycleView.of(p).open());
             sleep(500);
             for (int[] sz : new int[][] {{1920, 1040}, {1280, 800}, {1093, 582}, {1024, 728}, {910, 505}, {683, 512}}) {
