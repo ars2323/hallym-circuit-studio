@@ -65,8 +65,27 @@ public final class Files {
         return null;
     }
 
+    /**
+     * 다시 시작한 엔진이 파일을 되살릴 때 쓰는 앞 엔진의 id(D-142, docs/engine-api.md 7절): 파일 id와 {회로 이름: 회로 id}.
+     */
+    public static final class Restore {
+        final String fileId;
+        final Map<String, String> circuits;
+
+        public Restore(String fileId, Map<String, String> circuits) {
+            this.fileId = fileId;
+            this.circuits = circuits == null ? Map.of() : circuits;
+        }
+    }
+
     /** File › New와 같다: 원조 기본 틀(default.templ)로 새 파일. */
     public Doc create() throws RpcError {
+        return create(null);
+    }
+
+    /** restore가 있으면 앞 엔진의 파일·회로 id로 만든다. */
+    public Doc create(Restore restore) throws RpcError {
+        String restored = restoredId(restore);
         EngineLoader loader = new EngineLoader();
         LogisimFile file;
         try (InputStream in = AppPreferences.getTemplate().createStream()) {
@@ -77,11 +96,18 @@ public final class Files {
         if (file == null) {
             throw RpcError.file(null, "templateFailed", "cannot create a new file: " + loader.drainErrors());
         }
-        return add(new Doc(Ids.nextFileId(), loader, file, false));
+        String id = restored != null ? restored : Ids.nextFileId();
+        return add(new Doc(id, loader, file, false, restore == null ? null : restore.circuits));
     }
 
     /** File › Open과 같다. 없는 라이브러리는 창으로 묻지 않고 오류로 알린다. */
     public Doc open(File f, boolean readOnly, List<String> messages) throws RpcError {
+        return open(f, readOnly, messages, null);
+    }
+
+    /** restore가 있으면 앞 엔진의 파일·회로 id로 연다. */
+    public Doc open(File f, boolean readOnly, List<String> messages, Restore restore) throws RpcError {
+        String restored = restoredId(restore);
         String path = f.getPath();
         if (!f.isFile()) {
             throw RpcError.file(path, "notFound", "no such file: " + path);
@@ -119,7 +145,23 @@ public final class Files {
             messages.add("extension info: " + e.getMessage());
         }
         messages.addAll(loader.drainErrors());
-        return add(new Doc(Ids.nextFileId(), loader, file, readOnly));
+        String id = restored != null ? restored : Ids.nextFileId();
+        return add(new Doc(id, loader, file, readOnly, restore == null ? null : restore.circuits));
+    }
+
+    /** 되살리는 파일의 앞 id(없으면 null). 형식이 틀리거나 지금 열린 파일이 쓰면 -32602. */
+    private String restoredId(Restore restore) throws RpcError {
+        if (restore == null || restore.fileId == null) {
+            return null;
+        }
+        String id = Ids.restoredFileId(restore.fileId);
+        if (id == null) {
+            throw RpcError.params("restore.fileId must be \"f\" and a number: " + restore.fileId);
+        }
+        if (docs.containsKey(id)) {
+            throw RpcError.params("restore.fileId is in use: " + id);
+        }
+        return id;
     }
 
     /**

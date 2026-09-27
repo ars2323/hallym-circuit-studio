@@ -30,6 +30,7 @@ import kr.ac.hallym.hcs.engine.doc.Doc;
 import kr.ac.hallym.hcs.engine.doc.Files;
 import kr.ac.hallym.hcs.engine.edit.Intents;
 import kr.ac.hallym.hcs.engine.mips.CircuitFacts;
+import kr.ac.hallym.hcs.engine.model.Ids;
 import kr.ac.hallym.hcs.engine.rpc.Params;
 import kr.ac.hallym.hcs.engine.rpc.RpcError;
 import kr.ac.hallym.hcs.engine.rpc.Server;
@@ -107,6 +108,14 @@ public final class Engine {
 
     private void registerEngine() {
         server.register("engine.hello", (p, call) -> {
+            // 다시 시작한 엔진(D-142): 앞 엔진이 화면에 준 id보다 큰 번호부터 쓴다
+            if (p.has("idFloor")) {
+                double floor = p.optDouble("idFloor", 0);
+                if (floor < 0 || floor != Math.rint(floor) || floor > 1e15) {
+                    throw RpcError.params("idFloor must be a whole number from 0");
+                }
+                Ids.floor((long) floor);
+            }
             JsonObject o = new JsonObject();
             o.addProperty("engine", NAME);
             o.addProperty("version", version());
@@ -125,7 +134,7 @@ public final class Engine {
 
     private void registerFile() {
         server.register("file.new", (p, call) -> {
-            Doc d = files.create();
+            Doc d = files.create(restore(p));
             attach(d);
             JsonObject o = new JsonObject();
             o.addProperty("fileId", d.id());
@@ -141,7 +150,7 @@ public final class Engine {
             boolean already = d != null;
             List<String> messages = new ArrayList<>();
             if (!already) {
-                d = files.open(f, p.optBool("readOnly", false), messages);
+                d = files.open(f, p.optBool("readOnly", false), messages, restore(p));
                 attach(d);
             }
             JsonObject o = new JsonObject();
@@ -184,6 +193,18 @@ public final class Engine {
             o.addProperty("dirty", d.isDirty());
             return o;
         });
+    }
+
+    /** file.new·file.open의 {@code restore: {fileId, circuits: {이름: id}}}(다시 시작한 엔진이 파일을 되살릴 때, D-142). */
+    private static Files.Restore restore(Params p) throws RpcError {
+        if (!p.has("restore")) {
+            return null;
+        }
+        if (!p.raw().get("restore").isJsonObject()) {
+            throw RpcError.params("param 'restore' must be an object");
+        }
+        Params r = new Params(p.raw().getAsJsonObject("restore"));
+        return new Files.Restore(r.str("fileId"), r.optStringMap("circuits"));
     }
 
     private void attach(Doc d) {

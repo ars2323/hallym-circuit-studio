@@ -7,6 +7,7 @@ package kr.ac.hallym.hcs.engine.doc;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import com.cburch.logisim.circuit.Circuit;
 import com.cburch.logisim.circuit.SubcircuitFactory;
@@ -59,6 +60,14 @@ public final class Doc {
     };
 
     Doc(String id, EngineLoader loader, LogisimFile file, boolean readOnly) {
+        this(id, loader, file, readOnly, null);
+    }
+
+    /**
+     * restoreCircuits: 다시 시작한 엔진이 되살리는 파일이면 {회로 이름: 앞 엔진의 회로 id}(D-142). 모델 기준을 잡기
+     * 전에 붙여서 서브회로 인스턴스의 {@code subcircuit}도 처음부터 그 id다. 이름이 없는 회로는 새 id를 받는다.
+     */
+    Doc(String id, EngineLoader loader, LogisimFile file, boolean readOnly, Map<String, String> restoreCircuits) {
         this.id = id;
         this.loader = loader;
         this.file = file;
@@ -67,6 +76,14 @@ public final class Doc {
         RedoStack.of(proj); // 되돌리기 사건을 처음부터 듣는다
         proj.addProjectListener(propagate);
         proj.getSimulator().requestPropagate(); // 연 회로의 첫 전파(Swing은 창이 뜨며 한다)
+        if (restoreCircuits != null) {
+            for (Circuit c : file.getCircuits()) {
+                String old = restoreCircuits.get(c.getName());
+                if (old != null) {
+                    ids.adopt(c, old);
+                }
+            }
+        }
         this.tracker = new ModelTracker(new ModelJson(ids, file), file);
         tracker.baseline();
     }
