@@ -94,17 +94,26 @@ class VerticalBalanceGuiTest {
             for (int[] sz : SIZES) {
                 size(frame, sz[0], sz[1]);
                 int[] got = new int[6];
-                SwingUtilities.invokeAndWait(() -> {
-                    JScrollPane sp = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class,
-                            frame.getCanvas());
-                    got[0] = sp.getWidth();
-                    got[1] = sp.getHeight();
-                    got[2] = frame.getContentPane().getWidth();
-                    got[3] = frame.getContentPane().getHeight();
-                    SidePanel side = SidePanel.of(frame.getContentPane());
-                    got[4] = side == null ? -1 : side.treeHeight();
-                    got[5] = side == null ? -1 : side.treeHeight() + side.tabsHeight();
-                });
+                // 균형 잡기는 배치 뒤 EDT에서 몇 단계로 이어진다(CI에서는 느리다): 조건이 맞을 때까지 잠시 기다린다
+                for (int tries = 0; tries < 25; tries++) {
+                    SwingUtilities.invokeAndWait(() -> {
+                        JScrollPane sp = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class,
+                                frame.getCanvas());
+                        got[0] = sp.getWidth();
+                        got[1] = sp.getHeight();
+                        got[2] = frame.getContentPane().getWidth();
+                        got[3] = frame.getContentPane().getHeight();
+                        SidePanel side = SidePanel.of(frame.getContentPane());
+                        got[4] = side == null ? -1 : side.treeHeight();
+                        got[5] = side == null ? -1 : side.treeHeight() + side.tabsHeight();
+                    });
+                    boolean ok = got[0] >= got[2] / 2 && got[1] >= got[3] / 2
+                            && (got[4] < 0 || got[4] * 2 >= got[5] - 2);
+                    if (ok) {
+                        break;
+                    }
+                    Thread.sleep(200);
+                }
                 String tag = sz[0] + "x" + sz[1] + " (frame " + frame.getWidth() + "x" + frame.getHeight() + ")";
                 if (got[0] < got[2] / 2) { // 홀수 폭의 반올림 허용
                     problems.add(tag + ": canvas width " + got[0] + " < half of " + got[2]);
