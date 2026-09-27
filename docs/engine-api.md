@@ -20,7 +20,7 @@ Hallym Circuit Studio 2의 화면(Electron)과 Java 엔진(headless Logisim 2.7.
 - stdout에는 규약 줄만 나온다. Logisim 코드가 `System.out`에 쓰는 것도 stderr로 돌린다. stderr는 사람이 읽는 로그다(화면은 파일에 남기지 않는다).
 - 요청은 순서대로 처리한다. 긴 일(N Cycles, Run Until)은 곧바로 응답하고 진행은 알림으로 보낸다. 편집의 `model.changed`는 그 편집의 응답 **뒤에**, 그 뒤의 `sim.values`보다 **앞에** 온다.
 - 끝: `engine.shutdown`에 응답한 뒤, 또는 stdin이 닫히면 열린 파일을 닫고 종료 코드 0으로 끝난다(저장하지 않는다). 메모리 전용 환경설정을 켜지 못하면 코드 3으로 바로 끝난다.
-- 잰 값(2026-09-27, Linux, JDK 21, `engine/build/engine-measure.txt`): 시작 → `engine.hello` 응답 약 80ms, ref-mips를 연 뒤 상주 메모리 약 115MB(`-XX:+UseSerialGC -XX:TieredStopAtLevel=1`이면 약 87MB). JVM 옵션은 N-04가 정한다.
+- 잰 값(2026-09-27, Linux, JDK 21, `engine/build/engine-measure.txt`): 시작 → `engine.hello` 응답 약 80ms, ref-mips를 연 뒤 상주 메모리 약 115MB(`-XX:+UseSerialGC -XX:TieredStopAtLevel=1`이면 약 87MB). JVM 옵션과 번들 런타임은 7절(N-04, D-142).
 
 ### 오류 코드
 
@@ -48,7 +48,7 @@ Hallym Circuit Studio 2의 화면(Electron)과 Java 엔진(headless Logisim 2.7.
 - `circuitId`: `"c1"` … 파일 안의 회로. 이름이 바뀌어도 그대로다.
 - 부품 `id`: `"k17"` … 엔진이 Logisim `Component` 객체마다 준다. Logisim은 옮기거나 속성이 바뀐 부품을 새 객체로 바꿀 수 있으므로, 그때는 `model.changed`에 옛 id 삭제와 새 id 추가가 함께 온다.
 - 선 `id`: `"w5"` …(Logisim `Wire`). 넷 `id`: `"n3"` …(연결된 선·포트 묶음, 모델이 바뀔 때마다 다시 매긴다).
-- 번호는 엔진 전체에서 하나씩 늘고 다시 쓰지 않는다(파일이 달라도 겹치지 않는다). 모델에서 사라진 부품·선의 id는 잊는다: 되돌리기로 같은 부품이 돌아오면 **새 id**로 `added`에 온다.
+- 번호는 엔진 전체에서 하나씩 늘고 다시 쓰지 않는다(파일이 달라도 겹치지 않는다). 모델에서 사라진 부품·선의 id는 잊는다: 되돌리기로 같은 부품이 돌아오면 **새 id**로 `added`에 온다. 엔진이 죽었다가 다시 시작하면 새 엔진은 `idFloor`보다 큰 번호부터 쓰고, 되살린 파일은 앞 엔진의 파일·회로 id를 다시 쓴다(부품·선 id는 새것, 7절).
 - 라이브러리 이름 `lib`: Logisim 라이브러리 이름 그대로다. 기본 라이브러리는 `"Wiring"`, `"Gates"`, `"Plexers"`, `"Arithmetic"`, `"Memory"`, `"I/O"`, `"Base"`, JAR 라이브러리는 클래스 이름(`"kr.ac.hallym.hcs.mips.MipsLibrary"`, 보이는 이름은 `display`의 `"Hallym MIPS"`), .circ 라이브러리는 그 파일 이름(확장자 없이). 이 파일의 회로(서브회로)는 `null`.
 - 좌표는 Logisim 논리 좌표(정수, 격자 10).
 
@@ -62,17 +62,19 @@ Hallym Circuit Studio 2의 화면(Electron)과 Java 엔진(headless Logisim 2.7.
 
 | 메서드 | params | result |
 | --- | --- | --- |
-| `engine.hello` | `{client, version}` | `{engine:"hcs-engine", version, logisim:"2.7.1", java, api:"0"}` |
+| `engine.hello` | `{client, version, idFloor?}` | `{engine:"hcs-engine", version, logisim:"2.7.1", java, api:"0"}` |
 | `engine.shutdown` | `{}` | `{}` 뒤 종료 |
 
 `engine.log = {level:"info"|"warn"|"error", message}`: 응답에 딸리지 않은 알림(예: N Cycles가 발진으로 멈춤, 보던 인스턴스가 사라짐).
+
+- `idFloor`(0 이상의 정수): 다시 시작한 엔진에 main이 준다. 이 엔진이 새로 매기는 파일·회로·부품·선 번호는 모두 이 수보다 크다(7절). 없으면 1부터다.
 
 ### file
 
 | 메서드 | params | result |
 | --- | --- | --- |
-| `file.new` | `{}` | `{fileId, name, circuits:[CircuitRef], main, libraries:[LibRef]}`(원조 File › New의 기본 틀) |
-| `file.open` | `{path, readOnly?}` | `{fileId, name, circuits:[CircuitRef], main, libraries:[LibRef], messages:[글], alreadyOpen?}` |
+| `file.new` | `{restore?}` | `{fileId, name, circuits:[CircuitRef], main, libraries:[LibRef]}`(원조 File › New의 기본 틀) |
+| `file.open` | `{path, readOnly?, restore?}` | `{fileId, name, circuits:[CircuitRef], main, libraries:[LibRef], messages:[글], alreadyOpen?}` |
 | `file.save` | `{fileId, path?}` | `{path, bytes, needsMipsJar}`(Logisim 저장 코드, 새 부품을 안 쓴 파일은 원조와 바이트 같음) |
 | `file.close` | `{fileId}` | `{}` |
 | `file.dirty` | `{fileId}` | `{dirty}` |
@@ -80,6 +82,7 @@ Hallym Circuit Studio 2의 화면(Electron)과 Java 엔진(headless Logisim 2.7.
 `CircuitRef = {circuitId, name}`, `LibRef = {lib, display, kind:"builtin"|"jar"|"circ", path?}`(`path`는 .circ에 적힌 경로 글자)
 
 - `path`는 절대 경로로 보낸다(상대 경로는 엔진 프로세스의 작업 폴더 기준이다).
+- `restore = {fileId, circuits?:{회로 이름: circuitId}}`: 다시 시작한 엔진이 파일을 되살릴 때만 쓴다(7절). 새 id 대신 앞 엔진의 파일 id를 쓰고, 이름이 같은 회로에 앞 엔진의 회로 id를 붙인다(이름이 없는 회로는 새 id). `fileId`가 `"f"`+숫자가 아니거나 지금 열린 파일이 쓰면 -32602, 모양이 틀린 회로 id는 붙이지 않는다.
 - `file.open`: `messages`는 원조 로더가 대화상자로 보이던 경고(예: 알 수 없는 부품)다. 이미 열린 파일(같은 경로)을 다시 열면 그 `fileId`를 `alreadyOpen:true`와 함께 돌려준다. `readOnly`면 편집과 경로 없는 저장이 오류 3(`readOnly`)이다.
 - `file.save`: `path`가 없으면 연 파일(또는 마지막으로 저장한 경로)에 쓴다. 한 번도 저장하지 않은 새 파일은 `path`가 있어야 한다(-32602). 다른 경로에 저장하면 그 경로가 이 파일의 경로가 되고(Save As) 읽기 전용이 풀린다. 포크의 .circ 확장 정보(D-024)도 원조 방식으로 저장한 뒤 붙인다. `needsMipsJar`: MIPS 부품을 쓰는데 저장한 .circ 옆에 `hcs-mips.jar`가 없다(원조 2.7.1이 열려면 필요, 화면이 알린다).
 
@@ -261,3 +264,51 @@ Message = {
 ## 6. 확장
 
 영향 경로, Signal Flow, 기록(사이클 표, Registers·Memory·Instruction), MIPS(.hmx 불러오기, 디스어셈블, Console)는 각 N 항목에서 이 문서에 절을 더하며 늘린다. 메서드 이름은 `trace.*`, `record.*`, `mips.*`로 묶는다(`mips.facts`는 5절, `diag.*`·`trace.origin`은 5절 끝에 있다).
+
+## 7. 수명: 시작, 끝, 다시 시작, 되살리기(N-04, D-142)
+
+엔진은 Electron main 프로세스(`electron/src/main/engine.ts`, `engine-locate.ts`, `recovery.ts`)가 띄우고 지킨다. 실습실 규칙대로 학생이 저장한 파일 말고는 디스크에 아무것도 남기지 않는다.
+
+### 시작
+
+- 명령: `<java> [-Dhcs.bundledMips=<hcs-mips.jar>] [-XX:SharedArchiveFile=<런타임>/hcs-engine.jsa] -Xlog:disable -Xlog:all=warning:stderr -Djava.awt.headless=true -Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8 -XX:-UsePerfData -XX:ErrorFile=<실행 폴더>/hs_err_pid%p.log -Djava.util.prefs.userRoot=<실행 폴더>/java-prefs -Djava.io.tmpdir=<실행 폴더>/tmp -jar hcs-engine.jar`. 작업 폴더도 이번 실행의 폴더(`<temp>/HallymCircuitStudio/run-<pid>-<시각>`, 끝난 뒤 지운다)다.
+  - `-Xlog:…`: JVM 자신의 경고(통합 로그, 기본은 stdout)를 stderr로 보낸다. stdout에는 규약 줄만 나온다.
+  - `-Dhcs.bundledMips`: `hcs-engine.jar` 옆의 `hcs-mips.jar`를 이름으로 준다(엔진이 제 코드 위치로 찾지 않는다. AppCDS와 함께일 때 코드 위치가 비는 경우를 피한다).
+  - GC와 JIT는 JVM 기본값(G1, C1+C2)이다. `-XX:TieredStopAtLevel=1`은 상주 메모리를 줄이지만 긴 시뮬레이션(N Cycles)이 느려서 쓰지 않는다.
+- java는 이 순서로 찾는다. `HCS_JAVA`(늘 먼저) → 설치본이면 **번들 런타임** `resources/runtime/bin/java(.exe)`만(PC에 깔린 다른 Java를 쓰지 않는다. 없으면 "Java 런타임이 없습니다: runtime/bin/java.exe"로 시작 실패) → 소스 트리면 `JAVA_HOME`, 그다음 PATH의 `java`. 우리 런타임(`bin/`의 부모에 `hcs-engine.jsa`가 있음)이면 그 AppCDS 아카이브를 준다.
+- 번들 런타임: `./gradlew :engine:runtime` → `engine/build/runtime/`(이 OS용), `:engine:runtimeZip` → `engine/build/distributions/hcs-runtime-<os>-x64.zip`. jdeps가 찾은 모듈(`java.base, java.desktop, java.prefs, java.sql`)에 `jdk.charsets`(한국어 Windows의 시스템 문자 집합)·`jdk.unsupported`(Gson)를 더해 jlink `--strip-debug --no-header-files --no-man-pages --generate-cds-archive`로 만들고, 엔진을 한 번 돌려(새 파일·편집·저장·demo-datapath와 ref-mips 열기·사이클) AppCDS 아카이브 `hcs-engine.jsa`를 만든 뒤 hello와 MIPS 라이브러리를 쓰는 파일 열기로 확인한다. 설치본은 `resources/engine/`(두 jar)과 `resources/runtime/`에 둔다(`electron/tools/package.ts`).
+- 준비: `engine.hello`에 답하면 준비됨이다(30초 안, 아니면 시작 실패 대화상자).
+
+### 끝
+
+- 앱을 끝낼 때: `engine.shutdown` → 엔진이 답하고 열린 파일을 닫은 뒤 코드 0으로 끝난다. 3초 안에 끝나지 않으면 main이 강제로 끝낸다.
+- main 프로세스가 죽으면(작업 관리자, 충돌): 엔진의 stdin이 닫히고 엔진이 스스로 끝난다. 떠도는 java 프로세스가 남지 않는다.
+- 엔진의 stderr(로그)는 main의 메모리에 마지막 40줄만 둔다. 파일로 쓰지 않는다. JVM 충돌 보고서(`hs_err`)는 실행 폴더에 떨어지고 실행 폴더와 함께 지워진다.
+
+### 스스로 끝났을 때(충돌): 다시 시작
+
+- 진행 중이던 호출은 모두 `EngineGone`("엔진이 멈췄습니다")으로 끝난다. 300 ms 뒤 다시 띄운다.
+- **한도: 60초 안에 3번까지 다시 띄운다.** 60초 안에 네 번째로 끝나면 멈춘 채 둔다(`failed`: "엔진을 시작하지 못했습니다" 대화상자, [Try Again]은 처음부터 다시 띄우고 파일도 되살린다).
+- 다시 띄운 엔진의 `engine.hello`에는 `idFloor` = 화면이 본 id(파일·회로·부품·선) 번호 가운데 가장 큰 것을 준다. 창이 옛 부품 id를 들고 있다가 보내도 새 엔진의 다른 부품을 가리키지 않고 오류 1이 된다.
+- 엔진이 hello에 답한 뒤에도 파일을 되살리는 동안 창에는 `restarting`으로 보이고, 창의 호출은 되살리기가 끝날 때까지 기다린다. 그동안 엔진의 알림은 창에 보내지 않는다(창이 모르는 부품의 변경분이다).
+
+### 되살리기(디스크 없이)
+
+main은 열린 파일마다 메모리에 **저널**을 든다(`recovery.ts`).
+- 연 방법: 경로(+ 읽기 전용 여부, 그때 파일 내용의 SHA-256, 회로 이름→id) 또는 `file.new`. 저장하면 저장한 경로·내용·회로로 바뀌고 의도 목록을 비운다. 닫으면 지운다.
+- 의도: 창이 보낸 `edit.*` 가운데 엔진이 **답한** 것(오류 응답은 적지 않는다)을, 엔진이 답한 순서의 전역 번호와 함께 적는다. `sim.*`(시뮬레이션)은 파일을 바꾸지 않으므로 적지 않는다. 모델을 바꾸는 새 메서드가 `edit.` 밖에 생기면 `recovery.ts`의 `journaled`에 더한다.
+- 부품 id: 새 엔진은 옛 id를 모르므로 의도의 id 매개변수(`ids`, `id`, `componentId`, `wire`; 새로 생기면 `ID_PARAMS`에 더한다)는 적을 때 **부품 자체**로 바꿔 둔다. 부품은 라이브러리·이름·위치·속성 전부, 선은 두 끝이다. main은 창에 간 `model.circuit` 응답과 `model.changed` 알림으로 모델의 사본(그림자)을 들고 있고, 의도는 그 응답을 읽는 순간(편집의 `model.changed`는 응답 뒤에 온다) 곧 편집 바로 앞의 모델로 적는다. 사본에 없는 id를 쓴 의도가 있으면 그 파일은 재생할 수 없는 것으로 표시한다(`notRecorded`).
+
+엔진이 다시 시작하면:
+1. 창의 호출을 붙잡는다.
+2. 파일을 연 순서대로 다시 연다: `file.open {path, readOnly?, restore:{fileId, circuits}}` 또는 `file.new {restore}`. 파일·회로 id가 앞과 같으므로 창의 탭, 보던 회로, 보기(배율·위치)는 그대로다. 부품·선 id는 새것이라 창은 모델을 다시 묻는다.
+3. 모든 파일의 의도를 **처음 답한 순서대로** 한데 섞어 재생한다(클립보드처럼 파일 사이에 걸친 것도 같은 순서). 부품은 새 모델에서 같은 부품을 찾아 id로 바꾼다(똑같은 부품이 한자리에 둘이면 하나씩 짝짓는다).
+4. 창에 `engine:recovered`로 알린다: `restored`(다시 열고 의도를 모두 재생), `lost`(마지막으로 저장한 상태로 엶, 까닭), `closed`(다시 열지 못해 닫음), `crash`(어떻게 끝났는지, 마지막 로그), `attempt`. 창은 대화상자(사실만)와 띠를 보인다.
+
+재생하지 못하면:
+- 의도가 오류로 답하거나 부품을 찾지 못함 → 그 파일을 닫고 마지막으로 저장한 상태(새 파일이면 빈 새 파일)로 다시 연다(`replayFailed`).
+- 되살리는 중에 엔진이 또 끝남 → 다음 시작은 재생 없이 저장한 상태로만 연다(`crashedAgain`). 되살리기를 끝내면 이 셈은 다시 0이다.
+- 연 뒤 디스크의 파일이 바뀌었음(SHA-256이 다름) → 재생하지 않고 지금 디스크의 파일로 연다(`changedOnDisk`).
+- 파일이 그 자리에 없거나 열리지 않음 → 탭을 닫는다(`closed`).
+- **시뮬레이션 상태는 되살리지 않는다.** 새 엔진은 Reset 상태에서 시작하고, 대화상자와 띠가 그렇게 말한다.
+- 되살리기 파일(복구 파일)은 쓰지 않는다. 저널은 앱 프로세스가 살아 있는 동안만 있다. 앱 자체가 죽었을 때 학생 파일 옆에 복구 파일을 둘지는 N-19가 정한다.
