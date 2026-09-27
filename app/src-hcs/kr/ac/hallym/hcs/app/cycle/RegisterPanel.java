@@ -64,6 +64,8 @@ final class RegisterPanel extends JComponent implements Scrollable {
     private boolean signed = true;
     private List<Line> lines = new ArrayList<>();
     private boolean listMode;
+    /** 표시 단계(Y-02): 0 전체, 1 2진수 숨김, 2 10진수도 숨김. */
+    private int compact;
 
     RegisterPanel(Supplier<MachineState> state) {
         this.state = state;
@@ -257,9 +259,23 @@ final class RegisterPanel extends JComponent implements Scrollable {
         return Math.min(w, 260);
     }
 
+    /** 표시 단계를 바꾼다(Y-02): 1이면 2진수 열을, 2면 10진수 열도 숨긴다. */
+    void setCompact(int level) {
+        if (compact != level) {
+            compact = level;
+            revalidate();
+            repaint();
+        }
+    }
+
+    int compact() {
+        return compact;
+    }
+
     @Override
     public Dimension getPreferredSize() {
-        return new Dimension(560, Math.max(1, lines.size()) * ROW_H + 4);
+        int w = compact >= 2 ? 210 : compact == 1 ? 300 : 560;
+        return new Dimension(w, Math.max(1, lines.size()) * ROW_H + 4);
     }
 
     @Override
@@ -317,8 +333,15 @@ final class RegisterPanel extends JComponent implements Scrollable {
             g.setColor(r.changed ? Tokens.TEAL_TEXT : Tokens.TEXT);
             g.drawString(v[0], x, y + base);
             x += Math.max(96, fm.stringWidth(v[0]) + 14);
-            g.setColor(Tokens.TEXT_MUTED);
-            g.drawString(v[1], x, y + base);
+            if (compact < 2) { // Y-02: 좁으면 2진수(그다음 10진수) 열을 숨긴다
+                g.setColor(Tokens.TEXT_MUTED);
+                String rest = v[1];
+                if (compact == 1) {
+                    int cut = rest.indexOf("  ");
+                    rest = cut > 0 ? rest.substring(0, cut) : rest; // 두 번째 값(2진수 또는 그 자리)까지만
+                }
+                g.drawString(rest, x, y + base);
+            }
         }
     }
 

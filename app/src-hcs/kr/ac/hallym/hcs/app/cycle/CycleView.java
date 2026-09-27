@@ -61,6 +61,7 @@ import kr.ac.hallym.hcs.app.theme.Tokens;
 public final class CycleView {
     static final int COL_W = 132;
     static final int ROW_H = 22;
+    /** 이름 열의 최대 폭. 실제 폭은 가장 긴 이름에 맞춘다(Y-02, {@link #nameWidth()}). */
     public static final int NAME_W = 180;
     static final int HEAD_ROWS = 3;
 
@@ -94,6 +95,15 @@ public final class CycleView {
     private final RegisterPanel registers = new RegisterPanel(this::machine);
     private final MemoryPanel memory = new MemoryPanel(this::memories);
     private final JTabbedPane side = new JTabbedPane();
+    /** Registers 칸을 접었을 때: 표와 오른쪽 탭들을 한 탭 줄로(Y-02). */
+    private final JTabbedPane modeTabs = new JTabbedPane();
+    private final JPanel regTab = new JPanel(new BorderLayout());
+    private final JPanel memTab = new JPanel(new BorderLayout());
+    private final JScrollPane inspectTab;
+    private boolean sideCollapsed;
+    /** 학생이 정한 Registers 칸 폭(0이면 아직 없음: 폭의 40%). */
+    private int userSide;
+    private boolean sideDragging;
     private final JLabel memSummary = new JLabel();
     // C-07: Instruction 탭(보이는 동안 캔버스에 필드 색 덧그림)
     static final int INSPECT_TAB = 2;
@@ -129,6 +139,7 @@ public final class CycleView {
     private CycleView(Project proj) {
         this.projRef = new java.lang.ref.WeakReference<>(proj);
         this.recorder = Recorder.of(proj);
+        inspectTab = new JScrollPane(instruction);
         recorder.addListener(recListener);
         proj.addProjectListener(projListener);
         Font mono = new Font(Font.MONOSPACED, Font.PLAIN, Tokens.FONT_SMALL);
@@ -189,7 +200,6 @@ public final class CycleView {
         empty.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
         empty.setVerticalAlignment(SwingConstants.TOP);
         panel.add(bar, BorderLayout.NORTH);
-        JPanel regTab = new JPanel(new BorderLayout());
         regsHint.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
         regsHint.setForeground(Tokens.TEXT_2);
         regsHint.setLineWrap(true);
@@ -202,19 +212,51 @@ public final class CycleView {
         regTab.add(regsHint, BorderLayout.NORTH);
         regTab.add(new JScrollPane(registers), BorderLayout.CENTER);
         side.addTab(Messages.get("regs.tab"), regTab);
-        JPanel memTab = new JPanel(new BorderLayout());
         memSummary.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
         memSummary.setForeground(Tokens.NAVY);
         memTab.add(memSummary, BorderLayout.NORTH);
         memTab.add(new JScrollPane(memory), BorderLayout.CENTER);
         side.addTab(Messages.get("mem.tab"), memTab);
-        side.addTab(Messages.get("inspect.tab"), new JScrollPane(instruction));
+        side.addTab(Messages.get("inspect.tab"), inspectTab);
+        modeTabs.putClientProperty("JTabbedPane.tabType", "underlined");
         side.addChangeListener(e -> updateFieldOverlay());
+        modeTabs.addChangeListener(e -> updateFieldOverlay());
         side.setMinimumSize(new Dimension(0, 0));
         split = new javax.swing.JSplitPane(javax.swing.JSplitPane.HORIZONTAL_SPLIT, scroll, side);
-        split.setResizeWeight(0.6);
+        split.setResizeWeight(0.0); // 폭 배분은 balanceSide가 정한다(Y-02): 배치가 끝난 뒤 나눔선을 둔다
         split.setBorder(null);
         split.setContinuousLayout(true);
+        scroll.setMinimumSize(new Dimension(0, 0));
+        // Y-02: 표가 최소 3열(좁으면 2열) 보이도록 Registers 칸을 줄이고(2진수 열부터 숨김), 모자라면 접어 탭으로
+        javax.swing.plaf.basic.BasicSplitPaneUI sui = split.getUI() instanceof javax.swing.plaf.basic.BasicSplitPaneUI
+                ? (javax.swing.plaf.basic.BasicSplitPaneUI) split.getUI() : null;
+        if (sui != null) {
+            sui.getDivider().addMouseListener(new MouseAdapter() {
+                @Override
+                public void mousePressed(MouseEvent e) {
+                    sideDragging = true;
+                }
+
+                @Override
+                public void mouseReleased(MouseEvent e) {
+                    sideDragging = false;
+                    userSide = split.getWidth() - split.getDividerLocation() - split.getDividerSize();
+                    balanceSide();
+                }
+            });
+        }
+        split.addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override
+            public void componentResized(java.awt.event.ComponentEvent e) {
+                SwingUtilities.invokeLater(CycleView.this::balanceSide); // 나눔 칸의 배치가 끝난 뒤
+            }
+        });
+        modeTabs.addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override
+            public void componentResized(java.awt.event.ComponentEvent e) {
+                SwingUtilities.invokeLater(CycleView.this::balanceSide);
+            }
+        });
         panel.add(split, BorderLayout.CENTER);
         // 사이클 뷰가 가려지면(다른 아래 탭) 필드 색도 걷는다
         panel.addHierarchyListener(e -> {
@@ -232,7 +274,7 @@ public final class CycleView {
                         view(c);
                         // Instruction 줄을 누르면 그 명령어를 Instruction 탭에서 펼친다(C-07)
                         if (e.getSource() == head && e.getY() >= 2 * ROW_H && e.getY() < 3 * ROW_H) {
-                            side.setSelectedIndex(INSPECT_TAB);
+                            showSide(INSPECT_TAB);
                         }
                     }
                     body.requestFocusInWindow();
@@ -268,7 +310,7 @@ public final class CycleView {
     boolean isPinnedClose(MouseEvent e) {
         List<Row> rows = rows();
         int i = e.getY() / ROW_H;
-        return i >= 0 && i < rows.size() && rows.get(i).pinned && e.getX() >= NAME_W - 22;
+        return i >= 0 && i < rows.size() && rows.get(i).pinned && e.getX() >= nameWidth() - 22;
     }
 
     private static AbstractAction action(Runnable r) {
@@ -693,7 +735,99 @@ public final class CycleView {
 
     /** 오른쪽 탭을 고른다(0 Registers, 1 Memory, 2 Instruction). 스크린샷·테스트. */
     public void showSide(int index) {
-        side.setSelectedIndex(index);
+        if (sideCollapsed) {
+            modeTabs.setSelectedIndex(index + 1);
+        } else {
+            side.setSelectedIndex(index);
+        }
+    }
+
+    /** 지금 고른 오른쪽 탭 번호(접혔으면 표 탭이 -1). */
+    int sideIndex() {
+        return sideCollapsed ? modeTabs.getSelectedIndex() - 1 : side.getSelectedIndex();
+    }
+
+    /** 이름 열 폭(Y-02): 가장 긴 줄 이름에 맞추되 80~180. */
+    public int nameWidth() {
+        FontMetrics fm = rowNames.getFontMetrics(rowNames.getFont());
+        int longest = 0;
+        for (Row r : rows()) {
+            longest = Math.max(longest, fm.stringWidth(r.name()));
+        }
+        return CycleLayout.nameWidth(longest);
+    }
+
+    /** 지금 보이는 표 영역의 폭으로 온전히 보이는 사이클 열 수(테스트). */
+    public int visibleColumns() {
+        return scroll.getViewport().getWidth() / COL_W;
+    }
+
+    public boolean isSideCollapsed() {
+        return sideCollapsed;
+    }
+
+    /** 배분 상태(테스트·로그). */
+    public String layoutInfo() {
+        return "split " + split.getWidth() + " div " + split.getDividerLocation() + " scroll " + scroll.getWidth()
+                + " viewport " + scroll.getViewport().getWidth() + " names " + nameWidth() + " rowHeader "
+                + (scroll.getRowHeader() == null ? -1 : scroll.getRowHeader().getWidth()) + " side "
+                + side.getWidth() + " modeTabs " + modeTabs.getWidth() + (sideCollapsed ? " collapsed" : "");
+    }
+
+    /** 폭에 맞춰 Registers 칸을 잡는다(Y-02, D-113). */
+    void balanceSide() {
+        int width = sideCollapsed ? modeTabs.getWidth() : split.getWidth();
+        if (width <= 0 || sideDragging) {
+            return;
+        }
+        int user = userSide > 0 ? userSide : (int) Math.round(width * 0.4);
+        CycleLayout.Plan plan = CycleLayout.plan(width, user, nameWidth(), COL_W, split.getDividerSize());
+        boolean collapse = plan.level == CycleLayout.COLLAPSED;
+        if (collapse != sideCollapsed) {
+            setSideCollapsed(collapse);
+        }
+        registers.setCompact(collapse ? 0 : plan.level);
+        if (!collapse) {
+            int want = split.getWidth() - plan.side - split.getDividerSize();
+            if (Math.abs(split.getDividerLocation() - want) > 1) {
+                split.setDividerLocation(want);
+            }
+        }
+    }
+
+    private void setSideCollapsed(boolean on) {
+        sideCollapsed = on;
+        int selected = on ? side.getSelectedIndex() : Math.max(0, modeTabs.getSelectedIndex() - 1);
+        if (on) {
+            split.setLeftComponent(null);
+            side.removeAll();
+            modeTabs.removeAll();
+            modeTabs.addTab(Messages.get("cycle.tableTab"), scroll);
+            modeTabs.addTab(Messages.get("regs.tab"), regTab);
+            modeTabs.addTab(Messages.get("mem.tab"), memTab);
+            modeTabs.addTab(Messages.get("inspect.tab"), inspectTab);
+            modeTabs.setSelectedIndex(0);
+        } else {
+            modeTabs.removeAll();
+            side.removeAll();
+            side.addTab(Messages.get("regs.tab"), regTab);
+            side.addTab(Messages.get("mem.tab"), memTab);
+            side.addTab(Messages.get("inspect.tab"), inspectTab);
+            side.setSelectedIndex(Math.min(Math.max(0, selected), 2));
+            split.setLeftComponent(scroll);
+        }
+        java.awt.Component center = ((BorderLayout) panel.getLayout()).getLayoutComponent(BorderLayout.CENTER);
+        if (center == split || center == modeTabs) {
+            panel.remove(center);
+            panel.add(tableCenter(), BorderLayout.CENTER);
+        }
+        panel.revalidate();
+        panel.repaint();
+    }
+
+    /** 표가 든 가운데 구성(접힘 여부에 따라 나눔 칸 또는 탭 줄). */
+    private java.awt.Component tableCenter() {
+        return sideCollapsed ? modeTabs : split;
     }
 
     public JComponent sideComponent() {
@@ -744,7 +878,7 @@ public final class CycleView {
             return;
         }
         boolean showing = panel.isShowing();
-        FieldOverlay.show(proj, showing && side.getSelectedIndex() == INSPECT_TAB ? instruction.word() : null);
+        FieldOverlay.show(proj, showing && sideIndex() == INSPECT_TAB ? instruction.word() : null);
         CycleModel m = model();
         ActivePathOverlay.setShown(proj, showing && activePath.isSelected() && m != null && !m.isEmpty());
     }
@@ -787,7 +921,7 @@ public final class CycleView {
         }
         next.setEnabled(!isRunningUntil());
         java.awt.Component center = ((BorderLayout) panel.getLayout()).getLayoutComponent(BorderLayout.CENTER);
-        java.awt.Component want = has || !signals.isEmpty() ? split : empty;
+        java.awt.Component want = has || !signals.isEmpty() ? tableCenter() : empty;
         if (center != want) {
             if (center != null) {
                 panel.remove(center);
@@ -903,11 +1037,18 @@ public final class CycleView {
                 g.setFont(new Font(Tokens.UI_FONT, Font.PLAIN, Tokens.FONT_SMALL));
                 // 열 경계선이 글자 위를 지나지 않게 바탕을 깐다(C-05 검토)
                 FontMetrics hf = g.getFontMetrics();
-                String hint = Messages.get("cycle.noRowsHint");
+                // 좁은 표에서는 줄을 바꿔 다 보인다(Y-02 검토: "Add"에서 잘렸다)
+                List<String> lines = wrap(hf, Messages.get("cycle.noRowsHint"), Math.max(60, vis.width - 16));
+                int w = 0;
+                for (String l : lines) {
+                    w = Math.max(w, hf.stringWidth(l));
+                }
                 g.setColor(Tokens.WHITE);
-                g.fillRect(vis.x + 4, 0, hf.stringWidth(hint) + 8, ROW_H);
+                g.fillRect(vis.x + 4, 0, w + 8, ROW_H * lines.size());
                 g.setColor(Tokens.TEXT_2);
-                g.drawString(hint, vis.x + 8, (ROW_H + hf.getAscent() - hf.getDescent()) / 2);
+                for (int i = 0; i < lines.size(); i++) {
+                    g.drawString(lines.get(i), vis.x + 8, i * ROW_H + (ROW_H + hf.getAscent() - hf.getDescent()) / 2);
+                }
                 return;
             }
             int c0 = Math.max(m.firstCycle(), m.firstCycle() + clip.x / COL_W);
@@ -1104,7 +1245,7 @@ public final class CycleView {
 
         @Override
         public Dimension getPreferredSize() {
-            return new Dimension(NAME_W, Math.max(1, rows().size()) * ROW_H);
+            return new Dimension(nameWidth(), Math.max(1, rows().size()) * ROW_H);
         }
 
         @Override
@@ -1115,32 +1256,40 @@ public final class CycleView {
             g.fillRect(clip.x, clip.y, clip.width, clip.height);
             FontMetrics fm = g.getFontMetrics();
             List<Row> rows = rows();
+            int nw = nameWidth();
             for (int i = 0; i < rows.size(); i++) {
                 int y = i * ROW_H;
                 Row r = rows.get(i);
-                int textW = NAME_W - 16;
+                int textW = nw - 16;
                 if (r.pinned) {
                     g.setColor(Tokens.AMBER_TINT);
-                    g.fillRect(0, y, NAME_W - 1, ROW_H - 1);
+                    g.fillRect(0, y, nw - 1, ROW_H - 1);
                     g.setColor(Tokens.AMBER_TEXT);
                     g.fillRect(0, y, 3, ROW_H - 1); // 왼쪽 띠: 메시지에서 온 임시 줄
-                    g.drawString("×", NAME_W - 16, y + (ROW_H + fm.getAscent() - fm.getDescent()) / 2);
-                    textW = NAME_W - 30;
+                    g.drawString("×", nw - 16, y + (ROW_H + fm.getAscent() - fm.getDescent()) / 2);
+                    textW = nw - 30;
                 }
                 g.setColor(Tokens.TEXT);
                 g.drawString(fit(fm, r.name(), textW), 8, y + (ROW_H + fm.getAscent() - fm.getDescent()) / 2);
                 g.setColor(Tokens.BORDER);
-                g.drawLine(0, y + ROW_H - 1, NAME_W, y + ROW_H - 1);
+                g.drawLine(0, y + ROW_H - 1, nw, y + ROW_H - 1);
             }
-            g.drawLine(NAME_W - 1, clip.y, NAME_W - 1, clip.y + clip.height);
+            g.drawLine(nw - 1, clip.y, nw - 1, clip.y + clip.height);
         }
 
         @Override
         public String getToolTipText(MouseEvent e) {
             List<Row> rows = rows();
             int i = e.getY() / ROW_H;
-            if (i >= 0 && i < rows.size() && rows.get(i).pinned) {
-                return Messages.get("cycle.pinnedTip");
+            if (i >= 0 && i < rows.size()) {
+                Row r = rows.get(i);
+                if (r.pinned) {
+                    return Messages.get("cycle.pinnedTip");
+                }
+                FontMetrics fm = getFontMetrics(getFont());
+                if (fm.stringWidth(r.name()) > nameWidth() - 16) {
+                    return r.name().trim(); // 말줄임된 이름은 툴팁으로(Y-02)
+                }
             }
             return Messages.get("cycle.rowTip");
         }
@@ -1148,6 +1297,25 @@ public final class CycleView {
         {
             setToolTipText(Messages.get("cycle.rowTip"));
         }
+    }
+
+    /** 글을 낱말 단위로 width 안에 들어가게 나눈다(빈 표의 안내). */
+    static List<String> wrap(FontMetrics fm, String text, int width) {
+        List<String> out = new ArrayList<>();
+        StringBuilder line = new StringBuilder();
+        for (String word : text.split(" ")) {
+            String next = line.length() == 0 ? word : line + " " + word;
+            if (line.length() > 0 && fm.stringWidth(next) > width) {
+                out.add(line.toString());
+                line = new StringBuilder(word);
+            } else {
+                line = new StringBuilder(next);
+            }
+        }
+        if (line.length() > 0) {
+            out.add(line.toString());
+        }
+        return out;
     }
 
     /** 왼쪽 위: 머리 줄 이름. */

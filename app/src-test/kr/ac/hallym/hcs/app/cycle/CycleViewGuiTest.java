@@ -384,7 +384,7 @@ class CycleViewGuiTest {
                 head.dispatchEvent(new MouseEvent(head, MouseEvent.MOUSE_PRESSED, System.currentTimeMillis(),
                         InputEvent.BUTTON1_DOWN_MASK, x, 2 * CycleView.ROW_H + 5, 1, false, MouseEvent.BUTTON1));
             });
-            assertEquals(CycleView.INSPECT_TAB, view.sideTabs().getSelectedIndex());
+            assertEquals(CycleView.INSPECT_TAB, view.sideIndex());
             Integer word = view.instructionPanel().word();
             assertNotNull(word, "an instruction in the viewed cycle");
             java.util.Map<String, java.util.Set<com.cburch.logisim.circuit.Wire>> shown = FieldOverlay.shown(proj,
@@ -655,7 +655,7 @@ class CycleViewGuiTest {
             assertEquals(0, view.signals().size(), "not in the saved observation list");
 
             // ×를 누르면 걷힌다
-            int xClose = CycleView.NAME_W - 10;
+            int xClose = view.nameWidth() - 10;
             SwingUtilities.invokeAndWait(() -> view.rowNames().dispatchEvent(new MouseEvent(view.rowNames(),
                     MouseEvent.MOUSE_PRESSED, System.currentTimeMillis(), InputEvent.BUTTON1_DOWN_MASK, xClose, 5, 1,
                     false, MouseEvent.BUTTON1)));
