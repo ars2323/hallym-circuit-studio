@@ -54,4 +54,13 @@ class PanelBalanceTest {
         int[] tiny = PanelBalance.plan(600, 0.5, 240, true, 24, 6);
         assertEquals(PanelBalance.LEFT_MIN, tiny[0], "but never below its minimum");
     }
+
+    /** 계산에 없는 고정 폭(나눔선·테두리)을 캔버스 몫에서 뺀다: 경계에서 모자라지 않게(Y-01 CI). */
+    @Test
+    void fixedChromeLeavesRoomForDividersAndBorders() {
+        int[] loose = PanelBalance.plan(1093, 0.3, 224, false, 24, 6);
+        int[] tight = PanelBalance.plan(1093, 0.3, 224, false, 24, 6, 12);
+        assertTrue(tight[0] + tight[1] < loose[0] + loose[1], "the side panels give up the extra 12 px");
+        assertTrue(1093 - tight[0] - tight[1] - 6 >= 1093 / 2 + 12, java.util.Arrays.toString(tight));
+    }
 }

@@ -44,6 +44,7 @@ class PanelBalanceGuiTest {
         String coll0 = s.getString("attrDock.collapsed", null);
         s.set("attrDock.width", 300);
         s.set("attrDock.collapsed", false);
+        double split0 = WindowBounds.mainSplit();
         WindowBounds.saveMainSplit(0.3);
         LogisimFile file = CircuitBuilder.newFile(new Loader(null), tmp.toFile());
         Project proj = new Project(file);
@@ -100,6 +101,7 @@ class PanelBalanceGuiTest {
             SwingUtilities.invokeAndWait(frame::dispose);
             s.set("attrDock.width", width0);
             s.set("attrDock.collapsed", coll0);
+            WindowBounds.saveMainSplit(split0); // 다른 GUI 테스트에 0.3이 새지 않게
         }
     }
 }
