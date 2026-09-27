@@ -124,15 +124,19 @@ class SimTest {
         int nets = snapshot().getAsJsonArray("nets").size();
         JsonObject first = e.client.awaitNotificationAfter(mark, "sim.values", v -> true);
         assertEquals(nets, first.getAsJsonObject("nets").size(), "a new watch sends every net once");
+        long t0 = System.nanoTime();
+        int m2 = e.client.mark();
         e.client.call("sim.cycles", params("fileId", fileId, "n", 20));
         awaitCycle(mark, 20);
+        long frames = (System.nanoTime() - t0) / 1_000_000 / 16 + 2;
         for (JsonObject v : e.client.notificationsAfter(mark, "sim.values")) {
             if (v != first) {
                 assertTrue(v.getAsJsonObject("nets").size() < nets, "later batches carry only changed nets");
             }
         }
-        assertTrue(e.client.notificationsAfter(mark, "sim.values").size() < 40,
-                "20 cycles are batched into frames, not one message per tick");
+        int batches = e.client.notificationsAfter(m2, "sim.values").size();
+        assertTrue(batches <= frames && batches <= 40, "values are batched per frame (" + batches + " batches, "
+                + frames + " frames, 40 ticks)");
     }
 
     @Test
