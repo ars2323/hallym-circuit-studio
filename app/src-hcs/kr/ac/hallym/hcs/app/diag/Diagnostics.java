@@ -237,7 +237,8 @@ public final class Diagnostics {
         }
     }
 
-    private boolean contains(Diagnostic d) {
+    /** 같은 종류·같은 인자의 메시지가 지금 목록에 있는가. */
+    public boolean contains(Diagnostic d) {
         for (Diagnostic x : list()) {
             if (x.kind == d.kind && x.args().equals(d.args())) {
                 return true;

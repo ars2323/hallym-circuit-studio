@@ -682,4 +682,76 @@ class CycleViewGuiTest {
             }
         }
     }
+
+    /** Y-03: 임시 줄은 원인을 고쳐 메시지가 사라지면, 그리고 Reset 뒤에 걷힌다. */
+    @Test
+    void pinnedRowsGoAwayWhenTheMessageIsFixedOrTheRecordingResets() throws Exception {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "needs a display (xvfb-run)");
+        GuiTestSupport.keepAlive();
+        LogisimFile file = RecordingTestSupport.openCirc(tmp, "demo-datapath.circ");
+        Project proj = new Project(file);
+        AtomicReference<Frame> fr = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            Frame f = new Frame(proj);
+            proj.setFrame(f);
+            f.setVisible(true);
+            f.setBounds(0, 0, 1400, 900);
+            fr.set(f);
+        });
+        Frame frame = fr.get();
+        try {
+            Circuit main = file.getMainCircuit();
+            Component rw = null;
+            for (Component c : main.getNonWires()) {
+                if (c.getFactory().getName().equals("Pin") && "RegWrite".equals(Names.label(c))) {
+                    rw = c;
+                }
+            }
+            assertNotNull(rw);
+            Component pinComp = rw;
+            java.util.function.Consumer<Boolean> tristate = on -> {
+                try {
+                    SwingUtilities.invokeAndWait(() -> {
+                        com.cburch.logisim.circuit.CircuitMutation m = new com.cburch.logisim.circuit.CircuitMutation(main);
+                        m.set(pinComp, com.cburch.logisim.std.wiring.Pin.ATTR_TRISTATE, on);
+                        proj.doAction(m.toAction(null));
+                    });
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            };
+            kr.ac.hallym.hcs.app.diag.Diagnostics diags = kr.ac.hallym.hcs.app.diag.Diagnostics.of(proj);
+            CycleView view = CycleView.of(proj);
+            java.util.concurrent.Callable<Void> pinIt = () -> {
+                tristate.accept(true);
+                Recorder.requestReset(proj);
+                waitFor(() -> Recorder.of(proj).current() != null && Recorder.of(proj).current().last() == 0, "reset");
+                kr.ac.hallym.hcs.app.sim.SimControls.runCycles(proj, 3);
+                waitFor(() -> Recorder.of(proj).current().last() == 6, "3 cycles recorded");
+                waitFor(() -> diags.list().stream().anyMatch(d -> d.kind == kr.ac.hallym.hcs.app.diag.Diagnostic.Kind.E_APPEARED),
+                        "an E message");
+                kr.ac.hallym.hcs.app.diag.Diagnostic d = diags.list().stream()
+                        .filter(x -> x.kind == kr.ac.hallym.hcs.app.diag.Diagnostic.Kind.E_APPEARED).findFirst().get();
+                SwingUtilities.invokeAndWait(() -> diags.go(d));
+                waitFor(() -> view.pinnedSignals().size() == 2, "two pinned rows");
+                return null;
+            };
+            // 1. 원인을 고치고(핀을 다시 구동으로) 다시 돌리면 E 메시지가 사라지고 임시 줄도 걷힌다
+            pinIt.call();
+            tristate.accept(false);
+            Recorder.requestReset(proj);
+            waitFor(() -> Recorder.of(proj).current() != null && Recorder.of(proj).current().last() == 0, "reset");
+            kr.ac.hallym.hcs.app.sim.SimControls.runCycles(proj, 3);
+            waitFor(() -> Recorder.of(proj).current().last() == 6, "3 cycles again");
+            waitFor(() -> diags.list().stream().noneMatch(d -> d.kind == kr.ac.hallym.hcs.app.diag.Diagnostic.Kind.E_APPEARED),
+                    "no E message after the fix");
+            waitFor(() -> view.pinnedSignals().isEmpty(), "rows gone after the fix");
+            // 2. 다시 고정한 뒤 Reset하면 걷힌다
+            pinIt.call();
+            Recorder.requestReset(proj);
+            waitFor(() -> view.pinnedSignals().isEmpty(), "rows gone after reset");
+        } finally {
+            SwingUtilities.invokeAndWait(frame::dispose);
+        }
+    }
 }

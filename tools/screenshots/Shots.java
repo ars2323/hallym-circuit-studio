@@ -139,6 +139,10 @@ public final class Shots {
             return;
         }
         closeDialogs();
+        // 앞 장면이 메시지를 눌러 만든 임시 줄을 걷는다(Y-03: 앱도 Reset·메시지 소멸 때 걷지만 장면은 깨끗이 시작한다)
+        for (Project p : new ArrayList<>(com.cburch.logisim.proj.Projects.getOpenProjects())) {
+            edt(() -> kr.ac.hallym.hcs.app.cycle.CycleView.of(p).unpin());
+        }
         // 앞 장면이 연 탭(다른 파일, Untitled 2·3, 분리 창)을 닫는다: 저장 확인 없이 창을 버린다
         for (Project p : new ArrayList<>(com.cburch.logisim.proj.Projects.getOpenProjects())) {
             if (!baseline.contains(p) && p.getFrame() != null) {

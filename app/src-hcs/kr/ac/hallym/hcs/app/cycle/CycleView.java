@@ -125,7 +125,16 @@ public final class CycleView {
     private RunUntilRunner runner;
     private boolean follow = true;
     // Recorder는 청취자를 강하게 잡지만, 창이 닫히면 함께 사라지도록 필드로 둔다
-    private final Recorder.Listener recListener = r -> SwingUtilities.invokeLater(this::refresh);
+    private final Recorder.Listener recListener = r -> SwingUtilities.invokeLater(() -> {
+        checkPinned(r); // Reset·새 기록이면 임시 줄을 걷는다(Y-03)
+        refresh();
+    });
+    /** 메시지 목록이 바뀌면 임시 줄의 메시지가 아직 있는지 본다(Y-03). */
+    private final Runnable diagListener = this::onDiagnosticsChanged;
+
+    private void onDiagnosticsChanged() {
+        SwingUtilities.invokeLater(() -> checkPinned(recorder.current()));
+    }
     // 편집 동작(레지스터 파일 표시·대응 등) 뒤에도 패널을 다시 모은다. 원조 Project는 청취자를 약하게 잡는다
     private final com.cburch.logisim.proj.ProjectListener projListener = e -> {
         int a = e.getAction();
@@ -140,6 +149,7 @@ public final class CycleView {
         this.projRef = new java.lang.ref.WeakReference<>(proj);
         this.recorder = Recorder.of(proj);
         inspectTab = new JScrollPane(instruction);
+        kr.ac.hallym.hcs.app.diag.Diagnostics.of(proj).addListener(diagListener);
         recorder.addListener(recListener);
         proj.addProjectListener(projListener);
         Font mono = new Font(Font.MONOSPACED, Font.PLAIN, Tokens.FONT_SMALL);
@@ -261,6 +271,9 @@ public final class CycleView {
         // 사이클 뷰가 가려지면(다른 아래 탭) 필드 색도 걷는다
         panel.addHierarchyListener(e -> {
             if ((e.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0) {
+                if (panel.isShowing()) {
+                    checkPinned(recorder.current()); // 다른 파일 탭에 다녀온 뒤(Y-03)
+                }
                 updateFieldOverlay();
             }
         });
@@ -479,12 +492,34 @@ public final class CycleView {
     /** 메시지를 눌러 더한 임시 줄: 원인 신호, E·X가 생긴 자리. 파일에 저장되지 않고 다른 메시지를 누르면 바뀐다. */
     private final List<CycleModel.Signal> pinned = new ArrayList<>();
     private int pinnedCycle = -1;
+    /** 임시 줄을 만든 메시지와 그때의 기록(Y-03: 메시지가 사라지거나 기록이 바뀌면 걷는다). */
+    private kr.ac.hallym.hcs.app.diag.Diagnostic pinnedDiag;
+    private Recording pinnedRecording;
+
+    /**
+     * 임시 줄의 수명(Y-03, D-114): 메시지가 사라졌거나(회로 고침, 되돌리기, 다른 파일), 기록이 바뀌었으면(Reset, 다시
+     * 열기) 임시 줄을 걷는다.
+     */
+    void checkPinned(Recording now) {
+        if (pinned.isEmpty()) {
+            return;
+        }
+        Project proj = projRef.get();
+        boolean gone = pinnedDiag == null || proj == null
+                || !kr.ac.hallym.hcs.app.diag.Diagnostics.of(proj).contains(pinnedDiag);
+        boolean newRecording = now != pinnedRecording;
+        if (gone || newRecording) {
+            unpin();
+        }
+    }
 
     /** 진단 d의 원인 신호와 생긴 자리를 임시 줄로 둔다(있던 임시 줄은 대체). */
     public void pin(kr.ac.hallym.hcs.app.diag.Diagnostic d) {
         pinned.clear();
         pinnedCycle = -1;
         Recording r = recorder.current();
+        pinnedDiag = d;
+        pinnedRecording = r;
         if (d == null || r == null || d.step < 0) {
             refresh();
             return;
@@ -514,6 +549,8 @@ public final class CycleView {
     public void unpin() {
         pinned.clear();
         pinnedCycle = -1;
+        pinnedDiag = null;
+        pinnedRecording = null;
         refresh();
     }
 
@@ -857,6 +894,7 @@ public final class CycleView {
         if (proj != null) {
             FieldOverlay.invalidate(proj);
         }
+        checkPinned(recorder.current());
         refresh();
     }
 
