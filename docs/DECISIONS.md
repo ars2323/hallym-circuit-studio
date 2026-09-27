@@ -1454,3 +1454,28 @@
 - **이유:** 최종 라운드 지시(원본 보존). 원본과 무엇이 다른지를 사람 기억이 아니라 태그와 검사로 남긴다.
 - **대안:** 체크섬 파일만 두기(어디서 왔는지가 저장소에 남지 않는다).
 - **테스트:** `verify-vendor.sh`, `check-upstream-markers.sh`(표시 없는 원본 수정과 새 파일에서 실패하는 것을 확인), `AppIdentityTest.aboutAndNoticeStateOriginLicenseMarksAndNotOfficial`.
+
+## D-132 Hallym Circuit Studio 2: 화면은 Electron, 안은 Java(사용자 결정)
+
+- **날짜:** 2026-09-27
+- **번호:** 사용자 지시는 이 결정을 "D-125로 기록"하라고 했으나, D-125는 이미 두 트랙 공용 소스 자리(#372)에 쓰였고 코드 주석이 그 번호를 가리킨다. 번호가 둘이 되지 않게 다음 빈 번호 D-132로 적는다. 내용은 사용자 결정 그대로다.
+- **결정(사용자, 새로 정하지 않는다):**
+  1. 사용자 눈에 보이는 것은 전부 Electron으로 새로 만든다(창, 패널, 캔버스, 부품 그림, 대화상자, 튜토리얼). 모양과 흐름은 Hallym MIPS Simulator(Electron 2.x)와 같게 한다.
+  2. 안에서 도는 것만 Java로 둔다: Logisim 2.7.1 엔진, .circ 읽기·저장, MIPS 부품 로직, 진단·기록·경로 계산 등. 엔진은 headless 자식 프로세스이고 stdio 위 JSON-RPC로 대화한다. 엔진이 회로 모델의 권위이고, 편집은 화면이 의도를 보내 엔진이 Logisim의 편집 코드로 한다.
+  3. Swing 화면은 폐기한다. v1.0.3이 마지막 Swing 릴리스다(태그 `swing-final` = v1.0.3 커밋). Swing판 v1.1.0은 내지 않는다.
+  4. 목표 느낌: Logisim을 쓰던 사람이 "쓰는 법은 전과 거의 같은데 기능이 많아지고 화면이 깔끔해졌다"고 느끼게 한다.
+- **대체하는 것:** PLAN.md의 Swing·FlatLaf 결정(2a단계 창 구조 등), D-122의 "jpackage 앱 이미지를 NSIS로 묶는다"(v2는 Hallym MIPS와 같은 electron-builder NSIS; 동작 결정은 그대로), 멈춘 Z-12b의 D-131(PR #375 닫음, main에 없음). 번호 D-128은 멈춘 Swing setup exe 작업에 잡아 두었다가 쓰지 않았다.
+- **전환(N-00):** Swing 화면 작업(Z-05, Z-07~Z-20의 화면 부분, Z-23, Z-25~Z-27)을 멈추고 닫았다. 엔진 쪽(Z-01·02·03·04·06·21·24)은 마무리해 v2에서 그대로 쓴다. OPEN-ISSUES의 화면 항목은 v2에서 다시 만들고 N-25에서 v2 기준으로 다시 확인한다.
+- **이유:** 사용자 결정. 두 프로그램(Hallym MIPS와 이 도구)을 같은 재료·같은 코드로 맞추는 가장 곧은 길이다.
+
+## D-133 v2 구조: 두 프로세스, 규약 문서, 모듈 자리(N-02, N-03)
+
+- **날짜:** 2026-09-27
+- **결정:**
+  1. **규약:** 화면(Electron main)과 엔진(Java)은 stdio 위 JSON-RPC 2.0, 한 줄에 한 객체로 대화한다. 메서드·식별자·값 글자·알림은 `docs/engine-api.md`가 계약이다. 엔진이 모델의 권위이고, 편집은 의도로 보내 엔진이 Logisim 편집 코드로 한다.
+  2. **engine/**(새 Gradle 모듈, 패키지 `kr.ac.hallym.hcs.engine.*`): headless(`java.awt.headless=true`) Logisim 2.7.1. 처음에는 `:app` 모듈의 클래스(원조 Logisim 소스와 GUI 없는 `kr.ac.hallym.hcs.app.*` 코드: 넷·진단·기록·경로 계산·식별자·등록표)를 그대로 쓰고, Swing 화면 코드를 지우는 N-27에서 필요한 것만 engine/으로 옮긴다. 번들 MIPS 라이브러리(lib-mips)는 v1과 같은 방식으로 불러온다.
+  3. **electron/**: Hallym MIPS v2.3.0 `electron/`과 같은 스택(TypeScript, esbuild `tools/build-ui.ts`, 자체 dom 도우미, `node --test`, Playwright e2e, mutants, electron-builder NSIS). Node 22.18 이상. 가져온 공유 코드는 `electron/src/renderer/shared/`에 모으고 `electron/ORIGIN.md`에 파일마다 출처(ars2323/hallym-mips-simulator, 태그 v2.3.0, 경로)와 고친 곳을 적는다. 다시 가져오는 스크립트를 둔다.
+  4. **보안:** contextIsolation, 렌더러 nodeIntegration 없음, preload로만 API를 연다(Hallym MIPS와 같음). 렌더러는 엔진과 직접 말하지 않고 main을 거친다.
+  5. **SPIM에서 나온 코드는 가져오지 않는다(규칙 2.5, D-015):** Hallym MIPS `electron/`에는 SPIM의 `CPU/op.h`에서 만든 `src/core/op-table.ts`(생성 파일)와 SPIM 코어를 같은 프로세스에 링크하는 `native/`(`binding.gyp`, `addon.cc`)가 있다. 이것들과, 그 표나 SPIM 문자열에 기대는 파일(`src/core/`의 디코더·명령어 글자·설명, `src/sim/` 등)은 가져오지 않는다. 명령어 해석·글자는 우리가 명세에서 쓴 Java 디스어셈블러(lib-mips, Z-04)를 엔진 API로 부른다. 가져오는 것은 Hallym MIPS가 직접 쓴 화면 코드(dom 도우미, 패널 머리·탭, 대화상자, 시작 화면, 빈 상태, 알림 띠, 튜토리얼 엔진, 배치·덮개 계산, Registers·Data·Inspector 패널의 화면 부분)와 디자인 값·글꼴·아이콘·도구다. `electron/ORIGIN.md`에 파일마다 "SPIM 유래 아님"을 확인한 근거를 적는다.
+- **이유:** 사용자 지시(D-132)의 3절 아키텍처. 규약을 먼저 문서로 두어 두 쪽을 따로 만들고 따로 시험한다.
+- **대안:** 엔진을 JNI로 묶기(Java 런타임을 Electron 안에서 부를 방법이 마땅치 않고 실패가 앱 전체로 번진다). WebSocket(로컬 포트를 여는 것보다 stdio가 단순하고 실습실 방화벽과 무관하다).
