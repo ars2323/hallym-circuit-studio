@@ -83,6 +83,11 @@ public final class Shots {
     }
 
     public static void main(String[] args) throws Exception {
+        // 글자 칸의 깜박이는 커서를 멈춘다: 같은 장면이 매번 같은 픽셀이어야 바뀐 것만 다시 검토할 수 있다
+        for (String k : new String[] {"TextField.caretBlinkRate", "TextArea.caretBlinkRate", "FormattedTextField.caretBlinkRate",
+            "PasswordField.caretBlinkRate", "TextPane.caretBlinkRate", "EditorPane.caretBlinkRate"}) {
+            javax.swing.UIManager.put(k, 0);
+        }
         boolean orig = args[0].equals("orig");
         File out = new File(args[1]);
         out.mkdirs();

@@ -19,6 +19,11 @@ import com.cburch.logisim.proj.Projects;
  */
 public final class FirstRun {
     public static void main(String[] args) throws Exception {
+        // 글자 칸의 깜박이는 커서를 멈춘다: 같은 장면이 매번 같은 픽셀이어야 바뀐 것만 다시 검토할 수 있다
+        for (String k : new String[] {"TextField.caretBlinkRate", "TextArea.caretBlinkRate", "FormattedTextField.caretBlinkRate",
+            "PasswordField.caretBlinkRate", "TextPane.caretBlinkRate", "EditorPane.caretBlinkRate"}) {
+            javax.swing.UIManager.put(k, 0);
+        }
         File out = new File(args[0]).getAbsoluteFile();
         Thread t = new Thread(() -> com.cburch.logisim.Main.main(new String[0]), "app-main");
         t.setDaemon(true);

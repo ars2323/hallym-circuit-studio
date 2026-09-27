@@ -10,8 +10,11 @@ shift
 JAVA=${JAVA:-java}
 JAVAC=${JAVAC:-javac}
 
-./gradlew -q :app:stage :lib-mips:jar
-B=build/screenshots/work
+# 병렬 실행(run-parallel.sh)은 빌드를 한 번만 하고, 실행마다 작업 폴더·가상 화면 번호를 따로 쓴다
+[ "${SHOTS_SKIP_BUILD:-0}" = 1 ] || ./gradlew -q :app:stage :lib-mips:jar
+B=${SHOTS_WORK:-build/screenshots/work}
+xvfb=(xvfb-run -a)
+[ -n "${SHOTS_DISPLAY:-}" ] && xvfb=(xvfb-run -n "$SHOTS_DISPLAY")
 rm -rf "$B"
 mkdir -p "$B/classes" "$B/orig"
 jar=app/build/stage/hallym-circuit-studio.jar
@@ -24,19 +27,22 @@ opts=(-Duser.language=ko -Duser.country=KR -Dsun.java2d.uiScale=1 -Dawt.useSyste
 if [ $# -eq 0 ] || printf '%s\n' "$@" | grep -qx '48'; then
     "$JAVAC" -encoding UTF-8 -nowarn -cp "$jar" -d "$B/classes" tools/screenshots/FirstRun.java
     rm -rf "$B/prefs-first" "$B/config-first"
-    xvfb-run -a -s "$screen" "$JAVA" "${opts[@]}" -Djava.util.prefs.userRoot="$B/prefs-first" \
+    "${xvfb[@]}" -s "$screen" "$JAVA" "${opts[@]}" -Djava.util.prefs.userRoot="$B/prefs-first" \
         -Dhcs.configDir="$B/config-first" -cp "$B/classes:$jar" FirstRun "$out/48-first-run.png" | tee -a "$out/log-first.txt"
 fi
 
 # 포크: 저장소 루트에서 상대 경로로 연다
-xvfb-run -a -s "$screen" "$JAVA" "${opts[@]}" -Djava.util.prefs.userRoot="$B/prefs-fork" \
+"${xvfb[@]}" -s "$screen" "$JAVA" "${opts[@]}" -Djava.util.prefs.userRoot="$B/prefs-fork" \
     -Dhcs.configDir="$B/config-fork" -cp "$B/classes:$jar" Shots fork "$out" "$@"
 
 # 원조 2.7.1: 같은 회로, hcs-mips.jar를 회로 옆에 둔다(원조가 JAR 라이브러리를 찾는 방식)
-if [ $# -eq 0 ] || printf '%s\n' "$@" | grep -qxE '0[23]|16|21|23|37'; then
+orig=0
+if [ $# -eq 0 ] || printf '%s\n' "$@" | grep -qxE '0[23]|16|21|23|37'; then orig=1; fi
+[ -n "${SHOTS_ORIG:-}" ] && orig=$SHOTS_ORIG
+if [ "$orig" = 1 ]; then
     cp tests/circ/demo-datapath.circ "$B/orig/"
     cp lib-mips/build/libs/hcs-mips.jar "$B/orig/"
-    (cd "$B/orig" && xvfb-run -a -s "$screen" "$JAVA" "${opts[@]}" -Djava.util.prefs.userRoot=prefs-orig \
+    (cd "$B/orig" && "${xvfb[@]}" -s "$screen" "$JAVA" "${opts[@]}" -Djava.util.prefs.userRoot=prefs-orig \
         -cp "../classes:$root/vendor/logisim-2.7.1/logisim-generic-2.7.1.jar" Shots orig "$out")
 fi
 ls -la "$out"
