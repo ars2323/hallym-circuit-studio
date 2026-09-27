@@ -11,6 +11,14 @@ tools/verify-assets.sh           # 바이트 그대로인지 확인
 
 `resources/font/Pretendard-1.3.9.zip`의 `public/static/`에서 Regular, Medium, SemiBold, Bold OTF와 `LICENSE.txt`(SIL OFL 1.1). 가변 폰트와 웹 폰트는 넣지 않는다. 앱 시작 때 `Font.createFont`로 등록한다.
 
+## fonts/d2coding/
+
+D2Coding 1.3.2(NAVER, SIL OFL 1.1, 예약 이름 D2Coding) 공식 배포 zip의 `D2Coding/D2Coding-Ver1.3.2-20180524.ttf`를 고치지 않고 그대로(고치면 예약 이름을 쓸 수 없다). `LICENSE.txt`는 Hallym MIPS v2.3.0의 `OFL-D2Coding.txt`. 주소·기계어·레지스터 값 글꼴(Hallym MIPS와 같음, Z-12b). `tools/import-assets.py`가 체크섬을 확인하며 받는다.
+
+## icons/lucide/
+
+Lucide 아이콘(ISC). Hallym MIPS v2.3.0 `electron/src/renderer/assets/icons/lucide/`의 15개와 `LICENSE.txt`는 그 파일 그대로, Hallym MIPS에 없는 자리(도구 모음, 시작 카드 교과목, 패널 단추)는 같은 Lucide의 `lucide-static` 1.48.0에서 이름 그대로 가져와 Hallym MIPS 파일과 같은 꼴로 둔다(맨 앞 라이선스 주석과 class 속성만 뺌, 그림은 같다). 새로 그리지 않는다. 앱은 FlatSVGIcon으로 그린다.
+
 ## hallym/logo/
 
 Hallym MIPS `QtSpim/edu/theme/brand/`의 파일을 이름만 바꿔 그대로 가져왔다(D-008). SVG는 Hallym MIPS `assets/ci/marks/`와 같은 파일이고(학교 배포 `.ai` → PDF → SVG, 마크별로 자르고 치수선 제거), PNG는 그 SVG를 렌더한 것이다. 두 제품의 로고가 픽셀 단위로 같다.

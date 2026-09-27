@@ -42,6 +42,7 @@ sourceSets {
 dependencies {
     implementation(files(thirdParty))
     implementation("com.formdev:flatlaf:3.7.2") // Apache-2.0, NOTICE
+    implementation("com.formdev:flatlaf-extras:3.7.2") // Apache-2.0, NOTICE: FlatSVGIcon(Lucide 아이콘, Z-12b). jsvg(MIT)를 끌어온다
     testImplementation(project(":regress"))
     testImplementation(platform("org.junit:junit-bom:5.13.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")
@@ -56,6 +57,13 @@ tasks.processResources {
         into("kr/ac/hallym/hcs/app/examples")
     }
     from(rootProject.file("assets/fonts/pretendard")) { into("kr/ac/hallym/hcs/app/fonts") } // OFL, LICENSE.txt 포함
+    // D2Coding(OFL, 원본 TTF 그대로): 주소·기계어·레지스터 값(Z-12b, O-07)
+    from(rootProject.file("assets/fonts/d2coding")) {
+        rename("LICENSE.txt", "LICENSE-D2Coding.txt")
+        into("kr/ac/hallym/hcs/app/fonts")
+    }
+    // Lucide 아이콘(ISC, Hallym MIPS와 같은 파일·이름)
+    from(rootProject.file("assets/icons/lucide")) { into("kr/ac/hallym/hcs/app/icons/lucide") }
     // 첫 실행 안내의 캐릭터(한림대학교 소유, 원본 그대로). 쓰는 두 장만 넣는다.
     from(rootProject.file("assets/hallym/character")) {
         include("haram-hari-greeting.png", "haram-hari-ok.png", "haram-hari.png")
@@ -90,6 +98,10 @@ tasks.jar {
         )
     }
     from(zipTree(thirdParty.map { it.archiveFile })) // 실행 가능한 단일 jar
+    from(configurations.runtimeClasspath.map { cp -> cp.filter { it.name.startsWith("jsvg") }.map { zipTree(it) } }) {
+        exclude("META-INF/versions/**/module-info.class", "module-info.class", "META-INF/MANIFEST.MF")
+        rename("^LICENSE(\\.txt)?$", "LICENSE-jsvg.txt") // MIT 전문(FlatSVGIcon이 쓴다)
+    }
     from(configurations.runtimeClasspath.map { cp -> cp.filter { it.name.startsWith("flatlaf") }.map { zipTree(it) } }) {
         exclude("META-INF/versions/**/module-info.class", "module-info.class", "META-INF/MANIFEST.MF")
         rename("^LICENSE$", "LICENSE-FlatLaf.txt") // Apache-2.0 전문

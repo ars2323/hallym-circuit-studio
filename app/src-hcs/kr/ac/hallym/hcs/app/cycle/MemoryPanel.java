@@ -48,7 +48,7 @@ final class MemoryPanel extends JComponent implements Scrollable {
 
     MemoryPanel(Supplier<List<MachineState.Memory>> source) {
         this.source = source;
-        setFont(new Font(Font.MONOSPACED, Font.PLAIN, Tokens.FONT_SMALL));
+        setFont(kr.ac.hallym.hcs.app.theme.Theme.codeFont(Tokens.FONT_SMALL)); // D2Coding(0과 O, Z-12b)
     }
 
     void refresh() {

@@ -34,7 +34,7 @@ final class ConsolePanel {
     ConsolePanel(Supplier<CircuitState> root) {
         this.root = root;
         area.setEditable(false);
-        area.setFont(new Font(Font.MONOSPACED, Font.PLAIN, Tokens.FONT_UI));
+        area.setFont(new Font(Tokens.UI_FONT, Font.PLAIN, Tokens.FONT_UI)); // Hallym MIPS .clog처럼 UI 글꼴(Z-12b)
         area.setBorder(BorderFactory.createEmptyBorder(6, 8, 6, 8));
         area.setForeground(Tokens.TEXT);
         panel.add(new JScrollPane(area), BorderLayout.CENTER);

@@ -97,7 +97,7 @@ public final class SimControls {
     }
 
     private JButton button(String icon, String key, Runnable r) {
-        JButton b = new JButton(text() ? Messages.get(key) : null, new BarIcons(icon));
+        JButton b = new JButton(text() ? Messages.get(key) : null, kr.ac.hallym.hcs.app.theme.Icons.toolbar(icon, kr.ac.hallym.hcs.app.theme.Tokens.BUTTON_ICON));
         b.setToolTipText(Messages.get(key));
         b.setFocusable(false);
         b.addActionListener(e -> r.run());

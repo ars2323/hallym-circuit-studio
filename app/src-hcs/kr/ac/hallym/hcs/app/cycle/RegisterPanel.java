@@ -69,7 +69,7 @@ final class RegisterPanel extends JComponent implements Scrollable {
 
     RegisterPanel(Supplier<MachineState> state) {
         this.state = state;
-        setFont(new Font(Font.MONOSPACED, Font.PLAIN, Tokens.FONT_SMALL));
+        setFont(kr.ac.hallym.hcs.app.theme.Theme.codeFont(Tokens.FONT_SMALL)); // D2Coding(0과 O, Z-12b)
         setToolTipText(Messages.get("regs.tip"));
         addMouseListener(new MouseAdapter() {
             @Override

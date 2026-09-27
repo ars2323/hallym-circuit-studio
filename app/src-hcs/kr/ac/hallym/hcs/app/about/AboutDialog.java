@@ -147,7 +147,7 @@ public final class AboutDialog {
     private static JComponent textTab(String body) {
         JTextArea area = new JTextArea(body);
         area.setEditable(false);
-        area.setFont(new Font(Font.MONOSPACED, Font.PLAIN, Tokens.FONT_SMALL));
+        area.setFont(kr.ac.hallym.hcs.app.theme.Theme.codeFont(Tokens.FONT_SMALL)); // Hallym MIPS About의 pre.mono
         area.setCaretPosition(0);
         area.setBorder(BorderFactory.createEmptyBorder(6, 8, 6, 8));
         return new JScrollPane(area);

@@ -45,14 +45,39 @@ Pretendard 1.3.9
   Location: assets/fonts/pretendard/ (LICENSE.txt included)
 
 --------------------------------------------------------------------------
+D2Coding 1.3.2
+  Copyright (c) 2015, NAVER Corporation, with Reserved Font Name D2Coding.
+  License: SIL Open Font License, Version 1.1
+  Source:  https://github.com/naver/d2codingfont (release VER1.3.2)
+  Location: assets/fonts/d2coding/ (the original TTF, unmodified; LICENSE.txt
+            included). Used for addresses, machine words and register values.
+
+--------------------------------------------------------------------------
+Lucide icons
+  Copyright (c) Lucide Icons and Contributors (and Feather, Cole Bemis).
+  License: ISC License
+  Source:  https://lucide.dev/ (the same SVG files and names as Hallym MIPS
+           v2.3.0; the others from lucide-static 1.48.0)
+  Location: assets/icons/lucide/ (LICENSE.txt included)
+
+--------------------------------------------------------------------------
 FlatLaf
   Copyright (c) FormDev Software GmbH.
   License: Apache License, Version 2.0
   Source:  https://www.formdev.com/flatlaf/
   Bundled in the fork jar (hallym-circuit-studio.jar) with its license text
-  at META-INF/LICENSE-FlatLaf.txt. Apache-2.0 is compatible with GPL
+  at META-INF/LICENSE-FlatLaf.txt. FlatLaf Extras (same author and license)
+  draws the Lucide SVG icons. Apache-2.0 is compatible with GPL
   version 3, so the fork jar that bundles FlatLaf is distributed under
   GPL version 3 (the "any later version" option of Logisim's license).
+
+--------------------------------------------------------------------------
+JSVG
+  Copyright (c) Jannis Weis.
+  License: MIT License
+  Source:  https://github.com/weisJ/jsvg
+  Bundled in the fork jar (used by FlatLaf Extras to render SVG icons), with
+  its license text at META-INF/LICENSE-jsvg.txt.
 
 --------------------------------------------------------------------------
 Hallym University identity assets (logo, emblem, signature, characters
