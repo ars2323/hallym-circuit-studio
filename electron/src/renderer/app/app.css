@@ -64,3 +64,28 @@
 
 /* ---- status bar: the engine's versions at the far end ----------------------------- */
 .status .engine { color: var(--muted); }
+
+/* ---- Messages (messages.ts, D-143): groups by kind, a count each; a message
+   is a row that can be chosen (the Canvas and the Cycle View go there) ------- */
+.msgs { height: 100%; overflow: auto; padding: 4px 0 8px; }
+.msggroup + .msggroup { border-top: 1px solid var(--border); }
+.msghead { display: flex; align-items: center; gap: 8px; padding: 6px 12px 2px; font-size: 12px; font-weight: 600; color: var(--navy); }
+.msghead .count { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--error-tint); color: var(--error-text); font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
+.msglist { list-style: none; margin: 0; padding: 0 0 4px; }
+.msg { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; column-gap: 10px; align-items: baseline; width: 100%; padding: 5px 12px; border: 0; background: none; text-align: left; color: var(--text); line-height: 1.5; }
+.msg:hover { background: var(--hover); }
+.msg.on { background: var(--error-tint); box-shadow: inset 3px 0 0 var(--error); }
+.msg:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+.msg .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--error); align-self: center; }
+.msg .say { min-width: 0; }
+.msg .where { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.msgactions { padding: 6px 12px 0 30px; }
+/* Messages say the circuit on show cannot work: like an error dialog or the
+   band (shared.css), no character anywhere while there are any (the place stays) */
+body.messages-shown img.char { visibility: hidden; }
+/* The Messages tab's count (only while there are messages) */
+.ptab .tabcount { margin-left: 6px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--error); color: var(--white); font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
+/* The status bar's Messages count: a fact that opens the tab */
+.status .msgcount { height: 20px; padding: 0 6px; margin: 0 -6px; border: 0; border-radius: 4px; background: none; font: inherit; color: var(--text-2); }
+.status .msgcount.err { color: var(--error-text); font-weight: 600; }
+.status .msgcount:hover { background: var(--hover); }

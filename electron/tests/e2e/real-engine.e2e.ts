@@ -10,7 +10,7 @@
    (the bundled runtime) makes this part of CI. */
 
 import { expect, test } from '@playwright/test';
-import { existsSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -52,6 +52,28 @@ test('the real engine: hello, a new circuit, a .circ with the MIPS library, the 
     await page.keyboard.press('Control+s');
     await expect(page.locator('.status .ok')).toContainText('저장했습니다 · saved.circ');
     expect(statSync(target).size).toBeGreaterThan(100);
+  } finally {
+    await r.close();
+  }
+});
+
+test('the real engine: a broken circuit\'s Messages (N-13), the same words as the fake engine\'s fixture, and the one the clock finds', async () => {
+  const r = await launch(undefined, { env: real });
+  const { page } = r;
+  try {
+    const fixture = JSON.parse(readFileSync(path.join(repo, 'electron/tests/fixtures/messages.json'), 'utf8')) as
+      Record<string, { static: { text: { ko: string } }[]; afterCycles: { text: { ko: string } }[] }>;
+    await openFile(r, sample(r.dir, 'electron/tests/fixtures/broken-datapath.circ'));
+    await expect(page.locator('.msg .say')).toHaveText(fixture['broken-datapath.circ'].static.map((m) => m.text.ko));
+    await expect(page.locator('.status .msgcount')).toHaveText('2 messages');
+    await page.keyboard.press('F10');
+    await page.keyboard.press('F10');
+    await expect(page.locator('.msg .say')).toHaveText(fixture['broken-datapath.circ'].afterCycles.map((m) => m.text.ko));
+    await expect(page.locator('.msg[data-kind="dynamic"] .where')).toHaveText('main · Cycle 0');
+    await page.locator('.msg').first().click();
+    await expect(page.locator('.msg.on')).toHaveCount(1);
+    await page.getByRole('button', { name: /Reset/ }).first().click();
+    await expect(page.locator('.msg')).toHaveCount(2);
   } finally {
     await r.close();
   }

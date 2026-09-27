@@ -22,7 +22,7 @@
    Nothing is restored from an earlier run and nothing is written but the
    files the student saves (the lab-PC rule; src/main/main.ts). */
 
-import type { CircuitRef, EngineStatus, LibraryGroup, NewResult, SimState, Snapshot } from '../../main/protocol.ts';
+import type { CircuitRef, DiagList, DiagMessage, EngineStatus, LibraryGroup, NewResult, SimState, Snapshot } from '../../main/protocol.ts';
 import { aboutDialog } from '../shared/about.ts';
 import { ask } from '../shared/ask.ts';
 import { band } from '../shared/band.ts';
@@ -37,6 +37,9 @@ import { commandError, fileError } from './logic/errors.ts';
 import { circuitFacts, count, counted, engineFact, engineVersion } from './logic/facts.ts';
 import { Files, type OpenFile } from './logic/files.ts';
 import { arrange, nothingDragged, PAD, SPLITTER } from './logic/layout.ts';
+import { messageCount } from './logic/messages.ts';
+import { messagesPanel } from './messages.ts';
+import { emitReveal, onReveal } from './reveal.ts';
 import { startScreen } from './start.ts';
 
 const api = window.app;
@@ -48,6 +51,7 @@ let engine: EngineStatus = { state: 'starting', generation: 0, hello: null, erro
 const files = new Files();
 const snapshots = new Map<string, Snapshot>();          // `${fileId} ${circuitId}`
 const libraries = new Map<string, LibraryGroup[] | string>(); // by fileId; a string: why there is none
+const diags = new Map<string, DiagMessage[]>();         // Messages by fileId (diag.list, diag.changed; D-143)
 let decided = false;                                    // whether a file was named on the command line is known
 let opening = false;                                    // a file on its way (the command line's)
 let note: { cls: '' | 'err' | 'ok'; text: string } | null = null; // the last action's fact
@@ -148,6 +152,12 @@ const bottomHead = tabsHead(['Messages', 'Cycle View', 'Console'], (i) => { show
 const bCollapse = headButton('Collapse', 'Collapse the panel', () => toggleBottom());
 bottomHead.aside.append(bCollapse);
 const bottomPanel = h('section', { class: 'panel bottom', 'aria-label': 'Messages' }, bottomHead.root, ...bottomBodies);
+// Messages (messages.ts): choosing one sends "show this place" (reveal.ts) for the Canvas and the Cycle View.
+const messages = messagesPanel({
+  host: messagesBody, tab: bottomHead.tabs[0],
+  onReveal: (r) => emitReveal(r),
+  onReset: () => void resetSimulation(),
+});
 
 function showBody(bodies: HTMLElement[], i: number): void {
   bodies.forEach((b, k) => { b.hidden = k !== i; });
@@ -256,8 +266,35 @@ function render(): void {
     circuitStrip.set([], null);
   }
   renderEmptyPanels();
+  renderMessages();
   renderStatus();
   layout();
+}
+
+function renderMessages(): void {
+  const f = files.active();
+  const list = f ? diags.get(f.fileId) ?? null : null;
+  messages.set(f ? { fileId: f.fileId, list, circuitName: (id) => files.circuitName(f, id) } : null);
+  // No character on screen while the circuit on show has messages: they say it cannot work (app.css, D-143).
+  document.body.classList.toggle('messages-shown', (list?.length ?? 0) > 0);
+}
+
+async function loadDiags(fileId: string): Promise<void> {
+  try {
+    const r = await api.call<DiagList>('diag.list', { fileId });
+    if (files.get(fileId)) diags.set(fileId, r.messages);
+  } catch {
+    // An older engine without diag.* (before N-13): no list, the panel stays as it is.
+    return;
+  }
+  if (files.active()?.fileId === fileId) { renderMessages(); renderStatus(); }
+}
+
+// The status bar's Messages count opens the Messages tab (v1).
+function showMessages(): void {
+  bottomHead.select(0);
+  showBody(bottomBodies, 0);
+  if (bottomCollapsed) toggleBottom();
 }
 
 function renderCircuits(f: OpenFile): void {
@@ -345,7 +382,6 @@ function renderTunnels(s: Snapshot | null): void {
 function renderEmptyPanels(): void {
   attributesBody.empty({ title: '고른 부품이 없습니다', body: codeText('Canvas에서 부품을 고르면 그 속성(`Data Bits`, `Facing`, `Label` …)이 여기에 나옵니다.') });
   minimapBody.empty({ title: '회로 전체가 작게 나옵니다', body: 'Canvas에 그린 회로의 전체 모습과 지금 보는 곳이 여기에 나옵니다.' });
-  messagesBody.empty({ title: '메시지가 없습니다', body: '동작할 수 없는 연결(떠 있는 입력, 짝 없는 터널, 폭이 다른 선 …)이 있으면 여기에 나옵니다.' });
   cycleBody.empty({ title: '아직 사이클이 없습니다', body: '1 Cycle이나 Run으로 클럭을 진행하면 사이클마다 값이 여기에 쌓입니다.' });
   consoleBody.empty({ title: '아직 출력이 없습니다', body: '회로의 Console 부품이 출력하면 여기에 나옵니다.' });
 }
@@ -363,6 +399,12 @@ function renderStatus(): void {
     const s = snapshots.get(key(f.fileId, f.circuit));
     parts.push(span('', code(files.circuitName(f, f.circuit)),
       s ? ` · ${counted(s.components.length, 'component')} · ${counted(s.wires.length, 'wire')}` : ''));
+    const list = diags.get(f.fileId);
+    if (list) {
+      const b = h('button', { type: 'button', class: `msgcount${list.length ? ' err' : ''}`, title: 'Messages' }, messageCount(list.length));
+      b.addEventListener('click', () => showMessages());
+      parts.push(b);
+    }
     if (f.sim) {
       parts.push(span('', `Cycle ${count(f.sim.cycle)}`));
       const speed = FREQUENCIES.find(([, hz]) => hz === f.sim?.hz)?.[0];
@@ -402,6 +444,7 @@ function added(f: { fileId: string; name: string; path: string | null; circuits:
   notices.hide();
   note = null;
   render();
+  void loadDiags(f.fileId);
 }
 
 async function newCircuit(): Promise<void> {
@@ -476,6 +519,7 @@ async function closeFile(fileId: string): Promise<void> {
   files.close(fileId);
   for (const k of [...snapshots.keys()]) if (k.startsWith(`${fileId} `)) snapshots.delete(k);
   libraries.delete(fileId);
+  diags.delete(fileId);
   note = null;
   if (files.count() === 0) start.go('first');
   render();
@@ -495,7 +539,7 @@ async function edit(method: 'edit.undo' | 'edit.redo', name: string): Promise<vo
   renderStatus();
 }
 
-async function simCall(method: 'sim.run' | 'sim.cycles' | 'sim.reset', params: Record<string, unknown>, name: string): Promise<void> {
+async function simCall(method: 'sim.run' | 'sim.cycles' | 'sim.reset' | 'sim.enable', params: Record<string, unknown>, name: string): Promise<void> {
   const f = files.active();
   if (!f || engine.state !== 'ready') return;
   try {
@@ -509,6 +553,11 @@ async function simCall(method: 'sim.run' | 'sim.cycles' | 'sim.reset', params: R
 const run = () => simCall('sim.run', { on: !(files.active()?.sim?.ticking ?? false), hz: Number(frequency.value) }, 'Run');
 const cycles = (n: number) => simCall('sim.cycles', { n }, n === 1 ? '1 Cycle' : 'N Cycles');
 const reset = () => simCall('sim.reset', {}, 'Reset');
+// Messages' Reset Simulation (an oscillation turned the simulation off): Reset, then on again.
+async function resetSimulation(): Promise<void> {
+  await simCall('sim.reset', {}, 'Reset');
+  await simCall('sim.enable', { on: true }, 'Reset');
+}
 
 // ---- the engine ----------------------------------------------------------------------
 
@@ -536,6 +585,7 @@ function onEngine(s: EngineStatus): void {
     files.clear();
     snapshots.clear();
     libraries.clear();
+    diags.clear();
     start.go('first');
     notices.show(had ? `엔진이 멈춰서 다시 시작했습니다 · 열려 있던 파일 ${had}개를 닫았습니다` : '엔진이 멈춰서 다시 시작했습니다', 'warn');
   } else if (s.state === 'ready' && before.state !== 'ready' && notices.text()?.startsWith('엔진을 시작하지 못했습니다')) {
@@ -544,6 +594,16 @@ function onEngine(s: EngineStatus): void {
   render();
   if (s.state === 'failed') void engineFailed();
 }
+
+// "Show this place" (a message chosen): the file and the circuit tab here; the
+// Canvas (N-05) and the Cycle View (N-14) listen to the same event for the
+// parts, the instance path and the cycle.
+onReveal((r) => {
+  if (!files.get(r.fileId)) return;
+  files.activate(r.fileId);
+  files.openCircuit(r.fileId, r.circuitId);
+  render();
+});
 
 api.onEngineStatus(onEngine);
 api.onNotify((method, params) => {
@@ -559,6 +619,11 @@ api.onNotify((method, params) => {
     libraries.delete(fileId); // the first part of a pending library puts it in the file
     if (typeof p.dirty === 'boolean') files.setDirty(fileId, p.dirty);
     render();
+  } else if (method === 'diag.changed') {
+    const fileId = String(p.fileId);
+    if (!files.get(fileId)) return;
+    diags.set(fileId, (p as unknown as DiagList).messages);
+    if (files.active()?.fileId === fileId) { renderMessages(); renderStatus(); }
   } else if (method === 'engine.log') {
     // The engine's log is English, for developers: the window says what it means
     // from sim.state (an oscillation) and from the answers; the log goes to the console only.
