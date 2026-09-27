@@ -15,7 +15,7 @@
 | 자리 | 하는 일 |
 | --- | --- |
 | 왼쪽 위 검색 칸 | 부품 이름(`mux 32`, `register`)이나 명령을 치면 아래 목록이 걸러집니다. Ctrl+K |
-| 왼쪽 부품 목록 | 회로와 라이브러리. 부품을 고르고 캔버스를 누르면 놓입니다. **Hallym MIPS**는 새 파일에서도 늘 목록에 있고(처음엔 흐리게 "(아직 파일에 없음)"), Instruction Memory, Data Memory, Stack, Console이 들어 있습니다. 첫 부품을 놓는 순간 파일에 추가됩니다 |
+| 왼쪽 부품 목록 | 회로와 라이브러리. 부품을 고르고 캔버스를 누르면 놓입니다. **Hallym MIPS**는 새 파일에서도 늘 목록에 있고(처음엔 흐리게 "(아직 파일에 없음)"), Instruction Memory, Data Memory(데이터와 스택을 함께 맡음), Console이 들어 있습니다. 맨 끝의 Stack (old circuits)은 예전 회로용입니다. 첫 부품을 놓는 순간 파일에 추가됩니다 |
 | 도구 모음 | Edit(고르기·옮기기), Poke(값 바꾸기), Wire, Text, Pin, Tunnel, Probe, Signal Flow / Run, 1 Cycle, N Cycles, Reset, 클럭 속도, Load .s |
 | 가운데 캔버스 | 회로. Ctrl+휠 확대·축소, Ctrl+0 전체 맞춤, Ctrl+1 100%, 스페이스+끌기 이동, 오른쪽 클릭으로 그 자리의 명령 |
 | 오른쪽 Attributes | 고른 부품의 속성(Data Bits, Facing, Label…). 값을 두 번 누르면 바로 고칩니다. 부품을 놓으면 뜨는 작은 창(Quick Attributes)으로도 고칩니다 |

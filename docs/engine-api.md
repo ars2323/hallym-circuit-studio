@@ -111,7 +111,18 @@ Component = {
 - 넷은 원조 연결 계산으로 묶은 선과 그 선의 끝·선 위에 닿은 포트, 선 없이 한 점에 닿은 포트들이다. 같은 이름의 터널은 한 넷이다(스플리터는 넷을 잇지 않는다). 모든 포트와 선은 정확히 한 넷에 든다.
 - `junctions`: 선 끝 가운데 선·포트가 셋 이상 만나는 점(원조가 점을 그리는 조건).
 - `subcircuit`: 이 파일의 회로면 `lib`이 `null`이다. .circ 라이브러리의 회로 인스턴스는 `lib`이 그 라이브러리 이름이고 `subcircuit`이 그 회로를 가리킨다. 라이브러리 회로도 `model.circuit`·`sim.watch`로 볼 수 있지만 편집은 오류 3(`cannotModify`)이다.
-- `model.library`: 첫 항목은 이 파일의 회로들(`lib:null`, 도구마다 `circuitId`), 그다음 파일의 라이브러리 순서다. 부품 도구(AddTool)만 싣는다(Poke·Edit·Wiring·Text·Menu 도구는 화면의 몫). `pending:true`인 라이브러리(번들 Hallym MIPS)는 아직 파일에 들어가지 않았고, 그 부품을 처음 놓는 편집에서 파일에 들어간다(되돌리면 빠진다, V-01·D-096). 라이브러리 목록이 바뀐 것은 따로 알리지 않으므로, 그런 편집 뒤에는 화면이 `model.library`를 다시 묻는다.
+- `model.library`: 첫 항목은 이 파일의 회로들(`lib:null`, 도구마다 `circuitId`), 그다음 파일의 라이브러리 순서다. 부품 도구(AddTool)만 싣는다(Poke·Edit·Wiring·Text·Menu 도구는 화면의 몫). 옛 파일을 위해서만 남긴 부품(Hallym MIPS의 `Stack`, D-140)은 새로 놓는 목록이라 싣지 않는다. 파일 안의 그 부품은 `model.circuit`에 전처럼 온다(`lib`은 MIPS 라이브러리). `pending:true`인 라이브러리(번들 Hallym MIPS)는 아직 파일에 들어가지 않았고, 그 부품을 처음 놓는 편집에서 파일에 들어간다(되돌리면 빠진다, V-01·D-096). 라이브러리 목록이 바뀐 것은 따로 알리지 않으므로, 그런 편집 뒤에는 화면이 `model.library`를 다시 묻는다.
+
+### mips
+
+| 메서드 | params | result |
+| --- | --- | --- |
+| `mips.facts` | `{fileId}` | `{facts:[{id, en, ko, components:[componentId]}]}` |
+
+- `mips.facts`: 파일의 MIPS **사실**(D-140). 진단(Messages)이 아니다: 회로는 동작하고, 도구가 바뀐 사실만 상태 표시줄에 한 줄로 보인다(화면은 N-16/N-17). 문장은 영어(`en`)·한국어(`ko`) 두 벌이고 화면이 언어 설정에 맞춰 고른다. 지금 사실은 하나다.
+  - `separateStack`: 파일에 따로 된 옛 Stack 부품이 있다. `ko` = "이 회로는 따로 된 Stack 부품을 씁니다. 새 Data Memory는 스택 영역을 함께 맡습니다.", `components` = 파일 안의 Stack 부품들(모든 회로). 옛 Stack은 전과 똑같이 동작하므로 고치라고 하지 않는다.
+- 사실은 파일 내용에서 나오므로 편집(부품을 지우거나 놓음) 뒤에는 화면이 다시 묻는다.
+- **Memory 표(N-14가 메서드로 싣는다):** 엔진의 `MemoryTable`이 Hallym MIPS Data 탭 같은 한 표를 만든다. 줄은 `{kind:"section"|"words"|"zeros", section:"data"|"stack", part, addr, end}`(주소는 `"0x10010000"` 꼴 글자)에 `words`(칸 네 개 +0·+4·+8·+C, 구간 밖 `null`, 정해지지 않은 칸 `"xxxxxxxx"`), `zeros`의 `count`, `labels:[{addr, names}]`, `pointers:{"$sp": addr}`, 스택 `section`의 `base`·`depth`·`peak`가 붙는다. 데이터 구간은 `0x10010000`부터(그 아래에 값이 있으면 그 줄부터) 영역 끝까지, 스택 구간은 스택 영역 맨 위에서 아래로(높은 주소가 위) 지금 `$sp`·최고 수위·깊이 기준 가운데 가장 낮은 줄까지다. 0이 이어지는 줄들은 한 줄이고, 포인터가 가리키는 줄은 줄이지 않는다. 합친 Data Memory는 두 구간, 옛 구조(스택 영역 없는 Data Memory + Stack)는 부품마다 한 구간이다.
 
 ### edit(의도)
 
@@ -193,4 +204,4 @@ Component = {
 
 ## 6. 확장
 
-진단(Messages), E/X 출처, 영향 경로, Signal Flow, 기록(사이클 표, Registers·Memory·Instruction), MIPS(.hmx·.s 불러오기, 디스어셈블, Console)는 각 N 항목에서 이 문서에 절을 더하며 늘린다. 메서드 이름은 `diag.*`, `trace.*`, `record.*`, `mips.*`로 묶는다.
+진단(Messages), E/X 출처, 영향 경로, Signal Flow, 기록(사이클 표, Registers·Memory·Instruction), MIPS(.hmx·.s 불러오기, 디스어셈블, Console)는 각 N 항목에서 이 문서에 절을 더하며 늘린다. 메서드 이름은 `diag.*`, `trace.*`, `record.*`, `mips.*`로 묶는다(`mips.facts`는 5절에 있다).
