@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { APP_GUID } from '../../tools/package-config.ts';
-import { allowedByInstall, counts, diffStates, leftAfterUninstall, parseRegQuery, unexpected, type Change, type State } from '../../tools/windows/state.ts';
+import { allowedByInstall, counts, diffStates, notOurs, parseRegQuery, unexpected, type Change, type State } from '../../tools/windows/state.ts';
 
 const state = (p: Partial<State>): State => ({ files: {}, temp: {}, registry: {}, taken: '', ...p });
 const UNINSTALL = `HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${APP_GUID}`;
@@ -98,9 +98,34 @@ test('after an uninstall nothing is left but Windows\' own empty containers (an 
     files: { 'LOCALAPPDATA\\Programs': 'dir' },
     registry: { 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall': 'key', 'HKCU\\Software\\Microsoft\\Installer': 'key', 'HKCU\\Software\\Microsoft\\Installer\\Products': 'key' },
   });
-  assert.deepEqual(leftAfterUninstall(diffStates(before, after)), []);
+  assert.deepEqual(unexpected(diffStates(before, after), 'uninstalled'), []);
   const product = state({ registry: { 'HKCU\\Software\\Microsoft\\Installer\\Products\\7DCAC541': 'key', 'HKCU\\Software\\Microsoft\\Installer\\Products\\7DCAC541 :: ProductName': 'REG_SZ HallymCircuitStudio' } });
-  assert.deepEqual(leftAfterUninstall(diffStates(before, product)).map((c) => c.path), ['HKCU\\Software\\Microsoft\\Installer\\Products\\7DCAC541 :: ProductName']);
+  assert.deepEqual(unexpected(diffStates(before, product), 'uninstalled').map((c) => c.path), ['HKCU\\Software\\Microsoft\\Installer\\Products\\7DCAC541 :: ProductName']);
   // A file left in the programs folder, or the folder when it is not a folder, counts.
-  assert.equal(leftAfterUninstall(diffStates(before, state({ files: { 'LOCALAPPDATA\\Programs\\Hallym Circuit Studio\\x.dll': '1 1' } }))).length, 1);
+  assert.equal(unexpected(diffStates(before, state({ files: { 'LOCALAPPDATA\\Programs\\Hallym Circuit Studio\\x.dll': '1 1' } })), 'uninstalled').length, 1);
+});
+
+test('what Windows and the test tools write whatever runs (seen on the CI runner) is not the program\'s; while installing, the shell\'s jump lists too', () => {
+  const seen: [string, string][] = [
+    ['LOCALAPPDATA\\Microsoft\\Windows\\UsrClass.dat.LOG2', 'the registry hive\'s own files'],
+    ['LOCALAPPDATA\\Microsoft\\PowerShell\\StartupProfileData-NonInteractive', 'PowerShell\'s startup cache'],
+    ['LOCALAPPDATA\\Microsoft\\Windows\\PowerShell\\StartupProfileData-NonInteractive', 'PowerShell\'s startup cache'],
+    ['LOCALAPPDATA\\Packages\\Microsoft.Windows.Search_cw5n1h2txyewy\\LocalState\\AppIconCache\\100\\Chrome', 'Store apps\' data (Windows Search)'],
+    ['LOCALAPPDATA\\Microsoft\\Windows\\Caches\\{3DA71D5A-20CC-432F-A115-DFE92379E91F}.3.ver0x0000000000000005.db', 'the shell\'s caches'],
+    ['APPDATA\\Microsoft\\Windows\\Themes\\CachedFiles\\CachedImage_1920_1080_POS4.jpg', 'the desktop wallpaper\'s cache'],
+  ];
+  for (const [p, why] of seen) {
+    for (const expect of ['none', 'install', 'uninstalled'] as const) assert.equal(notOurs({ where: 'files', what: 'changed', path: p }, expect), why, `${p} (${expect})`);
+  }
+  const policy: Change = { where: 'registry', what: 'added', path: 'HKCU\\Software\\Policies\\Microsoft\\SystemCertificates\\TrustedPublisher\\CRLs', after: 'key' };
+  assert.equal(notOurs(policy), 'Windows\' own empty container');
+  assert.equal(notOurs({ ...policy, path: `${policy.path} :: Blob`, after: 'REG_BINARY 00' }), null);
+  const jump: Change = { where: 'files', what: 'added', path: 'APPDATA\\Microsoft\\Windows\\Recent\\AutomaticDestinations\\73d6a8f0346f297b.automaticDestinations-ms', after: '2560 1' };
+  assert.equal(counts(jump, 'none'), true);           // a run of the program: recent items count (the lab-PC rule)
+  assert.equal(counts(jump, 'install'), false);
+  // Anything else under %APPDATA% or %LOCALAPPDATA% counts, a program's own folder above all.
+  for (const p of ['APPDATA\\Hallym Circuit Studio\\Preferences', 'LOCALAPPDATA\\hallym-circuit-studio-updater\\installer.exe', 'LOCALAPPDATA\\Microsoft\\Windows\\INetCache\\x',
+    'APPDATA\\Microsoft\\Windows\\Recent\\demo-datapath.circ.lnk']) {
+    assert.equal(notOurs({ where: 'files', what: 'added', path: p, after: '1 1' }, 'none'), null, p);
+  }
 });

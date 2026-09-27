@@ -19,7 +19,7 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, writeFileSync } from 
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { describe, diffStates, snapshot, unexpected, type State } from '../../tools/windows/state.ts';
+import { describe, diffStates, notOurs, snapshot, unexpected, type State } from '../../tools/windows/state.ts';
 import { alive, enginePid } from './model.ts';
 
 const exe = process.env.HCS_E2E_EXE;
@@ -61,8 +61,10 @@ async function quit(app: ElectronApplication): Promise<void> {
 }
 
 // The executable a process runs (wmic: read-only, and PowerShell would write its own profile data).
+// wmic writes UTF-16 to a pipe on some Windows versions, the OEM code page on others.
 function imagePath(pid: number): string {
-  const out = execFileSync('wmic.exe', ['process', 'where', `ProcessId=${pid}`, 'get', 'ExecutablePath', '/value'], { encoding: 'utf8', windowsHide: true });
+  const raw = execFileSync('wmic.exe', ['process', 'where', `ProcessId=${pid}`, 'get', 'ExecutablePath', '/value'], { windowsHide: true });
+  const out = raw.includes(0) ? raw.toString('utf16le') : raw.toString('latin1');
   return /ExecutablePath=(.*)/.exec(out)?.[1]?.trim() ?? '';
 }
 
@@ -72,7 +74,7 @@ function nothingLeft(before: State, what: string): void {
   const bad = unexpected(changes, 'none');
   mkdirSync(report, { recursive: true });
   writeFileSync(path.join(report, `state-${what}.txt`), [`${what}: ${changes.length} difference(s), ${bad.length} not allowed`,
-    ...changes.map((c) => `${bad.includes(c) ? 'FAIL' : 'info'}  ${describe(c)}`)].join('\n') + '\n');
+    ...changes.map((c) => (bad.includes(c) ? `FAIL  ${describe(c)}` : `info  ${describe(c)}  -- ${notOurs(c)}`))].join('\n') + '\n');
   expect(bad.map(describe), `${what}: left on the PC (report/state-${what}.txt)`).toEqual([]);
 }
 

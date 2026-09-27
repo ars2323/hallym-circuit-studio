@@ -313,7 +313,11 @@ export const MUTANTS: Mutant[] = [
     find: "return Number(version.split('.')[0]) >= 2;", replace: "return Number(version.split('.')[0]) >= 1;", tests: ['tests/unit/release-assets.test.ts'] },
   // ---- what a run or an install may leave on Windows (tools/windows/state.ts; N-23)
   { module: 'state', file: 'tools/windows/state.ts', what: 'the program\'s folder in %TEMP% not counted',
-    find: "(c.where !== 'temp' || OUR_TEMP.test(", replace: "(c.where !== 'temp' || false && OUR_TEMP.test(", tests: ['tests/unit/state.test.ts'] },
+    find: "if (c.where === 'temp' && !OUR_TEMP.test(", replace: "if (c.where === 'temp' && !!OUR_TEMP.test(", tests: ['tests/unit/state.test.ts'] },
+  { module: 'state', file: 'tools/windows/state.ts', what: 'a run\'s recent items taken for the shell\'s',
+    find: "expect === 'none' ? WINDOWS_OWN :", replace: "false ? WINDOWS_OWN :", tests: ['tests/unit/state.test.ts'] },
+  { module: 'state', file: 'tools/windows/state.ts', what: 'all of %LOCALAPPDATA% taken for Windows\'',
+    find: "[/^LOCALAPPDATA\\\\Packages\\\\/i,", replace: "[/^LOCALAPPDATA\\\\/i,", tests: ['tests/unit/state.test.ts'] },
   { module: 'state', file: 'tools/windows/state.ts', what: 'an install may add any registry key',
     find: 'return UNINSTALL_ENTRY.test(c.path) || INSTALL_RECORD.test(c.path);', replace: 'return true;', tests: ['tests/unit/state.test.ts'] },
   { module: 'state', file: 'tools/windows/state.ts', what: 'a Windows Installer product\'s values taken for an empty container',

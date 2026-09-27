@@ -26,9 +26,13 @@
                       shortcut, the uninstall entry and its install record
                       (HKCU\Software\<guid>)
    --expect uninstalled  nothing left
-   Everywhere Windows' own containers may appear empty and are not counted:
-   %LOCALAPPDATA%\Programs, the per-user Uninstall key, Windows Installer's
-   per-user keys without values. */
+   Everywhere Windows' own is not counted (notOurs(), reported as "info"):
+   the empty containers Windows makes (%LOCALAPPDATA%\Programs, the per-user
+   Uninstall key, Windows Installer's and the crypto API's keys without
+   values) and what Windows and the test tools write whatever runs
+   (WINDOWS_OWN: the registry hive's files, PowerShell's startup cache, Store
+   apps' data, the shell's caches; while installing also the shell's jump
+   lists).  Links are recorded as links, not followed. */
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
@@ -72,17 +76,47 @@ export function diffStates(a: State, b: State): Change[] {
 
 // Windows' own containers, which appear empty once anything is installed per user and stay:
 // the per-user programs folder, the per-user uninstall key, Windows Installer's per-user keys
-// (an MSI install and uninstall leaves their parents; a product's own keys have values).
+// (an MSI install and uninstall leaves their parents; a product's own keys have values), and the
+// crypto API's per-user policy stores (created empty when Windows checks a file's signature).
 const PER_USER_PROGRAMS = /^LOCALAPPDATA\\Programs$/i;
 export const windowsContainer = (c: Change): boolean => c.what === 'added' && (
   (c.where === 'files' && PER_USER_PROGRAMS.test(c.path) && c.after === 'dir') ||
   (c.where === 'registry' && c.after === 'key' &&
-    /^HKCU\\Software\\Microsoft\\(Windows\\CurrentVersion\\Uninstall|Installer(\\[^\\]+)*)$/i.test(c.path)));
+    /^HKCU\\Software\\(Microsoft\\(Windows\\CurrentVersion\\Uninstall|Installer(\\[^\\]+)*)|Policies\\Microsoft\\SystemCertificates(\\[^\\]+)*)$/i.test(c.path)));
 
-// What counts: in %TEMP% only this program's names (the test tools and Windows use it all the
-// time); nowhere Windows' own containers.
-export const counts = (c: Change): boolean =>
-  (c.where !== 'temp' || OUR_TEMP.test(c.path.split(/[\\/]/)[1] ?? '')) && !windowsContainer(c);
+/* What Windows and the test tools write whatever runs, seen on the CI runner
+   (D-148): not the program's, and not a place a desktop program writes.
+     the registry hive's own files     UsrClass.dat* (the registry is compared key by key)
+     PowerShell's startup cache        the check script is PowerShell, and electron-builder's
+                                       installer asks PowerShell whether the program is running
+     Store apps' data (Packages)       Windows Search re-indexes the Start menu's programs
+     the shell's caches                icons, the desktop wallpaper at a new screen size */
+export const WINDOWS_OWN: [RegExp, string][] = [
+  [/^LOCALAPPDATA\\Microsoft\\Windows\\UsrClass\.dat/i, 'the registry hive\'s own files'],
+  [/^LOCALAPPDATA\\Microsoft\\(Windows\\)?PowerShell\\/i, 'PowerShell\'s startup cache'],
+  [/^LOCALAPPDATA\\Packages\\/i, 'Store apps\' data (Windows Search)'],
+  [/^LOCALAPPDATA\\Microsoft\\Windows\\Caches\\/i, 'the shell\'s caches'],
+  [/^APPDATA\\Microsoft\\Windows\\Themes\\/i, 'the desktop wallpaper\'s cache'],
+];
+// And while installing: the shell's jump lists record the installers it saw start (msiexec, the setup exe).
+export const INSTALLING_OWN: [RegExp, string][] = [
+  [/^APPDATA\\Microsoft\\Windows\\Recent\\AutomaticDestinations\\/i, 'the shell\'s jump lists (the installers started)'],
+];
+
+export type Expect = 'none' | 'install' | 'uninstalled';
+
+// Why a change is not the program's, or null when it counts.
+export function notOurs(c: Change, expect: Expect = 'none'): string | null {
+  if (c.where === 'temp' && !OUR_TEMP.test(c.path.split(/[\\/]/)[1] ?? '')) return 'the temp folder (the test tools\' and Windows\')';
+  if (windowsContainer(c)) return 'Windows\' own empty container';
+  if (c.where === 'files') {
+    for (const [re, why] of expect === 'none' ? WINDOWS_OWN : [...WINDOWS_OWN, ...INSTALLING_OWN]) if (re.test(c.path)) return why;
+  }
+  return null;
+}
+
+// What counts: in %TEMP% only this program's names; nowhere Windows' own.
+export const counts = (c: Change, expect: Expect = 'none'): boolean => notOurs(c, expect) === null;
 
 const exactly = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const START_MENU_SHORTCUT = new RegExp(`^APPDATA\\\\Microsoft\\\\Windows\\\\Start Menu\\\\Programs\\\\${exactly(PRODUCT_NAME)}\\.lnk$`, 'i');
@@ -97,15 +131,9 @@ export function allowedByInstall(c: Change): boolean {
   return false;
 }
 
-export type Expect = 'none' | 'install';
-
+// The changes that are not allowed: none for a run, the installer's own for an install, none left after an uninstall.
 export function unexpected(changes: Change[], expect: Expect): Change[] {
-  return changes.filter(counts).filter((c) => !(expect === 'install' && allowedByInstall(c)));
-}
-
-// After an uninstall: nothing left (but Windows' own containers).
-export function leftAfterUninstall(changes: Change[]): Change[] {
-  return changes.filter(counts);
+  return changes.filter((c) => counts(c, expect)).filter((c) => !(expect === 'install' && allowedByInstall(c)));
 }
 
 export const describe = (c: Change): string =>
@@ -175,7 +203,10 @@ function walk(root: string, name: string, into: Record<string, string>, skip: (f
       const full = path.join(dir, e.name);
       if (skip(full)) continue;
       const rel = `${name}\\${path.relative(root, full)}`;
-      if (e.isDirectory()) {
+      // A junction or link (LOCALAPPDATA\Application Data -> LOCALAPPDATA): itself, not what it points to.
+      if (e.isSymbolicLink()) {
+        into[rel] = 'link';
+      } else if (e.isDirectory()) {
         into[rel] = 'dir';
         stack.push(full);
       } else {
@@ -227,12 +258,12 @@ function main(argv: string[]): number {
     const a = JSON.parse(readFileSync(rest[0], 'utf8')) as State;
     const b = JSON.parse(readFileSync(rest[1], 'utf8')) as State;
     const at = rest.indexOf('--expect');
-    const expect = (at >= 0 ? rest[at + 1] : 'none') as Expect | 'uninstalled';
+    const expect = (at >= 0 ? rest[at + 1] : 'none') as Expect;
     const all = diffStates(a, b);
-    const bad = expect === 'uninstalled' ? leftAfterUninstall(all) : unexpected(all, expect);
+    const bad = unexpected(all, expect);
     const lines = [
       `${rest[0]} -> ${rest[1]} (expect ${expect}): ${all.length} difference(s), ${bad.length} not allowed`,
-      ...all.map((c) => `${bad.includes(c) ? 'FAIL ' : counts(c) ? 'ok   ' : 'info '} ${describe(c)}`),
+      ...all.map((c) => (bad.includes(c) ? `FAIL  ${describe(c)}` : notOurs(c, expect) ? `info  ${describe(c)}  -- ${notOurs(c, expect)}` : `ok    ${describe(c)}`)),
     ];
     console.log(lines.join('\n'));
     const r = rest.indexOf('--report');

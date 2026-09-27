@@ -61,8 +61,15 @@ function Ours { @(Entries | Where-Object { $_.PSChildName -eq $guid }) }
 function Folders { @(Get-ChildItem (Join-Path $env:LOCALAPPDATA 'Programs'), $env:LOCALAPPDATA -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -like '*allym*' } | ForEach-Object { $_.FullName }) }
 function Shortcuts { @(@($startMenu) + $desktops + @(Join-Path $env:ProgramData 'Microsoft\Windows\Start Menu\Programs') | ForEach-Object { Get-ChildItem $_ -Recurse -Filter '*.lnk' -ErrorAction SilentlyContinue } | Where-Object { $_.FullName -like '*allym*' } | ForEach-Object { $_.FullName }) }
 function V1Products { $i = New-Object -ComObject WindowsInstaller.Installer; @($i.RelatedProducts($v1UpgradeCode)) }
+# Windows Installer's own entries for Settings > Apps (per-user products: under the user's SID).
+function V1Entries {
+  @(Get-ChildItem 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData' -ErrorAction SilentlyContinue |
+    ForEach-Object { Get-ChildItem (Join-Path $_.PSPath 'Products') -ErrorAction SilentlyContinue } |
+    ForEach-Object { Get-ItemProperty (Join-Path $_.PSPath 'InstallProperties') -ErrorAction SilentlyContinue } |
+    Where-Object { $_.DisplayName -eq 'HallymCircuitStudio' })
+}
 function Snap([string]$name) { & node tools/windows/state.ts snapshot (Join-Path $Report "state-$name.json") | Out-Host }
-function Diff([string]$a, [string]$b, [string]$expect, [string]$what) {
+function StateDiff([string]$a, [string]$b, [string]$expect, [string]$what) {
   & node tools/windows/state.ts diff (Join-Path $Report "state-$a.json") (Join-Path $Report "state-$b.json") --expect $expect --report (Join-Path $Report "diff-$b.txt") | Out-Host
   Check ($LASTEXITCODE -eq 0) "$what (state $a -> $b, expect ${expect}: $Report\diff-$b.txt)"
 }
@@ -125,7 +132,7 @@ try {
     Check ((Split-Path -Leaf $Setup) -eq "HallymCircuitStudio-$Version-win-x64-setup.exe") "the installer's name: $(Split-Path -Leaf $Setup)"
     $ms = Install $Setup 'install'
     Snap 'installed'
-    Diff 'before' 'installed' 'install' 'the installer wrote only the Start menu shortcut and the uninstall entry (and the install folder)'
+    StateDiff 'before' 'installed' 'install' 'the installer wrote only the Start menu shortcut and the uninstall entry (and the install folder)'
     OneOfEach 'installed' $Version
     $entry = (Ours)[0]
     Note "entry: $($entry.DisplayName) $($entry.DisplayVersion), publisher $($entry.Publisher), uninstall $($entry.UninstallString)"
@@ -164,14 +171,14 @@ try {
     $null = Install $Setup 'install again'
     OneOfEach 'again' $Version
     Snap 'again'
-    Diff 'before' 'again' 'install' 'installed twice: still only the shortcut and the entry'
+    StateDiff 'before' 'again' 'install' 'installed twice: still only the shortcut and the entry'
   }
 
   if ($Phase -eq 'uninstall') {
     Write-Host '== uninstall'
     Uninstall 'uninstalled'
     Snap 'uninstalled'
-    Diff 'before' 'uninstalled' 'uninstalled' 'nothing left after uninstall'
+    StateDiff 'before' 'uninstalled' 'uninstalled' 'nothing left after uninstall'
     $s = State 'uninstalled'
     Check ($s.entries.Count -eq 0 -and $s.folders.Count -eq 0 -and $s.shortcuts.Count -eq 0) 'no entry, folder or shortcut of ours'
   }
@@ -186,10 +193,10 @@ try {
     $null = Install $Setup "install $Version over $OlderVersion"
     OneOfEach 'over' $Version
     Snap 'over'
-    Diff 'before-over' 'over' 'install' "$Version over $OlderVersion`: only the shortcut and the entry"
+    StateDiff 'before-over' 'over' 'install' "$Version over $OlderVersion`: only the shortcut and the entry"
     Uninstall 'over-uninstalled'
     Snap 'over-uninstalled'
-    Diff 'before-over' 'over-uninstalled' 'uninstalled' 'nothing left after uninstall'
+    StateDiff 'before-over' 'over-uninstalled' 'uninstalled' 'nothing left after uninstall'
   }
 
   if ($Phase -eq 'msi') {
@@ -200,11 +207,15 @@ try {
     $p = Start-Process msiexec.exe -ArgumentList "/i `"$((Resolve-Path $Msi).Path)`" /qn /norestart" -Wait -PassThru
     Check ($p.ExitCode -eq 0) "the v1.0.x MSI installed quietly (msiexec exit $($p.ExitCode))"
     $s1 = State 'msi'
-    $old = @($s1.entries | Where-Object { $_.DisplayName -eq 'HallymCircuitStudio' })
-    Check ($old.Count -eq 1 -and $old[0].WindowsInstaller -eq 1) "its uninstall entry: HallymCircuitStudio $($old[0].DisplayVersion), $($old[0].PSChildName) (Windows Installer)"
+    # A per-user MSI's entry in Settings > Apps is Windows Installer's own (not under HKCU\...\Uninstall).
     $codes = @(V1Products)
-    Note "installed products of the 1.0.x UpgradeCode: $($codes -join ', ')"
-    Check ($codes.Count -eq 1 -and $codes[0] -eq $old[0].PSChildName) "found by the UpgradeCode $v1UpgradeCode, as the installer looks for it"
+    $wi = New-Object -ComObject WindowsInstaller.Installer
+    $info = @($codes | ForEach-Object { "$_ $($wi.ProductInfo($_, 'ProductName')) $($wi.ProductInfo($_, 'VersionString')), assignment $($wi.ProductInfo($_, 'AssignmentType'))" })
+    Note "installed products of the 1.0.x UpgradeCode ${v1UpgradeCode}: $($info -join '; ')"
+    Check ($codes.Count -eq 1 -and $wi.ProductInfo($codes[0], 'ProductName') -eq 'HallymCircuitStudio') "the 1.0.x MSI is installed and found by its UpgradeCode, as the installer looks for it"
+    Check ($codes.Count -eq 1 -and $wi.ProductInfo($codes[0], 'AssignmentType') -eq '0') 'installed for this user (as 1.0.x installed itself)'
+    $arp = @(V1Entries)
+    Note "its entry in Settings > Apps: $(($arp | ForEach-Object { "$($_.DisplayName) $($_.DisplayVersion)" }) -join '; ')"
     $oldExe = @(Get-ChildItem $env:LOCALAPPDATA, $env:ProgramFiles -Recurse -Depth 3 -Filter 'HallymCircuitStudio.exe' -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
     Note "1.0.x program: $($oldExe -join '; ')"
     Check ($oldExe.Count -ge 1 -and $s1.shortcuts.Count -ge 1) "1.0.x installed, with its shortcuts ($($s1.shortcuts -join '; '))"
@@ -212,11 +223,11 @@ try {
     $ms = Install $Setup 'the setup exe over the 1.0.x MSI'
     OneOfEach 'after' $Version
     Check ((V1Products).Count -eq 0) 'no product of the 1.0.x UpgradeCode left (Windows Installer)'
-    Check (@(Entries | Where-Object { $_.DisplayName -eq 'HallymCircuitStudio' }).Count -eq 0) 'the 1.0.x uninstall entry is gone'
+    Check (@(V1Entries).Count -eq 0) 'the 1.0.x entry in Settings > Apps is gone'
     foreach ($e in $oldExe) { Check (-not (Test-Path $e)) "the 1.0.x program is gone: $e" }
     foreach ($l in $s1.shortcuts) { if ($l -ne $shortcut) { Check (-not (Test-Path $l)) "the 1.0.x shortcut is gone: $l" } }
     Snap 'after'
-    Diff 'before' 'after' 'install' 'from before the MSI to after the setup exe: only the new shortcut and entry (the MSI left nothing)'
+    StateDiff 'before' 'after' 'install' 'from before the MSI to after the setup exe: only the new shortcut and entry (the MSI left nothing)'
     Set-Content (Join-Path $Report 'installed.txt') $exe
   }
 } finally {

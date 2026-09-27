@@ -36,6 +36,7 @@
 ; ones put one after it, and some have none, falling back to English).
 ; customHeader comes after electron-builder's messages, so these are the
 ; ones used (NSIS warns that a LangString is set twice: allowed here only).
+; uninstallFailed is shown followed by ": <exit code>".
 !macro customHeader
   !pragma warning push
   !pragma warning disable 6030
