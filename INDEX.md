@@ -2,6 +2,12 @@
 
 최신 보고가 맨 위다. 규칙은 main 브랜치 `docs/SCREENSHOTS.md`.
 
+## 2026-09-27 v1.0.3 패치(Y-01~Y-05 전후, 기준 창 크기 6가지, 첫 실행, 최종 세트, windows-smoke)
+
+- 기준: main `c628668` (v1.0.3)
+- 관련 이슈: #319~#324, #333, #336, #338, #339 (마일스톤 v1.0.3)
+- 폴더: https://raw.githubusercontent.com/ars2323/hallym-circuit-studio/review-shots/2026-09-27-v103/README.md
+
 ## 2026-09-27 v1.0.2 패치(X-01~X-05 전후, 최종 세트, windows-smoke)
 
 - 기준: main `7aa51a9` (v1.0.2)
