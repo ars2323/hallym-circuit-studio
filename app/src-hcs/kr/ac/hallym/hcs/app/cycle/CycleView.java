@@ -1037,11 +1037,18 @@ public final class CycleView {
                 g.setFont(new Font(Tokens.UI_FONT, Font.PLAIN, Tokens.FONT_SMALL));
                 // 열 경계선이 글자 위를 지나지 않게 바탕을 깐다(C-05 검토)
                 FontMetrics hf = g.getFontMetrics();
-                String hint = Messages.get("cycle.noRowsHint");
+                // 좁은 표에서는 줄을 바꿔 다 보인다(Y-02 검토: "Add"에서 잘렸다)
+                List<String> lines = wrap(hf, Messages.get("cycle.noRowsHint"), Math.max(60, vis.width - 16));
+                int w = 0;
+                for (String l : lines) {
+                    w = Math.max(w, hf.stringWidth(l));
+                }
                 g.setColor(Tokens.WHITE);
-                g.fillRect(vis.x + 4, 0, hf.stringWidth(hint) + 8, ROW_H);
+                g.fillRect(vis.x + 4, 0, w + 8, ROW_H * lines.size());
                 g.setColor(Tokens.TEXT_2);
-                g.drawString(hint, vis.x + 8, (ROW_H + hf.getAscent() - hf.getDescent()) / 2);
+                for (int i = 0; i < lines.size(); i++) {
+                    g.drawString(lines.get(i), vis.x + 8, i * ROW_H + (ROW_H + hf.getAscent() - hf.getDescent()) / 2);
+                }
                 return;
             }
             int c0 = Math.max(m.firstCycle(), m.firstCycle() + clip.x / COL_W);
@@ -1290,6 +1297,25 @@ public final class CycleView {
         {
             setToolTipText(Messages.get("cycle.rowTip"));
         }
+    }
+
+    /** 글을 낱말 단위로 width 안에 들어가게 나눈다(빈 표의 안내). */
+    static List<String> wrap(FontMetrics fm, String text, int width) {
+        List<String> out = new ArrayList<>();
+        StringBuilder line = new StringBuilder();
+        for (String word : text.split(" ")) {
+            String next = line.length() == 0 ? word : line + " " + word;
+            if (line.length() > 0 && fm.stringWidth(next) > width) {
+                out.add(line.toString());
+                line = new StringBuilder(word);
+            } else {
+                line = new StringBuilder(next);
+            }
+        }
+        if (line.length() > 0) {
+            out.add(line.toString());
+        }
+        return out;
     }
 
     /** 왼쪽 위: 머리 줄 이름. */
