@@ -302,8 +302,9 @@ public final class Engine {
     private void registerSim() {
         server.register("sim.reset", (p, call) -> {
             SimSession s = session(p);
-            s.reset();
-            call.after(() -> s.sendState(true));
+            if (s.reset()) {
+                call.after(() -> s.sendState(true));
+            }
             return new JsonObject();
         });
         server.register("sim.poke", (p, call) -> {

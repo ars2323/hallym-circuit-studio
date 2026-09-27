@@ -117,6 +117,32 @@ class SimTest {
     }
 
     @Test
+    void resetDuringCyclesWaitsForTheTicksInFlight() throws Exception {
+        open(Fixtures.counter(tmp));
+        JsonObject s = snapshot();
+        String counter = Fixtures.byName(s.getAsJsonArray("components"), "Counter").get(0).get("id").getAsString();
+        String q = Fixtures.netOf(s.getAsJsonArray("nets"), counter, 0);
+        e.client.call("sim.watch", params("fileId", fileId, "circuitId", main));
+        e.client.call("sim.cycles", params("fileId", fileId, "n", 1000));
+        e.client.awaitNotification("sim.values", v -> v.getAsJsonObject("nets").has(q)
+                && !v.getAsJsonObject("nets").get(q).getAsString().equals("00000000"));
+        int mark = e.client.mark();
+        e.client.call("sim.reset", params("fileId", fileId));
+        awaitCycle(mark, 0);
+        awaitValue(mark, main, q, "00000000");
+        Thread.sleep(400);
+        boolean reset = false;
+        for (JsonObject st : e.client.notificationsAfter(mark, "sim.state")) {
+            reset |= st.get("cycle").getAsLong() == 0; // 앞의 것은 처리 중이던 틱(8개 이하)이 끝나는 동안
+            if (reset) {
+                assertEquals(0, st.get("cycle").getAsLong(), "no tick runs after the reset: " + st);
+            }
+        }
+        assertEquals("00000000", values(mark, main).get(q));
+        assertEquals(0, (int) e.onEngine(() -> e.engine.sim(fileId).pendingTicks()));
+    }
+
+    @Test
     void onlyChangedNetsAreSentAndBatched() throws Exception {
         open(Fixtures.counter(tmp));
         int mark = e.client.mark();

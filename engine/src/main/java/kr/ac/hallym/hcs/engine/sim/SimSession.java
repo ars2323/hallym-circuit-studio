@@ -128,11 +128,25 @@ public final class SimSession implements SimulatorListener {
         sendState(false);
     }
 
-    /** sim.reset: 원조 Reset Simulation. 사이클 수를 0으로. */
-    public void reset() {
+    /**
+     * sim.reset: 원조 Reset Simulation. 사이클 수를 0으로. N 사이클이 요청해 둔 틱(8개 이하)이 아직 처리 중이면 더
+     * 요청하지 않고, 그 틱이 끝난 뒤에 재설정한다(원조 엔진은 재설정 뒤에도 쌓인 틱을 처리해 재설정 직후 몇 틱이 더
+     * 돌기 때문이다). 곧바로 재설정했으면 true, 미뤘으면 false(그때는 재설정할 때 sim.state를 보낸다).
+     */
+    public boolean reset() {
+        if (pacer != null && !pacer.finished && pacer.pending > 0) {
+            pacer.left = 0;
+            pacer.resetWhenDrained = true;
+            return false;
+        }
         if (pacer != null) {
             pacer.finish(false);
         }
+        resetNow();
+        return true;
+    }
+
+    private void resetNow() {
         sim.requestReset();
         ticks = 0;
         valuesDirty = true;
@@ -413,6 +427,8 @@ public final class SimSession implements SimulatorListener {
         long requested;
         long completed;
         boolean finished;
+        /** 처리 중인 틱이 끝나면 재설정한다(sim.reset이 미룬 것). */
+        boolean resetWhenDrained;
         private ScheduledFuture<?> timer;
 
         Pacer(long tickCount) {
@@ -470,6 +486,11 @@ public final class SimSession implements SimulatorListener {
             finished = true;
             if (timer != null) {
                 timer.cancel(false);
+            }
+            if (resetWhenDrained) {
+                resetNow();
+                sendState(true);
+                return;
             }
             if (report) {
                 if (watchState != null) {
