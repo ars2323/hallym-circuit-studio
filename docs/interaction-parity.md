@@ -1,0 +1,389 @@
+# 조작 동등성 표(v2 편집기, N-08)
+
+v2는 편집 화면을 Electron으로 새로 만든다(D-132). 목표는 "쓰는 법은 전과 거의 같은데 기능이 많아졌다"이다. 그래서 원조 Logisim 2.7.1의 도구와 키·마우스 동작을 줄마다 적고, v1 포크(Swing, `swing-final`)가 더하거나 바꾼 것을 옆에 적는다. v2 편집기는 줄마다 같은 동작을 만들고 e2e(Playwright) 하나를 단다. 기능 목록은 `docs/v1-feature-parity.md`(N-21)이고, 이 문서는 그 기능을 "어떤 입력으로 어떻게" 쓰는지를 맡는다.
+
+## 읽는 법
+
+- **원천:** 원조는 태그 `upstream/logisim-2.7.1`의 `app/src/com/cburch/logisim/`(도구·메뉴·캔버스 코드)와 원조 안내서 `app/doc/en/html/`이다. v1은 `swing-final`(c628668)의 `app/src-hcs/kr/ac/hallym/hcs/app/`과 원조 파일의 `// HCS:` 줄이다(main의 `app/` 조작 코드는 `swing-final`과 같다). 코드가 동작을 정하면 `클래스.메서드`로, 안내서가 말하면 파일로 적는다(안내서 경로는 `app/doc/en/html/` 아래).
+- **열:** 번호 | 도구·상황 | 입력(키·마우스) | 원조 2.7.1 동작 | v1 추가·차이 | v2 할 일 | e2e. e2e는 비워 두고 v2 PR이 테스트 이름을 채운다.
+- **키 표기:** Ctrl은 원조의 "메뉴 단축키 수식"(`Toolkit.getMenuShortcutKeyMask`, macOS는 Cmd)이다. 실습실 PC는 Windows다.
+- **v1 칸:** "같음"은 v1이 원조 동작을 그대로 둔 것이다. **[차이]**는 원조와 v1이 다른 줄이다. **[추가]**는 원조에 없던 v1 동작이다.
+- **v2 할 일 칸의 첫 말:** "원조대로", "v1대로"(v1이 일부러 바꾼 것. 키 충돌, PLAN 11장 명세 등), "v1 추가"(원조에 없음), "정함"(원조·v1에 없거나 둘이 어긋나 이 문서가 새로 정한 것, 근거를 적음). 기본 규칙: v1이 일부러 바꾼 곳은 v1을, 그 밖은 원조를 따른다(D-139).
+- **엔진 쪽:** 편집은 화면이 의도를 보내고 엔진이 Logisim 편집 코드로 한다(`docs/engine-api.md`). 이 표의 "v2 할 일"은 화면 동작이고, 엔진 메서드가 있으면 함께 적는다. 저장 결과가 원조와 같은지는 N-09(편집 동등성)가 따로 본다.
+- **판정 규칙:** 줄의 동작이 v1과 원조 어느 쪽과도 다르면 그 줄의 e2e는 통과할 수 없다. v2에서 바꿔야 할 이유가 생기면 이 표를 먼저 고치고 DECISIONS에 적는다.
+
+## 1. 캔버스 공통
+
+| 번호 | 도구·상황 | 입력(키·마우스) | 원조 2.7.1 동작 | v1 추가·차이 | v2 할 일 | e2e |
+| --- | --- | --- | --- | --- | --- | --- |
+| I-01 | 캔버스 전체 | 마우스 좌표 | 부품 놓기·선 긋기·옮기기는 10 격자에 맞춘다(`Canvas.snapToGrid`; `AddTool.mouseMoved`, `WiringTool.mouseDragged`, `SelectTool.computeDxDy`). 옮기기는 선택에 격자에 붙는 부품이 하나라도 있을 때만 맞춘다(`Selection.shouldSnap`). Label(글자) 부품은 격자에 붙지 않는다(`libs/base/label.html`). 좌표는 배율을 나눈 논리 좌표다(`Canvas.repairMouseEvent`) | 같음(원점 이동 S-10을 빼고 넘김, `Canvas.repairMouseEvent` `// HCS:`) | 원조대로. 화면 px → 논리 좌표 변환 한 곳, 격자 10 |  |
+| I-02 | 캔버스 전체 | 마우스가 캔버스에 들어옴 | 캔버스가 키보드 초점을 가져간다(`EditTool.mouseEntered`, `SelectTool.mouseEntered`, `AddTool.mouseEntered` → `requestFocusInWindow`). 누르면 초점을 가져가고 캔버스 아래 오류 글을 지운다(`Canvas.MyListener.mousePressed`) | 같음 | 원조대로. 단 글 입력 칸(속성 값, 검색창, 라벨 편집)이 편집 중이면 초점을 뺏지 않는다(정함: 브라우저에서는 마우스만 지나가도 입력이 끊기므로) |  |
+| I-03 | 캔버스 전체 | 편집할 수 없는 회로(불러온 라이브러리의 회로)에서 누름 | 캔버스 아래에 "Cannot modify circuit."을 띄우고 바꾸지 않는다(`WiringTool.mousePressed`, `AddTool.mousePressed`, `TextTool.mousePressed`, `SelectTool.mouseReleased`; 메뉴 Delete도 꺼짐 `MenuTool.MenuComponent`) | 같음 | 원조대로(엔진 오류 코드 3, `engine-api.md`) |  |
+| I-04 | 놓기·옮기기 | 다른 부품과 같은 자리에 놓거나 옮김 | "Conflicting component already there."를 띄우고 하지 않는다(`AddTool.mouseReleased` `Circuit.hasConflict`, `SelectTool.mouseReleased` `Selection.hasConflictWhenMoved`) | 같음 | 원조대로 |  |
+| I-05 | 놓기·옮기기 | 음수 좌표 | 놓기는 "Component cannot have negative coordinates."(`AddTool.mouseReleased`). 옮기기는 선택 경계가 0 밑으로 가지 않게 dx·dy를 자른다(`SelectTool.computeDxDy`) | 같음 | 원조대로 |  |
+| I-06 | 서브회로 놓기 | 자기 자신(또는 자신을 쓰는 회로)을 안에 놓음 | "Cannot create circular reference."(`AddTool.mousePressed`, `Dependencies.canAdd`) | 같음. 탭 간 라이브러리도 순환을 막는다(D-065) | 원조대로 |  |
+| I-07 | 마우스 매핑 | 오른쪽 버튼, 가운데 버튼, Ctrl+왼쪽 버튼 | 기본 템플릿(`resources/logisim/default.templ` `<mappings>`)이 Button2·Button3·Ctrl Button1을 Menu Tool에 잇는다. 매핑은 .circ에 저장되고 Project › Options › Mouse에서 바꾼다(`guide/opts/mouse.html`, `Canvas.MyListener.getToolFor`) | **[차이]** 매핑은 그대로 읽지만 앞에서 가로챈다: 가운데 버튼 끌기는 화면 이동(`ZoomController.handlePan`), Ctrl+클릭한 입력 핀·버튼은 조작(`Shortcuts.mouse`, D-035). 나머지 Ctrl+클릭은 원조대로 메뉴 | v1대로. 오른쪽 버튼 = 우클릭 메뉴, 가운데 버튼 = 이동, Ctrl+클릭 = 입력 핀·버튼 조작(그 밖은 메뉴). .circ의 `<mappings>`는 바꾸지 않고 저장한다. 사용자가 더한 다른 조합(예: Shift+Button1 → Wiring Tool)은 원조대로 그 도구로 간다 |  |
+| I-08 | 캔버스 아래 알림 | 편집이 거절됨(I-03~I-06 등) | 캔버스 아래 가운데에 빨간 글 한 줄(`Canvas.setErrorMessage`), 다음 누름에서 지움 | 같음. 따라오는 선 거절 등 v1 알림은 상태 표시줄(D-055) | 원조대로(자리는 N-17 알림 규칙) |  |
+
+## 2. Edit 도구: 고르기
+
+Edit Tool(화살표)은 원조 도구 모음의 두 번째 도구이고 Select Tool(고르기·옮기기)과 Wiring Tool(선 긋기)을 합친 것이다. 누른 자리가 "선 잇는 점"이면 선 긋기로, 아니면 고르기로 간다(`EditTool.mousePressed`, `EditTool.isWiringPoint`). 원조 Base 라이브러리의 Select Tool은 선 긋기만 빠진 같은 고르기다(`libs/base/select.html`).
+
+| 번호 | 도구·상황 | 입력(키·마우스) | 원조 2.7.1 동작 | v1 추가·차이 | v2 할 일 | e2e |
+| --- | --- | --- | --- | --- | --- | --- |
+| I-09 | Edit·고르기 | 고르지 않은 부품 몸체를 클릭(포트가 아닌 곳) | 선택을 모두 버리고 그 점을 포함한 부품(겹쳐 있으면 모두)을 고른다(`SelectTool.mousePressed`, `libs/base/edit.html`). 속성 표에 그 부품 속성 | 같음. 고르면 빠른 속성 창이 뜬다(I-103) | 원조대로 |  |
+| I-10 | Edit·고르기 | Shift+클릭(부품) | 그 부품의 선택을 뒤집는다: 선택돼 있으면 빼고(`SelectionActions.drop`) 아니면 더한다. 한 점에 여럿이면 모두 뒤집는다(`SelectTool.mousePressed`) | 같음. 더한 순서를 기록해 우클릭 메뉴 순서·버스 합치기 순서에 쓴다(`SelectionOrder`, D-032) | 원조대로 + v1 추가(고른 순서 기록) |  |
+| I-11 | Edit·고르기 | 이미 고른 것 위에서 클릭(Shift 없음) | 선택을 그대로 두고 옮기기 상태로 들어간다. 움직이지 않고 떼면 아무것도 바뀌지 않는다(`SelectTool.mousePressed` MOVING, `mouseReleased` dx=dy=0) | 같음 | 원조대로 |  |
+| I-12 | Edit·고르기 | 빈 곳 클릭 | 선택을 모두 버린다(Shift면 두고). 속성 표는 회로 속성(`guide/subcirc/appear.html`: 빈 바탕 클릭 → Shared Label 등) | 같음 | 원조대로 |  |
+| I-13 | Edit·고르기 | 빈 곳에서 끌기(고무줄 사각형) | 파란 반투명 사각형과 그 안에 완전히 들어온 부품의 파란 윤곽을 그리고, 떼면 사각형 안에 완전히 들어온 부품·선을 고른다(`SelectTool.draw`, `SelectTool.mouseReleased` `Circuit.getAllWithin`). 커서는 십자 | 같음. 사각형으로 고른 선은 순서를 모르므로 "하나의 버스로 합치기"를 끈다(D-032) | 원조대로 |  |
+| I-14 | Edit·고르기 | Shift+빈 곳 끌기 | 사각형 안 부품의 선택을 뒤집는다(이미 고른 것은 빠지고 나머지는 더해짐)(`SelectTool.mouseReleased` `in_sel` 처리, `libs/base/edit.html`) | 같음 | 원조대로 |  |
+| I-15 | Edit·고르기 | 선 위를 클릭(끌지 않음) | 선 위 점은 선 잇는 점이라 선 긋기가 시작되지만, 누른 자리에서 논리 좌표 2 이내로 떼면 클릭으로 보고 그 선을 고른다(`EditTool.isClick` dx²+dy² ≤ 4, `EditTool.mouseReleased` → `select.mousePressed/mouseReleased`). 격자점에서 6 이상 떨어진 선 위를 누르면 선 잇는 점이 아니라서 처음부터 고르기(끌면 선을 옮김, I-44) | 같음 | 원조대로 |  |
+| I-16 | Edit·고르기 | 고른 선의 끝이 아닌 곳을 눌러 끌기 | 선 긋기가 아니라 선택 옮기기(`EditTool.isWiringPoint`: 고른 선 위, 끝이 아니면 고르기) | 같음. 그 선 하나만 골랐고 선과 수직으로 끌면 선분 평행 이동(I-27) | 원조대로 + v1 추가(I-27) |  |
+| I-17 | Edit·고르기 | Alt+선 가운데 누름·끌기 | 초록 원이 사라지고 누르면 선을 고르며 끌면 옮긴다(`EditTool.isWiringPoint` ALT, `libs/base/edit.html`) | 같음 | 원조대로. Windows에서 Alt 단독 누름이 메뉴로 가지 않게 막는다 |  |
+| I-18 | Edit·고르기 | Ctrl+A(Edit › Select All) | 이 회로의 선과 부품을 모두 고르고 도구를 Edit Tool로 바꾼다(`LayoutEditHandler.selectAll`) | 같음 | 원조대로 |  |
+| I-19 | Edit·고르기 | Esc | 레이아웃 캔버스에서 하는 일이 없다. Esc는 글자 편집 취소에만 쓴다(`TextFieldCaret.keyPressed` VK_ESCAPE; 원조 레이아웃 도구에 VK_ESCAPE 처리 없음) | **[추가]** 캔버스에서: 영향 경로가 보이면 지우고 키를 먹는다(`Shortcuts.keyPressed`, Edit·Select만), Signal Flow가 돌면 멈춘다(`FlowController`의 따로 단 KeyListener라 같은 Esc 한 번에 둘 다 일어남, 모든 도구). 검색창·라벨 칸·둘러보기는 각자 Esc로 닫고, Find 창은 Esc로 닫히지 않는다. 선택은 지우지 않는다(`Shortcuts`의 주석은 "다음 Esc에서 원조대로 선택을 지운다"고 하나 원조에 그런 처리가 없음) | 정함: 한 번에 하나씩 — 열린 칸·창 닫기 → Signal Flow 멈추기 → 영향 경로 지우기. 레이아웃 선택은 지우지 않는다(원조·v1 같음) |  |
+| I-20 | Edit·고르기 | 여러 부품을 고른 상태 | 속성 표에 모두가 가진 속성만, 값이 다르면 빈칸. 선이 아닌 것이 있으면 선은 빼고 본다. 바꾸면 모두 바뀐다(`guide/attrlib/attr.html`, `SelectionAttributes`) | 같음. 빠른 속성 창은 같은 종류일 때만(D-039) | 원조대로 |  |
+| I-21 | Select Tool(Base 라이브러리, 기본 도구 모음에는 없음) | 클릭·끌기·키 | Edit와 같은 고르기·옮기기(I-09~I-14, I-23), 선 긋기·초록 원 없음. 키는 Delete·Backspace(지우기), 끄는 중 Shift, 숫자·Alt+숫자(`KeyConfigurator`)뿐이고 방향키 방향 바꾸기·Insert 복제는 없다(`SelectTool.keyPressed`, `libs/base/select.html`) | **[차이]** Edit와 같이 v1 키(한 칸 옮기기, R, F2, I, 글자 = 검색창, Ctrl+클릭 조작, 더블클릭)가 모두 든다(`Shortcuts.editing`) | v1대로(도구 목록에 둔다) |  |
+| I-22 | Edit·고르기 | 부품 위에 마우스를 올림 | 부품이 주는 툴팁(서브회로 포트의 핀 라벨, 스플리터 끝의 비트, Plexers·Arithmetic·Memory 포트 설명). Preferences › Layout "Show component tips"로 끈다(`Canvas.getToolTipText`, `guide/prefs/layout.html`) | **[차이]** 차례: ① 포트 ±4px면 "<포트 이름> · N bits"(`Shortcuts.portTip`) ② 부품이면 굵은 전체 경로(`main › … › AND #3`), "label X · N inputs · N bits", 기본 모양 서브회로면 "in: … · out: …", "포트 = 넷" 최대 4개, 마지막 줄에 원조 툴팁 글 ③ 선이면 "<경로> › wire", "N bits · net X", "Color: <뜻>"(`HoverInfo.tip`, D-040) ④ 원조 툴팁. 자리는 부품 옆: 오른쪽 위 → 오른쪽 아래 → 왼쪽 위 → 왼쪽 아래 → 위 → 아래, 라벨 칩·선을 피함(`HoverInfo.location`, S-08). 올린 부품은 원조 포트 이름을 덧그림(200% 이상은 모든 부품, `PortLabels`, S-06). 원조 설정 "Show component tips"가 꺼지면 모두 없음 | v1대로 |  |
+
+## 3. Edit 도구: 옮기기
+
+| 번호 | 도구·상황 | 입력(키·마우스) | 원조 2.7.1 동작 | v1 추가·차이 | v2 할 일 | e2e |
+| --- | --- | --- | --- | --- | --- | --- |
+| I-23 | Edit·옮기기 | 고른 것을 끌기 | 끄는 동안 선택의 윤곽(유령)을 옮긴 자리에 그리고 커서는 이동 모양. dx·dy는 격자(I-01)·음수 한도(I-05)를 따른다. 떼면 한 번에 옮긴다(`SelectTool.mouseDragged`, `computeDxDy`, `mouseReleased` → `SelectionActions.translate`, 되돌리기 한 번) | 같음(떼는 곳이 `SafeMove.move`로 바뀜, I-24) | 원조대로. 떼면 `edit.move {ids, dx, dy}` 한 번 |  |
+| I-24 | Edit·옮기기 | 끌어 옮길 때 붙은 선(연결 유지) | 기본으로 연결을 지킨다(Preferences › Layout "Keep connections while moving", 기본 켬 `AppPreferences.MOVE_KEEP_CONNECT`). 끄는 동안 `MoveGesture`가 새 선을 계산해 회색 굵은 선으로, 잇지 못한 점을 빨간 점으로 보이고 계산 중이면 초록 "Computing connections..."(`SelectTool.handleMoveDrag`, `SelectTool.draw`). 떼면 계산한 선 추가·줄이기를 이동과 함께 적용한다(`MoveGesture.forceRequest`, `ReplacementMap`) | **[차이]** 떼면 `SafeMove.move`(`SafeMove.moveInner`)가 후보를 차례로 복사한 회로에서 시험하고 기준을 지키는 첫 후보만 적용한다(D-055, D-057): ① 선분 평행 이동(I-27) ② 고무줄(포트에 붙은 선을 함께 끌고 끝 다리를 늘림, W-03) ③ 원조 연결 유지 결과 + 못 이은 점은 ㄱ자 곧은 선(가로 먼저, 안 되면 세로 먼저) ④ 이어져 있던 끝을 ㄱ자로 다시 잇기 ⑤ 선 없이 옮기기. ①~④는 넷리스트 불변 + 새 선이 부록 A.4(`WireRules`) + 군더더기 없음(W-02), ⑤는 옮긴 부품 밖 넷 불변. ⑤면 상태 표시줄 "The wires could not follow without changing other connections, so only the selection was moved.", ⑤도 안 되면 옮기지 않고 "Moving there would change other connections, so nothing was moved."(`move.withoutWires`, `move.refused`). 원조 길 찾기는 시간 제한 없이 결정적(`Connector` `// HCS:` W-01). 붙여 넣어 떠 있는 것은 원조 이동 그대로. 옮긴 뒤 빠른 속성 창을 띄우지 않음(`QuickBar.markQuiet`, S-04). 되돌리기 한 번 | v1대로. 엔진 `edit.move`가 v1 규칙(SafeMove) 그대로 하고, 화면은 끄는 동안 엔진이 준 미리 보기 선을 그린다(정함: 미리 보기도 엔진 계산, 끄는 중 요청은 마지막 것만) |  |
+| I-25 | Edit·옮기기 | 끄는 동안 Shift 누름·뗌 | 연결 유지를 그 끌기 동안만 뒤집는다(`SelectTool.shouldConnect`; 끄는 중 Shift 누름·뗌에 다시 계산 `SelectTool.keyPressed`/`keyReleased` VK_SHIFT). 설정을 끄면 Shift일 때만 잇는다(`libs/base/edit.html`) | 같음(연결 유지가 꺼지면 `SafeMove`는 ⑤ 선 없이 옮기기만 시험하고 알림 없이 옮긴다) | 원조대로 |  |
+| I-26 | Edit·옮기기 | 선이 든 선택을 다른 선 위로 옮겨 놓음 | 선이 합쳐지고 합친 선이 선택에 든다. 다시 옮기면 원래 있던 선도 함께 간다(`libs/base/edit.html`) | 같음(단 SafeMove가 다른 넷이 합쳐지는 이동을 막음) | v1대로(엔진) |  |
+| I-27 | Edit·옮기기 | 선 하나만 고르고 그 선과 수직으로 끌기 | 없음(선만 옮겨져 양 끝이 떨어진다) | **[추가]** 선분 평행 이동(`SegmentDrag.plan`, SafeMove 후보 ①, D-055): 선택이 길이 > 0인 선 하나이고 그 선과 수직으로만 옮길 때(연결 유지 켬, 떠 있지 않음), 양 끝마다 포트가 없고 그 점에서 끝나는 수직 다리가 정확히 하나면 선분을 옮기고 다리를 늘이거나 줄인다(길이 0 다리는 뺌). 결과도 SafeMove 기준을 지나야 하고 새 선분을 고른다. 아니면 다음 후보로. 시작은 원조 동작 그대로: Edit에서 선을 먼저 골라 가운데를 끌거나(I-16), 격자점 밖을 누르거나, 방향키 | v1 추가(엔진 `edit.move`가 판단, PLAN 11.9 "가운데 선분 평행 이동") |  |
+| I-28 | Edit·고른 상태 | ← ↑ → ↓(수식 없음) | 고른 부품 중 Facing 속성이 있는 것의 방향을 그 쪽으로 바꾼다(한 동작 "Reface"; `EditTool.keyPressed` → `attemptReface`, `libs/base/edit.html`). 선택이 비면 아무것도 안 함 | **[차이]** 한 칸(10) 옮기기, 끌기와 같은 `MoveGesture.forceRequest` + `SafeMove`(Keep connections 설정과 상관없이 늘 연결 유지 쪽, `Shortcuts.nudge`, D-035). 선 하나만 골랐으면 선분 평행 이동도 된다(I-27). 방향 바꾸기는 R(I-29)이 맡는다. 선택이 비면 원조로 넘김(아무 일 없음) | v1대로(PLAN 11.7 "방향키 미세 이동"). 옮길 수 없으면(편집 불가, 겹침) 조용히 무시(`Shortcuts.nudge`가 true를 돌려 원조로 안 넘김) |  |
+| I-29 | Edit·고른 상태 | R / Shift+R | 없음 | **[추가]** 방향 있는 부품을 시계 방향 90도(동→남→서→북), Shift는 반대(`Shortcuts.rotate`, `Shortcuts.next`, 되돌리기 한 번). 키는 바꿀 수 있음(`KeyBindings` "rotate") | v1 추가(`edit.setAttr facing`을 한 의도로) |  |
+
+## 4. 고른 것에 쓰는 키
+
+| 번호 | 도구·상황 | 입력(키·마우스) | 원조 2.7.1 동작 | v1 추가·차이 | v2 할 일 | e2e |
+| --- | --- | --- | --- | --- | --- | --- |
+| I-30 | Edit·고른 상태 | Delete, Backspace | 고른 것을 지운다(`EditTool.keyPressed`·`SelectTool.keyPressed` → `SelectionActions.clear`; Edit › Delete의 키는 Delete). 떠 있는 붙여넣기(I-35)는 그냥 사라진다 | 같음 | 원조대로(`edit.delete`) |  |
+| I-31 | Edit·선택 없음, Wiring | 선을 그은 직후 Backspace | 방금 그은 선이 아직 마지막 동작이면 되돌린다(`WiringTool.keyPressed` `lastAction`; Edit는 선택이 비었을 때만 `EditTool.keyPressed`가 넘김) | 같음 | 원조대로(`edit.undo`, 마지막 동작이 그 선일 때만) |  |
+| I-32 | Edit·고른 상태 | Ctrl+D, Insert(Edit › Duplicate) | 고른 것의 "떠 있는" 사본을 만든다. 자리는 (0, 0)부터 10 간격 정사각 나선을 돌며 음수가 아니고 I-04 기준으로 부딪치지 않는 첫 이동(원본이 그 자리에 있으면 보통 (10, 10))이다(`hasConflictTranslated`). 사본은 옮기거나 선택에서 빠질 때 회로에 내려앉는다(`SelectionActions.duplicate` → `SelectionBase.duplicateHelper`·`pasteHelper`·`copyComponents`, `libs/base/edit.html`). 부품을 놓은 직후 Ctrl+D는 같은 부품 하나 더(`guide/tutorial/tutor-gates.html`) | **[차이]** 원조 자리에서 사본의 포트·선이 옛 포트·선 끝·선에 닿거나 선이 겹치거나 몸체가 겹치면(`WireGuard.touches`) 같은 나선을 10 간격으로 더 돌아(최대 24×24) 닿지 않는 첫 자리로 옮긴다. 원조 Duplicate와 합쳐 되돌리기 한 번, 빈 자리가 없으면 원조 자리(`SafeDuplicate.run`, W-05; Edit › Duplicate·Ctrl+D·Insert(Edit 도구만)·우클릭 Duplicate) | v1대로(사본이 옛 넷에 붙어 조용히 합쳐지지 않게, W-05) |  |
+| I-33 | Edit·고른 상태 | Ctrl+C | Logisim 안 클립보드에 복사(시스템 클립보드 아님. 같은 프로세스의 다른 프로젝트끼리만 붙여넣기)(`SelectionActions.copy`, `guide/menu/edit.html`). 되돌리기 목록에 들지만 수정은 아님 | 같음 | 원조대로. 클립보드는 엔진 프로세스 안(열린 파일끼리 붙여넣기 됨). 정함: 시스템 클립보드는 쓰지 않음(원조와 같음) |  |
+| I-34 | Edit·고른 상태 | Ctrl+X | 복사하고 지운다(한 동작 `SelectionActions.cut`) | 같음 | 원조대로 |  |
+| I-35 | Edit | Ctrl+V | 도구를 Edit Tool로 바꾸고 클립보드 내용을 "떠 있는" 선택으로 둔다(연회색). 자리는 복사한 자리에서 복제(I-32)와 같은 나선으로 겹치지 않는 첫 곳(`SelectionBase.copyComponents`). 옮기거나 선택을 바꾸면 내려앉는다. 이 파일에 없는 라이브러리 부품은 바꿀지 묻거나("Replace/Ignore/Cancel") 빼고 알린다(`LayoutEditHandler.paste`, `SelectionActions.pasteMaybe`, `getReplacementMap`, `guide/menu/edit.html`) | 같음. 빈 곳 우클릭 "Paste"도 원조 자리 규칙 그대로(누른 자리가 아님, I-88) | 원조대로 |  |
+| I-36 | 전체 | Ctrl+Z(Edit › Undo %s) | 마지막 편집을 되돌린다. 메뉴 글은 "Undo <동작 이름>", 없으면 "Can't Undo". 조작 도구로 바꾼 값(시뮬레이션 상태)은 들지 않는다(`Project.undoAction`, `guide/menu/edit.html`) | 같음 | 원조대로(`edit.undo`) |  |
+| I-37 | 전체 | Ctrl+Y, Ctrl+Shift+Z | 없음(원조에 다시 실행이 없다) | **[추가]** Edit 메뉴 Undo 다음 "Redo …"(Ctrl+Y), Ctrl+Shift+Z는 창 키(`RedoStack.menuItem`, `RedoStack.installKeys`, D-041). 되돌린 원조 Action을 다시 적용, 새 수정이 오면 비움. 키는 바꿀 수 있음(`KeyBindings` "redo") | v1 추가(`edit.redo`) |  |
+| I-38 | Edit·고른 상태, 부품 놓기 도구 | 숫자 키(수식 없음) | 고른 부품(또는 놓을 부품 도구)의 `KeyConfigurator`가 받는다: 게이트 = 입력 수, Multiplexer·Demultiplexer·Decoder·Priority Encoder = Select Bits(1~5), RAM·ROM = Address Bit Width(2~24), Splitter = Fan Out, Shift Register = 길이, Bit Adder = 입력 수, Bit Selector = Output Bits, Bit Extender = 입력 폭, Constant = 값(16진). 0.8초 안에 잇따라 치면 여러 자리 수(`NumericConfigurator.keyEventReceived` MAX_TIME_KEY_LASTS=800). 고른 것 모두에 한 동작(`SelectTool.processKeyEvent`, `AddTool.processKeyEvent`) | 같음. 빠른 속성 창 아래 줄에 이 숨은 키를 보인다(D-039) | 원조대로(부품별 표는 엔진 `KeyConfigurator`에서 읽어 화면에 준다, 정함: 손으로 적지 않음) |  |
+| I-39 | Edit·고른 상태, 부품 놓기 도구 | Alt+숫자 | 대부분 부품의 Data Bits(비트 폭)(`BitWidthConfigurator` 기본 수식 ALT). Splitter는 Alt+숫자가 Bit Width In과 Fan Out을 함께(`SplitterFactory.getFeature` `ParallelConfigurator`), Bit Extender는 출력 폭 | 같음 | 원조대로. Windows에서 Alt+숫자가 메뉴·IME로 새지 않게 `KeyboardEvent.code`(Digit0~9)로 읽는다 |  |
+| I-40 | Edit·고른 상태, Pin 도구 | Alt+방향키 | Pin의 Label Location을 그 쪽으로(`Pin` `DirectionConfigurator(ATTR_LABEL_LOC, ALT)`) | 같음(수식이 있어 v1 한 칸 옮기기에 걸리지 않고 원조로 감) | 원조대로 |  |
+| I-41 | Edit·선택 없음, Poke·값 칸 없음, Wiring | 글자 키(수식 없음 또는 Shift) | 없음(글자는 무시) | **[추가]** 커서 옆 검색창을 열고 친 글자를 넣는다(`Shortcuts.opensPalette`, D-037). 글자 도구·부품 놓기 도구는 원조대로 | v1대로. 단 I-186의 P는 선 위면 프로브가 먼저(정함, I-186) |  |
+| I-42 | Edit·부품 하나 고름 | F2, 부품 더블클릭 | 없음(라벨은 속성 표나 글자 도구로) | **[추가]** 라벨을 부품 자리의 칸에서 고친다(`Shortcuts.keyPressed` "label", `InlineEditor.editLabel`, D-039). 입력 핀 더블클릭은 값 넣기(I-78) | v1 추가 |  |
+| I-43 | 캔버스(글자 도구 밖) | ? | 없음 | **[추가]** 단축키 표 창(`Shortcuts.showTable`), "Customize…"로 단축키 설정 창(I-183) | v1 추가(표는 키 등록표 하나에서 만든다) |  |
+
+## 5. 선 긋기(Edit 도구와 Wiring 도구)
+
+| 번호 | 도구·상황 | 입력(키·마우스) | 원조 2.7.1 동작 | v1 추가·차이 | v2 할 일 | e2e |
+| --- | --- | --- | --- | --- | --- | --- |
+| I-44 | Edit | 마우스를 선 잇는 점 가까이 | 커서에서 가장 가까운 격자점이 논리 좌표 6 미만이고 그 점이 포트이거나 선 위면 반지름 5의 초록 원을 그린다(`EditTool.updateLocation` dx²+dy²<36, `isWiringPoint`, `draw` Value.TRUE_COLOR). Alt를 누르면 거리와 상관없이 가장 가까운 격자점으로 보고 판정이 뒤집힌다: 포트·선 위는 고르기(I-17), 그 밖 격자점(코드상 부품 몸체 안도)은 선 긋기 시작점(`libs/base/edit.html` "Alt … initiates the addition of a new wire") | 같음 | 원조대로 |  |
+| I-45 | Wiring | 마우스 이동 | 격자에 맞춘 커서 자리에 작은 회색 점(Show Ghosts 켜짐일 때, `WiringTool.draw`) | 같음 | 원조대로 |  |
+| I-46 | Edit(선 잇는 점에서), Wiring(어디서나) | 누르고 끌기 → 떼기 | 누른 격자점에서 커서까지 검은 3px ㄱ자 미리 보기. 떼면 곧으면 선 하나, 아니면 꺾인 점에서 나뉜 선 둘을 한 동작("Add Wire"/"Add Wires")으로 더한다(`WiringTool.mouseDragged`, `mouseReleased`). 길이 0인 조각은 버린다. 누르고 끌지 않고 떼면 선이 없다(Edit는 클릭 = 고르기 I-15) | 같음 | 원조대로. `edit.addWire {points}`(ㄱ자는 3점) |  |
+| I-47 | Edit·Wiring 끄는 중 | 처음 움직인 방향 | 처음 가로로 움직이면 가로 먼저(꺾인 점 = (커서 x, 시작 y)), 세로로 움직이면 세로 먼저(꺾인 점 = (시작 x, 커서 y)). 커서가 시작점의 가로·세로 줄로 돌아오면 방향이 다시 정해진다(`WiringTool.computeMove`) | 같음 | 원조대로(`computeMove`와 같은 상태 기계를 화면에서) |  |
+| I-48 | Edit·Wiring 떼기 | 새 선이 포트·선 끝·선 가운데를 지남 | 새 선은 포트나 기존 선 끝에서 나뉘고, 새 선 끝이 기존 선 가운데에 닿으면 기존 선이 나뉜다. 한 줄 위의 선은 합쳐진다(`libs/base/wiring.html`; `CircuitMutation`·`CircuitWires`) | 같음. 수동으로 그은 선은 A.4 검사기(W-05)를 거치지 않는다(검사기는 도구가 자동으로 두는 선만) | 원조대로(엔진) |  |
+| I-49 | Edit·Wiring 떼기 | OR 게이트·Controlled Buffer의 짧은 다리 끝을 조금 넘김 | 길이 10 넘는 선이 다리 끝을 한 칸 넘으면 조용히 다리 끝으로 고친다(`WiringTool.checkForRepairs`, `WireRepair`) | 같음 | 원조대로(엔진) |  |
+| I-50 | Edit·Wiring | 선 끝에서 눌러 선을 따라 거꾸로 끌기 | 끄는 동안 남을 부분만 그린다(원래 선은 숨김). 떼면 줄인 선으로 바꾸고("Shorten Wire"), 끝까지 가면 지운다(`WiringTool.willShorten`, `getShortenResult`, `performShortening`, `getHiddenComponents`) | 같음 | 원조대로(`edit.addWire`가 줄이기도 판단하거나 `edit.shortenWire`를 더함 — engine-api에 적을 것) |  |
+| I-51 | Edit·Wiring | 선 끝에서 바깥으로 끌기 | 새 선이 더해지고 한 줄 위 선과 합쳐져 선이 늘어난다(`guide/tutorial/tutor-wires.html` "extend") | 같음 | 원조대로 |  |
+| I-52 | 그린 선 | (보기) | 폭을 모르는 선은 회색, 폭이 맞지 않으면 주황이고 값을 나르지 않는다(`libs/base/wiring.html`) | 같음. 버스는 굵게, 폭 숫자(E-03) | 원조대로(N-05 그리기) |  |
+
+## 6. 부품 놓기(AddTool)
+
+| 번호 | 도구·상황 | 입력(키·마우스) | 원조 2.7.1 동작 | v1 추가·차이 | v2 할 일 | e2e |
+| --- | --- | --- | --- | --- | --- | --- |
+| I-53 | 부품 목록·도구 모음 | 부품 도구를 클릭 | 그 도구를 들고 속성 표에 도구의 속성을 보인다(`ToolboxManip.selectionChanged` → `Project.setTool`, `Frame.viewAttributes`). 도구 모음의 도구와 목록의 도구는 속성이 따로다(`guide/attrlib/tool.html`) | 같음. 부품 목록 위 검색 칸·검색창 Enter로도 든다(I-168) | 원조대로(도구마다 속성 따로) |  |
+| I-54 | 부품 도구를 든 상태 | 속성 표에서 값 바꾸기 | 앞으로 놓을 부품의 속성이 바뀐다(이미 놓은 부품은 그대로, `guide/attrlib/tool.html`). 되돌리기 목록에 든다(`ToolAttributeAction`) | 같음 | 원조대로 |  |
+| I-55 | 부품 도구 | 마우스 이동 | 격자에 맞춘 커서 자리에 회색 윤곽(유령)이 따라온다. Preferences › Layout "Show Ghosts while adding"(기본 켬), 편집할 수 있는 회로일 때만. 캔버스를 나가면 사라진다(`AddTool.setState`, `mouseMoved`, `mouseExited`, `draw`) | 같음 | 원조대로 |  |
+| I-56 | 부품 도구 | 누르기 → (끌기) → 떼기 | 누르면 윤곽이 검게 되고 끄는 동안 따라온다. 뗀 자리에 놓는다(되돌리기 한 번 "Add <부품>"). 겹침·음수·순환이면 I-04·I-05·I-06(`AddTool.mousePressed`, `mouseDragged`, `mouseReleased`) | 같음 | 원조대로(`edit.addComponent {lib, name, loc, attrs}`, 뗀 자리) |  |
+| I-57 | 부품 도구 | 놓은 직후 | 기본은 Edit Tool로 돌아가고 방금 놓은 부품을 고른다(Preferences › Layout "After adding component" 기본 Edit Tool, `AppPreferences.ADD_AFTER`, `AddTool.determineNext`). "Unchanged"면 같은 도구 유지 | 같음. 고르면 빠른 속성 창(I-103) | 원조대로(설정도 옮김, N-19 설정 규칙) |  |
+| I-58 | 부품 도구 | ← ↑ → ↓(수식 없음) | 들고 있는 도구의 Facing을 바꾼다(유령도 돈다)(`AddTool.keyPressed` → `setFacing`, `ToolAttributeAction`, `guide/attrlib/tool.html`) | 같음(v1 한 칸 옮기기는 Edit·Select 도구에서만) | 원조대로 |  |
+| I-59 | 부품 도구 | 숫자, Alt+숫자, Alt+방향키 | 도구 속성을 바꾼다(I-38, I-39, I-40; `AddTool.processKeyEvent`) | 같음 | 원조대로 |  |
+| I-60 | 부품 도구("Unchanged" 설정) | 놓은 직후 Backspace | 방금 놓은 부품이 마지막 동작이면 되돌린다(`AddTool.keyPressed` `lastAddition`) | 같음 | 원조대로 |  |
+| I-61 | 부품 목록 | 서브회로(이 프로젝트의 회로)를 클릭 | 그 회로를 놓는 도구를 든다. 지금 보고 있는 회로를 누르면 도구를 바꾸지 않고 회로 속성을 보인다(`ToolboxManip.selectionChanged`) | 같음 | 원조대로 |  |
+| I-62 | 부품 목록 → 캔버스 | 부품을 끌어 캔버스에 놓기 | 없음(목록 안 끌기는 회로 순서 바꾸기뿐, I-107). 누르면 도구가 들리므로 캔버스로 옮겨 한 번 더 클릭해 놓는다 | 같음(없음). 캔버스의 끌어 놓기 대상은 파일 목록만 받는다(`DropOpen`). 그런데 빈 캔버스 안내는 "Or drag a part from the list on the left onto the canvas"라고 적는다(`hint.drag`, D-102; 코드 읽기) | 정함: 목록에서 캔버스로 끌어 놓으면 놓은 자리(격자)에 하나 놓는다(v1 안내가 약속한 동작). 누르고 캔버스에서 클릭하는 원조 방식도 그대로 |  |
+
+## 7. Poke 도구(조작)
+
+조작은 시뮬레이션 상태만 바꾸고 되돌리기 목록에 들지 않는다(`guide/menu/edit.html`). 부품을 누르면 그 부품 속성을 속성 표에 보인다(`PokeTool.mousePressed` → `viewComponentAttributes`). 누른 자리가 부품의 값 칸 밖이면 값 칸을 닫는다(`PokeTool.removeCaret`).
+
+| 번호 | 도구·상황 | 입력(키·마우스) | 원조 2.7.1 동작 | v1 추가·차이 | v2 할 일 | e2e |
+| --- | --- | --- | --- | --- | --- | --- |
+| I-63 | Poke | 입력 핀 클릭 | 누른 비트와 뗀 비트가 같으면 그 비트를 0→1→(3상태면 x)→0으로 바꾼다. 여러 비트 핀은 누른 자리의 비트(오른쪽 아래가 비트 0, 한 줄 8비트, 칸은 가로 10·세로 20)(`Pin.PinPoker.mouseReleased`, `handleBitPress`, `getBit`). 출력 핀은 바뀌지 않는다 | 같음 | 원조대로(`sim.poke`, 비트 번호를 함께 보냄 — engine-api에 더할 것) |  |
+| I-64 | Poke | 서브회로 상태 안에서 입력 핀 클릭 | "The pin is tied to the supercircuit state. Create a new circuit state?" 확인, OK면 바깥과 떨어진 상태 사본을 만들고 바꾼다(`Pin.PinPoker.handleBitPress`, `guide/subcirc/debug.html`) | 같음 | 원조대로 |  |
+| I-65 | Poke | Clock 클릭 | 누르고 뗀 곳이 모두 몸체 안이면 값을 뒤집는다(`Clock.ClockPoker`) | 같음 | 원조대로 |  |
+| I-66 | Poke | Button 누름·뗌 | 누르는 동안 1, 떼면 0(`Button.Poker`) | 같음 | 원조대로(누름·뗌 두 번 보냄) |  |
+| I-67 | Poke | 플립플롭 몸체의 값 원 클릭 | 저장 값을 뒤집는다(누르고 뗀 곳이 모두 원 안, `AbstractFlipFlop.Poker`) | 같음 | 원조대로 |  |
+| I-68 | Poke | Register·Counter 클릭 후 16진 글자 | 빨간 상자가 뜨고 친 16진 숫자를 왼쪽으로 밀어 넣어 값을 바꾼다(폭 마스크, `RegisterPoker.keyTyped`) | 같음 | 원조대로 |  |
+| I-69 | Poke | Shift Register 단 클릭, 글자 | 1비트면 클릭한 단 값을 뒤집고, Space·Backspace로 단을 옮기며 16진으로 값을 넣는다(`ShiftRegisterPoker`) | 같음 | 원조대로 |  |
+| I-70 | Poke | RAM·ROM 값 칸 클릭 후 키 | 누른 주소에 빨간 상자. 16진 숫자 = 값 고치기, Space·Tab = 다음 주소, Enter = 아래 줄, Backspace = 앞 주소(`MemPoker.DataPoker.keyTyped`, `guide/mem/poke.html`) | 같음 | 원조대로 |  |
+| I-71 | Poke | RAM·ROM 값 칸 밖(주소 쪽) 클릭 후 키 | 맨 위 주소에 빨간 상자. 16진 숫자 = 맨 위 주소, Enter = 한 줄 아래, Backspace = 한 줄 위, Space = 한 쪽(4줄) 아래(`MemPoker.AddrPoker.keyTyped`) | 같음 | 원조대로 |  |
+| I-72 | Poke | Keyboard 부품 클릭 후 글자 | 친 글자를 버퍼에 넣고 Delete·←·→·Home·End로 고친다(`Keyboard.Poker`) | 같음(값 칸이 열려 있으면 글자가 검색창으로 가지 않음, `PokeTool.hcsHasCaret`) | 원조대로 |  |
+| I-73 | Poke | Joystick 끌기 | 끄는 방향·거리로 값, 떼면 가운데(`Joystick.Poker`) | 같음 | 원조대로 |  |
+| I-74 | Poke | 선 클릭 | 누른 자리에 노란 값 상자(첫 진법, 여러 비트면 " / 둘째 진법"도; Preferences › Layout "First/Second radix when wire poked", 기본 2진·부호 있는 10진)를 띄우고 그 넷의 선을 강조한다. 다른 곳을 누를 때까지 남는다(`PokeTool.WireCaret`, `Canvas.setHighlightedWires`, `guide/prefs/layout.html`) | 같음 | 원조대로 |  |
+| I-75 | Poke | 서브회로 가운데 돋보기 더블클릭 | 누르면 가운데 돋보기가 진해지고, 돋보기 안에서 더블클릭하면 그 인스턴스 상태로 들어간다(`SubcircuitPoker.mouseReleased` clickCount==2, `guide/subcirc/debug.html`) | 같음 | 원조대로(I-114) |  |
+| I-76 | Poke | Radix Probe(Hallym MIPS) 클릭 | 해당 없음(v1 부품) | **[추가]** 첫 줄 진법을 다음으로 돌린다(`RadixProbe.Poker.mousePressed`) | v1 추가 |  |
+| I-77 | Edit·Select | Ctrl+클릭(입력 핀·Button) | Ctrl+Button1은 Menu Tool(I-07) | **[차이]** 입력 핀·Button이면 조작 도구처럼 누른다(`Shortcuts.mouse` → `PokeTool`, D-035). 그 밖은 원조대로 메뉴 | v1대로 |  |
+| I-78 | Edit·Select | 입력 핀 더블클릭 | 없음 | **[추가]** 값 넣기 대화상자: `0x1F`, `0b1011`, `31`, `-3`(2의 보수), `_`·빈칸 무시, 폭을 넘으면 거절(`Shortcuts.askValue`, `parseValue`, `setPinValue`). 시뮬레이션 상태만 바뀜 | v1 추가 |  |
+
+## 8. Text 도구(글자·라벨)
+
+| 번호 | 도구·상황 | 입력(키·마우스) | 원조 2.7.1 동작 | v1 추가·차이 | v2 할 일 | e2e |
+| --- | --- | --- | --- | --- | --- | --- |
+| I-79 | Text | 라벨을 받는 부품 클릭 | 라벨이 없으면 부품 어디를 눌러도, 있으면 라벨을 눌러야 그 라벨에 글자 칸이 열린다. 고른 것부터 찾고 그다음 회로 전체(`TextTool.mousePressed`, `TextEditable.getTextCaret`). 속성 표에 그 부품 속성. 라벨을 받는 부품: Pin, Clock, Label, Probe, 플립플롭, Register, Counter, Shift Register, Random, Button, LED(`libs/base/text.html`), 코드상 게이트·NOT·Tunnel·서브회로도(`setTextField`/`computeLabelTextField`) | 같음 | 원조대로 |  |
+| I-80 | Text | 빈 곳 클릭 | 그 자리(격자에 붙지 않음)에 새 Label 글자 칸. 글자를 넣고 끝내면 Label 부품을 더한다(빈 글이면 더하지 않음). 새 Label은 Text 도구 속성(글꼴·정렬)을 받는다(`TextTool.mousePressed`, `editingStopped`, `libs/base/text.html`) | 같음 | 원조대로 |  |
+| I-81 | Text·글자 칸 열림 | 글자, ←/→, Home/End, Backspace/Delete, Enter, Esc | 글자는 커서 자리에 넣고, ←→·Home·End로 커서 이동, Backspace·Delete로 지우고, Enter(또는 '\n')는 끝내기(속성 바꾸기 한 동작), Esc는 취소. Ctrl·Alt·Meta가 눌린 키는 무시. 글 범위 고르기·줄 바꿈·붙여넣기 없음(`TextFieldCaret.keyPressed`, `keyTyped`, `libs/base/text.html`) | 같음(글자 도구에서는 ?·Space 이동·P가 원조대로 글자, `Shortcuts.keyPressed`, `ProbeMenu.installKey`, D-028) | 원조대로. 정함: 글 범위 고르기·붙여넣기는 v2에서 더해도 된다(입력 칸이 브라우저 기본 기능을 가짐), 결과 동작(한 번에 한 속성 바꾸기)은 같게 |  |
+| I-82 | Text·글자 칸 열림 | 칸 밖 클릭, 도구 바꾸기 | 칸을 끝내고(바꾸기 적용) 새 클릭을 처리한다(`TextTool.mousePressed` `caret.stopEditing`, `deselect`). 기존 Label의 글을 모두 지우고 끝내면 코드는 "Remove Label" 이름의 동작을 만들지만 이미 있는 부품을 다시 더하는 것이라(`TextTool.MyListener.editingStopped` `xn.add`, `Circuit.mutatorAdd`가 무시) Label이 옛 글 그대로 남는다(원조 결함) | 같음 | 원조대로(엔진이 원조 코드를 쓰므로 결과가 같다. 화면이 따로 지우지 않는다) |  |
+| I-83 | Text 도구를 든 상태 | 속성 표 | Label 부품 속성(Text, Font, 정렬)을 보이고 바꾸면 새 Label에만 쓴다(`libs/base/text.html`) | 같음 | 원조대로 |  |
+
+## 9. 우클릭 메뉴
+
+원조 메뉴는 Menu Tool이 만든다(I-07). 우클릭은 선택을 바꾸지 않는다(`MenuTool.mousePressed`). v1은 원조 메뉴를 만든 뒤 대상별 항목을 붙이고(`MenuTool` `// HCS:` → `ContextMenus.extend`, 제공 차례 EditMenus, SplitterMenu, ProbeMenu, InfluenceMenu, FlowMenu, MemoMenu) 새 메뉴로 다시 놓는다: 굵은 요약 줄(누를 수 없음) → 대상별 묶음(구분선) → 공통 → Delete. 원조 Delete는 맨 아래, 원조 Cut·Copy Selection은 공통, 원조 Show Attributes는 빼고 v1 "Show in Attribute Panel"로 대신한다. 항목이 하나도 없으면 메뉴가 뜨지 않는다(`ContextMenus.original`, `MenuLayout.arrange`, D-032·D-033·D-047, S-25). 모든 편집 항목은 원조 부품·속성만 바꾸는 되돌리기 한 번이고, 선·부품을 자동으로 두는 항목은 검사기 `WireGuard`를 거쳐 규칙을 어기면 바꾸지 않고 "That edit would make a wire or port touch another connection, so nothing was changed."(`edit.wireRules`, W-05, D-059).
+
+| 번호 | 도구·상황 | 입력(키·마우스) | 원조 2.7.1 동작 | v1 추가·차이 | v2 할 일 | e2e |
+| --- | --- | --- | --- | --- | --- | --- |
+| I-84 | Menu Tool(Base 라이브러리)을 든 상태 | 왼쪽 클릭 | 우클릭과 같은 메뉴(도구로 들 수도 있고, 매핑으로 버튼에 달 수도 있다)(`MenuTool.mousePressed`, `libs/base/menu.html`) | 같음(v1 메뉴가 같은 자리에서 붙으므로 내용도 같음) | 원조대로 |  |
+| I-85 | 캔버스 | 우클릭(어디든) | 요약 줄 없음 | **[추가]** 굵은 요약 줄: 부품 둘 이상을 골랐고 누른 곳이 빈 곳이거나 선택 안이면 "N components", 빈 곳은 "Empty spot · <회로>", 선은 "Net <이름> · N bits" 또는 "Wire · N bits", 부품은 이름(라벨이 있으면 "라벨(부품 이름)"), 포트 5px 안이면 "· input/output/bidirectional <포트> · N bits", 아니면 게이트 "· N inputs"와 "· N bits"(`MenuLayout.summary`, 단수·복수 S-25) | v1 추가(N-10) |  |
+| I-86 | 캔버스 | 부품 우클릭(여러 개 고른 상태 아님) | Delete, Show Attributes(+ 부품이 더하는 항목). 편집할 수 없는 회로면 Delete 꺼짐. 선택은 그대로(`MenuTool.MenuComponent`, `libs/base/menu.html`) | **[차이]** 공통 묶음: Duplicate(그것만 고르고 `SafeDuplicate`), Duplicate N…(I-190), Show in Attribute Panel(선택을 그것으로 바꾸고 속성 칸을 펼침, `AttrDock.showAll` — 원조 Show Attributes는 선택을 바꾸지 않았음). 맨 아래 Delete. Register·Counter는 Mark as PC/Unmark as PC(V-08). 모든 대상에 Influence ▸, Signal Flow ▸(I-187, I-188) | v1대로 |  |
+| I-87 | 캔버스 | 둘 이상 고른 상태에서 고른 것 위(또는 빈 곳) 우클릭 | 고른 것 위: Delete Selection, Cut Selection, Copy Selection(`MenuTool.MenuSelection`). 빈 곳: 메뉴 없음 | **[추가]** "Change N Components ▸ Facing ▸, Data Bits ▸ (1·2·4·8·16·32)"(모두 가진 속성만), "Edit Labels of N Components…"(라벨 칸 격자 창, OK에 한 동작 `LabelsDialog`), Duplicate N…, Align ▸ Left/Center/Right/Top/Middle/Bottom, Distribute ▸ Horizontally/Vertically(셋 이상), Select Only Components / Select Only Wires(선이 섞였을 때)(`EditMenus.contribute`, `ArrangeActions.multiItems`). 원조 Cut·Copy는 공통, Delete Selection은 맨 아래. 빈 곳을 눌러도 이 메뉴 | v1대로 |  |
+| I-88 | 캔버스 | 빈 곳 우클릭(선택 둘 미만) | 메뉴 없음(`MenuTool.mousePressed` menu = null) | **[추가]** Paste(원조 `pasteMaybe`, 자리 규칙은 I-35), Fit to Window, Signal Flow ▸, 프로브가 있으면 Select All Probes (n)·Delete All Probes (n)(프로브에만 이어진 막다른 선도 지움, D-034), 영역 메모 Add Area Memo… / 메모 안이면 Edit Area Memo…·Fit Area Memo to Selection·Delete Area Memo(`EditMenus.empty`, `ProbeMenu`, `MemoMenu`, E-08) | v1 추가 |  |
+| I-89 | 캔버스 | 선 우클릭 | 선도 부품이라 Delete, Show Attributes(`MenuTool.MenuComponent`) | **[추가]** Net Information…(폭·값을 내는 포트·읽는 포트·그 밖, 읽기 전용 `NetInfoDialog`), Select Whole Net, Add to Cycle View, Signal Group ▸ Control/Data/Address/None(.circ 확장 정보, E-04), Find E/X Origin(값이 E·X일 때만, D-01), Highlight Net/Clear Net Highlight, Delete Net Wires, Replace Wire with Tunnels…(이름 묻기), 선택이 하나 이하면 Attach Probe ▸ Hexadecimal/Signed Decimal/Unsigned Decimal/Binary(D-034), 폭 > 1이면 Split Bits…·Take One Bit ▸ [w-1]…[0](I-189) (`EditMenus`, `ProbeMenu`, `SplitterMenu`, D-061) | v1 추가 |  |
+| I-90 | 캔버스 | 선만 둘 이상 고른 상태에서 우클릭 | Delete Selection, Cut Selection, Copy Selection | **[추가]** "Combine N Wires into One Bus (in the order chosen)": Shift+클릭으로 하나씩 고른 순서가 비트 순서(먼저 고른 것이 MSB). 사각형으로 골라 순서를 모르거나 폭을 모르는 선이 있으면 꺼지고 "Combine into One Bus: pick the wires one by one with Shift+click …"로 안내. 새 스플리터는 선들 오른쪽 +60에 서쪽을 보고 놓이며 잇지 않는다(`SplitterMenu`, `SelectionOrder`, D-032) | v1 추가 |  |
+| I-91 | 캔버스 | 부품 포트 5px 안에서 우클릭 | 부품 메뉴와 같음 | **[추가]** "Attach to <포트> ▸ Pin / Constant(입력만) / Probe / Tunnel": 포트 자리에 바깥을 보고, 포트 폭·포트 이름 라벨로 놓는다. `negateN` 속성이 있으면 "Negate Input X"/"Stop Negating Input X"(`EditMenus`, D-033) | v1 추가 |  |
+| I-92 | 캔버스 | 핀 우클릭 | Delete, Show Attributes | **[추가]** Make Input Pin/Make Output Pin, Data Bits ▸, Allow Three-State/No Three-State, Add to Cycle View, Pull ▸(속성 목록에서), Label…(`EditMenus`, D-033) | v1 추가 |  |
+| I-93 | 캔버스 | AND·OR·NAND·NOR·XOR·XNOR·NOT·Buffer 우클릭 | Delete, Show Attributes | **[추가]** Number of Inputs ▸ 2…8, Size ▸, Facing ▸, Data Bits ▸, Change Gate To ▸(여섯 게이트, 입력 자리를 지키고 출력 선을 늘이거나 줄임, WireGuard), Label…(`EditMenus`, `CircuitEdits`, D-033) | v1 추가 |  |
+| I-94 | 캔버스 | 라벨 있는 터널 우클릭 | Delete, Show Attributes | **[추가]** Go to Next "X" Tunnel(I-174), Select All "X" Tunnels (n), Tunnel Color ▸ Automatic + 12색, Add to Cycle View(`EditMenus.tunnel`) | v1 추가 |  |
+| I-95 | 캔버스 | 서브회로 우클릭 | + "View <회로 이름>": 그 인스턴스 상태로 들어간다(`SubcircuitFactory.CircuitFeature.configureMenu`) | **[추가]** View는 대상별 묶음 맨 위에 남고, 이 파일의 회로면 Edit Appearance of X(모양 편집 화면으로), Auto Appearance(I-191), Port Order…(I-192), Mark as Register File/Unmark Register File, Register Mapping…(표시했을 때). 다른 파일의 회로면 Edit Original File (이름)만(그 파일 탭을 열거나 앞으로, `LibrarySync.editOriginal`, P-03) | v1대로 |  |
+| I-96 | 캔버스 | RAM·ROM 우클릭 | + Edit Contents…(16진 편집기), Clear Contents(확인), Load Image…, Save Image…(`MemMenu`, `guide/mem/menu.html`) | 같음(대상별 묶음으로) | 원조대로(I-102) |  |
+| I-97 | 캔버스 | Splitter 우클릭 | + Distribute Ascending, Distribute Descending(`Splitter.configureMenu`, `SplitterDistributeItem`) | **[추가]** Edit Splitter…(I-189) | 원조대로 + v1 |  |
+| I-98 | 캔버스 | Instruction·Data Memory 우클릭(Hallym MIPS) | 해당 없음 | **[추가]** Load .s…, Reload <파일>(불러온 적 있을 때)(`LoadProgramMenu.configureMenu`) | v1 추가(N-16) |  |
+
+## 10. 속성 표, 빠른 속성 창, 16진 편집기
+
+| 번호 | 도구·상황 | 입력(키·마우스) | 원조 2.7.1 동작 | v1 추가·차이 | v2 할 일 | e2e |
+| --- | --- | --- | --- | --- | --- | --- |
+| I-99 | 속성 표 | 무엇의 속성이 보이나 | Edit로 고른 부품, 우클릭 Show Attributes, Poke·Text로 누른 부품, 든 도구, 빈 바탕을 누르면 회로 속성(`guide/attrlib/attr.html`, `Frame.viewAttributes`, `AttrTableSelectionModel`) | **[차이]** 속성 표를 캔버스 오른쪽 접을 수 있는 칸으로 옮겼다(`AttrDock`, D-039). 진단·찾기로 고른 선택도 표를 바로 바꾼다(`AttrTableSelectionModel.selectionChanged` `// HCS:`). 머리 "Attributes"의 갈매기 단추로 접고 펴며(접으면 좁은 띠), 폭(기본 240, 최소 160)·접힘은 앱 설정. 접고 펴면 초점을 캔버스로 돌린다. 창이 좁으면 저절로 접힌다(`PanelBalance`, X-03). 키는 없다 | v1대로(Inspector 모양, N-10) |  |
+| I-100 | 속성 표 | 값 칸 클릭 → 편집 | 값 칸을 누르면 편집기: 글 칸(Enter 또는 표 밖으로 초점이 나가면 적용), 목록(고르면 바로 적용), 글꼴·색 등은 대화상자(OK). 틀린 값은 경고 창 "attributeChangeInvalidTitle"(`AttrTable.CellEditor.getTableCellEditorComponent`, `focusLost`, `actionPerformed`, `TableModelAdapter.setValueAt`) | 같음 | 원조대로(바꾸기는 `edit.setAttr`, 되돌리기 한 번) |  |
+| I-101 | 속성 표(회로) | 빈 바탕 클릭 후 회로 속성 | Name, Shared Label·Facing·Font 등 회로 속성을 바꾼다(`AttrTableCircuitModel`, `guide/subcirc/appear.html`) | 같음 | 원조대로 |  |
+| I-102 | 16진 편집기(RAM·ROM Edit Contents…, ROM Contents 속성 클릭) | 방향키, Home/End, PgUp/PgDn, 16진 글자, Shift+클릭·끌기·Shift+방향키, Edit 메뉴 복사·붙여넣기 | 주소 이동, 값 고치기, 범위 고르기, 복사·붙여넣기(다른 프로그램과도)(`guide/mem/hex.html`, `HexFrame`, `com.cburch.hex.Caret`) | 같음 | 원조대로 |  |
+| I-103 | 빠른 속성 창 | Edit·Select로 같은 종류 부품을 고르고 뗌 | 없음 | **[추가]** 조건: 도구가 Edit·Select, 고른 선 아닌 부품이 모두 같은 종류(선은 무시), 왼쪽 버튼을 누르고 있지 않음, 설정 "Quick Attributes" 켬(기본, 속성 칸 아래 체크), 편집할 수 있는 회로, "조용한 선택"이 아님. 왼쪽 누름에 숨고 뗄 때 다시 뜬다. 끌어 옮기기·방향키·메시지 클릭·Find E/X Origin 뒤에는 다음 캔버스 누름까지 숨는다(`QuickBar.refresh`, `markQuiet`, `clearQuiet`, S-04). 자리: 대상 경계 +6에서 간격 6, 위·왼쪽 맞춤 → 위·오른쪽 → 아래·왼쪽 → 아래·오른쪽 → 오른쪽 위 → 왼쪽 위 → 오른쪽 아래 → 왼쪽 아래, 다시 20·40·60 밀어서. 다른 부품·라벨 칩과 겹침 0인 첫 자리, 없으면 겹침(부품·칩 1000배 + 선) 최소. 대상이 화면 밖이면 숨김. 스크롤·크기 바뀜에 따라감(`QuickBar.placement`, D-039) | v1 추가(N-10) |  |
+| I-104 | 빠른 속성 창 | 단추 클릭, 키 | 없음 | **[추가]** 단추 최대 5개(`QuickAttrs.MAX`, 부품 종류 등록표 차례, 읽기 전용 속성 빼고: 게이트 = 입력 수·폭·크기·방향·라벨, Pin = 라벨·폭·출력·3상태·방향, Register = 폭·트리거·라벨, 서브회로·모르는 부품 = 라벨·폭·방향), 글은 "<속성> <값>", 툴팁 "Change {attr}". 목록 속성 = 선택지 팝업, 고르면 모든 대상에 원조 `SetAttributeAction` 하나. 라벨(대상 하나) = 부품 자리 편집(I-105), 다른 글 속성 = 단추 아래 칸. 끝에 "All Attributes"(속성 칸 펴기), 기본 모양 서브회로면 "Auto Appearance". 아래 줄: 원조 숨은 키("0–9: <속성>", "Alt+0–9: <속성>", `KeyConfigurator`에 넣어 보고 알아냄) + "R: Rotate"·"F2: Label". 단추는 초점을 받지 않아 키는 캔버스로(숫자·Alt+숫자가 원조대로 동작)(`QuickBar`, `QuickAttrs.parse`) | v1 추가 |  |
+| I-105 | 라벨 제자리 편집 | F2, 부품 더블클릭, 빠른 속성 창 글 단추 → Enter, Esc, 칸 밖 클릭·Tab | 없음(라벨은 속성 표·Text 도구) | **[추가]** 부품 가운데에 글 칸(폭 max(96, 부품 폭 × 배율 + 16), 높이 24), 글이 모두 골라진 채 열림. 한 번에 하나(다른 칸을 열면 앞 칸은 적용 없이 닫힘). Enter = 적용(값이 같으면 동작 없음, 틀리면 빨간 테두리와 툴팁 `"{0}" is not a valid value for this property.`로 칸 유지), Esc = 적용 없이 닫기, 초점을 잃으면(칸 밖 클릭·Tab) 적용. 닫으면 초점은 캔버스로(`InlineEditor.editLabel`·`start`, D-039). F2는 부품 하나를 고르고 그 부품에 라벨 속성이 있을 때만(`Shortcuts.keyPressed` "label"), 더블클릭은 입력 핀이 아니고 Text가 아닌 라벨 부품(서브회로 포함) | v1 추가 |  |
+
+## 11. 부품 목록(탐색기)과 도구 모음
+
+| 번호 | 도구·상황 | 입력(키·마우스) | 원조 2.7.1 동작 | v1 추가·차이 | v2 할 일 | e2e |
+| --- | --- | --- | --- | --- | --- | --- |
+| I-106 | 부품 목록 | 도구 클릭, 라이브러리 폴더 더블클릭 | 도구를 들고(I-53) 폴더는 더블클릭으로 펼친다(`guide/attrlib/explore.html`, JTree) | 같음. 파일에 아직 없는 Hallym MIPS 라이브러리도 흐리게 보이고 부품을 놓는 순간 파일에 들어간다(`MipsShadow`, V-01, D-096) | v1대로 |  |
+| I-107 | 부품 목록 | 이 프로젝트의 회로를 다른 회로 위로 끌기 | 회로 순서를 바꾼다(`ProjectExplorer` DragController → `ToolboxManip.moveRequested` → `LogisimFileActions.moveCircuit`, 되돌리기 한 번). Project › Move Circuit Up/Down과 같음 | 같음 | 원조대로 |  |
+| I-108 | 부품 목록 | 맨 위 단계의 회로·라이브러리를 고르고 Backspace | 회로 지우기(쓰이는 회로·마지막 회로는 막음) / 라이브러리 내리기(쓰이는 것은 막음)(`ProjectExplorer` DeleteAction, `ToolboxManip.deleteRequested`) | 같음 | 원조대로(정함: Delete 키도 같게 — 원조는 Backspace만, 브라우저에서 Delete가 더 흔함) |  |
+| I-109 | 부품 목록 | 우클릭 | 회로: Edit Circuit Layout, Edit Circuit Appearance, Analyze Circuit, Get Circuit Statistics, Set As Main Circuit, Remove Circuit. 프로젝트(맨 위): Add Circuit…, Load Library ›. 라이브러리: Unload Library, Reload Library(`Popups.forCircuit`, `forProject`, `forLibrary`, `ToolboxManip.menuRequested`) | 같음. 아직 파일에 없는 Hallym MIPS 라이브러리에는 메뉴 없음(`ToolboxManip` `// HCS:` V-01) | 원조대로 + v1 |  |
+| I-110 | 부품 목록 위 검색 칸 | 글자 입력, ↓, Enter, 클릭, Esc | 없음 | **[추가]** 치면 트리 대신 걸러진 목록(검색창과 같은 순위, 명령은 빼고 지금 회로는 넣음). ↓ = 목록으로 가서 첫 줄, Enter = 고른 줄(없으면 첫 줄), 목록에서 Enter·한 번 클릭 = 고르기, Esc = 글을 지워 트리로. 고르면 놓지 않고 **도구를 든다**(뒤 숫자는 `ToolAttributeAction`으로 먼저 적용), 열린 파일 줄은 라이브러리를 불러온 뒤 그 회로 도구(`ToolboxSearch.choose`, `attributeActions`). 이 칸으로 가는 키는 없다 | v1 추가 |  |
+| I-111 | 도구 모음 | 도구 클릭 | .circ `<toolbar>`의 도구(기본: Poke, Edit, Text, 구분선, 입력 Pin, 출력 Pin, NOT, AND, OR)를 든다(`default.templ`, `ProjectToolbarModel`·`LayoutToolbarModel`). Project › Options › Toolbar에서 바꾸고 .circ에 저장(`guide/opts/toolbar.html`) | **[차이]** 원조 도구 모음을 숨기고 앱 도구 모음(파일·되돌리기 / 편집·조작·배선·글자 / 핀·터널·프로브 / 시뮬레이션 / .s 불러오기)을 창 폭으로 둔다. .circ `<toolbar>`는 읽지도 쓰지도 않는다(D-038, D-044, S-20). 단추는 초점을 받지 않고 제 키도 없다. 파일 묶음 New·Open·Save·Undo·Redo, 도구 묶음 Edit·Poke·Wire·Text와 Pin·Tunnel·Probe(기본 속성), Signal Flow 토글, 시뮬레이션 묶음(I-159), Load .s, "Icons Only"·"Icons and Text"(다음 창부터). 좁으면 글자를 먼저 숨기고 그다음 덜 중요한 것부터 "»" 메뉴로(토글은 체크 항목, 속도는 하위 메뉴, Run·1 Cycle·Reset·Load .s는 마지막)(`SimControls.toolbar`, `OverflowToolbar`, X-02, Y-05) | v1대로(N-17) |  |
+| I-112 | 창 전체 | Ctrl+1 … Ctrl+9, Ctrl+0 | 도구 모음의 고를 수 있는 항목 차례로 Ctrl+1 = 첫째(기본 Poke), Ctrl+2 = 둘째(Edit) … Ctrl+9 = 아홉째. Ctrl+0은 열한째(index 10)를 고른다(`KeyboardToolSelection.register`, i=0이면 j=10) — 기본 도구 모음에는 없어 아무 일 없음 | **[차이]** Ctrl+0 = 전체 맞춤, Ctrl+1 = 100%(D-028). Ctrl+2~9는 원조대로 .circ `<toolbar>` 차례(숨긴 도구 모음 대신 창 루트에 단다, `ToolKeys.register`) | v1대로 |  |
+
+## 12. 서브회로 들어가기·나오기
+
+원조에는 "회로 정의 편집"(탐색기에서 회로 더블클릭)과 "인스턴스 상태로 들어가기"(값이 보이는 그 인스턴스 안)가 따로 있다(`guide/subcirc/using.html`, `guide/subcirc/debug.html`). v1은 들어가는 길을 원조 그대로 두고 경로 줄·안내 띠·찾기로 드나드는 길을 더했다. Edit 도구 더블클릭은 v1에서 라벨 편집이라 들어가지 않는다.
+
+| 번호 | 도구·상황 | 입력(키·마우스) | 원조 2.7.1 동작 | v1 추가·차이 | v2 할 일 | e2e |
+| --- | --- | --- | --- | --- | --- | --- |
+| I-113 | 부품 목록 | 회로 이름 더블클릭 | 그 회로의 레이아웃을 편집 화면에 띄우고 앞서 들던 도구로 돌아간다. 상태는 그 회로의 마지막 상태(없으면 따로 선 상태)(`ToolboxManip.doubleClicked` → `Project.setCurrentCircuit`, `Frame.setEditorView(EDIT_LAYOUT)`). 한 번 클릭은 놓기 도구(I-61) | 같음. 따로 선 상태로 열리면 안내 띠(I-116) | 원조대로 + v1 |  |
+| I-114 | 캔버스 | 서브회로 인스턴스 상태로 들어가기 | 우클릭 "View <회로>"(`SubcircuitFactory.CircuitFeature.actionPerformed` → `getSubstate`), Poke 도구로 가운데 돋보기 더블클릭(I-75), Simulation Tree 더블클릭(`SimulationExplorer.mouseClicked`), Simulate › Go In To State(Ctrl+→)(`guide/subcirc/debug.html`) | **[추가]** 찾기 결과(`FindDialog.go`), 메시지 클릭(`Diagnostics.go`), 우클릭 "Find E/X Origin"(`FindOrigin.run`), 안내 띠 "Go to Instance in main"(`InstanceBanner.goTo`)도 인스턴스 상태로 들어간다. "View <회로>"는 우클릭 메뉴 대상별 묶음 맨 위에 남는다(`ContextMenus.original`, D-033). **[차이]** Edit·Select 도구 더블클릭은 들어가지 않고 라벨 편집(I-42) | v1대로. 정함: 더블클릭 들어가기는 두지 않는다(v1과 같음, 라벨 편집이 더블클릭을 씀) |  |
+| I-115 | 서브회로 상태 안 | 바깥으로 나오기 | Simulation Tree에서 바깥 회로 더블클릭, Simulate › Go Out To State(Ctrl+←)(`guide/subcirc/debug.html`) | **[추가]** 회로 탭 오른쪽 경로 줄 "main › datapath › alu"(상태 사슬이 2단 이상일 때만): 조상 이름은 파란 글·손 커서·툴팁 "Go back to {0}", 누르면 그 상태로(`FileTabBar.updatePath` → `Project.setCircuitState`). 마지막 이름은 누를 수 없음. 회로 탭 클릭은 그 회로의 마지막 상태로 | v1대로 |  |
+| I-116 | 서브회로를 따로 연 상태 | 안내 띠의 링크 | 없음 | **[추가]** 목록 더블클릭·회로 탭으로 연 서브회로가 main 안 인스턴스가 아니면 캔버스 위 띠로 알리고 "Go to Instance in main"을 준다. 인스턴스가 여럿이면 경로 목록(`InstanceBanner`, P-02, D-064) | v1 추가(N-11) |  |
+| I-117 | 회로 탭 줄(파일 탭 아래) | 탭 클릭, × | 없음(회로는 목록 더블클릭·Project 메뉴로) | **[추가]** 클릭 = 그 회로(마지막 상태), × = 목록에서 빼기(지금 회로면 아무 일 없음). 회로가 지금 회로가 될 때마다 탭이 생기고 지운 회로는 빠진다. 더블클릭·가운데 버튼·순서 바꾸기·우클릭 없음, 저장 안 함(`FileTabBar.updateCircuits`, PLAN 11.1) | v1 추가(N-11) |  |
+| I-118 | Project › View Simulation Tree / View Toolbox | 클릭 | 왼쪽 칸을 시뮬레이션 계층 트리 / 부품 목록으로 바꾼다(`MenuProject`, `Frame.setExplorerView`). 탐색기 위 아이콘 줄에도 있었다. Simulation Tree 위에는 Simulation Enabled·Step·Ticks Enabled·Tick Once 단추 줄(`SimulationExplorer`, `SimulationToolbarModel`) | **[차이]** 탐색기 아이콘 줄을 숨겼다(같은 항목이 Project 메뉴에, `Toolbox` `// HCS:` 검토 1, S-20) | v1대로 |  |
+
+## 13. 확대·축소와 화면 이동
+
+v1의 배율 키는 창 루트(WHEN_IN_FOCUSED_WINDOW)에 달려 창 안 어디에 초점이 있어도 듣고, 레이아웃 편집 중일 때만 움직인다(모양 편집에서는 아무 일 없음, `ZoomController.bindKeys`의 active 조건).
+
+| 번호 | 도구·상황 | 입력(키·마우스) | 원조 2.7.1 동작 | v1 추가·차이 | v2 할 일 | e2e |
+| --- | --- | --- | --- | --- | --- | --- |
+| I-119 | 배율 칸 | 배율 칸 ▲▼·목록, 격자 아이콘 클릭 | 속성 표 아래 배율 칸: 20·50·75·100·133·150·200·250·300·400%(`Frame.ZOOM_OPTIONS`, `ZoomControl` JSpinner), 격자 보이기 켜기·끄기(`ZoomControl.GridIcon`). 키·휠 배율은 없다 | **[차이]** 단계 25·33·50·67·75·100·125·150·200·250·300·400%(`ZoomMath.STEPS`, `Frame.ZOOM_OPTIONS` `// HCS:`). 배율 칸은 상태 표시줄의 "100%" 단추로: 누르면 위로 뜨는 메뉴에 12단계(체크), "Fit to Window (Ctrl+0)"(레이아웃만), "Show Grid"(`ZoomStatus.menu`, S-21) | v1대로 |  |
+| I-120 | 캔버스 | Ctrl+휠(Ctrl+Shift+휠도) | 없음(휠은 스크롤) | **[추가]** 휠 한 칸에 한 단계, 커서 아래 점을 고정(`ZoomController.wheel` → `zoomAt`, `ZoomMath.anchor`). 스크롤이 음수로 가면 원점 이동으로 받는다(`Canvas.setHcsOrigin`). 회전값 0(정밀 터치패드)도 축소로 셈(코드 읽기) | v1대로. 정함: 터치패드 작은 회전은 모아서 한 단계(회전 0을 축소로 보지 않음), I-207 |  |
+| I-121 | 창 | Ctrl+= · Ctrl++ · Ctrl+Num+ · Ctrl+Shift+=, Ctrl+- · Ctrl+Num- | 없음 | **[추가]** 보이는 영역 가운데 기준 한 단계 확대·축소(`KeyBindings` "zoomIn"·"zoomOut", `ZoomController.zoomCentered`). 바꿀 수 있는 키 | v1 추가 |  |
+| I-122 | 창 | Ctrl+0, Ctrl+Num0 | Ctrl+0 = 열한째 도구(I-112) | **[차이]** 회로 전체 + 라벨 칩에 맞춤, 둘레 20px, 배율은 단계에 붙이지 않음, 작은 축은 가운데(`ZoomController.fitCircuit`, `ZoomMath.fitPlacement`, S-10, D-068). 빈 회로면 아무 일 없음 | v1대로 |  |
+| I-123 | 창 | Ctrl+1, Ctrl+Num1 | Ctrl+1 = 첫째 도구(Poke) | **[차이]** 가운데 기준 100%(`KeyBindings` "zoom100", D-028) | v1대로 |  |
+| I-124 | 캔버스 초점 | F(수식 없음) | 없음 | **[추가]** 고른 부분 경계에 맞춤(`ZoomController.fitSelection`, 캔버스 WHEN_FOCUSED). 선택이 없으면(Edit·Select) 또는 Poke(값 칸 없음)·Wiring이면 F는 검색창(I-41). 선택이 있을 때 Text 도구 글자 칸에 f를 쳐도 맞춤이 같이 일어날 수 있다(코드 읽기) | v1대로. 정함: 글자 칸 편집 중에는 F를 글자로만 |  |
+| I-125 | 캔버스 | Space를 누른 채 아무 버튼 끌기, 가운데 버튼 끌기 | 가운데 버튼 = 메뉴(I-07), Space 없음. 이동은 스크롤 막대 | **[추가]** Space(수식 없음, Text 도구 아님)를 누르면 이동 커서, 그동안 누른 버튼 끌기는 손을 따라 화면 이동(화면 px 기준, 스크롤 한도 안). 가운데 버튼 끌기는 늘 이동이라 원조의 가운데 버튼 메뉴는 없어짐(`ZoomController` KeyAdapter, `handlePan`이 `Canvas.MyListener`보다 먼저, D-028) | v1대로 |  |
+| I-126 | 캔버스 | 휠, Shift+휠 | 휠 = 세로 스크롤(`CanvasPane` JScrollPane 기본) | **[차이]** 휠 = 세로, Shift+휠 = 가로, 한 칸 = round(10 × 배율) × 회전량 px(`ZoomController.wheel`, 스크롤 창 기본 휠은 끔) | v1대로(PLAN 11.2) |  |
+| I-127 | 회로 바꾸기, 다른 곳에서 배율 바뀜 | 회로 탭·목록으로 다른 회로, 모양 편집 배율 | 원조 배율 칸은 바꾸기 전 가운데를 지키지 않는다 | **[차이]** 바뀌기 전 보던 가운데를 새 배율에서 가운데에 두고(`ZoomController.zoomedElsewhere`·`recenterFromLast`), 회로를 바꾸면 원점 이동을 푼다(ACTION_SET_CURRENT) | v1대로 |  |
+
+## 14. 메뉴와 단축키
+
+원조 메뉴 막대는 File, Edit, Project, Simulate, Window, Help다(`LogisimMenuBar`). 키는 메뉴 클래스의 `setAccelerator`가 정한다. 항목 이름은 영어 그대로 쓴다(D-049). v1은 새 메뉴를 만들지 않고 항목만 더하거나 바꿨다(`// HCS:` 줄). v1의 창 키(검색창·찾기·배율 등)는 창 루트에 달려 Swing이 메뉴 단축키보다 먼저 준다(`KeyboardManager.fireKeyboardAction`은 JMenuBar를 맨 나중에 부름). v1은 파일마다 창(Frame)이 하나이고, 파일 탭은 같은 자리에 겹친 창 중 하나만 보이는 방식이다(`FileTabs.showActive`). v2의 메뉴 자리(창 안 메뉴 막대 등)는 N-17이 정하지만, 어느 모양이든 아래 항목과 키는 모두 있어야 한다. 키가 없는 항목은 메뉴마다 한 줄로 묶었다.
+
+| 번호 | 도구·상황 | 입력(키·마우스) | 원조 2.7.1 동작 | v1 추가·차이 | v2 할 일 | e2e |
+| --- | --- | --- | --- | --- | --- | --- |
+| I-128 | File › New | Ctrl+N | 템플릿 사본으로 새 프로젝트를 새 창에 연다(`MenuFile`, `ProjectActions.doNew`, `guide/menu/file.html`) | **[차이]** 새 창을 지금 창 자리에 겹쳐 새 파일 탭으로 보인다(`ProjectActions.createFrame` `FileTabs.placeLikeActive`, #68). Hallym MIPS 부품이 목록에 바로 보인다(V-01) | v1대로(한 창 안 파일 탭, N-11) |  |
+| I-129 | File › Open… | Ctrl+O | 파일 고르기 → 새 창(`ProjectActions.doOpen`) | **[차이]** 새 파일 탭. 창이나 캔버스에 .circ를 끌어 놓아도 연다(`DropOpen.drop`) | v1대로. 정함: 이미 열린 파일이면 그 탭으로 간다(PLAN 11.1) |  |
+| I-130 | File › Open Recent › | (키 없음) | 최근 파일 목록(`OpenRecent`) | 같음(탭으로 연다) | 원조대로(단 목록은 이번 실행에서 연 파일만. 실행 사이에 남기지 않는다: N-19 실습실 규칙) |  |
+| I-131 | File › Close | Ctrl+Shift+W | 이 프로젝트의 창을 모두 닫는다(저장 안 한 변경은 묻는다)(`MenuFile`) | **[차이]** 지금 파일 탭을 닫는다(탭 ×와 같음, 원조 저장 질문 그대로 `FileTabs.close`) | v1대로 |  |
+| I-132 | File › Save | Ctrl+S | 덮어 저장, 처음이면 Save As(`ProjectActions.doSave`) | 같음. 예제(읽기 전용)·복구한 창이면 Save As를 묻는다(D-102, #70) | 원조대로(`file.save`) |  |
+| I-133 | File › Save As… | Ctrl+Shift+S | 다른 이름으로 저장 | 같음 | 원조대로 |  |
+| I-134 | File › Print… | Ctrl+P | 회로 고르기·머리글(%n %p %P %%)·돌려 맞추기·인쇄 보기 대화상자 뒤 페이지 설정(`MenuFile`, `Print.doPrint`, `guide/menu/file.html`) | 같음 | 원조대로(정함: 브라우저 인쇄로 같은 선택지를 준다, N-21) |  |
+| I-135 | File › Exit | Ctrl+Q | 모든 프로젝트를 닫고 끝낸다(`ProjectActions.doQuit`) | 같음 | 원조대로 |  |
+| I-136 | File › Export Image…, Preferences…, (v1) Create Submission…, Import Subcircuits… | (키 없음) | Export Image(PNG·GIF·JPEG, 배율, 인쇄 보기), Preferences 창(`guide/menu/file.html`) | **[차이]** Export Image는 PNG·SVG·PDF 창(`ImageExport.show`, E-07). **[추가]** Save As 다음에 Create Submission…(E-06), Import Subcircuits…(P-05)(`MenuFile` `// HCS:`) | v1대로 |  |
+| I-137 | Edit › Undo %s | Ctrl+Z | I-36 | 같음. **[추가]** 바로 아래 "Redo {0}"·"Can't Redo"(Ctrl+Y, I-37), Undo History…(키 없음, E-05) | v1대로 |  |
+| I-138 | Edit › Cut | Ctrl+X | I-34 | 같음 | 원조대로 |  |
+| I-139 | Edit › Copy | Ctrl+C | I-33 | 같음 | 원조대로 |  |
+| I-140 | Edit › Paste | Ctrl+V | I-35 | 같음 | 원조대로 |  |
+| I-141 | Edit › Delete | Delete | I-30 | 같음 | 원조대로 |  |
+| I-142 | Edit › Duplicate | Ctrl+D | I-32 | I-32의 차이 | v1대로 |  |
+| I-143 | Edit › Select All | Ctrl+A | I-18 | 같음 | 원조대로 |  |
+| I-144 | Edit › Raise Selection / Lower Selection | Ctrl+↑ / Ctrl+↓ | 모양 편집에서만 켜짐: 겹친 것 하나 위·아래로(`MenuEdit`, `guide/menu/edit.html`). 레이아웃에서는 꺼짐(`LayoutEditHandler.computeEnabled`) | 같음 | 원조대로(I-203) |  |
+| I-145 | Edit › Raise To Top / Lower To Bottom | Ctrl+Shift+↑ / Ctrl+Shift+↓ | 모양 편집에서만: 맨 위·맨 아래로 | 같음 | 원조대로 |  |
+| I-146 | Edit › Add Vertex / Remove Vertex | (키 없음) | 모양 편집에서 선·다각형 꼭짓점 더하기·빼기 | 같음 | 원조대로 |  |
+| I-147 | Project 메뉴(키 없음) | 클릭 | Add Circuit…, Load Library ›(Built-in Library…, Logisim Library…, JAR Library…), Unload Libraries…, Move Circuit Up, Move Circuit Down, Set As Main Circuit, Remove Circuit, Revert To Default Appearance, View Toolbox, View Simulation Tree, Edit Circuit Layout, Edit Circuit Appearance, Analyze Circuit, Get Circuit Statistics, Options…(`MenuProject`, `guide/menu/project.html`) | 같음(항목 그대로. 원조 탐색기 아이콘 줄이 숨어 이 메뉴가 유일한 자리, I-118) | 원조대로 |  |
+| I-148 | Simulate › Simulation Enabled | Ctrl+E | 켜면 조작·편집마다 값이 퍼진다. 진동이면 저절로 꺼진다(`MenuSimulate` run, `guide/menu/simulate.html`) | 같음. 도구 모음 Run 단추가 같은 일(I-159), 꺼져 있으면 캔버스 위 띠(I-160) | 원조대로(`sim.run`, N-07) |  |
+| I-149 | Simulate › Reset Simulation | Ctrl+R | 상태를 모두 지운다(서브회로 안이면 계층 전체)(`MenuSimulate` reset → `Simulator.requestReset`) | **[차이]** 기록을 0 스텝부터 다시 시작하는 리셋(`Recorder.requestReset`, C-01) | v1대로(`sim.reset`). Electron 기본 Ctrl+R(새로 고침)을 없앤다(I-206) |  |
+| I-150 | Simulate › Step Simulation | Ctrl+I | 전파를 한 단계 진행, 바뀐 점은 파란 원(시뮬레이션이 꺼져 있을 때만 켜짐)(`MenuSimulate` step, `computeEnabled`) | 같음(I 단독은 영향 경로, I-187) | 원조대로 |  |
+| I-151 | Simulate › Go Out To State ›, Go In To State › | Ctrl+← / Ctrl+→(각 목록의 가장 가까운 항목) | 지금 보는 서브회로 상태의 바깥·안 상태로 간다(`MenuSimulate.recreateStateMenu` VK_LEFT·VK_RIGHT) | 같음(경로 줄이 더해짐, I-115) | 원조대로 |  |
+| I-152 | Simulate › Tick Once | Ctrl+T | 클럭을 한 틱(반 주기) 진행(`MenuSimulate` tickOnce → `Simulator.tick`) | **[차이]** 시뮬레이션이 꺼져 있으면 틱을 거절하고 상태 표시줄에 "Simulation is off…"(`TickGuard.tick`, D-091) | v1대로 |  |
+| I-153 | Simulate › Ticks Enabled | Ctrl+K | 클럭 자동 틱 켜기·끄기(시뮬레이션이 켜져 있을 때만 켜짐)(`MenuSimulate` ticksEnabled, `computeEnabled`) | **[차이]** Ctrl+K는 검색창(창 루트 키가 메뉴보다 먼저). 메뉴에는 "Ctrl+K" 표시가 남지만 키로는 켜지지 않고 클릭으로만. 도구 모음 Run은 Simulation Enabled라 v1에서 자동 틱을 켜는 곳은 이 메뉴와 Simulation Tree 도구 줄뿐 | v1대로(Ctrl+K = 검색창). 정함: Ticks Enabled 메뉴에서 Ctrl+K 표시를 떼고(키 없음), 검색창 명령에 "Ticks Enabled"를 더한다 |  |
+| I-154 | Simulate › Tick Frequency ›, Logging… | (키 없음) | 4096 Hz ~ 0.25 Hz 15단계, Logging 창(`MenuSimulate`) | 같음(도구 모음 속도 칸은 따로, I-159) | 원조대로 |  |
+| I-155 | Window › Minimize | Ctrl+M | 창 최소화(`WindowMenu`) | 같음 | 원조대로 |  |
+| I-156 | Window › Close | Ctrl+W | 지금 창 닫기(`WindowMenu`) | 같음(파일 탭 닫기는 Ctrl+Shift+W). 단축키 설정에서 Ctrl+W는 고정 키 | 정함: 원조에서 창 하나는 파일 하나이므로 v2의 Ctrl+W는 **포커스가 있는 창의 지금 파일 탭**을 닫는다(바뀐 파일이면 그 탭만 저장 질문). 분리한 창(I-179·I-180)의 마지막 탭이면 그 창도 닫고, 앱 창의 마지막 탭이면 시작 화면으로 간다. v1의 Ctrl+Shift+W도 같은 동작으로 둔다 |  |
+| I-157 | Window › Maximize, Combinational Analysis, Preferences, 창 목록 | (키 없음) | 창 크기, 조합 분석 창, 환경설정 창, 열린 창으로 가기(`WindowMenu`, `guide/menu/winhelp.html`) | 같음. 창 목록에서 고르면 그 파일 탭이 앞으로(`FileTabs.watch`), 같은 이름 파일은 폴더로 구분(V-05) | 원조대로 |  |
+| I-158 | Help 메뉴(키 없음) | 클릭 | Tutorial(JavaHelp 튜토리얼), User's Guide, Library Reference, About…(`MenuHelp`) | **[차이]** 차례: Getting Started, Examples ›(demo-datapath·console-demo·stack-demo, 읽기 전용으로 엶), Keyboard Shortcuts, Tutorial = 창 둘러보기(E-10), User's Guide, Library Reference, About = v1 창(E-11)(`MenuHelp` `// HCS:`) | v1대로(N-17·N-18·N-20) |  |
+
+## 15. 시뮬레이션 조작(도구 모음·상태 표시줄·사이클 뷰·메시지)
+
+메뉴 키(Ctrl+E·R·I·T, Ctrl+←·→)는 14절이다. 여기는 v1이 더한 도구 모음 단추와 아래 칸이다. 원조에는 모두 없다.
+
+| 번호 | 도구·상황 | 입력(키·마우스) | 원조 2.7.1 동작 | v1 추가·차이 | v2 할 일 | e2e |
+| --- | --- | --- | --- | --- | --- | --- |
+| I-159 | 도구 모음 시뮬레이션 묶음 | Run, 1 Cycle, N Cycles, Reset, 속도 칸 클릭 | 메뉴만(I-148~I-154) | **[추가]** Run = Simulation Enabled 켜기·끄기(Ctrl+E와 같음, 자동 틱이 아님). 1 Cycle = 엔진 두 틱(`CyclePacer.start(proj, 1)`). N Cycles = 수 묻기(기본 10, 1~100000) 뒤 2N 틱, 밀린 요청 8개 이하로 5ms마다(D-123). Reset = 틱 수를 0으로 하고 `Recorder.requestReset`. 속도 칸 1 Hz·4 Hz·16 Hz·64 Hz·256 Hz·1 kHz·4 kHz → `setTickFrequency`(시뮬레이터 값과 맞추지 않아 처음엔 늘 1 Hz). 꺼져 있을 때 틱은 거절하고 알림(`SimControls.toolbar`, `TickGuard`) | v1대로(`sim.run`, `sim.cycles`, `sim.reset`). 정함: 속도 칸은 지금 주파수를 보인다(v1의 어긋남 고침) |  |
+| I-160 | 캔버스 위 띠 | "Turn On" 링크 클릭 | 없음 | **[추가]** 시뮬레이션이 꺼져 있으면 "Simulation is off: values do not change." 띠, "Turn On"을 누르면 켠다(`SimControls.banner`, D-038) | v1 추가(N-17 알림 띠) |  |
+| I-161 | 상태 표시줄 | 칸 클릭 | 없음(원조는 상태 표시줄이 없음) | **[추가]** 왼쪽부터: 메시지 수(누르면 Messages 탭을 150px로 펼침, `MessagesPanel.open`), Simulation On/Off·Cycle N·PC 0x…·Program x.s(글만), 배율 단추(I-119), "Wire Colors"(누르면 범례와 Thick Buses·Show Bus Widths 체크, `WireLegend.statusLabel`), "Colors: Values/Groups" 토글(`GroupOverlay.button`), "Labels: All / Pins, Tunnels, Subcircuits / Under Pointer" 돌리기(`LabelOverlay.densityButton`), "Bus Values: Hex/Dec/Signed/Off" 돌리기(`BusValues.button`), 알림 글(8초)과 알림 단추 | v1 추가(N-17) |  |
+| I-162 | Cycle View 탭 | 열(몸통·머리) 왼쪽 누름 | 없음 | **[추가]** 그 사이클 상태로 회로 전체를 바꾸고(서브회로 경로 유지) 지난 사이클이면 자동 틱을 끈다. 열을 가운데로, 초점은 표로. 머리 셋째 줄(Instruction)을 누르면 옆 칸 Instruction 탭(`CycleView`, `Recorder.view`, C-03) | v1 추가(N-14) |  |
+| I-163 | Cycle View 표 초점 | ←, →(수식 없음) | 없음 | **[추가]** 앞·뒤 사이클. 마지막 사이클에서 → 또는 Next Cycle은 한 사이클 실행(`CycleView` WHEN_FOCUSED "hcs.prevCycle"·"hcs.nextCycle", `SimControls.runCycles(proj, 1)`) | v1 추가 |  |
+| I-164 | Cycle View 도구 줄 | Previous Cycle, Next Cycle, Latest Cycle, Active Path 체크, Run Until… | 없음 | **[추가]** Run Until…: 꺼져 있으면 거절, 아니면 조건 창(PC Is(16진·.s 라벨), Next Instruction Is, Row Changes, E or X Appears, Halt or Exit, 최대 사이클 기본 10000). 도는 동안 단추가 "Stop"(`CycleView.askRunUntil`, `start`, C-04) | v1 추가 |  |
+| I-165 | Cycle View 줄 이름 | 우클릭, 고정 줄의 × | 없음 | **[추가]** 우클릭 = Show Bits/Hide Bits(폭 > 1), Remove from Cycle View. 고정 줄 오른쪽 × = 빼기. 줄은 캔버스 우클릭 "Add to Cycle View"(선·터널·핀)로 더함(`CycleView.maybeRowMenu`, `unpin`) | v1 추가 |  |
+| I-166 | Messages 탭 | 메시지 줄 클릭 | 없음 | **[추가]** `Diagnostics.go`: 동적 진단이면 Cycle View를 열어 원인 줄을 고정하고 그 사이클로. 인스턴스 상태로 들어가(아니면 그 회로) 원인 부품을 빠른 속성 창 없이 고르고(`QuickBar.markQuiet`), 다 보이지 않을 때만 스크롤하며 캔버스에 표시. 진동 메시지에는 "Reset Simulation" 단추. 초점은 검색 칸으로 가지 않는다(Y-10) | v1 추가(N-13) |  |
+| I-167 | 아래 칸 탭(Messages, Cycle View, Console) | 탭 머리 누름 | 없음 | **[추가]** 창이 낮아 저절로 접혀 있으면 탭을 누를 때 다시 편다(Y-01) | v1 추가(N-17) |  |
+
+## 16. v1이 더한 찾기·탐색·창 조작
+
+원조에는 모두 없다(원조 칸 "없음"). 키는 `KeyBindings`의 바꿀 수 있는 명령이면 그렇다고 적었다.
+
+| 번호 | 도구·상황 | 입력(키·마우스) | 원조 2.7.1 동작 | v1 추가·차이 | v2 할 일 | e2e |
+| --- | --- | --- | --- | --- | --- | --- |
+| I-168 | 창 전체 | Ctrl+K, 캔버스에서 글자(I-41) | 없음(Ctrl+K는 Ticks Enabled, I-153) | **[추가]** 커서 옆(캔버스 마우스 자리 + (12, 12), 캔버스 밖이면 캔버스 (80, 80)) 검색창. Ctrl+K는 빈 글로, 글자는 그 글자로 연다(`PaletteWindow.install`·`open`, `KeyBindings` "palette"). 놓을 자리는 캔버스에서 마지막으로 움직인 논리 좌표(없으면 보이는 영역 가운데, `Shortcuts.lastMouse`). 창 밖을 눌러도 닫히지 않고 Ctrl+K마다 새로 뜬다(코드 읽기) | v1대로. 정함: 밖을 누르거나 초점을 잃으면 닫고, 한 번에 하나만 |  |
+| I-169 | 검색창 | ↑↓, Enter, Alt+Enter, Esc, 더블클릭 | 없음 | **[추가]** ↑↓ = 줄 이동(새로 걸러지면 첫 줄), Enter = 고르기(창을 닫고 실행), Alt+Enter = 즐겨찾기 넣고 빼기(앱 설정 `palette.favorites`), Esc = 닫기, 줄 더블클릭 = 고르기(한 번 클릭은 줄만). 안내 줄 "↑↓ Select · Enter Place/Run · Alt+Enter Favorite · Esc Close"(`PaletteWindow` KeyAdapter) | v1 추가 |  |
+| I-170 | 검색창 | Enter로 고른 것 | 없음 | **[추가]** 부품·서브회로 = 커서 자리(10에 맞춤)에 **하나를 놓는다**(도구를 들지 않음, 되돌리기 한 번 "Add {name}"). 뒤 숫자는 속성: 게이트 = 입력 수, Splitter = 묶인 쪽 폭, Constant에 0x = 값, 그 밖 = 폭(1~32 밖이면 뺌)(`Palette.attributesFor`). 최근 8개. 열린 파일 회로 = 라이브러리를 불러온 뒤(순환이면 알림) 놓기. 명령 = Reset Simulation, Tick Once, Step Simulation, Simulation Enabled, Load .s, Fit to Window, Find, Shortcuts(한글 별칭 리셋·클럭·한 단계·시뮬레이션·맞춤·찾기·단축키·?)(`PaletteActions.run`, `Palette.COMMANDS`). 순위: 같음 100·앞 80·포함 50, 즐겨찾기 +30, 최근 +max(5, 20−2i), 서브회로 +15, 열린 파일 +10, 명령 −5(`Palette.search`, D-037) | v1대로(`edit.addComponent`). 정함: 명령에 "Ticks Enabled"를 더함(I-153) |  |
+| I-171 | 창 전체 | Ctrl+F | 없음 | **[추가]** 모달 아닌 "Find" 창(520×420)을 열 때마다 새로, 초점은 검색 칸. 라벨·터널 이름·서브회로 이름을 main에서 모든 서브회로 경로로(깊이 32까지) + 닿지 않는 회로까지, 대소문자 무시 부분 일치, 이름이 같은 것 먼저. 같은 종류·글·경로는 한 줄로 묶어 "(N places)"(`FindDialog.install`, `NameIndex.of`·`find`·`group`, D-036). 색인은 첫 검색 때 만들고 그 창에서는 다시 만들지 않음. Esc로 닫히지 않음(코드 읽기) | v1대로. 정함: Esc로 닫고, 편집하면 색인을 다시 만든다 |  |
+| I-172 | Find 창 | Enter, 클릭, 더블클릭 | 없음 | **[추가]** 검색 칸 Enter = 고른 줄(없으면 첫 줄)로 가기. 묶음 줄 한 번 클릭 = 펼치기·접기, 펼친 위치 줄 한 번 클릭 = 가기, 아무 줄 더블클릭 = 가기, 결과가 하나인 줄은 한 번 클릭으로 안 감. 가기 = 그 인스턴스 상태로 들어가(`SubcircuitFactory.getSubstate`) 선택을 비우고 그 부품을 골라 둘레 60을 두고 보이게(배율은 그대로)(`FindDialog.go`) | v1대로. 정함: 검색 칸에서 ↑↓로 줄 이동 |  |
+| I-173 | Find 창 Tunnels 탭 | 줄 고르기(클릭·방향키) | 없음 | **[추가]** 지금 회로의 터널 이름과 개수, 고르면 그 이름 터널을 모두 고르고 첫째로 스크롤(`FindDialog.tunnelsPanel`) | v1 추가 |  |
+| I-174 | 캔버스 | 터널 우클릭 → "Go to Next "{label}" Tunnel" | 없음 | **[추가]** 이름(앞뒤 빈칸 뺀 정확한 글)이 같은 터널이 둘 이상일 때만. 위→아래, 왼쪽→오른쪽 차례로 누른 터널 다음 것(끝이면 처음)을 혼자 고르고 둘레 40을 두고 보이게. 같은 메뉴에 "Select All "{label}" Tunnels ({n})", Tunnel Color ▸, Add to Cycle View(`EditMenus.tunnel`, `sameTunnels`, D-033). 키는 없음 | v1대로 |  |
+| I-175 | 왼쪽 칸 Tunnels 탭 | 줄에서 버튼 뗌 | 없음 | **[추가]** 그 이름 터널로 가기. 같은 이름을 다시 누르면 다음 터널(끝이면 처음), 다른 이름이면 첫째부터. 혼자 고르고 둘레 80으로 보이게. 줄은 색 견본·이름·개수, 하나뿐인 터널은 "(1)"을 주황으로(툴팁). 이름 묶음은 대소문자 무시(우클릭·찾기는 정확한 글)(`TunnelList.goTo`, S-11, V-08) | v1대로. 정함: 이름 묶음은 정확한 글로 통일(우클릭·찾기와 같게) |  |
+| I-176 | 왼쪽 칸 Minimap 탭 | 누르기·끌기(아무 버튼) | 없음 | **[추가]** 누른 점이 화면 가운데 오게 스크롤(배율 그대로). 툴팁 "Click or drag to move the canvas there."(`Minimap.centerAt`, S-11, E-08) | v1 추가 |  |
+| I-177 | 왼쪽 칸 | 트리와 아래 탭 사이 끌기, 접힌 탭 머리 누름 | 없음 | **[추가]** 나눔 높이를 사용자 값으로 기억, 창이 낮아 저절로 접혔으면 탭 머리를 눌러 편다(`SidePanel`, Y-01). 왼쪽·오른쪽 칸 나눔 끌기도 기억(`PanelBalance`, X-03) | v1 추가(기억은 한 번의 실행 안에서만, N-19) |  |
+| I-178 | 파일 탭 줄 | 탭 왼쪽 누름, × | 없음(프로젝트마다 창) | **[추가]** 누르면 그 파일로(`TabModel.activate`), × = 저장 질문 뒤 닫기(`FileTabs.close`). 가운데 버튼 닫기·끌어 순서 바꾸기·더블클릭·Ctrl+Tab 없음. 제목: 고치면 "● ", 저장 반영 " · Updated", 분리 " · Window", 같은 이름은 흐린 "— 폴더"(V-05), 툴팁은 경로 또는 "Not saved yet"(`FileTabBar`) | v1대로(탭 키보드 넘기기는 v1에도 없어 더하지 않는다. 더하려면 이 표와 DECISIONS를 먼저 고친다) |  |
+| I-179 | 파일 탭 | 우클릭 | 없음 | **[추가]** Detach Tab/Attach Tab, View Side by Side(탭이 둘 이상), Close. 우클릭은 탭을 고르지 않음(`FileTabBar.tabMenu`, P-06, D-090) | v1 추가(N-11) |  |
+| I-180 | 파일 탭 | 끌어 이 창 캔버스에 놓기, 창 밖에 놓기 | 없음 | **[추가]** 캔버스 위에서는 손 커서, 놓으면 그 파일을 라이브러리로 불러오고 그 파일의 main 회로를 놓은 자리에 놓는다(같은 파일은 무시, 저장 안 한 파일은 알림)(`FileTabBar.dropTab` → `PaletteActions.dropFile`, P-03). 창 밖에 놓으면 창으로 분리(+60, +60)(`FileTabs.detach`) | v1 추가 |  |
+| I-181 | 창·캔버스 | .circ 파일을 끌어 놓기 | 없음 | **[추가]** 놓은 파일을 하나씩 연다(`DropOpen.drop` → `ProjectActions.doOpen`, #70) | v1 추가 |  |
+| I-182 | 앱 시작 | (자동) | 없음 | **[추가]** 열린 탭·활성 탭·분리한 창을 되살리고(`FileTabs.openRestored`, `restoreDetached`), 복구 파일이 있으면 "Recover Unsaved Work"(Recover/Discard). 첫 실행은 작업 영역을 채움(X-01) | 정함: 되살리지 않는다. 실습실 규칙(N-19)상 실행 사이에 탭·분리한 창·배치를 남기지 않고, 켤 때마다 시작 화면(또는 명령줄 .circ)과 작업 영역 최대화로 시작한다. 복구 파일은 앱 전역이 아니라 학생 파일 옆에 두고 그 파일을 다시 열 때만 묻는 방식을 N-19에서 확정한다 |  |
+| I-183 | 단축키 표 → Customize… | 줄 고르기, Change…, 새 키 누르기, Reset, Reset All, Close | 없음 | **[추가]** 바꿀 수 있는 명령 14개: rotate(R), label(F2), redo(Ctrl+Y·Ctrl+Shift+Z), zoomIn, zoomOut, zoomFit, zoom100, zoomSel(F), influence(I), influenceLess([), influenceMore(]), flowToggle(Ctrl+Shift+F, macOS도 Ctrl), find(Ctrl+F), palette(Ctrl+K). 수식 키만 누르면 무시, 수식 없는 Esc는 취소. 고정 키(Ctrl+Z·X·C·V·A·D·S·O·N·W·Q·P·E·T, Ctrl+2~9, 수식 없는 방향키·Delete·Backspace·Esc·Enter·Tab·Space)나 다른 명령 키와 겹치면 거절 "{k} is a fixed key…"·"{k} is already used for: {desc}". 바꾼 키 하나가 기본 키 모두를 대신한다(숫자판 키·Ctrl+Shift+Z가 빠짐). 앱 설정 `keys.bind.<id>`, 모든 창에 곧바로(`KeyBindings`, `KeyBindingsDialog`, E-09, D-083) | v1대로. 정함: 고정 키에 원조 메뉴 키를 모두 넣는다(v1 목록에 빠진 Ctrl+Shift+W·Ctrl+Shift+S·Ctrl+R·Ctrl+I·Ctrl+M·Ctrl+↑↓·Ctrl+Shift+↑↓·Ctrl+←→, P, ?) — 창 키가 메뉴를 가려 조용히 먹히는 것을 막음 |  |
+| I-184 | 첫 실행 둘러보기(Help › Tutorial) | Back, Next, Close/Done, Esc | 없음(원조 Tutorial은 도움말 창) | **[추가]** 12단계 둘러보기가 처음 실행 때 저절로(`tour.seen`). Esc·Close·Done = 끝, 마우스·휠은 말풍선 단추 밖에서 막지만 키보드는 막지 않음(Ctrl+K 등 동작). 캔버스가 Esc를 먼저 써 버리면(영향 경로 지우기) 둘러보기가 남음(`Tour`, E-10) | v1대로(N-18 튜토리얼 엔진). 정함: 둘러보기 중에는 Esc를 둘러보기가 먼저 받는다 |  |
+| I-185 | Help › Getting Started | Back, Next, Start, Enter | 없음 | **[추가]** 모달 아닌 안내 창, Enter = 기본 단추(Next, 마지막은 Start), "Show at Next Start" 체크(`QuickStart`, #23) | v1 추가(N-17·N-18) |  |
+
+## 17. v1이 더한 편집 기능
+
+원조 칸이 "없음"이 아니면 원조가 대신 하던 일이다. 선·부품을 자동으로 두는 것은 모두 검사기 `WireGuard`를 거친다(W-05, D-059).
+
+| 번호 | 도구·상황 | 입력(키·마우스) | 원조 2.7.1 동작 | v1 추가·차이 | v2 할 일 | e2e |
+| --- | --- | --- | --- | --- | --- | --- |
+| I-186 | 캔버스(Text 도구 밖, 모든 도구) | P(수식 없음), 마지막 마우스 자리가 선 위 | 없음 | **[추가]** 그 선에 원조 Probe와 짧은 선을 더한다(1비트는 2진, 여러 비트는 16진). 자리: 포인터에서 가까운 선 위 격자점부터, 선과 수직으로 20·30·40·50px(가로선은 위·아래, 세로선은 오른쪽·왼쪽), 프로브는 선 쪽을 먼저 보게. 다른 넷·포트·몸체에 닿으면 안 됨(WireGuard), 라벨은 넷 이름. 자리가 없으면 "There is no free spot next to this wire…" 창(`ProbeMenu.installKey`, `QuickProbe.find`, D-034). **선택이 비었을 때(Edit·Select, 값 칸 없는 Poke, Wiring)는 검색창도 함께 열린다**(검색창 처리(I-41)가 먼저 돌고 `ProbeMenu`의 KeyListener가 소비를 보지 않음, 코드 읽기) | 정함: 선 위면 프로브만(검색창을 열지 않음), 선 밖이면 I-41 |  |
+| I-187 | Edit·Select, 고른 것 있음 | I, Shift+I, [, ], Esc | 없음(Ctrl+I는 Step) | **[추가]** I = 고른 것이 구동하는 곳(앞), Shift+I = 고른 것을 구동하는 곳(뒤)을 강조(`InfluenceOverlay.show`). 보이는 동안 [ = 한 단계 좁게, ] = 넓게(최소 1, 끝을 넘으면 전체), Esc = 지우기. 상태 표시줄 "Influence: {mode}, {steps}{, through registers}. [ ] narrows or widens it, Esc clears it." 회로가 바뀌면 저절로 지움. 우클릭 Influence ▸ Show Influence (Forward/Backward/Both), Path Between Selected(부품 둘), Through Registers 체크, Clear Influence(`Shortcuts.keyPressed`, `InfluenceMenu`, P-01, D-062). 선택이 비면 I는 검색창 | v1 추가(N-15) |  |
+| I-188 | 캔버스 | Ctrl+Shift+F, 도구 모음 "Signal Flow", Edit·Select 한 번 클릭, Esc | 없음 | **[추가]** Ctrl+Shift+F(macOS도 Ctrl, 모든 도구)와 도구 모음 토글 = "Signal Flow on Click" 켜기·끄기(끄면 도는 흐름도 멈춤). 켜져 있으면(기본 켬) Edit·Select에서 왼쪽 한 번 클릭(화면 4px 안에서 뗌) 150ms 뒤 두 번째 누름이 없으면 누른 곳(부품이면 5px 안 출력 포트만, 선, 몸체 바로 밖 출력 포트)에서 흐름을 보인다, 뗄 때 Shift면 뒤로. 더블클릭은 원래 뜻을 지킴. 멈춤: Esc(모든 도구), 빈 곳 클릭, 다른 대상 클릭(그것으로 다시), 회로 변경·회로·파일 바꾸기·창 닫기. 우클릭 Signal Flow ▸ Show Signal Flow / (Backward) / Stop, 설정(Signal Flow on Click, Flow Speed ▸ Slow/Normal/Fast = 120/240/480 px/s, Through Registers, Active Path Only, Reduce Motion, Smooth (60 fps))(`FlowController`, `FlowMenu`, P-07, D-063) | v1 추가(N-15) |  |
+| I-189 | Splitter 편집기 | 우클릭 Edit Splitter… / Split Bits…, 창 안 입력 | 없음(원조는 속성 표의 bitN 목록) | **[추가]** 모달 창: 범위 글 칸(`31:26, 25:21, 20:16, 15:0`, `4x8`, `32x1`을 치는 대로 해석), 프리셋(32비트만: MIPS R·I·J형, 바이트 4개, 상·하위 16, 부호 비트 + 나머지), MSB on top/LSB on top, 비트 띠(16px 칸, 칸 경계 ±4px 클릭 = 나누기·합치기), 팔 이름 칸. Enter = Apply(기본 단추), Cancel·닫기 = 바꾸지 않음. Apply는 WireGuard를 거쳐 되돌리기 한 번, 결과는 원조 fanout·incoming·bitN과 팔 이름 확장 정보. Split Bits…는 누른 자리 선 위에 동쪽을 보는 새 스플리터(32비트면 R형 프리셋). Take One Bit [n]은 창 없이 바로. 더블클릭으로는 열리지 않음(`SplitterEditor.editExisting`·`createNew`, `SplitterMenu`, B-14, D-032) | v1 추가(N-12) |  |
+| I-190 | 여러 부품 우클릭 | Duplicate N…, Align ▸, Distribute ▸, Select Only Components/Wires | 없음 | **[추가]** Duplicate N…: 개수 1~64(기본 3), 방향 Right/Down/Left/Up(기본 Down), 간격 10~2000(기본 묶음 크기 + 10, 격자), "Number the labels"(끝 숫자를 0 채움 그대로 늘림 R07 → R08, 없으면 번호를 붙임). Align 6가지·Distribute(셋 이상, 양 끝 고정)는 포트에 선이 이어진 부품이 있으면 옮기지 않고 "Parts with connected wires are not moved (align before wiring): …", 움직일 것이 없으면 "Already in place.". 모두 WireGuard를 거쳐 결과를 고른다. Select Only …는 지금 선택을 거른다(`ArrangeActions`, `Arrange`, E-01·E-02, D-084). 키는 없음 | v1 추가(N-21) |  |
+| I-191 | 서브회로 우클릭, 빠른 속성 창 | Auto Appearance | 없음(Revert To Default Appearance만) | **[추가]** 원조 표준 사용자 모양(포트 이름이 들어가는 폭의 상자, 포트 이름, 회로 이름)을 포트 순서대로 만든다. 연결이 끊길 곳이 있으면 최대 8곳을 적은 경고(Apply/Cancel, 기본 Cancel). 되돌리기 한 번(`AutoAppearance`, D-051) | v1 추가(N-11) |  |
+| I-192 | 서브회로 우클릭 | Port Order… | 없음 | **[추가]** 변마다 포트 목록, 끌어 순서 바꾸기(삽입 표시) 또는 ▲/▼ 단추. Apply는 Auto Appearance와 같은 영향 확인(`PortOrderDialog`, P-04, D-092) | v1 추가(N-11) |  |
+| I-193 | Edit › Undo History… | 줄 클릭 | 없음 | **[추가]** 모달 아닌 창(프로젝트마다 하나): "Start of History"(모두 되돌리기), 되돌릴 동작(오래된 것부터, 누르면 그 동작 바로 뒤까지 되돌림), "▶ Now", 다시 할 동작(누르면 거기까지 다시). 한 번 클릭, 키 없음(`UndoHistory`, E-05, D-083) | v1 추가(N-21) |  |
+| I-194 | 서브회로 핀 바꾸기 | 핀을 더하거나 옮김 | 바깥 인스턴스의 포트 자리가 바뀌어 선이 조용히 끊기거나 옆 선에 붙는다(`guide/subcirc/using.html` Note) | **[추가]** 끊길 인스턴스 연결 수를 미리 알리고, 되면 WireGuard로 다시 잇는다(`InstanceBanner`, P-02, D-064). 다른 파일이 쓰는 회로를 저장하면 끊길 연결을 핀 이름으로 세어 알린다(`LibrarySync.beforeSave`, P-03, D-065) | v1 추가(N-11) |  |
+
+## 18. 서브회로 모양 편집(Appearance)
+
+Project › Edit Circuit Appearance에서 쓰는 그리기 도구다(`app/src/com/cburch/draw/tools/`, 도구 모음 `AppearanceToolbarModel`: Select, Text, Line, Curve, Polyline, Rectangle, Rounded Rectangle, Oval, Polygon). 원조 안내는 `guide/subcirc/appear.html`이다. v1은 이 편집기를 원조 그대로 두고 도구 모음만 앱 도구 모음 아래에 가로로 둔다(`Frame.placeToolbar` `// HCS:`).
+
+| 번호 | 도구·상황 | 입력(키·마우스) | 원조 2.7.1 동작 | v1 추가·차이 | v2 할 일 | e2e |
+| --- | --- | --- | --- | --- | --- | --- |
+| I-195 | Appearance·Select | 클릭, Shift+클릭, 빈 곳 끌기, Shift+빈 곳 끌기, 손잡이 끌기 | 도형 클릭 = 그것만 고르고 옮기기, Shift+클릭 = 뒤집기, 빈 곳 끌기 = 사각형 고르기, Shift = 사각형 뒤집기, 고른 도형의 손잡이 끌기 = 꼭짓점·크기 바꾸기. 끌기는 몇 px 넘어야 시작(`draw.tools.SelectTool.mousePressed`, `setMouse` DRAG_TOLERANCE) | 같음 | 원조대로(N-11 모양 편집) |  |
+| I-196 | Appearance·모든 그리기 도구 | Ctrl을 누르고 누르기·끌기 | 격자점에 맞춘다(`RectangularTool.computeBounds`, `LineTool`, `CurveTool`, `PolyTool`, `SelectTool.setMouse` ctrl; `guide/subcirc/appear.html`) | 같음 | 원조대로 |  |
+| I-197 | Appearance·Select | Backspace·Delete, Esc | 지울 수 있는 고른 도형을 지우고(앵커·포트는 못 지움), Esc는 선택을 비운다(`draw.tools.SelectTool.keyTyped` '\b'·'\u007f'·'\u001b') | 같음 | 원조대로(모양 편집에서만 Esc = 선택 비우기) |  |
+| I-198 | Appearance·Line | 끌기, Shift+끌기 | 선분. Shift는 45° 배수(`LineTool.updateMouse` `snapTo8Cardinals`) | 같음 | 원조대로 |  |
+| I-199 | Appearance·Curve | 끌기 후 클릭, Shift, Alt | 끝점 둘을 끌고(Shift = 45°) 조절점을 클릭(Shift+클릭 = 대칭, Alt+클릭 = 조절점을 지나는 곡선)(`CurveTool`) | 같음 | 원조대로 |  |
+| I-200 | Appearance·Polyline·Polygon | 클릭 잇기, Shift+클릭, 더블클릭·Enter, 시작점 클릭 | 클릭마다 꼭짓점(Shift = 앞 꼭짓점과 45°), 더블클릭·Enter로 끝내고 Polygon은 시작점 클릭으로도 끝(`PolyTool`) | 같음 | 원조대로 |  |
+| I-201 | Appearance·Rectangle·Rounded Rectangle·Oval | 끌기, Shift, Alt | 모서리에서 모서리로. Shift = 정사각형·원, Alt = 가운데에서 시작(`RectangularTool.computeBounds`) | 같음 | 원조대로 |  |
+| I-202 | Appearance·Text | 클릭, Enter, Esc | 글 칸을 열고 Enter로 끝, Esc로 취소(`draw.tools.TextTool` fieldInput) | 같음 | 원조대로 |  |
+| I-203 | Appearance | Ctrl+↑·↓, Ctrl+Shift+↑·↓, Add/Remove Vertex | I-144, I-145, I-146 | 같음 | 원조대로 |  |
+| I-204 | Appearance | 포트 도형 고르기 | 오른쪽 아래에 회로 축소 그림을 띄워 맞는 핀을 파랗게 보인다(모든 포트를 고르면 안 띄움)(`LayoutThumbnail`, `guide/subcirc/appear.html`) | 같음 | 원조대로 |  |
+| I-205 | Project › Revert To Default Appearance | 클릭 | 기본 사각형 모양으로 되돌린다(모양 편집 중에만 켜짐) | 같음. 따로 서브회로 우클릭·빠른 속성 창 "Auto Appearance"(I-191) | 원조대로 |  |
+
+## 19. Electron에서 따로 막을 것
+
+원조·v1은 Swing이라 없던 일이지만, Chromium 기본 동작이 위 줄을 깨뜨리는 곳이다. 원조·v1 칸은 그 줄이 지켜야 할 동작을 가리킨다.
+
+| 번호 | 도구·상황 | 입력(키·마우스) | 원조 2.7.1 동작 | v1 추가·차이 | v2 할 일 | e2e |
+| --- | --- | --- | --- | --- | --- | --- |
+| I-206 | 창 전체 | Ctrl+R, Ctrl+Shift+R, Ctrl+Shift+I, Ctrl+0, Ctrl+=, Ctrl+-, Ctrl+W, Ctrl+M, F11 | Ctrl+R = Reset, Ctrl+0 = (원조) 도구 선택, Ctrl+W = 창 닫기, Ctrl+M = 최소화(I-149, I-112, I-156, I-155) | Ctrl+0·Ctrl+=·Ctrl+- = 캔버스 배율(I-121) | 정함: Electron 기본 메뉴를 쓰지 않는다(`Menu.setApplicationMenu(null)`, Hallym MIPS v2.3.0 `electron/src/main/main.ts`와 같음). 새로 고침·개발자 도구·페이지 배율 키가 살아 있지 않은지 e2e로 본다 |  |
+| I-207 | 캔버스 | Ctrl+휠, 터치패드 오므리기 | 원조: 배율 칸만(I-119) | Ctrl+휠 = 캔버스 배율(I-120) | 정함: 페이지 배율을 막는다(`webContents.setVisualZoomLevelLimits(1, 1)`, 캔버스 `wheel`은 `passive: false`로 받아 `preventDefault`) |  |
+| I-208 | 캔버스 | 가운데 버튼 누름 | 원조: 메뉴(I-07) | 가운데 버튼 끌기 = 이동 | 정함: Windows Chromium의 가운데 버튼 자동 스크롤을 막는다(`mousedown` button 1에서 `preventDefault`) |  |
+| I-209 | 캔버스 | Space | 원조: 없음(글 칸이면 공백) | Space+끌기 = 이동(I-125) | 정함: 캔버스 초점일 때 Space가 스크롤·단추 누르기로 새지 않게 `preventDefault`(글 칸 편집 중 제외) |  |
+| I-210 | 캔버스 | Alt, Alt+숫자, Alt+방향키 | I-17, I-39, I-40 | 같음 | 정함: Alt 누름·뗌이 창 메뉴 초점으로 가지 않게 한다(창 안 메뉴를 쓰면 Alt 단독 뗌만 메뉴에 줌). 키는 `KeyboardEvent.code`로 읽는다(자판 배치·IME와 무관) |  |
+| I-211 | 캔버스 | 오른쪽 버튼 | I-07 | 같음 | 정함: 브라우저 `contextmenu`를 막고 우리 메뉴만. Ctrl+클릭은 macOS에서 `contextmenu`로 오므로 macOS에서는 Ctrl+클릭 조작(I-77)이 없다(실습실은 Windows) |  |
+| I-212 | 캔버스 | 한글 입력 상태에서 글자 키 | 원조: 글자 키 무시 | 글자 = 검색창(I-41) | 정함: 한글 IME 조합 중(`isComposing`)이면 단축키로 보지 않는다. 한글 자판 상태에서도 R·I·F·P 등은 `code`(KeyR…)로 판정한다 |  |
+| I-213 | 캔버스 | 더블클릭 판정 | Swing `getClickCount`(OS 더블클릭 간격) | 같음 | 정함: 브라우저 `dblclick`/`detail`을 쓴다(OS 간격을 따름) |  |
+
+## 20. 키가 겹치는 곳과 v2 결정(요약)
+
+위 표에서 같은 키가 원조와 v1에서 다른 뜻이거나, v1 안에서 두 뜻이 부딪치는 곳만 모았다. 번호 줄이 기준이고 이 절은 찾아보기용이다.
+
+| 키·입력 | 원조 2.7.1 | v1 | v2 | 줄 |
+| --- | --- | --- | --- | --- |
+| ← ↑ → ↓(고른 상태) | Facing 바꾸기 | 한 칸 옮기기 | v1(방향은 R) | I-28, I-29 |
+| ← ↑ → ↓(부품 놓기 도구) | 도구 Facing | 같음 | 원조 | I-58 |
+| Ctrl+K | Ticks Enabled | 검색창(메뉴 표시는 남음) | 검색창, Ticks Enabled는 키 없음 | I-153, I-168 |
+| Ctrl+0 | 열한째 도구(기본은 없음) | 전체 맞춤 | v1 | I-122 |
+| Ctrl+1 | 첫째 도구(Poke) | 100% | v1 | I-123 |
+| Ctrl+2 … Ctrl+9 | 도구 모음 도구 | 같음 | 원조 | I-112 |
+| Ctrl+Y, Ctrl+Shift+Z | 없음 | 다시 실행 | v1 | I-37 |
+| Ctrl+F, Ctrl+Shift+F | 없음 | 찾기, Signal Flow on Click 켜기·끄기(macOS도 Ctrl) | v1 | I-171, I-188 |
+| Ctrl+I / I | Step Simulation / 없음 | 같음 / 영향 경로 | v1 | I-150, I-187 |
+| Ctrl+R | Reset | 기록 처음부터 Reset | v1(Electron 새로 고침 막기) | I-149, I-206 |
+| Ctrl+T | Tick Once | 꺼져 있으면 거절 | v1 | I-152 |
+| Ctrl+클릭 | 메뉴 | 입력 핀·Button이면 조작, 그 밖 메뉴 | v1 | I-77, I-07 |
+| 가운데 버튼 | 메뉴 | 끌어 이동 | v1 | I-125, I-208 |
+| 글자 키(선택 없음) | 없음 | 검색창 | v1 | I-41 |
+| F | 없음 | 선택 있으면 고른 부분 맞춤, 없으면 검색창 | v1 | I-124, I-41 |
+| P(선 위, 선택 없음) | 없음 | 프로브 붙이기. 코드 순서상 검색창도 함께 열림(`Canvas.MyListener` → `Shortcuts.keyPressed`가 먼저 글자를 검색창으로 보내고, `ProbeMenu.installKey`의 두 번째 KeyListener가 소비 여부를 보지 않음) | 정함: 선 위면 프로브만, 선 밖이면 검색창 | I-186 |
+| R, I, [, ], ?(선택 없음) | 없음 | R·I는 글자라 검색창(`Shortcuts.opensPalette`가 회전·영향 경로보다 먼저), [·]는 영향 경로가 보일 때만 깊이, ?는 단축키 표 | v1 | I-29, I-187, I-43 |
+| Esc | 글 편집 취소(레이아웃), 선택 비우기(모양 편집만) | + 영향 경로 지우기, Signal Flow 멈추기, 창 닫기 | v1(레이아웃 선택은 지우지 않음) | I-19, I-197 |
+| 더블클릭(Edit) | 없음(Poke로 서브회로 돋보기만) | 입력 핀 = 값 넣기, 라벨 속성이 있는 부품(서브회로 포함) = 라벨 편집, 원조 도구는 둘째 누름을 받지 않음 | v1(더블클릭으로 서브회로에 들어가지 않음) | I-78, I-42, I-114 |
+| Run 단추 | 없음 | Simulation Enabled 켜기·끄기(자동 틱 아님) | v1 | I-159 |
+
+## 21. 코드 읽기로만 확인한 것
+
+아래는 v1을 실행하지 않고 코드 순서로 알아낸 동작이다. v2는 줄의 "v2 할 일"을 따르므로 v1을 고칠 일은 없지만, v1과 나란히 비교하는 검토(N-09, N-25)에서 이 줄은 v1 실제 동작을 한 번 확인한다.
+
+- I-186: 선택이 비었을 때 선 위 P가 검색창과 프로브를 함께 여는 것(`Canvas.MyListener`가 먼저, `ProbeMenu.installKey`의 KeyListener는 `isConsumed`를 보지 않음).
+- I-120: 회전값 0인 Ctrl+휠이 축소로 셈하는 것(`ZoomController.wheel`의 `getWheelRotation() < 0` 판정).
+- I-124: 선택이 있을 때 Text 도구 글자 칸에 f를 치면 맞춤도 일어나는 것(F 바인딩이 도구를 보지 않음).
+- I-168: 검색창이 밖을 눌러도 닫히지 않고 Ctrl+K마다 새로 뜨는 것.
+- I-171: Find 창이 Esc로 닫히지 않고 첫 검색 뒤 색인을 다시 만들지 않는 것.
+- I-153: Ticks Enabled 메뉴의 Ctrl+K 표시가 남았는데 키로는 검색창이 뜨는 것(Swing `KeyboardManager`가 JMenuBar를 맨 나중에 부름).
+- I-62: 빈 캔버스 안내가 말하는 목록 → 캔버스 끌어 놓기가 코드에 없는 것.
+- I-19: `Shortcuts`의 주석(두 번째 Esc가 선택을 지움)과 달리 선택이 그대로인 것.
+
+## 22. 세는 법
+
+- 줄 수는 1~19절 표의 I- 줄이다(20절 요약과 21절 목록은 세지 않는다).
+- v2 PR은 맡은 줄의 e2e 칸에 테스트 이름을 적는다. 한 테스트가 여러 줄을 덮어도 된다. 모든 줄이 채워져야 N-08을 닫는다(편집 동등성 N-09와 v1 기능 대조표 N-21은 따로 본다).
+- 줄을 빼거나 "v2 할 일"을 바꾸면 이유를 `docs/DECISIONS.md`에 적고 여기 줄에 번호를 단다.
