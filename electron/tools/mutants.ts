@@ -5,7 +5,7 @@
      node tools/mutants.ts [FILTER]
 
    Each mutant below changes one thing in one file -- the text `find` must
-   occur exactly once -- in a copy of src/, tests/ and tools/ in a
+   occur exactly once -- in a copy of src/, tests/, tools/ and packaging/ in a
    temporary directory, <tmp>/electron (node_modules/ is linked, not copied,
    and so are the repository's assets/ and tests/ next to it: the window's
    marks and characters, the test circuits), and runs the tests named for
@@ -275,10 +275,57 @@ export const MUTANTS: Mutant[] = [
     find: 'pinned !== undefined && !ids.includes(pinned)', replace: 'false', tests: ['tests/unit/cycle.test.ts'] },
   { module: 'recovery', file: 'src/main/recovery.ts', what: 'Mark as PC, the register file and its mapping not journaled',
     find: ' || MODEL_EDITS.includes(method)', replace: '', tests: ['tests/unit/recovery.test.ts'] },
+  // ---- the Windows installer (tools/package-config.ts, packaging/installer.nsh; N-23, D-148)
+  { module: 'installer', file: 'tools/package-config.ts', what: 'a desktop shortcut',
+    find: 'createDesktopShortcut: false,', replace: 'createDesktopShortcut: true,', tests: ['tests/unit/package-config.test.ts'] },
+  { module: 'installer', file: 'tools/package-config.ts', what: 'an installer with pages (not one click)',
+    find: 'oneClick: true,', replace: 'oneClick: false,', tests: ['tests/unit/package-config.test.ts'] },
+  { module: 'installer', file: 'tools/package-config.ts', what: 'for all users (an administrator)',
+    find: 'perMachine: false,', replace: 'perMachine: true,', tests: ['tests/unit/package-config.test.ts'] },
+  { module: 'installer', file: 'tools/package-config.ts', what: 'a block map beside the installer (differential updates)',
+    find: '      differentialPackage: false,\n', replace: '', tests: ['tests/unit/package-config.test.ts'] },
+  { module: 'installer', file: 'tools/package-config.ts', what: '.circ associated with the program',
+    find: '    // No fileAssociations, no protocols', replace: "    fileAssociations: [{ ext: 'circ', name: 'Logisim circuit' }],\n    // No fileAssociations, no protocols",
+    tests: ['tests/unit/package-config.test.ts'] },
+  { module: 'installer', file: 'tools/package-config.ts', what: 'a zip of the program beside the installer',
+    find: "target: [{ target: 'nsis', arch: ['x64'] }]", replace: "target: [{ target: 'nsis', arch: ['x64'] }, { target: 'zip', arch: ['x64'] }]",
+    tests: ['tests/unit/package-config.test.ts'] },
+  { module: 'installer', file: 'packaging/installer.nsh', what: 'the v1.0.x MSI never looked for',
+    find: '  !insertmacro hcsRemoveV1Msi\n', replace: '', tests: ['tests/unit/package-config.test.ts'] },
+  { module: 'installer', file: 'packaging/installer.nsh', what: 'another UpgradeCode than the 1.0.x MSI\'s',
+    find: '{6206F18C-D7FA-366B-98DA-E7980F6083D6}', replace: '{6206F18C-D7FA-366B-98DA-E7980F6083D7}', tests: ['tests/unit/package-config.test.ts'] },
+  { module: 'installer', file: 'packaging/installer.nsh', what: 'msiexec with its own dialogs',
+    find: '/x $R1 /qn /norestart', replace: '/x $R1', tests: ['tests/unit/package-config.test.ts'] },
+  { module: 'installer', file: 'packaging/installer.nsh', what: 'a notice that waits in a silent install',
+    find: ': ${HCS_V1_MSI_NAME}" /SD IDOK', replace: ': ${HCS_V1_MSI_NAME}"', tests: ['tests/unit/package-config.test.ts'] },
+  { module: 'installer', file: 'packaging/installer.nsh', what: 'a particle after the program\'s name',
+    find: '다음 프로그램을 제거합니다: ${PRODUCT_NAME}', replace: '${PRODUCT_NAME}을(를) 제거합니다', tests: ['tests/unit/package-config.test.ts'] },
+  { module: 'installer', file: 'packaging/installer.nsh', what: 'the installer\'s copy for an updater kept',
+    find: '  RMDir "$LOCALAPPDATA\\hallym-circuit-studio-updater"\n', replace: '', tests: ['tests/unit/package-config.test.ts'] },
+  // ---- what a release may carry (tools/release-assets.ts; N-23)
+  { module: 'release', file: 'tools/release-assets.ts', what: 'an MSI taken for something else',
+    find: "else if (lower.endsWith('.msi'))", replace: "else if (lower.endsWith('.msi') && false)", tests: ['tests/unit/release-assets.test.ts'] },
+  { module: 'release', file: 'tools/release-assets.ts', what: 'any zip taken for track A\'s',
+    find: "`^hcs-mips-${escape(version)}-(windows|linux)\\\\.zip$`", replace: "`^.*\\\\.zip$`", tests: ['tests/unit/release-assets.test.ts'] },
+  { module: 'release', file: 'tools/release-assets.ts', what: 'a release without the setup exe',
+    find: '  if (!names.includes(setup)) problems.push', replace: '  if (false) problems.push', tests: ['tests/unit/release-assets.test.ts'] },
+  { module: 'release', file: 'tools/release-assets.ts', what: 'the 1.0.x releases checked too',
+    find: "return Number(version.split('.')[0]) >= 2;", replace: "return Number(version.split('.')[0]) >= 1;", tests: ['tests/unit/release-assets.test.ts'] },
+  // ---- what a run or an install may leave on Windows (tools/windows/state.ts; N-23)
+  { module: 'state', file: 'tools/windows/state.ts', what: 'the program\'s folder in %TEMP% not counted',
+    find: "(c.where !== 'temp' || OUR_TEMP.test(", replace: "(c.where !== 'temp' || false && OUR_TEMP.test(", tests: ['tests/unit/state.test.ts'] },
+  { module: 'state', file: 'tools/windows/state.ts', what: 'an install may add any registry key',
+    find: 'return UNINSTALL_ENTRY.test(c.path) || INSTALL_RECORD.test(c.path);', replace: 'return true;', tests: ['tests/unit/state.test.ts'] },
+  { module: 'state', file: 'tools/windows/state.ts', what: 'a Windows Installer product\'s values taken for an empty container',
+    find: "(c.where === 'registry' && c.after === 'key' &&", replace: "(c.where === 'registry' &&", tests: ['tests/unit/state.test.ts'] },
+  { module: 'state', file: 'tools/windows/state.ts', what: 'the default value named by the system\'s language',
+    find: "/^\\((Default|기본값)\\)$/.test(m[1]) ? '(Default)' : m[1]", replace: 'm[1]', tests: ['tests/unit/state.test.ts'] },
+  { module: 'run-folder', file: 'src/main/run-folder.ts', what: 'the runs\' folder left in the temp folder',
+    find: 'try{rmdirSync(runs)}catch{}', replace: '', tests: ['tests/unit/run-folder.test.ts'] },
 ];
 
 function copyTree(dir: string): void {
-  for (const d of ['src', 'tests', 'tools']) cpSync(path.join(root, d), path.join(dir, d), { recursive: true });
+  for (const d of ['src', 'tests', 'tools', 'packaging']) cpSync(path.join(root, d), path.join(dir, d), { recursive: true });
   for (const f of ['package.json', 'tsconfig.json', 'playwright.config.ts', 'ORIGIN.md', 'LICENSE.hallym-mips.txt', 'hallym-assets.md']) cpSync(path.join(root, f), path.join(dir, f));
   symlinkSync(path.join(root, 'node_modules'), path.join(dir, 'node_modules'));
   // The repository around electron/: its notices, the marks and characters, the test circuits.

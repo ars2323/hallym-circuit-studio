@@ -28,15 +28,31 @@ test('earlier runs: removed once their process is gone; a running one and this o
   }
 });
 
-test('the remover script: waits for the process to be gone, then removes the folder', async () => {
-  const dir = mkdtempSync(path.join(tmpdir(), 'hcs-remove-'));
-  mkdirSync(path.join(dir, 'Cache'));
+test('the remover script: waits for the process to be gone, then removes the folder, and the runs\' folder once empty', async () => {
+  const runs = mkdtempSync(path.join(tmpdir(), 'hcs-remove-'));
+  const dir = path.join(runs, 'run-1-2');
+  const other = path.join(runs, 'run-3-4');
+  mkdirSync(path.join(dir, 'Cache'), { recursive: true });
+  mkdirSync(path.join(other, 'Cache'), { recursive: true });
   // A pid that is not running: it removes at once.
   const { spawnSync } = await import('node:child_process');
-  const r = spawnSync(process.execPath, ['-e', removeAfterExitScript(2 ** 22 + 7, dir)], { encoding: 'utf8' });
-  assert.equal(r.status, 0, r.stderr);
-  for (let i = 0; i < 50 && existsSync(dir); i += 1) await new Promise((d) => setTimeout(d, 20));
-  assert.equal(existsSync(dir), false);
+  const remove = (d: string) => {
+    const r = spawnSync(process.execPath, ['-e', removeAfterExitScript(2 ** 22 + 7, d)], { encoding: 'utf8' });
+    assert.equal(r.status, 0, r.stderr);
+  };
+  try {
+    // Another run's folder is there: the runs' folder stays.
+    remove(dir);
+    for (let i = 0; i < 50 && existsSync(dir); i += 1) await new Promise((d) => setTimeout(d, 20));
+    assert.equal(existsSync(dir), false);
+    assert.deepEqual(readdirSync(runs), ['run-3-4']);
+    // The last run: nothing of the program is left.
+    remove(other);
+    for (let i = 0; i < 50 && existsSync(runs); i += 1) await new Promise((d) => setTimeout(d, 20));
+    assert.equal(existsSync(runs), false);
+  } finally {
+    rmSync(runs, { recursive: true, force: true });
+  }
 });
 
 test('circArgument: the first .circ that is not a switch, resolved against the start folder', () => {

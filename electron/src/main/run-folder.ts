@@ -37,11 +37,14 @@ export function removeEarlierRuns(runsDir: string, self: number, isAlive: (pid: 
 /* Chromium writes into the folder until its very end, so the folder is
    removed after the program has exited: by the same executable run as
    plain Node, detached, waiting for this process to be gone (at most 15 s).
+   Then the folder of the runs goes too if no other run is in it
+   (<temp>/HallymCircuitStudio: nothing of the program is left in the temp
+   folder, N-23's Windows check; rmdir removes only an empty folder).
    This is the script it runs. */
 export function removeAfterExitScript(pid: number, dir: string): string {
-  return `const {rmSync}=require('fs');const pid=${pid};const dir=${JSON.stringify(dir)};
+  return `const {rmSync,rmdirSync}=require('fs');const pid=${pid};const dir=${JSON.stringify(dir)};const runs=${JSON.stringify(path.dirname(dir))};
 const gone=()=>{try{process.kill(pid,0);return false}catch(e){return e.code!=='EPERM'}};
-const t0=Date.now();(function wait(){if(gone()||Date.now()-t0>15000){try{rmSync(dir,{recursive:true,force:true,maxRetries:5,retryDelay:200})}catch{}}else setTimeout(wait,100)})();`;
+const t0=Date.now();(function wait(){if(gone()||Date.now()-t0>15000){try{rmSync(dir,{recursive:true,force:true,maxRetries:5,retryDelay:200})}catch{}try{rmdirSync(runs)}catch{}}else setTimeout(wait,100)})();`;
 }
 
 /* The .circ file named on the command line, if any: the first argument

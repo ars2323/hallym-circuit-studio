@@ -51,6 +51,7 @@
     "tools/mutants.ts": "3c6d38f823379f39c0d3bb53b8e1679c2aa251e52528581ed216f141dc199b78",
     "tools/package.ts": "491a850f08dcf0baa06736bc0e81ff8da62c9a50ea5c250010705bcaecd17949",
     "packaging/installer.nsh": "82b93d02187dc5ee9777c61599c3d8b4e98422be47865660e49041e7717463fd",
+    "tools/windows/screen-1920.ps1": "61f78d8baca1dc50707dd27779e49f9d054ed5f0c4961cca9f5a7dafcfe4f8ed",
     "tests/e2e/harness.ts": "bd358d6e394d3d9d4bc77cb6264687ca08775ccf0897b9b45cff9055c0d302fd",
     "tests/unit/overlay.test.ts": "eea4e8914bff712399223702a8b32044222aacbfbbbc6c6f05fc7e0a7b9f8dfb",
     "tests/unit/names.test.ts": "60cf77f29e3ca114ea1e3e798d4d604c282b322017e3ce541dc5a891772d1479"
