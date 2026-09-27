@@ -157,7 +157,8 @@
 | Y-03 | 고정 줄 수명 | #321 | 완료 | #327 | CycleViewGuiTest |
 | Y-04 | 진짜 첫 실행(장면 48, windows-smoke 튜토리얼) | #322 | 완료 | #328 | 48-first-run(y04b), TourGuiTest, windows-smoke tutorial |
 | Y-05 | 작은 것(빈 Attributes 칸, 아이콘만 모드 글자 단추) | #323 | 완료 | #329 | 01·49(y05), EmptyAttributesGuiTest, OverflowToolbarTest |
-| Y-06 | 확인과 릴리스(review-shots v103, v1.0.3, needs-human) | #324 | 진행 | #330, #331 | 최종 세트·windows-smoke |
+| Y-06 | 확인과 릴리스(review-shots v103, v1.0.3, needs-human) | #324 | 완료 | #330, #331, #332 | 태그 v1.0.3(main c628668), Latest, 자산 9개(MSI 없음, 공개 주소 해시 확인), https://github.com/ars2323/hallym-circuit-studio/releases/tag/v1.0.3, review-shots 2026-09-27-v103, #54 갱신 |
 | Y-07 | MSI 배포 중단(zip만), setup exe 결정(v1.1.0, #334) | #333 | 완료 | #335 | 없음(화면 변경 없음), CI windows 잡 .msi 검사 |
 | Y-08 | 틱 누락 확인(N Cycles 고침, Run Until·기록·연속 실행은 해당 없음) | #336 | 완료 | #337 | 없음(화면 변경 없음), TickLoadTest, RunUntilTest |
-| Y-10 | 메시지를 누르면 초점이 검색 칸으로 옮겨 가던 것 | #339 | 완료 | (이 PR) | 14b·14c·31c, MessagesPanelTest, MessagesFocusGuiTest |
+| Y-10 | 메시지를 누르면 초점이 검색 칸으로 옮겨 가던 것 | #339 | 완료 | #340 | 14b·14c·31c, MessagesPanelTest, MessagesFocusGuiTest |
+| Y-09 | 촬영·검토 절차(장면마다 새 JVM, 병렬, 같은 코드면 같은 픽셀, 바뀐 것만 검토, core·feature 세트) | #338 | 완료 | (이 PR) | D-121, screens/README.md |
