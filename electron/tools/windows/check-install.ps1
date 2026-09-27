@@ -64,7 +64,7 @@ function V1Products { $i = New-Object -ComObject WindowsInstaller.Installer; @($
 function Snap([string]$name) { & node tools/windows/state.ts snapshot (Join-Path $Report "state-$name.json") | Out-Host }
 function Diff([string]$a, [string]$b, [string]$expect, [string]$what) {
   & node tools/windows/state.ts diff (Join-Path $Report "state-$a.json") (Join-Path $Report "state-$b.json") --expect $expect --report (Join-Path $Report "diff-$b.txt") | Out-Host
-  Check ($LASTEXITCODE -eq 0) "$what (state $a -> $b, expect $expect: $Report\diff-$b.txt)"
+  Check ($LASTEXITCODE -eq 0) "$what (state $a -> $b, expect ${expect}: $Report\diff-$b.txt)"
 }
 function Install([string]$setupExe, [string]$what) {
   $sw = [Diagnostics.Stopwatch]::StartNew()
@@ -74,7 +74,7 @@ function Install([string]$setupExe, [string]$what) {
   return $sw.ElapsedMilliseconds
 }
 function State([string]$when) {
-  $e = Entries; $f = Folders; $s = Shortcuts
+  $e = @(Entries); $f = @(Folders); $s = @(Shortcuts)
   $pv = if (Test-Path $exe) { (Get-Item $exe).VersionInfo.ProductVersion } else { '(none)' }
   Note "$when -- uninstall entries: $(($e | ForEach-Object { "$($_.DisplayName) [$($_.DisplayVersion)] $($_.PSChildName)" }) -join '; ')"
   Note "$when -- folders named *allym*: $($f -join '; ')"
@@ -150,7 +150,11 @@ try {
     Note ('setup exe: {0:N1} MB ({1} bytes); installed: {2:N1} MB in {3} files; install {4} ms' -f ($setupBytes / 1MB), $setupBytes, ($size / 1MB), $files.Count, $ms)
     $files | Sort-Object Length -Descending | Select-Object -First 12 | ForEach-Object { Note ('  {0,7:N1} MB  {1}' -f ($_.Length / 1MB), $_.FullName.Substring($dir.Length + 1)) }
     $top = Get-ChildItem $dir | ForEach-Object { $s = if ($_.PSIsContainer) { (Get-ChildItem $_.FullName -Recurse -File | Measure-Object Length -Sum).Sum } else { $_.Length }; [pscustomobject]@{ name = $_.Name; bytes = [int64]$s } }
-    $parts = @{}; foreach ($t in @('app.asar', 'engine', 'runtime')) { $p = Join-Path $dir "resources\$t"; $parts[$t] = [int64]((Get-ChildItem $p -Recurse -File -ErrorAction SilentlyContinue | Measure-Object Length -Sum).Sum + $(if (Test-Path $p -PathType Leaf) { (Get-Item $p).Length } else { 0 })) }
+    $parts = @{}
+    foreach ($t in @('app.asar', 'engine', 'runtime')) {
+      $q = Join-Path $dir "resources\$t"
+      $parts[$t] = if (Test-Path $q -PathType Leaf) { [int64](Get-Item $q).Length } else { [int64](Get-ChildItem $q -Recurse -File -ErrorAction SilentlyContinue | Measure-Object Length -Sum).Sum }
+    }
     @{ setupExeBytes = $setupBytes; installedBytes = [int64]$size; installedFiles = $files.Count; installMs = $ms; resources = $parts; top = $top } | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $Report 'install.json')
     Set-Content (Join-Path $Report 'installed.txt') $exe
   }
@@ -198,7 +202,7 @@ try {
     $s1 = State 'msi'
     $old = @($s1.entries | Where-Object { $_.DisplayName -eq 'HallymCircuitStudio' })
     Check ($old.Count -eq 1 -and $old[0].WindowsInstaller -eq 1) "its uninstall entry: HallymCircuitStudio $($old[0].DisplayVersion), $($old[0].PSChildName) (Windows Installer)"
-    $codes = V1Products
+    $codes = @(V1Products)
     Note "installed products of the 1.0.x UpgradeCode: $($codes -join ', ')"
     Check ($codes.Count -eq 1 -and $codes[0] -eq $old[0].PSChildName) "found by the UpgradeCode $v1UpgradeCode, as the installer looks for it"
     $oldExe = @(Get-ChildItem $env:LOCALAPPDATA, $env:ProgramFiles -Recurse -Depth 3 -Filter 'HallymCircuitStudio.exe' -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
