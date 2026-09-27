@@ -157,4 +157,4 @@
 | Y-03 | 고정 줄 수명 | #321 | 진행 |  | CycleViewGuiTest |
 | Y-04 | 진짜 첫 실행(장면 48, windows-smoke 튜토리얼) | #322 | 진행 |  | 48-first-run(y04), TourGuiTest |
 | Y-05 | 작은 것(빈 Attributes 칸, 아이콘만 모드 글자 단추) | #323 | 진행 |  | EmptyAttributesGuiTest, OverflowToolbarTest |
-| Y-06 | 확인과 릴리스(review-shots v103, v1.0.3, needs-human) | #324 | 대기 |  |  |
+| Y-06 | 확인과 릴리스(review-shots v103, v1.0.3, needs-human) | #324 | 진행 |  | 최종 세트·windows-smoke |
