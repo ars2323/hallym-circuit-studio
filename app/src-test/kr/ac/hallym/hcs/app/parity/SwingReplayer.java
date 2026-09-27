@@ -463,8 +463,8 @@ final class SwingReplayer implements AutoCloseable {
         boolean add = i.bool("add", false);
         if (i.params.containsKey("ids")) {
             selectRefs(i, i.strings("ids"), add);
-        } else if (!add && !i.has("rect")) {
-            selectRefs(i, Collections.emptyList(), false);
+        } else if (!add && !i.has("rect") && !i.has("filter")) {
+            selectRefs(i, Collections.emptyList(), false); // {"method":"edit.select"}만: 비우기
         }
         if (i.has("rect")) {
             int[] r = i.ints("rect", 4);
