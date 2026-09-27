@@ -24,7 +24,7 @@ CI(`.github/workflows/ci.yml`)는 push·PR마다 Linux에서 vendor·assets 검�
 | --- | --- |
 | 엔진 회귀·저장 호환(규칙 2.1·2.3) | `ForkEngineRegressionTest`(tests/circ/*.expected를 원조 2.7.1 jar와 같은 결과로), `ForkSaveCompatTest`·`LocaleSaveCompatTest`(새 부품 없는 .circ는 원조 저장과 바이트 동일) |
 | MIPS 부품(lib-mips) | `MemoryComponentsTest`, `StackRegionTest`, `ConsoleTest`, `RefMipsTest`(참조 CPU가 SPIM 결과와 같은지), `JarLibraryTest`(원조 2.7.1에서 불러오기) |
-| 디스어셈블러(공용, D-127) | `DisassemblerGoldenTest`(tests/disasm 골든 12709줄을 SPIM 목록과 한 줄씩, QtSpim 창 글 4717줄), `DisassemblerTest`, `AssemblerIntegrationTest.disassemblyMatchesTheOriginalSpim`(원본 spim -dump) |
+| 디스어셈블러(공용, D-127) | `DisassemblerGoldenTest`(tests/disasm 골든 13083줄을 SPIM 목록과 한 줄씩, QtSpim 창 글 4717줄), `DisassemblerTest`, `AssemblerIntegrationTest.disassemblyMatchesTheOriginalSpim`(원본 spim -dump) |
 | 넷 모델·추적 | `NetlistTest`, `InfluenceTest`, `OriginTraceTest` |
 | 정적 진단 | `StaticCheckTest`(정상 회로 0건, 종류마다 한 건), `MessagesPanelTest`, `DiagMarksTest` |
 | 동적 진단 | `DynamicCheckTest`, `FaultCollectionTest`(tests/circ/faults 18개가 기대 메시지 한 건씩) |
