@@ -120,8 +120,11 @@ public final class Programs {
     /** 열린 파일 하나의 프로그램 상태. 모두 엔진 스레드에서만 만진다. */
     static final class State {
         final Doc doc;
-        /** 감시가 이 파일을 처음 보았는가(파일을 연 때의 확인). */
-        boolean seen;
+        /**
+         * 파일을 열 때 메모리 부품의 source가 가리키던 .hmx(속성 글). 감시가 처음 볼 때 저장된 내용과 파일을 대조한다.
+         * 연 뒤에 편집으로 생긴 source는 대조하지 않고 그때부터 바뀜만 본다.
+         */
+        final java.util.Set<String> opened = new java.util.HashSet<>();
         /** source 속성 글 → 마지막으로 본 파일 상태. */
         final Map<String, Stamp> stamps = new HashMap<>();
         /** 이번 실행에서 마지막으로 불러오거나 다시 불러온 시각(ms). 파일에 저장된 채로 열었으면 null. */
@@ -155,7 +158,9 @@ public final class Programs {
     // ---- 파일 ----
 
     public void attach(Doc d) {
-        states.put(d.id(), new State(d));
+        State s = new State(d);
+        s.opened.addAll(sources(d.file()));
+        states.put(d.id(), s);
     }
 
     public void detach(Doc d) {
@@ -364,21 +369,19 @@ public final class Programs {
     }
 
     /**
-     * 한 파일: 처음 보면 파일을 연 때의 확인(.hmx가 메모리 내용과 다르면 다시 넣는다), 그다음부터는 수정 시각·크기가 바뀐
-     * .hmx만 다시 넣는다. 읽기 전용 파일은 바꾸지 않으므로 보지 않는다.
+     * 한 파일: 파일을 열 때 있던 .hmx는 처음 볼 때 저장된 내용과 대조하고(다르면 다시 넣는다), 그다음부터는 수정 시각·크기가
+     * 바뀐 .hmx만 다시 넣는다. 읽기 전용 파일은 바꾸지 않으므로 보지 않는다.
      */
     void watch(State s, String reason) {
         if (s.doc.isReadOnly()) {
             return;
         }
-        boolean first = !s.seen;
-        s.seen = true;
         File circ = circFile(s.doc);
         for (String src : sources(s.doc.file())) {
             Stamp now = new Stamp(resolve(circ, src));
             Stamp before = s.stamps.put(src, now);
             if (before == null) {
-                if (first) {
+                if (s.opened.remove(src)) {
                     check(s, src, "open"); // 파일을 연 뒤 처음: 저장된 내용이 .hmx와 다르면 다시 넣는다
                 }
             } else if (!before.equals(now)) {
