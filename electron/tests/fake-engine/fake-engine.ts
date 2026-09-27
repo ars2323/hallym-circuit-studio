@@ -362,8 +362,6 @@ function fileIdFor(p: Params): string {
 function adopt(f: File, p: Params): void {
   const names = (p.restore as { circuits?: Record<string, string> } | undefined)?.circuits ?? {};
   for (const c of f.circuits) if (typeof names[c.name] === 'string' && /^c\d+$/.test(names[c.name])) c.circuitId = names[c.name];
-  const main = f.circuits.find((c) => c.name === f.main);
-  if (main) f.main = main.name;
 }
 
 const compJson = (k: Comp) => ({

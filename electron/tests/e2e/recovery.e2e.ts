@@ -11,7 +11,7 @@ import { expect, test } from '@playwright/test';
 import { existsSync, readdirSync, rmSync, unlinkSync } from 'node:fs';
 
 import { DATAPATH, launch, openFile, sample, visibleCharacters, type Running } from './harness.ts';
-import { alive, call, circuitsOf, enginePid, fileModel, journalLength, killEngine, openFileIds } from './model.ts';
+import { alive, call, circuitsOf, enginePid, fileModel, journalLength, killEngine, killMainAndSeeEngineEnd, openFileIds } from './model.ts';
 
 const TITLE = '엔진이 멈췄다가 다시 시작했습니다';
 
@@ -176,7 +176,7 @@ test('a file gone from disk cannot be opened again: its tab closes, the band say
   }
 });
 
-test('no orphan engine: quitting ends it; so does killing the window\'s process (its stdin closes)', async () => {
+test('no orphan engine: quitting ends it; so does killing the window\'s process (its stdin closes, or it sees its parent end)', async () => {
   const quit = await launch();
   const pid1 = (await enginePid(quit.app))!;
   expect(alive(pid1)).toBe(true);
@@ -186,8 +186,7 @@ test('no orphan engine: quitting ends it; so does killing the window\'s process 
   const killed = await launch();
   const pid2 = (await enginePid(killed.app))!;
   expect(alive(pid2)).toBe(true);
-  killed.app.process().kill('SIGKILL');
-  await expect.poll(() => alive(pid2), { timeout: 10_000 }).toBe(false);
+  expect(await killMainAndSeeEngineEnd(killed.app, pid2, 15_000)).toBe('both ended');
   await Promise.race([killed.app.close().catch(() => {}), new Promise((done) => setTimeout(done, 5_000))]);
   rmSync(killed.dir, { recursive: true, force: true });
 });

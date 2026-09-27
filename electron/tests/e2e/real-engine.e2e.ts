@@ -16,7 +16,7 @@ import path from 'node:path';
 
 import type { Snapshot } from '../../src/main/protocol.ts';
 import { answerOpen, answerSave, DATAPATH, launch, newCircuit, openFile, repo, sample, type LaunchOptions } from './harness.ts';
-import { alive, call, circuitsOf, enginePid, fileModel, journalLength, killEngine, openFileIds } from './model.ts';
+import { alive, call, circuitsOf, enginePid, fileModel, journalLength, killEngine, killMainAndSeeEngineEnd, openFileIds } from './model.ts';
 
 const JAR = path.join(repo, 'engine/build/stage/hcs-engine.jar');
 const real: LaunchOptions['env'] = { HCS_ENGINE_CMD: '', HCS_ENGINE_JAR: JAR };
@@ -172,13 +172,12 @@ test('the real engine killed after edits: the replayed model equals the one befo
   }
 });
 
-test('the real engine and no orphan java: killing the window\'s process ends the engine (its stdin closes)', async () => {
+test('the real engine and no orphan java: killing the window\'s process ends the engine (its stdin closes, or it sees its parent end)', async () => {
   const r = await launch(undefined, { env: real });
   const pid = (await enginePid(r.app))!;
   await openFile(r, sample(r.dir, DATAPATH));
   expect(alive(pid)).toBe(true);
-  r.app.process().kill('SIGKILL');
-  await expect.poll(() => alive(pid), { timeout: 15_000 }).toBe(false);
+  expect(await killMainAndSeeEngineEnd(r.app, pid, 20_000)).toBe('both ended');
   await Promise.race([r.app.close().catch(() => {}), new Promise((done) => setTimeout(done, 5_000))]);
   rmSync(r.dir, { recursive: true, force: true });
 });

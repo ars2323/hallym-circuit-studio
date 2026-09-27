@@ -13,8 +13,7 @@
    Memory is the resident set (Linux /proc VmRSS; Windows the working set,
    tasklist).  Each figure is the median of the runs. */
 
-import { execFileSync } from 'node:child_process';
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { appendFileSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';

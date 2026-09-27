@@ -67,6 +67,19 @@ export async function fileModel(page: Page, fileId: string): Promise<Record<stri
   return out;
 }
 
+// Kills the Electron main process itself (its own pid, from inside) and waits for it and then
+// for the engine to be gone: the engine must not outlive it.  What is still alive, in the failure.
+export async function killMainAndSeeEngineEnd(app: ElectronApplication, enginePid: number, timeoutMs: number): Promise<string> {
+  const main = await app.evaluate(() => process.pid);
+  process.kill(main, 'SIGKILL');
+  const t0 = Date.now();
+  while (Date.now() - t0 < timeoutMs) {
+    if (!alive(main) && !alive(enginePid)) return 'both ended';
+    await new Promise((done) => setTimeout(done, 100));
+  }
+  return `after ${timeoutMs} ms: main ${main} ${alive(main) ? 'alive' : 'ended'}, engine ${enginePid} ${alive(enginePid) ? 'alive' : 'ended'}`;
+}
+
 export const alive = (pid: number): boolean => {
   try { process.kill(pid, 0); return true; } catch (e) { return (e as NodeJS.ErrnoException).code === 'EPERM'; }
 };

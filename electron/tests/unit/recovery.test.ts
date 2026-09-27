@@ -362,6 +362,27 @@ test('recovery: the restart limit (3 in 60 s) still ends it -- failed, the windo
   }
 });
 
+test('recovery: Try Again after the limit opens the files as last saved (the replay may be what ended it)', async () => {
+  const { dir, gates } = scratch();
+  const { engine, sup } = fake({ FAKE_ENGINE_CRASH_AFTER_RESTART: 'edit.addComponent' }, { maxRestarts: 1 });
+  try {
+    await engine.start();
+    const a = await win<OpenResult>(engine, 'file.open', { path: gates });
+    await win(engine, 'edit.addComponent', { fileId: a.fileId, circuitId: a.main, lib: 'Gates', name: 'OR Gate', loc: [5, 5] });
+    engine.kill();
+    await until(engine, (s) => s.state === 'failed');   // the replay ended it again: over the limit of 1
+    const done = recovered(sup);
+    await engine.start();                                // Try Again
+    const r = await done;
+    assert.equal(r.attempt, 2);
+    assert.deepEqual(r.lost, [{ fileId: a.fileId, reason: 'crashedAgain', edits: 1 }]);
+    assert.equal(engine.status().state, 'ready');
+  } finally {
+    await engine.shutdown();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('recovery: while it runs the window sees restarting and none of the replay\'s changes (quiet)', async () => {
   const { dir, gates } = scratch();
   const { engine, sup } = fake();
