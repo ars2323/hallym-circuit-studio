@@ -10,11 +10,11 @@
    (the bundled runtime) makes this part of CI. */
 
 import { expect, test } from '@playwright/test';
-import { existsSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { answerSave, DATAPATH, launch, newCircuit, openFile, repo, sample, type LaunchOptions } from './harness.ts';
+import { answerOpen, answerSave, DATAPATH, launch, newCircuit, openFile, repo, sample, type LaunchOptions } from './harness.ts';
 
 const JAR = path.join(repo, 'engine/build/stage/hcs-engine.jar');
 const real: LaunchOptions['env'] = { HCS_ENGINE_CMD: '', HCS_ENGINE_JAR: JAR };
@@ -52,6 +52,28 @@ test('the real engine: hello, a new circuit, a .circ with the MIPS library, the 
     await page.keyboard.press('Control+s');
     await expect(page.locator('.status .ok')).toContainText('저장했습니다 · saved.circ');
     expect(statSync(target).size).toBeGreaterThan(100);
+  } finally {
+    await r.close();
+  }
+});
+
+test('the real engine: its file errors in the window\'s words (a file that is not there, a file Logisim cannot read)', async () => {
+  const r = await launch(undefined, { env: real });
+  const { page } = r;
+  try {
+    const dialog = page.locator('dialog.ask');
+    await answerOpen(r.app, path.join(r.dir, 'lab3.circ'));
+    await page.keyboard.press('Control+o');
+    await expect(dialog.locator('.askfile')).toHaveText('File: lab3.circ');
+    await expect(dialog).toContainText('그 자리에 파일이 없습니다.');
+    expect(await dialog.innerText()).not.toContain(r.dir);
+    await dialog.getByRole('button', { name: 'Close' }).click();
+    const notCirc = path.join(r.dir, 'notes.circ');
+    writeFileSync(notCirc, 'not a circuit\n');
+    await answerOpen(r.app, notCirc);
+    await page.keyboard.press('Control+o');
+    await expect(dialog.locator('.askfile')).toHaveText('File: notes.circ');
+    await expect(dialog).toContainText('Logisim이 이 파일을 회로로 읽지 못했습니다.');
   } finally {
     await r.close();
   }
