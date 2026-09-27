@@ -1,0 +1,10 @@
+# 18 확장 정보가 있는 파일 열어 고치기: 열 때 hcs:ext를 읽고(원조 로더는 건너뜀), 저장할 때 다시 붙인다. 이름의
+# 터널을 모두 지우면 그 색 항목이, 메모를 지우면 그 메모가 빠진다. 두 넷을 이으면 그룹 항목은 앱의 규칙대로 남는다.
+{"method":"file.open","path":"inputs/ext-sample.circ"}
+{"method":"edit.delete","ids":["at:200,200/Tunnel","at:400,200/Tunnel"]}
+{"method":"edit.areaMemo","at":[900,300],"delete":true}
+{"method":"edit.tunnelColor","id":"at:200,100/Tunnel","color":"#882255"}
+{"method":"edit.signalGroup","wire":"wire:200,450","group":"address"}
+{"method":"edit.addWire","points":[[100,400],[100,450]]}
+{"method":"edit.move","ids":["at:400,100/Tunnel"],"dx":100,"dy":0}
+{"method":"edit.areaMemo","at":[700,700],"text":"새 메모","color":7}

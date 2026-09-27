@@ -1,0 +1,14 @@
+# 11 라이브러리 불러오기(Project › Load Library): 기본 라이브러리(부품 목록 우클릭 Unload Library로 뺀 I/O를 다시),
+# Logisim 라이브러리(다른 .circ, 파일 선택 창), JAR 라이브러리(.circ 옆의 hcs-mips.jar, 파일 선택 창). 다시 넣은
+# 라이브러리는 목록 끝에 붙어 lib 번호가 바뀐다. 다른 .circ의 회로와 jar의 부품을 놓는다.
+{"method":"edit.unloadLibrary","name":"I/O"}
+{"method":"edit.loadLibrary","kind":"builtin","name":"I/O"}
+{"method":"edit.addComponent","lib":"I/O","name":"LED","loc":[500,100]}
+{"method":"edit.loadLibrary","kind":"circ","path":"inputs/adders.circ"}
+{"method":"edit.addComponent","lib":"adders","name":"full_adder","loc":[300,200],"as":"fa"}
+{"method":"edit.setToolAttr","lib":"adders","name":"parity3","attr":"facing","value":"west"}
+{"method":"edit.addComponent","lib":"adders","name":"parity3","loc":[300,400]}
+{"method":"edit.loadLibrary","kind":"jar","path":"hcs-mips.jar"}
+{"method":"edit.addComponent","lib":"Hallym MIPS","name":"Data Memory","loc":[800,300],"as":"dmem"}
+{"method":"edit.addComponent","lib":"Hallym MIPS","name":"Radix Probe","loc":[500,500]}
+{"method":"edit.addWire","points":[[300,200],[400,200]]}

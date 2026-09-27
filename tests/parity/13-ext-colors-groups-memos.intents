@@ -1,0 +1,44 @@
+# 13 .circ 확장 정보(hcs:ext, D-024): 터널 우클릭 Tunnel Color ›(팔레트 색·Auto), 선 우클릭 Signal Group ›(Control·
+# Data·Address·None), 빈 곳 우클릭 Add Area Memo…(고른 것을 감싸거나 창에서 자리·크기를 정함), 메모 안 우클릭
+# Delete Area Memo. 가리키던 터널·넷이 사라진 항목은 저장할 때 빠진다. 원조 2.7.1은 이 요소를 건너뛰고 연다.
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Tunnel","attr":"label","value":"ctl"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Tunnel","attr":"facing","value":"east"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Tunnel","loc":[200,100],"as":"t1"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Tunnel","attr":"facing","value":"west"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Tunnel","loc":[400,100],"as":"t2"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Tunnel","attr":"label","value":"data"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Tunnel","attr":"facing","value":"east"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Tunnel","attr":"width","value":"8"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Tunnel","loc":[200,200],"as":"t3"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Tunnel","attr":"facing","value":"west"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Tunnel","loc":[400,200],"as":"t4"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Tunnel","attr":"label","value":"gone"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Tunnel","attr":"facing","value":"east"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Tunnel","attr":"width","value":"1"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Tunnel","loc":[200,300],"as":"t5"}
+{"method":"edit.addWire","points":[[200,100],[400,100]]}
+{"method":"edit.tunnelColor","id":"t1","color":"#e69f00"}
+{"method":"edit.tunnelColor","id":"t3","color":"#56b4e9"}
+{"method":"edit.tunnelColor","id":"t3","color":"#009e73"}
+{"method":"edit.tunnelColor","id":"t5","color":"#d55e00"}
+# 색을 Auto로 되돌리면 항목이 빠진다
+{"method":"edit.tunnelColor","id":"t1"}
+{"method":"edit.tunnelColor","id":"t2","color":"#332288"}
+# 신호 그룹: 선 셋
+{"method":"edit.addWire","points":[[100,400],[300,400]]}
+{"method":"edit.addWire","points":[[100,450],[300,450]]}
+{"method":"edit.addWire","points":[[100,500],[300,500]]}
+{"method":"edit.signalGroup","wire":"wire:200,400","group":"control"}
+{"method":"edit.signalGroup","wire":"wire:200,450","group":"data"}
+{"method":"edit.signalGroup","wire":"wire:200,500","group":"address"}
+{"method":"edit.signalGroup","wire":"wire:200,450"}
+{"method":"edit.signalGroup","wire":"wire:250,100","group":"control"}
+# 영역 메모: 고른 선을 감싸기, 창에서 자리와 크기 정하기(한글·특수 문자), 그리고 하나 지우기. 터널을 감싸지 않는
+# 까닭: 원조 터널의 경계는 그려질 때 글꼴 크기로 정해져(Tunnel.paintGhost) 기계·그림 여부에 따라 달라진다.
+{"method":"edit.areaMemo","at":[600,600],"ids":["wire:300,100"],"text":"control bus","color":2}
+{"method":"edit.areaMemo","at":[700,700],"text":"지울 메모","bounds":[650,650,200,120]}
+{"method":"edit.areaMemo","at":[900,300],"text":"메모 & <특수> \"문자\"","color":5,"bounds":[850,250,160,100]}
+{"method":"edit.areaMemo","at":[750,700],"delete":true}
+# 색을 준 터널과 그룹을 준 선을 지우면 저장할 때 그 항목이 빠진다
+{"method":"edit.delete","ids":["t5"]}
+{"method":"edit.delete","ids":["wire:200,500"]}

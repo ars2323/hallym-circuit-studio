@@ -142,6 +142,10 @@ fun Test.hcsTestSetup(headless: Boolean, prefs: String = "test-prefs", config: S
     systemProperty("hcs.asm", rootProject.file("native/hcs-asm/build/hcs-asm").absolutePath)
     // tests/circ/demo-datapath.circ 다시 쓰기: ./gradlew :app:test -Phcs.update=true
     systemProperty("hcs.update", (findProperty("hcs.update") ?: "false").toString())
+    // 편집 동등성 골든(N-01, tests/parity): -Dparity.update=true로 다시 쓰기, -Dparity.only=장면,…로 일부만
+    for (p in listOf("parity.update", "parity.only")) {
+        (findProperty(p) ?: System.getProperty(p))?.let { systemProperty(p, it.toString()) }
+    }
     testLogging {
         events("failed")
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL

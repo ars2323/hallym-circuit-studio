@@ -1,0 +1,69 @@
+# 장면 입력 adders.circ를 만든 의도(기록용, 테스트가 돌리지 않는다). tests/parity/에 잠깐 옮겨
+# -Dparity.update=true -Dparity.only=adders로 실행한 결과를 이 폴더에 복사해 고정했다. 회로: main(빈 회로),
+# half_adder, full_adder(half_adder 둘 + OR), parity3.
+{"method":"edit.createCircuit","name":"half_adder"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"label","value":"a"}
+{"method":"edit.addComponent","circuit":"half_adder","lib":"Wiring","name":"Pin","loc":[100,80]}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"label","value":"b"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[100,220]}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"facing","value":"west"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"output","value":"true"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"label","value":"s"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[400,100]}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"label","value":"c"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[400,200]}
+{"method":"edit.setToolAttr","lib":"Gates","name":"XOR Gate","attr":"inputs","value":"2"}
+{"method":"edit.addComponent","lib":"Gates","name":"XOR Gate","loc":[300,100]}
+{"method":"edit.setToolAttr","lib":"Gates","name":"AND Gate","attr":"inputs","value":"2"}
+{"method":"edit.addComponent","lib":"Gates","name":"AND Gate","loc":[300,200]}
+{"method":"edit.addWire","points":[[100,80],[240,80]]}
+{"method":"edit.addWire","points":[[200,80],[200,180],[250,180]]}
+{"method":"edit.addWire","points":[[100,220],[250,220]]}
+{"method":"edit.addWire","points":[[170,220],[170,120],[240,120]]}
+{"method":"edit.addWire","points":[[300,100],[400,100]]}
+{"method":"edit.addWire","points":[[300,200],[400,200]]}
+{"method":"edit.createCircuit","name":"full_adder"}
+{"method":"edit.addComponent","circuit":"full_adder","name":"half_adder","loc":[300,200]}
+{"method":"edit.addComponent","name":"half_adder","loc":[400,300]}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"facing","value":"east"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"output","value":"false"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"label","value":"a"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[100,200]}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"label","value":"b"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[100,250]}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"label","value":"cin"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[100,350]}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"facing","value":"west"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"output","value":"true"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"label","value":"s"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[600,300]}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"label","value":"cout"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[600,400]}
+{"method":"edit.setToolAttr","lib":"Gates","name":"OR Gate","attr":"inputs","value":"2"}
+{"method":"edit.addComponent","lib":"Gates","name":"OR Gate","loc":[500,400]}
+{"method":"edit.addWire","points":[[100,200],[270,200]]}
+{"method":"edit.addWire","points":[[100,250],[250,250],[250,210]]}
+{"method":"edit.addWire","points":[[250,210],[270,210]]}
+{"method":"edit.addWire","points":[[100,350],[350,350],[350,310]]}
+{"method":"edit.addWire","points":[[350,310],[370,310]]}
+{"method":"edit.addWire","points":[[300,200],[340,200],[340,300]]}
+{"method":"edit.addWire","points":[[340,300],[370,300]]}
+{"method":"edit.addWire","points":[[400,300],[600,300]]}
+{"method":"edit.addWire","points":[[300,210],[320,210],[320,380]]}
+{"method":"edit.addWire","points":[[320,380],[450,380]]}
+{"method":"edit.addWire","points":[[400,310],[420,310],[420,420]]}
+{"method":"edit.addWire","points":[[420,420],[450,420]]}
+{"method":"edit.addWire","points":[[500,400],[600,400]]}
+{"method":"edit.createCircuit","name":"parity3"}
+{"method":"edit.setToolAttr","lib":"Gates","name":"XOR Gate","attr":"inputs","value":"3"}
+{"method":"edit.addComponent","circuit":"parity3","lib":"Gates","name":"XOR Gate","loc":[300,200]}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"facing","value":"east"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"output","value":"false"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"label","value":"x"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[100,180]}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"facing","value":"west"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"output","value":"true"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"label","value":"p"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[400,200]}
+{"method":"edit.addWire","points":[[100,180],[240,180]]}
+{"method":"edit.addWire","points":[[300,200],[400,200]]}

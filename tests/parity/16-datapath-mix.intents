@@ -1,0 +1,40 @@
+# 16 섞기: 작은 명령어 인출 데이터패스를 학생처럼 만든다. PC 레지스터 + 4 더하기(원조 부품), 번들 Hallym MIPS
+# Instruction Memory, 터널, 선, 따라오는 선으로 옮기기, 명령어 선에서 Split Bits Here…, 되돌리기·다시 실행,
+# 터널 색, 영역 메모, 속성 바꾸기.
+{"method":"edit.setToolAttr","lib":"Memory","name":"Register","attr":"width","value":"32"}
+{"method":"edit.setToolAttr","lib":"Memory","name":"Register","attr":"label","value":"PC"}
+{"method":"edit.addComponent","lib":"Memory","name":"Register","loc":[200,300],"as":"pc"}
+{"method":"edit.setToolAttr","lib":"Arithmetic","name":"Adder","attr":"width","value":"32"}
+{"method":"edit.addComponent","lib":"Arithmetic","name":"Adder","loc":[400,200],"as":"add4"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Constant","attr":"width","value":"32"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Constant","attr":"value","value":"0x4"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Constant","loc":[330,210],"as":"four"}
+{"method":"edit.addWire","points":[[200,300],[300,300],[300,190]]}
+{"method":"edit.addWire","points":[[300,190],[360,190]]}
+{"method":"edit.addWire","points":[[330,210],[360,210]]}
+{"method":"edit.addWire","points":[[400,200],[450,200],[450,380]]}
+{"method":"edit.addWire","points":[[450,380],[150,380],[150,300]]}
+{"method":"edit.addWire","points":[[150,300],[170,300]]}
+{"method":"edit.addComponent","lib":"Wiring","name":"Clock","loc":[100,360],"as":"clk"}
+{"method":"edit.addWire","points":[[100,360],[180,360],[180,320]]}
+{"method":"edit.addComponent","lib":"Hallym MIPS","name":"Instruction Memory","loc":[800,300],"as":"imem"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Tunnel","attr":"label","value":"PC"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Tunnel","attr":"facing","value":"east"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Tunnel","attr":"width","value":"32"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Tunnel","loc":[560,300],"as":"tpc1"}
+{"method":"edit.addWire","points":[[560,300],[600,300]]}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Tunnel","attr":"facing","value":"west"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Tunnel","loc":[300,300],"as":"tpc2"}
+{"method":"edit.addWire","points":[[800,300],[900,300]]}
+{"method":"edit.splitterSplit","wire":"wire:850,300","at":[850,300],"ranges":"31:26 op, 25:21 rs, 20:16 rt, 15:0 imm"}
+# 4 더하기를 위로 옮기면 선이 따라온다
+{"method":"edit.move","ids":["add4"],"dx":0,"dy":-40}
+{"method":"edit.move","ids":["four"],"dx":0,"dy":-40}
+{"method":"edit.undo"}
+{"method":"edit.redo"}
+{"method":"edit.tunnelColor","id":"tpc1","color":"#0072b2"}
+{"method":"edit.areaMemo","at":[120,500],"ids":["pc","add4","four"],"text":"PC + 4","color":3}
+{"method":"edit.setAttr","ids":["pc"],"attr":"label","value":"PC_reg"}
+{"method":"edit.duplicateN","ids":["pc"],"count":2,"direction":"down","spacing":200,"number":false}
+{"method":"edit.undo"}
+{"method":"edit.select","ids":[]}

@@ -1,0 +1,47 @@
+# 04 선분 끌기(v1, #81)와 지우기: 선 하나만 골라 그 선과 수직으로 끌면 양쪽 다리가 늘고 줄어 꺾임이 따라온다.
+# 지우기는 Edit › Delete(부품만, 선만, 섞어서, 사각형으로 고른 것).
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"label","value":"in"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[100,100],"as":"in"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"facing","value":"west"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"output","value":"true"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"label","value":"out"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[450,100],"as":"out"}
+{"method":"edit.addWire","points":[[100,100],[150,100],[150,200]]}
+{"method":"edit.addWire","points":[[150,200],[350,200],[350,100]]}
+{"method":"edit.addWire","points":[[350,100],[450,100]]}
+# 가운데 선분을 아래로
+{"method":"edit.move","ids":["wire:250,200"],"dx":0,"dy":60}
+# 다리 하나(세로)를 오른쪽으로
+{"method":"edit.move","ids":["wire:150,180"],"dx":40,"dy":0}
+# 부품과 선이 섞인 그림
+{"method":"edit.setToolAttr","lib":"Gates","name":"OR Gate","attr":"inputs","value":"2"}
+{"method":"edit.addComponent","lib":"Gates","name":"OR Gate","loc":[300,420],"as":"or"}
+{"method":"edit.addComponent","lib":"Gates","name":"NOT Gate","loc":[200,400],"as":"n1"}
+{"method":"edit.addComponent","lib":"Gates","name":"NOT Gate","loc":[200,440],"as":"n2"}
+{"method":"edit.addWire","points":[[200,400],[250,400]]}
+{"method":"edit.addWire","points":[[200,440],[250,440]]}
+{"method":"edit.addWire","points":[[300,420],[400,420]]}
+{"method":"edit.addWire","points":[[100,400],[170,400]]}
+# 부품 하나 지우기(붙은 선은 남는다)
+{"method":"edit.delete","ids":["n2"]}
+# 선 하나 지우기
+{"method":"edit.delete","ids":["wire:350,420"]}
+# 부품과 선을 함께
+{"method":"edit.delete","ids":["n1","wire:130,400"]}
+# 사각형으로 고르고 지우기
+{"method":"edit.select","rect":[235,365,315,465]}
+{"method":"edit.delete"}
+# 고르기 거르기(여러 개를 고른 우클릭 Only Components / Only Wires)와 Shift로 더 고르기
+{"method":"edit.addComponent","lib":"Gates","name":"NOT Gate","loc":[200,560],"as":"n3"}
+{"method":"edit.addComponent","lib":"Gates","name":"NOT Gate","loc":[200,620],"as":"n4"}
+{"method":"edit.addWire","points":[[200,560],[260,560]]}
+{"method":"edit.addWire","points":[[200,620],[260,620]]}
+{"method":"edit.addWire","points":[[100,590],[160,590]]}
+{"method":"edit.select","rect":[95,535,275,645],"filter":"wires"}
+{"method":"edit.delete"}
+{"method":"edit.select","ids":["n3"]}
+{"method":"edit.select","ids":["n4"],"add":true}
+{"method":"edit.move","dx":100,"dy":0}
+# 선택 없이 지우기는 아무것도 하지 않는다
+{"method":"edit.select","ids":[]}
+{"method":"edit.delete"}

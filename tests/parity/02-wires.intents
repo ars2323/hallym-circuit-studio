@@ -1,0 +1,40 @@
+# 02 선: Wiring Tool로 누르고 끌어 놓는다. 원조의 합치기·나누기, 줄이기(선 끝에서 선을 따라 되돌아 끌기),
+# 수리(부품이 정한다: OR 계열은 몸통 안에서 끝난 선을 포트까지로 줄인다), 교차는 잇지 않음, 포트 위를 지나는 선,
+# ㄱ자(가로 먼저·세로 먼저).
+# 끝이 맞닿은 두 선은 하나로 합쳐진다
+{"method":"edit.addWire","points":[[100,100],[200,100]]}
+{"method":"edit.addWire","points":[[200,100],[300,100]]}
+# T자: 가운데에 닿는 선이 가로선을 나눈다
+{"method":"edit.addWire","points":[[200,100],[200,200]]}
+# 교차: 끝이 아닌 곳에서 만나면 잇지 않는다
+{"method":"edit.addWire","points":[[100,300],[300,300]]}
+{"method":"edit.addWire","points":[[200,250],[200,350]]}
+# 겹침: 같은 줄에서 겹치는 선은 하나로
+{"method":"edit.addWire","points":[[100,400],[250,400]]}
+{"method":"edit.addWire","points":[[200,400],[350,400]]}
+# 이미 있는 선 안쪽에 그은 선
+{"method":"edit.addWire","points":[[120,400],[180,400]]}
+# ㄱ자: 가운데 점이 꺾이는 곳(가로 먼저, 세로 먼저)
+{"method":"edit.addWire","points":[[400,100],[500,100],[500,200]]}
+{"method":"edit.addWire","points":[[400,250],[400,350],[500,350]]}
+# 줄이기: 선 끝에서 눌러 선을 따라 되돌아 끌면 그 선이 짧아진다
+{"method":"edit.addWire","points":[[100,500],[300,500]]}
+{"method":"edit.addWire","points":[[300,500],[250,500]]}
+# 끝에서 다른 끝까지 선을 따라 끌면 그 선이 지워진다(원조 줄이기의 끝)
+{"method":"edit.addWire","points":[[100,600],[300,600]]}
+{"method":"edit.addWire","points":[[100,600],[300,600]]}
+# 포트 위를 지나는 선: AND의 입력 포트 줄을 세로로 지나간다(원조는 포트 자리에서 선을 나눠 잇는다)
+{"method":"edit.setToolAttr","lib":"Gates","name":"AND Gate","attr":"inputs","value":"3"}
+{"method":"edit.addComponent","lib":"Gates","name":"AND Gate","loc":[700,200],"as":"and"}
+{"method":"edit.addWire","points":[[650,150],[650,250]]}
+# 포트에서 시작하는 선: 출력에서 출력 핀까지
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"facing","value":"west"}
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"output","value":"true"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[800,200],"as":"out"}
+{"method":"edit.addWire","points":[[700,200],[800,200]]}
+# 수리: OR 입력 쪽으로 긋다가 몸통 안(포트 한 칸 안쪽)에서 끝나면 포트에서 끝나게 고친다
+{"method":"edit.addComponent","lib":"Gates","name":"OR Gate","loc":[700,400],"as":"or"}
+{"method":"edit.addWire","points":[[560,380],[660,380]]}
+# AND는 수리하지 않는다: 몸통 안으로 들어간 선이 포트에서 나뉜다
+{"method":"edit.addComponent","lib":"Gates","name":"AND Gate","loc":[700,560],"as":"and2"}
+{"method":"edit.addWire","points":[[560,540],[660,540]]}

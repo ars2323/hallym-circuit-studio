@@ -1,0 +1,33 @@
+# 05 복사·붙여넣기·잘라내기·복제(Edit 메뉴, v1 W-05 SafeDuplicate)와 N개 복제(v1 E-01, 우클릭 Duplicate N… 창).
+# 붙여넣은 것·복제한 것은 떠 있는 선택이다: 끌어 옮긴 뒤 다른 것을 고르면(빈 선택) 원조처럼 내려놓는다.
+{"method":"edit.addComponent","lib":"Gates","name":"NOT Gate","loc":[200,100],"as":"not"}
+{"method":"edit.setToolAttr","lib":"Gates","name":"AND Gate","attr":"inputs","value":"2"}
+{"method":"edit.addComponent","lib":"Gates","name":"AND Gate","loc":[300,120],"as":"and"}
+{"method":"edit.addWire","points":[[200,100],[250,100]]}
+# 복사해 붙여넣기: 겹치지 않는 가장 가까운 자리에 뜬다. 끌어서 아래로 옮기고 내려놓는다
+{"method":"edit.copy","ids":["not","and","wire:220,100"]}
+{"method":"edit.paste"}
+{"method":"edit.move","dx":0,"dy":150}
+{"method":"edit.select","ids":[]}
+# 한 번 더 붙여넣고 바로 내려놓기
+{"method":"edit.paste"}
+{"method":"edit.select","ids":[]}
+# 잘라내기와 붙여넣기
+{"method":"edit.cut","ids":["and"]}
+{"method":"edit.paste"}
+{"method":"edit.move","dx":200,"dy":0}
+{"method":"edit.select","ids":[]}
+# 복제(Ctrl+D): 사본이 옛 선에 닿지 않는 자리에 뜬다
+{"method":"edit.duplicate","ids":["not"]}
+{"method":"edit.move","dx":0,"dy":300}
+{"method":"edit.select","ids":[]}
+# N개 복제: 라벨 끝 숫자를 이어 매긴다(R0 → R1, R2, R3)
+{"method":"edit.setToolAttr","lib":"Memory","name":"Register","attr":"width","value":"32"}
+{"method":"edit.setToolAttr","lib":"Memory","name":"Register","attr":"label","value":"R0"}
+{"method":"edit.addComponent","lib":"Memory","name":"Register","loc":[600,100],"as":"r0"}
+{"method":"edit.duplicateN","ids":["r0"],"count":3,"direction":"down","number":true}
+# 여러 부품을 오른쪽으로, 간격을 정해서, 번호 없이
+{"method":"edit.setToolAttr","lib":"Wiring","name":"Pin","attr":"label","value":"x0"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[100,500],"as":"x0"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Constant","loc":[100,560],"as":"k"}
+{"method":"edit.duplicateN","ids":["x0","k"],"count":2,"direction":"right","spacing":120,"number":false}

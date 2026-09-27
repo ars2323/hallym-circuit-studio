@@ -1,0 +1,37 @@
+# 07 속성 바꾸기: 부품을 고르고 오른쪽 속성 표의 한 행에 값을 넣는다(원조 SetAttributeAction). 여러 개를 고르면
+# 함께 가진 속성만 표에 있고 모두 바뀐다. 회로 속성(이름·라벨)은 아무것도 고르지 않은 속성 표(AttrTableCircuitModel).
+{"method":"edit.setToolAttr","lib":"Gates","name":"AND Gate","attr":"inputs","value":"2"}
+{"method":"edit.addComponent","lib":"Gates","name":"AND Gate","loc":[300,100],"as":"and"}
+{"method":"edit.setAttr","ids":["and"],"attr":"inputs","value":"4"}
+{"method":"edit.setAttr","ids":["and"],"attr":"facing","value":"south"}
+{"method":"edit.setAttr","ids":["and"],"attr":"size","value":"70"}
+{"method":"edit.setAttr","ids":["and"],"attr":"label","value":"G1"}
+{"method":"edit.addComponent","lib":"Arithmetic","name":"Adder","loc":[500,300],"as":"add"}
+{"method":"edit.setAttr","ids":["add"],"attr":"width","value":"16"}
+# 핀 세 개의 폭을 한 번에
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[100,300],"as":"p1"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[100,360],"as":"p2"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Pin","loc":[100,420],"as":"p3"}
+{"method":"edit.setAttr","ids":["p1","p2","p3"],"attr":"width","value":"4"}
+{"method":"edit.setAttr","ids":["p3"],"attr":"output","value":"true"}
+{"method":"edit.setAttr","ids":["p2"],"attr":"label","value":"sel"}
+{"method":"edit.setAttr","ids":["p2"],"attr":"labelloc","value":"north"}
+# 종류가 다른 두 부품: 함께 가진 속성(방향)만
+{"method":"edit.setAttr","ids":["p1","and"],"attr":"facing","value":"north"}
+# 선이 붙은 부품의 속성을 바꾸면 포트가 옮겨 가도 선은 그대로다
+{"method":"edit.setToolAttr","lib":"Gates","name":"OR Gate","attr":"inputs","value":"2"}
+{"method":"edit.addComponent","lib":"Gates","name":"OR Gate","loc":[400,500],"as":"or"}
+{"method":"edit.addWire","points":[[250,480],[350,480]]}
+{"method":"edit.addWire","points":[[250,520],[350,520]]}
+{"method":"edit.setAttr","ids":["or"],"attr":"inputs","value":"3"}
+{"method":"edit.addComponent","lib":"Plexers","name":"Multiplexer","loc":[600,500],"as":"mux"}
+{"method":"edit.setAttr","ids":["mux"],"attr":"select","value":"3"}
+{"method":"edit.setAttr","ids":["mux"],"attr":"width","value":"8"}
+{"method":"edit.setAttr","ids":["mux"],"attr":"selloc","value":"tr"}
+{"method":"edit.addComponent","lib":"Wiring","name":"Constant","loc":[600,650],"as":"k"}
+{"method":"edit.setAttr","ids":["k"],"attr":"width","value":"8"}
+{"method":"edit.setAttr","ids":["k"],"attr":"value","value":"0x5a"}
+# 회로 속성: 라벨과 라벨 방향, 이름
+{"method":"edit.setCircuitAttr","target":"main","attr":"clabel","value":"ALU"}
+{"method":"edit.setCircuitAttr","target":"main","attr":"clabelup","value":"north"}
+{"method":"edit.setCircuitAttr","target":"main","attr":"circuit","value":"top"}
