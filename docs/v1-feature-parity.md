@@ -26,7 +26,7 @@ v1(Swing, `swing-final`)의 기능을 v2(Electron 화면 + Java 엔진)로 모�
 | B-13 | 자동 저장·복구 파일 | N-19 |  |  |  |
 | B-14 | Splitter 편집기(범위 입력, R/I/J 프리셋, 팔 라벨) | N-12 |  |  |  |
 | B-15 | MIPS 부품: Instruction·Data Memory, Stack, Console, Radix Probe | N-05·N-16 |  |  |  |
-| B-16 | 실행 이미지(.hmx) 불러오기와 요약(.s 불러오기는 D-141에서 없앰: 옛 .s 경로는 사실 `assemblySource`) | N-16 |  |  |  |
+| B-16 | 실행 이미지(.hmx) 불러오기와 요약(.s 불러오기는 D-141에서 없앰: 옛 .s 경로는 사실 `assemblySource`) | N-16 | #428 | `program.e2e.ts` "Load Program…: executable images only…", "a file that cannot be loaded…", "several Instruction Memories…", "PC ≠ entry at cycle 0…", "a memory that points to a .s…" · `real-engine.e2e.ts` "Load Program puts data.hmx into ref-mips…" · 엔진 `ProgramsTest` | D-147. 트랙 A와 같은 `ProgramLoader` 길(`mips.load`), 불러오면 처음으로. 부품 우클릭 메뉴(I-98)는 N-10이 같은 `api.loadProgram`을 부른다 |
 | B-17 | hcs-mips.jar 복사 알림, 새 파일에서 Hallym MIPS 부품 바로 사용 | N-21 |  |  |  |
 | B-18 | Mark as PC, Register Mapping | N-14 |  |  |  |
 | B-19 | Create Submission, 그림 내보내기(SVG·PDF·고해상도 PNG) | N-21 |  |  |  |
@@ -80,7 +80,7 @@ v1(Swing, `swing-final`)의 기능을 v2(Electron 화면 + Java 엔진)로 모�
 | C-06 | 메모리 패널(#98) | N-14 |  |  |  |
 | C-07 | 명령어 필드 색 | N-14 |  |  |  |
 | C-08 | 버스 값 칩과 활성 경로 | N-15 |  |  |  |
-| C-09 | Console 탭과 자동 재로드(.hmx. .s 자동 재로드는 D-141에서 없앰) | N-16 |  |  |  |
+| C-09 | Console 탭과 자동 재로드(.hmx. .s 자동 재로드는 D-141에서 없앰) | N-16 | #428 | `program.e2e.ts` "the Console tab…", "a reload that fails keeps the program on show…" · 엔진 `ProgramsTest.aFailedLoadOrReloadKeepsTheLoadedProgramAndTheSimulation`, `anExportedAgainImageLoadsWhenTheFileOpensAndAtReset`, `theConsoleStreamsTheProgramOutputAndResetClearsIt` | D-147. 감시는 앱이 도는 동안만, 실패하면 올라가 있던 것 그대로(띠). Console은 출력만(부품에 입력 syscall 없음) |
 | C-10 | 사이클 뷰 테스트 | N-14 |  |  |  |
 | D-01 | E·X 출처 추적 | N-13 |  | 엔진 `DiagTest.traceOriginFollowsAnXBackToTheInputPin` | D-143. `trace.origin` API. 선 우클릭 "Find E/X Origin" 메뉴는 캔버스 메뉴(N-10)가 이 API를 부른다(후속). E 발생 메시지(`E_APPEARED`)는 원인 한 곳을 이미 담는다 |
 | D-02 | 진동 | N-13 |  | messages.e2e.ts "an oscillation…"; 엔진 `DiagTest.oscillationReplacesTheStaticLoopWithItsLoop` | D-143. 고리의 부품·선·넷, Messages의 Reset Simulation(Reset 뒤 다시 켬) |
