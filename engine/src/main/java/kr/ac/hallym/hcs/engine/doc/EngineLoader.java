@@ -19,6 +19,7 @@ public final class EngineLoader extends Loader {
 
     public EngineLoader() {
         super(null);
+        OwnTools.unshare(getBuiltin()); // 도구 기본값을 다른 파일과 나눠 쓰지 않는다(D-149)
     }
 
     @Override

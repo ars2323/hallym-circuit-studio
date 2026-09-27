@@ -76,6 +76,7 @@ tasks.jar {
 
 evaluationDependsOn(":lib-mips")
 val mipsJar = project(":lib-mips").tasks.named<Jar>("jar")
+val smokeJar = project(":lib-mips").tasks.named<Jar>("smokeJar")
 
 // 배포 모양 그대로: hcs-engine.jar 옆에 hcs-mips.jar(엔진이 jar 옆에서 찾는다). 하위 프로세스 테스트가 쓴다.
 val stage by tasks.registering(Sync::class) {
@@ -95,7 +96,7 @@ tasks.test {
     } else {
         useJUnitPlatform()
     }
-    dependsOn(stage)
+    dependsOn(stage, smokeJar)
     systemProperty("java.awt.headless", "true")
     // 같은 JVM 안의 테스트도 엔진과 같이 메모리 전용 환경설정으로 돈다(Main이 하는 일과 같다)
     systemProperty("java.util.prefs.PreferencesFactory", "kr.ac.hallym.hcs.engine.prefs.MemoryPreferencesFactory")
@@ -103,6 +104,8 @@ tasks.test {
     systemProperty("hcs.engineStage", layout.buildDirectory.dir("stage").get().asFile.absolutePath)
     systemProperty("hcs.refMips", rootProject.file("tests/mips/ref-mips.circ").absolutePath)
     systemProperty("hcs.circDir", rootProject.file("tests/circ").absolutePath)
+    // tests/jarlib/smoke.circ가 가리키는 JAR 라이브러리(열고 저장해도 그대로인지 보는 OpenSaveParityTest)
+    systemProperty("hcs.smokeJar", smokeJar.get().archiveFile.get().asFile.absolutePath)
     // 화면 가짜 엔진의 Messages 고정 답(electron/tests/fixtures/messages.json, D-143)이 이 엔진의 말과 같은지 본다
     systemProperty("hcs.electronFixtures", rootProject.file("electron/tests/fixtures").absolutePath)
     // 시작 시간·메모리 측정 결과(SubprocessTest.measureStartTimeAndMemory)
