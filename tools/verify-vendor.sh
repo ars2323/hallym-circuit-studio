@@ -9,7 +9,13 @@ cd "$root/vendor"
 sha256sum --quiet -c "$sums"
 
 expected="$(cut -c67- "$sums" | sort)"
-actual="$(find . -type f | sed 's|^\./||' | sort)"
+# 원본 옆에 우리가 둔 출처 기록(D-130). 이 둘만 허용하고, 없으면 실패한다
+origins="logisim-2.7.1/ORIGIN.md
+spim-9.1.24/ORIGIN.md"
+while IFS= read -r o; do
+  [ -f "$o" ] || { echo "출처 기록이 없다: vendor/$o" >&2; exit 1; }
+done <<< "$origins"
+actual="$(find . -type f | sed 's|^\./||' | grep -vxF "$origins" | sort)"
 extra="$(comm -13 <(echo "$expected") <(echo "$actual"))"
 if [ -n "$extra" ]; then
   echo "vendor/ 아래 원본에 없던 파일이 있다:" >&2

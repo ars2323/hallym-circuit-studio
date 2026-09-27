@@ -8,6 +8,7 @@ step() { printf '\n== %s\n' "$1"; }
 
 step "vendor 원본 검증"
 tools/verify-vendor.sh
+tools/check-upstream-markers.sh
 
 step "assets 원형 유지"
 tools/verify-assets.sh

@@ -49,6 +49,32 @@ class AppIdentityTest {
                 && notice.contains("FlatLaf"), notice.substring(0, Math.min(200, notice.length())));
     }
 
+    /**
+     * Z-22, O-03: 원저작자·라이선스·학교 식별요소·"공식 제품이 아님"을 About과 NOTICE에 적고, 화면 문구에는 한국어 "한림"을
+     * 쓰지 않는다(Hallym University). 두 언어 문구를 모두 본다.
+     */
+    @Test
+    void aboutAndNoticeStateOriginLicenseMarksAndNotOfficial() throws Exception {
+        String notice = AppIdentity.text("NOTICE");
+        for (String must : new String[] {"Carl Burch", "GNU General Public License", "not an official product of Hallym University",
+            "upstream/logisim-2.7.1", "Commercial use is", "Pretendard", "SPIM", "FlatLaf"}) {
+            assertTrue(notice.contains(must), "NOTICE says " + must);
+        }
+        for (String bundle : new String[] {"messages.properties", "messages_ko.properties"}) {
+            java.util.Properties p = new java.util.Properties();
+            try (java.io.Reader r = new java.io.InputStreamReader(
+                    kr.ac.hallym.hcs.app.Messages.class.getResourceAsStream(bundle), java.nio.charset.StandardCharsets.UTF_8)) {
+                p.load(r);
+            }
+            String about = p.getProperty("about.line1") + p.getProperty("about.line2") + p.getProperty("about.line3");
+            assertTrue(about.contains("Carl Burch") && about.contains("GNU GPL") && about.contains("Hallym University"), about);
+            assertTrue(about.contains("official") || about.contains("공식 제품이 아닙니다"), about);
+            for (String k : p.stringPropertyNames()) {
+                assertTrue(!p.getProperty(k).contains("한림"), bundle + " " + k + " uses 한림: " + p.getProperty(k));
+            }
+        }
+    }
+
     @Test
     void aboutShowsNameVersionMarksAndTwoTabs() {
         Container c = (Container) AboutDialog.content(() -> { });

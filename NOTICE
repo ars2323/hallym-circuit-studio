@@ -5,21 +5,35 @@ This product is a fork of Logisim 2.7.1 and is distributed under the
 GNU General Public License, version 2 or (at your option) any later version.
 See LICENSE.
 
+
+Author
+------
+
+Hakhyeon Kim (김학현), AIAC Lab, Hallym University.
+
+This is a personal project, made for teaching logic design and computer
+architecture. It is not an official product of Hallym University.
+
 It includes or bundles the following third-party components.
 
 --------------------------------------------------------------------------
 Logisim 2.7.1
   Copyright (c) 2011, Carl Burch.
   License: GNU General Public License, version 2 or later
-  Source:  http://www.cburch.com/logisim/
-  Location: vendor/logisim-2.7.1/ (original jar), app/ (fork)
+  Source:  http://www.cburch.com/logisim/ and
+           https://downloads.sourceforge.net/project/circuit/2.7.x/2.7.1/logisim-generic-2.7.1.jar
+           (identical to the vendored jar; SHA-256 in vendor/logisim-2.7.1/ORIGIN.md)
+  Location: vendor/logisim-2.7.1/ (original jar, unmodified), app/ (fork; the
+            unmodified import is tagged upstream/logisim-2.7.1, and every changed
+            original file carries a "// HCS:" comment)
 
 --------------------------------------------------------------------------
 SPIM 9.1.24
   Copyright (c) 1990-2023, James R. Larus. All rights reserved.
   License: BSD 3-Clause (see vendor/spim-9.1.24/README)
-  Source:  https://sourceforge.net/projects/spimsimulator/
-  Location: vendor/spim-9.1.24/ (original source)
+  Source:  https://sourceforge.net/projects/spimsimulator/ (Subversion r764,
+           identical to tag vanilla-9.1.24 of ars2323/hallym-mips-simulator)
+  Location: vendor/spim-9.1.24/ (original source, unmodified; ORIGIN.md there)
   Used only through the separate executable hcs-asm (native/hcs-asm/),
   which is itself BSD 3-Clause licensed (native/hcs-asm/LICENSE).
   SPIM code is not linked into or copied into any GPL-licensed code.
@@ -43,8 +57,13 @@ FlatLaf
 --------------------------------------------------------------------------
 Hallym University identity assets (logo, emblem, signature, characters
 Haram & Hari)
-  Owned by Hallym University (한림대학교 소유). Commercial use is prohibited
-  (상업적 사용 금지). Used unmodified under the university's identity and
-  character guidelines. These assets are NOT covered by the GPL license of
-  this product.
+  Owned by Hallym University (Hallym University 소유). Commercial use is
+  prohibited (상업적 사용 금지). They appear in this software only to identify
+  it as a teaching tool for Hallym University's courses, and are used
+  unmodified under the university's identity and character guidelines.
+  These assets are NOT covered by the GPL license of this product or by any
+  license in this file, and they may not be taken from this repository or
+  from the program and used separately. Anyone who forks or redistributes
+  this project must remove them, unless Hallym University has given its own
+  permission. This software is not an official product of Hallym University.
   Location: assets/hallym/
