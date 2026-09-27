@@ -381,12 +381,12 @@ public final class MessagesPanel {
         return reset;
     }
 
-    /** 지금 목록(테스트). */
     /** 메시지 목록(테스트). */
     javax.swing.JList<Diagnostic> listForTest() {
         return list;
     }
 
+    /** 지금 목록(테스트). */
     List<Diagnostic> rows() {
         java.util.List<Diagnostic> ret = new java.util.ArrayList<>();
         for (int i = 0; i < model.size(); i++) {
