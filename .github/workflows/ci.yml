@@ -29,6 +29,12 @@ jobs:
         run: tools/check-upstream-markers.sh
       - name: hcs-asm build and assembly match
         run: make -s -C native/hcs-asm -j"$(nproc)" test
+      # D-127: 디스어셈블러 골든을 방금 만든 hcs-asm(SPIM 자신의 출력)으로 다시 만들어, 저장소의 골든과 한 글자라도 다르면 실패한다
+      - name: Disassembler goldens regenerate unchanged
+        run: |
+          tools/gen-disasm-golden.sh
+          git diff --exit-code -- tests/disasm
+          test -z "$(git status --porcelain -- tests/disasm)"
       - name: Gradle build and tests
         run: ./gradlew --no-daemon build
       # D-129: identity hash가 모두 같은 JVM(-XX:hashCode=2)에서 단위 테스트를 한 번 더 돈다. identityHashCode를

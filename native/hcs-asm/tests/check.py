@@ -6,6 +6,7 @@
 2. Oracle: for every input that assembles without errors, the unmodified spim
    command line (build/oracle/spim -dump) must give the same text and data words.
    The vendor SPIM test programs are checked against the oracle too.
+3. -disasm: every tests/disasm/*.txt is exactly what its first-line command prints.
 """
 import json
 import os
@@ -20,6 +21,7 @@ ROOT = os.path.abspath(os.path.join(TOOL_DIR, "..", ".."))
 HCS_ASM = os.path.join(TOOL_DIR, "build", "hcs-asm.exe" if os.name == "nt" else "hcs-asm")
 ORACLE = os.path.join(TOOL_DIR, "build", "oracle", "spim")
 CASES = os.path.join(ROOT, "tests", "asm")
+DISASM = os.path.join(ROOT, "tests", "disasm")
 SPIM_SRC = os.path.join(ROOT, "vendor", "spim-9.1.24")
 
 # Vendor programs checked only against the oracle: (path, hcs-asm flags).
@@ -154,13 +156,28 @@ def main():
             diff = [a for a in sorted(set(ours) | set(theirs)) if ours.get(a) != theirs.get(a)][:3]
             fail(rel, f"differs from QtSpim at {[hex(a) for a in diff]} ({len(theirs)} QtSpim words)")
 
+    # -disasm (D-127): 디스어셈블러 골든은 첫 줄에 적힌 명령으로 다시 뽑으면 글자까지 같다. 다시 만들기는
+    # tools/gen-disasm-golden.sh.
+    disasm = sorted(f for f in os.listdir(DISASM) if f.endswith(".txt"))
+    for name in disasm:
+        with open(os.path.join(DISASM, name), encoding="utf-8", newline="") as f:
+            golden = f.read()
+        head = golden.split("\n", 1)[0].split()
+        if head[:2] != ["#", "hcs-asm"]:
+            fail(name, "no '# hcs-asm ...' command line")
+            continue
+        p = subprocess.run([HCS_ASM] + head[2:], cwd=ROOT, capture_output=True, text=True, encoding="utf-8")
+        if p.returncode not in (0, 1) or golden.split("\n", 1)[1] != p.stdout.replace("\r\n", "\n"):
+            fail(name, f"hcs-asm -disasm output differs from tests/disasm/{name} (exit {p.returncode})")
+
     total = len(cases) + (len(ORACLE_ONLY) if with_oracle else 0) + len(QTSPIM_GOLDEN)
     if failures:
         print("\n".join(failures))
-        print(f"hcs-asm tests: {len(failures)} failure(s) in {total} programs")
+        print(f"hcs-asm tests: {len(failures)} failure(s) in {total} programs, {len(disasm)} disasm goldens")
         sys.exit(1)
     oracle = f"{total - len(QTSPIM_GOLDEN)} checked against spim" if with_oracle else "spim oracle skipped"
-    print(f"hcs-asm tests OK ({len(cases)} golden, {oracle}, {len(QTSPIM_GOLDEN)} against QtSpim GUI output)")
+    print(f"hcs-asm tests OK ({len(cases)} golden, {oracle}, {len(QTSPIM_GOLDEN)} against QtSpim GUI output,"
+          f" {len(disasm)} disasm goldens)")
 
 
 if __name__ == "__main__":

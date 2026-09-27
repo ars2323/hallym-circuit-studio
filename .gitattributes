@@ -7,3 +7,5 @@ tests/asm/** text eol=lf
 tests/mips/*.s text eol=lf
 # 실행 이미지 시험 파일: source-sha256이 원본 .s 바이트와 맞아야 하므로 LF로 둔다(D-126).
 tests/hmx/** text eol=lf
+# 디스어셈블러 골든: check.py가 hcs-asm -disasm 출력과 글자 단위로 비교한다(D-127).
+tests/disasm/** text eol=lf
