@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -26,6 +27,8 @@ import com.cburch.logisim.proj.Project;
  * (tests/record/busy-loop.s)을 도는 동안 기록한다. 스텝마다 캡처 시간, 스텝당 메모리, 지난 스텝 복원 시간을 잰다.
  * 기본 보관 상한({@link Recording#DEFAULT_MAX_STEPS})은 여기서 잰 스텝당 메모리로 정했다.
  */
+// 벽시계 시간을 잰다: 상수 identity hash 실행(testConstantIdentityHash)에서는 뺀다(D-129)
+@Tag("timing")
 class RecordingPerformanceTest {
     /** 캡처 한 번(스텝 하나) 중앙값 상한. 원조 엔진의 틱+전파보다 작아야 시뮬레이션 속도가 크게 줄지 않는다. */
     static final double CAPTURE_MS = 1.0;

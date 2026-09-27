@@ -8,11 +8,12 @@
 | --- | --- |
 | `./gradlew test` | 단위 테스트(lib-mips, app). 창 없이 돈다 |
 | `xvfb-run -a ./gradlew :app:guiTest` | GUI 스모크 테스트(실제 창) |
+| `./gradlew :app:testConstantIdentityHash` | app 단위 테스트를 identity hash가 모두 같은 JVM(`-XX:hashCode=2`)에서 한 번 더(D-129). `@Tag("timing")`은 뺀다. GUI 테스트도 같은 옵션으로: `xvfb-run -a ./gradlew :app:guiTest -Phcs.constantHash=true` |
 | `bash tools/check-engine-unchanged.sh` | 엔진 패키지가 원본과 같은지(허용한 패치 1개 제외, 규칙 2.1) |
 | `make -C native/hcs-asm test` | hcs-asm 어셈블 결과를 기대 JSON·QtSpim 오라클과 비교 |
 | `bash tools/screenshots/run.sh <폴더> <장면…>` | 스크린샷(docs/SCREENSHOTS.md). 장면 번호는 칸으로 나눈다 |
 
-CI(`.github/workflows/ci.yml`)는 push·PR마다 Linux에서 vendor·assets 검사, 엔진 불변, hcs-asm, `build`(단위 테스트 포함), GUI 테스트를 돌리고, Windows에서 hcs-asm을 빌드해 확인한다.
+CI(`.github/workflows/ci.yml`)는 push·PR마다 Linux에서 vendor·assets 검사, 엔진 불변, hcs-asm, `build`(단위 테스트 포함), 상수 identity hash 단위 테스트, GUI 테스트를 돌리고, Windows에서 hcs-asm을 빌드해 확인한다.
 
 테스트는 개발자의 Logisim 환경설정을 건드리지 않는다: Gradle이 `java.util.prefs.userRoot`와 `hcs.configDir`를 `build/` 아래로 돌린다.
 

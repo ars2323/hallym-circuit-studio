@@ -31,6 +31,10 @@ jobs:
         run: make -s -C native/hcs-asm -j"$(nproc)" test
       - name: Gradle build and tests
         run: ./gradlew --no-daemon build
+      # D-129: identity hash가 모두 같은 JVM(-XX:hashCode=2)에서 단위 테스트를 한 번 더 돈다. identityHashCode를
+      # 열쇠·서명으로 쓰면(고유하지 않다) 여기서 틀린다. 벽시계 시간을 재는 @Tag("timing")은 뺀다.
+      - name: Unit tests with a constant identity hash
+        run: ./gradlew --no-daemon :app:testConstantIdentityHash
       - name: GUI tests (Xvfb)
         run: xvfb-run -a ./gradlew --no-daemon :app:guiTest
       - name: Test reports

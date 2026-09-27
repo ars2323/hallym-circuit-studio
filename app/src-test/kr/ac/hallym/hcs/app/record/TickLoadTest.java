@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import javax.swing.SwingUtilities;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -174,6 +175,7 @@ class TickLoadTest {
 
     /** ref-mips + factorial.s를 빠른 클럭으로 끝까지(exit) 돌린 Console 글이 한 틱씩 돌린 글과 같다. */
     @Test
+    @Tag("timing") // 제한 시간 안에 끝까지 돌아야 한다: 상수 identity hash 실행에서는 뺀다(D-129)
     void consoleOutputIsCompleteWhenTheClockRunsFast() throws Exception {
         LogisimFile file = RecordingTestSupport.openRefMips(tmp);
         RecordingTestSupport.load(file, RecordingTestSupport.program("mips/factorial.s"));

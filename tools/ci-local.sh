@@ -22,4 +22,7 @@ make -s -C native/hcs-asm -j"$(nproc)" test
 step "Gradle 빌드·테스트 (hcs-asm을 쓰는 테스트 포함)"
 ./gradlew --no-daemon -q build
 
+step "단위 테스트, identity hash가 모두 같은 JVM에서 (D-129)"
+./gradlew --no-daemon -q :app:testConstantIdentityHash
+
 printf '\nci-local: all checks passed (%s)\n' "$(git rev-parse --short HEAD)"
