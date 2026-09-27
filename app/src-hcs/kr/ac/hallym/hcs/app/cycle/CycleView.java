@@ -76,6 +76,7 @@ public final class CycleView {
             }
             if (v != null) {
                 v.reloadPrograms(false, false);
+                v.unpin(); // Reset: 임시 줄을 걷는다(Y-03; 기록이 같은 객체로 다시 시작해도)
             }
         });
     }
@@ -495,6 +496,8 @@ public final class CycleView {
     /** 임시 줄을 만든 메시지와 그때의 기록(Y-03: 메시지가 사라지거나 기록이 바뀌면 걷는다). */
     private kr.ac.hallym.hcs.app.diag.Diagnostic pinnedDiag;
     private Recording pinnedRecording;
+    private int pinnedStep;
+    private int pinnedGeneration;
 
     /**
      * 임시 줄의 수명(Y-03, D-114): 메시지가 사라졌거나(회로 고침, 되돌리기, 다른 파일), 기록이 바뀌었으면(Reset, 다시
@@ -507,7 +510,9 @@ public final class CycleView {
         Project proj = projRef.get();
         boolean gone = pinnedDiag == null || proj == null
                 || !kr.ac.hallym.hcs.app.diag.Diagnostics.of(proj).contains(pinnedDiag);
-        boolean newRecording = now != pinnedRecording;
+        // Reset은 기록 객체를 새로 만들거나 같은 객체를 처음부터 다시 쓴다: 어느 쪽이든 임시 줄의 사이클이 기록 밖이면 걷는다
+        boolean newRecording = now == null || now != pinnedRecording || now.generation() != pinnedGeneration
+                || now.last() < pinnedStep;
         if (gone || newRecording) {
             unpin();
         }
@@ -520,6 +525,8 @@ public final class CycleView {
         Recording r = recorder.current();
         pinnedDiag = d;
         pinnedRecording = r;
+        pinnedStep = d == null ? 0 : Math.max(0, d.step);
+        pinnedGeneration = r == null ? 0 : r.generation();
         if (d == null || r == null || d.step < 0) {
             refresh();
             return;

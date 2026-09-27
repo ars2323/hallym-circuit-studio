@@ -275,7 +275,15 @@ public final class Recording {
     }
 
     /** 기록을 비우고 step부터 새로 시작한다(리셋, 회로 편집). */
+    /** 처음부터 다시 쓴 횟수(Y-03: 같은 객체로 리셋해도 구분한다). */
+    private int generation;
+
+    public synchronized int generation() {
+        return generation;
+    }
+
     public synchronized void restart(CircuitState state, int step) {
+        generation++;
         root = new Node();
         probes.clear();
         checkpoints.clear();
