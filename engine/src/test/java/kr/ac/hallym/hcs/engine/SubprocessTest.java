@@ -134,6 +134,30 @@ class SubprocessTest {
         }
     }
 
+    /** 배포 jar: 실행 클래스, Gson과 그 라이선스, NOTICE, GPL 전문. 화면 전용 짐(FlatLaf, 도움말, 글꼴)은 없다. */
+    @Test
+    void theEngineJarCarriesItsLicensesAndNoSwingOnlyBaggage() throws Exception {
+        File jar = new File(STAGE, "hcs-engine.jar");
+        assertTrue(new File(STAGE, "hcs-mips.jar").isFile(), "hcs-mips.jar sits next to the engine jar");
+        try (java.util.jar.JarFile j = new java.util.jar.JarFile(jar)) {
+            assertEquals("kr.ac.hallym.hcs.engine.Main", j.getManifest().getMainAttributes().getValue("Main-Class"));
+            for (String must : new String[] {"com/google/gson/Gson.class", "META-INF/LICENSE-Gson.txt", "META-INF/NOTICE",
+                "COPYING.TXT", "com/cburch/logisim/file/Loader.class", "resources/logisim/default.templ"}) {
+                assertTrue(j.getEntry(must) != null, "has " + must);
+            }
+            String notice = new String(j.getInputStream(j.getEntry("META-INF/NOTICE")).readAllBytes(),
+                    StandardCharsets.UTF_8);
+            assertTrue(notice.contains("Gson") && notice.contains("Apache License, Version 2.0"));
+            for (java.util.Enumeration<java.util.jar.JarEntry> en = j.entries(); en.hasMoreElements();) {
+                String name = en.nextElement().getName();
+                assertFalse(name.startsWith("com/formdev/") || name.startsWith("doc/")
+                        || name.startsWith("kr/ac/hallym/hcs/app/fonts/") || name.equals("kr/ac/hallym/hcs/mips/MipsLibrary.class")
+                        || name.endsWith("module-info.class"), name);
+            }
+        }
+        assertTrue(jar.length() < 8L * 1024 * 1024, "the engine jar stays small: " + jar.length());
+    }
+
     @Test
     void closingStdinEndsTheProcess() throws Exception {
         try (Proc p = new Proc(tmp.toFile(), List.of())) {
