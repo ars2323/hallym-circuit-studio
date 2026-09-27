@@ -132,8 +132,9 @@ async function openPath(p: string): Promise<Opened> {
 async function main(): Promise<void> {
   Menu.setApplicationMenu(null); // no default zoom/reload accelerators; the window has its own keys
   await app.whenReady();
-  // No spell checker (with webPreferences.spellcheck below): on Windows it is the system's,
-  // which keeps the user's word lists in %APPDATA%\Microsoft\Spelling (the lab-PC rule, N-23).
+  // No spell checker (with webPreferences.spellcheck below): circuit and label names are not
+  // words, and nothing is ever added to the user's word lists (on Windows the system's, in
+  // %APPDATA%\Microsoft\Spelling, which Chromium opens at its start all the same; N-23, D-148).
   session.defaultSession.setSpellCheckerEnabled(false);
   void engine.start().catch(() => { /* status says so; the window shows the dialog */ });
 

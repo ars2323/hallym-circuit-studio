@@ -97,7 +97,7 @@ test('the opened file is not written by opening it; the only file written is the
   }
 });
 
-test('no spell checker: on Windows it would keep word lists in %APPDATA%\\Microsoft\\Spelling', async () => {
+test('no spell checker: names are not words, and no word is ever added to the user\'s word lists', async () => {
   const r = await launch();
   try {
     expect(await r.app.evaluate(({ session }) => session.defaultSession.isSpellCheckerEnabled())).toBe(false);

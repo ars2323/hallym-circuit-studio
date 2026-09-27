@@ -90,13 +90,20 @@ export const windowsContainer = (c: Change): boolean => c.what === 'added' && (
      PowerShell's startup cache        the check script is PowerShell, and electron-builder's
                                        installer asks PowerShell whether the program is running
      Store apps' data (Packages)       Windows Search re-indexes the Start menu's programs
-     the shell's caches                icons, the desktop wallpaper at a new screen size */
+     the shell's caches                icons, the desktop wallpaper at a new screen size
+     Windows' spelling word lists      %APPDATA%\Microsoft\Spelling\<language>\default.*: the
+                                       system spell checker's per-user lists, shared by every
+                                       program that checks spelling; Chromium opens it at its
+                                       start whatever the program sets (tried: the window's and
+                                       the session's spell checker off, a profile with it off),
+                                       and they stay empty (the program adds no word) */
 export const WINDOWS_OWN: [RegExp, string][] = [
   [/^LOCALAPPDATA\\Microsoft\\Windows\\UsrClass\.dat/i, 'the registry hive\'s own files'],
   [/^LOCALAPPDATA\\Microsoft\\(Windows\\)?PowerShell\\/i, 'PowerShell\'s startup cache'],
   [/^LOCALAPPDATA\\Packages\\/i, 'Store apps\' data (Windows Search)'],
   [/^LOCALAPPDATA\\Microsoft\\Windows\\Caches\\/i, 'the shell\'s caches'],
   [/^APPDATA\\Microsoft\\Windows\\Themes\\/i, 'the desktop wallpaper\'s cache'],
+  [/^APPDATA\\Microsoft\\Spelling(\\|$)/i, 'Windows\' spelling word lists'],
 ];
 // And while installing: the shell's jump lists record the installers it saw start (msiexec, the setup exe).
 export const INSTALLING_OWN: [RegExp, string][] = [

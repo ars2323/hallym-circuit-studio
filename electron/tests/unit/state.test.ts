@@ -113,6 +113,8 @@ test('what Windows and the test tools write whatever runs (seen on the CI runner
     ['LOCALAPPDATA\\Packages\\Microsoft.Windows.Search_cw5n1h2txyewy\\LocalState\\AppIconCache\\100\\Chrome', 'Store apps\' data (Windows Search)'],
     ['LOCALAPPDATA\\Microsoft\\Windows\\Caches\\{3DA71D5A-20CC-432F-A115-DFE92379E91F}.3.ver0x0000000000000005.db', 'the shell\'s caches'],
     ['APPDATA\\Microsoft\\Windows\\Themes\\CachedFiles\\CachedImage_1920_1080_POS4.jpg', 'the desktop wallpaper\'s cache'],
+    ['APPDATA\\Microsoft\\Spelling\\en-US\\default.dic', 'Windows\' spelling word lists'],
+    ['APPDATA\\Microsoft\\Spelling', 'Windows\' spelling word lists'],
   ];
   for (const [p, why] of seen) {
     for (const expect of ['none', 'install', 'uninstalled'] as const) assert.equal(notOurs({ where: 'files', what: 'changed', path: p }, expect), why, `${p} (${expect})`);
