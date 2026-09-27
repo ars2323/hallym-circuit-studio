@@ -27,8 +27,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Z-04, D-127: 디스어셈블러를 SPIM이 낸 목록(tests/disasm/*.txt, {@code hcs-asm -disasm}이 SPIM 자신의 출력 함수로
- * 만든 골든)과 한 줄씩 대조한다. 네이티브 도구 없이 돈다. 골든이 SPIM과 어긋나지 않았는지는 CI가
- * tools/gen-disasm-golden.sh로 다시 만들어 본다.
+ * 만든 골든)과 한 줄씩 대조한다. 네이티브 도구 없이 돈다. 골든은 vendor/spim과 hcs-asm을 지우기 전에 뽑아 굳혀 두었고
+ * (D-141, tests/disasm/README.md) 다시 만들지 않는다. 고치지 않는다.
  *
  * <p>대조 규칙(D-127):
  * <ul>
@@ -189,7 +189,7 @@ class DisassemblerGoldenTest {
     }
 
     /**
-     * 골든을 뽑는 방식(hcs-asm -disasm)이 QtSpim 창의 글과 같다: tests/asm/qtspim/의 QtSpim Save Log File 출력과 한 줄씩
+     * 골든을 뽑은 방식(지금은 없어진 hcs-asm -disasm, D-141)이 QtSpim 창의 글과 같다: tests/asm/qtspim/의 QtSpim Save Log File 출력과 한 줄씩
      * 대조한다.
      */
     @Test

@@ -1,0 +1,31 @@
+# spim -noexception -dump -file tests/asm/arith.s: the text segment of text.asm (address, word, text before the ';' source comment).
+# Original SPIM 9.1.24 command line (vendor/spim-9.1.24/spim/spim.cpp built with make -C native/hcs-asm oracle, commit dfd8fd2).
+# Frozen before vendor/spim-9.1.24 and hcs-asm were removed (D-141). Do not edit.
+00400000 20080007 addi $8, $0, 7
+00400004 2009fffd addi $9, $0, -3
+00400008 01095020 add $10, $8, $9
+0040000c 01095822 sub $11, $8, $9
+00400010 01096021 addu $12, $8, $9
+00400014 01096823 subu $13, $8, $9
+00400018 01098024 and $16, $8, $9
+0040001c 01098825 or $17, $8, $9
+00400020 01099027 nor $18, $8, $9
+00400024 01099826 xor $19, $8, $9
+00400028 0128a02a slt $20, $9, $8
+0040002c 0128a82b sltu $21, $9, $8
+00400030 29360000 slti $22, $9, 0
+00400034 311700ff andi $23, $8, 255
+00400038 35048000 ori $4, $8, -32768
+0040003c 39050001 xori $5, $8, 1
+00400040 3c061234 lui $6, 4660
+00400044 00083900 sll $7, $8, 4
+00400048 00091f02 srl $3, $9, 28
+0040004c 00091843 sra $3, $9, 1
+00400050 01087004 sllv $14, $8, $8
+00400054 01090018 mult $8, $9
+00400058 00007812 mflo $15
+0040005c 0000c010 mfhi $24
+00400060 0109001a div $8, $9
+00400064 0000c812 mflo $25
+00400068 3402000a ori $2, $0, 10
+0040006c 0000000c syscall

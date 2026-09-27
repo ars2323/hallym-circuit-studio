@@ -20,8 +20,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -52,26 +50,28 @@ class MergedDataMemoryTest {
 
     // ---- 영역: SPIM 9.1.24 소스에서 ----
 
-    /** SPIM 소스의 {@code #define NAME 값}(K 곱셈과 괄호, 형 변환을 푼다). */
-    static long spimDefine(String file, String name) throws Exception {
-        String text = Files.readString(Path.of(System.getProperty("hcs.spimDir"), "CPU", file));
-        Matcher m = Pattern.compile("#define " + name + " \\(([^/\\n]+)\\)").matcher(text);
-        assertTrue(m.find(), name + " in " + file);
-        String v = m.group(1).replace("(mem_addr)", "").replace("(", "").replace(")", "").trim();
-        long out = 1;
-        for (String part : v.split("\\*")) {
-            String p = part.trim();
-            out *= p.equals("K") ? 1024 : p.startsWith("0x") ? Long.parseLong(p.substring(2), 16) : Long.parseLong(p);
+    /**
+     * SPIM 9.1.24 소스의 메모리 배치 값(tests/spim-oracle/memory-layout.txt). vendor/spim이 있는 동안 이 시험이 소스의
+     * {@code #define}과 식을 직접 읽어 대조했고, 지우기 전에 그 값과 자리(파일:줄)를 굳혀 두었다(D-140, D-141).
+     */
+    static long spimLayout(String name) throws Exception {
+        Path file = Path.of(System.getProperty("hcs.testsDir"), "spim-oracle", "memory-layout.txt");
+        for (String line : Files.readAllLines(file)) {
+            String[] t = line.trim().split("\\s+");
+            if (!line.startsWith("#") && t.length >= 3 && t[0].equals(name)) {
+                assertTrue(t[1].startsWith("0x") && t[2].matches("[a-z-]+\\.(h|cpp):[0-9,]+"), line);
+                return Long.parseLong(t[1].substring(2), 16);
+            }
         }
-        return out;
+        throw new AssertionError(name + " not in " + file);
     }
 
     @Test
     void newPartRegionsAreSpimDataAndStackSegments() throws Exception {
-        long dataBot = spimDefine("mem.h", "DATA_BOT");
-        long dataLimit = spimDefine("spim.h", "DATA_LIMIT");
-        long stackTop = spimDefine("mem.h", "STACK_TOP");
-        long stackLimit = spimDefine("spim.h", "STACK_LIMIT");
+        long dataBot = spimLayout("DATA_BOT");
+        long dataLimit = spimLayout("DATA_LIMIT");
+        long stackTop = spimLayout("STACK_TOP");
+        long stackLimit = spimLayout("STACK_LIMIT");
         assertEquals(0x10000000L, dataBot);
         assertEquals(1L << 20, dataLimit);
         assertEquals(0x80000000L, stackTop);
@@ -86,13 +86,11 @@ class MergedDataMemoryTest {
         assertArrayEquals(DATA, MemoryFactory.region(as), ".data goes to the data region");
 
         // 초기 $sp(spim-utils.cpp initialize_registers): STACK_TOP − BYTES_PER_WORD − 4096
-        String utils = Files.readString(Path.of(System.getProperty("hcs.spimDir"), "CPU", "spim-utils.cpp"));
-        assertTrue(utils.contains("R[REG_SP] = STACK_TOP - BYTES_PER_WORD - 4096;"));
+        assertEquals(stackTop - 4 - 4096, spimLayout("INITIAL_SP"));
         assertEquals(stackTop - 4 - 4096, DataMemory.SPIM_INITIAL_SP);
         // $gp와 사용자 .data 시작(data.cpp data_begins_at_point): DATA_BOT + 32K, DATA_BOT + 64K
-        String data = Files.readString(Path.of(System.getProperty("hcs.spimDir"), "CPU", "data.cpp"));
-        assertTrue(data.contains("gp_midpoint = addr + 32 * K;"));
-        assertTrue(data.contains("next_data_pc = addr + 64 * K;"));
+        assertEquals(dataBot + 32 * 1024, spimLayout("GP"));
+        assertEquals(dataBot + 64 * 1024, spimLayout("USER_DATA"));
         assertEquals(0x10008000L, dataBot + 32 * 1024);
         assertEquals(0x10010000L, dataBot + 64 * 1024);
     }

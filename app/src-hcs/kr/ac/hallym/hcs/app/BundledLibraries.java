@@ -13,8 +13,7 @@ import java.security.CodeSource;
  * 포크에 번들된 라이브러리 jar(D-007). .circ의 {@code jar#<경로>#<클래스>}에서 경로의 jar를 읽을 수 없고 클래스가
  * 번들된 라이브러리면, 파일 선택 창 대신 번들 jar로 연결한다. 경로의 jar를 읽을 수 있으면 원조처럼 그것을 쓴다.
  *
- * <p>번들 위치: 시스템 속성 {@code hcs.bundledMips}, 없으면 포크 jar 옆 {@code lib/hcs-mips.jar}. hcs-asm도 같은
- * {@code lib/}에 둔다(lib-mips가 jar 옆에서 찾는다).
+ * <p>번들 위치: 시스템 속성 {@code hcs.bundledMips}, 없으면 포크 jar 옆 {@code lib/hcs-mips.jar}.
  */
 public final class BundledLibraries {
     public static final String MIPS_CLASS = "kr.ac.hallym.hcs.mips.MipsLibrary";
@@ -42,22 +41,6 @@ public final class BundledLibraries {
         }
         File home = appHome();
         return home == null ? null : new File(new File(home, "lib"), MIPS_JAR);
-    }
-
-    /**
-     * 번들된 hcs-asm(C-02 사이클 표가 .s 줄을 찾을 때). lib-mips와 같은 순서: 시스템 속성 {@code hcs.asm}, 환경
-     * 변수 {@code HCS_ASM}, 포크 jar 옆 {@code lib/}. 없으면 null.
-     */
-    public static File hcsAsm() {
-        String exe = System.getProperty("os.name", "").toLowerCase().startsWith("windows") ? "hcs-asm.exe" : "hcs-asm";
-        for (String p : new String[] {System.getProperty("hcs.asm"), System.getenv("HCS_ASM")}) {
-            if (p != null && !p.isEmpty() && new File(p).canExecute()) {
-                return new File(p);
-            }
-        }
-        File home = appHome();
-        File f = home == null ? null : new File(new File(home, "lib"), exe);
-        return f != null && f.canExecute() ? f : null;
     }
 
     /** 포크 jar가 있는 폴더. 클래스 폴더에서 돌 때(개발 중)는 null. */

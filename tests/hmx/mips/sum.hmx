@@ -1,5 +1,5 @@
 HALLYM-EXEC 1
-# hcs-asm -exception으로 생성: Hallym MIPS 내보내기가 나오면 교체
+# hcs-asm -exception으로 만들어 굳힌 시험 이미지(D-126, D-141): 기계어는 SPIM 9.1.24 그대로
 source        ../../mips/sum.s
 source-sha256 c3067cb80d5197cc7e3159435284220c30e1a3100065c421e27032bf18ef660b
 produced-by   hcs-asm 0.1.0 -exception

@@ -1,0 +1,11 @@
+# SPIM 9.1.24 memory layout that the merged Data Memory follows (D-140), read from the SPIM source
+# (vendor/spim-9.1.24/CPU/, SVN r764, as of commit dfd8fd2) before vendor/spim-9.1.24 was removed (D-141).
+# The values were checked against the source by MergedDataMemoryTest while the source was in the repository.
+# Columns: name, value, where SPIM defines it (file:line in CPU/), how SPIM computes it. Do not edit.
+DATA_BOT    0x10000000  mem.h:67              data segment bottom
+DATA_LIMIT  0x00100000  spim.h:90,125         K * K (K = 1024): 1 MB
+STACK_TOP   0x80000000  mem.h:85              stack segment top (exclusive)
+STACK_LIMIT 0x00040000  spim.h:90,151         256 * K: 1/4 MB
+INITIAL_SP  0x7fffeffc  spim-utils.cpp:147    STACK_TOP - BYTES_PER_WORD (spim.h:96, 4) - 4096, in initialize_registers
+GP          0x10008000  data.cpp:78,83        DATA_BOT + 32 * K, in data_begins_at_point(DATA_BOT) (spim-utils.cpp:91)
+USER_DATA   0x10010000  data.cpp:78,85        DATA_BOT + 64 * K: where the user .data starts

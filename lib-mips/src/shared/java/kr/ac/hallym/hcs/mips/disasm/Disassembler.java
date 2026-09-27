@@ -15,7 +15,8 @@ import java.util.TreeMap;
  *
  * <p>MIPS32 명세의 opcode 표를 보고 직접 썼다. SPIM의 소스와 표는 옮기지 않는다(CLAUDE.md 규칙 2.5). 내는 글은 SPIM이
  * 내는 글과 글자까지 같게 만든다(예: 모르는 워드의 {@code <unknown instruction 0>}). 같은지는 SPIM이 실제로 낸 출력
- * (tests/disasm/ 골든, {@code hcs-asm -disasm})과 한 줄씩 대조해 확인한다. 명세와 SPIM의 출력이 다른 곳(예: SPECIAL3
+ * (tests/disasm/ 골든: 지금은 없어진 {@code hcs-asm -disasm}이 SPIM 자신의 출력 함수로 뽑아 굳혀 둔 것, D-141)과 한 줄씩
+ * 대조해 확인한다. 명세와 SPIM의 출력이 다른 곳(예: SPECIAL3
  * 전체가 {@code ext}, 단정도 funct 8이 {@code swxc1})은 SPIM의 출력을 따르고 그 자리에 적어 둔다.
  *
  * <p>SPIM은 같은 워드라도 어셈블한 줄과 {@code .word}로 둔 워드를 몇몇 명령에서 다르게 보인다(부동소수점 비교·조건
@@ -504,7 +505,7 @@ public final class Disassembler {
     }
 
     /**
-     * 이름 → 주소 표(hcs-asm의 labels)를 주소 → 이름으로. 한 주소에 이름이 여럿이면 사전순으로 앞선 이름을 쓴다(SPIM은
+     * 이름 → 주소 표(실행 이미지의 기호)를 주소 → 이름으로. 한 주소에 이름이 여럿이면 사전순으로 앞선 이름을 쓴다(SPIM은
      * 원래 줄에 쓴 이름을 보이지만 워드만으로는 알 수 없다).
      */
     public static Map<Integer, String> byAddress(Map<String, ? extends Number> labels) {

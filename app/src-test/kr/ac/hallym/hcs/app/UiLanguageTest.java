@@ -299,7 +299,7 @@ class UiLanguageTest {
         assertTrue(bad.size() >= 10, "forbidden translations: " + bad.size());
         String all = new String(Files.readAllBytes(new File(ROOT, "docs/GLOSSARY.md").toPath()),
                 StandardCharsets.UTF_8);
-        for (String name : new String[] {"Poke Tool", "Edit Tool", "Wiring", "Plexers", "Splitter", "Load .s",
+        for (String name : new String[] {"Poke Tool", "Edit Tool", "Wiring", "Plexers", "Splitter", "Load Program",
             "1 Cycle", "N Cycles", "Quick Attributes", "Show in Attribute Panel", "Fit to Window", "Labels: All"}) {
             assertTrue(all.contains(name), name);
         }

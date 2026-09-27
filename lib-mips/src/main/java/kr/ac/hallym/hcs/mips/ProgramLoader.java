@@ -20,6 +20,7 @@ import com.cburch.logisim.comp.ComponentFactory;
 import com.cburch.logisim.data.Attribute;
 import com.cburch.logisim.instance.StdAttr;
 
+import kr.ac.hallym.hcs.mips.image.AssemblySource;
 import kr.ac.hallym.hcs.mips.image.ExecutableImage;
 import kr.ac.hallym.hcs.mips.image.HmxError;
 import kr.ac.hallym.hcs.mips.image.HmxParser;
@@ -29,7 +30,8 @@ import kr.ac.hallym.hcs.mips.image.StartFacts;
 
 /**
  * 실행 이미지를 어느 메모리에 어떤 속성으로 넣을지 정한다(PLAN.md 6.3, Z-01, D-126). GUI와 떨어져 있어 테스트할 수
- * 있다. .hmx와 전환용 .s({@link AssemblyTransition})가 같은 이미지 모델로 이 한 길을 지난다.
+ * 있다. 받는 것은 Hallym MIPS가 내보낸 실행 이미지(.hmx) 하나다. .s 불러오기와 hcs-asm은 없어졌고(D-141), .s를 가리키는
+ * 옛 {@code source} 속성은 그 사실과 할 일({@link AssemblySource#FACT})을 보이고 아무것도 바꾸지 않는다.
  *
  * <ul>
  *   <li>.text는 파일의 주소 그대로 Instruction Memory에 넣는다(시작 코드 포함, 자르거나 옮기지 않는다).</li>
@@ -117,10 +119,8 @@ final class ProgramLoader {
     static final class Loaded {
         final File file;
         ExecutableImage image;
-        /** 원본 .s 대조(.hmx만). .s 전환 경로는 null. */
+        /** 원본 .s 대조. 읽지 못했으면 null. */
         SourceCheck check;
-        /** 전환용 .s 경로로 읽었는가(요약의 ".s 임시 지원"). */
-        boolean transition;
         /** 읽지 못한 이유(설명 문장, 언어 설정을 따른다). */
         final List<String> errors = new ArrayList<String>();
         /** 요약 머리 줄(어디서 온 이미지인가). */
@@ -206,15 +206,20 @@ final class ProgramLoader {
 
     // ---- 파일 읽기 ----
 
-    /** 실행 이미지(.hmx) 또는 전환용 .s를 읽는다. */
+    /**
+     * 실행 이미지(.hmx)를 읽는다. .s(.asm)는 읽지 않는다(D-141): 옛 {@code source} 속성의 다시 불러오기나 고른 파일이
+     * .s이면 그 사실과 할 일만 오류로 돌려주고 아무것도 바꾸지 않는다.
+     */
     static Loaded read(File file) {
-        if (AssemblyTransition.accepts(file)) {
-            return AssemblyTransition.read(file);
+        if (AssemblySource.isAssembly(file.getName())) {
+            Loaded out = new Loaded(file);
+            out.errors.add(AssemblySource.FACT.get(Text.korean()));
+            return out;
         }
         return readImage(file);
     }
 
-    /** .hmx를 읽고 원본 .s와 대조한다. hcs-asm은 쓰지 않는다. */
+    /** .hmx를 읽고 원본 .s와 대조한다. */
     static Loaded readImage(File hmx) {
         Loaded out = new Loaded(hmx);
         HmxParser.Result r;

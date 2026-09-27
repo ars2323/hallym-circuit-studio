@@ -39,7 +39,7 @@ import com.cburch.logisim.tools.MenuExtender;
  *   <li>영역 밖이거나 {@code MemRead}가 1이 아니면 출력을 구동하지 않는다. 쓰기도 하지 않는다.</li>
  *   <li>떠 있는 제어 입력은 1로 취급하지 않는다(원조 RAM과 다름).</li>
  *   <li>워드 접근만 한다. 주소의 하위 2비트는 쓰지 않는다.</li>
- *   <li>실행 중 쓴 값은 저장하지 않는다. 리셋하면 {@code contents}(.s의 .data)로 돌아간다.</li>
+ *   <li>실행 중 쓴 값은 저장하지 않는다. 리셋하면 {@code contents}(실행 이미지의 .data)로 돌아간다.</li>
  * </ul>
  *
  * <p>동작하지 않는 경우만 알린다(PLAN.md 1장 설계 원칙): 떠 있는 제어 입력, 정렬 안 된 주소, 어느 메모리 영역에도
@@ -295,7 +295,7 @@ class DataMemory extends MemoryFactory {
         WordImage image = s.getAttributeValue(CONTENTS);
         State st = (State) s.getData();
         if (st == null || !st.image.equals(image)) {
-            st = new State(image); // 새 시뮬레이션이거나 .s를 다시 불러옴
+            st = new State(image); // 새 시뮬레이션이거나 프로그램을 다시 불러옴
             s.setData(st);
         }
         st.data = dataRegion(s.getAttributeSet());

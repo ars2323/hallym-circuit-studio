@@ -101,13 +101,12 @@ tasks.jar {
 evaluationDependsOn(":lib-mips")
 val mipsJar = project(":lib-mips").tasks.named<Jar>("jar")
 
-// 개발용 배치: 포크 jar 옆 lib/에 번들 라이브러리(hcs-mips.jar)와 hcs-asm을 둔다(D-007). 배포 zip은 2c(#29).
+// 개발용 배치: 포크 jar 옆 lib/에 번들 라이브러리(hcs-mips.jar)를 둔다(D-007). hcs-asm은 없어졌다(D-141).
 val stage by tasks.registering(Sync::class) {
     into(layout.buildDirectory.dir("stage"))
     from(tasks.jar)
     into("lib") {
         from(mipsJar)
-        from(rootProject.file("native/hcs-asm/build")) { include("hcs-asm", "hcs-asm.exe") }
     }
 }
 
@@ -137,9 +136,8 @@ fun Test.hcsTestSetup(headless: Boolean, prefs: String = "test-prefs", config: S
     systemProperty("hcs.forkJar", tasks.jar.get().archiveFile.get().asFile.absolutePath)
     systemProperty("hcs.logisimJar", logisimJar.absolutePath)
     systemProperty("hcs.circDir", rootProject.file("tests/circ").absolutePath)
+    // 기록 엔진 테스트는 굳혀 둔 실행 이미지(tests/hmx)를 올린다(hcs-asm은 없어졌다, D-141)
     systemProperty("hcs.testsDir", rootProject.file("tests").absolutePath)
-    // 기록 엔진 테스트가 .s를 어셈블한다(make -C native/hcs-asm 먼저, tools/ci-local.sh 순서)
-    systemProperty("hcs.asm", rootProject.file("native/hcs-asm/build/hcs-asm").absolutePath)
     // tests/circ/demo-datapath.circ 다시 쓰기: ./gradlew :app:test -Phcs.update=true
     systemProperty("hcs.update", (findProperty("hcs.update") ?: "false").toString())
     // 편집 동등성 골든(N-01, tests/parity): -Dparity.update=true로 다시 쓰기, -Dparity.only=장면,…로 일부만

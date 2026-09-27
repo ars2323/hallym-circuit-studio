@@ -21,9 +21,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
-import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Assumptions;
@@ -50,13 +47,13 @@ import kr.ac.hallym.hcs.mips.image.StartFacts;
  * <li>불러오기(ProgramLoader)가 Instruction Memory·Data Memory에 넣은 것을 부품 출력으로 되읽으면(헤드리스, 주소를 세는
  * 회로) 워드마다·바이트마다 이미지와 같고, 이미지가 주지 않은 주소는 0이다.
  * <li>참조 CPU(ref-mips, PC 시작 = entry)가 각 이미지를 exit까지 돌린 레지스터와 Console 글이 SPIM 오라클 파일
- * ({@code <이름>.regs}, vendor SPIM 9.1.24로 만든 것)과 같다. 비교하는 레지스터는 프로그램 자신의 워드가 쓰는 것이다(시작
+ * ({@code <이름>.regs}, vendor SPIM 9.1.24로 만들어 굳힌 것, D-138·D-141)과 같다. 비교하는 레지스터는 프로그램 자신의 워드가 쓰는 것이다(시작
  * 코드와 SPIM의 실행 스택이 정한 값은 회로가 돌리지 않는다). ref-mips에 없는 명령이 쓰는 레지스터는 비교하지 않고 빌드
  * 로그에 "NOT compared"로 남긴다(건너뛴 검사는 통과가 아니다).
  * </ol>
  */
 class HallymMipsGoldenTest {
-    static final Path DIR = AssemblerIntegrationTest.TESTS.resolve("hmx/hallym-mips-v2.4.0");
+    static final Path DIR = ProgramLoadIntegrationTest.TESTS.resolve("hmx/hallym-mips-v2.4.0");
     static final List<String> CASES = List.of("branches", "data", "main-later", "pseudo", "no-data", "space-gap",
             "no-handler");
     /** 참조 CPU(RefMips)가 해석하는 명령. */
@@ -225,7 +222,7 @@ class HallymMipsGoldenTest {
             ProgramLoader.Plan plan = ProgramLoader.plan(l, r.sim.file.getCircuits(), null, null, name + ".hmx");
             assertEquals(List.of(), plan.errors);
             assertEquals(List.of(), plan.warnings, "source check: same");
-            AssemblerIntegrationTest.apply(plan);
+            ProgramLoadIntegrationTest.apply(plan);
             r.sim.start();
             // 이미지 끝 다음 두 워드까지: 이미지가 주지 않은 메모리는 0이다(명세 "What a reader must do" 5)
             int textWords = img.textWords().size();
@@ -272,9 +269,13 @@ class HallymMipsGoldenTest {
 
     // ---- (c) 끝 레지스터: SPIM 오라클 파일 ----
 
-    /** {@code <이름>.regs}: 레지스터 이름 → 값. 주석(#)과 console 줄은 따로. */
+    /**
+     * {@code <이름>.regs}: 레지스터 이름 → 값. 주석(#)과 console 줄은 따로, {@code mem <주소> <워드>} 줄(RefMipsTest의
+     * tests/spim-oracle/run/, .data 워드)은 {@link #mem}에.
+     */
     static final class Oracle {
         final Map<String, Integer> regs = new LinkedHashMap<>();
+        final Map<Long, Integer> mem = new java.util.TreeMap<>();
         String console;
         final List<String> header = new ArrayList<>();
 
@@ -285,6 +286,10 @@ class HallymMipsGoldenTest {
                     o.header.add(line);
                 } else if (line.startsWith("console ")) {
                     o.console = unescape(line.substring("console ".length()));
+                } else if (line.startsWith("mem ")) {
+                    String[] t = line.split("\\s+");
+                    assertEquals(3, t.length, line);
+                    o.mem.put(Long.parseLong(t[1], 16), (int) Long.parseLong(t[2], 16));
                 } else if (!line.isBlank()) {
                     String[] t = line.split("\\s+");
                     assertEquals(2, t.length, line);
@@ -318,69 +323,6 @@ class HallymMipsGoldenTest {
             }
         }
         return sb.toString();
-    }
-
-    /**
-     * 원본 SPIM(vendor/spim-9.1.24를 빌드한 오라클)으로 끝까지 돌린 레지스터를 오라클 파일 글로. 처리기를 불러온 이미지는
-     * {@code -exception}, 아니면 {@code -noexception}. 빈 환경에서 {@code load}·{@code run}(프로그램 인자 없음).
-     */
-    static String spimOracle(String name, boolean handler) throws Exception {
-        Path cmd = Files.createTempFile("hcs-regs", ".txt");
-        try {
-            Files.writeString(cmd, "load \"" + name + ".s\"\nrun\nprint_all_regs hex\n");
-            ProcessBuilder pb = new ProcessBuilder(AssemblerIntegrationTest.ORACLE.getPath(),
-                    handler ? "-exception" : "-noexception").directory(DIR.toFile()).redirectInput(cmd.toFile())
-                    .redirectErrorStream(true);
-            pb.environment().clear();
-            Process p = pb.start();
-            String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            assertTrue(p.waitFor(60, TimeUnit.SECONDS));
-            String[] parts = out.split("\\(spim\\) ", -1);
-            String console = parts[2];
-            Map<Integer, String> regs = new java.util.TreeMap<>();
-            Matcher m = Pattern.compile("R(\\d+)\\s+\\(\\w+\\) = ([0-9a-f]{8})").matcher(out);
-            while (m.find()) {
-                regs.put(Integer.parseInt(m.group(1)), m.group(2));
-            }
-            assertEquals(32, regs.size(), out);
-            Matcher hilo = Pattern.compile("HI\\s+= ([0-9a-f]{8})\\s+LO\\s+= ([0-9a-f]{8})").matcher(out);
-            assertTrue(hilo.find(), out);
-            StringBuilder sb = new StringBuilder();
-            sb.append("# Hallym MIPS v2.4.0 golden ").append(name).append(".s: registers and console output at exit.\n");
-            sb.append("# Oracle: SPIM 9.1.24 (vendor/spim-9.1.24; its CPU/ is byte-identical to Hallym MIPS v2.4.0's CPU/).\n");
-            sb.append("# Made by: spim ").append(handler ? "-exception" : "-noexception")
-                    .append(" in an empty environment with the commands load \"").append(name)
-                    .append(".s\", run, print_all_regs hex (no program arguments).\n");
-            sb.append("# $sp and the start-up code's $a0-$a2 come from the run stack: with no arguments $sp is 0x7ffffff0;"
-                    + " Hallym MIPS passes the file name, so its reg $sp is 0x7fffffe4.\n");
-            sb.append("# Regenerate while vendor/spim exists: ./gradlew :lib-mips:test --tests"
-                    + " kr.ac.hallym.hcs.mips.HallymMipsGoldenTest -Phcs.update=true (D-138).\n");
-            for (Map.Entry<Integer, String> e : regs.entrySet()) {
-                sb.append(NAMES[e.getKey()]).append(' ').append(e.getValue()).append('\n');
-            }
-            sb.append("hi ").append(hilo.group(1)).append('\n');
-            sb.append("lo ").append(hilo.group(2)).append('\n');
-            sb.append("console ").append(escape(console)).append('\n');
-            return sb.toString();
-        } finally {
-            Files.deleteIfExists(cmd);
-        }
-    }
-
-    /** 오라클 파일이 지금의 vendor SPIM 결과와 같다(SPIM이 있는 동안). -Phcs.update=true면 다시 쓴다. */
-    @TestFactory
-    Stream<DynamicTest> oracleFilesAreSpimOutput() {
-        return CASES.stream().map(name -> DynamicTest.dynamicTest(name, () -> {
-            Path file = DIR.resolve(name + ".regs");
-            Assumptions.assumeTrue(AssemblerIntegrationTest.ORACLE.canExecute(),
-                    "vendor SPIM not built (make -C native/hcs-asm oracle): the .regs files stay the oracle");
-            String fresh = spimOracle(name, !StartFacts.withoutExceptionHandler(image(name)));
-            if (Boolean.getBoolean("hcs.update")) {
-                Files.writeString(file, fresh);
-            }
-            assertTrue(Files.exists(file), "make it with -Phcs.update=true: " + file);
-            assertEquals(fresh, Files.readString(file));
-        }));
     }
 
     /** 이미지의 명령 이름(시작 코드 제외: 처리기를 불러온 이미지는 앞 9워드가 시작 코드다, 명세 "An example"). */
@@ -500,14 +442,19 @@ class HallymMipsGoldenTest {
         return r;
     }
 
-    /** 오라클 파일 모양: 머리 주석이 만든 방법을 말하고, 레지스터 32개와 hi·lo, console 줄이 있다. */
+    /**
+     * 오라클 파일 모양: 머리 주석이 만든 방법과 굳힌 때(vendor/spim을 지우기 전, D-141)를 말하고, 레지스터 32개와 hi·lo,
+     * console 줄이 있다. vendor/spim이 없으므로 다시 만들지 않는다: 이 파일들이 오라클이다.
+     */
     @Test
     void oracleFilesSayHowTheyWereMade() throws Exception {
         for (String name : CASES) {
             Oracle o = Oracle.read(DIR.resolve(name + ".regs"));
             String head = String.join("\n", o.header);
             assertTrue(head.contains("SPIM 9.1.24") && head.contains(name.equals("no-handler") ? "-noexception"
-                    : "-exception") && head.contains("empty environment"), head);
+                    : "-exception") && head.contains("empty environment") && head.contains("Frozen")
+                    && head.contains("D-141"), head);
+            assertTrue(o.mem.isEmpty(), name);
             assertEquals(Arrays.asList(NAMES), new ArrayList<>(o.regs.keySet()).subList(0, 32));
             assertNotNull(o.console, name);
             assertFalse(head.contains(File.separator + "home" + File.separator), "no local paths");

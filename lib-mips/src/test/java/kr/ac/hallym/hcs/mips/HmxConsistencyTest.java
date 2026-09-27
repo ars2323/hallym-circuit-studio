@@ -9,7 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -20,7 +19,6 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
-import org.junit.jupiter.api.io.TempDir;
 
 import com.cburch.logisim.circuit.Circuit;
 import com.cburch.logisim.comp.Component;
@@ -33,55 +31,59 @@ import kr.ac.hallym.hcs.mips.image.SourceCheck;
  * 실행 이미지 대조(Z-06의 불러오기 부분, D-126).
  *
  * <ul>
- *   <li>어셈블되는 tests/asm·tests/mips의 모든 .s: {@code hcs-asm -exception} 이미지와 만든 .hmx(tests/hmx/asm,
- *       tests/hmx/mips)를 읽은 이미지가 워드 단위로 같다. 만든 파일의 글도 같다. 다시 쓰기:
- *       {@code ./gradlew :lib-mips:test -Phcs.update=true}.</li>
+ *   <li>tests/asm·tests/mips·tests/record의 모든 .s: 굳혀 둔 .hmx(tests/hmx/asm·mips·record, vendor/spim이 있을 때
+ *       hcs-asm {@code -exception}으로 만든 것)를 읽은 이미지의 .text 워드와 기호가, 같은 .s를 SPIM 자신의 목록 함수로
+ *       뽑아 굳힌 디스어셈블러 골든(tests/disasm/폴더-이름.txt)의 주소·워드·라벨과 같다. 두 파일 모두 SPIM의 기계어를
+ *       담고, SPIM이 없어진 뒤(D-141)에는 서로의 대조가 기계어 오라클이다.</li>
  *   <li>읽히는 모든 tests/hmx 이미지: 부품에 넣고(헤드리스) 모든 주소를 되읽으면 이미지와 같다.</li>
- *   <li>트랙 A는 hcs-asm 없이 .hmx만으로 불러온다.</li>
+ *   <li>트랙 A는 .hmx만 불러온다. .s는 사실과 할 일만 돌려준다(D-141).</li>
  * </ul>
  */
 class HmxConsistencyTest {
-    static final Path TESTS = AssemblerIntegrationTest.TESTS;
+    static final Path TESTS = ProgramLoadIntegrationTest.TESTS;
 
-    @TempDir
-    Path tmp;
+    /** 디스어셈블러 골든(tests/disasm/폴더-이름.txt)의 텍스트 워드(주소 → 워드)와 라벨(이름 → 주소). */
+    static final class Listing {
+        final Map<Long, Integer> words = new java.util.TreeMap<>();
+        final Map<String, Long> labels = new java.util.TreeMap<>();
+        String command;
 
-    /** 어셈블 오류가 나도록 만든 시험 입력은 만들 이미지가 없다. */
-    static boolean assembles(Path source) throws Exception {
-        return AssemblerIntegrationTest.assemble(source, "-exception").errors.isEmpty();
+        static Listing read(Path golden) throws Exception {
+            Listing l = new Listing();
+            for (String line : Files.readAllLines(golden)) {
+                if (line.startsWith("# ") && l.command == null) {
+                    l.command = line.substring(2);
+                } else if (line.startsWith("label ")) {
+                    String[] t = line.split(" ");
+                    l.labels.put(t[2], Long.parseLong(t[1], 16));
+                } else if (!line.startsWith("#") && !line.isEmpty()) {
+                    String[] t = line.split(" ", 3);
+                    l.words.put(Long.parseLong(t[0], 16), (int) Long.parseLong(t[1], 16));
+                }
+            }
+            return l;
+        }
     }
 
     @TestFactory
-    Stream<DynamicTest> generatedImagesMatchHcsAsm() throws Exception {
-        List<Path> sources = new ArrayList<>();
-        for (Path s : HmxFiles.sources(TESTS)) {
-            if (assembles(s)) {
-                sources.add(s);
-            }
-        }
-        assertTrue(sources.size() >= 12, sources.toString());
+    Stream<DynamicTest> generatedImagesAreSpimListings() throws Exception {
+        List<Path> sources = HmxFiles.sources(TESTS);
+        assertTrue(sources.size() >= 15, sources.toString());
         return sources.stream().map(s -> DynamicTest.dynamicTest(TESTS.relativize(s).toString(), () -> {
             Path hmx = HmxFiles.hmxFor(TESTS, s);
-            String rel = hmx.getParent().relativize(s).toString().replace(File.separatorChar, '/');
-            ExecutableImage fromAsm = AssemblyTransition.toImage(
-                    AssemblerIntegrationTest.assemble(s, AssemblyTransition.FLAGS.toArray(new String[0])), rel);
-            String text = HmxFiles.write(fromAsm, rel, s.toFile());
-            if (Boolean.getBoolean("hcs.update")) {
-                Files.createDirectories(hmx.getParent());
-                Files.writeString(hmx, text);
-            }
-            assertTrue(Files.exists(hmx), "make it with ./gradlew :lib-mips:test -Phcs.update=true: " + hmx);
-            assertEquals(text, Files.readString(hmx), hmx.toString());
-            assertTrue(text.split("\n")[1].equals(HmxFiles.MARK), "generated files carry the mark");
+            assertTrue(Files.exists(hmx), "every test program has its frozen image: " + hmx);
+            String text = Files.readString(hmx);
+            assertEquals(HmxFiles.MARK, text.split("\n")[1], "generated files carry the mark");
+            String dir = s.getParent().getFileName().toString();
+            String name = s.getFileName().toString().replaceAll("\\.s$", "");
+            Listing golden = Listing.read(TESTS.resolve("disasm").resolve(dir + "-" + name + ".txt"));
+            assertEquals("hcs-asm -exception -disasm tests/" + dir + "/" + name + ".s", golden.command);
 
             HmxParser.Result r = HmxParser.read(hmx.toFile());
             assertEquals(List.of(), r.errors);
             ExecutableImage parsed = r.image;
-            assertEquals(fromAsm.textWords(), parsed.textWords(), "text word for word");
-            assertEquals(fromAsm.dataWords(), parsed.dataWords(), "data word for word");
-            assertEquals(fromAsm.entry(), parsed.entry());
-            assertEquals(fromAsm.symbols(), parsed.symbols());
-            assertTrue(parsed.sameProgram(fromAsm));
+            assertEquals(golden.words, parsed.textWords(), "text word for word = SPIM's listing");
+            assertEquals(golden.labels, parsed.symbols(), "symbols = SPIM's labels");
             assertEquals(parsed.symbols().get("main"), parsed.entry(), "entry is main");
             assertEquals(0x8fa40000, (int) parsed.textWords().get(0x00400000L), "start code at 0x00400000");
             assertTrue(parsed.entry() >= 0x00400024L, "Hallym MIPS layout: main after the 9-word start code");
@@ -147,7 +149,7 @@ class HmxConsistencyTest {
             sim.b.commit();
             List<Circuit> circuits = sim.file.getCircuits();
             ProgramLoader.Plan plan = ProgramLoader.plan(l, circuits, null, null, f.getFileName().toString());
-            AssemblerIntegrationTest.apply(plan);
+            ProgramLoadIntegrationTest.apply(plan);
             sim.start();
             WordImage text = im.getAttributeSet().getValue(MemoryFactory.CONTENTS);
             assertEquals(img.textWords().size(), text.size());
@@ -192,7 +194,7 @@ class HmxConsistencyTest {
         sim.b.tunnel(clk, 0, "clk");
         sim.b.tunnel(st, DataMemory.CLK, "clk");
         sim.b.commit();
-        AssemblerIntegrationTest.apply(ProgramLoader.plan(l, sim.file.getCircuits(), null, null, "example.hmx"));
+        ProgramLoadIntegrationTest.apply(ProgramLoader.plan(l, sim.file.getCircuits(), null, null, "example.hmx"));
         sim.start();
         sim.cycle();
         DataMemory.State s = (DataMemory.State) sim.data(st);
@@ -201,7 +203,7 @@ class HmxConsistencyTest {
         // 다시 불러와 reg $sp가 없는 이미지면 기준을 지운다
         ProgramLoader.Loaded none = ProgramLoader.readImage(TESTS.resolve("hmx/asm/memory.hmx").toFile());
         ProgramLoader.Plan plan = ProgramLoader.plan(none, sim.file.getCircuits(), null, null, "memory.hmx");
-        AssemblerIntegrationTest.apply(plan);
+        ProgramLoadIntegrationTest.apply(plan);
         assertEquals(null, st.getAttributeSet().getValue(MemoryFactory.CONTENTS).initialSp());
         // 저장 형식: 주소만 있는 줄(옛 lib-mips도 건너뛴다)
         WordImage marked = WordImage.EMPTY.withInitialSp(0x7ffff000L);
@@ -209,26 +211,16 @@ class HmxConsistencyTest {
         assertEquals(marked, WordImage.parse(marked.format()));
     }
 
-    /**
-     * 트랙 A는 .hmx만으로 동작한다: hcs-asm을 찾지 못하는 환경(jar 옆에 없음, 속성·환경 변수 없음)에서도 .hmx는
-     * 읽히고, .s만 "hcs-asm을 찾을 수 없음"이다.
-     */
+    /** 트랙 A는 .hmx만 불러온다: .hmx는 읽히고, .s는 이미지 없이 사실과 할 일 한 줄이다(D-141). */
     @Test
-    void trackAWorksWithExecutableImagesOnly() throws Exception {
-        String old = System.getProperty("hcs.asm");
-        try {
-            System.setProperty("hcs.asm", tmp.resolve("no-such-hcs-asm").toString());
-            org.junit.jupiter.api.Assumptions.assumeTrue(System.getenv("HCS_ASM") == null, "HCS_ASM set");
-            assertEquals(null, AssemblyTransition.locate(), "no hcs-asm in this setup");
-            ProgramLoader.Loaded hmx = ProgramLoader.read(TESTS.resolve("hmx/example.hmx").toFile());
-            assertEquals(List.of(), hmx.errors);
-            assertEquals(14, hmx.image.textWords().size());
-            ProgramLoader.Loaded s = ProgramLoader.read(TESTS.resolve("mips/sum.s").toFile());
-            assertEquals(null, s.image);
-            assertTrue(s.errors.get(0).contains("hcs-asm"), s.errors.toString());
-        } finally {
-            System.setProperty("hcs.asm", old);
-        }
+    void trackALoadsExecutableImagesOnly() throws Exception {
+        ProgramLoader.Loaded hmx = ProgramLoader.read(TESTS.resolve("hmx/example.hmx").toFile());
+        assertEquals(List.of(), hmx.errors);
+        assertEquals(14, hmx.image.textWords().size());
+        ProgramLoader.Loaded s = ProgramLoader.read(TESTS.resolve("mips/sum.s").toFile());
+        assertEquals(null, s.image);
+        assertEquals(1, s.errors.size(), s.errors.toString());
+        assertTrue(s.errors.get(0).contains("Export executable image (.hmx)"), s.errors.toString());
     }
 
     /** 담지 못하는 구간: 우클릭한 부품이 구간을 담지 못하면 오류이고 아무것도 바꾸지 않는다. */

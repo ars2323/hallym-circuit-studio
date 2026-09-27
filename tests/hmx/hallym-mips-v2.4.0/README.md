@@ -21,7 +21,7 @@ Hallym MIPS 명세(`docs/hmx-format.md`)의 "Test files" 일곱 쌍(`.s`, `.hmx`
 
 각 `.s`를 끝까지 돌린 레지스터 32개, `hi`, `lo`, Console 글이다. `vendor/spim-9.1.24`를 빌드한 원본 SPIM으로 만들었다. 이 SPIM의 `CPU/` 28개 파일은 Hallym MIPS v2.4.0의 `CPU/`와 바이트까지 같다(git blob 해시 비교, v2.4.0에는 출처 메모 `ORIGIN.md`만 더 있다). 여섯 쌍은 `spim -exception`, no-handler는 `spim -noexception`으로, 빈 환경에서 `load`·`run`·`print_all_regs hex` 명령으로 돌렸다(프로그램 인자 없음). 그래서 실행 스택에서 오는 값(`$sp` 0x7ffffff0, 시작 코드가 쓰는 `$a0`~`$a2`)은 파일 이름을 인자로 넘기는 Hallym MIPS(`reg $sp` 0x7fffffe4)와 다르다. 프로그램 자신이 쓰는 레지스터는 같다.
 
-`vendor/spim`을 지운 뒤에는 이 파일들이 오라클이다. SPIM이 있는 동안은 `HallymMipsGoldenTest`가 매번 다시 만들어 같은지 보고, 다시 쓰려면 `./gradlew :lib-mips:test --tests kr.ac.hallym.hcs.mips.HallymMipsGoldenTest -Phcs.update=true`.
+SPIM이 있는 동안(커밋 `5bde1ea`~`dfd8fd2`)은 `HallymMipsGoldenTest`가 매번 다시 만들어 같은지 봤다. `vendor/spim-9.1.24`는 D-141에서 지웠으므로 지금은 이 파일들이 오라클이고 다시 만들지 않는다(각 파일 머리 주석의 마지막 줄). 라이선스는 `tests/spim-oracle/LICENSE`(SPIM이 낸 출력).
 
 ## 시험(`lib-mips` `HallymMipsGoldenTest`)
 

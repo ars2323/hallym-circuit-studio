@@ -410,7 +410,7 @@ public final class Shots {
         }
         if (want(scenes, "28")) {
             sceneStart("28");
-            consoleAndReload(demo);
+            consoleTab();
         }
         if (want(scenes, "29")) {
             sceneStart("29");
@@ -2009,8 +2009,8 @@ public final class Shots {
         sleep(300);
     }
 
-    /** 11: .s 불러오기(재귀 factorial) 뒤 MIPS 부품과 실행 중 스택. */
-    /** 우클릭 ".s 불러오기"와 같은 길로 path를 불러온다(파일 고르기 창을 스크립트가 고른다). summary: 결과 창 그림 이름. */
+    /** 11: Load Program(재귀 factorial의 .hmx) 뒤 MIPS 부품과 실행 중 스택. */
+    /** 우클릭 "Load Program..."과 같은 길로 path(.hmx)를 불러온다(파일 고르기 창을 스크립트가 고른다). summary: 결과 창 그림 이름. */
     boolean chooseProgram(Project p, String path, String summary, String scene) throws Exception {
         Thread loader = new Thread(() -> {
             try {
@@ -2054,13 +2054,13 @@ public final class Shots {
      * 신호 줄 다섯(clk, pc, halt, ALU Result 선, regfile RD1 선), 사이클 2 보기. 캔버스가 그 사이클 값이 되는 것은
      * PC 둘레 확대 두 장(마지막, 사이클 2)으로 보인다.
      */
-    /** factorial.s를 올린 ref-mips(V-09: 값이 0이 아닌 회로로 사이클·레지스터·버스 값 장면을 찍는다). 한 번만 올린다. */
+    /** factorial.hmx를 올린 ref-mips(V-09: 값이 0이 아닌 회로로 사이클·레지스터·버스 값 장면을 찍는다). 한 번만 올린다. */
     private boolean factorialLoaded;
 
     Project withFactorial(Project ref) throws Exception {
         activate(ref);
         if (!factorialLoaded) {
-            factorialLoaded = chooseProgram(ref, "tests/mips/factorial.s", null, "V-09");
+            factorialLoaded = chooseProgram(ref, "tests/hmx/mips/factorial.hmx", null, "V-09");
         }
         return ref;
     }
@@ -2934,8 +2934,8 @@ public final class Shots {
     }
 
     /**
-     * 36: 제출 파일(E-06)과 그림 내보내기(E-07). demo-datapath와 sum.s를 출력 폴더에 복사해 열고(저장소 파일을
-     * 건드리지 않게), Instruction Memory가 sum.s를 가리키게 저장한 뒤 File › Create Submission… 점검 창, 그리고 File ›
+     * 36: 제출 파일(E-06)과 그림 내보내기(E-07). demo-datapath와 sum.hmx를 출력 폴더에 복사해 열고(저장소 파일을
+     * 건드리지 않게), Instruction Memory가 sum.hmx를 가리키게 저장한 뒤 File › Create Submission… 점검 창, 그리고 File ›
      * Export Image… 창.
      */
     void submitAndExport(Project base) throws Exception {
@@ -2943,7 +2943,7 @@ public final class Shots {
         dir.mkdirs();
         java.nio.file.Files.copy(new File("tests/circ/demo-datapath.circ").toPath(), new File(dir,
                 "demo-datapath.circ").toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-        java.nio.file.Files.copy(new File("tests/mips/sum.s").toPath(), new File(dir, "sum.s").toPath(),
+        java.nio.file.Files.copy(new File("tests/hmx/mips/sum.hmx").toPath(), new File(dir, "sum.hmx").toPath(),
                 java.nio.file.StandardCopyOption.REPLACE_EXISTING);
         Project p = open(new File(dir, "demo-datapath.circ").getPath());
         activate(p);
@@ -2955,12 +2955,12 @@ public final class Shots {
                     com.cburch.logisim.data.Attribute<Object> a = (com.cburch.logisim.data.Attribute<Object>) x
                             .getAttributeSet().getAttribute("source");
                     com.cburch.logisim.circuit.CircuitMutation m = new com.cburch.logisim.circuit.CircuitMutation(c);
-                    m.set(x, a, "sum.s");
+                    m.set(x, a, "sum.hmx");
                     p.doAction(m.toAction(null));
                 }
             }
         });
-        sleep(3000); // .s 자동 재로드(C-09)가 sum.s를 불러온 뒤 저장한다
+        sleep(1000);
         edt(() -> com.cburch.logisim.proj.ProjectActions.doSave(p));
         sleep(1500);
         edt(() -> canvas(p).getHcsZoom().fitCircuit());
@@ -3444,11 +3444,10 @@ public final class Shots {
     }
 
     /**
-     * 28: Console 탭과 .s 자동 재로드(C-09). 사람이 그린 작은 회로 console-demo(A0 = 'A' + count, V0 = 11, count 6에서
-     * exit)를 끝까지 돌린 뒤 Console 탭, 그리고 demo-datapath에 불러온 .s(임시 복사본)를 고쳐 저장했을 때의 상태
-     * 표시줄 알림.
+     * 28: Console 탭(C-09). 사람이 그린 작은 회로 console-demo(A0 = 'A' + count, V0 = 11, count 6에서 exit)를 끝까지
+     * 돌린 뒤 Console 탭. .s 자동 재로드 장면(28c)은 hcs-asm과 함께 없어졌다(D-141).
      */
-    void consoleAndReload(Project demo) throws Exception {
+    void consoleTab() throws Exception {
         Project cd = open("tests/circ/console-demo.circ");
         activate(cd);
         deselect(cd);
@@ -3477,28 +3476,10 @@ public final class Shots {
         sleep(900);
         snapFull("28a-console-full");
         snapCrop(onScreen(tabs), "28b-console-tab");
-
-        // .s 자동 재로드: 임시 복사본을 불러와 고쳐 저장한다
-        File copy = new File(out, "reload-demo.s");
-        java.nio.file.Files.copy(new File("tests/mips/sum.s").toPath(), copy.toPath(),
-                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-        activate(demo);
-        if (!chooseProgram(demo, copy.getAbsolutePath(), null, "28")) {
-            return;
-        }
-        sleep(2500); // 감시가 처음 한 번 본다
-        String text = new String(java.nio.file.Files.readAllBytes(copy.toPath()), StandardCharsets.UTF_8)
-                .replace("li    $t2, 11", "li    $t2, 5");
-        java.nio.file.Files.write(copy.toPath(), text.getBytes(StandardCharsets.UTF_8));
-        copy.setLastModified(System.currentTimeMillis() + 2000);
-        sleep(3000);
-        Rectangle all = onScreen(demo.getFrame().getContentPane());
-        snapCrop(new Rectangle(all.x, all.y + all.height - 34, all.width, 34), "28c-reload-notice");
-        copy.delete();
     }
 
     void program(Project p) throws Exception {
-        if (!chooseProgram(p, "tests/mips/factorial.s", "11a-load-summary", "11")) {
+        if (!chooseProgram(p, "tests/hmx/mips/factorial.hmx", "11a-load-summary", "11")) {
             return;
         }
         sleep(500);

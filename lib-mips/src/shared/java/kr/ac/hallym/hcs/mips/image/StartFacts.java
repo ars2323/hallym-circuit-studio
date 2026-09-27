@@ -44,7 +44,7 @@ public final class StartFacts {
 
     /**
      * 예: {@code entry 0x00400024 (main)}. entry 주소의 기호가 여럿이면 파일 순서로 쉼표로 잇는다({@code (main, start)}),
-     * 없으면 괄호를 붙이지 않는다. entry가 없으면(전환용 .s에 main이 없음) {@code no entry}.
+     * 없으면 괄호를 붙이지 않는다. entry가 없으면(직접 만든 이미지) {@code no entry}.
      */
     public static Msg entryLine(ExecutableImage image) {
         Long entry = image.entry();

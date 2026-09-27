@@ -1,0 +1,41 @@
+# RefMipsTest oracle for tests/mips/alu.s (image tests/hmx/mips/alu.hmx): SPIM 9.1.24 run from main.
+# Made by: spim -exception (vendor/spim-9.1.24 built with make -C native/hcs-asm oracle, commit dfd8fd2) with the commands
+#   load "alu.s", run 0x00400024, print_all_regs hex, and print <addr> for every .data word of the image.
+# Registers, hi, lo, the .data words (mem <addr> <word>) and the console output after the run, in an empty
+# environment. $a1, $a2 and $gp are SPIM's run-stack presets: compared only when the program writes them.
+# Frozen before vendor/spim-9.1.24 and hcs-asm were removed (D-141): this file is now the oracle.
+$zero 00000000
+$at ffff0000
+$v0 0000000a
+$v1 ffffffff
+$a0 12345671
+$a1 0000ff00
+$a2 123456ff
+$a3 1234a987
+$t0 12345678
+$t1 fffffff9
+$t2 00000001
+$t3 00000000
+$t4 23456780
+$t5 1fffffff
+$t6 ffffffff
+$t7 00000009
+$s0 12345671
+$s1 12345671
+$s2 edcba981
+$s3 1234567f
+$s4 12345678
+$s5 fffffff9
+$s6 edcba981
+$s7 00000006
+$t8 68acf000
+$t9 007fffff
+$k0 00000001
+$k1 00000000
+$gp 0000004d
+$sp 7fffeffc
+$fp abcd0000
+$ra 8091a2b8
+hi ffffffff
+lo 8091a2b8
+console "305419889"

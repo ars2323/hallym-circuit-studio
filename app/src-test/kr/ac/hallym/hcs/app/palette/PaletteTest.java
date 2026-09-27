@@ -124,7 +124,8 @@ class PaletteTest {
         assertEquals(Palette.Kind.COMMAND, first("리셋").kind);
         assertEquals("reset", first("리셋").command);
         assertEquals("tick", first("클럭 한 번").command);
-        assertEquals("loadS", first(".s").command);
+        assertEquals("loadS", first(".hmx").command);
+        assertEquals("loadS", first("program").command);
         assertEquals(Arrays.asList("Adder", "AND Gate"), Palette.touch(Arrays.asList("AND Gate", "Adder"), "Adder"));
     }
 

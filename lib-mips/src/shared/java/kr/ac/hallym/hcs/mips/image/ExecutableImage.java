@@ -15,7 +15,7 @@ import java.util.TreeMap;
 
 /**
  * 실행 이미지(executable image) 하나: 주소마다 놓일 워드와 바이트, 시작 주소(entry), 레지스터 시작 값, 기호, 머리 정보.
- * 바뀌지 않는 값이다. Hallym MIPS의 .hmx({@link HmxParser})와 전환용 .s 경로(lib-mips)가 같은 모델을 만들고, 불러오기는
+ * 바뀌지 않는 값이다. Hallym MIPS의 .hmx를 {@link HmxParser}가 이 모델로 읽고, 불러오기는
  * 이 모델 하나만 본다(Z-01, D-126). 주소와 값은 부호 없는 32비트를 {@code long}에 담는다.
  *
  * <p>해석(docs/hmx.md): {@code .data} 바이트는 {@link #endian()}에 따라 워드로 묶고, 구간이 워드 경계에서 시작하거나
@@ -192,7 +192,7 @@ public final class ExecutableImage {
         return endian;
     }
 
-    /** 시작 주소. .hmx는 늘 적는다. 전환용 .s 경로에서 main이 없으면 null. */
+    /** 시작 주소. .hmx는 늘 적는다(명세 v2.4.0). 직접 만든 이미지에서 적지 않았으면 null. */
     public Long entry() {
         return entry;
     }
@@ -335,7 +335,7 @@ public final class ExecutableImage {
         return null;
     }
 
-    /** 이미지를 만든다. 파서와 전환용 .s 경로가 쓴다. 구간 겹침 검사는 파서 몫이다. */
+    /** 이미지를 만든다. 파서와 테스트가 쓴다. 구간 겹침 검사는 파서 몫이다. */
     public static final class Builder {
         private final Map<String, String> header = new LinkedHashMap<String, String>();
         private Endian endian = Endian.LITTLE;

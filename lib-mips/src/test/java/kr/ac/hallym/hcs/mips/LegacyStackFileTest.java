@@ -107,7 +107,7 @@ class LegacyStackFileTest {
                 List.of(new ProgramLoader.Target(main, dm)), List.of(new ProgramLoader.Target(main, stack)), null, null,
                 "factorial.hmx");
         assertEquals(List.of(), plan.errors);
-        AssemblerIntegrationTest.apply(plan);
+        ProgramLoadIntegrationTest.apply(plan);
         InProcessSim sim = new InProcessSim(f);
         sim.start();
         Console.State out = null;
@@ -129,9 +129,9 @@ class LegacyStackFileTest {
         DataMemory.State d = (DataMemory.State) sim.data(dm);
         assertNull(d.stackRegion());
         assertEquals(-1, d.lowestAccess(), "the old Data Memory has no stack accesses");
-        Path work = Files.createDirectories(tmp.resolve("spim"));
-        RefMipsTest.Result spim = RefMipsTest.runSpim(RefMipsTest.PROGRAMS.resolve("factorial.s"), prog, work);
+        RefMipsTest.Result spim = RefMipsTest.spimOracle("factorial.s"); // 굳혀 둔 spim 결과(D-141)
         assertEquals(spim.console, out.text());
+        assertEquals(spim.regs[29], sim.port(byLabel(main, "$29"), 0).toIntValue(), "$sp as in SPIM");
     }
 
     /** 원조 jar -tty로 옛 파일을 돌려도 sum이 exit에서 멈춘다(첫 줄 PC = entry). */
@@ -144,7 +144,7 @@ class LegacyStackFileTest {
                 List.of(new ProgramLoader.Target(main, byFactory(main, "Instruction Memory"))),
                 List.of(new ProgramLoader.Target(main, byFactory(main, "Data Memory"))),
                 List.of(new ProgramLoader.Target(main, byFactory(main, "Stack"))), null, null, "sum.hmx");
-        AssemblerIntegrationTest.apply(plan);
+        ProgramLoadIntegrationTest.apply(plan);
         Path circ = tmp.resolve("c/sum.circ");
         CircuitBuilder.save(f, circ.toFile());
         List<String[]> rows = OriginalLogisim.runFile(circ);

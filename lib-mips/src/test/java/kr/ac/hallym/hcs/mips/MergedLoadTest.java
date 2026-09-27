@@ -26,7 +26,7 @@ import kr.ac.hallym.hcs.mips.image.ExecutableImage;
  * data-odd).
  */
 class MergedLoadTest {
-    static final Path HMX = AssemblerIntegrationTest.TESTS.resolve("hmx");
+    static final Path HMX = ProgramLoadIntegrationTest.TESTS.resolve("hmx");
 
     /** Instruction Memory와 새 Data Memory(두 영역) 하나. 반환: {imem, dmem}. */
     static Component[] cpu(InProcessSim sim) {
@@ -40,7 +40,7 @@ class MergedLoadTest {
         ProgramLoader.Loaded l = ProgramLoader.readImage(HMX.resolve(name).toFile());
         assertEquals(List.of(), l.errors, name);
         ProgramLoader.Plan plan = ProgramLoader.plan(l, sim.file.getCircuits(), null, null, name);
-        AssemblerIntegrationTest.apply(plan);
+        ProgramLoadIntegrationTest.apply(plan);
         return plan;
     }
 
@@ -177,7 +177,7 @@ class MergedLoadTest {
             ProgramLoader.Loaded l = ProgramLoader.readImage(dir.resolve(name).toFile());
             assertEquals(List.of(), l.errors, name);
             ProgramLoader.Plan plan = ProgramLoader.plan(l, sim.file.getCircuits(), null, null, name);
-            AssemblerIntegrationTest.apply(plan);
+            ProgramLoadIntegrationTest.apply(plan);
             ExecutableImage img = plan.image;
             assertEquals(0x7fffffe4L, (long) img.reg("$sp"), name);
             assertEquals(0x7fffffe4L, (long) c[1].getAttributeSet().getValue(MemoryFactory.CONTENTS).initialSp(), name);
@@ -203,7 +203,7 @@ class MergedLoadTest {
         // space-gap: buffer(.space 4096)는 0, last = 0x22222222
         InProcessSim sim = new InProcessSim();
         Component[] c = cpu(sim);
-        AssemblerIntegrationTest.apply(ProgramLoader.plan(ProgramLoader.readImage(dir.resolve("space-gap.hmx")
+        ProgramLoadIntegrationTest.apply(ProgramLoader.plan(ProgramLoader.readImage(dir.resolve("space-gap.hmx")
                 .toFile()), sim.file.getCircuits(), null, null, "space-gap.hmx"));
         sim.start();
         DataMemory.State st = (DataMemory.State) sim.data(c[1]);

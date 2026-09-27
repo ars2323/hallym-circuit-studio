@@ -4,7 +4,7 @@ Hallym MIPS Simulator(`ars2323/hallym-mips-simulator`, 커밋 `8ebd3c9`)의 `tes
 
 | 파일 | 프로그램 |
 | --- | --- |
-| `helloworld.text.txt` | `vendor/spim-9.1.24/helloworld.s` |
-| `tt.core.text.txt` | `vendor/spim-9.1.24/Tests/tt.core.s` (4758 명령) |
+| `helloworld.text.txt` | SPIM 9.1.24의 `helloworld.s` |
+| `tt.core.text.txt` | SPIM 9.1.24의 `Tests/tt.core.s` (4758 명령) |
 
-`native/hcs-asm/tests/check.py`가 `hcs-asm -exception`의 사용자 텍스트 세그먼트를 이 파일의 주소·워드와 한 줄씩 비교한다. 분기 명령을 포함해 모든 명령이 비트 단위로 같아야 한다(D-010).
+`DisassemblerGoldenTest.goldenTextIsWhatQtSpimShows`가 디스어셈블러 골든(`tests/disasm/spim-helloworld.txt`, `spim-tt.core.txt`)을 이 파일과 한 줄씩 대조한다. vendor/spim과 hcs-asm이 있던 동안에는 `native/hcs-asm/tests/check.py`가 `hcs-asm -exception`의 기계어도 이 파일과 비교했다(분기 포함 비트 단위로 같았다, D-010). 둘은 D-141에서 지웠다.

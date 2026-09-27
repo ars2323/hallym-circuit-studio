@@ -1,0 +1,40 @@
+HALLYM-EXEC 1
+# hcs-asm -exception으로 만들어 굳힌 시험 이미지(D-126, D-141): 기계어는 SPIM 9.1.24 그대로
+source        ../../record/overwrite-print.s
+source-sha256 8fc3cb73782be7b25017b50e88f32ddeef582f05150da3e8250e215c3065852f
+produced-by   hcs-asm 0.1.0 -exception
+endian        little
+
+entry         0x00400024
+
+symbol buf    0x10010000
+symbol main   0x00400024
+symbol spin   0x00400038
+
+.text 0x00400000 words 23
+8fa40000
+27a50004
+24a60004
+00041080
+00c23021
+0c100009
+00000000
+3402000a
+0000000c
+3c101001
+34080041
+ae080000
+34090000
+340a0014
+21290001
+152affff
+34080042
+ae080000
+3c041001
+34020004
+0000000c
+3402000a
+0000000c
+
+.data 0x10010000 bytes 4
+00 00 00 00

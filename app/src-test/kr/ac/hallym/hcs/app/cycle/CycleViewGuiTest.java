@@ -79,7 +79,7 @@ class CycleViewGuiTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "needs a display (xvfb-run)");
         GuiTestSupport.keepAlive();
         LogisimFile file = RecordingTestSupport.openRefMips(tmp);
-        RecordingTestSupport.load(file, RecordingTestSupport.program("record/busy-loop.s"));
+        RecordingTestSupport.load(file, RecordingTestSupport.program("hmx/record/busy-loop.hmx"));
         Project proj = new Project(file);
         AtomicReference<Frame> fr = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> {
@@ -169,7 +169,7 @@ class CycleViewGuiTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "needs a display (xvfb-run)");
         GuiTestSupport.keepAlive();
         LogisimFile file = RecordingTestSupport.openRefMips(tmp);
-        RecordingTestSupport.load(file, RecordingTestSupport.program("mips/factorial.s"));
+        RecordingTestSupport.load(file, RecordingTestSupport.program("hmx/mips/factorial.hmx"));
         Project proj = new Project(file);
         AtomicReference<Frame> fr = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> {
@@ -210,7 +210,7 @@ class CycleViewGuiTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "needs a display (xvfb-run)");
         GuiTestSupport.keepAlive();
         LogisimFile file = RecordingTestSupport.openRefMips(tmp);
-        RecordingTestSupport.load(file, RecordingTestSupport.program("mips/factorial.s"));
+        RecordingTestSupport.load(file, RecordingTestSupport.program("hmx/mips/factorial.hmx"));
         Project proj = new Project(file);
         AtomicReference<Frame> fr = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> {
@@ -323,7 +323,7 @@ class CycleViewGuiTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "needs a display (xvfb-run)");
         GuiTestSupport.keepAlive();
         LogisimFile file = RecordingTestSupport.openRefMips(tmp);
-        RecordingTestSupport.load(file, RecordingTestSupport.program("mips/factorial.s"));
+        RecordingTestSupport.load(file, RecordingTestSupport.program("hmx/mips/factorial.hmx"));
         Project proj = new Project(file);
         Frame frame = show(proj);
         try {
@@ -509,18 +509,22 @@ class CycleViewGuiTest {
         }
     }
 
-    /** C-09: Console 탭은 exit까지 모든 출력, .s를 고쳐 저장하면 1.5초 안에 다시 불러오고 알린다. */
+    /**
+     * C-09: Console 탭은 exit까지 모든 출력을 보인다. .s 자동 재로드는 hcs-asm과 함께 없어졌다(D-141): 옛 파일의 source가
+     * .s를 가리켜도 그 파일을 고쳐 저장했을 때 아무것도 다시 불러오지 않고 알림도 없다.
+     */
     @Test
-    void consoleTabAndReloadWatcher() throws Exception {
+    void consoleTabShowsEveryOutputAndOldSourcesAreNotReloaded() throws Exception {
         assumeFalse(GraphicsEnvironment.isHeadless(), "needs a display (xvfb-run)");
         GuiTestSupport.keepAlive();
         LogisimFile file = RecordingTestSupport.openRefMips(tmp);
         java.io.File circ = file.getLoader().getMainFile();
         java.io.File s = new java.io.File(circ.getParentFile(), "factorial.s");
         java.nio.file.Files.copy(RecordingTestSupport.program("mips/factorial.s"), s.toPath());
-        RecordingTestSupport.load(file, s.toPath());
+        RecordingTestSupport.load(file, RecordingTestSupport.program("hmx/mips/factorial.hmx"));
         Circuit main = file.getMainCircuit();
         com.cburch.logisim.circuit.CircuitMutation mut = new com.cburch.logisim.circuit.CircuitMutation(main);
+        Component imem = null;
         for (Component c : main.getNonWires()) {
             String f = c.getFactory().getName();
             if (f.equals("Instruction Memory") || f.equals("Data Memory")) {
@@ -528,6 +532,9 @@ class CycleViewGuiTest {
                 com.cburch.logisim.data.Attribute<Object> a = (com.cburch.logisim.data.Attribute<Object>) c
                         .getAttributeSet().getAttribute("source");
                 mut.set(c, a, "factorial.s");
+            }
+            if (f.equals("Instruction Memory")) {
+                imem = c;
             }
         }
         mut.execute();
@@ -545,46 +552,24 @@ class CycleViewGuiTest {
             SwingUtilities.invokeAndWait(view::refresh);
             assertEquals("6! = 720\n-- exit --\n", view.consolePanel().text());
 
-            // .s를 고쳐 저장: 감시가 다시 불러오고 알린다
-            String text = new String(java.nio.file.Files.readAllBytes(s.toPath()),
-                    java.nio.charset.StandardCharsets.UTF_8).replace("li    $a0, 6", "li    $a0, 5");
-            java.nio.file.Files.write(s.toPath(), text.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-            s.setLastModified(s.lastModified() + 2000);
-            waitFor(() -> Messages.get("reload.done", "factorial.s").equals(
-                    kr.ac.hallym.hcs.app.sim.SimControls.lastNotice(proj)), "reload notice");
-            // 알림은 상태 표시줄 한 줄뿐, 모달 창은 없다
-            for (java.awt.Window w : java.awt.Window.getWindows()) {
-                assertFalse(w instanceof java.awt.Dialog && w.isShowing(), "no dialog: " + w);
-            }
-
-            // 리셋할 때도 다시 본다(리셋 전 훅): 파일을 고치고 같은 GUI 스레드 차례 안에서 리셋하면, 감시 타이머가
-            // 끼어들 틈 없이 곧바로 내용이 바뀐다
-            Component imem = null;
-            for (Component c : main.getNonWires()) {
-                if (c.getFactory().getName().equals("Instruction Memory")) {
-                    imem = c;
-                }
-            }
+            // 옛 .s를 고쳐 저장하고 리셋해도 내용은 그대로다(다시 어셈블하지 않는다)
             @SuppressWarnings("unchecked")
             com.cburch.logisim.data.Attribute<Object> contents = (com.cburch.logisim.data.Attribute<Object>) imem
                     .getAttributeSet().getAttribute("contents");
             Component im = imem;
-            AtomicReference<String[]> seen = new AtomicReference<>();
-            SwingUtilities.invokeAndWait(() -> {
-                try {
-                    String before = contents.toStandardString(im.getAttributeSet().getValue(contents));
-                    String t = new String(java.nio.file.Files.readAllBytes(s.toPath()),
-                            java.nio.charset.StandardCharsets.UTF_8).replace("li    $a0, 5", "li    $a0, 4");
-                    java.nio.file.Files.write(s.toPath(), t.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-                    s.setLastModified(s.lastModified() + 4000);
-                    Recorder.requestReset(proj);
-                    seen.set(new String[] {before,
-                        contents.toStandardString(im.getAttributeSet().getValue(contents))});
-                } catch (java.io.IOException e) {
-                    throw new RuntimeException(e);
-                }
-            });
-            assertFalse(seen.get()[0].equals(seen.get()[1]), "reset reloads the changed .s at once");
+            String before = contents.toStandardString(im.getAttributeSet().getValue(contents));
+            String text = new String(java.nio.file.Files.readAllBytes(s.toPath()),
+                    java.nio.charset.StandardCharsets.UTF_8).replace("li    $a0, 6", "li    $a0, 5");
+            java.nio.file.Files.write(s.toPath(), text.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            s.setLastModified(s.lastModified() + 2000);
+            String noticeBefore = kr.ac.hallym.hcs.app.sim.SimControls.lastNotice(proj);
+            SwingUtilities.invokeAndWait(() -> Recorder.requestReset(proj));
+            Thread.sleep(2000);
+            AtomicReference<String> after = new AtomicReference<>();
+            SwingUtilities.invokeAndWait(() -> after.set(contents.toStandardString(im.getAttributeSet()
+                    .getValue(contents))));
+            assertEquals(before, after.get(), "an old .s path is not reassembled");
+            assertEquals(noticeBefore, kr.ac.hallym.hcs.app.sim.SimControls.lastNotice(proj), "no reload notice");
         } finally {
             SwingUtilities.invokeAndWait(frame::dispose);
         }

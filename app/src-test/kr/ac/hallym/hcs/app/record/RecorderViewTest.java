@@ -189,7 +189,7 @@ class RecorderViewTest {
     @Test
     void viewingRefMipsKeepsTheFuture() throws Exception {
         LogisimFile file = RecordingTestSupport.openRefMips(tmp);
-        RecordingTestSupport.load(file, RecordingTestSupport.program("mips/factorial.s"));
+        RecordingTestSupport.load(file, RecordingTestSupport.program("hmx/mips/factorial.hmx"));
         proj = new Project(file);
         Recorder rec = Recorder.of(proj);
         Recorder.requestReset(proj);

@@ -74,7 +74,7 @@ class ReplayIsolationTest {
     @Test
     void replayLeavesTheLiveSimulationAlone() throws Exception {
         LogisimFile file = RecordingTestSupport.openRefMips(tmp);
-        RecordingTestSupport.load(file, RecordingTestSupport.program("record/overwrite-print.s"));
+        RecordingTestSupport.load(file, RecordingTestSupport.program("hmx/record/overwrite-print.hmx"));
         for (Component c : file.getMainCircuit().getNonWires()) {
             if (c.getFactory().getName().equals("Console")) {
                 console = c;

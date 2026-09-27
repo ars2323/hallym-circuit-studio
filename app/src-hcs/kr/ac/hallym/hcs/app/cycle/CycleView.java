@@ -54,7 +54,7 @@ import kr.ac.hallym.hcs.app.theme.Tokens;
 
 /**
  * 캔버스 아래 Cycle View 탭(C-02, C-03, PLAN.md 5.1·5.2). 조작 막대(이전·다음·마지막 사이클, 지금 사이클)와 사이클 표.
- * 표의 열 하나가 한 사이클이고, 머리는 사이클 번호·PC·명령어(.s 원래 줄, 없으면 디스어셈블)다. 줄은 회로도의 선을
+ * 표의 열 하나가 한 사이클이고, 머리는 사이클 번호·PC·명령어(원래 줄, 없으면 디스어셈블)다. 줄은 회로도의 선을
  * 오른쪽 클릭해 "Add to Cycle View"로 더한 신호다(1비트는 반 사이클 단위 파형, 버스는 16진 값). 열을 누르면 회로도
  * 전체가 그 사이클 값으로 바뀐다({@link Recorder#view}).
  */
@@ -68,15 +68,14 @@ public final class CycleView {
     private static final Map<Project, CycleView> ALL = new WeakHashMap<>();
 
     static {
-        // 리셋할 때도 바뀐 .s를 다시 불러온다(리셋은 이미 일어나므로 또 리셋하지 않는다)
+        // Reset: 임시 줄을 걷는다(Y-03; 기록이 같은 객체로 다시 시작해도). .s 자동 재로드는 없어졌다(D-141)
         Recorder.beforeReset(p -> {
             CycleView v;
             synchronized (ALL) {
                 v = ALL.get(p);
             }
             if (v != null) {
-                v.reloadPrograms(false, false);
-                v.unpin(); // Reset: 임시 줄을 걷는다(Y-03; 기록이 같은 객체로 다시 시작해도)
+                v.unpin();
             }
         });
     }
@@ -111,9 +110,8 @@ public final class CycleView {
     private final InstructionPanel instruction = new InstructionPanel(this::model);
     /** 레지스터 파일 표시가 없을 때 안내(줄바꿈하는 글, C-05 검토: 한 줄로 그리면 좁은 칸에서 잘린다). */
     private final javax.swing.JTextArea regsHint = new javax.swing.JTextArea();
-    // C-09: Console 탭과 .s 자동 재로드(1.5초마다 수정 시각을 본다. 처음 한 번은 파일을 연 때의 확인이다)
+    // C-09: Console 탭. .s 자동 재로드는 hcs-asm과 함께 없어졌다(D-141). .hmx 다시 읽기는 v2 엔진 몫이다(N-16)
     private final ConsolePanel console = new ConsolePanel(this::rootState);
-    private final javax.swing.Timer watcher = new javax.swing.Timer(1500, e -> reloadPrograms(false));
     private final javax.swing.JSplitPane split;
     private final JLabel position = new JLabel();
     private final JLabel notice = new JLabel(Messages.get("cycle.pastNotice"));
@@ -351,7 +349,6 @@ public final class CycleView {
         v.bottom = bottom;
         bottom.tabs().addTab(Messages.get("cycle.tab"), v.panel);
         bottom.tabs().addTab(Messages.get("console.tab"), v.console.component()); // C-09
-        v.watcher.start();
         return v;
     }
 
@@ -363,31 +360,6 @@ public final class CycleView {
             s = s.getParentState();
         }
         return s;
-    }
-
-    /** .s 자동 재로드(C-09): 바뀐 .s를 다시 불러오고 리셋, 오류는 한 줄 알림. GUI 스레드에서 부른다. */
-    void reloadPrograms(boolean force) {
-        reloadPrograms(force, true);
-    }
-
-    void reloadPrograms(boolean force, boolean reset) {
-        Project proj = projRef.get();
-        if (proj == null) {
-            watcher.stop(); // 닫힌 파일
-            return;
-        }
-        ProgramReload.Result r = ProgramReload.check(proj, force);
-        for (java.util.Map.Entry<File, String> e : r.errors.entrySet()) {
-            kr.ac.hallym.hcs.app.sim.SimControls.notice(proj, Messages.get("reload.error", e.getKey().getName(),
-                    e.getValue()));
-        }
-        if (r.changed()) {
-            String names = String.join(", ", r.reloaded.stream().map(File::getName).toArray(String[]::new));
-            if (reset) {
-                Recorder.requestReset(proj);
-            }
-            kr.ac.hallym.hcs.app.sim.SimControls.notice(proj, Messages.get("reload.done", names));
-        }
     }
 
     ConsolePanel consolePanel() {
@@ -431,7 +403,7 @@ public final class CycleView {
 
     // ---- 모델 ----
 
-    /** 지금 기록의 표 모델. 기록이 없으면 null. 회로·.s가 바뀔 수 있어 매번 가볍게 다시 만든다. */
+    /** 지금 기록의 표 모델. 기록이 없으면 null. 회로·프로그램이 바뀔 수 있어 매번 가볍게 다시 만든다. */
     public CycleModel model() {
         Recording r = recorder.current();
         if (r == null) {

@@ -82,8 +82,8 @@ class RunUntilTest {
 
     @Test
     void untilPcAndInstructionAndExit() throws Exception {
-        refMips("mips/factorial.s");
-        // fact 라벨 주소(hcs-asm -exception, Hallym MIPS 배치): 0x00400058
+        refMips("hmx/mips/factorial.hmx");
+        // fact 라벨 주소(실행 이미지, Hallym MIPS 배치): 0x00400058
         RunUntilRunner.Outcome o = run(RunUntil.pc(0x00400058, 1000));
         assertEquals(RunUntil.Result.MET, o.result);
         assertEquals(0x00400058, model.pc(o.cycle).toIntValue());
@@ -114,7 +114,7 @@ class RunUntilTest {
      */
     @Test
     void untilPcStopsAtTheSameCycleUnderLoad() throws Exception {
-        refMips("mips/factorial.s");
+        refMips("hmx/mips/factorial.hmx");
         RunUntilRunner.Outcome calm = run(RunUntil.pc(0x00400058, 1000));
         assertEquals(RunUntil.Result.MET, calm.result);
 
@@ -136,7 +136,7 @@ class RunUntilTest {
 
     @Test
     void untilARowChangesAndTheLimit() throws Exception {
-        refMips("record/busy-loop.s");
+        refMips("hmx/record/busy-loop.hmx");
         Component rw = tunnel("regWrite");
         assertNotNull(rw);
         CycleModel.Signal row = CycleModel.signalFor(model.recording().circuit(),

@@ -10,7 +10,7 @@ import java.util.StringTokenizer;
 import java.util.TreeMap;
 
 /**
- * 메모리 부품의 초기 내용(.s를 어셈블한 .text 또는 .data). 바뀌지 않는 값이다.
+ * 메모리 부품의 초기 내용(실행 이미지의 .text 또는 .data). 바뀌지 않는 값이다.
  *
  * <p>.circ에는 다음 텍스트로 저장한다. 첫 줄은 형식 이름, 그다음 줄마다 시작 주소와 이어지는 워드들이다.
  * <pre>

@@ -25,11 +25,17 @@ import com.cburch.logisim.proj.Project;
 import com.cburch.logisim.tools.MenuExtender;
 import com.cburch.logisim.tools.SetAttributeAction;
 
+import kr.ac.hallym.hcs.mips.image.AssemblySource;
+
 /**
  * Instruction Memory·Data Memory의 우클릭 메뉴 "Load Program..."(PLAN.md 6.3, Z-01). Hallym MIPS의 실행 이미지(.hmx)를
- * 읽어 .text와 .data를 메모리의 {@code contents}에 넣는다. 전환 기간에는 .s도 고를 수 있다({@link AssemblyTransition}).
- * 고른 파일은 .circ 기준 상대 경로로 {@code source} 속성에 둔다(옛 .s 경로도 그대로 다시 읽는다). 속성 변경은 되돌리기
- * 한 번으로 취소된다. 파일에 오류가 있거나 담을 부품이 없으면 아무것도 바꾸지 않는다.
+ * 읽어 .text와 .data를 메모리의 {@code contents}에 넣는다. 파일 고르기 창은 .hmx만 보인다(D-141). 고른 파일은 .circ 기준
+ * 상대 경로로 {@code source} 속성에 둔다. 속성 변경은 되돌리기 한 번으로 취소된다. 파일에 오류가 있거나 담을 부품이
+ * 없으면 아무것도 바꾸지 않는다.
+ *
+ * <p>옛 파일의 {@code source}가 .s를 가리키면 "Reload" 대신 "Load .hmx for 이름.s..."를 둔다. 누르면 사실과 할 일
+ * ({@link AssemblySource#FACT})을 보이고 .s가 있던 폴더에서 .hmx 고르기 창을 연다(같은 이름의 .hmx가 있으면 골라 둔다).
+ * 학생이 .hmx를 고르면 불러오기가 {@code source}를 그 경로로 바꾼다. 고르지 않으면 아무것도 바꾸지 않는다.
  */
 final class LoadProgramMenu implements MenuExtender, ActionListener {
     /** 결과 창에서 한 번에 보일 오류 수. */
@@ -41,6 +47,8 @@ final class LoadProgramMenu implements MenuExtender, ActionListener {
     private Project proj;
     private JMenuItem load;
     private JMenuItem reload;
+    /** 옛 .s 경로를 .hmx로 바꾸는 항목(source가 .s일 때만). */
+    private JMenuItem replace;
 
     LoadProgramMenu(Instance instance) {
         this.instance = instance;
@@ -55,23 +63,62 @@ final class LoadProgramMenu implements MenuExtender, ActionListener {
         menu.add(load);
         String source = instance.getAttributeValue(MemoryFactory.SOURCE);
         if (source != null && !source.isEmpty()) {
-            reload = new JMenuItem(Text.name("Reload ").get() + new File(source).getName());
-            reload.addActionListener(this);
-            menu.add(reload);
+            if (AssemblySource.isAssembly(source)) {
+                replace = new JMenuItem(replaceLabel(source));
+                replace.addActionListener(this);
+                menu.add(replace);
+            } else {
+                reload = new JMenuItem(Text.name("Reload ").get() + AssemblySource.fileName(source));
+                reload.addActionListener(this);
+                menu.add(reload);
+            }
         }
+    }
+
+    /** 옛 .s 경로 항목의 이름(메뉴 이름은 영어, D-049). 예: {@code Load .hmx for sum.s...}. */
+    static String replaceLabel(String source) {
+        return Text.name("Load .hmx for ").get() + AssemblySource.fileName(source) + "...";
+    }
+
+    /** 옛 .s 경로 안내: 사실과 할 일, 그리고 속성 값. */
+    static String replaceMessage(String source) {
+        return AssemblySource.FACT.get(Text.korean()) + "\n" + MemoryFactory.SOURCE.getDisplayName() + ": " + source;
+    }
+
+    /**
+     * 실행 이미지(.hmx)만 보이는 파일 고르기 창. dir에서 열고, select가 있는 파일이면 골라 둔다. "모든 파일" 거르개는
+     * 두지 않는다(D-141).
+     */
+    static JFileChooser chooser(File dir, File select) {
+        JFileChooser chooser = new JFileChooser(dir);
+        chooser.setAcceptAllFileFilterUsed(false);
+        chooser.setFileFilter(new FileNameExtensionFilter(Text.name("Executable image (*.hmx)").get(), "hmx"));
+        if (select != null && select.isFile()) {
+            chooser.setSelectedFile(select);
+        }
+        return chooser;
     }
 
     @Override
     public void actionPerformed(ActionEvent e) {
         File circ = proj.getLogisimFile().getLoader().getMainFile();
+        String source = instance.getAttributeValue(MemoryFactory.SOURCE);
         if (e.getSource() == reload) {
-            load(ProgramLoader.resolveSource(circ, instance.getAttributeValue(MemoryFactory.SOURCE)));
+            load(ProgramLoader.resolveSource(circ, source));
             return;
         }
-        JFileChooser chooser = new JFileChooser(circ == null ? null : circ.getAbsoluteFile().getParentFile());
-        FileNameExtensionFilter hmx = new FileNameExtensionFilter(Text.name("Executable image (*.hmx)").get(), "hmx");
-        chooser.setFileFilter(hmx);
-        AssemblyTransition.addFilters(chooser, hmx);
+        File dir = circ == null ? null : circ.getAbsoluteFile().getParentFile();
+        File select = null;
+        if (e.getSource() == replace) {
+            JOptionPane.showMessageDialog(proj.getFrame(), replaceMessage(source), Text.name("Load Program").get(),
+                    JOptionPane.INFORMATION_MESSAGE);
+            File old = ProgramLoader.resolveSource(circ, source);
+            if (old.getParentFile() != null && old.getParentFile().isDirectory()) {
+                dir = old.getParentFile();
+            }
+            select = new File(dir, AssemblySource.imageName(source));
+        }
+        JFileChooser chooser = chooser(dir, select);
         if (chooser.showOpenDialog(proj.getFrame()) == JFileChooser.APPROVE_OPTION) {
             load(chooser.getSelectedFile());
         }
