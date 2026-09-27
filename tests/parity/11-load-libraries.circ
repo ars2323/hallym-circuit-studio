@@ -80,7 +80,10 @@
     <comp lib="7" loc="(300,400)" name="parity3">
       <a name="facing" val="west"/>
     </comp>
-    <comp lib="8" loc="(800,300)" name="Data Memory"/>
+    <comp lib="8" loc="(800,300)" name="Data Memory">
+      <a name="base" val="0x10000000"/>
+      <a name="stacksize" val="0x40000"/>
+    </comp>
     <comp lib="7" loc="(300,200)" name="full_adder"/>
     <comp lib="6" loc="(500,100)" name="LED"/>
     <comp lib="8" loc="(500,500)" name="Radix Probe"/>
