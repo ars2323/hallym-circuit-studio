@@ -78,7 +78,7 @@ class LoadSummaryTest {
         assertEquals("Executable image example.hmx, Hallym MIPS 2.2.0, 2026-09-27T13:15+09:00", l.notes.get(0));
         InProcessSim sim = new InProcessSim();
         sim.b.add(sim.mips, "Instruction Memory", 400, 200);
-        sim.b.add(sim.mips, "Data Memory", 400, 500);
+        sim.b.add(sim.mips, "Data Memory", 400, 500, StackRegionTest.OLD_DM); // 옛 구조(v1 파일, D-140)
         sim.b.add(sim.mips, "Stack", 400, 800);
         sim.b.commit();
         ProgramLoader.Plan plan = ProgramLoader.plan(l, sim.file.getCircuits(), null, null, "example.hmx");
