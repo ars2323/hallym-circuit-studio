@@ -7,6 +7,7 @@ rootProject.name = "hallym-circuit-studio"
 
 include("app")
 include("lib-mips")
+include("engine") // N-03: Java 엔진 서버(D-133, D-134)
 include("regress")
 project(":regress").projectDir = file("tests/regress")
 
