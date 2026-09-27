@@ -68,6 +68,27 @@ class VerticalBalanceGuiTest {
         }
     }
 
+    /** 실패 진단: 창 안 세로 구성 요소들의 높이(CI에서만 보이는 배치 차이를 찾는다). */
+    static String layoutDump(Frame frame) {
+        StringBuilder b = new StringBuilder();
+        java.awt.Container content = frame.getContentPane();
+        b.append("content=").append(content.getSize());
+        for (java.awt.Component c : content.getComponents()) {
+            b.append(" [").append(c.getClass().getSimpleName()).append(' ').append(c.getBounds()).append(']');
+        }
+        javax.swing.JScrollPane sp = (javax.swing.JScrollPane) SwingUtilities.getAncestorOfClass(
+                javax.swing.JScrollPane.class, frame.getCanvas());
+        for (java.awt.Component c = sp; c != null && c != content; c = c.getParent()) {
+            b.append(" <").append(c.getClass().getSimpleName()).append(' ').append(c.getBounds()).append('>');
+        }
+        MessagesPanel mp = MessagesPanel.of(frame);
+        b.append(" bottom=").append(mp.bottomHeight()).append(" collapsed=").append(mp.isAutoCollapsed())
+                .append(" userBottom=").append(mp.userBottom()).append(" tabs=").append(
+                        java.util.Arrays.toString(kr.ac.hallym.hcs.app.tabs.FileTabs.get().model().tabs().stream()
+                                .map(t -> t.title()).toArray()));
+        return b.toString();
+    }
+
     @Test
     void canvasKeepsHalfOfTheWindowAtEveryLaptopSize() throws Exception {
         assumeFalse(GraphicsEnvironment.isHeadless(), "needs a display (xvfb-run)");
@@ -114,7 +135,9 @@ class VerticalBalanceGuiTest {
                     }
                     Thread.sleep(200);
                 }
-                String tag = sz[0] + "x" + sz[1] + " (frame " + frame.getWidth() + "x" + frame.getHeight() + ")";
+                String[] dump = new String[1];
+                SwingUtilities.invokeAndWait(() -> dump[0] = layoutDump(frame));
+                String tag = sz[0] + "x" + sz[1] + " (frame " + frame.getWidth() + "x" + frame.getHeight() + ") " + dump[0];
                 if (got[0] < got[2] / 2) { // 홀수 폭의 반올림 허용
                     problems.add(tag + ": canvas width " + got[0] + " < half of " + got[2]);
                 }
