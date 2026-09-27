@@ -534,11 +534,8 @@ public final class Programs {
         ExecutableImage primary = null;
         Component primaryIm = null;
         for (Circuit c : d.file().getCircuits()) {
-            for (Component x : c.getNonWires()) {
+            for (Component x : placed(c)) {
                 String k = kind(x);
-                if (k == null) {
-                    continue;
-                }
                 SortedMap<Long, Integer> words = LibMips.contents(x);
                 String src = CircuitFacts.source(x);
                 boolean hasSource = src != null && !src.isEmpty();
@@ -587,6 +584,22 @@ public final class Programs {
             list.add(pc);
         }
         return o;
+    }
+
+    /**
+     * 회로의 MIPS 메모리 부품(Instruction Memory 먼저, 그다음 Data Memory, 같은 종류는 위→아래·왼쪽→오른쪽). 원조의 부품
+     * 집합은 순서가 정해져 있지 않다(D-129).
+     */
+    static List<Component> placed(Circuit c) {
+        List<Component> out = new ArrayList<>();
+        for (Component x : c.getNonWires()) {
+            if (kind(x) != null) {
+                out.add(x);
+            }
+        }
+        out.sort(java.util.Comparator.<Component, Boolean>comparing(x -> !"text".equals(kind(x)))
+                .thenComparingInt(x -> x.getLocation().getY()).thenComparingInt(x -> x.getLocation().getX()));
+        return out;
     }
 
     /** 사이클 0에서 회로의 PC가 이미지의 entry와 다르면 사실 줄 하나(D-138). 아니면 null. */

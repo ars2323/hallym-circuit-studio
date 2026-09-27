@@ -30,7 +30,8 @@ import { EngineClient, EngineError, type EngineProcess } from './engine.ts';
 import { locateEngine } from './engine-locate.ts';
 import { Supervisor, WINDOW } from './recovery.ts';
 import { LICENSES, paths, version } from './paths.ts';
-import { WINDOW_METHODS, type EngineStatus, type OpenResult, type SaveResult } from './protocol.ts';
+import { IMAGE_FILTER, programDialogPath } from './program-path.ts';
+import { WINDOW_METHODS, type EngineStatus, type LoadResult, type OpenResult, type SaveResult } from './protocol.ts';
 import { circArgument, removeAfterExitScript, removeEarlierRuns, runDirName, runsDirFor } from './run-folder.ts';
 
 const APP_NAME = 'Hallym Circuit Studio';
@@ -206,6 +207,27 @@ async function main(): Promise<void> {
     const saved = await windowCall<SaveResult>('file.save', { fileId, path: target });
     openFiles.set(fileId, saved.path || target);
     return { path: saved.path || target, name: path.basename(saved.path || target), bytes: saved.bytes, needsMipsJar: saved.needsMipsJar === true };
+  }));
+
+  // Load Program (N-16, D-147): the dialog (.hmx only) here, then the engine's
+  // mips.load.  `again` loads the file picked last for this circuit (the
+  // answer to "which memory?": `picks`); `forSource` opens next to an old .s.
+  const programs = new Map<string, string>();
+  ipcMain.handle('program:load', (_e, fileId: string, o: { target?: string; picks?: Record<string, string>; again?: boolean; forSource?: string } = {}) => answer(async () => {
+    if (!openFiles.has(fileId)) throw new Error(`no open file ${fileId}`);
+    let file = o.again ? programs.get(fileId) : undefined;
+    if (!file) {
+      const r = await dialog.showOpenDialog(win, {
+        title: 'Load Program', defaultPath: programDialogPath(openFiles.get(fileId) ?? null, o.forSource ?? null),
+        filters: [IMAGE_FILTER], properties: ['openFile'],
+      });
+      if (r.canceled || r.filePaths.length === 0) return null;
+      file = r.filePaths[0];
+      programs.set(fileId, file);
+    }
+    return engine.call<LoadResult>('mips.load', {
+      fileId, path: path.resolve(file), ...(o.target ? { target: o.target } : {}), ...(o.picks ? { picks: o.picks } : {}),
+    });
   }));
 
   ipcMain.handle('about:info', () => ({

@@ -73,7 +73,14 @@ final class ProgramJson {
         o.addProperty("kind", kind(c.kind));
         o.addProperty("segment", c.segment);
         JsonArray cands = new JsonArray();
+        // 부품 집합의 순서는 정해져 있지 않다(D-129): 위→아래, 왼쪽→오른쪽
+        List<Integer> order = new java.util.ArrayList<>();
         for (int i = 0; i < c.components.size(); i++) {
+            order.add(i);
+        }
+        order.sort(java.util.Comparator.<Integer>comparingInt(i -> ((Component) c.components.get(i)).getLocation().getY())
+                .thenComparingInt(i -> ((Component) c.components.get(i)).getLocation().getX()));
+        for (int i : order) {
             JsonObject x = new JsonObject();
             x.addProperty("componentId", ids.of((Component) c.components.get(i)));
             x.addProperty("circuitId", ids.of((Circuit) c.circuits.get(i)));

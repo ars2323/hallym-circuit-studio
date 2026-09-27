@@ -1,6 +1,15 @@
 /* window.app, as src/main/preload.cjs exposes it. */
 
-import type { EngineStatus, Hello, OpenResult, Recovered, WindowMethod } from '../../main/protocol.ts';
+import type { EngineStatus, Hello, LoadResult, OpenResult, Recovered, WindowMethod } from '../../main/protocol.ts';
+
+// Load Program's options: the memory right-clicked (target), the answer to
+// "which memory?" (picks, loading the same file again), an old .s to open next to.
+export interface LoadProgramOptions {
+  target?: string;
+  picks?: Record<string, string>;
+  again?: boolean;
+  forSource?: string;
+}
 
 export interface Opened extends OpenResult {
   path: string;
@@ -27,6 +36,8 @@ export interface AppApi {
   openStartupFile(): Promise<Opened | null>;
   openFile(): Promise<Opened | null>;                   // the open dialog, then the engine
   saveFile(fileId: string, file: { name: string; saveAs?: boolean }): Promise<{ path: string; name: string; bytes: number; needsMipsJar: boolean } | null>;
+  // Load Program (N-16): the .hmx dialog in the main process, then mips.load; null: the dialog was cancelled.
+  loadProgram(fileId: string, options?: LoadProgramOptions): Promise<LoadResult | null>;
   about(): Promise<AboutInfo>;
   license(index: number): Promise<string>;  // LICENSES[index]; one past the end: Electron's
   openCredits(): Promise<void>;             // LICENSES.chromium.html, in the browser

@@ -81,6 +81,35 @@ test('the real engine: a broken circuit\'s Messages (N-13), the same words as th
   }
 });
 
+test('the real engine: Load Program puts data.hmx into ref-mips; N Cycles to the exit; the Console says what SPIM said (N-16)', async () => {
+  const r = await launch(undefined, { env: real });
+  const { page } = r;
+  try {
+    const golden = 'tests/hmx/hallym-mips-v2.4.0';
+    const circ = sample(r.dir, 'tests/mips/ref-mips.circ');
+    sample(r.dir, `${golden}/data.s`);
+    const hmx = sample(r.dir, `${golden}/data.hmx`);
+    await openFile(r, circ);
+    await answerOpen(r.app, hmx);
+    await page.getByRole('button', { name: /Load Program/ }).click();
+    const d = page.locator('dialog.loadsummary');
+    await expect(d.locator('table.summary tr').first().locator('td')).toHaveText('0x00400024 (main)');
+    await expect(d.locator('table.summary tr', { hasText: 'Source' }).locator('td')).toHaveText('원본 파일 data.s: 내보낸 때와 같음.');
+    await d.getByRole('button', { name: 'OK' }).click();
+    await expect(page.locator('.status .progfact').first()).toHaveText('Program data.hmx');
+    // N Cycles (the toolbar's count is N-07's): the engine's sim.cycles for the one open file
+    await r.app.evaluate(() => (globalThis as unknown as { __hcs: { engine: { call(m: string, p: unknown): Promise<unknown> } } })
+      .__hcs.engine.call('sim.cycles', { fileId: 'f1', n: 80 }));
+    await expect(page.locator('.status')).toContainText('Cycle 80', { timeout: 30_000 });
+    await page.getByRole('tab', { name: 'Console' }).click();
+    // The oracle: SPIM's console for the same program (tests/hmx/hallym-mips-v2.4.0/data.regs)
+    const oracle = /^console "(.*)"$/m.exec(readFileSync(path.join(repo, golden, 'data.regs'), 'utf8'))![1];
+    await expect(page.locator('pre.consoletext')).toHaveText(`${oracle}\n-- exit --\n`);
+  } finally {
+    await r.close();
+  }
+});
+
 test('the real engine: its file errors in the window\'s words (a file that is not there, a file Logisim cannot read)', async () => {
   const r = await launch(undefined, { env: real });
   const { page } = r;

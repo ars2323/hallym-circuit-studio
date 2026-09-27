@@ -9,7 +9,7 @@
 .app { display: grid; height: 100vh; grid-template-rows: var(--titlebar) auto auto minmax(0, 1fr) 24px; }
 .app > .titlebar { grid-row: 1; }
 .app > .toolrow { grid-row: 2; }
-.app > .band { grid-row: 3; }
+.app > .bands { grid-row: 3; } /* the engine's band, the program's band (N-16) */
 .app > .work { grid-row: 4; }
 .app > .status { grid-row: 5; }
 
@@ -89,3 +89,33 @@ body.messages-shown img.char { visibility: hidden; }
 .status .msgcount { height: 20px; padding: 0 6px; margin: 0 -6px; border: 0; border-radius: 4px; background: none; font: inherit; color: var(--text-2); }
 .status .msgcount.err { color: var(--error-text); font-weight: 600; }
 .status .msgcount:hover { background: var(--hover); }
+
+/* ---- the program (N-16, program.ts, console.ts) ---------------------------------------
+   The band while a reload failed: the shared band's look (shared.css .band). */
+.progband { margin: 8px 8px 0; padding: 3px 10px; border-radius: 6px; background: var(--amber-tint); color: var(--amber-text);
+  box-shadow: inset 3px 0 0 var(--amber-text); font-size: 12px; line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The status bar's program facts: Program x.hmx, PC ≠ entry, an old Stack, a .s path with its button */
+.status .progfact { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.status .progfact-wrap { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.status .factbtn { height: 20px; padding: 0 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--white); color: var(--navy); font: inherit; font-weight: 500; flex: none; }
+.status .factbtn:hover { background: var(--hover); }
+/* The Console tab: the whole output, D2Coding (0 and O apart) */
+.consolescroll { height: 100%; overflow: auto; }
+.consoletext { margin: 0; padding: 8px 12px; font-size: 12.5px; line-height: 1.5; white-space: pre-wrap; word-break: break-all; color: var(--text); }
+/* The summary after Load Program: rows of name | value (and where it went) */
+.modal.ask.loadsummary { width: min(680px, calc(100vw - 32px)); }
+.modal.ask.loadsummary .askbody, .modal.ask.loadchoose .askbody { align-items: flex-start; }
+.modal.ask.loadsummary .askbody img.char { margin-top: 28px; }
+table.summary { width: 100%; margin: 10px 0 4px; border-collapse: collapse; font-size: 12.5px; }
+table.summary th { width: 96px; padding: 5px 10px 5px 0; text-align: left; vertical-align: top; font-weight: 600; color: var(--navy); white-space: nowrap; }
+table.summary td { padding: 5px 0; vertical-align: top; color: var(--text); border-top: 1px solid var(--border); overflow-wrap: anywhere; }
+table.summary tr:first-child td { border-top: 0; }
+table.summary th { border-top: 1px solid var(--border); }
+table.summary tr:first-child th { border-top: 0; }
+table.summary td .note { color: var(--muted); font-size: 12px; margin-top: 2px; }
+table.summary tr.warn td { background: var(--amber-tint); color: var(--amber-text); padding-left: 6px; }
+.modal.ask p.fact { margin-top: 6px; font-size: 12.5px; }
+.modal.ask ul.problems { margin: 8px 0 0; padding: 8px 10px 8px 28px; max-height: 220px; overflow: auto; background: var(--window); border-radius: 6px; color: var(--text); font-size: 12.5px; line-height: 1.55; }
+.modal.ask .choices { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+.modal.ask .choices .choice { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 6px; cursor: pointer; }
+.modal.ask .choices .choice:hover { background: var(--hover); }
