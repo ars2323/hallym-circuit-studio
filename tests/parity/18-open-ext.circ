@@ -72,8 +72,8 @@
   </circuit>
   <hcs:ext xmlns:hcs="urn:hallym-circuit-studio:ext" version="1">
     <hcs:circuit name="main">
-      <hcs:group group="control" net="@100,400"/>
-      <hcs:group group="control" net="ctl"/>
+      <hcs:group net="@100,400" group="control"/>
+      <hcs:group net="ctl" group="control"/>
       <hcs:tunnel label="ctl" color="#882255"/>
       <hcs:memo x="170" y="70" w="260" h="60" color="2" text="control bus"/>
       <hcs:memo x="600" y="640" w="200" h="120" color="7" text="새 메모"/>
