@@ -159,6 +159,63 @@ class MergedLoadTest {
         assertNull(dm.getAttributeSet().getValue(MemoryFactory.CONTENTS).initialSp());
     }
 
+    /**
+     * Hallym MIPS 2.4.0이 내보낸 명세 골든(data, space-gap; tests/hmx/hallym-mips-v2.4.0/, 다른 작업이 들인다): 합친
+     * Data Memory에 올린 뒤 .data를 워드·바이트 단위로 되읽으면 이미지와 같고(.space 빈칸은 0), 파일의 reg $sp
+     * (0x7fffffe4)는 스택 영역의 깊이 기준이며, 스택 영역은 0이다(Hallym MIPS가 인자를 둔 자리도 파일에 없다). 그 폴더가
+     * 없으면(골든이 아직 main에 없음) 건너뛴다.
+     */
+    @Test
+    void hallymMipsGoldensLoadIntoTheMergedDataMemory() throws Exception {
+        Path dir = HMX.resolve("hallym-mips-v2.4.0");
+        org.junit.jupiter.api.Assumptions.assumeTrue(java.nio.file.Files.isDirectory(dir),
+                "the v2.4.0 goldens come with the .hmx spec work (tests/hmx/hallym-mips-v2.4.0)");
+        long[][] expect = {{28, 7}, {4168, 1042}}; // .data 바이트, 워드
+        String[] names = {"data.hmx", "space-gap.hmx"};
+        for (int k = 0; k < names.length; k += 1) {
+            String name = names[k];
+            InProcessSim sim = new InProcessSim();
+            Component[] c = cpu(sim);
+            ProgramLoader.Loaded l = ProgramLoader.readImage(dir.resolve(name).toFile());
+            assertEquals(List.of(), l.errors, name);
+            ProgramLoader.Plan plan = ProgramLoader.plan(l, sim.file.getCircuits(), null, null, name);
+            AssemblerIntegrationTest.apply(plan);
+            ExecutableImage img = plan.image;
+            assertEquals(0x7fffffe4L, (long) img.reg("$sp"), name);
+            assertEquals(0x7fffffe4L, (long) c[1].getAttributeSet().getValue(MemoryFactory.CONTENTS).initialSp(), name);
+            assertTrue(plan.stackBase.size() == 1 && plan.stackBase.get(0).component == c[1], name);
+            sim.start();
+            DataMemory.State st = (DataMemory.State) sim.data(c[1]);
+            long bytes = 0;
+            for (Map.Entry<Long, Integer> w : img.dataWords().entrySet()) {
+                int a = (int) (long) w.getKey();
+                assertEquals((int) w.getValue(), st.readWord(a), name + " " + Long.toHexString(w.getKey()));
+                for (int b = 0; b < 4; b += 1) {
+                    assertEquals((w.getValue() >>> (8 * b)) & 0xff, st.readByte(a + b), name + " byte "
+                            + Integer.toHexString(a + b));
+                }
+                bytes += 4;
+            }
+            assertEquals(expect[k][0], bytes, name + ": .data bytes (the zero gaps included)");
+            assertEquals(expect[k][1], st.dataWords(), name);
+            for (long a = 0x7fffffe4L; a < 0x80000000L; a += 4) {
+                assertEquals(0, st.readWord((int) a), name + " stack " + Long.toHexString(a));
+            }
+        }
+        // space-gap: buffer(.space 4096)는 0, last = 0x22222222
+        InProcessSim sim = new InProcessSim();
+        Component[] c = cpu(sim);
+        AssemblerIntegrationTest.apply(ProgramLoader.plan(ProgramLoader.readImage(dir.resolve("space-gap.hmx")
+                .toFile()), sim.file.getCircuits(), null, null, "space-gap.hmx"));
+        sim.start();
+        DataMemory.State st = (DataMemory.State) sim.data(c[1]);
+        assertEquals(0x11111111, st.readWord(0x10010000));
+        for (int a = 0x10010004; a < 0x10011004; a += 4) {
+            assertEquals(0, st.readWord(a), Integer.toHexString(a));
+        }
+        assertEquals(0x22222222, st.readWord(0x10011004));
+    }
+
     /** 옛 Data Memory(스택 영역 없음)는 .data만 받고 깊이 기준을 갖지 않는다. 옛 Stack이 받는다(전과 같다). */
     @Test
     void anOldDataMemoryAndStackLoadAsBefore() throws Exception {
