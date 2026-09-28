@@ -83,6 +83,11 @@ public final class Server {
         handlers.put(method, h);
     }
 
+    /** 단 메서드 이름들(정렬). 테스트가 모든 메서드 묶음을 한 번씩 부르는지 본다(실습실 규칙, N-19). */
+    public java.util.SortedSet<String> methods() {
+        return new java.util.TreeSet<>(handlers.keySet());
+    }
+
     /** 끝낼 때(엔진 스레드에서) 부를 일. */
     public void onShutdown(Runnable r) {
         shutdownHooks.add(r);
@@ -123,6 +128,15 @@ public final class Server {
         done.await();
         executor.shutdownNow();
         executor.awaitTermination(5, TimeUnit.SECONDS);
+        return shutdownReason;
+    }
+
+    /**
+     * 끝나는 이유("shutdown": 화면이 {@code engine.shutdown}으로 끝냄, "stdin closed", "parent ended", "stdout closed").
+     * 끝낼 때 부르는 일({@link #onShutdown})이 이것을 보고 정상 종료와 화면이 사라진 끝을 가른다(N-19, D-152).
+     * 끝나기 전에는 null.
+     */
+    public String shutdownReason() {
         return shutdownReason;
     }
 

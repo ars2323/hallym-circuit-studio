@@ -33,6 +33,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
+import kr.ac.hallym.hcs.engine.doc.RecoveryFiles;
 import kr.ac.hallym.hcs.regress.CircEquivalence;
 import kr.ac.hallym.hcs.regress.CircNormalizer;
 
@@ -131,6 +132,9 @@ class OpenSaveParityTest {
             screenOpens(fileId, opened);
             assertFalse(e.client.callObject("file.dirty", params("fileId", fileId)).get("dirty").getAsBoolean(),
                     "opening does not make the file dirty");
+            // what the recovery file would hold now (N-19, D-152): the file as it was
+            assertEquals(CircNormalizer.normalize(read(f)), CircNormalizer.normalize(recoveryText(fileId)),
+                    "the recovery file's writer writes what a save writes");
             File saved = new File(copy.getParentFile(), "saved-" + f.getName());
             e.client.call("file.save", params("fileId", fileId, "path", saved.getPath()));
             assertSavedLike(f, saved, "the first save");
@@ -320,8 +324,17 @@ class OpenSaveParityTest {
         }
     }
 
-    /** 화면(electron app.ts)이 파일을 열 때 부르는 것 전부와 몇 사이클. */
-    void screenOpens(String fileId, JsonObject opened) {
+    /** 복구 파일의 쓰개(RecoveryFiles.bytes, main이 편집 뒤에 부르는 file.recoverWrite의 몸체)가 쓸 글자. */
+    String recoveryText(String fileId) throws Exception {
+        return new String(e.onEngine(() -> RecoveryFiles.bytes(e.engine.files().get(fileId))), StandardCharsets.UTF_8);
+    }
+
+    /**
+     * 화면(electron app.ts)이 파일을 열 때 부르는 것 전부와 몇 사이클. 복구 파일 쓰개도 한 번 돈다(편집 뒤에 main이
+     * 부른다: 원조 writer가 도구를 불러오는 버릇이 다음 저장에 남지 않아야 한다, D-149·D-152).
+     */
+    void screenOpens(String fileId, JsonObject opened) throws Exception {
+        recoveryText(fileId);
         JsonObject mainSnapshot = null;
         java.util.Map<String, JsonObject> snapshots = new java.util.HashMap<>();
         for (JsonElement ce : opened.getAsJsonArray("circuits")) {

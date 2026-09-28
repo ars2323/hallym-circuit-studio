@@ -46,6 +46,11 @@ public final class Doc {
     private final Ids ids = new Ids();
     private final ModelTracker tracker;
     private boolean readOnly;
+    /**
+     * 복구 파일의 내용으로 열었다(N-19, D-152): 디스크의 파일과 다르므로 저장하기 전까지는 되돌리기를 모두 되돌려도
+     * 저장하지 않은 편집이 있다.
+     */
+    private boolean recovered;
     private Canvas canvas;
     /**
      * Swing 앱의 Canvas가 프로젝트 사건마다 하는 전파 요청(Canvas.completeAction)과 같다. 원조 목록은 약한 참조라
@@ -125,7 +130,16 @@ public final class Doc {
     }
 
     public boolean isDirty() {
-        return proj.isFileDirty();
+        return recovered || proj.isFileDirty();
+    }
+
+    /** 복구 파일의 내용으로 열었고 아직 저장하지 않았는가. */
+    public boolean isRecovered() {
+        return recovered;
+    }
+
+    void setRecovered(boolean value) {
+        recovered = value;
     }
 
     /**

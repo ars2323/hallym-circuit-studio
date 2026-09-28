@@ -77,4 +77,63 @@ class ParentWatchTest {
         assertTrue(err.toString(StandardCharsets.UTF_8).contains("ended"), err.toString(StandardCharsets.UTF_8));
         in.close();
     }
+
+    /**
+     * 화면(Electron main)이 죽으면(N-19, D-152): 앱이 맡긴 엔진은 끝나기 전에 저장하지 않은 파일마다 학생 파일 옆에
+     * 복구 파일을 쓴다. 테스트가 stdin을 쥔 채 부모(sh)만 죽인다(Windows에서 main을 죽여도 stdin이 닫히지 않던 경우).
+     */
+    @Test
+    @EnabledOnOs(OS.LINUX)
+    void whenItsParentIsKilledTheEngineWritesTheRecoveryFilesFirst() throws Exception {
+        String jar = new File(SubprocessTest.STAGE, "hcs-engine.jar").getAbsolutePath();
+        java.nio.file.Path work = java.nio.file.Files.createDirectory(tmp.resolve("work"));
+        File circ = Fixtures.copyWithSiblings(new File(Fixtures.CIRC_DIR, "gates.circ"), work);
+        String script = "exec 3<&0; '" + SubprocessTest.JAVA + "' -Djava.awt.headless=true -Djava.util.prefs.userRoot='"
+                + tmp.resolve("prefs") + "' -jar '" + jar + "' 0<&3 & echo $!; sleep 120";
+        ProcessBuilder pb = new ProcessBuilder(List.of("sh", "-c", script));
+        pb.directory(tmp.toFile());
+        pb.redirectError(ProcessBuilder.Redirect.DISCARD);
+        Process sh = pb.start();
+        BufferedReader out = new BufferedReader(new InputStreamReader(sh.getInputStream(), StandardCharsets.UTF_8));
+        ProcessHandle engine = ProcessHandle.of(Long.parseLong(out.readLine().trim())).orElseThrow();
+        OutputStream in = sh.getOutputStream();
+        String[] calls = {
+            "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"engine.hello\",\"params\":{\"recoveryFiles\":true}}",
+            "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"file.open\",\"params\":{\"path\":\""
+                + circ.getPath().replace("\\", "\\\\") + "\"}}",
+        };
+        for (String call : calls) {
+            in.write((call + "\n").getBytes(StandardCharsets.UTF_8));
+            in.flush();
+        }
+        assertTrue(out.readLine().contains("\"logisim\""));
+        String opened = out.readLine();
+        String main = opened.replaceAll(".*\"main\":\"(c\\d+)\".*", "$1");
+        String fileId = opened.replaceAll(".*\"fileId\":\"(f\\d+)\".*", "$1");
+        in.write(("{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"edit.addComponent\",\"params\":{\"fileId\":\"" + fileId
+                + "\",\"circuitId\":\"" + main + "\",\"lib\":\"Gates\",\"name\":\"NOT Gate\",\"loc\":[900,900]}}\n")
+                .getBytes(StandardCharsets.UTF_8));
+        in.flush();
+        String answer;
+        do {
+            answer = out.readLine();
+        } while (answer != null && !answer.contains("\"id\":3"));
+        assertTrue(answer != null && answer.contains("\"changed\":true"), String.valueOf(answer));
+        File recovery = new File(circ.getPath() + ".hcs-recover");
+        assertFalse(recovery.exists(), "none yet: the main process asks for it after an idle moment");
+        sh.destroyForcibly(); // the main process killed; the engine's stdin stays open here
+        long end = System.currentTimeMillis() + 15_000;
+        while (engine.isAlive() && System.currentTimeMillis() < end) {
+            Thread.sleep(100);
+        }
+        boolean alive = engine.isAlive();
+        if (alive) {
+            engine.destroyForcibly();
+        }
+        assertFalse(alive, "the engine ends with its parent");
+        assertTrue(recovery.isFile(), "the unsaved edit, beside the student's file");
+        assertTrue(new String(java.nio.file.Files.readAllBytes(recovery.toPath()), StandardCharsets.UTF_8)
+                .contains("NOT Gate"));
+        in.close();
+    }
 }

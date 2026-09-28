@@ -29,6 +29,7 @@ import kr.ac.hallym.hcs.app.model.Kinds;
 import kr.ac.hallym.hcs.engine.diag.DiagService;
 import kr.ac.hallym.hcs.engine.doc.Doc;
 import kr.ac.hallym.hcs.engine.doc.Files;
+import kr.ac.hallym.hcs.engine.doc.RecoveryFiles;
 import kr.ac.hallym.hcs.engine.edit.ExtEdits;
 import kr.ac.hallym.hcs.engine.edit.Intents;
 import kr.ac.hallym.hcs.engine.find.Find;
@@ -126,8 +127,13 @@ public final class Engine {
         sims.clear();
         diags.closeAll();
         programs.closeAll();
-        files.closeAll();
+        // 화면이 engine.shutdown으로 끝내면(앱 정상 종료) 복구 파일을 지우고, 화면이 사라져 끝나면(stdin 닫힘·부모 끝남)
+        // 저장하지 않은 파일의 복구 파일을 써 둔다(N-19, D-152)
+        files.closeAll(SHUTDOWN.equals(server.shutdownReason()));
     }
+
+    /** 화면이 engine.shutdown으로 끝낼 때의 끝 이유({@link Server#shutdownReason}). */
+    static final String SHUTDOWN = "shutdown";
 
     // ---- engine ----
 
@@ -141,6 +147,10 @@ public final class Engine {
                 }
                 Ids.floor((long) floor);
             }
+            // 학생 파일 옆의 복구 파일을 엔진이 맡는다(앱이 켠다, N-19, D-152)
+            if (p.has("recoveryFiles")) {
+                files.manageRecoveryFiles(p.bool("recoveryFiles"));
+            }
             JsonObject o = new JsonObject();
             o.addProperty("engine", NAME);
             o.addProperty("version", version());
@@ -150,7 +160,7 @@ public final class Engine {
             return o;
         });
         server.register("engine.shutdown", (p, call) -> {
-            call.after(() -> server.requestShutdown("shutdown"));
+            call.after(() -> server.requestShutdown(SHUTDOWN));
             return new JsonObject();
         });
     }
@@ -175,8 +185,15 @@ public final class Engine {
             boolean already = d != null;
             List<String> messages = new ArrayList<>();
             if (!already) {
-                d = files.open(f, p.optBool("readOnly", false), messages, restore(p));
+                String recovery = p.optStr("recovery", null);
+                if (recovery != null && !recovery.equals("recover") && !recovery.equals("discard")) {
+                    throw RpcError.params("param 'recovery' must be \"recover\" or \"discard\"");
+                }
+                d = files.open(f, p.optBool("readOnly", false), messages, restore(p), "recover".equals(recovery));
                 attach(d);
+                if ("discard".equals(recovery)) {
+                    RecoveryFiles.delete(f); // 학생이 버리기를 골랐다: 연 뒤에 지운다(열지 못하면 남는다)
+                }
             }
             JsonObject o = new JsonObject();
             o.addProperty("fileId", d.id());
@@ -211,8 +228,25 @@ public final class Engine {
             diags.detach(d);
             programs.detach(d);
             records.close(d.id());
-            files.close(d);
+            files.close(d, p.optBool("keepRecovery", false));
             return new JsonObject();
+        });
+        // 복구 파일(N-19, D-152): 저장하지 않은 편집이 있으면 연 파일 옆 <이름>.circ.hcs-recover에 쓰고, 없으면 지운다
+        server.register("file.recoverWrite", (p, call) -> {
+            Doc d = files.get(p.str("fileId"));
+            File written = files.recoverWrite(d);
+            File target = RecoveryFiles.target(d);
+            JsonObject o = new JsonObject();
+            if (target == null) {
+                o.add("path", JsonNull.INSTANCE);
+            } else {
+                o.addProperty("path", RecoveryFiles.of(target).getPath());
+            }
+            o.addProperty("written", written != null);
+            if (written != null) {
+                o.addProperty("bytes", written.length());
+            }
+            return o;
         });
         server.register("file.dirty", (p, call) -> {
             Doc d = files.get(p.str("fileId"));
