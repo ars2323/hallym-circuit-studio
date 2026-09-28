@@ -8,6 +8,9 @@ package kr.ac.hallym.hcs.app.record;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import java.io.ByteArrayOutputStream;
+import java.io.OutputStream;
+import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.management.LockInfo;
@@ -15,9 +18,12 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MonitorInfo;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.locks.LockSupport;
 import java.util.function.BooleanSupplier;
 
 import org.junit.jupiter.api.Test;
@@ -34,15 +40,25 @@ import kr.ac.hallym.hcs.app.diag.DiagnosticSet;
 import kr.ac.hallym.hcs.regress.CircuitBuilder;
 
 /**
- * 모델 스레드가 부품을 잇달아 넣는 동안 원조 시뮬레이터가 빠르게 틱해도 시뮬레이터 스레드가 죽지 않는다(D-143).
- * 기록기는 편집 뒤 첫 틱에 기록을 새로 시작하며 넷 목록을 다시 만들고 상태를 복제하고(Recording.Probe,
+ * 모델 스레드가 부품을 잇달아 넣는 동안 원조 시뮬레이터가 빠르게 틱해도 시뮬레이터 스레드가 죽지 않고 기록이 이어진다
+ * (D-143). 기록기는 편집 뒤 첫 틱에 기록을 새로 시작하며 넷 목록을 다시 만들고 상태를 복제하고(Recording.Probe,
  * CircuitState.cloneState), 동적 진단은 스텝마다 부품 집합을 훑는다. 원조 회로 읽기 잠금 없이 하던 때는 편집과 겹쳐
  * ConcurrentModificationException으로 시뮬레이터 스레드가 끝났다(몇십 번의 편집 안에).
  * <p>
- * 넣기만 한다: 부품을 빼는 편집은 원조 자체의 경합(편집 스레드의 CircuitState 청취자가 원조 전파와 함께 쓰는
- * dirtyComponents를 훑는다, 원조 패키지)을 이렇게 빠른 반복에서 거의 늘 드러내므로 이 테스트가 볼 것이 아니다.
+ * 편집마다 잠깐 쉰다: 원조 잠금(ReentrantReadWriteLock, 비공정)은 쓰기 쪽이 새치기하므로 쉼 없이 편집하면 기록기가
+ * 읽기 잠금을 기다리기만 해서 편집 3초 동안 틱이 몇 번밖에 돌지 않는다. 쉬면 편집 수백 번이 틱·캡처 수백 번과
+ * 번갈아 겹친다.
+ * <p>
+ * 원조 자체의 경합(고치지 않음, D-143): 편집 스레드의 원조 CircuitState 청취자가 넣은 부품을 dirtyComponents에 더하는
+ * 동안 원조 전파(시뮬레이터 스레드)가 같은 집합을 배열로 옮기거나 비우면 예외가 난다. 원조 Simulator는 그 예외를 잡아
+ * 찍고 시뮬레이션을 끈다(스레드는 살아 있고, 학생은 Simulation Enabled를 다시 켠다). 그러면 틱이 멈춰 기록도 멈추므로,
+ * 이 테스트는 그때 찍힌 예외가 원조 전파 안의 것이고 우리 코드를 지나지 않았는지 보고 시뮬레이션을 다시 켠다. 부품을
+ * 빼는 편집은 이 원조 경합을 거의 늘 드러내므로 넣기만 한다.
  */
 class RecorderEditRaceTest {
+    /** 편집 사이에 쉬는 시간: 기다리던 기록기가 읽기 잠금을 얻고 틱이 돈다. */
+    static final long PAUSE_NANOS = 100_000;
+
     @TempDir
     Path tmp;
 
@@ -66,6 +82,10 @@ class RecorderEditRaceTest {
             x.printStackTrace(new PrintWriter(w));
             uncaught.add(t.getName() + ": " + w);
         });
+        // 원조 Simulator는 전파 중의 예외를 잡아 System.err에 찍기만 한다: 그 사본을 모은다
+        PrintStream errBefore = System.err;
+        ErrCopy err = new ErrCopy(errBefore);
+        System.setErr(new PrintStream(err, true, StandardCharsets.UTF_8));
         Project proj = new Project(file);
         Simulator sim = proj.getSimulator();
         try {
@@ -77,6 +97,8 @@ class RecorderEditRaceTest {
             sim.setTickFrequency(4096);
             sim.setIsTicking(true);
 
+            int[] stops = {0};
+            Runnable resume = () -> stops[0] += resumeAfterLogisimStop(sim, err) ? 1 : 0;
             long end = System.currentTimeMillis() + 3000;
             int edits = 0;
             while (edits < 1000 && System.currentTimeMillis() < end && uncaught.isEmpty()) {
@@ -84,43 +106,125 @@ class RecorderEditRaceTest {
                 add.add("Gates", "NOT Gate", 1000 + 60 * (edits % 25), 1000 + 60 * (edits / 25));
                 add.commit();
                 edits++;
+                resume.run();
+                LockSupport.parkNanos(PAUSE_NANOS);
             }
             if (!uncaught.isEmpty()) {
                 fail("the simulator thread died after " + edits + " edits:\n" + String.join("\n", uncaught));
             }
             // 스레드가 살아 있다: 편집을 멈춘 뒤에도 기록이 늘어난다
             int last = rec.current().last();
-            waitOrDump(() -> rec.current().last() > last + 4, "steps after the edits (" + edits + " edits)", sim,
-                    rec);
+            waitOrDump(() -> rec.current().last() > last + 4, resume,
+                    "steps after the edits (" + edits + " edits, Logisim stopped the simulation " + stops[0]
+                            + " times)",
+                    sim, rec);
             assertTrue(edits >= 50, "only " + edits + " edits");
             assertTrue(uncaught.isEmpty(), String.join("\n", uncaught));
+            System.out.println(edits + " edits; Logisim's propagator stopped the simulation " + stops[0] + " times");
             diags.detach();
         } finally {
             sim.setIsTicking(false);
             sim.shutDown();
+            System.setErr(errBefore);
             Thread.setDefaultUncaughtExceptionHandler(before);
         }
     }
 
-    /** ok가 참이 될 때까지(10초) 기다린다. 못 기다리면 시뮬레이터·기록 상태와 모든 스레드의 덤프를 실패 문구에 담는다. */
-    static void waitOrDump(BooleanSupplier ok, String what, Simulator sim, Recorder rec) throws Exception {
+    /**
+     * 원조 전파가 스스로 잡은 예외로 시뮬레이션을 껐으면 다시 켜고 true. 꺼졌는데 원조가 예외를 만나지 않았거나(다른 까닭),
+     * 원조 전파가 찍은 예외가 우리 코드를 지났으면 실패한다.
+     */
+    static boolean resumeAfterLogisimStop(Simulator sim, ErrCopy err) {
+        if (sim.isRunning()) {
+            return false;
+        }
+        if (!sim.isExceptionEncountered()) {
+            throw new AssertionError("the simulation stopped without an exception in Logisim's propagator");
+        }
+        List<String> caught = err.propagatorTraces();
+        if (caught.isEmpty()) {
+            throw new AssertionError("the simulation stopped but Logisim printed no propagator exception");
+        }
+        for (String t : caught) {
+            if (t.contains("at kr.ac.hallym.")) {
+                throw new AssertionError("Logisim's propagator caught an exception from our code:\n" + t);
+            }
+        }
+        sim.setIsRunning(true); // 학생이 Simulation Enabled를 다시 켜듯
+        return true;
+    }
+
+    /** System.err를 그대로 두고 사본을 모은다. */
+    static final class ErrCopy extends OutputStream {
+        private final PrintStream out;
+        private final ByteArrayOutputStream copy = new ByteArrayOutputStream();
+
+        ErrCopy(PrintStream out) {
+            this.out = out;
+        }
+
+        @Override
+        public synchronized void write(int b) {
+            out.write(b);
+            copy.write(b);
+        }
+
+        @Override
+        public synchronized void write(byte[] b, int off, int len) {
+            out.write(b, off, len);
+            copy.write(b, off, len);
+        }
+
+        @Override
+        public void flush() {
+            out.flush();
+        }
+
+        /** 원조 Simulator의 전파 스레드가 잡아 찍은 예외들(스택 전부). */
+        synchronized List<String> propagatorTraces() {
+            List<String> traces = new ArrayList<>();
+            StringBuilder cur = null;
+            for (String line : copy.toString(StandardCharsets.UTF_8).split("\n")) {
+                boolean frame = line.startsWith("\t") || line.startsWith("Caused by:") || line.startsWith("Suppressed:");
+                if (!frame) {
+                    if (cur != null && cur.indexOf("Simulator$PropagationManager.run") >= 0) {
+                        traces.add(cur.toString());
+                    }
+                    cur = new StringBuilder();
+                }
+                if (cur != null) {
+                    cur.append(line).append('\n');
+                }
+            }
+            if (cur != null && cur.indexOf("Simulator$PropagationManager.run") >= 0) {
+                traces.add(cur.toString());
+            }
+            return traces;
+        }
+    }
+
+    /**
+     * ok가 참이 될 때까지(10초) 기다린다. 기다리는 동안 between을 부른다. 못 기다리면 시뮬레이터·기록 상태와 모든 스레드의
+     * 덤프를 실패 문구에 담는다(CI에서 멈춘 까닭을 보려고).
+     */
+    static void waitOrDump(BooleanSupplier ok, Runnable between, String what, Simulator sim, Recorder rec)
+            throws Exception {
         long end = System.currentTimeMillis() + 10_000;
         while (!ok.getAsBoolean()) {
             if (System.currentTimeMillis() > end) {
                 Recording r = rec.current();
-                String state = "timed out: " + what + "\nsimulator running=" + sim.isRunning() + " ticking="
-                        + sim.isTicking() + " exceptionEncountered=" + sim.isExceptionEncountered() + " hz="
-                        + sim.getTickFrequency() + "; recording "
+                throw new AssertionError("timed out: " + what + "\nsimulator running=" + sim.isRunning()
+                        + " ticking=" + sim.isTicking() + " exceptionEncountered=" + sim.isExceptionEncountered()
+                        + " hz=" + sim.getTickFrequency() + "; recording "
                         + (r == null ? "null" : "first=" + r.first() + " last=" + r.last() + " cursor=" + r.cursor())
-                        + "\n" + threadDump();
-                System.err.println(state);
-                throw new AssertionError(state);
+                        + "\n" + threadDump());
             }
+            between.run();
             Thread.sleep(10);
         }
     }
 
-    /** 모든 스레드: 상태, 기다리는 잠금과 그 임자, 스택, 쥔 모니터·잠금. 교착이면 그 스레드들도. */
+    /** 모든 스레드: 상태, 기다리는 잠금과 그 임자, 스택, 쥔 모니터·잠금. 교착이면 그 수도. */
     static String threadDump() {
         ThreadMXBean mx = ManagementFactory.getThreadMXBean();
         StringBuilder b = new StringBuilder("--- thread dump ---\n");
