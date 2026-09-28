@@ -338,8 +338,9 @@ test('Undo and Redo on another circuit\'s tab: the circuit on show goes with the
     await page.getByRole('tab', { name: 'Circuits' }).click();
     await page.locator('.upper .pbody:visible .list > li', { hasText: 'alu' }).getByRole('button').click();
     await expect(page.locator('.circuitbar .ptab.on')).toHaveText('alu');
+    // the Canvas's scene follows the tab a moment later (its snapshot on its way)
+    await expect.poll(async () => (await where(page)).circuitId).not.toBe(mainId);
     const aluId = (await where(page)).circuitId;
-    expect(aluId).not.toBe(mainId);
     await page.keyboard.press('Control+z');
     await expect.poll(async () => (await sentCalls(r.app, 'edit.undo')).length).toBe(1);
     await page.keyboard.press('Control+y');
@@ -350,6 +351,7 @@ test('Undo and Redo on another circuit\'s tab: the circuit on show goes with the
     // the adder chosen again, R turns the engine's selection (no ids)
     await page.locator('.upper .pbody:visible .list > li', { hasText: 'main' }).getByRole('button').click();
     await expect(page.locator('.circuitbar .ptab.on')).toHaveText('main');
+    await expect.poll(async () => (await where(page)).circuitId).toBe(mainId);
     await expect.poll(() => selected(page)).toEqual([]);
     const now = (await parts(page, 'Adder'))[0];
     await drag(page, mid(now), [mid(now)]);
