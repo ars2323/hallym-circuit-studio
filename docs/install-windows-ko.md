@@ -16,8 +16,15 @@
 
 ## 조교·실습실 관리자용
 
-- **설치 위치:** 사용자마다 `%LOCALAPPDATA%\Programs\Hallym Circuit Studio`. 설치 파일이 쓰는 것은 이 폴더, 시작 메뉴 바로 가기(`%APPDATA%\Microsoft\Windows\Start Menu\Programs\Hallym Circuit Studio.lnk`), `HKCU`의 제거 항목(`Software\Microsoft\Windows\CurrentVersion\Uninstall\eb84d729-7626-52ce-aff8-71eda9d27e59`)과 그 옆 설치 기록(`Software\eb84d729-7626-52ce-aff8-71eda9d27e59`: 설치 위치, 덮어 설치에 씀)뿐이다. 바탕 화면 바로 가기, 파일 연결, 자동 업데이트, 설치 파일 사본은 없다.
+- **설치 파일이 쓰는 것(이 넷이 전부):**
+  1. 설치 폴더 `%LOCALAPPDATA%\Programs\Hallym Circuit Studio`(사용자마다)
+  2. 시작 메뉴 바로 가기 `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Hallym Circuit Studio.lnk`
+  3. 제거 항목 `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\eb84d729-7626-52ce-aff8-71eda9d27e59`
+  4. electron-builder의 설치 기록 키 `HKCU\Software\eb84d729-7626-52ce-aff8-71eda9d27e59`(설치 위치·바로 가기 이름: 다음 설치가 같은 폴더에 덮어 쓰려고 읽는다)
+
+  제거하면 넷 모두 지운다. 제거 프로그램은 도는 동안 `%TEMP%\~nsu<X>.tmp`에 제 사본을 두고, 끝나면 그 폴더도 지운다. 바탕 화면 바로 가기, 파일 연결, 자동 업데이트, 설치 파일 사본은 없다.
 - **조용한 설치·제거:** `HallymCircuitStudio-<버전>-win-x64-setup.exe /S`. 제거는 제거 항목의 `QuietUninstallString`(`"...\Uninstall HallymCircuitStudio.exe" /currentuser /S`).
-- **실행해도 남는 것이 없다:** 프로그램은 설정을 기억하지 않는다. 실행하는 동안 `%TEMP%\HallymCircuitStudio\run-<pid>-<시각>`을 쓰고 끝나면 지운다. 레지스트리(`HKCU\Software\JavaSoft\Prefs` 포함), `%APPDATA%`, `%LOCALAPPDATA%`(설치 폴더 밖)에 쓰지 않는다. CI가 설치본을 실행해 확인한다(`setup-e2e`).
+- **실행한 뒤:** 프로그램은 설정을 기억하지 않는다. 실행하는 동안 `%TEMP%\HallymCircuitStudio\run-<pid>-<시각>`을 쓰고, 끝나면 그 폴더를 지운다(다른 실행이 없으면 `HallymCircuitStudio` 폴더까지). Windows 맞춤법 검사기도 열지 않는다. CI(`setup-e2e`)가 설치한 프로그램을 띄워 쓰고 끝낸 뒤, 레지스트리 `HKCU\Software` 전체(Microsoft·Classes, `JavaSoft\Prefs` 포함)와 `%APPDATA%`, `%LOCALAPPDATA%`(설치 폴더 밖), `%TEMP%`를 실행 전과 비교해 달라진 것이 없음을 확인한다. 비교에서 빼는 것은 러너에서 본, Windows 자신과 시험 도구가 바꾸는 정확한 자리뿐이다(`electron/tools/windows/state.ts`, D-148 12).
+- **Windows가 모든 프로그램에 대해 두는 기록:** 설치·실행·제거하면 Windows 자신이 탐색기의 실행 횟수(`HKCU\...\Explorer\UserAssist`, 이 프로그램의 앱 ID), Windows Search의 시작 메뉴 아이콘(`%LOCALAPPDATA%\Packages\Microsoft.Windows.Search_cw5n1h2txyewy\LocalState\AppIconCache\100\kr_ac_hallym_circuit-studio`), 1.0.x MSI를 지운 PC라면 셸의 바로 가기 기록(`HKCU\...\UFH\SHC`)을 남길 수 있다. 설치 파일이나 프로그램이 쓰는 것이 아니고, 다른 프로그램에도 똑같이 생기며, 제거해도 Windows가 둔다.
 - **복원 소프트웨어가 있는 PC:** 사용자별 설치가 재부팅 때 지워지는 PC에서는 설치 파일을 공용 폴더에 두고 매번 `/S`로 설치하거나, 복원 기준 이미지에 설치해 둔다.
 - **예전 MSI를 관리자가 모든 사용자용으로 설치했다면:** 새 설치 파일은 관리자 권한을 쓰지 않으므로 그것을 지우지 못하고 "설정 › 앱에서 다음 항목을 직접 제거하세요: HallymCircuitStudio" 안내를 띄운다(새 버전은 설치된다). 관리자가 `msiexec /x {145CACD7-ADE5-3DF4-8496-7C4ACF95DF62} /qn`(1.0.2)처럼 지운다.

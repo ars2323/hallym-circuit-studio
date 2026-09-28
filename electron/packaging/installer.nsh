@@ -114,7 +114,9 @@
 ; version runs it in place), a hidden cmd waits for the copy to end and then
 ; removes its folder -- nothing of the program is left in %TEMP% either.
 ; CreateProcess with CREATE_NO_WINDOW: no console window, and no shell launch
-; (ShellExecute would record the launch in the user's jump lists).
+; (ShellExecute would record the launch in the user's jump lists).  It starts
+; in the system folder: a process started in the install folder (the
+; uninstaller's own current folder) would keep that folder from being removed.
 !macro hcsRemoveUninstallerCopy
   Push $R0
   Push $R1
@@ -132,7 +134,7 @@
     StrCpy $R3 '"$SYSDIR\cmd.exe" /d /q /c for /l %i in (1,1,120) do @if exist "$EXEDIR\" (rd /s /q "$EXEDIR" 2>nul & ping -n 2 127.0.0.1 >nul)'
     System::Call '*(i 68, &w32) p .R4'
     System::Call '*(p, p, i, i) p .R5'
-    System::Call 'kernel32::CreateProcessW(p 0, w R3, p 0, p 0, i 0, i 0x08000000, p 0, p 0, p R4, p R5) i .R6'
+    System::Call 'kernel32::CreateProcessW(p 0, w R3, p 0, p 0, i 0, i 0x08000000, p 0, w "$SYSDIR", p R4, p R5) i .R6'
     ${If} $R6 != 0
       System::Call '*$R5(p .R1, p .R2)'
       System::Call 'kernel32::CloseHandle(p R1)'

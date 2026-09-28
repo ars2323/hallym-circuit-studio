@@ -256,14 +256,19 @@ jobs:
         with:
           name: HallymCircuitStudio-setup-earlier
           path: electron/setup-earlier
-      # The runner's other programs keep scheduled tasks that write into %APPDATA% at any time
-      # (Firefox's default browser agent was seen doing so mid-check): off for the checks (D-148).
-      - name: Quiet the runner's other programs (their scheduled tasks)
+      # The runner's other programs write into %APPDATA%, %LOCALAPPDATA% and HKCU at any time: Firefox's
+      # default browser agent (a scheduled task) and the Microsoft account service (wlidsvc: a device
+      # credential and HKCU\Software\Microsoft\AuthCookies) were seen doing so mid-check.  Off for the
+      # checks, rather than widening what the checks let through (D-148 12).
+      - name: Quiet the runner's other programs (their scheduled tasks, the Microsoft account service)
         run: |
           $tasks = @(Get-ScheduledTask | Where-Object { $_.TaskPath -like '\Mozilla\*' -or $_.TaskName -match 'Firefox|GoogleUpdate|MicrosoftEdgeUpdate|OneDrive' })
           $tasks | ForEach-Object { "disabled: $($_.TaskPath)$($_.TaskName)" }
           $tasks | Disable-ScheduledTask | Out-Null
           Get-Process -Name 'firefox', 'default-browser-agent', 'GoogleUpdate', 'MicrosoftEdgeUpdate' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+          Set-Service -Name wlidsvc -StartupType Disabled -ErrorAction SilentlyContinue
+          Stop-Service -Name wlidsvc -Force -ErrorAction SilentlyContinue
+          "wlidsvc: $((Get-Service -Name wlidsvc -ErrorAction SilentlyContinue).Status)"
           exit 0
       # The students' screen; the start is measured there. Reported either way (report/screen.txt).
       - name: Screen 1920x1080 (tools/windows/screen-1920.ps1)
@@ -343,14 +348,19 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release download v1.0.2 --repo $env:GITHUB_REPOSITORY --pattern '*.msi' --dir v1msi
-      # The runner's other programs keep scheduled tasks that write into %APPDATA% at any time
-      # (Firefox's default browser agent was seen doing so mid-check): off for the checks (D-148).
-      - name: Quiet the runner's other programs (their scheduled tasks)
+      # The runner's other programs write into %APPDATA%, %LOCALAPPDATA% and HKCU at any time: Firefox's
+      # default browser agent (a scheduled task) and the Microsoft account service (wlidsvc: a device
+      # credential and HKCU\Software\Microsoft\AuthCookies) were seen doing so mid-check.  Off for the
+      # checks, rather than widening what the checks let through (D-148 12).
+      - name: Quiet the runner's other programs (their scheduled tasks, the Microsoft account service)
         run: |
           $tasks = @(Get-ScheduledTask | Where-Object { $_.TaskPath -like '\Mozilla\*' -or $_.TaskName -match 'Firefox|GoogleUpdate|MicrosoftEdgeUpdate|OneDrive' })
           $tasks | ForEach-Object { "disabled: $($_.TaskPath)$($_.TaskName)" }
           $tasks | Disable-ScheduledTask | Out-Null
           Get-Process -Name 'firefox', 'default-browser-agent', 'GoogleUpdate', 'MicrosoftEdgeUpdate' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+          Set-Service -Name wlidsvc -StartupType Disabled -ErrorAction SilentlyContinue
+          Stop-Service -Name wlidsvc -Force -ErrorAction SilentlyContinue
+          "wlidsvc: $((Get-Service -Name wlidsvc -ErrorAction SilentlyContinue).Status)"
           exit 0
       - name: The v1.0.2 MSI, then the setup exe over it
         run: |

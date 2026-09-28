@@ -21,9 +21,9 @@
    files opened.  Chromium's profile is this run's folder in the temp folder
    (run-folder.ts), removed after quit; the engine runs in it too. */
 
-import { app, BrowserWindow, dialog, ipcMain, Menu, screen, session, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu, screen, shell } from 'electron';
 import { spawn } from 'node:child_process';
-import { mkdirSync, readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { EngineClient, EngineError, type EngineProcess } from './engine.ts';
@@ -32,7 +32,7 @@ import { Supervisor, WINDOW } from './recovery.ts';
 import { LICENSES, paths, version } from './paths.ts';
 import { IMAGE_FILTER, programDialogPath } from './program-path.ts';
 import { WINDOW_METHODS, type EngineStatus, type LoadResult, type OpenResult, type SaveResult } from './protocol.ts';
-import { circArgument, removeAfterExitScript, removeEarlierRuns, runDirName, runsDirFor } from './run-folder.ts';
+import { circArgument, removeAfterExitScript, removeEarlierRuns, runDirName, RUN_PREFERENCES, runsDirFor } from './run-folder.ts';
 
 const APP_NAME = 'Hallym Circuit Studio';
 app.setName(APP_NAME);
@@ -47,6 +47,8 @@ const runsDir = runsDirFor(process.env);
 const runDir = path.join(runsDir, runDirName(process.pid, Date.now()));
 removeEarlierRuns(runsDir, process.pid);
 mkdirSync(path.join(runDir, 'tmp'), { recursive: true });
+// Chromium's preferences for this run: no spell checker at all (run-folder.ts RUN_PREFERENCES).
+writeFileSync(path.join(runDir, 'Preferences'), JSON.stringify(RUN_PREFERENCES));
 // Linux: the libraries under Chromium keep caches in the user's own folders
 // (fontconfig's font cache, the GPU driver's shaders, NSS's certificate
 // store): this run's folder instead, set before any of them starts.
@@ -132,10 +134,6 @@ async function openPath(p: string): Promise<Opened> {
 async function main(): Promise<void> {
   Menu.setApplicationMenu(null); // no default zoom/reload accelerators; the window has its own keys
   await app.whenReady();
-  // No spell checker (with webPreferences.spellcheck below): circuit and label names are not
-  // words, and nothing is ever added to the user's word lists (on Windows the system's, in
-  // %APPDATA%\Microsoft\Spelling, which Chromium opens at its start all the same; N-23, D-148).
-  session.defaultSession.setSpellCheckerEnabled(false);
   void engine.start().catch(() => { /* status says so; the window shows the dialog */ });
 
   // Every start opens the window over the whole work area, maximised --
@@ -161,7 +159,7 @@ async function main(): Promise<void> {
       contextIsolation: true,
       sandbox: true,
       nodeIntegration: false,
-      spellcheck: false,   // (session.setSpellCheckerEnabled above)
+      spellcheck: false,   // no spell checker: names are not words (and run-folder.ts RUN_PREFERENCES)
     },
   });
 

@@ -97,10 +97,19 @@ test('the opened file is not written by opening it; the only file written is the
   }
 });
 
-test('no spell checker: names are not words, and no word is ever added to the user\'s word lists', async () => {
+test('no spell checker, no spelling language: nothing opened (Windows\' word lists) or downloaded (a Hunspell dictionary)', async () => {
   const r = await launch();
   try {
-    expect(await r.app.evaluate(({ session }) => session.defaultSession.isSpellCheckerEnabled())).toBe(false);
+    // Off, and no language it could check: none of the list is a language it knows (Linux keeps "zz", Windows drops it).
+    expect(await r.app.evaluate(({ session }) => {
+      const known = session.defaultSession.availableSpellCheckerLanguages;
+      return [session.defaultSession.isSpellCheckerEnabled(), session.defaultSession.getSpellCheckerLanguages().filter((l) => known.includes(l)), known.length > 10];
+    })).toEqual([false, [], true]);
+    // Left alone, Chromium downloads the OS language's dictionary into the run's folder (Dictionaries/) at once.
+    await r.page.waitForTimeout(3000);
+    const run = readdirSync(r.userData).find((n) => n.startsWith('run-'))!;
+    const dicts = path.join(r.userData, run, 'Dictionaries');
+    expect(existsSync(dicts) ? readdirSync(dicts) : []).toEqual([]);
   } finally {
     await r.close();
   }

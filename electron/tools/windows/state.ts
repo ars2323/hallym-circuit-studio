@@ -69,7 +69,10 @@ export function diffStates(a: State, b: State): Change[] {
 /* What Windows and the test tools themselves change, each seen on the CI
    runner (D-148 12), by exact place, by kind of change, and only in the
    checks it was seen in: anything else in these places, or these changes
-   in another check, count.  A check is a run of the program ('none'), an
+   in another check, count.  A change that names this program counts even
+   there (NAMES_US), but for the records Windows keeps of every program --
+   its launch counter, Windows Search's icon, the shell's shortcut history --
+   which say so (mayName).  A check is a run of the program ('none'), an
    install ('install'), or an uninstall ('uninstalled': compared with before
    the install, so the install's and the run's are in it too). */
 export type Expect = 'none' | 'install' | 'uninstalled';
@@ -79,7 +82,7 @@ export interface Known {
   what: Change['what'][];
   path: RegExp;
   in: Expect[];
-  maxBytes?: number;     // files: no bigger than this (an empty list, not a written one)
+  mayName?: boolean;     // may name this program (otherwise a change that does counts)
   keyOnly?: boolean;     // registry: a key without values
   dirOnly?: boolean;     // files: a folder (and nothing in it)
   why: string;
@@ -91,10 +94,6 @@ const G = '\\{[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-
 const SEARCH = 'LOCALAPPDATA\\\\Packages\\\\Microsoft\\.Windows\\.Search_cw5n1h2txyewy\\\\';
 
 export const KNOWN: Known[] = [
-  // ---- a run of the program, on Windows itself
-  { where: 'files', what: ['added', 'changed'], in: ALL, maxBytes: 2,
-    path: /^APPDATA\\Microsoft\\Spelling(\\[A-Za-z]{2,3}(-[A-Za-z0-9]+)*(\\default\.(dic|exc|acl))?)?$/,
-    why: 'Windows\' spelling word lists for the OS language, empty (2 bytes): Chromium opens the Windows spell checker at its start (D-148 13)' },
   // ---- the test tools
   { where: 'temp', what: ['added'], in: ALL, path: /^TEMP\\playwright-artifacts-[A-Za-z0-9]+(\\.*)?$/,
     why: 'Playwright (the test tool): a folder per launch, until the test run ends' },
@@ -123,12 +122,54 @@ export const KNOWN: Known[] = [
     why: 'the crypto API\'s per-user policy store, made empty when Windows checks a program\'s signature' },
   { where: 'registry', what: ['added'], in: INSTALLING, keyOnly: true, path: /^HKCU\\Software\\Microsoft\\Installer(\\[^\\]+)*$/,
     why: 'Windows Installer\'s per-user keys, left empty by the 1.0.x MSI\'s install and removal' },
+  { where: 'registry', what: ['added'], in: INSTALLING, keyOnly: true,
+    path: /^HKCU\\Software\\Microsoft\\SystemCertificates\\TrustedPublisher(\\(CRLs|CTLs|Certificates))?$/,
+    why: 'the crypto API\'s per-user store, made empty when Windows checks a program\'s signature' },
+  { where: 'registry', what: ['added'], in: INSTALLING, keyOnly: true, path: /^HKCU\\Software\\Microsoft\\RestartManager$/,
+    why: 'the Restart Manager\'s per-user key, left empty (Windows Installer asks it which programs use the files)' },
+  // ---- Explorer and the Start menu keeping up with a program coming or going (their own stores)
+  { where: 'files', what: ['added', 'changed'], in: INSTALLING,
+    path: /^APPDATA\\Microsoft\\Windows\\Recent\\AutomaticDestinations\\(13d33cf42d4c3237|93b890b537dcc3c5|73d6a8f0346f297b)\.automaticDestinations-ms$/,
+    why: 'the shell\'s jump lists made while Windows Installer and the uninstaller ran (these three names on every runner)' },
+  { where: 'registry', what: ['added', 'removed', 'changed'], in: INSTALLING,
+    path: /^HKCU\\Software\\Classes\\Local Settings\\MuiCache\\\d+\\[0-9A-F]{8}( :: .*)?$/,
+    why: 'the shell\'s cache of Windows\' own display names (Explorer rebuilds it)' },
+  { where: 'registry', what: ['added'], in: INSTALLING,
+    path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts\\(?!\.circ(\\| ::|$))\.[^\\:]+(\\OpenWithProgids)?( :: .*)?$/,
+    why: 'Explorer\'s per-user open-with lists (Windows Media Player\'s file types, filled in the background; never .circ)' },
+  { where: 'registry', what: ['added', 'changed'], in: INSTALLING,
+    path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\(Taskband|UserAssist\\\{[0-9A-F-]{36}\}(\\Count)?)( :: .*)?$/,
+    why: 'Explorer\'s taskbar layout and program-launch counters' },
+  { where: 'registry', what: ['added', 'changed'], in: INSTALLING,
+    path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\CloudStore\\Store\\Cache\\DefaultAccount\\[^\\]+(\\Current)?( :: Data)?$/,
+    why: 'the Start menu\'s layout store' },
+  { where: 'registry', what: ['changed'], in: INSTALLING,
+    path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Search( :: InstalledWin32AppsRevision|\\Microsoft\.Windows\.Search_cw5n1h2txyewy\\AppsConstraintIndex :: LatestConstraintIndexFolder)$/,
+    why: 'Windows Search\'s revision of the installed programs' },
+  { where: 'registry', what: ['added', 'changed'], in: INSTALLING,
+    path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings\\Windows\.SystemToast\.[A-Za-z]+( :: .*)?$/,
+    why: 'Windows\' own notifications\' settings (its startup-app notice)' },
+  { where: 'registry', what: ['added'], in: INSTALLING, path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\RunNotification( :: .*)?$/,
+    why: 'Windows\' startup-app notice, naming the runner\'s own startup programs' },
+  { where: 'files', what: ['added'], in: INSTALLING, mayName: true,
+    path: new RegExp(`^${SEARCH}LocalState\\\\AppIconCache\\\\100\\\\(kr_ac_hallym_circuit-studio|C__Users_[^\\\\]+_AppData_Local_HallymCircuitStudio_HallymCircuitStudio_exe)$`),
+    why: 'Windows Search\'s icon for a Start menu entry of this program (its app id; the 1.0.x MSI\'s program), kept by Windows Search as for any program' },
+  { where: 'registry', what: ['added', 'changed'], in: ALL, mayName: true,
+    path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\UserAssist\\\{[0-9A-F-]{36}\}\\Count :: xe\.np\.unyylz\.pvephvg-fghqvb$/,
+    why: 'Explorer\'s launch counter for this program\'s app id (ROT13 of kr.ac.hallym.circuit-studio), kept by Windows as for every program' },
+  { where: 'registry', what: ['added', 'changed'], in: ALL, path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings :: QuietHoursTelemetryLastRun$/,
+    why: 'the notification platform\'s own telemetry time' },
+  { where: 'registry', what: ['added'], in: INSTALLING, mayName: true, path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\UFH\\SHC :: \d+$/,
+    why: 'the shell\'s history of the shortcuts Windows Installer made (the 1.0.x MSI\'s, which it names; seen only where that MSI was installed)' },
   // ---- the job itself: the screen was set to 1920x1080 before
   { where: 'files', what: ['added'], in: ALL, path: /^APPDATA\\Microsoft\\Windows\\Themes\\CachedFiles\\CachedImage_\d+_\d+_POS\d+\.jpg$/,
     why: 'the desktop wallpaper for the new screen size (the job set it before)' },
 ];
 
-const size = (v?: string): number => Number(v?.split(' ')[0] ?? NaN);
+// A change that names this program -- in its place, its value's name or its data -- is never
+// Windows' own, unless the entry says it may (UserAssist keeps program paths in ROT13: Unyylz).
+export const NAMES_US = /hallym|circuit-studio|circuitstudio|unyylz/i;
+const namesUs = (c: Change): boolean => NAMES_US.test(c.path) || NAMES_US.test(c.after ?? '') || NAMES_US.test(c.before ?? '');
 
 // Why a change is Windows' or the test tools', or null when it counts.
 export function notOurs(c: Change, expect: Expect = 'none'): string | null {
@@ -136,7 +177,7 @@ export function notOurs(c: Change, expect: Expect = 'none'): string | null {
     if (k.where !== c.where || !k.what.includes(c.what) || !k.in.includes(expect) || !k.path.test(c.path)) continue;
     if (k.keyOnly && c.after !== 'key') continue;
     if (k.dirOnly && c.after !== 'dir') continue;
-    if (k.maxBytes !== undefined && c.after !== 'dir' && c.after !== undefined && !(size(c.after) <= k.maxBytes)) continue;
+    if (!k.mayName && namesUs(c)) continue;
     return k.why;
   }
   return null;

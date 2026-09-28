@@ -125,7 +125,8 @@ test('the uninstaller\'s own copy in %TEMP% is removed once it has ended -- only
   // Waits for the copy to end (its exe is in use until then), then the folder goes.
   assert.match(m, /for \/l %i in \(1,1,120\) do @if exist "\$EXEDIR\\" \(rd \/s \/q "\$EXEDIR" 2>nul & ping -n 2 127\.0\.0\.1 >nul\)/);
   // CreateProcess with CREATE_NO_WINDOW: no console window, no ShellExecute (no jump list entry).
-  assert.match(m, /kernel32::CreateProcessW\(p 0, w R3, p 0, p 0, i 0, i 0x08000000, p 0, p 0, p R4, p R5\) i \.R6/);
+  // Started in the system folder, not the uninstaller's current one (the install folder, which must go).
+  assert.match(m, /kernel32::CreateProcessW\(p 0, w R3, p 0, p 0, i 0, i 0x08000000, p 0, w "\$SYSDIR", p R4, p R5\) i \.R6/);
   assert.doesNotMatch(m, /ExecShell|\bExec\b|ExecWait|nsExec/);
   assert.match(nsh, /!macro customUnInstall\n\s+!insertmacro hcsRemoveUninstallerCopy\n!macroend/);
 });

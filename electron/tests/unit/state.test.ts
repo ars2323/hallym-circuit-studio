@@ -78,12 +78,12 @@ test('a run of the program may change nothing: anywhere in %APPDATA%, %LOCALAPPD
     ch('registry', 'added', 'HKCU\\Software\\Policies\\Microsoft\\SystemCertificates\\TrustedPublisher', 'key'),
   ];
   assert.deepEqual(unexpected(counted, 'none').map((c) => c.path), counted.map((c) => c.path));
-  // Windows' spelling word lists, and only empty: a written list counts.
-  assert.equal(counts(ch('files', 'added', 'APPDATA\\Microsoft\\Spelling\\en-US\\default.dic', '2 1'), 'none'), false);
-  assert.equal(counts(ch('files', 'added', 'APPDATA\\Microsoft\\Spelling\\ko-KR\\default.dic', '2 1'), 'none'), false);
-  assert.equal(counts(ch('files', 'added', 'APPDATA\\Microsoft\\Spelling\\en-US\\default.dic', '14 1'), 'none'), true);
-  assert.equal(counts(ch('files', 'added', 'APPDATA\\Microsoft\\Spelling\\en-US\\other.dic', '2 1'), 'none'), true);
-  assert.equal(counts(ch('files', 'added', 'APPDATA\\Microsoft\\Spelling\\en-US', 'dir'), 'none'), false);
+  // Windows' spelling word lists and keys (the program keeps Chromium from opening the Windows spell checker: D-148 13).
+  for (const c of [ch('files', 'added', 'APPDATA\\Microsoft\\Spelling\\en-US\\default.dic', '2 1'), ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Spelling', 'key')]) {
+    for (const e of ['none', 'install', 'uninstalled'] as const) assert.equal(counts(c, e), true, `${c.path} (${e})`);
+  }
+  // Microsoft's account service (stopped on the runner, D-148 12): counted.
+  assert.equal(counts(ch('files', 'added', 'LOCALAPPDATA\\Microsoft\\Credentials\\DFBE70A7E5CC19A398EBF1B96859CE5D'), 'none'), true);
   // Playwright's own folder per launch.
   assert.equal(counts(ch('temp', 'added', 'TEMP\\playwright-artifacts-Zpo2Y7'), 'none'), false);
   assert.equal(counts(ch('temp', 'added', 'TEMP\\playwright-artifacts-Zpo2Y7\\trace'), 'none'), false);
@@ -129,7 +129,7 @@ test('after an uninstall nothing is left: the uninstaller\'s copy in %TEMP%, an 
   for (const c of [
     ch('temp', 'added', 'TEMP\\~nsuA.tmp', 'dir'),
     ch('temp', 'added', 'TEMP\\~nsuA.tmp\\Un_A.exe'),
-    ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Installer\\Products\\7DCAC541 :: ProductName', 'REG_SZ HallymCircuitStudio'),
+    ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Installer\\Products\\7DCAC541 :: Language', 'REG_DWORD 0x412'),
     ch('files', 'added', 'LOCALAPPDATA\\Programs\\Hallym Circuit Studio\\x.dll'),
     ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall :: x', 'REG_SZ y'),
     ch('files', 'added', 'LOCALAPPDATA\\Programs', '1 1'),   // a file, not Windows' folder
@@ -151,6 +151,11 @@ test('what Windows did on the runner is let through at its exact place, kind of 
     [ch('files', 'added', 'APPDATA\\Microsoft\\Windows\\Themes\\CachedFiles\\CachedImage_1920_1080_POS4.jpg'), ['none', 'install', 'uninstalled']],
     [ch('registry', 'added', 'HKCU\\Software\\Policies\\Microsoft\\SystemCertificates\\TrustedPublisher\\CRLs', 'key'), ['install', 'uninstalled']],
     [ch('temp', 'added', 'TEMP\\playwright-transform-cache\\a.js'), ['install', 'uninstalled']],
+    [ch('files', 'changed', 'APPDATA\\Microsoft\\Windows\\Recent\\AutomaticDestinations\\13d33cf42d4c3237.automaticDestinations-ms'), ['install', 'uninstalled']],
+    [ch('registry', 'changed', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Search :: InstalledWin32AppsRevision', 'REG_SZ {x}'), ['install', 'uninstalled']],
+    [ch('registry', 'added', 'HKCU\\Software\\Microsoft\\RestartManager', 'key'), ['install', 'uninstalled']],
+    [ch('registry', 'added', 'HKCU\\Software\\Microsoft\\SystemCertificates\\TrustedPublisher\\CTLs', 'key'), ['install', 'uninstalled']],
+    [ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings :: QuietHoursTelemetryLastRun', 'REG_BINARY 00'), ['none', 'install', 'uninstalled']],
   ];
   for (const [c, where] of seen) {
     for (const e of ['none', 'install', 'uninstalled'] as const) assert.equal(counts(c, e), !where.includes(e), `${c.what} ${c.path} (${e})`);
@@ -167,10 +172,42 @@ test('what Windows did on the runner is let through at its exact place, kind of 
     ch('files', 'added', 'APPDATA\\Microsoft\\Windows\\Themes\\TranscodedWallpaper'),
     ch('registry', 'added', 'HKCU\\Software\\Policies\\Microsoft\\SystemCertificates\\TrustedPublisher\\Certificates\\ABCD', 'key'),
     ch('registry', 'added', 'HKCU\\Software\\Policies\\Microsoft\\SystemCertificates\\TrustedPublisher :: x', 'REG_SZ y'),
+    ch('files', 'added', 'APPDATA\\Microsoft\\Windows\\Recent\\AutomaticDestinations\\0123456789abcdef.automaticDestinations-ms'),
+    ch('registry', 'added', 'HKCU\\Software\\Microsoft\\RestartManager :: Session0000', 'REG_SZ x'),
+    ch('registry', 'changed', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Search :: Other', 'REG_SZ x'),
+    ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings\\kr.ac.hallym.circuit-studio', 'key'),
   ]) {
     for (const e of ['none', 'install', 'uninstalled'] as const) assert.equal(counts(c, e), true, `${c.what} ${c.path} (${e})`);
   }
   // Every entry says why.
   for (const k of KNOWN) assert.ok(k.why.length > 20, k.path.source);
+});
+
+test('a change that names this program is never Windows\' own -- but for Windows\' records of every program, said so', () => {
+  const MUI = 'HKCU\\Software\\Classes\\Local Settings\\MuiCache\\281\\52C64B7E';
+  assert.equal(counts(ch('registry', 'added', `${MUI} :: C:\\Windows\\system32,@elscore.dll,-1`, 'REG_SZ Microsoft Language Detection'), 'install'), false);
+  assert.equal(counts(ch('registry', 'added', `${MUI} :: C:\\Users\\u\\AppData\\Local\\Programs\\Hallym Circuit Studio\\HallymCircuitStudio.exe.FriendlyAppName`, 'REG_SZ Hallym Circuit Studio'), 'install'), true);
+  assert.equal(counts(ch('registry', 'added', `${MUI} :: x`, 'REG_SZ kr.ac.hallym.circuit-studio'), 'install'), true);
+  // Explorer's open-with lists: Windows Media Player's are Windows', .circ never is.
+  const EXTS = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts';
+  assert.equal(counts(ch('registry', 'added', `${EXTS}\\.aif\\OpenWithProgids :: WMP11.AssocFile.AIFF`, 'REG_NONE'), 'install'), false);
+  for (const p of [`${EXTS}\\.circ`, `${EXTS}\\.circ\\OpenWithProgids`, `${EXTS}\\.circ\\OpenWithProgids :: x`, `${EXTS}\\.circ\\UserChoice`]) {
+    assert.equal(counts(ch('registry', 'added', p, 'key'), 'install'), true, p);
+  }
+  // Windows' records that do name it, each at its exact place (D-148 12).
+  const UA = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\UserAssist\\{CEBFF5CD-ACE2-4F4F-9178-9926F41749EA}\\Count';
+  for (const e of ['none', 'install', 'uninstalled'] as const) {
+    assert.equal(counts(ch('registry', 'added', `${UA} :: xe.np.unyylz.pvephvg-fghqvb`, 'REG_BINARY 00'), e), false, e);
+  }
+  assert.equal(counts(ch('registry', 'added', `${UA} :: P:\\Hfref\\h\\NccQngn\\Ybpny\\Cebtenzf\\Unyylz Pvephvg Fghqvb\\UnyylzPvephvgFghqvb.rkr`, 'REG_BINARY 00'), 'uninstalled'), true);
+  const ICON = 'LOCALAPPDATA\\Packages\\Microsoft.Windows.Search_cw5n1h2txyewy\\LocalState\\AppIconCache\\100\\kr_ac_hallym_circuit-studio';
+  assert.equal(counts(ch('files', 'added', ICON), 'uninstalled'), false);
+  assert.equal(counts(ch('files', 'added', ICON), 'none'), true);
+  const SHC = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\UFH\\SHC :: 88';
+  assert.equal(counts(ch('registry', 'added', SHC, 'REG_MULTI_SZ C:\\...\\Hallym Circuit Studio\\HallymCircuitStudio.lnk'), 'uninstalled'), false);
+  assert.equal(counts(ch('registry', 'added', SHC, 'REG_MULTI_SZ x'), 'none'), true);
+  // Nowhere else: a jump list, a Search icon or a Start menu cache entry named after it counts.
+  assert.equal(counts(ch('files', 'added', 'LOCALAPPDATA\\Packages\\Microsoft.Windows.Search_cw5n1h2txyewy\\LocalState\\AppIconCache\\100\\hallym_other'), 'install'), true);
+  assert.equal(counts(ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\RunNotification :: HallymCircuitStudio', 'REG_DWORD 0x0'), 'install'), true);
   assert.equal(notOurs(ch('files', 'changed', 'LOCALAPPDATA\\Microsoft\\Windows\\UsrClass.dat.LOG2')), 'the HKCU\\Software\\Classes hive\'s own log (the registry is compared key by key)');
 });

@@ -24,7 +24,7 @@ Hallym Circuit Studio 2의 릴리스를 만드는 순서와 규칙이다(N-23, D
 2. **노트:** `docs/releases/TEMPLATE.md`를 `docs/releases/<버전>.md`로 복사해 채운다. 학생 눈높이로 쓰고, 설치 절(SmartScreen 안내 포함)은 템플릿 그대로 둔다. 파일이 없으면 CI가 실패한다.
 3. 위 둘을 PR로 main에 넣는다(CI 초록).
 4. **태그:** main의 그 커밋에 주석 태그를 단다. `git tag -a v<버전> -m "Hallym Circuit Studio <버전>" && git push origin v<버전>`
-5. **CI(태그):** `setup-exe`(설치 파일) → `setup-e2e`(깨끗한 Windows에서 조용히 설치·실행·변화 0·다시 설치·제거·예전 버전 위에 설치), `setup-upgrade`(v1.0.2 MSI 위에 설치) → `release`: 파일 규칙 확인, 노트 + SHA-256으로 **draft** 릴리스를 만들고(버전에 `-`가 있으면 사전 릴리스로 표시), 붙은 파일을 다시 확인한다.
+5. **CI(태그):** `setup-exe`(설치 파일) → `setup-e2e`(깨끗한 Windows에서 조용히 설치·실행·실행 전후 비교(Windows 자신이 바꾸는 정해진 자리만 빼고 달라진 것 없음, D-148 12)·다시 설치·제거·예전 버전 위에 설치), `setup-upgrade`(v1.0.2 MSI 위에 설치) → `release`: 파일 규칙 확인, 노트 + SHA-256으로 **draft** 릴리스를 만들고(버전에 `-`가 있으면 사전 릴리스로 표시), 붙은 파일을 다시 확인한다.
 6. **안내 PDF:** 안내서 md에서 PDF를 만들어 draft에 올린다. `gh release upload v<버전> hallym-circuit-studio-GUIDE-ko.pdf hallym-circuit-studio-TA-GUIDE-ko.pdf`
 7. **게시:** draft를 확인하고 게시한다. 사전 릴리스: `gh release edit v<버전> --draft=false`(Latest가 되지 않는다). 정식: `gh release edit v<버전> --draft=false --latest`. 게시하면 `release-assets.yml`이 파일을 다시 본다.
 8. **배포 후 확인:** 공개 주소에서 setup exe를 받아(토큰 없이) SHA-256이 노트와 같은지 보고, 깨끗한 Windows에 조용히 설치해 시작 화면을 본 뒤 제거한다(v2.0.0은 N-28의 전체 확인). 학생에게 알리는 것은 사람이 한다.

@@ -16,6 +16,21 @@ export const runsDirFor = (env: Record<string, string | undefined>): string =>
 
 export const runDirName = (pid: number, now: number): string => `run-${pid}-${now}`;
 
+/* Chromium's profile preferences for a run, written into the run's folder
+   before Chromium reads it: no spell checker at all.  Left alone, Electron
+   fills the empty list of spell-check languages with the OS language, and
+   Chromium then opens the Windows spell checker for it -- Windows makes
+   %APPDATA%\Microsoft\Spelling\<language>\default.* and HKCU\Software\
+   Microsoft\Spelling, seen by N-23's check of the installed program -- or,
+   on Linux, downloads a Hunspell dictionary from Google.  Turning the spell
+   checker off (the window's and the session's setting, the command line
+   switch --disable-features=WinUseBrowserSpellChecker, "enable_spellchecking":
+   false here) did not stop that.  A list holding only "zz" -- no language:
+   ISO 639 assigns no zz -- is not empty, so Electron keeps it, and Chromium
+   drops the unknown code: no language, nothing opened, nothing downloaded
+   (tried on the Windows runner, D-148 13). */
+export const RUN_PREFERENCES = { browser: { enable_spellchecking: false }, spellcheck: { dictionaries: ['zz'] } };
+
 export const alive = (pid: number): boolean => {
   try { process.kill(pid, 0); return true; } catch (e) { return (e as NodeJS.ErrnoException).code === 'EPERM'; }
 };

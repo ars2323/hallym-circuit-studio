@@ -2,12 +2,12 @@
    and the .circ named on the command line. */
 
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 
-import { circArgument, removeAfterExitScript, removeEarlierRuns, runDirName, runsDirFor } from '../../src/main/run-folder.ts';
+import { circArgument, removeAfterExitScript, removeEarlierRuns, runDirName, RUN_PREFERENCES, runsDirFor } from '../../src/main/run-folder.ts';
 
 test('the run folders: in the temp folder, or HCS_USER_DATA; one per run, named by pid and time', () => {
   assert.equal(runsDirFor({}), path.join(tmpdir(), 'HallymCircuitStudio'));
@@ -62,4 +62,12 @@ test('circArgument: the first .circ that is not a switch, resolved against the s
     path.resolve('/w', 'C:\\과제\\Lab 2.CIRC'));
   assert.equal(circArgument(['x', '--flag=a.circ', 'b.txt'], '/w'), null);
   assert.equal(circArgument(['x.circ'], '/w'), null); // the executable itself is never it
+});
+
+test('the run\'s Chromium preferences: spell checking off, and a language list with no language in it (not empty: Electron would fill it)', () => {
+  assert.deepEqual(RUN_PREFERENCES, { browser: { enable_spellchecking: false }, spellcheck: { dictionaries: ['zz'] } });
+  const main = readFileSync(path.join(import.meta.dirname, '../../src/main/main.ts'), 'utf8');
+  // Written into the run's folder before Chromium starts (before app.whenReady).
+  const write = main.indexOf("writeFileSync(path.join(runDir, 'Preferences'), JSON.stringify(RUN_PREFERENCES));");
+  assert.ok(write > 0 && write < main.indexOf('await app.whenReady()'));
 });
