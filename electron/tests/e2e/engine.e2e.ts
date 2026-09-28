@@ -108,10 +108,11 @@ test('a crash: the engine starts again, the files come back in their tabs, a dia
     const after = await r.app.evaluate(() => (globalThis as unknown as { __hcs: { engine: { pid: number } } }).__hcs.engine.pid);
     expect(after).not.toBe(before);
     await page.locator('.filebar .ptab', { hasText: 'demo-datapath.circ' }).click();
-    await expect(page.locator('.canvas h3')).toContainText('부품 35개');
+    await expect(page.locator('.canvas .canvas-view canvas')).toBeVisible(); // drawn again from the new engine (N-05)
+    await expect(page.locator('.status')).toContainText('35 components');
     await openFile(r, sample(r.dir, 'tests/circ/gates.circ'));
     await expect(page.locator('.band')).toBeHidden();
-    expect(await visibleCharacters(page)).toBe(1); // the Canvas's guide, the band gone
+    expect(await visibleCharacters(page)).toBe(0); // the band gone; a drawn circuit has no guide
   } finally {
     await r.close();
   }

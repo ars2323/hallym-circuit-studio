@@ -143,7 +143,8 @@ test('바로 시작 → 파일 열기: the open dialog, then the engine opens it
     await page.getByRole('button', { name: /바로 시작/ }).click();
     await page.getByRole('button', { name: /파일 열기/ }).click();
     await expect(page.locator('.filebar .ptab')).toHaveText(['demo-datapath.circ']);
-    await expect(page.locator('.canvas h3')).toHaveText('이 회로에는 부품 35개와 선 41개가 있습니다');
+    await expect(page.locator('.canvas .canvas-view canvas')).toBeVisible(); // drawn (N-05)
+    await expect(page.locator('.status')).toContainText('35 components · 41 wires');
     // Circuits: the file's three, main marked; one opens as a tab.
     await page.getByRole('tab', { name: 'Circuits' }).click();
     await expect(page.locator('.upper .pbody:visible .list > li')).toHaveText(['main', 'regfile', 'alu']);

@@ -63,6 +63,16 @@ async function shot(r: Running, name: string): Promise<void> {
   written(name);
 }
 
+// The Canvas has drawn the circuit with the engine's values (N-05).
+async function drawn(r: Running): Promise<void> {
+  await r.page.locator('.canvas-view canvas').waitFor();
+  await r.page.waitForFunction(() => {
+    const c = (window as unknown as { __hcsCanvas?: { scene: { values: Map<string, string> } | null } }).__hcsCanvas;
+    return !!c?.scene && c.scene.values.size > 0;
+  });
+  await r.page.evaluate(() => document.fonts.ready);
+}
+
 const kill = (r: Running) => r.app.evaluate(() => (globalThis as unknown as { __hcs: { engine: { kill(): void } } }).__hcs.engine.kill());
 
 {
@@ -78,7 +88,7 @@ const kill = (r: Running) => r.app.evaluate(() => (globalThis as unknown as { __
   await page.locator('.canvas h3').waitFor();
   await shot(r, 'new-circuit');
   await openFile(r, sample(r.dir, DATAPATH));
-  await page.locator('.canvas h3', { hasText: '부품 35개' }).waitFor();
+  await drawn(r);
   await shot(r, 'open-file');
   await page.getByRole('tab', { name: 'Circuits' }).click();
   await page.locator('.upper .pbody:visible .list > li', { hasText: 'regfile' }).getByRole('button').click();
@@ -123,6 +133,54 @@ const kill = (r: Running) => r.app.evaluate(() => (globalThis as unknown as { __
   await r.close();
 }
 
+// The Canvas (N-05, D-137): demo-datapath at 100, 150 and 400 % with the engine's values after a cycle, the
+// legend, the inside of a subcircuit instance, ref-mips at a lab PC's size (fitted, and at 100 % over the
+// Data Memory and the Console).
+async function view(r: Running, v: { x: number; y: number; zoom: number }): Promise<void> {
+  await r.page.evaluate((w) => (window as unknown as { __hcsCanvas: { setView(v: object): void } }).__hcsCanvas.setView(w), v);
+  await r.page.waitForTimeout(200);
+}
+{
+  const r = await launch(FHD);
+  const { page } = r;
+  await openFile(r, sample(r.dir, DATAPATH));
+  await drawn(r);
+  await page.getByRole('button', { name: /1 Cycle/ }).click();
+  await page.locator('.status', { hasText: 'Cycle 1' }).waitFor();
+  await view(r, { x: 70, y: 40, zoom: 1 });
+  await shot(r, 'canvas-100');
+  await view(r, { x: 70, y: 50, zoom: 1.5 });
+  await shot(r, 'canvas-150');
+  await view(r, { x: 180, y: 60, zoom: 4 });
+  await shot(r, 'canvas-400');
+  await page.keyboard.press('Control+0');
+  await page.waitForTimeout(300);
+  await page.getByRole('button', { name: /Wire Colors/ }).click();
+  await page.locator('.legend-panel').waitFor();
+  await shot(r, 'canvas-legend');
+  await page.keyboard.press('Escape');
+  const rf = await page.evaluate(() => {
+    const c = (window as unknown as { __hcsCanvas: { canvas: HTMLCanvasElement; view: { x: number; y: number; zoom: number }; scene: { components: Map<string, { name: string; bounds: number[] }> } } }).__hcsCanvas;
+    const k = [...c.scene.components.values()].find((x) => x.name === 'regfile')!;
+    const rr = c.canvas.getBoundingClientRect();
+    return { x: rr.left + (k.bounds[0] + k.bounds[2] / 2 - c.view.x) * c.view.zoom, y: rr.top + (k.bounds[1] + k.bounds[3] / 2 - c.view.y) * c.view.zoom };
+  });
+  await page.mouse.dblclick(rf.x, rf.y);
+  await page.locator('.canvas-crumbs .here', { hasText: 'regfile' }).waitFor();
+  await drawn(r);
+  await shot(r, 'canvas-inside');
+  await r.close();
+}
+{
+  const r = await launch(FHD);
+  await openFile(r, sample(r.dir, 'tests/mips/ref-mips.circ'));
+  await drawn(r);
+  await shot(r, 'ref-mips-fhd');
+  await view(r, { x: 3700, y: 7420, zoom: 0.8 });
+  await shot(r, 'ref-mips-memory');
+  await r.close();
+}
+
 // The program (N-16): the summary after Load Program (ref-mips, data.hmx beside its .s), the Console after
 // the program ran to its exit, the band after the .hmx was exported again cut off.  The fake engine answers
 // with the real engine's words (tests/fixtures/programs.json); its clock is fixed and the zone is Seoul's.
@@ -133,7 +191,7 @@ const kill = (r: Running) => r.app.evaluate(() => (globalThis as unknown as { __
   sample(r.dir, 'tests/hmx/hallym-mips-v2.4.0/data.s');
   const hmx = sample(r.dir, 'tests/hmx/hallym-mips-v2.4.0/data.hmx');
   await openFile(r, circ);
-  await page.locator('.canvas h3', { hasText: '부품' }).waitFor();
+  await drawn(r);
   await answerOpen(r.app, hmx);
   await page.getByRole('button', { name: /Load Program/ }).click();
   await page.locator('dialog.loadsummary').waitFor();
@@ -157,7 +215,7 @@ for (const [name, size, scale] of [
 ] as const) {
   const r = await launch(size, { switches: [`--force-device-scale-factor=${scale}`] });
   await openFile(r, sample(r.dir, DATAPATH));
-  await r.page.locator('.canvas h3', { hasText: '부품 35개' }).waitFor();
+  await drawn(r);
   if (name === 'narrow') await r.page.locator('.upper').getByRole('tab', { name: 'Attributes' }).click();
   await shot(r, name);
   await r.close();

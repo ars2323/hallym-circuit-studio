@@ -73,6 +73,9 @@ public final class SimSession implements SimulatorListener {
     private CircuitState watchState;
     private Netlist sentNetlist;
     private final Map<String, String> sent = new HashMap<>();
+    // 몸체 상태(N-05, D-137): 부품 id → 마지막으로 보낸 JSON 글자
+    private final Bodies bodies = new Bodies();
+    private final Map<String, String> sentBodies = new HashMap<>();
 
     // Poke 도구의 캐럿
     private Caret caret;
@@ -212,6 +215,7 @@ public final class SimSession implements SimulatorListener {
         watchPath = new ArrayList<>(path);
         sentNetlist = null;
         sent.clear();
+        sentBodies.clear();
         valuesDirty = true;
     }
 
@@ -363,6 +367,7 @@ public final class SimSession implements SimulatorListener {
         if (nl != sentNetlist) {
             sentNetlist = nl;
             sent.clear();
+            sentBodies.clear();
         }
         JsonObject nets = new JsonObject();
         for (Netlist.Net n : nl.nets()) {
@@ -373,7 +378,8 @@ public final class SimSession implements SimulatorListener {
                 nets.addProperty(id, v);
             }
         }
-        if (nets.size() == 0) {
+        JsonObject changedBodies = changedBodies(c);
+        if (nets.size() == 0 && changedBodies.size() == 0) {
             return;
         }
         JsonObject o = new JsonObject();
@@ -388,7 +394,31 @@ public final class SimSession implements SimulatorListener {
             o.add("path", p);
         }
         o.add("nets", nets);
+        if (changedBodies.size() > 0) {
+            o.add("bodies", changedBodies);
+        }
         server.notify("sim.values", o);
+    }
+
+    /**
+     * 몸체 상태가 바뀐 부품들(docs/engine-api.md sim.values.bodies): 넷 값에 없는 몸체 글(RAM 표, Console 출력,
+     * MIPS 메모리 몸체 줄 등, {@link Bodies}). 보는 회로의 부품만, 앞에 보낸 것과 다를 때만.
+     */
+    private JsonObject changedBodies(Circuit c) {
+        JsonObject out = new JsonObject();
+        for (Component x : c.getNonWires()) {
+            JsonObject b = bodies.of(x, c, watchState);
+            if (b == null) {
+                continue;
+            }
+            String id = doc.ids().of(x);
+            String text = b.toString();
+            if (!text.equals(sentBodies.get(id))) {
+                sentBodies.put(id, text);
+                out.add(id, b);
+            }
+        }
+        return out;
     }
 
     /** 넷 값 글자(docs/engine-api.md 4절): 폭만큼, 높은 비트부터 '0' '1' 'x' 'E'. */

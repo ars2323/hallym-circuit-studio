@@ -105,7 +105,8 @@ Component = {
   loc:[x,y], bounds:[x,y,w,h], facing:"east"|"west"|"north"|"south"|null,
   attrs: {<.circ 속성 이름>: <.circ에 저장되는 글자>},
   ports: [{i, loc:[x,y], width, dir:"in"|"out"|"inout", name?}],
-  subcircuit?: circuitId        // 서브회로 인스턴스면
+  subcircuit?: circuitId,       // 서브회로 인스턴스면
+  appearance?: Appearance       // 서브회로 인스턴스면: 그 회로의 모양(N-05)
 }
 ```
 
@@ -113,6 +114,14 @@ Component = {
 - `ports[].name`은 포크의 부품 등록표 이름(서브회로는 안쪽 핀의 라벨)이다. `dir`은 부품 쪽에서 본 방향이다(출력 핀은 넷을 읽으므로 `"in"`).
 - 넷은 원조 연결 계산으로 묶은 선과 그 선의 끝·선 위에 닿은 포트, 선 없이 한 점에 닿은 포트들이다. 같은 이름의 터널은 한 넷이다(스플리터는 넷을 잇지 않는다). 모든 포트와 선은 정확히 한 넷에 든다.
 - `junctions`: 선 끝 가운데 선·포트가 셋 이상 만나는 점(원조가 점을 그리는 조건).
+- `appearance`(N-05, D-137): 서브회로 인스턴스를 원조와 같은 자리·크기로 그리는 도형. 기본 모양(원조가 핀으로 만드는 상자와 홈)도 사용자 모양도 같은 꼴이다.
+
+  ```
+  Appearance = {default, anchor:[x,y], facing, shapes:[{tag, attrs:{이름: 글자}, text?}],
+                ports:[{at:[x,y], pin?:[x,y], input}], label?:{text, facing, font}}
+  ```
+
+  `shapes`는 원조 .circ의 `<appear>`와 같은 SVG 요소(`rect`, `ellipse`, `line`, `polyline`, `polygon`, `path`(`M`·`Q`), `text`)를 속성 글자 그대로 싣는다(원조 `toSvgElement`). 좌표는 모양 편집기의 좌표이고, 인스턴스(위치 `loc`, 방향 `f`)에서 점 `p`는 `loc + R(θ)(p − anchor)`, θ = `facing`(모양의 방향) − `f`(원조 `Direction.toRadians`, R은 y가 아래인 화면 좌표의 회전)다. `ports[].at`을 그렇게 옮기면 이 부품의 `ports[].loc`이 된다. `pin`은 서브회로 안 핀의 위치, `input`은 입력 핀인지, `label`은 회로 속성의 부품 안 글자(원조 Circuit Label: `clabel`, `clabelup`, `clabelfont`)다. 서브회로의 모양이 바뀌면(핀을 더함 등) 그 인스턴스들이 `model.changed`의 `added`로 다시 온다.
 - `subcircuit`: 이 파일의 회로면 `lib`이 `null`이다. .circ 라이브러리의 회로 인스턴스는 `lib`이 그 라이브러리 이름이고 `subcircuit`이 그 회로를 가리킨다. 라이브러리 회로도 `model.circuit`·`sim.watch`로 볼 수 있지만 편집은 오류 3(`cannotModify`)이다.
 - `model.library`: 첫 항목은 이 파일의 회로들(`lib:null`, 도구마다 `circuitId`), 그다음 파일의 라이브러리 순서다. 부품 도구(AddTool)만 싣는다(Poke·Edit·Wiring·Text·Menu 도구는 화면의 몫). 옛 파일을 위해서만 남긴 부품(Hallym MIPS의 `Stack`, D-140)은 새로 놓는 목록이라 싣지 않는다. 파일 안의 그 부품은 `model.circuit`에 전처럼 온다(`lib`은 MIPS 라이브러리). `pending:true`인 라이브러리(번들 Hallym MIPS)는 아직 파일에 들어가지 않았고, 그 부품을 처음 놓는 편집에서 파일에 들어간다(되돌리면 빠진다, V-01·D-096). 라이브러리 목록이 바뀐 것은 따로 알리지 않으므로, 그런 편집 뒤에는 화면이 `model.library`를 다시 묻는다.
 
@@ -133,7 +142,7 @@ Component = {
   - `assemblySource`(D-141): MIPS 메모리 부품의 `source` 속성이 .s(.asm, 대소문자 무관)를 가리킨다. .s 불러오기와 hcs-asm은 없어졌다. `ko` = "이 파일은 .s 파일을 가리킵니다. Hallym MIPS에서 Export executable image (.hmx) 단추로 내보낸 파일을 불러오세요.", `en` = "This file points to a .s file. Load the file exported with Export executable image (.hmx) in Hallym MIPS.", `components` = 그 부품들(모든 회로), `sources` = 부품마다 속성 글(`components`와 같은 순서, 예 `"prog/sum.s"`). 속성은 읽기만 하므로 파일은 전과 같이 열리고, 고치지 않으면 같은 바이트로 저장된다. 불러오기(N-16, 트랙 A `ProgramLoader`와 같은 길)가 .hmx를 넣으면 `source`가 그 .hmx 경로(.circ 기준 상대 경로)로 바뀌고 사실이 없어진다. 불러오기에 .s를 넘기면 이미지 없이 같은 문장 하나가 오류로 온다.
   - `pcEntry`(N-16, D-138): 사이클 0(`sim.state.cycle` = 0)에서 회로의 PC(상태 표시줄의 규칙 D-103: Mark as PC → 라벨이 PC인 부품 → Instruction Memory의 Addr)가 올린 실행 이미지의 entry와 다르다. `ko` = "PC 0x00400024 · 실행 이미지 진입점 0x0040002c", `en` = "PC 0x00400024 · executable image entry 0x0040002c"(`StartFacts.pcFact`), `components` = 그 Instruction Memory, `pc`·`entry`. 사이클이 0이 아니거나 PC가 정해지지 않았거나 entry를 모르면 없다. 도구는 PC에 아무것도 넣지 않는다(PC 시작은 학생 회로의 몫).
 - `program`(N-16): 올린 프로그램. 메모리 부품(Instruction Memory 먼저, 그다음 Data Memory, 위→아래)의 `source`가 .hmx를 가리키거나 다시 불러오기 실패가 서 있을 때만 있고, 아니면 `null`.
-  `Program = {name, source, entry, loadedAt, failure, memories:[{componentId, circuitId, kind:"text"|"data", source, words, entry?, text}]}`. `name`은 .hmx 파일 이름(`data.hmx`), `source`는 속성 글, `entry`는 부품 내용과 워드가 같은 이미지(이번 실행에서 넣은 것, 아니면 디스크의 .hmx)의 entry(모르면 `null`), `loadedAt`은 이번 실행에서 마지막으로 불러오거나 다시 불러온 시각(ms, 파일에 저장된 채로 열었으면 `null`). `memories[].text`는 부품 몸체의 줄: `27 words (0x00400000–0x00400068), entry 0x00400024`(비었으면 `no program`, 캔버스 N-05가 쓴다).
+  `Program = {name, source, entry, loadedAt, failure, memories:[{componentId, circuitId, kind:"text"|"data", source, words, entry?, text}]}`. `name`은 .hmx 파일 이름(`data.hmx`), `source`는 속성 글, `entry`는 부품 내용과 워드가 같은 이미지(이번 실행에서 넣은 것, 아니면 디스크의 .hmx)의 entry(모르면 `null`), `loadedAt`은 이번 실행에서 마지막으로 불러오거나 다시 불러온 시각(ms, 파일에 저장된 채로 열었으면 `null`). `memories[].text`는 부품을 한 줄로 말한 것: `27 words (0x00400000–0x00400068), entry 0x00400024`(비었으면 `no program`). 캔버스(N-05)의 Instruction Memory 몸체는 이 줄이 아니라 `sim.values.bodies`의 줄(트랙 A 몸체와 같은 영역·워드 수·주소의 워드)을 그린다: 200×80 몸체의 포트 이름 사이에 이 줄은 8px 아래로 줄여야만 들어간다(D-137 9-10).
   `failure = {at, file, source, reason:"open"|"changed"|"reset"|"manual", problems:[Problem], kept:{loadedAt}}`: 다시 불러오지 못해 **올라가 있던 프로그램과 시뮬레이션을 그대로 둔** 동안(화면의 띠). `kept.loadedAt`은 올라가 있는 것을 불러온 시각(`null`: .circ에 저장된 것). 같은 .hmx가 다시 읽히면(불러오기·다시 불러오기) 걷힌다.
 - **`mips.load`**(N-16, D-147): 실행 이미지(.hmx) 하나를 트랙 A 메뉴와 같은 길(lib-mips `ProgramLoader` read·plan, 공용 `HmxParser`·`StartFacts`·`SourceCheck`)로 넣는다. `path`는 절대 경로(화면은 main 프로세스의 고르기 창에서만 얻는다: 페이지는 경로를 보내지 않는다). `target`은 사람이 고른 메모리 부품(우클릭): 그 종류의 구간을 모두 담아야 한다. **전부 아니면 전무**: 문제가 하나라도 있거나 고를 것이 남으면 아무것도 바꾸지 않는다. 넣으면 부품마다 `contents`와 `source`(.circ 폴더 기준 상대 경로, 저장한 적 없는 파일이면 절대 경로: 트랙 A와 같은 속성, 원조 2.7.1 + hcs-mips.jar에서 열고 저장해도 같은 바이트)를 원조 `SetAttributeAction` 한 번(되돌리기 한 단계, 이름 `Load Program`)으로 바꾸고, 시뮬레이션을 처음으로 돌린다(`sim.reset`과 같다, `sim.state`가 따른다). 레지스터에는 아무것도 넣지 않는다. 읽기 전용 파일은 오류 3 `readOnly`, 없는 `target`·다른 종류의 `picks`는 오류 1·-32602, lib-mips가 없으면 -32603.
   `LoadResult = {fileId, file, loaded, source?, loadedAt?, summary?, choose?, problems?}`:
@@ -220,7 +229,17 @@ Component = {
 - `sim.run`: `on`이면 원조 틱(Ticks Enabled)을 켜고, `hz`는 원조 틱 주파수(초당 틱, Swing 속도 메뉴와 같은 값: 1·4·16·64·256·1024·4096)다. 켤 때 시뮬레이션이 꺼져 있으면 오류 4.
 - `sim.watch`: `circuitId`는 시작 회로, `path`는 거기서 내려가는 서브회로 인스턴스 id들이다. 보는 회로는 시뮬레이션의 지금 상태가 된다(Swing에서 그 회로·인스턴스를 여는 것과 같다). 파일마다 하나만 본다(다시 보내면 바꾼다). 처음에는 모든 넷을 한 번 보낸다. 없는 경로는 오류 1.
 
-`sim.values = {fileId, circuitId, root?, path?, nets:{netId: value}}` — 보고 있는 회로의 바뀐 넷만, 화면 프레임(약 16ms)마다 묶어서. `circuitId`는 값이 속한 회로(경로의 끝), `root`·`path`는 `path`로 볼 때만 온다. 모델이 바뀌면(넷 번호가 새로 매겨지면) 다음 묶음에 모든 넷을 다시 보낸다.
+`sim.values = {fileId, circuitId, root?, path?, nets:{netId: value}, bodies?:{componentId: Body}}` — 보고 있는 회로의 바뀐 넷만, 화면 프레임(약 16ms)마다 묶어서. `circuitId`는 값이 속한 회로(경로의 끝), `root`·`path`는 `path`로 볼 때만 온다. 모델이 바뀌면(넷 번호가 새로 매겨지면) 다음 묶음에 모든 넷을 다시 보낸다.
+
+- `bodies`(N-05, D-137): 부품 몸체에 보이는 상태 가운데 넷 값에 없는 것. 보는 회로의 부품만, 앞에 보낸 것과 달라졌을 때만 온다(보기를 바꾸거나 모델이 바뀌면 처음부터 다시). 레지스터·카운터·핀·LED처럼 값이 넷에 그대로 있는 부품은 싣지 않는다(화면이 넷 값으로 그린다). 엔진은 회로 상태에 이미 있는 부품 데이터만 읽고 만들지 않는다: 시뮬레이션이 그 부품을 아직 돌리지 않았으면(예: 꺼진 채 놓은 RAM) 그 몸체는 오지 않는다.
+
+  | 부품 | Body |
+  | --- | --- |
+  | RAM, ROM | `{columns, rows:[{addr, words:[글자]}], current?}`: 원조가 몸체에 그리는 4줄 표(원조 MemState의 스크롤 자리부터), 16진수 글자, `current`는 지금 주소 |
+  | Shift Register | `{stages:[글자]}`: 단마다의 값(16진수, 0번이 최근) |
+  | Instruction Memory, Data Memory, Stack(Hallym MIPS) | `{lines:[글자], status?}`: lib-mips 몸체 줄(영역, words, 지금 주소의 워드, 합친 Data Memory의 두 영역과 쓰임 `data N words, stack peak N B`, D-140)과 빨간 상태 글 |
+  | Console | `{lines:[글자], exited, status?, error?}`: 출력의 마지막 줄들(원조 몸체와 같은 접기), `-- exit --` 또는 문제 |
+  | Radix Probe | `{lines:[글자 셋], primary}`: 주 진법이 첫 줄인 16·10·2진수, 조작 도구로 바꾼 주 진법 포함 |
 
 `sim.state = {fileId, running, ticking, cycle, oscillating, hz}` — 무엇이든 바뀌면 보내고(사이클 수만 바뀐 것은 프레임마다 많아야 한 번), N Cycles가 끝날 때와 Reset 뒤에도 보낸다. `running`은 원조 Simulation Enabled, `ticking`은 틱 켜짐, `cycle`은 Reset 뒤 끝난 틱 수의 절반, `hz`는 틱 주파수다.
 

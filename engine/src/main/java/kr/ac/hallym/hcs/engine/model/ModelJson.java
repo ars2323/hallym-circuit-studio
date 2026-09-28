@@ -120,7 +120,10 @@ public final class ModelJson {
         }
         o.add("ports", ports);
         if (f instanceof SubcircuitFactory) {
-            o.addProperty("subcircuit", ids.of(((SubcircuitFactory) f).getSubcircuit()));
+            Circuit sub = ((SubcircuitFactory) f).getSubcircuit();
+            o.addProperty("subcircuit", ids.of(sub));
+            // 화면이 인스턴스를 원조 모양대로 그리는 도형(N-05, D-137). 모양이 바뀌면 인스턴스가 바뀐 부품으로 온다
+            o.add("appearance", AppearanceJson.of(sub));
         }
         return o;
     }

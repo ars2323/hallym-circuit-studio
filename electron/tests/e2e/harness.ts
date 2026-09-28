@@ -122,3 +122,17 @@ export const statusText = (page: Page) => page.locator('.status').innerText();
 // The university's characters visible anywhere on the page (none may be, next to an error).
 export const visibleCharacters = (page: Page): Promise<number> => page.evaluate(() =>
   [...document.querySelectorAll('img.char')].filter((e) => e.checkVisibility({ visibilityProperty: true })).length);
+
+// Values at a subcircuit instance's ports, seen from the parent (the net at each port), by port name.
+export const PARENT_PORT_VALUES = (instanceName: string) => {
+  type Comp = { id: string; name: string; ports: { i: number; name?: string }[] };
+  const c = (window as unknown as { __hcsCanvas: { scene: { components: Map<string, Comp>; portValue(id: string, i: number): string | undefined } } }).__hcsCanvas;
+  const k = [...c.scene.components.values()].find((x) => x.name === instanceName)!;
+  return Object.fromEntries(k.ports.map((q) => [q.name ?? String(q.i), c.scene.portValue(k.id, q.i) ?? null]));
+};
+// Values inside the circuit now drawn at its pins, by the pins' labels.
+export const INSIDE_PIN_VALUES = () => {
+  type Comp = { id: string; name: string; attrs: Record<string, string> };
+  const c = (window as unknown as { __hcsCanvas: { scene: { components: Map<string, Comp>; portValue(id: string, i: number): string | undefined } } }).__hcsCanvas;
+  return Object.fromEntries([...c.scene.components.values()].filter((x) => x.name === 'Pin' && x.attrs.label).map((x) => [x.attrs.label, c.scene.portValue(x.id, 0) ?? null]));
+};

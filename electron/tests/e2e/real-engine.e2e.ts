@@ -15,7 +15,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import type { Snapshot } from '../../src/main/protocol.ts';
-import { answerOpen, answerSave, DATAPATH, launch, newCircuit, openFile, repo, sample, type LaunchOptions } from './harness.ts';
+import { answerOpen, answerSave, DATAPATH, INSIDE_PIN_VALUES, launch, newCircuit, openFile, PARENT_PORT_VALUES, repo, sample, type LaunchOptions } from './harness.ts';
 import { alive, call, circuitsOf, enginePid, fileModel, journalLength, killEngine, killMainAndSeeEngineEnd, openFileIds } from './model.ts';
 
 const JAR = path.join(repo, 'engine/build/stage/hcs-engine.jar');
@@ -34,7 +34,8 @@ test('the real engine: hello, a new circuit, a .circ with the MIPS library, the 
     await expect(page.locator('.canvas h3')).toHaveText('빈 회로입니다');
     await expect(page.locator('.upper .libgroup summary').first()).toContainText('untitled.circ');
     await openFile(r, sample(r.dir, DATAPATH));
-    await expect(page.locator('.canvas h3')).toContainText('이 회로에는 부품');
+    await expect(page.locator('.canvas .canvas-view canvas')).toBeVisible(); // drawn (N-05)
+    await expect(page.locator('.status')).toContainText('35 components');
     await page.getByRole('tab', { name: 'Circuits' }).click();
     await expect(page.locator('.upper .pbody:visible .list > li')).toHaveText(['main', 'regfile', 'alu']);
     await expect(page.locator('.lower .list li').first()).toBeVisible();   // its tunnels
@@ -152,7 +153,8 @@ test('the real engine ended by a crash: started again, the file back in its tab,
     await page.locator('dialog.ask').getByRole('button', { name: 'Close' }).click();
     await expect(page.locator('.band')).toHaveText('엔진이 멈춰서 다시 시작했습니다 · 파일 1개를 되살렸습니다 · 시뮬레이션은 Reset 상태입니다');
     await expect(page.locator('.filebar .ptab')).toHaveText(['demo-datapath.circ']);
-    await expect(page.locator('.canvas h3')).toContainText('이 회로에는 부품');
+    await expect(page.locator('.canvas .canvas-view canvas')).toBeVisible(); // drawn again with the new engine's ids (N-05)
+    await page.waitForFunction(() => ((window as unknown as { __hcsCanvas: { scene: { values: Map<string, string> } | null } }).__hcsCanvas.scene?.values.size ?? 0) > 0);
     await expect(page.locator('.status .engine')).toContainText('Logisim 2.7.1 · Java 21');
   } finally {
     await r.close();
@@ -236,4 +238,46 @@ test('the real engine and the lab-PC rule: after quit nothing in HOME but the JD
   expect(left).toEqual([]);
   rmSync(r.dir, { recursive: true, force: true });
   rmSync(runs, { recursive: true, force: true });
+});
+
+// The Canvas with the real engine (N-05): the snapshot, its values and bodies (sim.values), ticks, and a
+// subcircuit instance's own values (sim.watch with a path).
+type C = { scene: { name: string; values: Map<string, string>; bodies: Map<string, { lines?: string[] }>; components: Map<string, { id: string; name: string; bounds: number[] }> } | null; canvas: HTMLCanvasElement; view: { x: number; y: number; zoom: number } };
+
+test('the real engine and the Canvas: ref-mips drawn with its values; demo-datapath\'s register file from inside', async () => {
+  const r = await launch(undefined, { env: real });
+  const { page } = r;
+  try {
+    await openFile(r, sample(r.dir, 'tests/mips/ref-mips.circ'));
+    await expect(page.locator('.canvas .canvas-view canvas')).toBeVisible();
+    await page.waitForFunction(() => ((window as unknown as { __hcsCanvas: C }).__hcsCanvas.scene?.values.size ?? 0) > 100);
+    const im = () => page.evaluate(() => {
+      const c = (window as unknown as { __hcsCanvas: C }).__hcsCanvas;
+      const k = [...c.scene!.components.values()].find((x) => x.name === 'Instruction Memory')!;
+      return c.scene!.bodies.get(k.id)?.lines?.[2];
+    });
+    await expect.poll(im).toBe('00400024: 00000000');
+    await page.keyboard.press('F10');
+    await expect(page.locator('.status')).toContainText('Cycle 1');
+    await expect.poll(im).toBe('00400028: 00000000');
+    // demo-datapath: into the register file, its own values
+    await openFile(r, sample(r.dir, DATAPATH));
+    // (ref-mips's circuit is called main too: wait for demo-datapath's, the one with the register file)
+    await page.waitForFunction(() => { const c = (window as unknown as { __hcsCanvas: C }).__hcsCanvas; return !!c.scene && [...c.scene.components.values()].some((x) => x.name === 'regfile') && c.scene.values.size > 0; });
+    const at = await page.evaluate(() => {
+      const c = (window as unknown as { __hcsCanvas: C }).__hcsCanvas;
+      const k = [...c.scene!.components.values()].find((x) => x.name === 'regfile')!;
+      const rr = c.canvas.getBoundingClientRect();
+      return { x: rr.left + (k.bounds[0] + k.bounds[2] / 2 - c.view.x) * c.view.zoom, y: rr.top + (k.bounds[1] + k.bounds[3] / 2 - c.view.y) * c.view.zoom };
+    });
+    const parent = await page.evaluate(PARENT_PORT_VALUES, 'regfile');
+    await page.mouse.dblclick(at.x, at.y);
+    await expect(page.locator('.canvas-crumbs .here')).toHaveText('regfile');
+    await page.waitForFunction(() => { const c = (window as unknown as { __hcsCanvas: C }).__hcsCanvas; return c.scene?.name === 'regfile' && c.scene.values.size > 0; });
+    // the instance's own values: each pin inside carries what the parent's wire carries at its port
+    await expect.poll(() => page.evaluate(INSIDE_PIN_VALUES)).toMatchObject(Object.fromEntries(['RR1', 'RR2', 'WR', 'WD', 'RegWrite', 'clk', 'RD1', 'RD2'].map((n) => [n, parent[n]])));
+    expect(parent.RR1).toMatch(/^[01]+$/);
+  } finally {
+    await r.close();
+  }
 });

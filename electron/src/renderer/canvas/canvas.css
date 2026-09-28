@@ -1,0 +1,66 @@
+/* The circuit Canvas (canvas.ts) and its controls: the value colours
+   (tokens.ts THEME holds the same values; tests/unit/canvas-tokens.test.ts
+   compares), the tip, the path inside a subcircuit, the zoom menu and the
+   wire colour legend in the status bar. */
+
+:root {
+  --v-one: #22b14c;       /* 1 */
+  --v-zero: #1d6b3a;      /* 0 */
+  --v-float: #2f66d0;     /* x: floating, not decided */
+  --v-error: #c0392b;     /* E: error (= --error) */
+  --v-bus: #1f3b63;       /* several bits */
+  --v-width: #e08a00;     /* width mismatch */
+  --v-none: #6b7785;      /* no value yet */
+}
+
+.canvas-view { position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--white); }
+.canvas-view canvas.circuit { display: block; width: 100%; height: 100%; outline: none; cursor: default; touch-action: none; }
+.canvas-view canvas.circuit.grab { cursor: grab; }
+.canvas-view canvas.circuit.panning { cursor: grabbing; }
+/* Keyboard focus: a ring inside the Canvas's edge (the mouse's focus shows nothing). */
+.canvas-view canvas.circuit:focus-visible { box-shadow: inset 0 0 0 2px var(--teal); }
+
+.canvas-tip {
+  position: absolute; left: 0; top: 0; pointer-events: none; z-index: 2;
+  padding: 3px 8px; border-radius: 6px; background: var(--navy); color: var(--white);
+  font: 12px/1.35 var(--code); white-space: nowrap; box-shadow: 0 2px 8px rgba(0, 32, 91, .18);
+}
+
+.canvas-crumbs {
+  position: absolute; left: 10px; top: 10px; z-index: 1; display: flex; align-items: center; gap: 4px;
+  padding: 3px 6px; border: 1px solid var(--border); border-radius: 8px; background: rgba(255, 255, 255, .94);
+  font-size: 12px; box-shadow: 0 1px 4px rgba(31, 41, 51, .08);
+}
+.canvas-crumbs button { border: 0; background: none; padding: 1px 4px; border-radius: 4px; color: var(--blue); }
+.canvas-crumbs button:hover { background: var(--hover); text-decoration: underline; }
+.canvas-crumbs .here { padding: 1px 4px; font-weight: 600; color: var(--navy); }
+.canvas-crumbs .sep { color: var(--dim); }
+
+/* ---- the status bar's zoom and legend ------------------------------------------ */
+.status .zoom-button, .status .legend-button {
+  display: inline-flex; align-items: center; gap: 6px; height: 20px; padding: 0 6px; border: 0; border-radius: 4px;
+  background: none; color: inherit; font: inherit;
+}
+.status .zoom-button { font-family: var(--code); min-width: 48px; justify-content: center; }
+.status .zoom-button:hover, .status .legend-button:hover, .status .legend-button[aria-expanded="true"] { background: var(--hover); }
+.legend-dots { display: inline-flex; gap: 2px; }
+.legend-dots span { width: 7px; height: 7px; border-radius: 50%; }
+
+.zoom-menu, .legend-panel {
+  position: fixed; z-index: 30; min-width: 150px; padding: 6px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--white); box-shadow: 0 6px 24px rgba(0, 32, 91, .14);
+}
+.zoom-menu button { display: flex; width: 100%; justify-content: space-between; gap: 16px; padding: 4px 10px; border: 0; border-radius: 4px; background: none; text-align: left; }
+.zoom-menu button:hover, .zoom-menu button.on { background: var(--blue-tint); color: var(--navy); }
+.zoom-menu button kbd { font: 11px var(--code); color: var(--muted); }
+.zoom-menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 2px; }
+
+.legend-panel { width: 260px; padding: 10px 12px; }
+.legend-panel h4 { margin: 0 0 6px; font-size: 13px; color: var(--navy); }
+.legend-panel ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.legend-panel li { display: grid; grid-template-columns: 26px 38px 1fr; align-items: center; gap: 6px; }
+.legend-panel .swatch { height: 4px; border-radius: 2px; }
+.legend-panel .swatch.bus { height: 7px; border-radius: 3px; }
+.legend-panel .name { font-weight: 700; }
+.legend-panel .say { color: var(--text-2); }
+.legend-opt { display: flex; align-items: center; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); color: var(--text-2); }
