@@ -153,9 +153,9 @@ export const MUTANTS: Mutant[] = [
     find: "  const comp = (in_: Circuit | undefined, x: Place) => in_?.comps.find((k) => k.name === x.name && same(k.loc, x.loc))?.id ?? '';",
     replace: "  const comp = (_in: Circuit | undefined, _x: Place) => '';", tests: ['tests/unit/messages.test.ts'] },
   // ---- the window (e2e)
-  // view only until alpha.1 (D-154): the editing tools off, the versions About's only
-  { module: 'window', file: 'src/renderer/app/app.ts', what: 'alpha.0: the editing tools on',
-    find: "const WORKING_TOOLS = new Set<string>(['Edit', 'Poke']);", replace: "const WORKING_TOOLS = new Set<string>(['Edit', 'Poke', 'Wire']);",
+  // the editing tools on since N-08 (alpha.0 was view only, D-154), the versions About's only
+  { module: 'window', file: 'src/renderer/app/app.ts', what: 'an editing tool left off',
+    find: "const WORKING_TOOLS = new Set<string>(['Edit', 'Poke', 'Wire', 'Text', 'Pin', 'Tunnel', 'Probe']);", replace: "const WORKING_TOOLS = new Set<string>(['Edit', 'Poke', 'Wire', 'Text', 'Pin', 'Tunnel']);",
     tests: ['tests/e2e/files.e2e.ts'] },
   { module: 'window', file: 'src/renderer/app/app.ts', what: 'alpha.0: the engine\'s versions in the status bar again',
     find: "  // The engine's and Java's versions are About's only, not the student's status bar (D-154).\n",
@@ -185,10 +185,10 @@ export const MUTANTS: Mutant[] = [
   { module: 'window', file: 'src/renderer/app/app.ts', what: 'Run follows Simulation Enabled instead of the clock',
     find: '  const ticking = f?.sim?.ticking ?? false;', replace: '  const ticking = f?.sim?.running ?? false;', tests: ['tests/e2e/engine.e2e.ts'] },
   { module: 'window', file: 'src/main/main.ts', what: 'the engine\'s notifications not forwarded',
-    find: "  engine.on('notification', (method, params) => { if (!recovery.quiet()) send('engine:notify', method, params); });", replace: '',
+    find: "    if (w && !w.isDestroyed()) w.webContents.send('engine:notify', method, params);\n", replace: '',
     tests: ['tests/e2e/engine.e2e.ts'] },
   { module: 'window', file: 'src/renderer/app/app.ts', what: 'a file that could not be opened again keeps its tab',
-    find: '  for (const f of r.closed) files.close(f.fileId);\n', replace: '', tests: ['tests/e2e/recovery.e2e.ts'] },
+    find: '  for (const f of r.closed) { files.close(f.fileId); programs.drop(f.fileId); consoleView.drop(f.fileId); }\n', replace: '', tests: ['tests/e2e/recovery.e2e.ts'] },
   { module: 'window', file: 'src/main/main.ts', what: 'the window\'s calls not journaled (the recovery replays nothing)',
     find: '  return engine.call<T>(method, params, { tag: WINDOW });', replace: '  return engine.call<T>(method, params);',
     tests: ['tests/e2e/recovery.e2e.ts'] },
