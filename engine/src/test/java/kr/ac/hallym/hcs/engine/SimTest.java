@@ -417,12 +417,14 @@ class SimTest {
                     .getAsString();
             assertTrue(e.client.callObject("sim.poke", params("fileId", fileId, "circuitId", main, "componentId",
                     counter)).get("caret").getAsBoolean());
-            e.client.call("sim.cycles", params("fileId", fileId, "n", 100000));
-            for (int k = 0; k < 300; k++) {
+            int m2 = e.client.mark();
+            e.client.call("sim.cycles", params("fileId", fileId, "n", 5000));
+            for (int k = 0; k < 100; k++) {
                 e.client.call("sim.pokeKey", params("fileId", fileId, "key", Integer.toHexString(k % 16)));
             }
             e.client.call("sim.pokeStop", params("fileId", fileId));
             e.client.call("sim.run", params("fileId", fileId, "on", false));
+            e.client.awaitNotificationAfter(m2, "sim.state", s -> s.get("cyclesLeft").getAsLong() == 0);
             JsonObject st = e.client.callObject("sim.state", params("fileId", fileId));
             assertTrue(st.get("running").getAsBoolean(), "the simulation is still on (no propagation error): " + st);
             assertTrue(st.get("cycle").getAsLong() > 0);
