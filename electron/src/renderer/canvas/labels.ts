@@ -117,15 +117,24 @@ export function paletteIndex(name: string): number {
   return ((h % TUNNEL_PALETTE.length) + TUNNEL_PALETTE.length) % TUNNEL_PALETTE.length;
 }
 
-// Name → colour for a circuit's tunnels: the name's own colour first, the next free one when a
-// different name nearby (NEAR) already has it.  Names in order; the same input, the same answer.
-export function tunnelColors(tunnels: { name: string; at: [number, number] }[]): Map<string, string> {
+// Name → colour for a circuit's tunnels: a colour the student picked (Tunnel Color, hcs:ext: every
+// tunnel of that name has it) first, then the name's own colour, the next free one when a different
+// name nearby (NEAR) already has it (v1 TunnelColorStore.colors).  Names in order; the same input,
+// the same answer.
+export function tunnelColors(tunnels: { name: string; at: [number, number]; color?: string }[]): Map<string, string> {
   const where = new Map<string, [number, number][]>();
-  for (const t of tunnels) if (t.name) where.set(t.name, [...(where.get(t.name) ?? []), t.at]);
+  const chosen = new Map<string, string>();
+  for (const t of tunnels) {
+    if (!t.name) continue;
+    where.set(t.name, [...(where.get(t.name) ?? []), t.at]);
+    if (t.color) chosen.set(t.name, t.color.toLowerCase());
+  }
   const names = [...where.keys()].sort();
   const picked = new Map<string, number>();
+  for (const [n, c] of chosen) picked.set(n, (TUNNEL_PALETTE as readonly string[]).indexOf(c));
   const near = (a: [number, number][], b: [number, number][]) => a.some((p) => b.some((q) => Math.abs(p[0] - q[0]) <= NEAR && Math.abs(p[1] - q[1]) <= NEAR));
   for (const n of names) {
+    if (picked.has(n)) continue;
     const used = new Set<number>();
     for (const [m, i] of picked) if (near(where.get(n)!, where.get(m)!)) used.add(i);
     const start = paletteIndex(n);
@@ -136,12 +145,12 @@ export function tunnelColors(tunnels: { name: string; at: [number, number] }[]):
     }
     picked.set(n, pick);
   }
-  return new Map([...picked].map(([n, i]) => [n, TUNNEL_PALETTE[i]]));
+  return new Map(names.map((n) => [n, chosen.get(n) ?? TUNNEL_PALETTE[picked.get(n)!]]));
 }
 
 export function sceneTunnelColors(scene: Scene): Map<string, string> {
-  const t: { name: string; at: [number, number] }[] = [];
-  for (const c of scene.components.values()) if (c.name === 'Tunnel' && c.lib === 'Wiring') t.push({ name: c.attrs.label ?? '', at: c.loc });
+  const t: { name: string; at: [number, number]; color?: string }[] = [];
+  for (const c of scene.components.values()) if (c.name === 'Tunnel' && c.lib === 'Wiring') t.push({ name: c.attrs.label ?? '', at: c.loc, color: c.ext?.color });
   return tunnelColors(t);
 }
 
@@ -216,19 +225,32 @@ export function layoutChips(scene: Scene, marks: WireMarks, measure: Measure, ex
     const arms = splitterArms(c);
     const facing = c.facing ?? 'east';
     const size = 9.5;
-    const texts = c.ports.slice(1).map((q, k) => ({ q, text: ranges(arms[k] ?? []) })).filter((a) => a.text);
+    // "[31:26] op": the range and the arm's name the student gave it in the Splitter editor (hcs:ext, N-12),
+    // where it stands free; where it would cover a part or a wire, the range alone (as before names).
+    const names = c.ext?.arms ?? [];
+    const armsShown = c.ports.slice(1).map((q, k) => {
+      const r = ranges(arms[k] ?? []);
+      return { q, range: r, named: r && names[k] ? `${r} ${names[k]}` : r };
+    }).filter((a) => a.range);
     const b = boundsBox(c);
     const horizontal = facing === 'east' || facing === 'west';
-    const opposite = texts.map(({ q, text }) => {
-      const w = measure(text, 'ui', size, 700) + 2;
+    const farSide = (texts: string[]): Box[] => armsShown.map(({ q }, k) => {
+      const w = measure(texts[k], 'ui', size, 700) + 2;
       const x = facing === 'west' ? b.x1 + 3 : b.x0 - w - 4;
       return { x0: x, y0: q.loc[1] - size / 2 - 0.5, x1: x + w, y1: q.loc[1] + size / 2 + 0.5 };
     });
-    const free = horizontal && opposite.every((r) => !obs.hits(r, c.id));
-    texts.forEach(({ q, text }, k) => {
+    const isFree = (boxes: Box[]) => horizontal && boxes.every((r) => !obs.hits(r, c.id));
+    const withNames = armsShown.map((a) => a.named);
+    const plain = armsShown.map((a) => a.range);
+    const namedBoxes = farSide(withNames);
+    const plainBoxes = farSide(plain);
+    const useNames = withNames.some((t, k) => t !== plain[k]) && isFree(namedBoxes);
+    const free = useNames || isFree(plainBoxes);
+    armsShown.forEach(({ q }, k) => {
+      const text = useNames ? withNames[k] : plain[k];
       const w = measure(text, 'ui', size, 700) + 2;
       let box: Box;
-      if (free) box = opposite[k];
+      if (free) box = (useNames ? namedBoxes : plainBoxes)[k];
       else if (horizontal) {
         const x = facing === 'west' ? q.loc[0] - w - 2 : q.loc[0] + 2;
         box = { x0: x, y0: q.loc[1] - 2 - size, x1: x + w, y1: q.loc[1] - 2 };

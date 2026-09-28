@@ -91,7 +91,9 @@ test('Components: this file\'s circuits first (under the file\'s name), then the
     const groups = page.locator('.upper .libgroup summary');
     await expect(groups.first()).toContainText('demo-datapath.circ');
     await expect(groups.first().locator('.count')).toHaveText('3');
-    await expect(groups.last()).toContainText('Input/Output');
+    // the engine's libraries (tests/fixtures/library.json): the built-in ones, then the file's Hallym MIPS
+    await expect(groups.filter({ hasText: 'Input/Output' })).toHaveCount(1);
+    await expect(groups.last()).toContainText('Hallym MIPS');
   } finally {
     await r.close();
   }

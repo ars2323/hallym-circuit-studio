@@ -1,0 +1,117 @@
+/* N-12 (D-150): the Components list and its search, the search palette
+   (Ctrl+K), Find (Ctrl+F), the Tunnels panel and its colours, the Minimap,
+   the Splitter editor.  The shared parts' look (tokens, panel heads,
+   buttons, dialogs) is ../shared/shared.css; the side lists' rows are
+   app.css .list. */
+
+/* ---- Components: the search box over the tree (components.ts) ---------------- */
+.comps { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.compsearch { padding: 8px 10px 6px; border-bottom: 1px solid var(--border); flex: none; }
+.compsearch-input, .findinput, .palinput {
+  width: 100%; height: 28px; padding: 0 9px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--white); color: var(--text); font: inherit; outline: none;
+}
+.compsearch-input:focus, .findinput:focus, .palinput:focus { border-color: var(--blue); box-shadow: 0 0 0 2px var(--blue-tint2); }
+.compsearch-input::placeholder, .findinput::placeholder, .palinput::placeholder { color: var(--dim); }
+.comptree, .compresults { flex: 1; min-height: 0; overflow: auto; }
+.comptree .list li > button.tool { cursor: grab; }
+.libgroup.pending summary { color: var(--muted); font-style: italic; }
+.libgroup.pending summary .dim { font-style: normal; font-weight: 400; font-size: 12px; }
+.compresults li > button .rname { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.compresults li > button .rgroup { margin-left: auto; color: var(--muted); font-size: 12px; }
+.compresults li > button:focus-visible, .comptree li > button:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+.compnone { margin: 10px 12px; color: var(--text-2); font-size: 12.5px; }
+
+/* ---- the search palette (palette.ts): a box by the pointer ------------------------ */
+.palette {
+  position: fixed; z-index: 40; width: 460px; max-width: calc(100vw - 16px);
+  background: var(--white); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 12px 36px rgba(0,32,91,.22); padding: 8px; display: flex; flex-direction: column; gap: 6px;
+}
+.pallist { list-style: none; margin: 0; padding: 0; max-height: 300px; overflow: auto; }
+.palrow { display: grid; grid-template-columns: 76px minmax(0, 1fr) auto auto; align-items: center; column-gap: 10px; min-height: 28px; padding: 3px 8px; border-radius: 6px; cursor: default; }
+.palrow:hover { background: var(--hover); }
+.palrow.on { background: var(--blue-tint); box-shadow: inset 3px 0 0 var(--blue); }
+.palkind { font-size: 11px; color: var(--muted); text-transform: none; }
+.palname { color: var(--navy); font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.palmore { color: var(--text-2); font-size: 12px; white-space: nowrap; }
+.palfav { color: var(--amber-text); font-size: 12px; }
+.palnote { margin: 2px 4px; color: var(--text-2); font-size: 12.5px; line-height: 1.5; }
+.palhint { padding: 4px 4px 0; border-top: 1px solid var(--border); color: var(--muted); font-size: 11.5px; white-space: nowrap; }
+
+/* ---- Find (find.ts): a window over the Canvas's top right corner ------------------ */
+.canvaspanel { position: relative; }
+.findwin {
+  position: absolute; z-index: 30; top: 72px; right: 12px; width: min(460px, calc(100% - 24px)); max-height: min(440px, calc(100% - 84px));
+  display: flex; flex-direction: column; background: var(--white); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 12px 36px rgba(0,32,91,.20); overflow: hidden;
+}
+.findwin .phead { flex: none; }
+.findwin .findclose { width: 24px; height: 24px; }
+.findwin .findclose img { width: 14px; height: 14px; }
+.findbox { padding: 8px 10px; flex: none; }
+.findlist { list-style: none; margin: 0; padding: 0 0 4px; overflow: auto; flex: 1; min-height: 0; }
+.findrow { display: flex; align-items: baseline; gap: 8px; padding: 4px 12px; cursor: default; white-space: nowrap; }
+.findrow:hover { background: var(--hover); }
+.findrow.on { background: var(--blue-tint); box-shadow: inset 3px 0 0 var(--blue); }
+.findrow.child { padding-left: 34px; color: var(--text-2); font-size: 12.5px; }
+.findrow .ftoggle { width: 10px; color: var(--muted); flex: none; text-align: center; }
+.findrow .fname { color: var(--navy); font-weight: 600; flex: none; }
+.findrow .fkind { color: var(--muted); font-size: 12px; flex: none; }
+.findrow .fpath { color: var(--text-2); font-size: 12px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.findrow .fcount { margin-left: auto; color: var(--muted); font-size: 12px; flex: none; }
+.findrow .fplace { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.findfoot { flex: none; padding: 6px 12px 8px; border-top: 1px solid var(--border); color: var(--text-2); font-size: 12px; line-height: 1.5; }
+
+/* ---- Tunnels (tunnels.ts): a colour chip, the name, the count ---------------------- */
+.list.tunnels li { display: flex; align-items: center; gap: 4px; padding-left: 10px; }
+.list.tunnels li > button.tname { display: flex; align-items: center; gap: 8px; flex: 1; width: auto; min-width: 0; min-height: 26px; padding: 3px 12px 3px 4px; border: 0; background: none; text-align: left; color: var(--text); }
+.list.tunnels li > button.tname:hover { background: var(--hover); }
+.list.tunnels .count.lone { color: var(--amber-text); font-weight: 600; }
+.list.tunnels li > button.tswatch { flex: none; width: 16px; min-height: 0; height: 16px; padding: 0; border-radius: 4px; border: 1.5px solid var(--c); background: color-mix(in srgb, var(--c) 45%, white); }
+.list.tunnels li > button.tswatch.chosen { background: var(--c); }
+.list.tunnels li > button.tswatch:hover:not(:disabled) { outline: 2px solid var(--blue-tint2); }
+.list.tunnels li > button.tswatch:disabled { cursor: default; }
+.colormenu {
+  position: fixed; z-index: 45; width: 290px; padding: 6px; background: var(--white); border: 1px solid var(--border);
+  border-radius: 8px; box-shadow: 0 10px 30px rgba(0,32,91,.20);
+}
+.colorhead { padding: 4px 6px 6px; color: var(--navy); font-weight: 600; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.coloritem { display: flex; align-items: center; gap: 8px; width: 100%; padding: 4px 6px; border: 0; border-radius: 5px; background: none; text-align: left; font-size: 12.5px; color: var(--text); white-space: nowrap; }
+.coloritem:hover, .coloritem:focus-visible { background: var(--hover); outline: none; }
+.coloritem.on { background: var(--blue-tint); font-weight: 600; }
+.colorgrid { display: grid; grid-template-columns: 1fr 1fr; margin-top: 4px; border-top: 1px solid var(--border); padding-top: 4px; }
+.coloritem .swatch { flex: none; width: 14px; height: 14px; border-radius: 3px; background: var(--c); border: 1px solid rgba(0,0,0,.12); }
+.coloritem .swatch.auto { background: linear-gradient(135deg, var(--c) 50%, var(--white) 50%); }
+
+/* ---- the Minimap (minimap.ts) ------------------------------------------------------- */
+.minimapbox { position: absolute; inset: 0; }
+.minimap { display: block; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }
+
+/* ---- the Splitter editor (splitter-editor.ts) ---------------------------------------- */
+.modal.splitter-editor { width: min(640px, calc(100vw - 32px)); }
+.modal.splitter-editor h2 .swidth { color: var(--muted); font-weight: 400; font-size: 14px; }
+.sform { display: grid; grid-template-columns: 90px minmax(0, 1fr); align-items: center; gap: 8px 12px; margin-bottom: 12px; }
+.slabel { color: var(--navy); font-weight: 600; font-size: 12.5px; }
+.sranges { height: 30px; padding: 0 9px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; }
+.sranges:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 2px var(--blue-tint2); }
+.spreset { height: 30px; padding: 0 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--white); color: var(--navy); }
+.sdir { display: flex; gap: 16px; }
+.sdir label { display: inline-flex; align-items: center; gap: 5px; }
+.sstrip { display: grid; grid-template-columns: repeat(var(--cells), 16px); width: max-content; max-width: 100%; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; cursor: pointer; user-select: none; }
+.scell { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 38px; background: var(--c, var(--white)); border-left: 1px solid rgba(0,32,91,.12); font-family: var(--code); }
+.scell:first-child { border-left: 0; }
+.scell.edge { border-left: 2px solid var(--navy); }
+.scell .sbit { font-size: 9px; color: var(--text-2); line-height: 1.2; }
+.scell .sarmno { font-size: 10px; color: var(--text); line-height: 1.4; }
+.scell.none { background: var(--white); }
+.sarms { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; max-height: 260px; overflow: auto; }
+.sarm { display: grid; grid-template-columns: 170px minmax(0, 1fr) 64px; align-items: center; gap: 10px; }
+.sarmtag { padding: 3px 8px; border-radius: 5px; background: var(--c); color: var(--text); white-space: nowrap; font-size: 12.5px; }
+.sname { height: 28px; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px; font: inherit; }
+.sname:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 2px var(--blue-tint2); }
+.sbits { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.sproblems { min-height: 20px; margin-top: 8px; }
+.sproblems p { margin: 2px 0; font-size: 12.5px; line-height: 1.5; }
+.sproblems p.warn { color: var(--amber-text); }
+.sproblems p.err { color: var(--error-text); }

@@ -106,7 +106,8 @@ Component = {
   attrs: {<.circ 속성 이름>: <.circ에 저장되는 글자>},
   ports: [{i, loc:[x,y], width, dir:"in"|"out"|"inout", name?}],
   subcircuit?: circuitId,       // 서브회로 인스턴스면
-  appearance?: Appearance       // 서브회로 인스턴스면: 그 회로의 모양(N-05)
+  appearance?: Appearance,      // 서브회로 인스턴스면: 그 회로의 모양(N-05)
+  ext?: {color?, arms?}         // 학생이 직접 정한 확장 정보(hcs:ext): 터널 색, 스플리터 팔 이름(N-12)
 }
 ```
 
@@ -122,6 +123,7 @@ Component = {
   ```
 
   `shapes`는 원조 .circ의 `<appear>`와 같은 SVG 요소(`rect`, `ellipse`, `line`, `polyline`, `polygon`, `path`(`M`·`Q`), `text`)를 속성 글자 그대로 싣는다(원조 `toSvgElement`). 좌표는 모양 편집기의 좌표이고, 인스턴스(위치 `loc`, 방향 `f`)에서 점 `p`는 `loc + R(θ)(p − anchor)`, θ = `facing`(모양의 방향) − `f`(원조 `Direction.toRadians`, R은 y가 아래인 화면 좌표의 회전)다. `ports[].at`을 그렇게 옮기면 이 부품의 `ports[].loc`이 된다. `pin`은 서브회로 안 핀의 위치, `input`은 입력 핀인지, `label`은 회로 속성의 부품 안 글자(원조 Circuit Label: `clabel`, `clabelup`, `clabelfont`)다. 서브회로의 모양이 바뀌면(핀을 더함 등) 그 인스턴스들이 `model.changed`의 `added`로 다시 온다.
+- `ext`(N-12, D-150): .circ 확장 정보(hcs:ext, D-024) 가운데 화면이 그리는 것, 학생이 직접 정한 것만. 터널은 `{color:"#RRGGBB"}`(Tunnel Color로 고른 팔레트 색, v1 `TunnelColorStore`; 고르지 않은 터널은 없고 화면이 이름으로 자동 색을 정한다), 스플리터는 `{arms:["op","rs",…]}`(Splitter 편집기의 팔 이름, 위 팔부터; 이름 항목의 팔 수가 부품의 팔 수와 같을 때만, 저장할 때의 v1 정리 규칙과 같다). 이 파일의 회로가 아니면(.circ 라이브러리) 없다. 그 정보가 바뀌면(색·이름을 바꾸거나 되돌림) 그 부품들이 같은 id로 `model.changed`의 `added`에 온다.
 - `subcircuit`: 이 파일의 회로면 `lib`이 `null`이다. .circ 라이브러리의 회로 인스턴스는 `lib`이 그 라이브러리 이름이고 `subcircuit`이 그 회로를 가리킨다. 라이브러리 회로도 `model.circuit`·`sim.watch`로 볼 수 있지만 편집은 오류 3(`cannotModify`)이다.
 - `model.library`: 첫 항목은 이 파일의 회로들(`lib:null`, 도구마다 `circuitId`), 그다음 파일의 라이브러리 순서다. 부품 도구(AddTool)만 싣는다(Poke·Edit·Wiring·Text·Menu 도구는 화면의 몫). 옛 파일을 위해서만 남긴 부품(Hallym MIPS의 `Stack`, D-140)은 새로 놓는 목록이라 싣지 않는다. 파일 안의 그 부품은 `model.circuit`에 전처럼 온다(`lib`은 MIPS 라이브러리). `pending:true`인 라이브러리(번들 Hallym MIPS)는 아직 파일에 들어가지 않았고, 그 부품을 처음 놓는 편집에서 파일에 들어간다(되돌리면 빠진다, V-01·D-096). 라이브러리 목록이 바뀐 것은 따로 알리지 않으므로, 그런 편집 뒤에는 화면이 `model.library`를 다시 묻는다.
 
@@ -182,11 +184,11 @@ Component = {
 | `edit.importCircuits` | `path, circuits:[이름]` | 다른 .circ의 회로 가져오기(v1 P-05, 쓰는 회로 함께) |
 | `edit.loadLibrary` | `kind:"builtin"\|"circ"\|"jar", name?, path?` | Project › Load Library |
 | `edit.unloadLibrary` | `name` | Unload Library |
-| `edit.tunnelColor` | `id, color?:"#rrggbb"` | 터널 색(팔레트 색, 없으면 자동). hcs:ext |
+| `edit.tunnelColor` | `id, color?:"#rrggbb"` | 터널 색(v1 팔레트 12색, 없으면 Automatic). 그 회로의 같은 이름 터널 모두. hcs:ext(N-12, 아래) |
 | `edit.signalGroup` | `wire, group?:"control"\|"data"\|"address"` | 신호 그룹(없으면 없음). hcs:ext |
 | `edit.areaMemo` | `at, ids?, text?, color?, bounds?:[x,y,w,h], delete?` | 영역 메모 더하기(고른 것을 감싼 상자에서 시작)·지우기. hcs:ext |
-| `edit.splitterEdit` | `id, ranges, names?, lsbTop?` | Splitter 편집기 적용(원조 fanout·bitN + 팔 이름 hcs:ext) |
-| `edit.splitterSplit` | `wire, at, ranges, names?, lsbTop?` | 여러 비트 선에 새 스플리터(Split Bits Here) |
+| `edit.splitterEdit` | `id, ranges, names?, lsbTop?` | Splitter 편집기 적용(원조 fanout·incoming·bitN + 팔 이름 hcs:ext, N-12, 아래) |
+| `edit.splitterSplit` | `wire, at, ranges, names?, lsbTop?` | 여러 비트 선에 새 스플리터(Split Bits…, Take One Bit, N-12, 아래). result `id`: 새 스플리터 |
 
 - `edit.addComponent`: `lib:null`(또는 빼면)이면 이 파일의 회로를 이름(`name`)으로 놓는다. `attrs`는 놓는 부품에만 쓴다(도구의 기본값은 바꾸지 않는다). `loc`은 그대로 쓴다(격자 맞추기는 화면 몫). 오류: 없는 도구 1, `circular`·`exclusive`·`negativeCoord` 3, 모르는 속성·틀린 값 -32602.
 - `edit.addWire`: 2점은 가로·세로 곧은 선(3점이면 가운데 점이 그 선 위), ㄱ자는 `[시작, 꺾는 점, 끝]`이고 꺾는 점이 `[끝x, 시작y]`(가로 먼저) 또는 `[시작x, 끝y]`(세로 먼저)여야 한다. 원조처럼 한쪽 끝이 있는 선을 따라 되돌아 끌면 그 선을 줄이거나 지운다(`outcome:"shortened"|"removed"`). 시작과 끝이 같으면 `changed:false, outcome:"empty"`.
@@ -194,7 +196,7 @@ Component = {
 - `edit.setAttr`: 선은 건너뛴다. 모든 부품에 그 속성이 있어야 한다(없으면 -32602). 속성은 부품 객체 안에서 바뀌므로 같은 id가 `added`로 온다.
 - 편집하면 그 회로가 시뮬레이션의 지금 회로가 된다(Swing에서 보고 있는 회로를 편집하는 것과 같다). 다른 회로를 보고 있었다면 화면이 `sim.watch`를 다시 보낸다.
 
-`edit.setToolAttr`부터 아래 줄은 편집 동등성 골든(N-01, D-136)을 적으려고 **제안한** 의도다. 지금 엔진에는 아직 없고, N-08·N-09에서 엔진에 더하면서 이 표를 확정한다. 그때까지 위 다섯 줄(`addComponent`~`setAttr`)과 `undo`·`redo`의 계약이 기준이다(`ids`는 반드시 준다, `path`는 절대 경로).
+`edit.setToolAttr`부터 아래 줄은 편집 동등성 골든(N-01, D-136)을 적으려고 **제안한** 의도다. 지금 엔진에는 아직 없고, N-08·N-09에서 엔진에 더하면서 이 표를 확정한다. 다만 `edit.tunnelColor`·`edit.splitterEdit`·`edit.splitterSplit`은 N-12(D-150)가 확정했다(아래). 그때까지 위 다섯 줄(`addComponent`~`setAttr`)과 `undo`·`redo`의 계약이 기준이다(`ids`는 반드시 준다, `path`는 절대 경로).
 
 편집 동등성(N-01, D-136, `tests/parity/`)에서 본 것 — **N-09에서 맞출 차이(아직 계약이 아님)**:
 
@@ -204,6 +206,12 @@ Component = {
 - 의도 파일은 `edit.addComponent`에 `attrs`를 쓰지 않는다. Swing에서 값을 바꿔 놓는 길은 부품 목록에서 도구를 고르고 속성 표에서 **도구 속성**을 바꾼 뒤(`edit.setToolAttr`, 원조 ToolAttributeAction: 되돌리기 한 단계, 도구에 남아 다음 놓기에도 쓰이고 `<lib><tool>`에 저장된다) 누르는 것이다. 놓는 부품에만 속성을 주는 한 번의 동작(위 `attrs`)은 Swing에 없다. `edit.setToolAttr`로 이미 같은 값을 넣으면 `changed:false`다.
 - **되돌리기 단계.** 원조 되돌리기 기록에서는 붙여넣은 뒤 옮기기·내려놓기가 붙여넣기 단계에 합쳐지고(원조 `shouldAppendTo`), 고른 것이 없을 때의 Delete도 빈 단계 하나를 남긴다. 지금 계약("하나의 의도가 되돌리기 한 단계", 바뀐 것이 없으면 단계 없음)과 다르다. 뒤따르는 `edit.undo`의 결과가 달라지므로, N-09에서 엔진을 원조 기록과 같게 맞추고 위 일반 규칙과 엔진 테스트를 함께 고친다.
 - `edit.move`로 선 하나만 옮기면 v1 선분 끌기(양쪽 다리가 늘고 준다)다. 부품을 옮기면 v1 따라오는 선이다.
+
+**터널 색과 Splitter 편집기(N-12, D-150, 확정).** 셋 다 v1의 동작 객체를 그대로 쓰고(`TunnelColorStore.action`, `SplitterEdits.change·create·withNames`, 검사기 `WireGuard`), `Project.doAction` 한 번 = 되돌리기 한 단계다. 원조 부품 속성은 스플리터의 fanout·incoming·bitN만 바뀌고, 학생이 정한 것은 hcs:ext에만 간다(D-024). 되돌리면 그 회로의 hcs:ext 항목이 **차례까지** 전과 같다(v1은 지우고 끝에 다시 넣어 차례가 바뀌었다: 편집하고 되돌린 파일도 저장 결과가 원래와 같게, `OpenSaveParityTest.extEditsUndoneSaveTheOriginal`).
+- `edit.tunnelColor {id, color?}`: `id`는 라벨이 있는 터널(아니면 -32602). `color`는 v1 팔레트 12색 가운데 하나(`#e69f00` 꼴, 대소문자 무관; 다른 색은 -32602), 없으면 Automatic(항목을 지운다). 그 회로에서 그 이름을 가진 모든 터널의 색이다(`model.changed`에 그 터널들이 `ext.color`와 함께 온다, 저장은 `#E69F00` 대문자). 이미 그 색이면 `changed:false, outcome:"same"`.
+- `edit.splitterEdit {id, ranges, names?, lsbTop?}`: 편집기의 Apply. `ranges`는 편집기 범위 글(v1 `SplitterSpec.parse`: `31:26, 25:21, 20:16, 15:0`, 범위 뒤 이름 `31:26 op`, `4x8`, `32x1`)이고 폭은 그 스플리터의 incoming이다. `lsbTop`(기본 false)은 "LSB on top"(위 팔이 낮은 비트). 팔 이름은 편집기 칸처럼 정한다: 처음 칸은 지금 이름, 범위 글을 다시 읽을 때 글에 이름이 없는 팔은 팔 수가 같으면 전의 칸 이름을 지키고, 끝으로 `names`가 앞 칸부터 채운다(편집 동등성 골든 14가 이 차례로 만들어졌다). 읽을 수 없는 글·폭 밖 비트·한 비트가 두 팔·`names`가 팔보다 많음은 -32602. 원조 속성도 이름도 그대로면 `changed:false, outcome:"same"`. 팔 자리가 바뀌어 새 팔 끝이 다른 연결에 닿으면 검사기가 막고 `changed:false, outcome:"refused"`(v1 "그렇게 두면 선이나 포트가 다른 연결에 닿아…"). 이름만 바뀌면 부품은 같은 id로 `ext.arms`만 바뀐다.
+- `edit.splitterSplit {wire, at, ranges, names?, lsbTop?}`: 여러 비트 선(`wire`, 폭은 원조가 계산한 그 선의 폭) 위, `at`에서 가장 가까운 선 위 격자점에 동쪽을 보는 새 스플리터(v1 Split Bits…). 편집기는 32비트면 MIPS R 형식(`31:26 op, …, 5:0 funct`), 아니면 반씩으로 열린 것으로 보고 `ranges`·`names`·`lsbTop`을 위처럼 읽는다. 비트 하나 뽑기(Take One Bit [n])는 `ranges`가 그 비트 하나(`"5"`)다. 1비트 선·선이 아닌 id는 -32602. 검사기가 막으면 `outcome:"refused"`. result `id`는 새 스플리터.
+- 되살리기 저널(7절): 모두 `edit.*`라 저절로 적히고, `id`·`wire`는 부품 자체(ref)로 바꿔 적는다.
 - `ids`의 부품은 엔진 id다. 의도 파일은 id 대신 기호(앞 `edit.addComponent`의 `as`, result `id`로 바꾼다)·`label:`·`at:x,y`·`wire:x,y`로 적는다(형식은 `tests/parity/README.md`).
 - `view.zoom`(`{factor}`)은 화면 배율이라 엔진 메서드가 아니다(의도 파일에만 있고 엔진은 아무것도 하지 않는다).
 
@@ -338,6 +346,24 @@ Message = {
 - **파일을 열 때:** 기록 엔진이 붙은 뒤 첫 상태가 스텝 0으로 적힐 때까지 `file.open`·`file.new` 안에서 잠깐(많아야 2초) 기다린다. 그래야 곧바로 이어지는 `sim.cycles`에서도 사이클 번호가 v1과 같다.
 - **`trace.origin`:** 보이는 상태(맨 위 `circuitId`, 거기서 `path`로 내려간 인스턴스; 사이클 뷰가 지난 사이클을 보이면 그 상태)에서 넷 `netId`의 E·X가 처음 생긴 곳을 입력 쪽으로 거슬러 찾는다(v1 Find E/X Origin, D-01: MUX는 고른 입력만, 서브회로 경계와 스플리터 비트를 건넌다, 메모리는 주소·읽기 입력을 따라간다). `found:false`면 `text`가 따라갈 것이 없다는 문장이다. `origin`은 위 `location`과 같은 모양에 `cause`(`COMPONENT`·`UNDRIVEN`·`CONFLICT`·`ALL_OFF`·`INPUT_PIN`·`STORED`·`LOOP`), `value`(`"E"`·`"x"`), `text`(원인 문장 두 벌)가 붙는다. `chain`은 시작 넷부터 원인까지 지난 넷들(강조용)이다. 없는 넷·인스턴스는 오류 1.
 - **화면의 "이곳 보이기"(reveal):** 화면은 메시지를 누르면 `location`을 그대로 담은 사건(`electron/src/renderer/app/reveal.ts`, `hcs:reveal`: `{fileId, messageId, circuitId, root, path, components, wires, nets, at, cycle}`)을 보낸다. Canvas(N-05)가 그 회로·인스턴스로 가서 부품·선·넷을 표시하고, Cycle View(N-14)가 `cycle`로 간다.
+
+### find(Find와 검색 창, N-12, D-150)
+
+| 메서드 | params | result |
+| --- | --- | --- |
+| `find.query` | `{fileId, text, limit?}` | `{fileId, text, groups:[FindGroup], more}` |
+
+```
+FindGroup = {kind: "label"|"pin"|"tunnel"|"subcircuit"|"part", text, path, places:[FindPlace]}
+FindPlace = {circuitId, root, path:[componentId], componentId, at:[x,y], place, near}
+```
+
+- v1 Ctrl+F의 색인(`NameIndex`, D-036)을 그대로 쓴다: 라벨·터널 이름·서브회로 이름을 주 회로에서 서브회로 부품을 따라 내려가며(깊이 32) 모으고, 주 회로에서 닿지 않는 회로도 넣는다. 대소문자 없는 부분 일치이고 이름이 정확히 같은 것이 먼저다. v2는 라벨이 있는 핀을 `pin`으로 가르고, 부품을 원조 부품 이름으로도 찾는다(`part`: `Register`, `Instruction Memory`; 터널과 서브회로 부품은 이름으로 이미 찾으므로 빼고, 같은 회로 경로의 같은 종류가 한 묶음).
+- 묶음: 종류·글(`text`)·경로(`path`, 예 `main › regfile #1 › RR1`, 부품은 회로 경로)가 같은 것이 한 줄이다(v1 #135). 묶음 차례는 v1의 차례(주 회로의 부품 위→아래·왼쪽→오른쪽, 인스턴스 안은 그 인스턴스 자리에서)이고, 한 점에 선 부품(핀과 그 포트의 터널)은 종류 차례(label, pin, tunnel, subcircuit, part)·부품 이름·글로 정한다(v1은 원조 회로의 HashSet 차례라 실행마다 달랐다). 묶음 안 자리는 위→아래, 왼쪽→오른쪽이다.
+- 자리(`FindPlace`): 보일 회로(`root`에서 `path`의 서브회로 부품들을 따라 내려간 `circuitId`), 부품(`componentId`, `at`은 그 위치), 자리 글 `place`는 v1 위치 줄(S-09): 포트 하나짜리 부품은 선으로 닿는 가장 뜻있는 포트(`main › PC (D)`, `near:true`: 화면이 "next to …"를 붙인다), 없으면 번호 이름(`main › Tunnel #3`), 부품(`part`)은 라벨이나 번호 이름. 내부 포트 이름(`.in1`, `Split #10`)은 쓰지 않는다.
+- `limit`(기본 100, 1 이상) 묶음까지 돌려주고 넘으면 `more:true`. 빈 글은 묶음 없음.
+- 색인은 부를 때마다 지금 모델로 새로 만든다(편집 뒤 곧바로 맞다, I-171 정함). 모델을 읽기만 한다(`OpenSaveParityTest`의 화면이 여는 동안 하는 일에 든다). 화면은 편집(`model.changed`) 뒤 열린 찾기 창의 글로 다시 묻는다.
+- 화면이 자리로 가는 것은 "이곳 보이기"(`hcs:reveal`, 5절 끝)에 `tone:"find"`를 붙인 것이다: 그 인스턴스 안으로 가서 부품을 선택의 파란 모양으로 보인다.
 
 ## 6. 확장
 

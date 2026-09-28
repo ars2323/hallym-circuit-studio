@@ -64,6 +64,15 @@ export interface Component {
   ports: Port[];
   subcircuit?: string;
   appearance?: Appearance;  // a subcircuit instance: its circuit's appearance (N-05)
+  ext?: ComponentExt;       // what the student set that the .circ keeps in hcs:ext (N-12)
+}
+
+/* The student's own settings on a part (hcs:ext, D-024; docs/engine-api.md,
+   N-12): a tunnel's colour picked from the palette (#RRGGBB; none: the
+   automatic colour from its name), a splitter's arm names (top arm first). */
+export interface ComponentExt {
+  color?: string;
+  arms?: string[];
 }
 
 // A subcircuit's appearance (docs/engine-api.md): the original's <appear> SVG elements.
@@ -108,6 +117,38 @@ export interface LibraryGroup {
   display?: string;
   pending?: boolean;        // the bundled Hallym MIPS, not in the file until its first part is placed
   tools: { name: string; display: string; circuitId?: string }[];
+}
+
+// ---- Find (docs/engine-api.md find.query, N-12, D-150) ----
+
+export type FindKind = 'label' | 'pin' | 'tunnel' | 'subcircuit' | 'part';
+
+/* One place a name was found: the circuit to show it in (root, then the
+   subcircuit instances down to it), the part, and where it stands in words
+   (the port it is next to, or its numbered name). */
+export interface FindPlace {
+  circuitId: string;
+  root: string;
+  path: string[];
+  componentId: string;
+  at: Point;
+  place: string;            // "main › PC (D)", "main › Tunnel #3"
+  near: boolean;            // place is the port it is attached to ("next to …")
+}
+
+// The same kind, name and path: one row, its places in order (top to bottom, left to right).
+export interface FindGroup {
+  kind: FindKind;
+  text: string;
+  path: string;             // "main › regfile #1 › RR1"
+  places: FindPlace[];
+}
+
+export interface FindResult {
+  fileId: string;
+  text: string;
+  groups: FindGroup[];
+  more: boolean;            // more groups than the limit
 }
 
 export interface SimState {
@@ -334,6 +375,7 @@ export const WINDOW_METHODS = [
   'file.new', 'file.close', 'file.dirty',
   'model.circuit', 'model.library',
   'edit.addComponent', 'edit.addWire', 'edit.move', 'edit.delete', 'edit.setAttr', 'edit.undo', 'edit.redo',
+  'edit.tunnelColor', 'edit.splitterEdit', 'edit.splitterSplit', 'find.query',
   'sim.reset', 'sim.poke', 'sim.cycles', 'sim.run', 'sim.enable', 'sim.watch', 'sim.state',
   'diag.list', 'trace.origin',
   'mips.facts', 'mips.reload', 'mips.disasm', 'mips.console',

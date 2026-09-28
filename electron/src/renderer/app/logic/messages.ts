@@ -78,6 +78,9 @@ export interface Reveal {
   nets: string[];
   at: Point | null;
   cycle: number | null;
+  // How the Canvas marks it: a message's error colour (the default), or the selection's
+  // blue for a part found by name (Find, Tunnels, the search palette; N-12, D-150).
+  tone?: 'error' | 'find';
 }
 
 export function revealOf(fileId: string, m: DiagMessage): Reveal {

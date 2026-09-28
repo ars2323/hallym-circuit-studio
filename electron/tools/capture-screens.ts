@@ -50,10 +50,13 @@ function written(name: string): void {
   if (bytes > MAX_BYTES) throw new Error(`${name}.png is ${bytes} bytes, over ${MAX_BYTES}: crop it`);
 }
 
-async function shot(r: Running, name: string): Promise<void> {
+// keepFocus: the scene is about a box that has the keys (the search palette closes when it loses them);
+// its caret is hidden so the pixels do not depend on when it blinks.
+async function shot(r: Running, name: string, o: { keepFocus?: boolean } = {}): Promise<void> {
   const { page } = r;
   await page.mouse.move(-10, -10); // out of the window: no hover, no tooltip
-  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  if (o.keepFocus) await page.addStyleTag({ content: '* { caret-color: transparent !important; }' });
+  else await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await page.evaluate(() => document.fonts.ready);
   await page.waitForFunction(() => [...document.images].every((i) => i.complete));
   await page.waitForTimeout(400);
@@ -271,6 +274,86 @@ async function view(r: Running, v: { x: number; y: number; zoom: number }): Prom
   await page.locator('.cside .rrow[data-reg="$s6"] .dec', { hasText: '-1' }).waitFor();
   await page.locator('.cside .rrow[data-reg="$s4"]').evaluate((e) => e.scrollIntoView({ block: 'start' }));
   await shot(r, 'registers-pointers');
+  await r.close();
+}
+
+// Finding and placing (N-12, D-150): the Components search, the search palette by the pointer, Find
+// with a group opened and a place gone to, Tunnels with a lone name and Tunnel Color, the Minimap (the
+// Canvas at 200 % over the register file), the Splitter editor of demo-datapath's instruction splitter.
+const canvasPoint = (r: Running, p: [number, number]) => r.page.evaluate((q) => {
+  const c = (window as unknown as { __hcsCanvas: { canvas: HTMLCanvasElement; view: { x: number; y: number; zoom: number } } }).__hcsCanvas;
+  const rr = c.canvas.getBoundingClientRect();
+  return { x: rr.left + (q[0] - c.view.x) * c.view.zoom, y: rr.top + (q[1] - c.view.y) * c.view.zoom };
+}, p);
+{
+  const r = await launch(FHD);
+  const { page } = r;
+  await openFile(r, sample(r.dir, DATAPATH));
+  await drawn(r);
+  const search = page.getByRole('searchbox', { name: 'Search parts' });
+  await search.fill('reg 32');
+  await page.locator('.compresults li', { hasText: 'Register' }).first().waitFor();
+  await shot(r, 'components-search');
+  await search.fill('');
+  const at = await canvasPoint(r, [300, 650]);
+  await page.mouse.move(at.x, at.y);
+  await page.keyboard.press('Control+k');
+  await page.keyboard.type('and 3');
+  await page.locator('.palette .palrow', { hasText: 'AND Gate' }).first().waitFor();
+  await shot(r, 'palette', { keepFocus: true });
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Control+f');
+  await page.keyboard.type('clk');
+  const rows = page.locator('.findwin .findrow');
+  await rows.nth(2).waitFor();
+  await rows.first().click();
+  await rows.nth(2).click();
+  await page.waitForFunction(() => (window as unknown as { __hcsCanvas: { markedIds(): unknown } }).__hcsCanvas.markedIds() !== null);
+  await page.waitForTimeout(300);
+  await shot(r, 'find');
+  await page.locator('.findwin .findclose').click();
+  // the Splitter editor: the splitter selected, then Edit Splitter… from the palette
+  const sp = await page.evaluate(() => {
+    const c = (window as unknown as { __hcsCanvas: { scene: { components: Map<string, { name: string; bounds: number[] }> } } }).__hcsCanvas;
+    const k = [...c.scene.components.values()].find((x) => x.name === 'Splitter')!;
+    return [k.bounds[0] + k.bounds[2] / 2, k.bounds[1] + 8] as [number, number];
+  });
+  const spAt = await canvasPoint(r, sp);
+  await page.mouse.click(spAt.x, spAt.y);
+  await page.keyboard.press('Control+k');
+  await page.keyboard.type('edit splitter');
+  await page.keyboard.press('Enter');
+  await page.getByRole('dialog', { name: 'Edit Splitter' }).waitFor();
+  await shot(r, 'splitter-editor');
+  await page.keyboard.press('Escape');
+  await r.close();
+}
+{
+  const r = await launch(FHD);
+  const { page } = r;
+  await openFile(r, sample(r.dir, 'electron/tests/fixtures/broken-datapath.circ'));
+  await drawn(r);
+  const memread = page.locator('.lower .list.tunnels li', { hasText: 'MemRead' });
+  await memread.locator('.tswatch').click();
+  await page.getByRole('menu', { name: 'Tunnel Color' }).getByRole('menuitemradio', { name: 'Vermillion' }).click();
+  await memread.locator('.tswatch.chosen').waitFor();
+  await page.locator('.lower .list.tunnels li', { hasText: 'clk' }).locator('.tswatch').click();
+  await page.getByRole('menu', { name: 'Tunnel Color' }).waitFor();
+  await shot(r, 'tunnels');
+  await r.close();
+}
+{
+  const r = await launch(FHD);
+  const { page } = r;
+  await openFile(r, sample(r.dir, DATAPATH));
+  await drawn(r);
+  await view(r, { x: 820, y: 230, zoom: 2 });
+  await page.getByRole('tab', { name: 'Minimap' }).click();
+  await page.waitForFunction(() => {
+    const c = document.querySelector<HTMLCanvasElement>('canvas.minimap');
+    return !!c && c.width > 10;
+  });
+  await shot(r, 'minimap');
   await r.close();
 }
 

@@ -65,7 +65,7 @@ public final class ModelJson {
         o.addProperty("name", c.getName());
         List<JsonObject> comps = new ArrayList<>();
         for (Component x : c.getNonWires()) {
-            comps.add(component(x));
+            comps.add(component(c, x));
         }
         comps.sort(ORDER);
         List<JsonObject> wires = new ArrayList<>();
@@ -81,6 +81,14 @@ public final class ModelJson {
     }
 
     public JsonObject component(Component c) {
+        return component(null, c);
+    }
+
+    /**
+     * 부품 하나. owner(부품이 든 회로)가 이 파일의 회로면 학생이 직접 정한 확장 정보(터널 색, 스플리터 팔 이름,
+     * hcs:ext)를 {@code ext}로 싣는다(N-12, D-150). 그 정보가 바뀌면 부품이 {@code model.changed}의 added로 다시 온다.
+     */
+    public JsonObject component(Circuit owner, Component c) {
         JsonObject o = new JsonObject();
         o.addProperty("id", ids.of(c));
         ComponentFactory f = c.getFactory();
@@ -124,6 +132,10 @@ public final class ModelJson {
             o.addProperty("subcircuit", ids.of(sub));
             // 화면이 인스턴스를 원조 모양대로 그리는 도형(N-05, D-137). 모양이 바뀌면 인스턴스가 바뀐 부품으로 온다
             o.add("appearance", AppearanceJson.of(sub));
+        }
+        JsonObject ext = ExtJson.of(file, owner, c);
+        if (ext != null) {
+            o.add("ext", ext);
         }
         return o;
     }

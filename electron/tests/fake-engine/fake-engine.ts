@@ -22,7 +22,10 @@
    fixture's cycles, the first one again at Reset; every other file has no
    messages), trace.origin
    (nothing to follow), mips.* (N-16: tests/fake-engine/fake-mips.ts -- the
-   real engine's answers for a few executable images, tests/fixtures/programs.json).  The same shapes as
+   real engine's answers for a few executable images, tests/fixtures/programs.json),
+   model.library, find.query, edit.tunnelColor/splitterEdit/splitterSplit (N-12:
+   tests/fake-engine/fake-find.ts -- the real engine's library and Find answers,
+   tests/fixtures/library.json, find.json).  The same shapes as
    the real engine's (docs/engine-api.md, engine/ D-134): Logisim's project
    name (Untitled, a file's name without .circ), alreadyOpen, messages,
    needsMipsJar; and a restarted engine's engine.hello idFloor and
@@ -59,11 +62,12 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
+import * as find from './fake-find.ts';
 import * as mips from './fake-mips.ts';
 import * as rec from './fake-record.ts';
 
 type Params = Record<string, unknown>;
-interface Comp { id: string; lib: string; name: string; loc: [number, number]; attrs: Record<string, string> }
+interface Comp { id: string; lib: string; name: string; loc: [number, number]; attrs: Record<string, string>; ext?: { color?: string; arms?: string[] } }
 interface Wire { id: string; a: [number, number]; b: [number, number] }
 interface Circuit { circuitId: string; name: string; comps: Comp[]; wires: Wire[] }
 interface Step { circuitId: string; comps: Comp[]; wires: Wire[] }   // a circuit's parts before an edit
@@ -71,6 +75,7 @@ interface File {
   fileId: string; name: string; path: string | null; bytes: Buffer | null; circuits: Circuit[]; main: string; libs: string[];
   cycle: number; ticking: boolean; hz: number; on: boolean; dirty: boolean; undo: Step[]; redo: Step[]; diag: Diag | null; ran: boolean;
   mips: mips.MipsState;     // mips.* (fake-mips.ts, N-16)
+  mipsIn?: boolean;         // a Hallym MIPS part was placed: the library is in the file (V-01)
   // a canvas fixture (tests/fixtures/circuits): its circuits under this file's circuit ids, the watched circuit
   fixture?: Fixture; fixtureIds?: Map<string, string>; watched?: { circuitId: string; watchKey: string; root: string; path: string[] };
   rec: rec.RecordFile;
@@ -305,23 +310,47 @@ const methods: Record<string, (p: Params) => unknown> = {
         if (x.ports === undefined) return compJson(k);
         return x.subcircuit ? { ...x, subcircuit: currentId(f, x.subcircuit) } : x;
       });
-      return { circuitId: c.circuitId, name: c.name, components: comps, wires: c.wires, nets: edited ? [] : snap.nets, junctions: edited ? [] : snap.junctions };
+      return { circuitId: c.circuitId, name: c.name, components: comps, wires: c.wires, nets: edited ? netsOf(f, c) : snap.nets, junctions: edited ? [] : snap.junctions };
     }
     const c = circuitOf(p);
     return { circuitId: c.circuitId, name: c.name, components: c.comps.map(compJson), wires: c.wires, nets: [], junctions: [] };
   },
   'model.library': (p) => {
     const f = fileOf(p);
+    const real = find.library(f);   // the real engine's (tests/fixtures/library.json, N-12)
+    if (real.length > 1) return real;
     return [
       { lib: null, display: f.name, tools: f.circuits.map((c) => ({ name: c.name, display: c.name, circuitId: c.circuitId })) },
       ...LIBRARY.map((g) => ({ lib: g.lib, display: g.lib === 'I/O' ? 'Input/Output' : g.lib, tools: g.tools.map((name) => ({ name, display: name })) })),
     ];
+  },
+  'find.query': (p) => { const f = fileOf(p); return find.findQuery(f.fileId, f, String(p.text ?? '')); },
+  'edit.tunnelColor': (p) => {
+    const c = circuitOf(p);
+    return edit(p, c, () => ({ removed: [], added: failing(() => find.tunnelColor(c, p)) }));
+  },
+  'edit.splitterEdit': (p) => {
+    const c = circuitOf(p);
+    return edit(p, c, () => ({ removed: [], added: failing(() => find.splitterEdit(c, p)) }));
+  },
+  'edit.splitterSplit': (p) => {
+    const f = fileOf(p);
+    const c = circuitOf(p);
+    if (!c.wires.some((w) => w.id === p.wire)) throw new Failure(1, `no such component id: ${String(p.wire)}`, { kind: 'component', id: String(p.wire) });
+    // the wire's width: the engine's net (a canvas fixture's circuit), else 8
+    const fx = f.fixture?.circuits.find((x) => x.circuitId === f.fixtureIds?.get(c.circuitId));
+    const net = (fx?.nets as { width: number; wires: string[] }[] | undefined)?.find((n) => n.wires.includes(String(p.wire)));
+    const width = net?.width ?? 8;
+    if (width <= 1) throw new Failure(-32602, 'Split Bits needs a multi-bit wire');
+    const id = `k${nextComp++}`;
+    return edit(p, c, () => ({ removed: [], added: [failing(() => find.splitterSplit(c, p, width, id))] }), { id });
   },
   'edit.addComponent': (p) => {
     const c = circuitOf(p);
     const loc = p.loc as [number, number];
     if (!Array.isArray(loc) || typeof p.name !== 'string') throw new Failure(-32602, 'loc and name are required');
     const k: Comp = { id: `k${nextComp++}`, lib: (p.lib as string | null | undefined) ?? 'circuit', name: p.name, loc: [loc[0], loc[1]], attrs: { ...(p.attrs as Record<string, string> ?? {}) } };
+    if (k.lib === find.MIPS_LIB) fileOf(p).mipsIn = true;   // the bundled library goes into the file (V-01)
     return edit(p, c, () => { c.comps.push(k); return { removed: [], added: [k] }; }, { id: k.id });
   },
   'edit.addWire': (p) => {
@@ -585,9 +614,18 @@ function adopt(f: File, p: Params): void {
 
 const compJson = (k: Comp) => ({
   id: k.id, lib: k.lib, name: k.name, loc: k.loc, bounds: [k.loc[0] - 30, k.loc[1] - 15, 30, 30],
-  facing: (k.attrs.facing as 'east' | undefined) ?? 'east', attrs: k.attrs, ports: [],
+  facing: (k.attrs.facing as 'east' | undefined) ?? 'east', attrs: k.attrs, ports: [], ...(k.ext ? { ext: k.ext } : {}),
 });
-const partJson = (x: Comp | Wire) => ('a' in x ? x : compJson(x));
+// A canvas fixture's part is the engine's whole JSON already (bounds, ports): as it is.
+const partJson = (x: Comp | Wire) => ('a' in x ? x : (x as Comp & { ports?: unknown }).ports !== undefined ? x : compJson(x));
+
+// fake-find.ts throws plain errors with a code: the protocol's error.
+function failing<T>(f: () => T): T {
+  try { return f(); } catch (e) {
+    const code = (e as { code?: number }).code;
+    throw code ? new Failure(code, (e as Error).message) : e;
+  }
+}
 
 function partsOf(c: Circuit, ids: unknown): Set<string> {
   if (!Array.isArray(ids)) throw new Failure(-32602, 'ids must be an array');
@@ -607,7 +645,7 @@ function edit(p: Params, c: Circuit, change: () => { removed: string[]; added: (
   f.undo.push(before);
   f.redo = [];
   f.dirty = true;
-  const params = { fileId: f.fileId, circuitId: c.circuitId, removed, added: added.map(partJson), nets: [], junctions: [], dirty: true };
+  const params = { fileId: f.fileId, circuitId: c.circuitId, removed, added: added.map(partJson), nets: netsOf(f, c), junctions: [], dirty: true };
   setImmediate(() => notify('model.changed', params));
   return { changed: true, ...result };
 }
@@ -624,9 +662,21 @@ function undoRedo(f: File, which: 'undo' | 'redo'): unknown {
   c.comps = step.comps.map((k) => ({ ...k, id: `k${nextComp++}` }));
   c.wires = step.wires.map((w) => ({ ...w, id: `w${nextWire++}` }));
   f.dirty = true;
-  const params = { fileId: f.fileId, circuitId: c.circuitId, removed, added: [...c.comps.map(compJson), ...c.wires], nets: [], junctions: [], dirty: true };
+  const params = { fileId: f.fileId, circuitId: c.circuitId, removed, added: [...c.comps.map(partJson), ...c.wires], nets: netsOf(f, c), junctions: [], dirty: true };
   setImmediate(() => notify('model.changed', params));
   return { changed: true };
+}
+
+/* After an edit: a canvas fixture's nets (the engine's) with what is still there -- the wires and the
+   ports of the parts left -- so a wire keeps its width (the Splitter editor asks it); none elsewhere. */
+function netsOf(f: File, c: Circuit): unknown[] {
+  const fx = f.fixture?.circuits.find((x) => x.circuitId === f.fixtureIds?.get(c.circuitId));
+  if (!fx) return [];
+  const wires = new Set(c.wires.map((w) => w.id));
+  const comps = new Set(c.comps.map((k) => k.id));
+  return (fx.nets as { id: string; width: number; wires: string[]; ports: [string, number][] }[])
+    .map((n) => ({ ...n, wires: n.wires.filter((w) => wires.has(w)), ports: n.ports.filter(([k]) => comps.has(k)) }))
+    .filter((n) => n.wires.length || n.ports.length);
 }
 
 // A fixture circuit's id as this file's.

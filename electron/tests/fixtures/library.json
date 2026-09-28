@@ -1,0 +1,921 @@
+{
+  "source": "./gradlew :engine:canvasFixtures (FindFixtures, D-150): engine API model.library",
+  "new": [
+    {
+      "lib": null,
+      "tools": [
+        {
+          "name": "main",
+          "display": "main"
+        }
+      ]
+    },
+    {
+      "lib": "Wiring",
+      "display": "Wiring",
+      "tools": [
+        {
+          "name": "Splitter",
+          "display": "Splitter"
+        },
+        {
+          "name": "Pin",
+          "display": "Pin"
+        },
+        {
+          "name": "Probe",
+          "display": "Probe"
+        },
+        {
+          "name": "Tunnel",
+          "display": "Tunnel"
+        },
+        {
+          "name": "Pull Resistor",
+          "display": "Pull Resistor"
+        },
+        {
+          "name": "Clock",
+          "display": "Clock"
+        },
+        {
+          "name": "Constant",
+          "display": "Constant"
+        },
+        {
+          "name": "Power",
+          "display": "Power"
+        },
+        {
+          "name": "Ground",
+          "display": "Ground"
+        },
+        {
+          "name": "Transistor",
+          "display": "Transistor"
+        },
+        {
+          "name": "Transmission Gate",
+          "display": "Transmission Gate"
+        },
+        {
+          "name": "Bit Extender",
+          "display": "Bit Extender"
+        }
+      ]
+    },
+    {
+      "lib": "Gates",
+      "display": "Gates",
+      "tools": [
+        {
+          "name": "NOT Gate",
+          "display": "NOT Gate"
+        },
+        {
+          "name": "Buffer",
+          "display": "Buffer"
+        },
+        {
+          "name": "AND Gate",
+          "display": "AND Gate"
+        },
+        {
+          "name": "OR Gate",
+          "display": "OR Gate"
+        },
+        {
+          "name": "NAND Gate",
+          "display": "NAND Gate"
+        },
+        {
+          "name": "NOR Gate",
+          "display": "NOR Gate"
+        },
+        {
+          "name": "XOR Gate",
+          "display": "XOR Gate"
+        },
+        {
+          "name": "XNOR Gate",
+          "display": "XNOR Gate"
+        },
+        {
+          "name": "Odd Parity",
+          "display": "Odd Parity"
+        },
+        {
+          "name": "Even Parity",
+          "display": "Even Parity"
+        },
+        {
+          "name": "Controlled Buffer",
+          "display": "Controlled Buffer"
+        },
+        {
+          "name": "Controlled Inverter",
+          "display": "Controlled Inverter"
+        }
+      ]
+    },
+    {
+      "lib": "Plexers",
+      "display": "Plexers",
+      "tools": [
+        {
+          "name": "Multiplexer",
+          "display": "Multiplexer"
+        },
+        {
+          "name": "Demultiplexer",
+          "display": "Demultiplexer"
+        },
+        {
+          "name": "Decoder",
+          "display": "Decoder"
+        },
+        {
+          "name": "Priority Encoder",
+          "display": "Priority Encoder"
+        },
+        {
+          "name": "BitSelector",
+          "display": "Bit Selector"
+        }
+      ]
+    },
+    {
+      "lib": "Arithmetic",
+      "display": "Arithmetic",
+      "tools": [
+        {
+          "name": "Adder",
+          "display": "Adder"
+        },
+        {
+          "name": "Subtractor",
+          "display": "Subtractor"
+        },
+        {
+          "name": "Multiplier",
+          "display": "Multiplier"
+        },
+        {
+          "name": "Divider",
+          "display": "Divider"
+        },
+        {
+          "name": "Negator",
+          "display": "Negator"
+        },
+        {
+          "name": "Comparator",
+          "display": "Comparator"
+        },
+        {
+          "name": "Shifter",
+          "display": "Shifter"
+        },
+        {
+          "name": "BitAdder",
+          "display": "Bit Adder"
+        },
+        {
+          "name": "BitFinder",
+          "display": "Bit Finder"
+        }
+      ]
+    },
+    {
+      "lib": "Memory",
+      "display": "Memory",
+      "tools": [
+        {
+          "name": "D Flip-Flop",
+          "display": "D Flip-Flop"
+        },
+        {
+          "name": "T Flip-Flop",
+          "display": "T Flip-Flop"
+        },
+        {
+          "name": "J-K Flip-Flop",
+          "display": "J-K Flip-Flop"
+        },
+        {
+          "name": "S-R Flip-Flop",
+          "display": "S-R Flip-Flop"
+        },
+        {
+          "name": "Register",
+          "display": "Register"
+        },
+        {
+          "name": "Counter",
+          "display": "Counter"
+        },
+        {
+          "name": "Shift Register",
+          "display": "Shift Register"
+        },
+        {
+          "name": "Random",
+          "display": "Random Generator"
+        },
+        {
+          "name": "RAM",
+          "display": "RAM"
+        },
+        {
+          "name": "ROM",
+          "display": "ROM"
+        }
+      ]
+    },
+    {
+      "lib": "I/O",
+      "display": "Input/Output",
+      "tools": [
+        {
+          "name": "Button",
+          "display": "Button"
+        },
+        {
+          "name": "Joystick",
+          "display": "Joystick"
+        },
+        {
+          "name": "Keyboard",
+          "display": "Keyboard"
+        },
+        {
+          "name": "LED",
+          "display": "LED"
+        },
+        {
+          "name": "7-Segment Display",
+          "display": "7-Segment Display"
+        },
+        {
+          "name": "Hex Digit Display",
+          "display": "Hex Digit Display"
+        },
+        {
+          "name": "DotMatrix",
+          "display": "LED Matrix"
+        },
+        {
+          "name": "TTY",
+          "display": "TTY"
+        }
+      ]
+    },
+    {
+      "lib": "Base",
+      "display": "Base",
+      "tools": [
+        {
+          "name": "Text",
+          "display": "Label"
+        }
+      ]
+    },
+    {
+      "lib": "kr.ac.hallym.hcs.mips.MipsLibrary",
+      "display": "Hallym MIPS",
+      "pending": true,
+      "tools": [
+        {
+          "name": "Instruction Memory",
+          "display": "Instruction Memory"
+        },
+        {
+          "name": "Data Memory",
+          "display": "Data Memory"
+        },
+        {
+          "name": "Console",
+          "display": "Console"
+        },
+        {
+          "name": "Radix Probe",
+          "display": "Radix Probe"
+        }
+      ]
+    }
+  ],
+  "demo-datapath.circ": [
+    {
+      "lib": null,
+      "tools": [
+        {
+          "name": "main",
+          "display": "main"
+        },
+        {
+          "name": "regfile",
+          "display": "regfile"
+        },
+        {
+          "name": "alu",
+          "display": "alu"
+        }
+      ]
+    },
+    {
+      "lib": "Wiring",
+      "display": "Wiring",
+      "tools": [
+        {
+          "name": "Splitter",
+          "display": "Splitter"
+        },
+        {
+          "name": "Pin",
+          "display": "Pin"
+        },
+        {
+          "name": "Probe",
+          "display": "Probe"
+        },
+        {
+          "name": "Tunnel",
+          "display": "Tunnel"
+        },
+        {
+          "name": "Pull Resistor",
+          "display": "Pull Resistor"
+        },
+        {
+          "name": "Clock",
+          "display": "Clock"
+        },
+        {
+          "name": "Constant",
+          "display": "Constant"
+        },
+        {
+          "name": "Power",
+          "display": "Power"
+        },
+        {
+          "name": "Ground",
+          "display": "Ground"
+        },
+        {
+          "name": "Transistor",
+          "display": "Transistor"
+        },
+        {
+          "name": "Transmission Gate",
+          "display": "Transmission Gate"
+        },
+        {
+          "name": "Bit Extender",
+          "display": "Bit Extender"
+        }
+      ]
+    },
+    {
+      "lib": "Gates",
+      "display": "Gates",
+      "tools": [
+        {
+          "name": "NOT Gate",
+          "display": "NOT Gate"
+        },
+        {
+          "name": "Buffer",
+          "display": "Buffer"
+        },
+        {
+          "name": "AND Gate",
+          "display": "AND Gate"
+        },
+        {
+          "name": "OR Gate",
+          "display": "OR Gate"
+        },
+        {
+          "name": "NAND Gate",
+          "display": "NAND Gate"
+        },
+        {
+          "name": "NOR Gate",
+          "display": "NOR Gate"
+        },
+        {
+          "name": "XOR Gate",
+          "display": "XOR Gate"
+        },
+        {
+          "name": "XNOR Gate",
+          "display": "XNOR Gate"
+        },
+        {
+          "name": "Odd Parity",
+          "display": "Odd Parity"
+        },
+        {
+          "name": "Even Parity",
+          "display": "Even Parity"
+        },
+        {
+          "name": "Controlled Buffer",
+          "display": "Controlled Buffer"
+        },
+        {
+          "name": "Controlled Inverter",
+          "display": "Controlled Inverter"
+        }
+      ]
+    },
+    {
+      "lib": "Plexers",
+      "display": "Plexers",
+      "tools": [
+        {
+          "name": "Multiplexer",
+          "display": "Multiplexer"
+        },
+        {
+          "name": "Demultiplexer",
+          "display": "Demultiplexer"
+        },
+        {
+          "name": "Decoder",
+          "display": "Decoder"
+        },
+        {
+          "name": "Priority Encoder",
+          "display": "Priority Encoder"
+        },
+        {
+          "name": "BitSelector",
+          "display": "Bit Selector"
+        }
+      ]
+    },
+    {
+      "lib": "Arithmetic",
+      "display": "Arithmetic",
+      "tools": [
+        {
+          "name": "Adder",
+          "display": "Adder"
+        },
+        {
+          "name": "Subtractor",
+          "display": "Subtractor"
+        },
+        {
+          "name": "Multiplier",
+          "display": "Multiplier"
+        },
+        {
+          "name": "Divider",
+          "display": "Divider"
+        },
+        {
+          "name": "Negator",
+          "display": "Negator"
+        },
+        {
+          "name": "Comparator",
+          "display": "Comparator"
+        },
+        {
+          "name": "Shifter",
+          "display": "Shifter"
+        },
+        {
+          "name": "BitAdder",
+          "display": "Bit Adder"
+        },
+        {
+          "name": "BitFinder",
+          "display": "Bit Finder"
+        }
+      ]
+    },
+    {
+      "lib": "Memory",
+      "display": "Memory",
+      "tools": [
+        {
+          "name": "D Flip-Flop",
+          "display": "D Flip-Flop"
+        },
+        {
+          "name": "T Flip-Flop",
+          "display": "T Flip-Flop"
+        },
+        {
+          "name": "J-K Flip-Flop",
+          "display": "J-K Flip-Flop"
+        },
+        {
+          "name": "S-R Flip-Flop",
+          "display": "S-R Flip-Flop"
+        },
+        {
+          "name": "Register",
+          "display": "Register"
+        },
+        {
+          "name": "Counter",
+          "display": "Counter"
+        },
+        {
+          "name": "Shift Register",
+          "display": "Shift Register"
+        },
+        {
+          "name": "Random",
+          "display": "Random Generator"
+        },
+        {
+          "name": "RAM",
+          "display": "RAM"
+        },
+        {
+          "name": "ROM",
+          "display": "ROM"
+        }
+      ]
+    },
+    {
+      "lib": "I/O",
+      "display": "Input/Output",
+      "tools": [
+        {
+          "name": "Button",
+          "display": "Button"
+        },
+        {
+          "name": "Joystick",
+          "display": "Joystick"
+        },
+        {
+          "name": "Keyboard",
+          "display": "Keyboard"
+        },
+        {
+          "name": "LED",
+          "display": "LED"
+        },
+        {
+          "name": "7-Segment Display",
+          "display": "7-Segment Display"
+        },
+        {
+          "name": "Hex Digit Display",
+          "display": "Hex Digit Display"
+        },
+        {
+          "name": "DotMatrix",
+          "display": "LED Matrix"
+        },
+        {
+          "name": "TTY",
+          "display": "TTY"
+        }
+      ]
+    },
+    {
+      "lib": "Base",
+      "display": "Base",
+      "tools": [
+        {
+          "name": "Text",
+          "display": "Label"
+        }
+      ]
+    },
+    {
+      "lib": "kr.ac.hallym.hcs.mips.MipsLibrary",
+      "display": "Hallym MIPS",
+      "tools": [
+        {
+          "name": "Instruction Memory",
+          "display": "Instruction Memory"
+        },
+        {
+          "name": "Data Memory",
+          "display": "Data Memory"
+        },
+        {
+          "name": "Console",
+          "display": "Console"
+        },
+        {
+          "name": "Radix Probe",
+          "display": "Radix Probe"
+        }
+      ]
+    }
+  ],
+  "ref-mips.circ": [
+    {
+      "lib": null,
+      "tools": [
+        {
+          "name": "main",
+          "display": "main"
+        }
+      ]
+    },
+    {
+      "lib": "Wiring",
+      "display": "Wiring",
+      "tools": [
+        {
+          "name": "Splitter",
+          "display": "Splitter"
+        },
+        {
+          "name": "Pin",
+          "display": "Pin"
+        },
+        {
+          "name": "Probe",
+          "display": "Probe"
+        },
+        {
+          "name": "Tunnel",
+          "display": "Tunnel"
+        },
+        {
+          "name": "Pull Resistor",
+          "display": "Pull Resistor"
+        },
+        {
+          "name": "Clock",
+          "display": "Clock"
+        },
+        {
+          "name": "Constant",
+          "display": "Constant"
+        },
+        {
+          "name": "Power",
+          "display": "Power"
+        },
+        {
+          "name": "Ground",
+          "display": "Ground"
+        },
+        {
+          "name": "Transistor",
+          "display": "Transistor"
+        },
+        {
+          "name": "Transmission Gate",
+          "display": "Transmission Gate"
+        },
+        {
+          "name": "Bit Extender",
+          "display": "Bit Extender"
+        }
+      ]
+    },
+    {
+      "lib": "Gates",
+      "display": "Gates",
+      "tools": [
+        {
+          "name": "NOT Gate",
+          "display": "NOT Gate"
+        },
+        {
+          "name": "Buffer",
+          "display": "Buffer"
+        },
+        {
+          "name": "AND Gate",
+          "display": "AND Gate"
+        },
+        {
+          "name": "OR Gate",
+          "display": "OR Gate"
+        },
+        {
+          "name": "NAND Gate",
+          "display": "NAND Gate"
+        },
+        {
+          "name": "NOR Gate",
+          "display": "NOR Gate"
+        },
+        {
+          "name": "XOR Gate",
+          "display": "XOR Gate"
+        },
+        {
+          "name": "XNOR Gate",
+          "display": "XNOR Gate"
+        },
+        {
+          "name": "Odd Parity",
+          "display": "Odd Parity"
+        },
+        {
+          "name": "Even Parity",
+          "display": "Even Parity"
+        },
+        {
+          "name": "Controlled Buffer",
+          "display": "Controlled Buffer"
+        },
+        {
+          "name": "Controlled Inverter",
+          "display": "Controlled Inverter"
+        }
+      ]
+    },
+    {
+      "lib": "Plexers",
+      "display": "Plexers",
+      "tools": [
+        {
+          "name": "Multiplexer",
+          "display": "Multiplexer"
+        },
+        {
+          "name": "Demultiplexer",
+          "display": "Demultiplexer"
+        },
+        {
+          "name": "Decoder",
+          "display": "Decoder"
+        },
+        {
+          "name": "Priority Encoder",
+          "display": "Priority Encoder"
+        },
+        {
+          "name": "BitSelector",
+          "display": "Bit Selector"
+        }
+      ]
+    },
+    {
+      "lib": "Arithmetic",
+      "display": "Arithmetic",
+      "tools": [
+        {
+          "name": "Adder",
+          "display": "Adder"
+        },
+        {
+          "name": "Subtractor",
+          "display": "Subtractor"
+        },
+        {
+          "name": "Multiplier",
+          "display": "Multiplier"
+        },
+        {
+          "name": "Divider",
+          "display": "Divider"
+        },
+        {
+          "name": "Negator",
+          "display": "Negator"
+        },
+        {
+          "name": "Comparator",
+          "display": "Comparator"
+        },
+        {
+          "name": "Shifter",
+          "display": "Shifter"
+        },
+        {
+          "name": "BitAdder",
+          "display": "Bit Adder"
+        },
+        {
+          "name": "BitFinder",
+          "display": "Bit Finder"
+        }
+      ]
+    },
+    {
+      "lib": "Memory",
+      "display": "Memory",
+      "tools": [
+        {
+          "name": "D Flip-Flop",
+          "display": "D Flip-Flop"
+        },
+        {
+          "name": "T Flip-Flop",
+          "display": "T Flip-Flop"
+        },
+        {
+          "name": "J-K Flip-Flop",
+          "display": "J-K Flip-Flop"
+        },
+        {
+          "name": "S-R Flip-Flop",
+          "display": "S-R Flip-Flop"
+        },
+        {
+          "name": "Register",
+          "display": "Register"
+        },
+        {
+          "name": "Counter",
+          "display": "Counter"
+        },
+        {
+          "name": "Shift Register",
+          "display": "Shift Register"
+        },
+        {
+          "name": "Random",
+          "display": "Random Generator"
+        },
+        {
+          "name": "RAM",
+          "display": "RAM"
+        },
+        {
+          "name": "ROM",
+          "display": "ROM"
+        }
+      ]
+    },
+    {
+      "lib": "I/O",
+      "display": "Input/Output",
+      "tools": [
+        {
+          "name": "Button",
+          "display": "Button"
+        },
+        {
+          "name": "Joystick",
+          "display": "Joystick"
+        },
+        {
+          "name": "Keyboard",
+          "display": "Keyboard"
+        },
+        {
+          "name": "LED",
+          "display": "LED"
+        },
+        {
+          "name": "7-Segment Display",
+          "display": "7-Segment Display"
+        },
+        {
+          "name": "Hex Digit Display",
+          "display": "Hex Digit Display"
+        },
+        {
+          "name": "DotMatrix",
+          "display": "LED Matrix"
+        },
+        {
+          "name": "TTY",
+          "display": "TTY"
+        }
+      ]
+    },
+    {
+      "lib": "Base",
+      "display": "Base",
+      "tools": [
+        {
+          "name": "Text",
+          "display": "Label"
+        }
+      ]
+    },
+    {
+      "lib": "kr.ac.hallym.hcs.mips.MipsLibrary",
+      "display": "Hallym MIPS",
+      "tools": [
+        {
+          "name": "Instruction Memory",
+          "display": "Instruction Memory"
+        },
+        {
+          "name": "Data Memory",
+          "display": "Data Memory"
+        },
+        {
+          "name": "Console",
+          "display": "Console"
+        },
+        {
+          "name": "Radix Probe",
+          "display": "Radix Probe"
+        }
+      ]
+    }
+  ]
+}

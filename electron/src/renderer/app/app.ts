@@ -19,16 +19,20 @@
    has the circuits; this page shows what it says.  The Canvas
    (../canvas/, N-05) draws the circuit from the engine's snapshot, its
    changes and its values.  Panels with nothing to show say, in one
-   sentence, what fills them.
+   sentence, what fills them.  Finding and placing (N-12, D-150): the
+   Components list and its search (components.ts), the search palette
+   (Ctrl+K, palette.ts), Find (Ctrl+F, find.ts), Tunnels (tunnels.ts), the
+   Minimap (minimap.ts) and the Splitter editor (splitter-editor.ts); the
+   events they meet the Canvas on are in tool-events.ts.
 
    Nothing is restored from an earlier run and nothing is written but the
    files the student saves (the lab-PC rule; src/main/main.ts). */
 
-import type { CircuitRef, ConsoleUpdate, DiagList, DiagMessage, EngineStatus, LibraryGroup, MipsFacts, ModelChanged, NewResult, RecordState, Recovered, Reloaded, RunUntilDone, SimState, SimValues, Snapshot } from '../../main/protocol.ts';
+import type { CircuitRef, ConsoleUpdate, DiagList, DiagMessage, EngineStatus, FindResult, LibraryGroup, MipsFacts, ModelChanged, NewResult, Point, RecordState, Recovered, Reloaded, RunUntilDone, SimState, SimValues, Snapshot } from '../../main/protocol.ts';
 import { CircuitCanvas } from '../canvas/canvas.ts';
 import { legend } from '../canvas/legend.ts';
 import { Scene } from '../canvas/scene.ts';
-import type { View } from '../canvas/view.ts';
+import { toCircuit, type View, visible } from '../canvas/view.ts';
 import { zoomControl } from '../canvas/zoom.ts';
 import { aboutDialog } from '../shared/about.ts';
 import { ask } from '../shared/ask.ts';
@@ -40,9 +44,19 @@ import { splitter } from '../shared/splitter.ts';
 import { button, iconButton, titleBar } from '../shared/titlebar.ts';
 import { headButton, panelHead, tabStrip, tabsHead } from '../shared/ui.ts';
 import type { CallError, Opened } from './api.ts';
+import { componentsPanel, type Pick, TOOL_MIME } from './components.ts';
 import { consolePanel } from './console.ts';
 import { CycleView, type PinSpot } from './cycleview.ts';
 import { cycleFacts } from './logic/cycle.ts';
+import { findWindow } from './find.ts';
+import { revealOfPlace } from './logic/find.ts';
+import type { CommandId, SearchItem } from './logic/search.ts';
+import { fromAttrs, initialSplit } from './logic/splitter.ts';
+import { minimapPanel } from './minimap.ts';
+import { palette } from './palette.ts';
+import { splitterEditor } from './splitter-editor.ts';
+import { type EditSplitter, emitPlaceTool, emitSelection, onEditSplitter, type PlaceTool, snap } from './tool-events.ts';
+import { tunnelsPanel } from './tunnels.ts';
 import { commandError, fileError } from './logic/errors.ts';
 import { circuitFacts, count, counted, engineFact, engineVersion } from './logic/facts.ts';
 import { Files, type OpenFile } from './logic/files.ts';
@@ -90,7 +104,17 @@ const sceneKey = (fileId: string, circuitId: string, path: string[] = []) => (pa
 const board = new CircuitCanvas({
   onView: (v) => zoomCtl.update(v.zoom),
   onEnter: (id) => enterInstance(id),
+  onSelect: (ids) => selected(ids),
 });
+// What is selected on the Canvas (tool-events.ts hcs:selection; N-08's selection model sends it too).
+let selection: { fileId: string; circuitId: string; ids: string[] } | null = null;
+function selected(ids: string[]): void {
+  const f = files.active();
+  if (!f) return;
+  const w = shown(f);
+  selection = { fileId: f.fileId, circuitId: w.circuit, ids };
+  emitSelection({ fileId: f.fileId, circuitId: w.circuit, path: w.path, ids });
+}
 const zoomCtl = zoomControl({
   zoom: () => board.view.zoom, zoomTo: (z) => board.zoomTo(z), fit: () => board.fitView(), step: (d) => board.zoomStep(d),
 });
@@ -162,7 +186,7 @@ const upperPanel = h('section', { class: 'panel upper', 'aria-label': 'Component
 const tunnelsBody = noticeHost('side');
 const minimapBody = noticeHost('side');
 const lowerBodies = [tunnelsBody.root, minimapBody.root];
-const lowerHead = tabsHead(['Tunnels', 'Minimap'], (i) => showBody(lowerBodies, i));
+const lowerHead = tabsHead(['Tunnels', 'Minimap'], (i) => { showBody(lowerBodies, i); minimap.show(i === 1); });
 const lowerPanel = h('section', { class: 'panel lower', 'aria-label': 'Tunnels' }, lowerHead.root, ...lowerBodies);
 // Right: Attributes
 const rightHead = panelHead('Attributes');
@@ -179,6 +203,230 @@ const canvasPanel = h('section', { class: 'panel canvaspanel', 'aria-label': 'Ca
   h('div', { class: 'phead filebar' }, fileStrip.root),
   h('div', { class: 'circuitbar' }, circuitStrip.root),
   canvasBody.root);
+
+// ---- finding and placing (N-12, D-150) --------------------------------------------------
+
+// Components: the library tree and its search; a part picked or dropped goes through hcs:place-tool.
+const components = componentsPanel({
+  host: componentsBody,
+  onPick: (p) => pickTool(p, 'components'),
+  onOpenCircuit: (id) => { const f = files.active(); if (f) { files.openCircuit(f.fileId, id); render(); } },
+  recent: () => pal.recent(),
+  favorites: () => pal.favorites(),
+});
+// Tunnels: by name; a name goes to its next tunnel, the chip sets Tunnel Color.
+const tunnels = tunnelsPanel({
+  host: tunnelsBody,
+  go: (id) => revealPart(id),
+  setColor: (id, color) => void setTunnelColor(id, color),
+  editable: () => engine.state === 'ready',
+});
+// The Minimap: the whole circuit on show and the Canvas's view; press or drag to move the view.
+const minimap = minimapPanel({ host: minimapBody, board });
+// Find (Ctrl+F): over the Canvas's corner.
+const finder = findWindow({
+  query: async (text) => {
+    const f = files.active();
+    if (!f || engine.state !== 'ready') return null;
+    try { return await api.call<FindResult>('find.query', { fileId: f.fileId, text }); } catch { return null; }
+  },
+  go: (p) => { const f = files.active(); if (f) emitReveal(revealOfPlace(f.fileId, p)); },
+});
+canvasPanel.append(finder.root);
+// The search palette (Ctrl+K, a letter on the Canvas).
+const pal = palette({
+  sources: () => {
+    const f = files.active();
+    if (!f || engine.state !== 'ready') return null;
+    const lib = libraries.get(f.fileId);
+    const s = shownSnapshot(f);
+    return {
+      libraries: Array.isArray(lib) ? lib : null, fileName: f.name, current: shown(f).circuit,
+      tunnels: tunnels.entries().map((e) => ({ name: e.name, count: e.ids.length })),
+      commands: commandsNow(s),
+    };
+  },
+  anchor: () => paletteAnchor(),
+  choose: (it) => void chosen(it),
+});
+document.body.append(pal.root);
+
+// The last place the pointer was over the Canvas (window px): the palette opens there and places there.
+let pointerClient: { x: number; y: number } | null = null;
+board.canvas.addEventListener('pointermove', (e) => { pointerClient = { x: e.clientX, y: e.clientY }; });
+board.canvas.addEventListener('pointerleave', () => { pointerClient = null; });
+
+// The Canvas's own box on screen (the empty circuit's word stands in for it).
+function canvasRect(): DOMRect {
+  return (board.root.isConnected ? board.canvas : canvasBody.root).getBoundingClientRect();
+}
+// A window point on the Canvas as a circuit point (zoom 1 from the corner while the circuit is empty).
+function circuitPoint(x: number, y: number): Point {
+  const r = canvasRect();
+  const at: [number, number] = [x - r.left, y - r.top];
+  return board.root.isConnected && board.scene ? toCircuit(board.view, at) : at;
+}
+// Where the palette puts a part: under the pointer, else the middle of what the Canvas shows (v1).
+function pointerPoint(): Point {
+  const r = canvasRect();
+  if (pointerClient && pointerClient.x >= r.left && pointerClient.x <= r.right && pointerClient.y >= r.top && pointerClient.y <= r.bottom) {
+    return circuitPoint(pointerClient.x, pointerClient.y);
+  }
+  if (board.root.isConnected && board.scene) {
+    const v = visible(board.view, r.width, r.height);
+    return [(v.x0 + v.x1) / 2, (v.y0 + v.y1) / 2];
+  }
+  return [r.width / 2, r.height / 2];
+}
+function paletteAnchor(): { x: number; y: number } {
+  const r = canvasRect();
+  if (pointerClient && pointerClient.x >= r.left && pointerClient.x <= r.right && pointerClient.y >= r.top && pointerClient.y <= r.bottom) {
+    return { x: pointerClient.x + 12, y: pointerClient.y + 12 };
+  }
+  return { x: r.left + 80, y: r.top + 80 };
+}
+
+// A part to place: hcs:place-tool first (N-08's placement flow takes it); one with a point nobody took, placed here.
+function placeTool(p: PlaceTool): void {
+  if (emitPlaceTool(p) || !p.at) return;
+  void placeNow(p);
+}
+async function placeNow(p: PlaceTool): Promise<void> {
+  if (engine.state !== 'ready') return;
+  try {
+    await api.call('edit.addComponent', { fileId: p.fileId, circuitId: p.circuitId, lib: p.lib, name: p.name, loc: p.at, ...(p.attrs && Object.keys(p.attrs).length ? { attrs: p.attrs } : {}) });
+    note = null;
+  } catch (e) {
+    note = { cls: 'err', text: commandError(p.name, e as CallError) };
+  }
+  renderStatus();
+}
+function pickTool(p: Pick, source: 'components' | 'drop', at?: Point): void {
+  const f = files.active();
+  if (!f) return;
+  placeTool({ fileId: f.fileId, circuitId: shown(f).circuit, lib: p.lib, name: p.name, ...(p.attrs ? { attrs: p.attrs } : {}), ...(at ? { at } : {}), source });
+}
+// A part dragged from the Components list and dropped on the Canvas: one there (I-62).
+canvasBody.root.addEventListener('dragover', (e) => {
+  if (!e.dataTransfer?.types.includes(TOOL_MIME)) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'copy';
+});
+canvasBody.root.addEventListener('drop', (e) => {
+  const raw = e.dataTransfer?.getData(TOOL_MIME);
+  if (!raw) return;
+  e.preventDefault();
+  pickTool(JSON.parse(raw) as Pick, 'drop', snap(circuitPoint(e.clientX, e.clientY)));
+});
+
+// The commands the palette offers now.
+function commandsNow(s: Snapshot | null): CommandId[] {
+  const out: CommandId[] = ['reset', 'cycle', 'run', 'enable', 'load', 'find'];
+  if (board.root.isConnected && board.scene) out.push('fit');
+  if (selectedSplitter(s)) out.push('editSplitter');
+  return out;
+}
+function selectedSplitter(s: Snapshot | null): string | null {
+  const f = files.active();
+  if (!f || !s || !selection || selection.fileId !== f.fileId || selection.circuitId !== s.circuitId || selection.ids.length !== 1) return null;
+  const c = s.components.find((x) => x.id === selection!.ids[0]);
+  return c && c.lib === 'Wiring' && c.name === 'Splitter' ? c.id : null;
+}
+
+// What the palette's Enter does.
+async function chosen(it: SearchItem): Promise<void> {
+  const f = files.active();
+  if (!f) return;
+  if (it.kind === 'component' || it.kind === 'subcircuit') {
+    placeTool({ fileId: f.fileId, circuitId: shown(f).circuit, lib: it.lib ?? null, name: it.tool!, ...(Object.keys(it.attrs).length ? { attrs: it.attrs } : {}), at: snap(pointerPoint()), source: 'palette' });
+  } else if (it.kind === 'tunnel') {
+    const e = tunnels.entries().find((x) => x.name === it.name);
+    if (e) revealPart(e.ids[0]);
+  } else if (it.command) {
+    runCommand(it.command);
+  }
+}
+function runCommand(id: CommandId): void {
+  const f = files.active();
+  if (!f) return;
+  switch (id) {
+    case 'reset': void reset(); break;
+    case 'cycle': void cycles(1); break;
+    case 'run': void run(); break;
+    case 'enable': void simCall('sim.enable', { on: !(f.sim?.running ?? true) }, 'Simulation Enabled'); break;
+    case 'load': void programs.load(f.fileId); break;
+    case 'fit': board.fitView(); break;
+    case 'find': finder.open(); break;
+    case 'editSplitter': {
+      const id2 = selectedSplitter(shownSnapshot(f));
+      if (id2) void editSplitter({ fileId: f.fileId, circuitId: shown(f).circuit, componentId: id2 });
+      break;
+    }
+  }
+}
+
+// A part of the circuit on show, marked and brought into view (Tunnels, the palette's tunnels).
+function revealPart(id: string): void {
+  const f = files.active();
+  if (!f) return;
+  const w = shown(f);
+  const c = shownSnapshot(f)?.components.find((x) => x.id === id);
+  emitReveal({ fileId: f.fileId, messageId: null, circuitId: w.circuit, root: w.root, path: w.path, components: [id], wires: [], nets: [], at: c ? [c.loc[0], c.loc[1]] : null, cycle: null, tone: 'find' });
+}
+
+async function setTunnelColor(id: string, color: string | null): Promise<void> {
+  const f = files.active();
+  if (!f || engine.state !== 'ready') return;
+  try {
+    await api.call('edit.tunnelColor', { fileId: f.fileId, circuitId: shown(f).circuit, id, ...(color ? { color } : {}) });
+    note = null;
+  } catch (e) {
+    note = { cls: 'err', text: commandError('Tunnel Color', e as CallError) };
+  }
+  renderStatus();
+}
+
+// The Splitter editor (N-12): for a splitter (Edit Splitter…) or a new one on a wire (Split Bits…, Take One Bit).
+onEditSplitter((r) => void editSplitter(r));
+async function editSplitter(r: EditSplitter): Promise<void> {
+  const f = files.get(r.fileId);
+  if (!f || engine.state !== 'ready') return;
+  const scene = [...scenes.values()].find((x) => x.fileId === r.fileId && x.circuitId === r.circuitId);
+  const snapshot = scene?.snapshot() ?? await api.call<Snapshot>('model.circuit', { fileId: r.fileId, circuitId: r.circuitId }).catch(() => null);
+  if (!snapshot) return;
+  try {
+    if ('componentId' in r) {
+      const c = snapshot.components.find((x) => x.id === r.componentId);
+      if (!c || c.name !== 'Splitter') return;
+      // each arm's wire: the widest other port on its net (a mismatch is a fact in the editor)
+      const wired = c.ports.slice(1).map((q) => {
+        const n = snapshot.nets.find((x) => x.ports.some(([id, i]) => id === c.id && i === q.i));
+        const widths = (n?.ports ?? []).filter(([id]) => id !== c.id).map(([id, i]) => snapshot.components.find((x) => x.id === id)?.ports[i]?.width ?? 0);
+        return widths.length ? Math.max(...widths) || null : null;
+      });
+      const a = await splitterEditor({ title: 'Edit Splitter', spec: fromAttrs(c.attrs, c.ext?.arms ?? []), wired });
+      if (!a) return;
+      const res = await api.call<{ changed: boolean; outcome?: string }>('edit.splitterEdit', { fileId: r.fileId, circuitId: r.circuitId, id: c.id, ranges: a.ranges, names: a.names, lsbTop: a.lsbTop });
+      note = res.outcome === 'refused' ? { cls: 'err', text: 'Edit Splitter: 그렇게 두면 선이나 포트가 다른 연결에 닿아서 바꾸지 않았습니다' } : null;
+    } else {
+      if (r.bit !== undefined) {
+        // Take One Bit [n]: no editor (the engine knows the wire's width and refuses a one-bit wire)
+        await api.call('edit.splitterSplit', { fileId: r.fileId, circuitId: r.circuitId, wire: r.wire, at: r.at, ranges: String(r.bit) });
+        note = null;
+      } else {
+        const width = snapshot.nets.find((x) => x.wires.includes(r.wire))?.width ?? 0;
+        if (width <= 1) return;
+        const a = await splitterEditor({ title: 'Split Bits', spec: initialSplit(width) });
+        if (!a) return;
+        const res = await api.call<{ changed: boolean; outcome?: string }>('edit.splitterSplit', { fileId: r.fileId, circuitId: r.circuitId, wire: r.wire, at: r.at, ranges: a.ranges, names: a.names, lsbTop: a.lsbTop });
+        note = res.outcome === 'refused' ? { cls: 'err', text: 'Split Bits: 그렇게 두면 선이나 포트가 다른 연결에 닿아서 놓지 않았습니다' } : null;
+      }
+    }
+  } catch (e) {
+    note = { cls: 'err', text: commandError('componentId' in r ? 'Edit Splitter' : 'Split Bits', e as CallError) };
+  }
+  renderStatus();
+}
 // Center, under the Canvas: Messages | Cycle View | Console
 const messagesBody = noticeHost('bottom');
 const cycleBody = noticeHost('bottom');
@@ -340,6 +588,10 @@ function render(): void {
   } else {
     fileStrip.set([], null);
     circuitStrip.set([], null);
+    components.set(null);
+    renderTunnels(null);
+    finder.close();
+    pal.close();
   }
   renderEmptyPanels();
   renderMessages();
@@ -411,18 +663,9 @@ function renderCircuits(f: OpenFile): void {
 
 function renderComponents(f: OpenFile): void {
   const lib = libraries.get(f.fileId);
-  if (lib === undefined) {
-    componentsBody.fill();
-    void loadLibrary(f.fileId);
-  } else if (typeof lib === 'string') {
-    componentsBody.empty({ title: '부품 목록을 받지 못했습니다', body: '엔진이 이 파일의 부품 목록을 보내지 않았습니다. 파일을 닫았다가 다시 열어 보세요.' });
-  } else {
-    // The first group is this file's circuits (lib null); the bundled Hallym MIPS is listed before it is in the file (pending).
-    componentsBody.fill(...lib.map((g, i) => h('details', { class: 'libgroup', open: i < 2 },
-      h('summary', {}, g.lib === null ? f.name : g.display ?? g.lib, g.pending ? h('span', { class: 'dim', title: 'Placed first, it is added to the file' }, 'not in the file yet') : null,
-        h('span', { class: 'count' }, count(g.tools.length))),
-      h('ul', { class: 'list' }, ...g.tools.map((t) => h('li', {}, h('span', { class: 'item', title: t.name }, t.circuitId ? code(t.display) : t.display)))))));
-  }
+  // The first group is this file's circuits (lib null); the bundled Hallym MIPS is listed before it is in the file (pending).
+  components.set({ fileId: f.fileId, fileName: f.name, circuit: shown(f).circuit, libraries: lib });
+  if (lib === undefined) void loadLibrary(f.fileId);
 }
 
 async function loadLibrary(fileId: string): Promise<void> {
@@ -452,14 +695,16 @@ function renderCanvas(f: OpenFile): void {
   canvasBody.root.dataset.circuit = files.circuitName(f, f.circuit);
   if (!scene) {
     canvasBody.fill();
-    renderTunnels(null);
+    renderTunnels(null, true);
+    minimap.set(null);
     if (wanted !== w.k) { wanted = w.k; void loadScene(f.fileId, w.circuit, w.k); }
     return;
   }
   const s = scene.snapshot();
   const facts = circuitFacts(s);
   if (facts.components === 0 && facts.wires === 0 && !w.path.length) {
-    canvasBody.empty({ title: '빈 회로입니다', body: '부품과 선을 놓으면 여기 Canvas에 그려집니다.', pose: 'haram-hari-guide' });
+    canvasBody.empty({ title: '빈 회로입니다', body: '부품과 선을 놓으면 여기 Canvas에 그려집니다. 부품은 왼쪽 Components 목록에서 끌어 오거나 Ctrl+K 검색 창에서 찾아 놓습니다.', pose: 'haram-hari-guide' });
+    minimap.set(null);
   } else {
     if (canvasBody.isEmpty() || board.root.parentElement !== canvasBody.root) canvasBody.fill(board.root);
     if (board.scene !== scene) {
@@ -469,9 +714,10 @@ function renderCanvas(f: OpenFile): void {
     }
     board.setCrumbs(w.path.length ? [files.circuitName(f, f.circuit), ...w.names] : [], (i) => leaveInstance(f, i));
     if (pendingReveal?.k === w.k) { board.reveal(pendingReveal.r); pendingReveal = null; }
+    minimap.set(scene);
   }
   void watch(f.fileId, w.root, w.path, w.k);
-  renderTunnels(s);
+  renderTunnels(s, false, w.k, f.fileId);
 }
 
 async function loadScene(fileId: string, circuitId: string, k: string): Promise<void> {
@@ -521,21 +767,14 @@ function leaveInstance(f: OpenFile, level: number): void {
   render();
 }
 
-function renderTunnels(s: Snapshot | null): void {
-  const tunnels = s ? circuitFacts(s).tunnels : [];
-  if (!s) { tunnelsBody.fill(); return; }
-  if (tunnels.length === 0) {
-    tunnelsBody.empty({ title: '터널이 없습니다', body: '이 회로에 Tunnel을 놓으면 이름별로 여기에 모입니다.' });
-    return;
-  }
-  tunnelsBody.fill(h('ul', { class: 'list' }, ...tunnels.map((t) =>
-    h('li', {}, h('span', { class: 'item', title: t.label || '(no label)' }, t.label ? code(t.label) : h('span', { class: 'dim' }, '(no label)'),
-      h('span', { class: 'count' }, count(t.count)))))));
+// Tunnels (tunnels.ts): the circuit on show (loading: its snapshot is on its way).
+function renderTunnels(s: Snapshot | null, loading = false, k = '', fileId = ''): void {
+  tunnels.set(s ? { fileId, key: k, snapshot: s } : null, loading);
 }
 
 function renderEmptyPanels(): void {
   attributesBody.empty({ title: '고른 부품이 없습니다', body: codeText('Canvas에서 부품을 고르면 그 속성(`Data Bits`, `Facing`, `Label` …)이 여기에 나옵니다.') });
-  minimapBody.empty({ title: '회로 전체가 작게 나옵니다', body: 'Canvas에 그린 회로의 전체 모습과 지금 보는 곳이 여기에 나옵니다.' });
+  if (!files.active()) minimap.set(null);
   renderCycleBody();
 }
 
@@ -586,6 +825,7 @@ function showFile(fileId: string): void {
   files.activate(fileId);
   note = null;
   render();
+  finder.refresh();
 }
 
 async function engineReady(): Promise<boolean> {
@@ -857,6 +1097,7 @@ api.onNotify((method, params) => {
     if (typeof c.dirty === 'boolean') files.setDirty(c.fileId, c.dirty);
     board.invalidate();
     render();
+    finder.refresh();   // its index is the model now (I-171 정함)
   } else if (method === 'mips.facts') {
     if (files.get(String(p.fileId))) programs.facts(p as unknown as MipsFacts);
   } else if (method === 'mips.reloaded') {
@@ -933,12 +1174,25 @@ window.addEventListener('keydown', (e) => {
   if (!mod) return;
   if (board.scene && board.root.isConnected && board.zoomKey(e)) { e.preventDefault(); return; }
   const k = e.key.toLowerCase();
+  // Ctrl+K the search palette, Ctrl+F Find (D-139, I-168, I-171; e.code too: a Korean keyboard layout)
+  if ((k === 'k' || e.code === 'KeyK') && !e.shiftKey && !e.altKey) { e.preventDefault(); if (files.active()) pal.open(''); return; }
+  if ((k === 'f' || e.code === 'KeyF') && !e.shiftKey && !e.altKey) { e.preventDefault(); if (files.active()) finder.open(); return; }
   if (k === 'n') { e.preventDefault(); void newCircuit(); }
   else if (k === 'o') { e.preventDefault(); void openFile(); }
   else if (k === 's') { e.preventDefault(); void save(e.shiftKey); }
   else if (k === 'z' && !e.shiftKey) { e.preventDefault(); void edit('edit.undo', 'Undo'); }
   else if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); void edit('edit.redo', 'Redo'); }
 }, true);
+
+// A letter typed on the Canvas that nothing else used opens the palette with it (I-41, D-037): with
+// nothing selected, no modifier, not while a Korean syllable is being composed.  Looked at after every
+// listener had its turn (a key N-08 or N-15 uses -- R, P on a wire -- is theirs: they preventDefault()).
+window.addEventListener('keydown', (e) => {
+  if (e.target !== board.canvas || e.ctrlKey || e.metaKey || e.altKey || e.isComposing || e.key.length !== 1 || !/\S/.test(e.key)) return;
+  if (selection?.ids.length && selection.fileId === files.active()?.fileId) return;
+  const key = e.key;
+  setTimeout(() => { if (!e.defaultPrevented && !pal.isOpen()) pal.open(key); });
+});
 
 // ---- start ----------------------------------------------------------------------------------
 
