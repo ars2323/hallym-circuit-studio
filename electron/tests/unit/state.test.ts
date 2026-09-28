@@ -124,8 +124,11 @@ test('what Windows and the test tools write whatever runs (seen on the CI runner
   assert.equal(notOurs(policy), 'Windows\' own empty container');
   assert.equal(notOurs({ ...policy, path: `${policy.path} :: Blob`, after: 'REG_BINARY 00' }), null);
   const jump: Change = { where: 'files', what: 'added', path: 'APPDATA\\Microsoft\\Windows\\Recent\\AutomaticDestinations\\73d6a8f0346f297b.automaticDestinations-ms', after: '2560 1' };
-  assert.equal(counts(jump, 'none'), true);           // a run of the program: recent items count (the lab-PC rule)
+  assert.equal(counts(jump, 'none'), true);           // a run of the program: a new jump list or recent item counts (the lab-PC rule)
   assert.equal(counts(jump, 'install'), false);
+  // ... but the shell rewriting a list it already had (Explorer's, 5f7b5f1e01b83767) is the shell's.
+  const explorer: Change = { where: 'files', what: 'changed', path: 'APPDATA\\Microsoft\\Windows\\Recent\\AutomaticDestinations\\5f7b5f1e01b83767.automaticDestinations-ms', before: '1536 1', after: '1536 2' };
+  assert.equal(notOurs(explorer, 'none'), 'the shell rewriting a jump list it had');
   // Anything else under %APPDATA% or %LOCALAPPDATA% counts, a program's own folder above all.
   for (const p of ['APPDATA\\Hallym Circuit Studio\\Preferences', 'LOCALAPPDATA\\hallym-circuit-studio-updater\\installer.exe', 'LOCALAPPDATA\\Microsoft\\Windows\\INetCache\\x',
     'APPDATA\\Microsoft\\Windows\\Recent\\demo-datapath.circ.lnk']) {

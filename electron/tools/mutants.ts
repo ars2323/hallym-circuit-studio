@@ -316,6 +316,8 @@ export const MUTANTS: Mutant[] = [
     find: "if (c.where === 'temp' && !OUR_TEMP.test(", replace: "if (c.where === 'temp' && !!OUR_TEMP.test(", tests: ['tests/unit/state.test.ts'] },
   { module: 'state', file: 'tools/windows/state.ts', what: 'a run\'s recent items taken for the shell\'s',
     find: "expect === 'none' ? WINDOWS_OWN :", replace: "false ? WINDOWS_OWN :", tests: ['tests/unit/state.test.ts'] },
+  { module: 'state', file: 'tools/windows/state.ts', what: 'a run\'s new jump list taken for the shell\'s',
+    find: "if (c.what === 'changed' && JUMP_LISTS.test(c.path))", replace: 'if (JUMP_LISTS.test(c.path))', tests: ['tests/unit/state.test.ts'] },
   { module: 'state', file: 'tools/windows/state.ts', what: 'all of %LOCALAPPDATA% taken for Windows\'',
     find: "[/^LOCALAPPDATA\\\\Packages\\\\/i,", replace: "[/^LOCALAPPDATA\\\\/i,", tests: ['tests/unit/state.test.ts'] },
   { module: 'state', file: 'tools/windows/state.ts', what: 'an install may add any registry key',

@@ -108,8 +108,9 @@ export const WINDOWS_OWN: [RegExp, string][] = [
   [/^APPDATA\\Microsoft\\Spelling(\\|$)/i, 'Windows\' spelling word lists'],
 ];
 // And while installing: the shell's jump lists record the installers it saw start (msiexec, the setup exe).
+const JUMP_LISTS = /^APPDATA\\Microsoft\\Windows\\Recent\\(Automatic|Custom)Destinations\\/i;
 export const INSTALLING_OWN: [RegExp, string][] = [
-  [/^APPDATA\\Microsoft\\Windows\\Recent\\AutomaticDestinations\\/i, 'the shell\'s jump lists (the installers started)'],
+  [JUMP_LISTS, 'the shell\'s jump lists (the installers started)'],
 ];
 
 export type Expect = 'none' | 'install' | 'uninstalled';
@@ -120,6 +121,9 @@ export function notOurs(c: Change, expect: Expect = 'none'): string | null {
   if (windowsContainer(c)) return 'Windows\' own empty container';
   if (c.where === 'files') {
     for (const [re, why] of expect === 'none' ? WINDOWS_OWN : [...WINDOWS_OWN, ...INSTALLING_OWN]) if (re.test(c.path)) return why;
+    // While a program runs the shell rewrites the jump lists it already has (Explorer's own,
+    // seen on the runner); a new list or a recent item is new -- that counts.
+    if (c.what === 'changed' && JUMP_LISTS.test(c.path)) return 'the shell rewriting a jump list it had';
   }
   return null;
 }
