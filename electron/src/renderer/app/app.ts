@@ -25,6 +25,17 @@
    Minimap (minimap.ts) and the Splitter editor (splitter-editor.ts); the
    events they meet the Canvas on are in tool-events.ts.
 
+   Circuits, appearances, libraries and windows (N-11, D-153): the Circuits
+   panel (circuits.ts) and what its commands do (circuit-control.ts, the
+   dialogs in circuit-dialogs.ts), a circuit tab's Layout | Appearance switch
+   and the appearance editor (appearance-editor.ts), the band over a
+   subcircuit opened on its own (Go to Instance in main), file tabs of the
+   same name told apart by their folder, a file tab's right click (Detach
+   Tab, View Side by Side, Attach Tab, Close) and a tab dragged onto the
+   Canvas (that file as a library, its main circuit placed) or out of the
+   window (a window of its own: src/main/windows.ts).  A window of its own
+   holds one file; Ctrl+W closes the focused window's file tab.
+
    Nothing is restored from an earlier run and nothing is written but the
    files the student saves (the lab-PC rule; src/main/main.ts) -- and, for
    a file saved at least once, its recovery file beside it until it is
@@ -32,7 +43,13 @@
    (logic/recovery-ask.ts, N-19).  Every setting is for this run only
    (logic/run-settings.ts). */
 
-import type { CircuitRef, Component, ConsoleUpdate, DiagList, DiagMessage, EditSelection, EngineStatus, FindResult, LibraryGroup, MipsFacts, ModelChanged, NewResult, Point, RecordState, Recovered, RecoveryAsk, Reloaded, RunUntilDone, SimState, SimValues, Snapshot, Wire } from '../../main/protocol.ts';
+import type { AppearanceEdit, CircuitRef, Component, ConsoleUpdate, DiagList, DiagMessage, EditSelection, EngineStatus, FileInfo, FindResult, InstancesInfo, LibrariesInfo, LibraryGroup, LibraryUpdated, MipsFacts, ModelChanged, NewResult, Point, PortImpact, RecordState, Recovered, RecoveryAsk, Reloaded, RunUntilDone, SimState, SimValues, Snapshot, Wire } from '../../main/protocol.ts';
+import type { Handover } from '../../main/windows.ts';
+import { type MenuEntry, SEPARATOR, showMenu } from '../canvas/overlays/menu.ts';
+import { AppearanceEditor } from './appearance-editor.ts';
+import { CircuitControl } from './circuit-control.ts';
+import { circuitsPanel } from './circuits.ts';
+import { distinguishers, libraryUpdatedText, pinAddText, pinPreviewText, portImpactText, standaloneText } from './logic/circuits.ts';
 import { CircuitCanvas } from '../canvas/canvas.ts';
 import { emitTool } from '../canvas/events.ts';
 import { legend } from '../canvas/legend.ts';
@@ -105,7 +122,15 @@ const libraries = new Map<string, LibraryGroup[] | string>(); // by fileId; a st
 const diags = new Map<string, DiagMessage[]>();         // Messages by fileId (diag.list, diag.changed; D-143)
 let decided = false;                                    // whether a file was named on the command line is known
 let opening = false;                                    // a file on its way (the command line's)
-let note: { cls: '' | 'err' | 'ok'; text: string } | null = null; // the last action's fact
+// the last action's fact (N-11: with a button, e.g. Copy hcs-mips.jar Here)
+let note: { cls: '' | 'err' | 'ok'; text: string; action?: { label: string; run: () => void } } | null = null;
+// N-11: the circuit tabs that show their appearance (`${fileId} ${circuitId}`); files whose library came in new
+// (" · Updated" until the tab is chosen); this window's role (the main one, or a file's own and what it started from)
+const appearanceTabs = new Set<string>();
+const updatedFiles = new Set<string>();
+let role: { main: boolean; handover: Handover | null } = { main: true, handover: null };
+const libInfo = new Map<string, LibrariesInfo>();     // model.libraries by fileId (the Open Files group)
+const FILE_MIME = 'application/x-hcs-file';
 let dragged = nothingDragged();
 let bottomCollapsed = false;
 let startSeen = false;
@@ -147,6 +172,7 @@ const overlays = new Overlays({
   note: (cls, text) => { note = text ? { cls, text } : null; renderStatus(); },
   failed: (name, e) => { note = { cls: 'err', text: commandError(name, e as CallError) }; renderStatus(); },
   changed: () => { renderStatus(); flowToggle.setAttribute('aria-pressed', String(overlays.settings.onClick)); },
+  partMenu: (_at, part) => instanceMenu(part),
 });
 const wireLegend = legend({ busWidths: RUN_DEFAULTS.busWidths, onBusWidths: (on) => { board.busWidths = on; board.invalidate(); }, extra: overlays.legendRows() });
 let boardKey = '';
@@ -314,16 +340,36 @@ const lowerPanel = h('section', { class: 'panel lower', 'aria-label': 'Tunnels' 
 const rightHead = panelHead('Attributes');
 const rightPanel = h('section', { class: 'panel right', 'aria-label': 'Attributes' }, rightHead.root);
 // Center: the files, the circuits, the Canvas
-const fileStrip = tabStrip({ label: 'Files', closable: true, onSelect: (id) => showFile(id), onClose: (id) => void closeFile(id) });
+const fileStrip = tabStrip({
+  label: 'Files', closable: true, onSelect: (id) => showFile(id), onClose: (id) => void closeFile(id),
+  onMenu: (id, x, y) => fileTabMenu(id, x, y),
+  // a tab dragged onto this window's Canvas: that file as a library (P-03); out of the window: its own window (I-180)
+  drag: {
+    mime: FILE_MIME, data: (id) => JSON.stringify({ fileId: id }),
+    end: (id, e) => {
+      const out = e.screenX < window.screenX || e.screenY < window.screenY || e.screenX > window.screenX + window.outerWidth || e.screenY > window.screenY + window.outerHeight;
+      if (out && e.dataTransfer?.dropEffect === 'none' && role.main && files.count() > 1) void detachFile(id, 'window');
+    },
+  },
+});
 const circuitStrip = tabStrip({
   label: 'Circuit tabs', closable: true, canClose: (items) => items.length > 1,
   onSelect: (id) => { const f = files.active(); if (f) { files.openCircuit(f.fileId, id); render(); } },
   onClose: (id) => { const f = files.active(); if (f) { files.closeCircuit(f.fileId, id); render(); } },
 });
 const canvasBody = noticeHost('canvas');
+// A circuit tab shows its layout or its appearance (the original's Edit Circuit Layout / Edit Circuit Appearance).
+const modeLayout = h('button', { type: 'button', class: 'modebtn on', role: 'radio', 'aria-checked': 'true', title: 'Edit Circuit Layout' }, 'Layout');
+const modeAppearance = h('button', { type: 'button', class: 'modebtn', role: 'radio', 'aria-checked': 'false', title: 'Edit Circuit Appearance (서브회로 인스턴스의 모양)' }, 'Appearance');
+modeLayout.addEventListener('click', () => { const f = files.active(); if (f) showCircuit(f.fileId, f.circuit, false); });
+modeAppearance.addEventListener('click', () => { const f = files.active(); if (f) showCircuit(f.fileId, f.circuit, true); });
+const modeSwitch = h('span', { class: 'seg modeswitch', role: 'radiogroup', 'aria-label': 'Circuit view' }, modeLayout, modeAppearance);
+// The band over a subcircuit opened on its own, or a pin's preview (v1 P-02 InstanceBanner).
+const instanceBand = h('div', { class: 'instband', role: 'status', hidden: true });
 const canvasPanel = h('section', { class: 'panel canvaspanel', 'aria-label': 'Canvas' },
   h('div', { class: 'phead filebar' }, fileStrip.root),
-  h('div', { class: 'circuitbar' }, circuitStrip.root),
+  h('div', { class: 'circuitbar' }, circuitStrip.root, h('span', { class: 'grow' }), modeSwitch),
+  instanceBand,
   canvasBody.root);
 
 // ---- finding and placing (N-12, D-150) --------------------------------------------------
@@ -333,8 +379,41 @@ const components = componentsPanel({
   host: componentsBody,
   onPick: (p) => pickTool(p, 'components'),
   onOpenCircuit: (id) => { const f = files.active(); if (f) { files.openCircuit(f.fileId, id); render(); } },
+  // N-11 (P-03): another open file's circuit -- its file as a library first, then the part in hand
+  onOpenFileCircuit: (fileId, circuit) => void (async () => {
+    const lib = await circuitCtl.useOpenFile(fileId);
+    const f = files.active();
+    if (lib && f) pickTool({ lib, name: circuit }, 'components');
+  })(),
+  onLibraryMenu: (lib, display, x, y) => showMenu([{ label: `Unload Library (${display})`, disabled: !editableFile(), run: () => void circuitCtl.unload(lib) }], x, y),
   recent: () => pal.recent(),
   favorites: () => pal.favorites(),
+});
+// Circuits (N-11): the file's circuits and what is done to them (circuits.ts, circuit-control.ts).
+const circuitCtl = new CircuitControl({
+  api,
+  ready: () => engine.state === 'ready',
+  file: (id) => files.get(id),
+  active: () => files.active(),
+  note: (cls, text) => { note = text ? { cls, text } : null; renderStatus(); },
+  show: (fileId, circuitId, appear) => showCircuit(fileId, circuitId, appear),
+  opened: async (r) => { const o = await recoveryAnswered(r); openedOrError(o); return o; },
+  librariesChanged: (fileId) => { libraries.delete(fileId); libInfo.delete(fileId); if (files.active()?.fileId === fileId) renderComponents(files.active()!); },
+});
+const circuitsList = circuitsPanel({
+  host: circuitsBody,
+  circuit: (cmd, id) => void circuitCtl.command(cmd, id),
+  file: (cmd) => void circuitCtl.fileCommand(cmd),
+  moveTo: (id, to) => void circuitCtl.moveTo(id, to),
+});
+// The appearance editor (N-11): a circuit tab switched to Appearance shows it instead of the Canvas.
+const appearance = new AppearanceEditor({
+  call: (method, params) => api.call(method, params),
+  ready: () => engine.state === 'ready',
+  failed: (name, e) => { note = { cls: 'err', text: commandError(name, e as CallError) }; renderStatus(); },
+  note: (text) => { note = text ? { cls: '', text } : null; renderStatus(); },
+  attributes: (content) => { if (content) attributesBody.fill(content); else attributesBody.empty({ title: '고른 부품이 없습니다', body: codeText('Canvas에서 부품을 고르면 그 속성(`Data Bits`, `Facing`, `Label` …)이 여기에 나옵니다.') }); },
+  layout: async (fileId, circuitId) => scenes.get(key(fileId, circuitId))?.snapshot() ?? await api.call<Snapshot>('model.circuit', { fileId, circuitId }).catch(() => null),
 });
 // Tunnels: by name; a name goes to its next tunnel, the chip sets Tunnel Color.
 const tunnels = tunnelsPanel({
@@ -430,16 +509,31 @@ function pickTool(p: Pick, source: 'components' | 'drop', at?: Point): void {
 }
 // A part dragged from the Components list and dropped on the Canvas: one there (I-62).
 canvasBody.root.addEventListener('dragover', (e) => {
-  if (!e.dataTransfer?.types.includes(TOOL_MIME)) return;
+  const types = e.dataTransfer?.types ?? [];
+  if (!types.includes(TOOL_MIME) && !types.includes(FILE_MIME)) return;
   e.preventDefault();
-  e.dataTransfer.dropEffect = 'copy';
+  e.dataTransfer!.dropEffect = 'copy';
 });
 canvasBody.root.addEventListener('drop', (e) => {
+  const tab = e.dataTransfer?.getData(FILE_MIME);
+  if (tab) { e.preventDefault(); void dropFileTab((JSON.parse(tab) as { fileId: string }).fileId, snap(circuitPoint(e.clientX, e.clientY))); return; }
   const raw = e.dataTransfer?.getData(TOOL_MIME);
   if (!raw) return;
   e.preventDefault();
   pickTool(JSON.parse(raw) as Pick, 'drop', snap(circuitPoint(e.clientX, e.clientY)));
 });
+
+// A file tab dropped on the Canvas (v1 P-03, I-180): that file as a library of this one, its main circuit placed
+// there.  The same file: nothing; a file never saved: the reason.
+async function dropFileTab(fileId: string, at: Point): Promise<void> {
+  const f = files.active();
+  const other = files.get(fileId);
+  if (!f || !other || fileId === f.fileId || engine.state !== 'ready' || appearanceShown(f)) return;
+  const lib = await circuitCtl.useOpenFile(fileId);
+  if (!lib) return;
+  const main = other.circuits.find((c) => c.circuitId === other.main)?.name;
+  if (main) placeTool({ fileId: f.fileId, circuitId: shown(f).circuit, lib, name: main, at, source: 'drop' });
+}
 
 // The commands the palette offers now.
 function commandsNow(s: Snapshot | null): CommandId[] {
@@ -713,8 +807,16 @@ function render(): void {
   bRun.title = `${label} (F5)`;
   bRun.classList.toggle('primary', label === 'Stop');
   if (f) {
-    fileStrip.set(files.list().map((x) => ({ id: x.fileId, label: x.name, title: x.path ?? x.name, dirty: x.dirty })), f.fileId);
-    circuitStrip.set(f.tabs.map((c) => ({ id: c, label: files.circuitName(f, c) })), f.circuit);
+    // files of one name show the folder that tells them apart (v1 V-05); a library that came in new, " · Updated"
+    const folders = distinguishers(files.list().map((x) => ({ id: x.fileId, name: x.name, path: x.path })));
+    fileStrip.set(files.list().map((x) => {
+      const bits = [folders.get(x.fileId) ? `— ${folders.get(x.fileId)}` : '', updatedFiles.has(x.fileId) ? '· Updated' : '', role.handover ? '· Window' : ''].filter(Boolean);
+      return { id: x.fileId, label: x.name, title: x.path ?? 'Not saved yet', dirty: x.dirty, ...(bits.length ? { note: bits.join(' ') } : {}) };
+    }), f.fileId);
+    circuitStrip.set(f.tabs.map((c) => ({ id: c, label: files.circuitName(f, c), ...(appearanceTabs.has(key(f.fileId, c)) ? { note: '· Appearance' } : {}) })), f.circuit);
+    const appear = appearanceShown(f);
+    modeLayout.classList.toggle('on', !appear); modeLayout.setAttribute('aria-checked', String(!appear));
+    modeAppearance.classList.toggle('on', appear); modeAppearance.setAttribute('aria-checked', String(appear));
     renderCircuits(f);
     renderComponents(f);
     renderCanvas(f);
@@ -792,21 +894,49 @@ function pinMessage(r: Reveal): void {
   void cycleView.pinMessage(r.fileId, r.messageId, r.cycle, spots);
 }
 
+// The Circuits panel (circuits.ts): the main circuit marked with a house (not a second "main", D-135).
 function renderCircuits(f: OpenFile): void {
-  circuitsBody.fill(h('ul', { class: 'list' }, ...f.circuits.map((c: CircuitRef) => {
-    // The main circuit (the one Logisim simulates first): a mark, not a second "main".
-    const b = h('button', { type: 'button', title: c.circuitId === f.main ? `${c.name} (main circuit)` : c.name }, h('span', { class: 'mono' }, c.name),
-      c.circuitId === f.main ? h('span', { class: 'mainmark', role: 'img', 'aria-label': 'Main circuit', title: 'Main circuit' }, icon('house')) : null);
-    b.addEventListener('click', () => { files.openCircuit(f.fileId, c.circuitId); render(); });
-    return h('li', { class: c.circuitId === f.circuit ? 'on' : undefined }, b);
-  })));
+  circuitsList.set({ fileId: f.fileId, circuits: f.circuits, main: f.main, shown: f.circuit, appearance: appearanceShown(f), editable: editableFile() });
+}
+
+// The file on show can be edited (not read-only; the engine says so on its edits too).
+function editableFile(): boolean {
+  return files.active() !== null && engine.state === 'ready';
+}
+
+// ---- a circuit tab's layout or appearance (N-11) ----
+
+function appearanceShown(f: OpenFile): boolean {
+  return appearanceTabs.has(key(f.fileId, f.circuit)) && !inside.get(key(f.fileId, f.circuit));
+}
+
+function showCircuit(fileId: string, circuitId: string, appear: boolean): void {
+  if (!files.get(fileId)) return;
+  files.activate(fileId);
+  files.openCircuit(fileId, circuitId);
+  const k = key(fileId, circuitId);
+  if (appear) { appearanceTabs.add(k); inside.delete(k); } else appearanceTabs.delete(k);
+  render();
 }
 
 function renderComponents(f: OpenFile): void {
   const lib = libraries.get(f.fileId);
   // The first group is this file's circuits (lib null); the bundled Hallym MIPS is listed before it is in the file (pending).
-  components.set({ fileId: f.fileId, fileName: f.name, circuit: shown(f).circuit, libraries: lib });
+  const info = libInfo.get(f.fileId);
+  const openFiles = info?.openFiles.map((o) => ({ fileId: o.fileId, name: files.get(o.fileId)?.name ?? o.fileId, state: o.state, circuits: o.circuits })) ?? [];
+  components.set({ fileId: f.fileId, fileName: f.name, circuit: shown(f).circuit, libraries: lib, openFiles });
   if (lib === undefined) void loadLibrary(f.fileId);
+  if (!info && files.count() > 1 && engine.state === 'ready') void loadLibInfo(f.fileId);
+}
+
+// model.libraries (N-11): the other open files for the Components list's Open Files group.
+async function loadLibInfo(fileId: string): Promise<void> {
+  try {
+    libInfo.set(fileId, await api.call<LibrariesInfo>('model.libraries', { fileId }));
+  } catch {
+    return;   // an engine before N-11: no Open Files group
+  }
+  if (files.active()?.fileId === fileId) renderComponents(files.active()!);
 }
 
 async function loadLibrary(fileId: string): Promise<void> {
@@ -832,8 +962,22 @@ function shownSnapshot(f: OpenFile): Snapshot | null {
 
 function renderCanvas(f: OpenFile): void {
   const w = shown(f);
-  const scene = scenes.get(w.k);
   canvasBody.root.dataset.circuit = files.circuitName(f, f.circuit);
+  // the circuit tab's appearance (N-11): the appearance editor instead of the Canvas
+  if (appearanceShown(f)) {
+    if (canvasBody.root.firstChild !== appearance.root) canvasBody.fill(appearance.root);
+    const now = appearance.shownFor;
+    if (!now || now.fileId !== f.fileId || now.circuitId !== f.circuit) void appearance.open(f.fileId, f.circuit);
+    canvasBody.root.dataset.view = 'appearance';
+    renderInstanceBand(f);
+    renderTunnels(null);
+    minimap.set(null);
+    return;
+  }
+  if (appearance.shownFor) appearance.close();
+  canvasBody.root.dataset.view = 'layout';
+  renderInstanceBand(f);
+  const scene = scenes.get(w.k);
   if (!scene) {
     canvasBody.fill();
     renderTunnels(null, true);
@@ -983,7 +1127,15 @@ function renderStatus(): void {
     parts.push(...programs.statusNodes(f.fileId));
     parts.push(...overlays.statusNodes());
   }
-  if (note) parts.push(span(note.cls, note.text));
+  if (note) {
+    parts.push(span(note.cls, note.text));
+    if (note.action) {
+      const a = note.action;
+      const b = h('button', { type: 'button', class: 'linkbtn notebtn' }, a.label);
+      b.addEventListener('click', () => a.run());
+      parts.push(b);
+    }
+  }
   parts.push(span('grow'));
   if (f && board.scene && board.root.isConnected) parts.push(wireLegend.button, zoomCtl.button);
   // The engine's and Java's versions are About's only, not the student's status bar (D-154).
@@ -1011,6 +1163,7 @@ function fitStatus(): void {
 
 function showFile(fileId: string): void {
   files.activate(fileId);
+  updatedFiles.delete(fileId);   // " · Updated" goes once the tab is chosen (v1 D-065)
   note = null;
   render();
   finder.refresh();
@@ -1104,6 +1257,8 @@ async function openFile(): Promise<void> {
 async function save(saveAs: boolean): Promise<void> {
   const f = files.active();
   if (!f || engine.state !== 'ready') return;
+  // another open file uses this one as a library: the connections this save would break, first (v1 P-03, D-065)
+  if (!saveAs && !(await circuitCtl.saveCuts(f))) return;
   await saveOf(f, saveAs);
 }
 
@@ -1115,6 +1270,8 @@ async function saveOf(f: OpenFile, saveAs: boolean): Promise<boolean> {
     if (r) {
       files.saved(f.fileId, r.name, r.path);
       note = { cls: 'ok', text: `저장했습니다 · ${r.name}${r.needsMipsJar ? ' · 원조 Logisim 2.7.1에서 열려면 옆에 hcs-mips.jar가 있어야 합니다' : ''}` };
+      // the bundled hcs-mips.jar beside the file, on the student's word (v1 V-01 [Copy hcs-mips.jar Here], D-096)
+      if (r.needsMipsJar) note.action = { label: 'Copy hcs-mips.jar Here', run: () => void circuitCtl.copyMipsJar(f.fileId) };
       ok = true;
     }
   } catch (e) {
@@ -1156,13 +1313,26 @@ function reportDirty(): void {
   if (d !== reportedDirty) { reportedDirty = d; void api.reportDirty(d); }
 }
 
-async function closeFile(fileId: string): Promise<void> {
+// Closes a file's tab after the save question; whether it closed.  A window of its own goes with its file (N-11).
+async function closeFile(fileId: string): Promise<boolean> {
   const f = files.get(fileId);
-  if (!f) return;
-  if (!(await unsavedSettled([f], 'close'))) return;
+  if (!f) return false;
+  if (!(await unsavedSettled([f], 'close'))) return false;
   if (engine.state === 'ready') await api.call('file.close', { fileId }).catch(() => {});
+  dropFile(fileId);
+  if (role.handover && files.count() === 0) void api.windowClosed();
+  return true;
+}
+
+// A file's tab leaves this window (closed, or into a window of its own): everything the window kept for it.
+function dropFile(fileId: string): void {
   files.close(fileId);
   for (const m of [scenes, views, inside]) for (const k of [...m.keys()]) if (k.startsWith(`${fileId} `)) m.delete(k);
+  for (const k of [...appearanceTabs]) if (k.startsWith(`${fileId} `)) appearanceTabs.delete(k);
+  if (appearance.shownFor?.fileId === fileId) appearance.close();
+  updatedFiles.delete(fileId);
+  libInfo.clear();
+  instCache.clear();
   watching.delete(fileId);
   if (board.scene?.fileId === fileId) { board.setScene(null); boardKey = ''; }
   cycleView.forget(fileId);
@@ -1175,6 +1345,160 @@ async function closeFile(fileId: string): Promise<void> {
   if (files.count() === 0) start.go('first');
   render();
 }
+
+// ---- subcircuits: the band, their instances, their right click (N-11; v1 P-02) -------------------
+
+// model.instances by `${fileId} ${circuitId}` (the instance paths from main; the ports' use); cleared on every change.
+const instCache = new Map<string, InstancesInfo | null>();
+let bandShown = '';
+
+async function instancesOf(fileId: string, circuitId: string): Promise<InstancesInfo | null> {
+  const k = key(fileId, circuitId);
+  if (instCache.has(k)) return instCache.get(k) ?? null;
+  instCache.set(k, null);
+  try {
+    const r = await api.call<InstancesInfo>('model.instances', { fileId, circuitId });
+    instCache.set(k, r);
+    return r;
+  } catch {
+    return null;   // an engine before N-11
+  }
+}
+
+/* The band over the Canvas (v1 InstanceBanner): a subcircuit opened on its own tab while main runs it as an
+   instance -- its values are not main's -- with "Go to Instance in main"; or, with a pin chosen in it (or the Pin
+   tool in hand), what its instances would lose. */
+function renderInstanceBand(f: OpenFile): void {
+  const w = shown(f);
+  const show = (text: string | null, go: InstancesInfo | null = null) => {
+    const k = `${text}|${go?.paths.length ?? 0}`;
+    if (k === bandShown) return;
+    bandShown = k;
+    instanceBand.hidden = text === null;
+    if (text === null) { instanceBand.replaceChildren(); return; }
+    const parts: Node[] = [h('span', { class: 'bandtext' }, codeText(text))];
+    if (go && go.paths.length) {
+      const b = h('button', { type: 'button', class: 'btn small' }, `Go to Instance in ${go.mainName ?? 'main'}`);
+      b.addEventListener('click', (e) => {
+        if (go.paths.length === 1) { goToInstance(f.fileId, go, 0); return; }
+        const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        showMenu(go.paths.map((p, i) => ({ label: p.text, run: () => goToInstance(f.fileId, go, i) })), r.left, r.bottom + 2);
+      });
+      parts.push(b);
+    }
+    instanceBand.replaceChildren(...parts);
+    layout();
+  };
+  if (w.path.length || f.circuit === f.main || engine.state !== 'ready') { show(null); return; }
+  const sub = files.circuitName(f, f.circuit);
+  const info = instCache.get(key(f.fileId, f.circuit));
+  if (info === undefined) { void instancesOf(f.fileId, f.circuit).then(() => { if (files.active() === f) renderInstanceBand(f); }); show(null); return; }
+  if (!info || info.instances === 0) { show(null); return; }
+  // a pin chosen, or the Pin tool in hand: what the instances would lose (a preview; facts only)
+  const held = editor.tool === 'Place' ? editor.place.held : null;
+  if (held && held.lib === 'Wiring' && held.name === 'Pin' && !appearanceShown(f)) {
+    show(pinAddText(sub, info.instances, info.connected, info.default));
+    return;
+  }
+  const pins = selection && selection.fileId === f.fileId && selection.circuitId === f.circuit
+    ? selection.ids.filter((id) => scenes.get(w.k)?.components.get(id)?.name === 'Pin') : [];
+  if (pins.length && !appearanceShown(f)) {
+    void api.call<{ connections: number; instances: number }>('model.pinImpact', { fileId: f.fileId, circuitId: f.circuit, ids: pins })
+      .then((r) => { if (files.active() === f) show(pinPreviewText(r.connections, r.instances)); }).catch(() => {});
+    return;
+  }
+  show(info.paths.length ? standaloneText(sub, info.mainName ?? 'main') : null, info);
+}
+
+// Go to Instance in main: main's tab, down the instance path (the values are that instance's).
+function goToInstance(fileId: string, info: InstancesInfo, i: number): void {
+  const p = info.paths[i];
+  if (!p || !info.main) return;
+  files.activate(fileId);
+  files.openCircuit(fileId, info.main);
+  appearanceTabs.delete(key(fileId, info.main));
+  inside.set(key(fileId, info.main), { ids: [...p.ids], names: [...p.names], circuits: [...(p.circuits ?? [])] });
+  render();
+}
+
+// A subcircuit instance's right click (v1 I-95): View, then this file's circuit's appearance and ports, or the
+// library circuit's file.
+function instanceMenu(part: string | null): MenuEntry[] {
+  const f = files.active();
+  const c = part ? board.scene?.components.get(part) : undefined;
+  if (!f || !c || c.subcircuit === undefined) return [];
+  const sub = c.subcircuit;
+  const name = files.circuitName(f, sub) === sub ? c.name : files.circuitName(f, sub);
+  const out: MenuEntry[] = [{ label: `View ${name}`, run: () => enterInstance(c.id) }];
+  if (c.lib === null) {
+    out.push({ label: `Edit Appearance of ${name}`, run: () => showCircuit(f.fileId, sub, true) });
+    out.push({ label: 'Auto Appearance', disabled: !editableFile(), run: () => void circuitCtl.command('autoAppearance', sub) });
+    out.push({ label: 'Port Order…', disabled: !editableFile(), run: () => void circuitCtl.command('portOrder', sub) });
+  } else {
+    out.push({ label: `Edit Original File (${c.lib}.circ)`, run: () => void circuitCtl.editOriginal(f.fileId, sub) });
+  }
+  return out;
+}
+
+// ---- file tabs: their menu, a window of their own (N-11; v1 P-06, I-179, I-180) -------------------
+
+function handoverOf(f: OpenFile): Handover {
+  return { fileId: f.fileId, name: f.name, path: f.path, tabs: [...f.tabs], circuit: f.circuit };
+}
+
+function fileTabMenu(fileId: string, x: number, y: number): void {
+  const f = files.get(fileId);
+  if (!f) return;
+  const entries: MenuEntry[] = role.handover
+    ? [{ label: 'Attach Tab', run: () => void attachFile(fileId) }]
+    : [
+      { label: 'Detach Tab', disabled: files.count() < 2, title: '이 파일을 제 창으로 떼어 냅니다', run: () => void detachFile(fileId, 'window') },
+      { label: 'View Side by Side', disabled: files.count() < 2, title: '이 파일을 제 창으로 떼어 화면 오른쪽 반에 두고 이 창을 왼쪽 반에 둡니다', run: () => void detachFile(fileId, 'side') },
+    ];
+  entries.push(SEPARATOR, { label: 'Close', run: () => void closeFile(fileId) });
+  showMenu(entries, x, y);
+}
+
+// Detach Tab / View Side by Side: the file goes to a window of its own (the engine keeps it open).
+async function detachFile(fileId: string, how: 'window' | 'side'): Promise<void> {
+  const f = files.get(fileId);
+  if (!f || !role.main || files.count() < 2) return;
+  try {
+    if (await api.detach(fileId, handoverOf(f), how)) dropFile(fileId);
+  } catch (e) {
+    note = { cls: 'err', text: commandError('Detach Tab', e as CallError) };
+    renderStatus();
+  }
+}
+
+// Attach Tab (a window of its own): the file goes back to the main window, this one closes.
+async function attachFile(fileId: string): Promise<void> {
+  const f = files.get(fileId);
+  if (!f) return;
+  try { await api.attach(handoverOf(f)); } catch (e) {
+    note = { cls: 'err', text: commandError('Attach Tab', e as CallError) };
+    renderStatus();
+  }
+}
+
+// A file handed to this window (a window of its own starting, or Attach Tab back to the main one): its tabs as they were.
+async function adopt(h0: Handover): Promise<void> {
+  if (files.get(h0.fileId)) { showFile(h0.fileId); return; }
+  let info: FileInfo;
+  try { info = await api.call<FileInfo>('file.info', { fileId: h0.fileId }); } catch { return; }
+  added({ fileId: h0.fileId, name: h0.name, path: h0.path, circuits: info.circuits, main: info.main });
+  files.setDirty(h0.fileId, info.dirty);
+  for (const t of h0.tabs) files.openCircuit(h0.fileId, t);
+  files.openCircuit(h0.fileId, h0.circuit);
+  render();
+}
+api.onAdopt((h0) => void adopt(h0));
+// A window of its own asked to close (its close button): its file first, with the save question.
+api.onCloseRequest(() => void (async () => {
+  const f = files.list()[0];
+  if (!f) { await api.windowClosed(); return; }
+  if (!(await closeFile(f.fileId))) api.closeCancelled();
+})());
 
 // ---- editing and the simulation (as far as the engine's v0 goes) ---------------------------
 
@@ -1322,6 +1646,9 @@ function onRecovered(r: Recovered): void {
   scenes.clear();
   inside.clear();
   watching.clear();
+  instCache.clear();
+  libInfo.clear();
+  if (appearance.shownFor) appearance.close();   // asked again (its shapes are the new engine's)
   pendingReveal = null;
   board.setScene(null);
   boardKey = '';
@@ -1360,6 +1687,8 @@ api.onNotify((method, params) => {
     // The engine is the authority: its change goes into every scene of that circuit (and instances of it).
     for (const sc of scenes.values()) if (sc.fileId === c.fileId && sc.circuitId === c.circuitId) sc.applyChange(c);
     libraries.delete(c.fileId); // the first part of a pending library puts it in the file
+    for (const k of [...instCache.keys()]) if (k.startsWith(`${c.fileId} `)) instCache.delete(k);   // instances, pins (N-11)
+    bandShown = '';
     watching.delete(c.fileId);  // an edit makes its circuit the simulation's own: watch the shown one again
     if (typeof c.dirty === 'boolean') files.setDirty(c.fileId, c.dirty);
     overlays.modelChanged(c);
@@ -1390,6 +1719,35 @@ api.onNotify((method, params) => {
     overlays.cycleChanged(String(p.fileId));
   } else if (method === 'record.runUntil') {
     cycleView.onRunUntil(p as unknown as RunUntilDone);
+  } else if (method === 'file.changed') {
+    // N-11: the file's circuits (added, removed, renamed, moved), its main circuit, its libraries
+    const c = p as unknown as FileInfo;
+    if (!files.get(c.fileId)) return;
+    for (const gone of files.structure(c.fileId, c.circuits, c.main)) {
+      for (const m of [scenes, views, inside]) for (const k of [...m.keys()]) if (k === key(c.fileId, gone) || k.startsWith(`${key(c.fileId, gone)} `)) m.delete(k);
+      appearanceTabs.delete(key(c.fileId, gone));
+      if (appearance.shownFor?.circuitId === gone) appearance.close();
+    }
+    // a renamed circuit: the scenes keep their parts, their name is the snapshot's (asked again)
+    for (const sc of [...scenes.entries()]) if (sc[1].fileId === c.fileId && sc[1].snapshot().name !== files.circuitName(files.get(c.fileId)!, sc[1].circuitId)) scenes.delete(sc[0]);
+    if (typeof c.dirty === 'boolean') files.setDirty(c.fileId, c.dirty);
+    libraries.delete(c.fileId);
+    libInfo.clear();
+    for (const k of [...instCache.keys()]) if (k.startsWith(`${c.fileId} `)) instCache.delete(k);
+    bandShown = '';
+    render();
+  } else if (method === 'model.appearance') {
+    appearance.show(p as unknown as AppearanceEdit);
+  } else if (method === 'model.portImpact') {
+    const pi = p as unknown as PortImpact;
+    if (files.active()?.fileId === pi.fileId) { note = { cls: pi.kept < pi.broken ? 'err' : '', text: portImpactText(pi) }; renderStatus(); }
+  } else if (method === 'file.libraryUpdated') {
+    const u = p as unknown as LibraryUpdated;
+    if (!files.get(u.fileId)) return;
+    libraries.delete(u.fileId);
+    if (files.active()?.fileId === u.fileId) { note = { cls: '', text: libraryUpdatedText(u.library) }; renderStatus(); }
+    else updatedFiles.add(u.fileId);
+    render();
   } else if (method === 'engine.log') {
     // The engine's log is English, for developers: the window says what it means
     // from sim.state (an oscillation) and from the answers; the log goes to the console only.
@@ -1439,6 +1797,23 @@ new MutationObserver(updateOverlay).observe(document.body, { subtree: true, chil
 window.addEventListener('keydown', (e) => {
   if (document.querySelector('dialog[open]')) return; // the dialog has the keys (Esc closes it)
   const mod = e.ctrlKey || e.metaKey;
+  // the appearance editor's keys while it is on show (N-11): its Edit menu, Delete, Esc, its zoom; Undo/Redo stay the file's
+  const af = files.active();
+  if (af && appearanceShown(af) && !typing(e.target) && !(mod && /^[zy]$/i.test(e.key)) && appearance.key(e)) { e.preventDefault(); return; }
+  // Ctrl+W (and v1's Ctrl+Shift+W): the focused window's file tab (I-156 정함; the last one: the first screen)
+  if (mod && !e.altKey && (e.code === 'KeyW' || e.key.toLowerCase() === 'w')) { e.preventDefault(); if (af) void closeFile(af.fileId); return; }
+  // Ctrl+← / Ctrl+→: Go Out To State / Go In To State (I-151): out one instance, into the first one
+  if (mod && !e.shiftKey && !e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') && af && !typing(e.target) && !appearanceShown(af)) {
+    e.preventDefault();
+    const w = shown(af);
+    if (e.key === 'ArrowLeft') { if (w.path.length) leaveInstance(af, w.path.length - 1); }
+    else {
+      const first = [...(board.scene?.components.values() ?? [])].filter((c) => c.subcircuit !== undefined)
+        .sort((a, b) => a.loc[1] - b.loc[1] || a.loc[0] - b.loc[0])[0];
+      if (first) enterInstance(first.id);
+    }
+    return;
+  }
   if (e.key === 'F5') { e.preventDefault(); void run(); return; }
   if (e.key === 'F10') { e.preventDefault(); void cycles(1); return; }
   if (!mod) return;
@@ -1463,9 +1838,9 @@ window.addEventListener('keydown', (e) => {
     editor.menu(menuKeys[e.code]);
     return;
   }
-  if (k === 'n') { e.preventDefault(); void newCircuit(); }
-  else if (k === 'o') { e.preventDefault(); void openFile(); }
-  else if (k === 'q') { e.preventDefault(); void leave(); }
+  if (k === 'n') { e.preventDefault(); if (role.main) void newCircuit(); }
+  else if (k === 'o') { e.preventDefault(); if (role.main) void openFile(); }
+  else if (k === 'q') { e.preventDefault(); if (role.main) void leave(); else void api.leave(); }
   else if (k === 's') { e.preventDefault(); void save(e.shiftKey); }
   else if (k === 'z' && !e.shiftKey) { e.preventDefault(); void edit('edit.undo', 'Undo'); }
   else if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); void edit('edit.redo', 'Redo'); }
@@ -1490,11 +1865,24 @@ function typing(target: EventTarget | null): boolean {
 // ---- start ----------------------------------------------------------------------------------
 
 async function begin(): Promise<void> {
+  // a window of its own (N-11): its file, as the tab stood; no first screen, no New or Open
+  role = await api.windowRole().catch(() => ({ main: true, handover: null }));
+  if (role.handover) document.body.classList.add('ownwindow');
   new ResizeObserver(() => layout()).observe(document.body);
   (navigator as unknown as { windowControlsOverlay?: EventTarget }).windowControlsOverlay
     ?.addEventListener('geometrychange', () => layout());
   void document.fonts.ready.then(() => layout());
   engine = await statusKeeper.ask(() => api.engineStatus());
+  if (role.handover) {
+    decided = true;
+    opening = true;
+    render();
+    await engineReady();
+    await adopt(role.handover);
+    opening = false;
+    render();
+    return;
+  }
   // A file named on the command line opens instead of the first screen.
   const startup = await api.startupFile();
   opening = startup !== null;

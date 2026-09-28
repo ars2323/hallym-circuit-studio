@@ -70,6 +70,23 @@ export class Files {
     if (f.circuit === circuitId) f.circuit = f.tabs[Math.max(0, i - 1)];
   }
 
+  /* file.changed (N-11): the circuits as they are now -- added, removed, renamed, moved -- and the main one.
+     The tabs of circuits that are gone close (the one on show goes to its neighbour, or main); the others stay.
+     Returns the circuit ids that went. */
+  structure(fileId: string, circuits: CircuitRef[], main: string): string[] {
+    const f = this.get(fileId);
+    if (!f) return [];
+    const now = new Set(circuits.map((c) => c.circuitId));
+    const gone = f.circuits.map((c) => c.circuitId).filter((id) => !now.has(id));
+    f.circuits = circuits;
+    f.main = now.has(main) ? main : circuits[0]?.circuitId ?? '';
+    const i = f.tabs.indexOf(f.circuit);
+    f.tabs = f.tabs.filter((id) => now.has(id));
+    if (!now.has(f.circuit)) f.circuit = f.tabs[Math.max(0, Math.min(i, f.tabs.length) - 1)] ?? f.main;
+    if (f.circuit && !f.tabs.includes(f.circuit)) f.tabs.unshift(f.circuit);
+    return gone;
+  }
+
   circuitName(f: OpenFile, circuitId: string): string {
     return f.circuits.find((c) => c.circuitId === circuitId)?.name ?? circuitId;
   }

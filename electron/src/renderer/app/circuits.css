@@ -1,0 +1,96 @@
+/* Circuits, appearances, libraries and windows (N-11, D-153): the Circuits
+   panel's head row and list, a circuit tab's Layout | Appearance switch, the
+   band over a subcircuit opened on its own, the appearance editor, the
+   dialogs (name, Port Order, lists), a file tab's quiet note.  Hallym MIPS's
+   tokens (shared.css). */
+
+/* ---- the Circuits panel ---- */
+.circpanel { display: flex; flex-direction: column; min-height: 0; height: 100%; }
+.circbar { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 8px; border-bottom: 1px solid var(--border); flex: none; }
+.circbar .hbtn { display: inline-flex; align-items: center; gap: 4px; }
+.circbar .hbtn img { width: 14px; height: 14px; opacity: .7; }
+.circbar .hbtn:disabled { color: var(--gray); cursor: default; }
+.circbar .hbtn:disabled img { opacity: .35; }
+.circlist { overflow: auto; flex: 1; min-height: 0; }
+.circlist li > button.dropat { box-shadow: inset 0 2px 0 var(--blue); }
+.circlist .tag { font-size: 11px; color: var(--teal-text); background: var(--teal-tint); border-radius: 4px; padding: 0 5px; }
+.circlist li.on > button .tag { margin-left: auto; }
+.circlist .mainmark + .tag { margin-left: 4px; }
+
+/* ---- the circuit tab row: Layout | Appearance ---- */
+.circuitbar .grow { flex: 1; }
+.circuitbar .modeswitch { padding: 1px; border-radius: 7px; }
+.circuitbar .modeswitch button { height: 22px; padding: 0 8px; font-size: 12px; }
+.ptab .tabnote { color: var(--muted); font-weight: 400; font-size: 12px; white-space: nowrap; }
+
+/* ---- the band over a subcircuit on its own (v1 InstanceBanner) ---- */
+.instband { display: flex; align-items: center; gap: 10px; padding: 5px 10px; background: var(--blue-tint); color: var(--navy);
+  border-bottom: 1px solid var(--blue-tint2); font-size: 12.5px; line-height: 1.45; flex: none; }
+.instband .bandtext { min-width: 0; flex: 1; }
+.instband .btn { height: 24px; font-size: 12px; }
+
+/* ---- the appearance editor ---- */
+.appeditor { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--white); }
+.apptools { display: flex; align-items: center; gap: 2px; padding: 4px 8px; border-bottom: 1px solid var(--border); flex: none; background: var(--window); }
+.apptools .grow { flex: 1; }
+.apptool { width: 30px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 6px; background: none; }
+.apptool img { width: 17px; height: 17px; opacity: .72; }
+.apptool:hover:not(:disabled) { background: var(--hover); }
+.apptool.on { background: var(--white); box-shadow: 0 1px 2px rgba(0,32,91,.14), inset 0 0 0 1px var(--blue-tint2); }
+.apptool.on img { opacity: 1; }
+.apptool:disabled { cursor: default; }
+.apptool:disabled img { opacity: .3; }
+.appfacts { color: var(--muted); font-size: 12px; margin-right: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.appstage { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+.appsvg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; outline: none; cursor: default; }
+.appsvg.drawing { cursor: crosshair; }
+.appsvg:focus-visible { box-shadow: inset 0 0 0 2px var(--teal); }
+.appthumb { position: absolute; right: 10px; bottom: 10px; border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 4px 14px rgba(0,32,91,.14); background: var(--white); }
+.apptext { position: absolute; min-width: 60px; height: auto; padding: 1px 4px; border: 1px solid var(--blue); border-radius: 3px; background: var(--white); color: var(--text); outline: none; }
+
+/* the Attributes panel while the appearance editor is up */
+.attrs { padding: 8px 12px; }
+.attrs .attrtitle { margin: 0 0 6px; font-weight: 600; color: var(--navy); }
+.attrs .hint { color: var(--muted); margin: 0; }
+.attrtable { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.attrtable th { text-align: left; font-weight: 500; color: var(--text-2); padding: 4px 8px 4px 0; white-space: nowrap; vertical-align: middle; width: 1%; }
+.attrtable td { padding: 3px 0; }
+.attrtable select, .attrtable input[type=number] { height: 26px; border: 1px solid var(--border); border-radius: 5px; background: var(--white); color: var(--text); padding: 0 6px; max-width: 100%; }
+.attrtable input[type=number] { width: 70px; }
+.attrtable input[type=color] { width: 44px; height: 26px; padding: 1px; border: 1px solid var(--border); border-radius: 5px; background: var(--white); }
+.attrtable .fontfields { display: flex; flex-wrap: wrap; gap: 4px; }
+.attrtable .fontfields select { max-width: 110px; }
+
+/* ---- the dialogs ---- */
+.modal.ask.namedialog .cyclesfield { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.modal.ask.namedialog .fieldname { font-weight: 600; color: var(--navy); }
+.modal.ask.namedialog .field { flex: 1; min-width: 0; height: 30px; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; color: var(--text); background: var(--white); }
+.modal.ask .hint.err { display: block; min-height: 18px; margin-top: 6px; color: var(--error-text); font-size: 12.5px; }
+.modal.ask.portorder { width: min(720px, calc(100vw - 32px)); }
+.portcols { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 12px 0 4px; }
+.portcol h3 { margin: 0 0 4px; font-size: 12px; font-weight: 600; color: var(--navy); }
+.portlist { list-style: none; margin: 0; padding: 4px; border: 1px solid var(--border); border-radius: 6px; background: var(--window); max-height: 260px; overflow: auto; }
+.portrow { display: flex; align-items: center; gap: 6px; padding: 2px 4px; border-radius: 5px; background: var(--white); margin: 2px 0; font-size: 12.5px; }
+.portrow .grip { color: var(--dim); cursor: grab; letter-spacing: -2px; }
+.portrow .pmeta { color: var(--muted); font-size: 11px; }
+.portrow .grow { flex: 1; }
+.portrow.dragging { opacity: .45; }
+.portrow.dropat { box-shadow: inset 0 2px 0 var(--blue); }
+.portrow .iconbtn.small { width: 22px; height: 22px; }
+.portrow .iconbtn.small img { width: 14px; height: 14px; }
+.modal.ask .checklist { display: flex; flex-direction: column; gap: 2px; margin-top: 10px; max-height: 280px; overflow: auto; padding: 4px; border: 1px solid var(--border); border-radius: 6px; }
+.modal.ask .checkrow { display: flex; align-items: center; gap: 8px; padding: 3px 6px; border-radius: 5px; cursor: pointer; }
+.modal.ask .checkrow:hover { background: var(--hover); }
+.modal.ask .checkrow.off { color: var(--muted); cursor: default; }
+.modal.ask .checkrow .dim { color: var(--muted); font-size: 12px; margin-left: auto; }
+.modal.ask.impact .askdetail, .modal.ask.importdialog .askdetail { max-height: 200px; overflow: auto; }
+
+/* the Components list's other open files (P-03) */
+.libgroup.openfile summary { color: var(--text-2); }
+.libgroup.openfile.off summary { color: var(--dim); }
+
+/* a window of its own: no New, no Open (the main window opens files) */
+body.ownwindow .titlebar .tools .iconbtn[aria-label^="New"], body.ownwindow .titlebar .tools .iconbtn[aria-label^="Open"] { display: none; }
+
+/* the status bar's button after a fact (Copy hcs-mips.jar Here) */
+.status .notebtn { font-size: 12px; margin-left: -4px; }

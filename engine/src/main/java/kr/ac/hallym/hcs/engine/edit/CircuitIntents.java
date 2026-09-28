@@ -242,14 +242,17 @@ public final class CircuitIntents {
                 JsonObject po = new JsonObject();
                 JsonArray ids = new JsonArray();
                 JsonArray names = new JsonArray();
+                JsonArray circuits = new JsonArray();
                 Circuit at = main;
                 for (Component inst : p) {
                     ids.add(d.ids().of(inst));
                     names.add(Names.name(at, inst));
                     at = ((SubcircuitFactory) inst.getFactory()).getSubcircuit();
+                    circuits.add(d.ids().of(at));
                 }
                 po.add("ids", ids);
                 po.add("names", names);
+                po.add("circuits", circuits);
                 po.addProperty("text", InstancePaths.describe(main, p));
                 paths.add(po);
             }

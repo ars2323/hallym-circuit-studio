@@ -50,6 +50,9 @@ export interface OverlayHost {
   note(cls: '' | 'err' | 'ok', text: string | null): void;   // the status bar's fact about the last action
   failed(name: string, e: unknown): void;        // a command failed: the window's words for it
   changed(): void;                               // the status bar again
+  // the items a part's own right click menu starts with (N-11: a subcircuit instance's View, Edit Appearance,
+  // Port Order…, Auto Appearance, Edit Original File); the overlays' items follow
+  partMenu?(at: [number, number], part: string | null): MenuEntry[];
 }
 
 export interface FlowSettings { onClick: boolean; speed: FlowSpeed; throughRegisters: boolean; activePathOnly: boolean; reduceMotion: boolean; smooth: boolean }
@@ -443,7 +446,8 @@ export class Overlays {
     if (!s) return [];
     const part = b.partAt(at);
     const wire = part ? null : b.wireAt(at);
-    const out: MenuEntry[] = [];
+    const out: MenuEntry[] = [...(this.host.partMenu?.(at, part) ?? [])];
+    if (out.length) out.push(SEPARATOR);
     if (wire) {
       const g = this.groupOf(wire);
       out.push({ label: 'Net Information…', run: () => void this.netInfo(wire) });

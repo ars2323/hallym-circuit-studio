@@ -170,6 +170,13 @@ class CircuitsTest {
         sync();
         assertEquals(List.of("alu32", "main", "half", "spare"), names(lastFileChanged(m)));
 
+        // file.info: 지금 모습(창을 나눌 때)
+        JsonObject info = edit("file.info");
+        assertEquals(List.of("alu32", "main", "half", "spare"), names(info));
+        assertEquals(half, info.get("main").getAsString());
+        assertTrue(info.get("saved").getAsBoolean());
+        assertTrue(info.get("dirty").getAsBoolean());
+        assertFalse(info.get("readOnly").getAsBoolean());
         // 알림이 없는 편집(선 하나)은 file.changed를 보내지 않는다
         m = e.client.mark();
         edit("edit.addWire", "circuitId", main, "points", new Object[] {new int[] {600, 600}, new int[] {650, 600}});

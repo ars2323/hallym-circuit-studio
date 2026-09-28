@@ -428,7 +428,8 @@ public final class AppearanceIntents {
         }
         case "line": {
             List<Location> pts = locations(sh, 2, 2);
-            made = attrs.applyTo(new Poly(false, pts)); // 원조 LineTool: 두 점의 열린 다각선
+            made = attrs.applyTo(new Poly(false, pts)); // 원조 LineTool: 두 점의 열린 다각선, 테두리만
+            made.setValue(DrawAttr.PAINT_TYPE, DrawAttr.PAINT_STROKE);
             break;
         }
         case "polyline":

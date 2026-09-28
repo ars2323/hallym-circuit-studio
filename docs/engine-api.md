@@ -270,7 +270,7 @@ Component = {
 | 메서드 | params | result |
 | --- | --- | --- |
 | `model.ports` | `{fileId, circuitId}` | `{circuitId, name, default, sides:{west,east,north,south:[{name, width, input}]}, instances}`: Port Order 창(v1 `AutoAppearance.sides`: 핀이 보는 방향의 반대 변, 지금 모양의 차례) |
-| `model.instances` | `{fileId, circuitId}` | `{circuitId, main, mainName, paths:[{ids, names, text}], instances, connected, default}`: 주 회로에서 이 회로까지의 인스턴스 경로(v1 `InstancePaths`, 위치 차례, 64개까지; `text` = `main › cpu › alu`), 쓰는 인스턴스 수, 이어진 포트 수(인스턴스 안내 띠, 핀 도구 미리 보기) |
+| `model.instances` | `{fileId, circuitId}` | `{circuitId, main, mainName, paths:[{ids, names, circuits, text}], instances, connected, default}`: 주 회로에서 이 회로까지의 인스턴스 경로(v1 `InstancePaths`, 위치 차례, 64개까지; `text` = `main › cpu › alu`), 쓰는 인스턴스 수, 이어진 포트 수(인스턴스 안내 띠, 핀 도구 미리 보기) |
 | `model.pinImpact` | `{fileId, circuitId, ids}` | `{connections, instances}`: 이 핀들을 지우거나 옮기면 끊길 수 있는 연결(v1 `InstanceBanner.previewText`) |
 | `model.appearance` | `{fileId, circuitId}` | 아래 `AppearanceEdit`. 부른 뒤로 그 회로의 모양이 바뀌면 같은 모양의 알림 `model.appearance`가 온다(파일을 닫을 때까지) |
 | `model.appearanceHit` | `{fileId, circuitId, at?, selected?, zoom?, rect?:[x0,y0,x1,y1]}` | `{handle?:{shape, at}, clicked?, top, topFilled, removable?, insertable?, inRect?}`: 원조 고르기 도구가 누른 자리에서 묻는 것(고른 도형의 움직이는 손잡이(배율에 따른 크기), 채움 없이·채운 것으로 본 맨 위 도형, 지울·더할 꼭짓점, 사각형 안 도형) |
@@ -278,6 +278,7 @@ Component = {
 | `model.appearanceMenu` | `{fileId, circuitId, shapes, vertexShape?, vertexAt?}` | `{cut, copy, paste, delete, duplicate, raise, lower, raiseTop, lowerBottom, addVertex, removeVertex}`: 원조 Edit 메뉴의 켜짐(`computeEnabled`) |
 | `model.libraries` | `{fileId}` | `{builtins:[{name, display}], loaded:[{name, display, usedIn}], openFiles:[{fileId, state, lib?, circuits, main}], mips}`: Load/Unload Library 창과 탭 간 라이브러리. `state`: `ok`, `loaded`(이미 라이브러리), `unsaved`, `self`, `circular` |
 | `model.importPlan` | `{fileId, path, circuits}` | `{order:[{name, as}], skipped:[글]}`: 가져오기 계획(v1 계획 창) |
+| `file.info` | `{fileId}` | `{fileId, name, circuits, main, libraries, dirty, saved, readOnly}`: 열린 파일 하나의 지금 모습(`file.changed`와 같은 꼴과 저장한 적 있는지·읽기 전용인지). 창을 나눠 다른 창이 그 파일을 받을 때 쓴다(N-11) |
 | `file.peek` | `{fileId, path}` | `{name, main, circuits:[{name, uses:[이름]}]}`: 가져오기 창의 목록 |
 | `file.saveImpact` | `{fileId}` | `{cuts:[{fileId, file, instances:[이름], connections}]}`: 지금 내용으로 저장하면 이 파일을 라이브러리로 쓰는 다른 열린 파일에서 끊길 연결(v1 `LibrarySync.impact`, D-065. 원조 기본 모양은 핀을 지우면 남은 포트가 당겨져 옆 선에 조용히 붙는다) |
 | `file.originOf` | `{fileId, circuitId}` | `{path, circuit}`: 라이브러리 회로의 파일(v1 Edit Original File). 이 파일의 회로면 `path:null` |

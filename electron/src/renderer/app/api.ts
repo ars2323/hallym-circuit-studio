@@ -1,6 +1,7 @@
 /* window.app, as src/main/preload.cjs exposes it. */
 
-import type { EngineStatus, Hello, LoadResult, OpenResult, Recovered, RecoveryAsk, WindowMethod } from '../../main/protocol.ts';
+import type { EditResult, EngineStatus, Hello, ImportPeek, ImportPlan, LoadResult, OpenResult, Recovered, RecoveryAsk, WindowMethod } from '../../main/protocol.ts';
+import type { Handover } from '../../main/windows.ts';
 
 // Load Program's options: the memory right-clicked (target), the answer to
 // "which memory?" (picks, loading the same file again), an old .s to open next to.
@@ -49,6 +50,24 @@ export interface AppApi {
   license(index: number): Promise<string>;  // LICENSES[index]; one past the end: Electron's
   openCredits(): Promise<void>;             // LICENSES.chromium.html, in the browser
   setOverlay(color: string | null): Promise<void>;  // the caption buttons' patch; null: white
+  // N-11 (src/main/circuit-files.ts): Import Subcircuits (the .circ dialog, then its circuits; null: cancelled),
+  // its plan and the import; Load Library (builtin by name; circ and jar through a dialog); another open file
+  // as a library; Edit Original File.
+  importChoose(fileId: string): Promise<ImportPeek | null>;
+  importPlan(fileId: string, circuits: string[]): Promise<ImportPlan>;
+  importApply(fileId: string, circuits: string[]): Promise<EditResult & { plan?: ImportPlan }>;
+  loadLibrary(fileId: string, kind: 'builtin' | 'circ' | 'jar', name?: string): Promise<(EditResult & { lib?: string }) | null>;
+  useOpenFile(fileId: string, otherFileId: string): Promise<EditResult & { lib?: string }>;
+  editOriginal(fileId: string, circuitId: string): Promise<((Opened | RecoveryAsk) & { circuit: string }) | null>;
+  // N-11 (src/main/windows.ts): this window (the main one, or a file's own and what it starts from), Detach Tab /
+  // View Side by Side, Attach Tab, a window of its own closed after its file, the close question cancelled.
+  windowRole(): Promise<{ main: boolean; handover: Handover | null }>;
+  detach(fileId: string, handover: Handover, how: 'window' | 'side'): Promise<boolean>;
+  attach(handover: Handover): Promise<boolean>;
+  windowClosed(): Promise<boolean>;
+  closeCancelled(): void;
+  onCloseRequest(listener: () => void): void;
+  onAdopt(listener: (handover: Handover) => void): void;
 }
 
 export interface AboutInfo {

@@ -765,6 +765,15 @@ public final class Engine {
             return kr.ac.hallym.hcs.engine.edit.LibraryIntents.peek(d,
                     kr.ac.hallym.hcs.engine.edit.LibraryIntents.resolve(d, p.str("path")));
         });
+        server.register("file.info", (p, call) -> {
+            Doc d = files.get(p.str("fileId"));
+            JsonObject o = kr.ac.hallym.hcs.engine.edit.CircuitService.fileJson(d);
+            o.addProperty("dirty", d.isDirty());
+            File main = d.loader().getMainFile();
+            o.addProperty("saved", main != null);
+            o.addProperty("readOnly", d.isReadOnly());
+            return o;
+        });
         server.register("file.saveImpact", (p, call) -> {
             JsonObject o = new JsonObject();
             o.add("cuts", kr.ac.hallym.hcs.engine.edit.CircuitService.saveImpact(files.all(),

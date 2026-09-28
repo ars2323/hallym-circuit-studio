@@ -466,6 +466,107 @@ export interface NetInfo { netId: string; width: number; name: string; drivers: 
 // record.fieldPaths (N-14, D-144): the wires of the splitter arms named after the instruction's fields.
 export interface FieldPaths { fileId: string; circuitId: string; cycle: number; format?: string; fields: Record<string, string[]> }
 
+// ---- circuits, appearances, libraries, other files (docs/engine-api.md, N-11, D-153) ----
+
+// file.info and the file.changed notification: a file's circuits (in order), main circuit, libraries.
+export interface FileInfo {
+  fileId: string;
+  name: string;             // Logisim's project name
+  circuits: CircuitRef[];
+  main: string;
+  libraries: LibRef[];
+  dirty: boolean;
+  saved?: boolean;          // file.info: saved at least once
+  readOnly?: boolean;       // file.info
+}
+
+export type Side = 'west' | 'east' | 'north' | 'south';
+
+// model.ports: the Port Order dialog's lists (the side a pin's port is on, in the appearance's order).
+export interface PortsInfo {
+  circuitId: string;
+  name: string;
+  default: boolean;         // the original's default appearance
+  sides: Record<Side, { name: string; width: number; input: boolean }[]>;
+  instances: number;        // instances of this circuit in the file
+}
+
+// What an appearance change would break (v1's question before Port Order / Auto Appearance).
+export interface Impact { instances: number; connections: number; where: string[] }
+
+// model.instances: the instances of a circuit reached from main (v1 InstancePaths), and its ports' use.
+export interface InstancesInfo {
+  circuitId: string;
+  main: string | null;
+  mainName: string | null;
+  paths: { ids: string[]; names: string[]; circuits: string[]; text: string }[];   // circuits: each step's circuit
+  instances: number;
+  connected: number;
+  default: boolean;
+}
+
+// model.appearance: the appearance editor's shapes, bottom first (the number is the shape's index).
+export type ShapeKind = 'rect' | 'roundrect' | 'oval' | 'line' | 'polyline' | 'polygon' | 'curve' | 'text' | 'port' | 'anchor' | 'shape';
+export interface AppearanceEditShape {
+  i: number;
+  kind: ShapeKind;
+  svg?: AppearanceShape;    // the original's <appear> element
+  attrs: Record<string, string>;   // the original's attribute table (align: left, center, right)
+  handles: Point[];
+  moves: boolean[];         // each handle can be dragged
+  bounds: [number, number, number, number];
+  removable: boolean;
+  points?: Point[];         // poly, curve (end, end, control)
+  closed?: boolean;
+  text?: string;
+  at?: Point;               // text, anchor
+  port?: { input: boolean; pin?: Point; name?: string; width?: number; at: Point };
+  facing?: string;          // anchor
+}
+export interface AppearanceEdit {
+  fileId: string;
+  circuitId: string;
+  name: string;
+  default: boolean;
+  editable: boolean;
+  shapes: AppearanceEditShape[];
+}
+export interface AppearanceHit {
+  handle?: { shape: number; at: Point };
+  clicked?: number;
+  top: number | null;
+  topFilled: number | null;
+  removable?: Point;
+  insertable?: Point;
+  inRect?: number[];
+}
+export interface AppearanceMenu {
+  cut: boolean; copy: boolean; paste: boolean; delete: boolean; duplicate: boolean;
+  raise: boolean; lower: boolean; raiseTop: boolean; lowerBottom: boolean; addVertex: boolean; removeVertex: boolean;
+}
+
+// model.libraries: the Load/Unload Library dialogs and the other open files (P-03).
+export interface LibrariesInfo {
+  fileId: string;
+  builtins: { name: string; display: string }[];
+  loaded: { name: string; display: string; usedIn: string | null }[];
+  openFiles: { fileId: string; state: 'ok' | 'loaded' | 'unsaved' | 'self' | 'circular'; lib?: string; circuits: string[]; main: string | null }[];
+  mips: boolean;
+}
+
+// file.peek (Import Subcircuits: the file's circuits) and model.importPlan (the plan).
+export interface ImportPeek { name: string; main: string | null; circuits: { name: string; uses: string[] }[] }
+export interface ImportPlan { order: { name: string; as: string }[]; skipped: string[] }
+
+// file.saveImpact: saving now would break these connections in other open files (v1 LibrarySync).
+export interface SaveCut { fileId: string; file: string; instances: string[]; connections: number }
+
+// model.portImpact: an edit of a subcircuit broke connections of its instances (v1 P-02; kept: wired back).
+export interface PortImpact { fileId: string; circuitId: string; name: string; broken: number; kept: number }
+
+// file.libraryUpdated: a library file saved in another tab came in (its instances replaced, Reset).
+export interface LibraryUpdated { fileId: string; library: string }
+
 // Error codes (docs/engine-api.md 2).
 export const ERR_NOT_FOUND = 1;
 export const ERR_FILE = 2;
@@ -491,6 +592,12 @@ export const WINDOW_METHODS = [
   'record.view', 'record.values', 'record.runUntil', 'record.stop', 'record.registers', 'record.memory',
   'record.instruction', 'record.fieldPaths', 'record.markPc', 'record.markRegisterFile', 'record.registerMapping', 'record.setRegisterMapping',
   'trace.influence', 'trace.net', 'flow.path', 'flow.activePath', 'edit.signalGroup', 'edit.areaMemo',
+  // N-11: circuits, appearances, libraries (edit.importCircuits, edit.loadLibrary, file.peek, model.importPlan and
+  // file.originOf take or give a path: the main process calls them, src/main/circuit-files.ts)
+  'file.info', 'file.saveImpact', 'file.copyMipsJar',
+  'edit.deleteCircuit', 'edit.moveCircuit', 'edit.portOrder', 'edit.autoAppearance', 'edit.appearance', 'edit.unloadLibrary',
+  'model.ports', 'model.instances', 'model.pinImpact', 'model.appearance', 'model.appearanceHit', 'model.appearanceHandles',
+  'model.appearanceMenu', 'model.libraries',
 ] as const;
 export type WindowMethod = typeof WINDOW_METHODS[number];
 

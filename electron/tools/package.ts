@@ -76,6 +76,8 @@ async function stageApp(): Promise<void> {
   cpSync(path.join(root, 'src/renderer/canvas/canvas.css'), at('renderer/canvas/canvas.css'));
   cpSync(path.join(root, 'src/renderer/shared/panels.css'), at('renderer/shared/panels.css'));
   cpSync(path.join(root, 'src/renderer/app/cycle.css'), at('renderer/app/cycle.css'));
+  cpSync(path.join(root, 'src/renderer/app/circuits.css'), at('renderer/app/circuits.css'));
+  cpSync(path.join(root, 'src/renderer/canvas/overlays/overlays.css'), at('renderer/canvas/overlays/overlays.css'));
   cpSync(path.join(root, 'src/renderer/assets'), at('renderer/assets'), { recursive: true });
   for (const d of ['character', 'logo']) cpSync(path.join(repo, 'assets/hallym', d), at('renderer/hallym', d), { recursive: true });
   cpSync(path.join(root, 'src/main/preload.cjs'), at('preload.cjs'));

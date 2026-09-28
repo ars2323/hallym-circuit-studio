@@ -35,4 +35,19 @@ contextBridge.exposeInMainWorld('app', {
   license: (i) => ipcRenderer.invoke('about:license', i).then(unwrap),
   openCredits: () => ipcRenderer.invoke('about:openCredits').then(unwrap),
   setOverlay: (color) => ipcRenderer.invoke('win:overlay', color),
+  // N-11: circuits from other files and libraries (the dialogs in the main process: src/main/circuit-files.ts)
+  importChoose: (fileId) => ipcRenderer.invoke('circuits:importChoose', fileId).then(unwrap),
+  importPlan: (fileId, circuits) => ipcRenderer.invoke('circuits:importPlan', fileId, circuits).then(unwrap),
+  importApply: (fileId, circuits) => ipcRenderer.invoke('circuits:importApply', fileId, circuits).then(unwrap),
+  loadLibrary: (fileId, kind, name) => ipcRenderer.invoke('library:load', fileId, kind, name).then(unwrap),
+  useOpenFile: (fileId, otherFileId) => ipcRenderer.invoke('library:useOpenFile', fileId, otherFileId).then(unwrap),
+  editOriginal: (fileId, circuitId) => ipcRenderer.invoke('file:editOriginal', fileId, circuitId).then(unwrap),
+  // N-11: a file tab in a window of its own (src/main/windows.ts)
+  windowRole: () => ipcRenderer.invoke('win:role'),
+  detach: (fileId, handover, how) => ipcRenderer.invoke('win:detach', fileId, handover, how).then(unwrap),
+  attach: (handover) => ipcRenderer.invoke('win:attach', handover).then(unwrap),
+  windowClosed: () => ipcRenderer.invoke('win:closed'),
+  closeCancelled: () => ipcRenderer.send('win:closeCancelled'),
+  onCloseRequest: (listener) => ipcRenderer.on('win:closeRequest', () => listener()),
+  onAdopt: (listener) => ipcRenderer.on('win:adopt', (_e, handover) => listener(handover)),
 });
