@@ -1,5 +1,5 @@
 /* The Memory panel: memory as a table, the way Hallym MIPS's Data tab shows
-   it (derived from Hallym MIPS v2.3.0
+   it (derived from Hallym MIPS v2.5.0
    electron/src/renderer/app/panels/data.ts):
 
      Address | +0 | +4 | +8 | +C | ASCII

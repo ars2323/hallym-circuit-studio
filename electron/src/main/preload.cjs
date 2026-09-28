@@ -1,4 +1,4 @@
-/* The window's only way out (derived from Hallym MIPS v2.3.0
+/* The window's only way out (derived from Hallym MIPS v2.5.0
    electron/src/main/preload.cjs).  CommonJS because a sandboxed preload
    cannot be an ES module.  Results come back as { ok, value } or
    { ok: false, error } and are unwrapped here, so the page sees ordinary

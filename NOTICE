@@ -83,7 +83,7 @@ Electron, Chromium and Node.js (Hallym Circuit Studio 2, electron/)
 Hallym MIPS Simulator (screen code, design values, tools and test harness)
   Copyright (c) 2026, Hakhyeon Kim (AIAC Lab, Hallym University).
   License: BSD 3-Clause (electron/LICENSE.hallym-mips.txt)
-  Source:  https://github.com/ars2323/hallym-mips-simulator, tag v2.3.0
+  Source:  https://github.com/ars2323/hallym-mips-simulator, tag v2.5.0
   Location: the files listed in electron/ORIGIN.md. Nothing that comes from
             SPIM is taken (no instruction tables, no simulator core).
 
@@ -168,7 +168,15 @@ Hallym MIPS Simulator test files
 
 --------------------------------------------------------------------------
 Hallym University identity assets (logo, emblem, signature, characters
-Haram & Hari)
+Haram & Hari, the start screen's video)
+  The Hallym University symbol, logotype, emblem and signature, the
+  university's characters Haram (하람) and Hari (하리), and the opening
+  aerial shot of its promotional video (0:00.1 to 0:02.6), slowed down and
+  without sound (the Electron edition's first screen), belong to Hallym
+  University. The video is "[Official Video] 한림대학교 홍보영상｜The New
+  Hallym 대학의 내일을 열다", from Hallym University's official YouTube
+  channel, @HALLYMNEWS. (As in Hallym MIPS Simulator's NOTICE, section 8,
+  v2.5.0: the video and its still are that program's files, byte for byte.)
   Owned by Hallym University (Hallym University 소유). Commercial use is
   prohibited (상업적 사용 금지). They appear in this software only to identify
   it as a teaching tool for Hallym University's courses, and are used
@@ -179,4 +187,6 @@ Haram & Hari)
   this project must remove them, unless Hallym University has given its own
   permission. This software is not an official product of Hallym University.
   Location: assets/hallym/ (the Electron edition shows these same files,
-            unmodified; electron/hallym-assets.md)
+            unmodified; electron/hallym-assets.md);
+            electron/src/renderer/assets/hallym/start/ (the video and its
+            still, taken from Hallym MIPS v2.5.0 unmodified)

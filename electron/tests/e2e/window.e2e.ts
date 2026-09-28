@@ -111,7 +111,7 @@ test('About: the version, Logisim 2.7.1 by Carl Burch, the marks\' owner, not of
     await expect(about.getByRole('tab')).toHaveText(['About', 'Licenses']);
     const text = await about.innerText();
     for (const s of ['Hallym Circuit Studio', '2.0.0-alpha.0', 'Based on Logisim 2.7.1 by Carl Burch (GNU GPL, version 2 or later)',
-      'Hallym MIPS Simulator', 'Hallym University의 소유', '상업적 사용을 금지합니다', 'Hallym University의 공식 제품이 아닙니다', 'fake-engine']) {
+      'Hallym MIPS Simulator', 'Hallym University 소유', '상업적 사용을 금지합니다', 'Hallym University 공식 제품이 아닙니다', '시작 화면의 영상', '@HALLYMNEWS', 'fake-engine']) {
       expect(text).toContain(s);
     }
     await about.getByRole('tab', { name: 'Licenses' }).click();
@@ -125,7 +125,11 @@ test('About: the version, Logisim 2.7.1 by Carl Burch, the marks\' owner, not of
     await expect(items.nth(3).locator('pre')).toContainText('not an official product of Hallym University');
     await expect(items.nth(4).locator('summary')).toContainText('OpenJDK runtime (Eclipse Temurin 21.0.12)');
     await expect(items.nth(4).locator('pre')).toContainText('"CLASSPATH" EXCEPTION TO THE GPL');
-    expect(await about.innerText()).not.toContain('한림');
+    // 한림 only inside the video's own title, quoted in NOTICE and the marks' notes as Hallym MIPS NOTICE 8 has it (D-155).
+    const TITLE = '"[Official Video] 한림대학교 홍보영상｜The New Hallym 대학의 내일을 열다"';
+    const all = (await about.innerText()).replace(/\s+/g, ' ');
+    expect(all).toContain(TITLE);
+    expect(all.split(TITLE).join('')).not.toContain('한림');
     await about.getByRole('button', { name: 'Close' }).click();
     await expect(about).toBeHidden();
     expect(await page.locator('body').innerText()).not.toContain('한림');

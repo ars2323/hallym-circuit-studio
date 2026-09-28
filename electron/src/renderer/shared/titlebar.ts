@@ -1,4 +1,4 @@
-/* The window's own title bar (derived from Hallym MIPS v2.3.0
+/* The window's own title bar (derived from Hallym MIPS v2.5.0
    electron/src/renderer/app/app.ts: its title bar, button(), iconButton()
    and fitTitlebar(), taken out into a component).
 

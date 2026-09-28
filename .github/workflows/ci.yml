@@ -82,8 +82,9 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: electron/package-lock.json
-      - name: Install Xvfb
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb
+      # ImageMagick's import reads the X server's pixels: the first screen's video measured on the screen (D-155).
+      - name: Install Xvfb and ImageMagick
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb imagemagick
       # Ubuntu 24.04 keeps unprivileged user namespaces from programs without an AppArmor profile: Chromium's sandbox needs them.
       - name: Let Chromium's sandbox start
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
@@ -342,6 +343,49 @@ jobs:
         run: |
           $v = (Get-Content package.json | ConvertFrom-Json).version
           tools/windows/check-install.ps1 -Phase over -Older (Get-Item setup-earlier/*-setup.exe).FullName -OlderVersion 1.99.0 -Setup (Get-Item setup/*-setup.exe).FullName -Version $v -Report report
+      # D-155: after the checks above, which count what is left on the PC (the screen is read here with PowerShell).
+      # The first screen's video as the screen shows it, tinted toward the navy and blurred, at 1920x1080 100/125/150 %
+      # (and the still under reduced motion): installed silently, measured, uninstalled silently.
+      - name: The installed program's first screen on the screen at 100/125/150 % (tests/e2e/windows-start.e2e.ts)
+        if: ${{ !cancelled() }}
+        timeout-minutes: 10
+        run: |
+          $p = Start-Process (Get-Item setup/*-setup.exe).FullName -ArgumentList '/S' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "silent install: exit $($p.ExitCode)" }
+          $env:HCS_E2E_EXE = Join-Path $env:LOCALAPPDATA 'Programs\Hallym Circuit Studio\HallymCircuitStudio.exe'
+          $env:HCS_E2E_REPORT = Join-Path (Get-Location) 'report'
+          node node_modules/@playwright/test/cli.js test windows-start
+          $code = $LASTEXITCODE
+          $entry = Get-ChildItem 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall' | ForEach-Object { Get-ItemProperty $_.PSPath } | Where-Object { $_.DisplayName -like 'Hallym Circuit Studio *' }
+          foreach ($e in @($entry)) {
+            $exe = [regex]::Match($e.QuietUninstallString, '"([^"]+)"').Groups[1].Value
+            $uargs = ($e.QuietUninstallString -replace '"[^"]+"', '').Trim()
+            Start-Process $exe -ArgumentList $uargs -Wait
+          }
+          Start-Sleep -Seconds 5
+          exit $code
+      - name: The first screen's background, measured (the job summary)
+        if: ${{ !cancelled() }}
+        run: |
+          if (Test-Path report/backdrop.json) {
+            $b = Get-Content report/backdrop.json | ConvertFrom-Json
+            $rows = foreach ($k in $b.PSObject.Properties.Name) { $m = $b.$k; "| $k | $('{0:N3}' -f $m.video.towardNavy) / $('{0:N3}' -f $m.video.sharpness) | $('{0:N3}' -f $m.still.towardNavy) / $('{0:N3}' -f $m.still.sharpness) |" }
+            @('', '### The installed first screen on the screen (toward navy > 0.4 / sharpness < 0.6)', '', '| scale | video | still (reduced motion) |', '|---|---|---|') + $rows -join "`n" >> $env:GITHUB_STEP_SUMMARY
+          }
+      # D-155: the installer as a student runs it -- its pages, not /S: the progress (its head, the bar in the app's blue
+      # measured on the screen), the finish page (설치가 완료되었습니다, 지금 실행하기 ticked, the navy band with the
+      # symbol's plate measured on the screen), 마침 starting the program, then the uninstaller's pages; pictured.
+      - name: The installer with its pages (tools/windows/check-installer-ui.ps1)
+        if: ${{ !cancelled() }}
+        timeout-minutes: 8
+        run: tools/windows/check-installer-ui.ps1 -Setup (Get-Item setup/*-setup.exe).FullName -Report report/installer
+      # The installer's, finish and uninstaller's pages as pictures (every run; a tag run's are the release's).
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: installer-screens
+          path: electron/report/installer/*.png
+          if-no-files-found: warn
       - name: Sizes and times (the job summary)
         if: always()
         run: |

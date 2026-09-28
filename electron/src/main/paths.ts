@@ -1,4 +1,4 @@
-/* Where the app's own files are (derived from Hallym MIPS v2.3.0
+/* Where the app's own files are (derived from Hallym MIPS v2.5.0
    electron/src/main/paths.ts).  Run from the source tree (npm run electron,
    the e2e tests) they are where the repository keeps them; in the packaged
    app, tools/package.ts bundles the main process into one file (defining
@@ -39,7 +39,7 @@ export const LICENSES: { name: string; title: string }[] = [
   { name: 'LICENSE', title: 'Hallym Circuit Studio — GNU General Public License, version 2 or later' },
   { name: 'NOTICE', title: 'NOTICE — Logisim 2.7.1, Hallym MIPS, Electron, fonts, icons, the university\'s marks' },
   { name: 'LICENSE.hallym-mips.txt', title: 'Hallym MIPS Simulator — BSD 3-Clause License (the screen code taken from it)' },
-  { name: 'hallym-assets.md', title: 'Hallym University assets (marks, characters, app icon)' },
+  { name: 'hallym-assets.md', title: 'Hallym University assets (marks, characters, the first screen\'s video, app icon)' },
   { name: 'LICENSE.openjdk.txt', title: 'OpenJDK runtime (Eclipse Temurin 21.0.12) — GNU General Public License, version 2, with the Classpath Exception' },
   { name: 'OFL-Pretendard.txt', title: 'Pretendard — SIL Open Font License 1.1' },
   { name: 'OFL-D2Coding.txt', title: 'D2Coding — SIL Open Font License 1.1' },

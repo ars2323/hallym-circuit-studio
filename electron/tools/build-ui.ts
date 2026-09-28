@@ -1,4 +1,4 @@
-/* Bundles the window's script (derived from Hallym MIPS v2.3.0
+/* Bundles the window's script (derived from Hallym MIPS v2.5.0
    electron/tools/build-ui.ts): src/renderer/app/app.ts and what it imports
    into build/renderer/app.js, which src/renderer/app/index.html loads.
    Also writes build/licenses/third-party.txt: the licenses of every npm

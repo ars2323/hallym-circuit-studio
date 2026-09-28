@@ -1,5 +1,5 @@
 /* A panel's word to the student when it has nothing else to show (derived
-   from Hallym MIPS v2.3.0 electron/src/renderer/app/notice.ts): the words on
+   from Hallym MIPS v2.5.0 electron/src/renderer/app/notice.ts): the words on
    the left -- a title, a sentence (what fills the panel), and whatever else
    the case needs (a button) -- and, where the panel is the screen's main
    place, a character on the right, the two together in the middle of the

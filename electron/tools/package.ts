@@ -1,4 +1,4 @@
-/* Packages the app with electron-builder (derived from Hallym MIPS v2.3.0
+/* Packages the app with electron-builder (derived from Hallym MIPS v2.5.0
    electron/tools/package.ts).  The engine and its bundled Java runtime
    (N-04) go in, built first on the OS packaged for:
    ./gradlew :engine:stage :engine:runtime
@@ -24,10 +24,10 @@
    3. Runs electron-builder on it with tools/package-config.ts: those two go
       into resources/engine and resources/runtime (extraResources), where
       src/main/engine-locate.ts looks for them -- packaged, the app runs the
-      engine on that runtime only.  On Windows the result is the one-click,
-      per-user NSIS installer HallymCircuitStudio-<version>-win-x64-setup.exe
-      (packaging/installer.nsh: its folder, the v1.0.x MSI removed, its
-      words). */
+      engine on that runtime only.  On Windows the result is the assisted
+      (the progress, then the finish page; D-155), per-user NSIS installer HallymCircuitStudio-<version>-win-x64-setup.exe
+      (packaging/installer.nsh: its folder, its pages, the v1.0.x MSI
+      removed, its words). */
 
 import { Arch, build as electronBuild, Platform } from 'electron-builder';
 import * as esbuild from 'esbuild';

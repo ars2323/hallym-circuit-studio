@@ -9,7 +9,7 @@
 
 import { expect, test, type Page } from '@playwright/test';
 
-import { DATAPATH, launch, newCircuit, openFile, sample } from './harness.ts';
+import { canvasSettled, DATAPATH, launch, newCircuit, openFile, sample } from './harness.ts';
 
 const BROKEN = 'electron/tests/fixtures/broken-datapath.circ';
 
@@ -49,6 +49,7 @@ const placedEvents = (page: Page) => page.evaluate(() => (window as unknown as {
 async function drawn(page: Page): Promise<void> {
   await page.locator('.canvas .canvas-view canvas').waitFor();
   await page.waitForFunction(() => !!(window as unknown as { __hcsCanvas?: CanvasApi }).__hcsCanvas?.scene);
+  await canvasSettled(page); // its first view chosen and drawn: a point computed from the view is where it is on the page
 }
 
 test('Components: the engine\'s library under the file\'s name first; Hallym MIPS before the file has it; a part picked is sent to the Canvas', async () => {

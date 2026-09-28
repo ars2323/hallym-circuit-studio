@@ -1,4 +1,4 @@
-/* Electron's main process: the host (derived from Hallym MIPS v2.3.0
+/* Electron's main process: the host (derived from Hallym MIPS v2.5.0
    electron/src/main/main.ts -- the window, the run's folder, the caption
    buttons' patch, About; the simulator is replaced by the engine).
 

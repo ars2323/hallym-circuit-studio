@@ -1,6 +1,6 @@
 /* The fixed set of screenshots (docs/screens/README.md), every one of them
    taken here -- none by hand -- and all of them again every round, under
-   the same names (derived from Hallym MIPS v2.3.0
+   the same names (derived from Hallym MIPS v2.5.0
    electron/tools/capture-screens.ts: the PNG writer, the checks and shot();
    the scenes are this app's):
 
@@ -14,6 +14,10 @@
    (tests/fake-engine/fake-engine.ts): its answers are fixed, so the same
    code gives the same pixels.  Each PNG is written without its ancillary
    chunks (metadata), losslessly, and must stay within 1.5 MB.
+
+   The first screen has the university's video behind it (D-155): those
+   shots stop it at a fixed second, 3.0 s as Hallym MIPS 2.5.0's start.jpg
+   (videoAt), so every round gives the same picture.
 
    SCREENS_OUT: write somewhere else. */
 
@@ -68,6 +72,18 @@ async function shot(r: Running, name: string, o: { keepFocus?: boolean; keepPoin
   written(name);
 }
 
+// The first screen's video, stopped at `t` seconds, that frame on screen (Hallym MIPS 2.5.0 capture-screens.ts).
+const START_AT = 3.0;
+async function videoAt(r: Running, t = START_AT): Promise<void> {
+  await r.page.waitForSelector('.wback.playing');
+  await r.page.evaluate((t) => new Promise<void>((done) => {
+    const v = document.querySelector('.wback video') as HTMLVideoElement;
+    v.pause();
+    v.addEventListener('seeked', () => requestAnimationFrame(() => requestAnimationFrame(() => done())), { once: true });
+    v.currentTime = t;
+  }), t);
+}
+
 // The Canvas has drawn the circuit with the engine's values (N-05).
 async function drawn(r: Running): Promise<void> {
   await r.page.locator('.canvas-view canvas').waitFor();
@@ -84,6 +100,7 @@ const kill = (r: Running) => r.app.evaluate(() => (globalThis as unknown as { __
 {
   const r = await launch(FHD);
   const { page } = r;
+  await videoAt(r);
   await shot(r, 'start');
   await page.getByRole('button', { name: /튜토리얼 보기/ }).click();
   await shot(r, 'start-tutorial');
@@ -117,6 +134,7 @@ const kill = (r: Running) => r.app.evaluate(() => (globalThis as unknown as { __
   await page.keyboard.press('Escape');
   await kill(r);
   await page.locator('.band', { hasText: '다시 시작했습니다' }).waitFor();
+  await videoAt(r);
   await shot(r, 'engine-restarted');
   await r.close();
 }
@@ -606,6 +624,7 @@ for (const [name, size, scale] of [
 {
   const r = await launch(FHD, { env: { HCS_ENGINE_CMD: '', HCS_ENGINE_JAR: '/opt/hcs/hcs-engine.jar' } });
   await r.page.locator('dialog.ask').waitFor();
+  await videoAt(r);
   await shot(r, 'engine-failed');
   await r.close();
 }

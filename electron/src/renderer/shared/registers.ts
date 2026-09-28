@@ -1,4 +1,4 @@
-/* The Registers panel (derived from Hallym MIPS v2.3.0
+/* The Registers panel (derived from Hallym MIPS v2.5.0
    electron/src/renderer/app/panels/registers.ts).  One DOM row per
    register, made once for a set of registers; an update touches only the
    cells whose text changed and the rows whose highlight changed.

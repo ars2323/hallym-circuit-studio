@@ -14,7 +14,7 @@
 .app > .status { grid-row: 5; }
 
 .work { min-height: 0; min-width: 0; display: grid; }
-.stage-welcome { display: flex; align-items: center; justify-content: center; padding: 24px; overflow: auto; }
+.stage-welcome { display: flex; align-items: center; justify-content: center; padding: 24px; overflow: auto; position: relative; isolation: isolate; } /* the video behind the card (.wback, D-155) */
 
 /* ---- the panels: left | Canvas | right ----------------------------------- */
 .shell { display: grid; min-height: 0; min-width: 0; padding: 8px;

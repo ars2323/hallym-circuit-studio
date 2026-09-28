@@ -1,4 +1,4 @@
-/* The two heads every panel is made from (derived from Hallym MIPS v2.3.0
+/* The two heads every panel is made from (derived from Hallym MIPS v2.5.0
    electron/src/renderer/app/ui.ts): one height, one font, one set of
    margins, one place for controls on the right.
 

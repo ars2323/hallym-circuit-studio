@@ -34,7 +34,10 @@ test('the real engine: hello, a new circuit, a .circ with the MIPS library, the 
     await expect.poll(() => engineHello(r.app), { timeout: 60_000 }).toMatchObject({ engine: 'hcs-engine', logisim: '2.7.1', java: expect.stringMatching(/^21\b/) });
     expect(await aboutEngineLine(page)).toMatch(/^Engine hcs-engine \S+ · Logisim 2\.7\.1 · Java 21\b/);
     await expect(page.locator('.status')).not.toContainText(/Logisim|Java|engine/);
+    // The first screen's video behind the card (D-155), unloaded once a circuit is on screen.
+    await page.waitForSelector('.wback.playing');
     await newCircuit(r);
+    expect(await page.evaluate(() => document.querySelector('.wback video')!.hasAttribute('src'))).toBe(false);
     await expect(page.locator('.filebar .ptab')).toHaveText(['untitled.circ']);
     await expect(page.locator('.canvas h3')).toHaveText('빈 회로입니다');
     await expect(page.locator('.upper .libgroup summary').first()).toContainText('untitled.circ');
