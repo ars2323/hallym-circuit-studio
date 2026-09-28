@@ -16,7 +16,7 @@ import path from 'node:path';
 
 import type { Snapshot } from '../../src/main/protocol.ts';
 import { answerOpen, answerSave, canvasSettled, DATAPATH, INSIDE_PIN_VALUES, launch, newCircuit, openFile, PARENT_PORT_VALUES, repo, sample, type LaunchOptions } from './harness.ts';
-import { alive, call, circuitsOf, enginePid, fileModel, journalLength, killEngine, killMainAndSeeEngineEnd, openFileIds } from './model.ts';
+import { aboutEngineLine, alive, call, circuitsOf, engineHello, enginePid, fileModel, journalLength, killEngine, killMainAndSeeEngineEnd, openFileIds } from './model.ts';
 import { click, menu, opened, partMiddle, rightClick, shown, wireAtPort } from './overlay-helpers.ts';
 import { changeEverySetting, settingsNow } from './settings.ts';
 
@@ -30,7 +30,10 @@ test('the real engine: hello, a new circuit, a .circ with the MIPS library, the 
   const r = await launch(undefined, { env: real });
   const { page } = r;
   try {
-    await expect(page.locator('.status .engine')).toContainText('Logisim 2.7.1 · Java 21');
+    // The real engine on Java 21 (D-154): the main process's hello and About say so; the status bar says neither.
+    await expect.poll(() => engineHello(r.app), { timeout: 60_000 }).toMatchObject({ engine: 'hcs-engine', logisim: '2.7.1', java: expect.stringMatching(/^21\b/) });
+    expect(await aboutEngineLine(page)).toMatch(/^Engine hcs-engine \S+ · Logisim 2\.7\.1 · Java 21\b/);
+    await expect(page.locator('.status')).not.toContainText(/Logisim|Java|engine/);
     await newCircuit(r);
     await expect(page.locator('.filebar .ptab')).toHaveText(['untitled.circ']);
     await expect(page.locator('.canvas h3')).toHaveText('빈 회로입니다');
@@ -38,6 +41,10 @@ test('the real engine: hello, a new circuit, a .circ with the MIPS library, the 
     await openFile(r, sample(r.dir, DATAPATH));
     await expect(page.locator('.canvas .canvas-view canvas')).toBeVisible(); // drawn (N-05)
     await expect(page.locator('.status')).toContainText('35 components');
+    // View only until alpha.1 (D-154): the editing tools stay off with the real engine too.
+    for (const name of ['Edit', 'Poke', 'Wire', 'Text', 'Pin', 'Tunnel', 'Probe']) {
+      await expect(page.getByRole('radio', { name, exact: true })).toBeDisabled();
+    }
     await page.getByRole('tab', { name: 'Circuits' }).click();
     await expect(page.locator('.upper .pbody:visible .list > li')).toHaveText(['main', 'regfile', 'alu']);
     await expect(page.locator('.lower .list li').first()).toBeVisible();   // its tunnels
@@ -243,7 +250,7 @@ test('the real engine ended by a crash: started again, the file back in its tab,
     await expect(page.locator('.filebar .ptab')).toHaveText(['demo-datapath.circ']);
     await expect(page.locator('.canvas .canvas-view canvas')).toBeVisible(); // drawn again with the new engine's ids (N-05)
     await page.waitForFunction(() => ((window as unknown as { __hcsCanvas: { scene: { values: Map<string, string> } | null } }).__hcsCanvas.scene?.values.size ?? 0) > 0);
-    await expect(page.locator('.status .engine')).toContainText('Logisim 2.7.1 · Java 21');
+    await expect.poll(() => engineHello(r.app)).toMatchObject({ engine: 'hcs-engine', logisim: '2.7.1', java: expect.stringMatching(/^21\b/) });
   } finally {
     await r.close();
   }
@@ -411,7 +418,7 @@ test('the real engine blocked (N-19): its engine thread held, the window\'s proc
   const cmd = JSON.stringify([java, '-Djava.awt.headless=true', '-Dhcs.testHooks=true', '-Dhcs.exitDeadlineMs=3000', '-jar', JAR]);
   const r = await launch(undefined, { env: { HCS_ENGINE_CMD: cmd } });
   const pid = (await enginePid(r.app))!;
-  await expect(r.page.locator('.status .engine')).toContainText('Logisim 2.7.1');
+  await expect.poll(() => engineHello(r.app), { timeout: 60_000 }).toMatchObject({ engine: 'hcs-engine', logisim: '2.7.1' });
   // the engine thread held for ten minutes (the call never answers)
   await r.app.evaluate(() => { void (globalThis as unknown as { __hcs: { engine: { call(m: string, p: unknown): Promise<unknown> } } }).__hcs.engine.call('test.block', { ms: 600000 }).catch(() => {}); });
   await new Promise((done) => setTimeout(done, 500));

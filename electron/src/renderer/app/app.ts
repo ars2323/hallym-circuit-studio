@@ -67,7 +67,7 @@ import { type EditSplitter, emitPlaceTool, emitSelection, onEditSplitter, type P
 import { tunnelsPanel } from './tunnels.ts';
 import { commandError, fileError } from './logic/errors.ts';
 import { FREQUENCIES, going, resetTurnsOn, runLabel, simBand, simFacts } from './logic/sim.ts';
-import { circuitFacts, count, counted, engineFact, engineVersion } from './logic/facts.ts';
+import { circuitFacts, count, counted, engineFact } from './logic/facts.ts';
 import { Files, type OpenFile } from './logic/files.ts';
 import { arrange, nothingDragged, PAD, SPLITTER } from './logic/layout.ts';
 import { messageCount } from './logic/messages.ts';
@@ -892,15 +892,14 @@ function renderStatus(): void {
   if (note) parts.push(span(note.cls, note.text));
   parts.push(span('grow'));
   if (f && board.scene && board.root.isConnected) parts.push(wireLegend.button, zoomCtl.button);
-  const v = engineVersion(engine);
-  if (v) parts.push(dropFirst(span('engine', v), 2));
+  // The engine's and Java's versions are About's only, not the student's status bar (D-154).
   status.replaceChildren(...parts);
   fitStatus();
 }
 
 /* A status bar too narrow for its facts (half a screen) leaves out the ones that say least, in this order
-   (N-07): the clock's speed while it does not run (the toolbar shows it), the engine's versions, then
-   Simulation On (Off always stays).  0: never left out. */
+   (N-07): the clock's speed while it does not run (the toolbar shows it), then Simulation On (Off always
+   stays).  The engine's versions are not here at all (About only, D-154).  0: never left out. */
 function dropFirst(el: HTMLElement, order: number): HTMLElement {
   if (order > 0) el.dataset.drop = String(order);
   return el;

@@ -32,6 +32,25 @@ export const killEngine = (app: ElectronApplication): Promise<number> => app.eva
 export const enginePid = (app: ElectronApplication): Promise<number | undefined> => app.evaluate(() =>
   (globalThis as unknown as { __hcs: { engine: { pid?: number } } }).__hcs.engine.pid);
 
+// The engine's answer to engine.hello as the main process holds it (null until it is ready): the real
+// engine says hcs-engine and the Java it runs on; the fake one says fake-engine.  The status bar no
+// longer shows the versions (D-154), so the tests ask the main process and About.
+export interface EngineHello { engine: string; version: string; logisim: string; java: string }
+export const engineHello = (app: ElectronApplication): Promise<EngineHello | null> => app.evaluate(() =>
+  (globalThis as unknown as { __hcs: { engine: { status(): { hello: EngineHello | null } } } }).__hcs.engine.status().hello);
+
+// About's engine line ("Engine hcs-engine 2 · Logisim 2.7.1 · Java 21.0.12"): About opened, read, closed.
+export async function aboutEngineLine(page: Page): Promise<string> {
+  await page.getByTitle('About').click();
+  const about = page.locator('dialog.about');
+  const line = about.locator('p.hint', { hasText: /^Engine / });
+  await line.waitFor();
+  const text = (await line.innerText()).trim();
+  await about.getByRole('button', { name: 'Close' }).click();
+  await about.waitFor({ state: 'hidden' });
+  return text;
+}
+
 // {circuit name: circuitId} of a file (Components' first group: this file's circuits).
 export async function circuitsOf(page: Page, fileId: string): Promise<Record<string, string>> {
   const lib = await call<LibraryGroup[]>(page, 'model.library', { fileId });

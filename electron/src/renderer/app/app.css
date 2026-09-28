@@ -62,9 +62,6 @@
 .libgroup .list { padding: 0 0 6px 12px; }
 .libgroup + .libgroup { border-top: 1px solid var(--border); }
 
-/* ---- status bar: the engine's versions at the far end ----------------------------- */
-.status .engine { color: var(--muted); }
-
 /* ---- Messages (messages.ts, D-143): groups by kind, a count each; a message
    is a row that can be chosen (the Canvas and the Cycle View go there) ------- */
 .msgs { height: 100%; overflow: auto; padding: 4px 0 8px; }

@@ -26,7 +26,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { describe, diffStates, measureNoise, NAMES_US, quiet, report as stateReport, snapshot, type NoiseFile, type State } from '../../tools/windows/state.ts';
-import { alive, call, circuitsOf, enginePid, openFileIds } from './model.ts';
+import { aboutEngineLine, alive, call, circuitsOf, engineHello, enginePid, openFileIds } from './model.ts';
 
 const exe = process.env.HCS_E2E_EXE;
 const report = path.resolve(process.env.HCS_E2E_REPORT ?? 'report');
@@ -50,7 +50,8 @@ async function start(): Promise<{ app: ElectronApplication; page: Page; times: T
   const windowMs = performance.now() - t0;
   await page.waitForFunction(() => document.querySelector('.wcard') !== null, null, { polling: 10, timeout: 60_000 });
   const startScreenMs = performance.now() - t0;
-  await page.waitForFunction(() => /Java \d+/.test(document.querySelector('.status .engine')?.textContent ?? ''), null, { polling: 10, timeout: 60_000 });
+  // Ready when the main process has the engine's hello (the status bar no longer shows the versions, D-154).
+  await expect.poll(() => engineHello(app), { intervals: [10], timeout: 60_000 }).not.toBeNull();
   const engineReadyMs = performance.now() - t0;
   const round = (n: number) => Math.round(n);
   return { app, page, times: { windowMs: round(windowMs), startScreenMs: round(startScreenMs), engineReadyMs: round(engineReadyMs) } };
@@ -145,7 +146,9 @@ test('installed: the first screen, the engine on the bundled runtime, a circuit 
     await expect(page.locator('.wcard h1')).toHaveText('안녕하세요!');
     await expect(page.locator('.action').nth(0)).toContainText('튜토리얼 보기');
     await expect(page.locator('.action').nth(1)).toContainText('바로 시작');
-    await expect(page.locator('.status .engine')).toContainText('Logisim 2.7.1 · Java 21');
+    // The real engine on the bundled Java 21 (D-154): the hello and About say so, the status bar does not.
+    expect(await engineHello(app)).toMatchObject({ engine: 'hcs-engine', logisim: '2.7.1', java: expect.stringMatching(/^21\b/) });
+    expect(await aboutEngineLine(page)).toMatch(/^Engine hcs-engine \S+ · Logisim 2\.7\.1 · Java 21\b/);
     // The engine runs on the runtime the installer put in, not on a Java of the PC's.
     const resources = await app.evaluate(() => process.resourcesPath);
     expect(resources.toLowerCase()).toBe(path.join(path.dirname(exe!), 'resources').toLowerCase());

@@ -73,6 +73,37 @@ test('Undo and Redo go to the engine (a new circuit has nothing to undo: nothing
   }
 });
 
+test('view only until alpha.1 (D-154): a file open and drawn, the editing tools off, what works on; no engine or Java version in the status bar', async () => {
+  const r = await launch();
+  const { page } = r;
+  try {
+    await openFile(r, sample(r.dir, DATAPATH));
+    await expect(page.locator('.canvas .canvas-view canvas')).toBeVisible();
+    await expect(page.locator('.status')).toContainText('35 components');
+    // The Canvas's editing tools wait for N-08: shown, and off, even with a Canvas drawn.
+    for (const name of ['Edit', 'Poke', 'Wire', 'Text', 'Pin', 'Tunnel', 'Probe']) {
+      await expect(page.getByRole('radio', { name, exact: true })).toBeDisabled();
+    }
+    await expect(page.getByRole('button', { name: /N Cycles/ })).toBeDisabled();
+    // What alpha.0 offers: the clock, Load Program, the Messages and the Cycle View.
+    for (const name of [/^Run/, /^1 Cycle/, /^Reset/, /^Load Program/]) await expect(page.getByRole('button', { name })).toBeEnabled();
+    await expect(page.getByRole('combobox', { name: 'Clock speed' })).toBeEnabled();
+    const bottom = page.locator('section.bottom');
+    for (const name of ['Messages', 'Cycle View']) {
+      await bottom.getByRole('tab', { name }).click();
+      await expect(bottom.getByRole('tab', { name })).toHaveAttribute('aria-selected', 'true');
+    }
+    await page.keyboard.press('F10');
+    await expect(page.locator('.status')).toContainText('Cycle 1');
+    // The versions are About's: the status bar has none of them (the fake engine's "none (fake engine, Node)" either).
+    await expect(page.locator('.status')).not.toContainText(/Logisim|Java|engine/);
+    await page.getByTitle('About').click();
+    await expect(page.locator('dialog.about')).toContainText('Logisim 2.7.1 · Java none (fake engine, Node)');
+  } finally {
+    await r.close();
+  }
+});
+
 test('what the engine says about a file reaches the window: the loader\'s messages, a saved .circ that needs hcs-mips.jar', async () => {
   const r = await launch(undefined, { env: { FAKE_ENGINE_OPEN_MESSAGE: 'Unknown component: Foo', FAKE_ENGINE_MODE: 'needs-mips' } });
   const { page } = r;
