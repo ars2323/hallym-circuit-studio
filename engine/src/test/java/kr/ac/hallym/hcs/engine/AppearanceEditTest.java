@@ -168,6 +168,26 @@ class AppearanceEditTest {
     }
 
     @Test
+    void theOpenAppearanceIsSentAfterEveryChangeUndoToo() {
+        int before = kinds(app()).size();   // asked once, as the screen does when the editor opens
+        JsonObject shape = new JsonObject();
+        shape.addProperty("kind", "oval");
+        shape.add("bounds", Client.toJson(new int[] {20, 20, 30, 30}));
+        int m0 = e.client.mark();
+        op("add", "shape", shape, "attrs", new JsonObject());
+        e.client.callObject("file.dirty", params("fileId", fileId));
+        assertTrue(e.client.notificationsAfter(m0, "model.appearance").stream()
+                .anyMatch(c -> c.get("circuitId").getAsString().equals(sub) && c.getAsJsonArray("shapes").size() == before + 1),
+                "the added shape is sent");
+        int m = e.client.mark();
+        undo();
+        e.client.callObject("file.dirty", params("fileId", fileId));
+        assertTrue(e.client.notificationsAfter(m, "model.appearance").stream()
+                .anyMatch(c -> c.get("circuitId").getAsString().equals(sub) && c.getAsJsonArray("shapes").size() == before),
+                "Undo sends the open appearance again (not only a change from what was asked)");
+    }
+
+    @Test
     void everyDrawingToolMakesItsShape() {
         String[] kinds = {"line", "polyline", "polygon", "curve", "oval", "roundrect", "text"};
         for (String kind : kinds) {

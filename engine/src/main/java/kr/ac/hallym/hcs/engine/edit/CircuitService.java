@@ -114,7 +114,7 @@ public final class CircuitService {
                 JsonObject a = appearance(d, c);
                 String t = a.toString();
                 if (!t.equals(e.getValue())) {
-                    e.setValue(t);
+                    seen.put(c, t); // the copy of an IdentityHashMap entry does not write through
                     a.addProperty("fileId", d.id());
                     out.add(new Object[] {"model.appearance", a});
                 }
