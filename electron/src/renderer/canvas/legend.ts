@@ -4,6 +4,7 @@
    from the status bar's "Wire Colors"; also where the bus widths are
    switched off and on (for this run only: the lab-PC rule). */
 
+import { RUN_ONLY } from '../app/logic/run-settings.ts';
 import { h } from '../shared/dom.ts';
 import { LEGEND, VALUE_VARS } from './tokens.ts';
 
@@ -26,7 +27,8 @@ export function legend(o: LegendOptions): { button: HTMLButtonElement; panel: HT
     h('h4', {}, 'Wire Colors'),
     h('ul', {}, ...rows),
     h('label', { class: 'legend-opt' }, box, 'Show Bus Widths'),
-    o.extra ?? null);
+    o.extra ?? null,
+    h('p', { class: 'legend-note' }, RUN_ONLY));
   const button = h('button', { type: 'button', class: 'legend-button', title: '선 색이 무엇을 뜻하는지 봅니다', 'aria-expanded': 'false' },
     h('span', { class: 'legend-dots', 'aria-hidden': 'true' },
       ...(['vOne', 'vZero', 'vFloat', 'vError'] as const).map((t) => h('span', { style: `background: var(${VALUE_VARS[t]})` }))),

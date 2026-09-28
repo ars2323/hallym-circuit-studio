@@ -21,7 +21,7 @@ Hallym MIPS `electron/`에는 SPIM의 `CPU/op.h`에서 만든 `src/core/op-table
 | `src/renderer/shared/dom.ts` | `electron/src/renderer/app/dom.ts` | derived | `codeParts`를 직접 씀(`src/core/explain.ts`를 가져오지 않음). `hallym()`·`character()`가 이 저장소의 원본 `assets/hallym/`을 가리킴(빌드 때 `__HALLYM__`). `withHex()`는 뺌. 표용 `monoCh()`, `userScrolls()`는 Registers·Data 패널과 함께 가져옴(N-14) |
 | `src/renderer/shared/ui.ts` | `electron/src/renderer/app/ui.ts` | derived | `panelHead`, `tabsHead`, `headButton` 그대로. `tabsHead`에 탭 숨기기(`show`)와 `selected()`를 더함(좁은 창에서 패널이 다른 패널의 탭으로 들어감). `fitMeta()`는 뺌. `columnButton()`은 Registers·Data 패널과 함께 가져옴(N-14). 여러 파일·회로 탭용 `tabStrip()`을 새로 더함 |
 | `src/renderer/shared/notice.ts` | `electron/src/renderer/app/notice.ts` | derived | 캐릭터를 선택으로(대부분의 빈 패널은 글만). 빈 패널 몸체 `noticeHost()`를 더함 |
-| `src/renderer/shared/ask.ts` | `electron/src/renderer/app/panels/ask.ts` | derived | `character: false`(오류에는 캐릭터를 두지 않음), 버튼 하나(`cancel: null`), 사실을 적는 `detail` 칸을 더함 |
+| `src/renderer/shared/ask.ts` | `electron/src/renderer/app/panels/ask.ts` | derived | `character: false`(오류에는 캐릭터를 두지 않음), 버튼 하나(`cancel: null`), 사실을 적는 `detail` 칸, Esc가 어느 답도 아닌 `choose()`(복구 파일의 Recover / Discard)와 세 번째 답 `extra`(Save / Discard / Cancel, N-19), `File:` 줄과 같은 모양의 줄 `names`(Recovery file: …)를 더함 |
 | `src/renderer/shared/welcome.ts` | `electron/src/renderer/app/panels/welcome.ts` | derived | 같은 카드·같은 크기·같은 "← 처음으로" 줄. 문구와 선택지는 부르는 쪽(`src/renderer/app/start.ts`)이 주고, 둘째 단계가 여럿일 수 있음 |
 | `src/renderer/shared/about.ts` | `electron/src/renderer/app/panels/about.ts` | derived | About / Licenses 탭 그대로. About 탭의 줄은 부르는 쪽이 줌(Logisim 2.7.1 by Carl Burch, 엔진, 학교 식별요소) |
 | `src/renderer/shared/overlay.ts` | `electron/src/renderer/app/logic/overlay.ts` | copy | — |

@@ -16,6 +16,19 @@
    Quitting ends the engine (engine.shutdown, then killed after 3 s); if this
    process itself is killed, the engine ends as its stdin closes.
 
+   If the whole app dies, a file the student has saved at least once has a
+   recovery file beside it (recovery-files.ts, N-19, D-152: written by the
+   engine after edits, and by the engine as it ends when this process is
+   gone; removed on save, close and quit).  Opening that file again asks
+   first (Recover / Discard): openPath below, file:openRecovery.
+
+   Leaving with unsaved changes -- the window's close button, Alt+F4, the PC
+   shutting down, Ctrl+Q in the window -- asks first, a file at a time (Save
+   / Discard / Cancel: the window's logic/unsaved.ts), and the window closes
+   only when it says so ('app:leave'); the quit then ends the engine, which
+   removes the recovery files.  A quit the program asks for itself
+   (app.quit(), also how the test tools end it) does not ask.
+
    Nothing is kept from one run to the next -- lab PCs are shared, and every
    student starts from the same screen: the window's size, the panels, the
    files opened.  Chromium's profile is this run's folder in the temp folder
@@ -29,9 +42,10 @@ import path from 'node:path';
 import { EngineClient, EngineError, type EngineProcess } from './engine.ts';
 import { locateEngine } from './engine-locate.ts';
 import { Supervisor, WINDOW } from './recovery.ts';
+import { recoveryBeside, RecoveryWriter } from './recovery-files.ts';
 import { LICENSES, paths, version } from './paths.ts';
 import { IMAGE_FILTER, programDialogPath } from './program-path.ts';
-import { WINDOW_METHODS, type EngineStatus, type LoadResult, type OpenResult, type SaveResult } from './protocol.ts';
+import { WINDOW_METHODS, type EngineStatus, type LoadResult, type OpenResult, type RecoveryAsk, type SaveResult } from './protocol.ts';
 import { circArgument, removeAfterExitScript, removeEarlierRuns, runDirName, RUN_PREFERENCES, runsDirFor } from './run-folder.ts';
 
 const APP_NAME = 'Hallym Circuit Studio';
@@ -74,20 +88,34 @@ const located = locateEngine({ env: process.env, runDir, resources: app.isPackag
 let supervisor: Supervisor | null = null;
 const engine = new EngineClient({
   client: { client: 'hallym-circuit-studio', version },
-  // A restarted engine's ids start above every id the window has seen (D-142).
-  helloParams: () => supervisor?.helloParams() ?? {},
+  // The engine keeps the recovery files beside the student's files (N-19, D-152); a restarted
+  // engine's ids start above every id the window has seen (D-142).
+  helloParams: () => ({ recoveryFiles: true, ...(supervisor?.helloParams() ?? {}) }),
   launch: (): EngineProcess => {
     if (!located.ok) throw new Error(`${located.reason}\n${located.looked.map((l) => `  ${l}`).join('\n')}`);
     const env = { ...process.env };
     delete env.ELECTRON_RUN_AS_NODE;
-    return spawn(located.engine.command, located.engine.args, { cwd: located.engine.cwd, env, stdio: 'pipe', windowsHide: true });
+    // Windows: not in libuv's kill-on-close job object (detached), so that if this process is killed the engine
+    // is not killed with it at once but sees its parent end (Main.watchParent) and first writes the recovery
+    // files of the unsaved files (N-19, D-152).  Its stdio stay these pipes; it ends with this process all the same.
+    return spawn(located.engine.command, located.engine.args, {
+      cwd: located.engine.cwd, env, stdio: 'pipe', windowsHide: true, detached: process.platform === 'win32',
+    });
   },
 });
 supervisor = new Supervisor(engine);
 const recovery = supervisor;
+// The recovery files beside the student's files (N-19): written after the window's edits, a file with a place only.
+const envMs = (name: string): number | undefined => (process.env[name] ? Number(process.env[name]) : undefined);
+const writer = new RecoveryWriter(engine, {
+  idleMs: envMs('HCS_RECOVERY_IDLE_MS'), maxWaitMs: envMs('HCS_RECOVERY_MAX_MS'),
+  hasPlace: (fileId) => recovery.journal.files.get(fileId)?.opened.kind === 'path',
+  settled: () => recovery.settled(),
+});
+writer.on('failed', (fileId, message) => console.error(`recovery file of ${fileId}: ${message}`));
 if (process.env.HCS_ENGINE_LOG === '1') engine.on('log', (line) => console.log(`[engine] ${line}`));
-// For the e2e tests (app.evaluate): the engine, to end it as a crash would; the journal.
-(globalThis as { __hcs?: unknown }).__hcs = { engine, recovery };
+// For the e2e tests (app.evaluate): the engine, to end it as a crash would; the journal; the recovery files' writer.
+(globalThis as { __hcs?: unknown }).__hcs = { engine, recovery, writer };
 
 // The files the engine has open, by id: the same file opened again goes to
 // its tab.  They outlive a restart of the engine (recovery.ts opens them
@@ -117,18 +145,30 @@ async function answer<T>(f: () => T | Promise<T>): Promise<Result<T>> {
 export interface Opened extends OpenResult {
   path: string;
   already: boolean;     // it was open: the window goes to its tab
+  recovered?: boolean;  // opened from its recovery file: unsaved edits (N-19)
 }
 
-async function openPath(p: string): Promise<Opened> {
+// Files with a recovery file beside them, waiting for the window's answer (file:openRecovery), by id.
+const asked = new Map<string, string>();
+let nextAsk = 1;
+
+// Opens a file: first, if it has a recovery file beside it (N-19, D-152), the window asks.
+async function openPath(p: string, recovery?: 'recover' | 'discard'): Promise<Opened | RecoveryAsk> {
   for (const [fileId, open] of openFiles) {
     if (open !== null && path.resolve(open) === path.resolve(p)) {
       return { fileId, path: p, name: path.basename(p), circuits: [], main: '', libraries: [], already: true };
     }
   }
-  const r = await windowCall<OpenResult>('file.open', { path: path.resolve(p) });
+  const beside = recovery ? null : recoveryBeside(path.resolve(p));
+  if (beside) {
+    const id = `r${nextAsk++}`;
+    asked.set(id, p);
+    return { ask: { id, name: path.basename(p), recovery: path.basename(beside.path), modified: beside.modified } };
+  }
+  const r = await windowCall<OpenResult>('file.open', { path: path.resolve(p), ...(recovery ? { recovery } : {}) });
   openFiles.set(r.fileId, p);
   // The tab shows the file's own name (with .circ), not Logisim's project name.
-  return { ...r, name: path.basename(p), path: p, already: r.alreadyOpen === true };
+  return { ...r, name: path.basename(p), path: p, already: r.alreadyOpen === true, ...(recovery === 'recover' ? { recovered: true } : {}) };
 }
 
 async function main(): Promise<void> {
@@ -199,6 +239,13 @@ async function main(): Promise<void> {
     if (r.canceled || r.filePaths.length === 0) return null;
     return openPath(r.filePaths[0]);
   }));
+  // The answer to a recovery file's question (N-19): Recover, Discard, or null (Esc: nothing opened, the file left).
+  ipcMain.handle('file:openRecovery', (_e, id: string, choice: 'recover' | 'discard' | null) => answer(async () => {
+    const p = asked.get(id);
+    asked.delete(id);
+    if (p === undefined || (choice !== 'recover' && choice !== 'discard')) return null;
+    return openPath(p, choice);
+  }));
   ipcMain.handle('file:save', (_e, fileId: string, file: { name: string; saveAs?: boolean }) => answer(async () => {
     if (!openFiles.has(fileId)) throw new Error(`no open file ${fileId}`);
     let target = openFiles.get(fileId) ?? null;
@@ -258,13 +305,35 @@ async function main(): Promise<void> {
 
   // Maximised before it is shown, every start.  (maximize() shows a hidden
   // window; show() then gives it focus.)
+  // Leaving (N-19, D-152): the window asks about unsaved files first; it closes when the window says so.
+  win.on('close', (e) => {
+    if (leaveConfirmed || quitting || !windowListens || win.webContents.isCrashed()) return;
+    e.preventDefault();
+    send('app:leave');
+  });
+  // The PC shutting down (Windows): held back while there are unsaved files, and the window asks.
+  win.on('query-session-end', (e) => {
+    if (!windowDirty || leaveConfirmed || !windowListens) return;
+    e.preventDefault();
+    send('app:leave');
+  });
+  ipcMain.handle('app:leave', () => { leaveConfirmed = true; if (!win.isDestroyed()) win.close(); });
+  ipcMain.handle('app:dirty', (_e, dirty: boolean) => { windowListens = true; windowDirty = dirty === true; });
+
   win.once('ready-to-show', () => { win.maximize(); win.show(); });
   await win.loadFile(paths.page);
 }
 
+// Leaving: the window's answer given (app:leave), a quit under way, the window listening, unsaved files in it.
+let leaveConfirmed = false;
+let quitting = false;
+let windowListens = false;
+let windowDirty = false;
+
 // Quitting ends the engine first (engine.shutdown, then its end).
 let engineDown = false;
 app.on('before-quit', (e) => {
+  quitting = true;
   if (engineDown) return;
   e.preventDefault();
   void engine.shutdown().finally(() => { engineDown = true; app.quit(); });

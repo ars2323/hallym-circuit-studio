@@ -14,7 +14,10 @@
    itself meanwhile (report/noise-<run>.json): only those places, and
    state.ts ALLOWED, do not count.  It measures the start, the first after
    the install and a second one: the window, the first screen, the engine
-   ready (N-22's "start in 4 s") -- into $HCS_E2E_REPORT/launch.json. */
+   ready (N-22's "start in 4 s") -- into $HCS_E2E_REPORT/launch.json.
+   Unsaved edits of a saved file put its recovery file beside it, in the
+   student's folder and nowhere else, until the quit removes it (N-19,
+   D-152): a run with its own, longer control period. */
 
 import { _electron, expect, test, type ElectronApplication, type Page } from '@playwright/test';
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -22,8 +25,8 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, writeFileSync } from 
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { describe, diffStates, measureNoise, quiet, report as stateReport, snapshot, type NoiseFile, type State } from '../../tools/windows/state.ts';
-import { alive, enginePid } from './model.ts';
+import { describe, diffStates, measureNoise, NAMES_US, quiet, report as stateReport, snapshot, type NoiseFile, type State } from '../../tools/windows/state.ts';
+import { alive, call, circuitsOf, enginePid, openFileIds } from './model.ts';
 
 const exe = process.env.HCS_E2E_EXE;
 const report = path.resolve(process.env.HCS_E2E_REPORT ?? 'report');
@@ -92,28 +95,28 @@ const SEARCH = path.join(process.env.LOCALAPPDATA ?? '', 'Packages', 'Microsoft.
    is Windows' noise for this run only (saved as report/noise-<what>.json);
    B is the run's "before". */
 const CONTROL_MS = 20_000;
-async function control(what: string): Promise<{ before: State; noise: NoiseFile }> {
+async function control(what: string, ms = CONTROL_MS): Promise<{ before: State; noise: NoiseFile; ms: number }> {
   expect(oursRunning(), `before the control period for ${what}: nothing of ours running`).toEqual([]);
   console.log(`Windows Search: ${await quiet([SEARCH])}`);
   const a = snapshot();
   const t0 = performance.now();
   spawnSync(path.join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'hostname.exe'), { windowsHide: true, stdio: 'ignore' });
   const running = oursRunning();
-  await new Promise((done) => setTimeout(done, Math.max(0, CONTROL_MS - (performance.now() - t0))));
+  await new Promise((done) => setTimeout(done, Math.max(0, ms - (performance.now() - t0))));
   expect([...running, ...oursRunning()], `the control period for ${what}: nothing of ours running`).toEqual([]);
   const b = snapshot();
   const n = measureNoise(what, a, b);
   mkdirSync(report, { recursive: true });
   writeFileSync(path.join(report, `noise-${what}.json`), `${JSON.stringify(n, null, 1)}\n`);
-  console.log(`control period before ${what} (${CONTROL_MS} ms): ${n.changes.length} place(s) changed by Windows itself`);
-  return { before: b, noise: n };
+  console.log(`control period before ${what} (${ms} ms): ${n.changes.length} place(s) changed by Windows itself`);
+  return { before: b, noise: n, ms };
 }
 
 // A run's changes; only its own control period's noise lets any through.
-function nothingLeft({ before, noise }: { before: State; noise: NoiseFile }, what: string, runMs: number): void {
-  expect(runMs, `${what}: the run (${Math.round(runMs)} ms) no longer than its control period`).toBeLessThanOrEqual(CONTROL_MS);
+function nothingLeft({ before, noise, ms }: { before: State; noise: NoiseFile; ms: number }, what: string, runMs: number): void {
+  expect(runMs, `${what}: the run (${Math.round(runMs)} ms) no longer than its control period`).toBeLessThanOrEqual(ms);
   const after = snapshot();
-  const { lines, bad } = stateReport(`${what} (run ${Math.round(runMs)} ms, control ${CONTROL_MS} ms)`, diffStates(before, after), 'none', [noise]);
+  const { lines, bad } = stateReport(`${what} (run ${Math.round(runMs)} ms, control ${ms} ms)`, diffStates(before, after), 'none', [noise]);
   mkdirSync(report, { recursive: true });
   writeFileSync(path.join(report, `state-${what}.txt`), `${lines.join('\n')}\n`);
   expect(bad.map(describe), `${what}: left on the PC (report/state-${what}.txt)`).toEqual([]);
@@ -179,4 +182,44 @@ test('installed: a second start (warm), and again nothing is left', async () => 
     await quit(app);
   }
   nothingLeft(before, 'second-run', performance.now() - t0);
+});
+
+// The recovery file (N-19, D-152): beside the student's file (written 10 s after the edit), in none of the places the
+// zero-change check looks at while it is there, gone after the quit (its own control period, as long as this run can be).
+test('installed: unsaved edits of a saved file -- its recovery file beside it, in the student\'s folder only; removed at quit; nothing left', async () => {
+  test.setTimeout(330_000);
+  const work = path.join(root, 'test-results', 'installed-recovery');
+  mkdirSync(work, { recursive: true });
+  const file = path.join(work, 'gates.circ');
+  copyFileSync(path.join(root, '..', 'tests/circ/gates.circ'), file);
+  const recovery = `${file}.hcs-recover`;
+  const before = await control('recovery-run', 60_000);
+  const t0 = performance.now();
+  const { app, page } = await start();
+  try {
+    await app.evaluate(({ dialog }, f) => {
+      dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [f] })) as typeof dialog.showOpenDialog;
+    }, file);
+    await page.keyboard.press('Control+o');
+    await expect(page.locator('.filebar .ptab', { hasText: 'gates.circ' })).toBeVisible();
+    const [fileId] = await openFileIds(app);
+    await call(page, 'edit.addComponent', { fileId, circuitId: (await circuitsOf(page, fileId)).main, lib: 'Gates', name: 'OR Gate', loc: [600, 600] });
+    await expect(page.locator('.filebar .ptab')).toHaveText(['gates.circ•']);
+    await expect.poll(() => existsSync(recovery), { timeout: 30_000, message: 'the recovery file beside the student\'s file' }).toBe(true);
+    expect(readdirSync(work).sort()).toEqual(['gates.circ', 'gates.circ.hcs-recover']);
+    // while it is there: no recovery file anywhere the zero-change check looks
+    expect(diffStates(before.before, snapshot()).map(describe).filter((d) => /hcs-recover/i.test(d))).toEqual([]);
+  } finally {
+    await quit(app);
+  }
+  expect(existsSync(recovery), 'a quit removes it').toBe(false);
+  // After the quit: nothing of this program and no recovery file anywhere the zero-change check looks.  (The strict
+  // zero change of a run is the first two tests: this one is longer, and Windows' own upkeep -- Explorer's session
+  // counter, seen here -- can fall outside its control period.)
+  const runMs = performance.now() - t0;
+  expect(runMs, `recovery-run: the run (${Math.round(runMs)} ms) no longer than its control period`).toBeLessThanOrEqual(before.ms);
+  const { lines, bad } = stateReport(`recovery-run (run ${Math.round(runMs)} ms, control ${before.ms} ms)`, diffStates(before.before, snapshot()), 'none', [before.noise]);
+  mkdirSync(report, { recursive: true });
+  writeFileSync(path.join(report, 'state-recovery-run.txt'), `${lines.join('\n')}\n`);
+  expect(bad.map(describe).filter((d) => /hcs-recover/i.test(d) || NAMES_US.test(d)), 'recovery-run: left on the PC (report/state-recovery-run.txt)').toEqual([]);
 });

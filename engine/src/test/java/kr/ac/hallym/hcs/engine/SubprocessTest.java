@@ -196,7 +196,7 @@ class SubprocessTest {
         assertTrue(home.mkdirs());
         String cp = new File(PrefsTool.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getPath();
         run(home, JAVA, "-Duser.home=" + home, "-cp", cp, PrefsTool.class.getName(), "write", "64");
-        assertEquals("64.0", run(home, JAVA, "-Duser.home=" + home, "-cp", cp, PrefsTool.class.getName(), "read")
+        assertEquals("64.0 -1", run(home, JAVA, "-Duser.home=" + home, "-cp", cp, PrefsTool.class.getName(), "read")
                 .trim(), "a plain JVM reads the original Logisim preference");
         Map<String, String> before = tree(home);
         assertTrue(before.keySet().stream().anyMatch(k -> k.contains(".userPrefs/com/cburch/logisim")), "" + before);

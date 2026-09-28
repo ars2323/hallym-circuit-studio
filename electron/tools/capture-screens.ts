@@ -17,7 +17,7 @@
 
    SCREENS_OUT: write somewhere else. */
 
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { answerOpen, canvasSettled, DATAPATH, launch, openFile, repo, root, sample, type Running } from '../tests/e2e/harness.ts';
@@ -438,6 +438,43 @@ for (const [name, size, scale] of [
   if (name === 'narrow') await r.page.locator('.upper').getByRole('tab', { name: 'Attributes' }).click();
   await shot(r, name);
   await r.close();
+}
+
+// A recovery file beside the file being opened (N-19, D-152): the question before it opens, over the file on
+// show.  The recovery file's time is fixed (2026-09-28 14:05, Seoul) so the same code gives the same pixels.
+{
+  const r = await launch(FHD, { env: { TZ: 'Asia/Seoul' } });
+  const { page } = r;
+  await openFile(r, sample(r.dir, DATAPATH));
+  await drawn(r);
+  const lab3 = sample(r.dir, 'tests/circ/gates.circ', 'lab3.circ');
+  copyFileSync(lab3, `${lab3}.hcs-recover`);
+  const at = Date.parse('2026-09-28T14:05:31+09:00') / 1000;
+  utimesSync(lab3, at - 3600, at - 3600);
+  utimesSync(`${lab3}.hcs-recover`, at, at);
+  await answerOpen(r.app, lab3);
+  await page.keyboard.press('Control+o');
+  await page.locator('dialog.ask', { hasText: '저장하지 않은 편집이 있습니다' }).waitFor();
+  await shot(r, 'recover-dialog');
+  await r.close();
+}
+
+// Leaving with unsaved changes (N-19): the close button asks for each file first -- Save / Discard / Cancel, plain.
+{
+  const r = await launch(FHD);
+  const { page } = r;
+  await openFile(r, sample(r.dir, DATAPATH));
+  await drawn(r);
+  await page.evaluate(async () => {
+    const app = (window as unknown as { app: { call(m: string, p: unknown): Promise<unknown> } }).app;
+    await app.call('edit.addComponent', { fileId: 'f1', circuitId: 'c1', lib: 'Gates', name: 'NOT Gate', loc: [700, 640] });
+  });
+  await page.locator('.filebar .ptab', { hasText: 'demo-datapath.circ•' }).waitFor();
+  await r.app.evaluate(({ BrowserWindow }) => { BrowserWindow.getAllWindows()[0].close(); });
+  await page.locator('dialog.ask', { hasText: '저장하지 않고 끝내면' }).waitFor();
+  await shot(r, 'leave-dialog');
+  await page.locator('dialog.ask').getByRole('button', { name: 'Discard' }).click();
+  await r.app.waitForEvent('close').catch(() => {});
 }
 
 // No engine: the dialog (no character: an error) over the first screen and its band.

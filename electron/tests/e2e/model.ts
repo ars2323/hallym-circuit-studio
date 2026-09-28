@@ -58,11 +58,15 @@ export function normal(s: Snapshot): unknown {
   return { name: s.name, comps: comps.sort(), wires: wires.sort(), junctions: s.junctions.map(pt).sort(), nets: nets.sort() };
 }
 
-// Every circuit of a file, without ids, by name.
-export async function fileModel(page: Page, fileId: string): Promise<Record<string, unknown>> {
+// Every circuit of a file, without ids, by name.  `byName`: a subcircuit instance's circuit by its
+// name too (a model from another engine -- the app started again -- has other circuit ids; N-19).
+export async function fileModel(page: Page, fileId: string, byName = false): Promise<Record<string, unknown>> {
   const out: Record<string, unknown> = {};
-  for (const [name, circuitId] of Object.entries(await circuitsOf(page, fileId))) {
-    out[name] = normal(await call<Snapshot>(page, 'model.circuit', { fileId, circuitId }));
+  const circuits = await circuitsOf(page, fileId);
+  const names = new Map(Object.entries(circuits).map(([name, id]) => [id, name]));
+  for (const [name, circuitId] of Object.entries(circuits)) {
+    const s = await call<Snapshot>(page, 'model.circuit', { fileId, circuitId });
+    out[name] = normal(byName ? { ...s, components: s.components.map((c) => (c.subcircuit ? { ...c, subcircuit: names.get(c.subcircuit) ?? c.subcircuit } : c)) } : s);
   }
   return out;
 }

@@ -34,15 +34,35 @@ import kr.ac.hallym.hcs.engine.rpc.RpcError;
  * 쓴다. 대화상자 대신 오류 응답을 낸다.
  */
 public final class Files {
+    /** 저장 전에 가리키는 것이 없어진 확장 항목을 지우는 쪽(Swing 앱은 ContextMenus가 등록한다). 복구 파일도 쓴다. */
+    static final List<CircExtensions.Pruner> PRUNERS = List.of(
+            kr.ac.hallym.hcs.app.splitter.SplitterEdits.PRUNER,
+            kr.ac.hallym.hcs.app.labels.TunnelColorStore.PRUNER,
+            kr.ac.hallym.hcs.app.groups.SignalGroups.PRUNER,
+            kr.ac.hallym.hcs.app.sim.PcMark.PRUNER);
+
     static {
-        // 저장 전에 가리키는 것이 없어진 확장 항목을 지운다(Swing 앱은 ContextMenus가 등록한다)
-        CircExtensions.addPruner(kr.ac.hallym.hcs.app.splitter.SplitterEdits.PRUNER);
-        CircExtensions.addPruner(kr.ac.hallym.hcs.app.labels.TunnelColorStore.PRUNER);
-        CircExtensions.addPruner(kr.ac.hallym.hcs.app.groups.SignalGroups.PRUNER);
-        CircExtensions.addPruner(kr.ac.hallym.hcs.app.sim.PcMark.PRUNER);
+        for (CircExtensions.Pruner p : PRUNERS) {
+            CircExtensions.addPruner(p);
+        }
     }
 
     private final Map<String, Doc> docs = new LinkedHashMap<>();
+    /**
+     * 학생 파일 옆의 복구 파일을 엔진이 맡는가(N-19, D-152): 화면이 {@code engine.hello}의 {@code recoveryFiles}로
+     * 켠다. 켜져 있으면 저장·닫기·정상 종료에 복구 파일을 지우고, 화면이 사라져 끝날 때(stdin 닫힘·부모 끝남) 저장하지
+     * 않은 파일의 복구 파일을 쓴다. 꺼져 있으면(테스트, 다른 클라이언트) 명시한 요청({@code file.recoverWrite},
+     * {@code file.open}의 {@code recovery}) 말고는 복구 파일을 건드리지 않는다.
+     */
+    private boolean recoveryFiles;
+
+    public void manageRecoveryFiles(boolean on) {
+        recoveryFiles = on;
+    }
+
+    public boolean managesRecoveryFiles() {
+        return recoveryFiles;
+    }
 
     public Doc get(String fileId) throws RpcError {
         Doc d = fileId == null ? null : docs.get(fileId);
@@ -109,6 +129,16 @@ public final class Files {
 
     /** restore가 있으면 앞 엔진의 파일·회로 id로 연다. */
     public Doc open(File f, boolean readOnly, List<String> messages, Restore restore) throws RpcError {
+        return open(f, readOnly, messages, restore, false);
+    }
+
+    /**
+     * recover면 옆의 복구 파일({@link RecoveryFiles})의 내용을 이 파일 자리에서 연다(N-19, D-152): 원조 Loader의 바꿔
+     * 읽기(명령줄 {@code -sub}와 같은 길)라 연 파일의 경로·이름·상대 경로 라이브러리는 f의 것이고, 내용은 저장하지 않은
+     * 편집이다(dirty, 저장하면 f에 쓴다).
+     */
+    public Doc open(File f, boolean readOnly, List<String> messages, Restore restore, boolean recover)
+            throws RpcError {
         String restored = restoredId(restore);
         String path = f.getPath();
         if (!f.isFile()) {
@@ -117,7 +147,18 @@ public final class Files {
         if (!f.canRead()) {
             throw RpcError.file(path, "unreadable", "cannot read: " + path);
         }
-        List<String> missing = LibraryCheck.missing(f);
+        File source = f;
+        if (recover) {
+            source = RecoveryFiles.of(f);
+            if (!source.isFile()) {
+                throw RpcError.file(source.getPath(), "notFound", "no recovery file: " + source.getPath());
+            }
+            if (!source.canRead()) {
+                throw RpcError.file(source.getPath(), "unreadable", "cannot read: " + source.getPath());
+            }
+            readOnly = false;
+        }
+        List<String> missing = LibraryCheck.missing(source);
         if (!missing.isEmpty()) {
             RpcError e = RpcError.file(path, "libraryMissing", "missing library: " + String.join(", ", missing));
             JsonArray m = new JsonArray();
@@ -128,7 +169,7 @@ public final class Files {
         EngineLoader loader = new EngineLoader();
         LogisimFile file;
         try {
-            file = loader.openLogisimFile(f);
+            file = recover ? loader.openLogisimFile(f, RecoveryFiles.substitution(f)) : loader.openLogisimFile(f);
         } catch (LoadFailedException e) {
             throw RpcError.file(path, "loadFailed", e.getMessage());
         } catch (HeadlessException e) {
@@ -141,14 +182,19 @@ public final class Files {
         if (file == null) {
             throw RpcError.file(path, "loadFailed", String.join("\n", loader.drainErrors()));
         }
+        if (recover) {
+            file.setName(RecoveryFiles.projectName(f)); // 원조가 읽은 파일(복구 파일)의 이름 대신 학생 파일의 이름
+        }
         try {
-            CircExtensions.afterOpen(file, f); // 확장 정보를 못 읽어도 회로는 연다(Swing과 같다)
+            CircExtensions.afterOpen(file, source); // 확장 정보를 못 읽어도 회로는 연다(Swing과 같다)
         } catch (IOException e) {
             messages.add("extension info: " + e.getMessage());
         }
         messages.addAll(loader.drainErrors());
         String id = restored != null ? restored : Ids.nextFileId();
-        return add(new Doc(id, loader, file, readOnly, restore == null ? null : restore.circuits));
+        Doc d = add(new Doc(id, loader, file, readOnly, restore == null ? null : restore.circuits));
+        d.setRecovered(recover);
+        return d;
     }
 
     /** 되살리는 파일의 앞 id(없으면 null). 형식이 틀리거나 지금 열린 파일이 쓰면 -32602. */
@@ -180,6 +226,7 @@ public final class Files {
             }
         }
         String path = dest.getPath();
+        File before = RecoveryFiles.target(d);
         d.loader().drainErrors(); // 앞에 남은 글은 이 저장과 무관하다
         boolean ok;
         // 원조 저장은 부품의 라이브러리를 찾으며 앞 라이브러리의 도구를 불러온다: 저장이 만든 것은 되돌린다(D-149)
@@ -202,12 +249,74 @@ public final class Files {
         }
         d.project().setFileAsClean();
         d.setReadOnly(false);
+        d.setRecovered(false);
+        if (recoveryFiles) {
+            // 저장했다: 저장하지 않은 편집이 없다. 앞 경로(다른 이름으로 저장이면 그 앞)와 새 경로 옆의 복구 파일을 지운다
+            if (before != null) {
+                RecoveryFiles.delete(before);
+            }
+            RecoveryFiles.delete(dest);
+        }
         return dest;
+    }
+
+    /**
+     * 복구 파일을 쓴다(N-19, D-152). 저장하지 않은 편집이 없으면 쓰지 않고 있던 것을 지운다. 둘 곳이 없는 파일(새 파일,
+     * 읽기 전용)이면 null.
+     */
+    public File recoverWrite(Doc d) throws RpcError {
+        File circ = RecoveryFiles.target(d);
+        if (circ == null) {
+            return null;
+        }
+        if (!d.isDirty()) {
+            RecoveryFiles.delete(circ);
+            return null;
+        }
+        try {
+            return RecoveryFiles.write(d);
+        } catch (IOException | RuntimeException e) {
+            File rf = RecoveryFiles.of(circ);
+            throw RpcError.file(rf.getPath(), "writeFailed", "cannot write " + rf.getPath() + ": " + e.getMessage());
+        }
+    }
+
+    /** 닫기. 복구 파일을 맡고 있으면 지운다(학생이 저장하지 않고 닫기를 골랐다). keepRecovery면 둔다. */
+    public void close(Doc d, boolean keepRecovery) {
+        if (recoveryFiles && !keepRecovery) {
+            RecoveryFiles.delete(RecoveryFiles.target(d));
+        }
+        close(d);
     }
 
     public void close(Doc d) {
         docs.remove(d.id());
         d.close();
+    }
+
+    /**
+     * 엔진이 끝날 때. normal(화면이 {@code engine.shutdown}으로 끝냄: 앱을 정상 종료)이면 복구 파일을 지운다. 아니면
+     * (stdin 닫힘·부모 끝남: 화면이 사라졌다) 저장하지 않은 파일마다 복구 파일을 써 둔다. 맡지 않으면 둘 다 하지 않는다.
+     */
+    public void closeAll(boolean normal) {
+        if (recoveryFiles) {
+            // 화면이 사라진 뒤의 쓰기는 이 시간 안에서만 한다(그 뒤의 파일은 앞서 쓴 복구 파일이 남는다). 엔진은 어차피
+            // Server.haltAfter의 시한에 끝난다
+            long budget = Long.getLong("hcs.recoveryWriteMs", 5_000L) * 1_000_000L;
+            long start = System.nanoTime();
+            for (Doc d : docs.values()) {
+                try {
+                    if (normal) {
+                        RecoveryFiles.delete(RecoveryFiles.target(d));
+                    } else if (d.isDirty() && System.nanoTime() - start < budget) {
+                        RecoveryFiles.write(d);
+                    }
+                } catch (IOException | RuntimeException e) {
+                    // 쓰지 못한 복구 파일: 앞서 쓴 것이 남는다
+                }
+            }
+        }
+        closeAll();
     }
 
     public void closeAll() {

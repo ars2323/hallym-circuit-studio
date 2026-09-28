@@ -64,3 +64,5 @@
 .legend-panel .name { font-weight: 700; }
 .legend-panel .say { color: var(--text-2); }
 .legend-opt { display: flex; align-items: center; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); color: var(--text-2); }
+/* Settings are for this run only (N-19, app/logic/run-settings.ts RUN_ONLY). */
+.legend-note { margin: 4px 0 0 22px; font-size: 11px; color: var(--muted); word-break: keep-all; }

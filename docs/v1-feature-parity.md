@@ -23,7 +23,7 @@ v1(Swing, `swing-final`)의 기능을 v2(Electron 화면 + Java 엔진)로 모�
 | B-10 | 정적 진단과 Messages 탭(정상 회로 0건) | N-13 |  | messages.e2e.ts "a broken circuit…", "nothing to say…"; 엔진 `DiagTest.normalCircuitsHaveNoMessagesBeforeAndAfterCycles` | D-143. 정상 회로 0건은 열 때와 6사이클 뒤 모두 |
 | B-11 | 따라오는 선(SafeMove), 선 한 토막 끌기 | N-08 |  |  |  |
 | B-12 | 서브회로 인스턴스 안내와 포트 변경 영향 알림 | N-11 |  |  |  |
-| B-13 | 자동 저장·복구 파일 | N-19 |  |  |  |
+| B-13 | 자동 저장·복구 파일 | N-19 | #434 | `recovery-file.e2e.ts` 전부(Electron main kill -9 → 다시 켜서 열기 → "저장하지 않은 편집이 있습니다" → Recover가 죽기 전 모델·저장 안 됨 → Ctrl+S가 지움; Discard; Esc; 새 파일은 어디에도 안 씀; 닫기·끝내기에 지움; 명령줄 파일) · `real-engine.e2e.ts` "the app killed (N-19)…" · `installed.e2e.ts` "unsaved edits of a saved file…"(Windows: 복구 파일은 학생 폴더에만, 끝낸 뒤 이 프로그램의 흔적 없음) · 엔진 `RecoveryFileTest`, `ParentWatchTest`, `OpenSaveParityTest` | D-152. v1의 앱 설정 폴더 자동 저장(D-029) 대신 학생 파일 옆 `<이름>.circ.hcs-recover`(실습실 규칙). 한 번도 저장하지 않은 새 파일은 복구하지 않는다 |
 | B-14 | Splitter 편집기(범위 입력, R/I/J 프리셋, 팔 라벨) | N-12 | #433 | find.e2e "the Splitter editor: …", "Split Bits …"; unit splitter-spec.test(엔진 해석과 같음); 엔진 `ExtEditTest.theSplitterEditorsIntentsGiveTheGoldenOfScene14` | D-150. `edit.splitterEdit`·`edit.splitterSplit`(v1 SplitterEdits·WireGuard), 여는 곳은 검색 창의 Edit Splitter…와 `hcs:edit-splitter` 사건(우클릭 메뉴는 N-10) |
 | B-15 | MIPS 부품: Instruction·Data Memory, Stack, Console, Radix Probe | N-05·N-16 | #425 | canvas.e2e "values after ticks"(Instruction Memory 몸체 줄); unit canvas-registry "the MIPS bodies" |  |
 | B-16 | 실행 이미지(.hmx) 불러오기와 요약(.s 불러오기는 D-141에서 없앰: 옛 .s 경로는 사실 `assemblySource`) | N-16 | #428 | `program.e2e.ts` "Load Program…: executable images only…", "a file that cannot be loaded…", "several Instruction Memories…", "PC ≠ entry at cycle 0…", "a memory that points to a .s…" · `real-engine.e2e.ts` "Load Program puts data.hmx into ref-mips…" · 엔진 `ProgramsTest` | D-147. 트랙 A와 같은 `ProgramLoader` 길(`mips.load`), 불러오면 처음으로. 부품 우클릭 메뉴(I-98)는 N-10이 같은 `api.loadProgram`을 부른다 |
@@ -110,7 +110,7 @@ v1(Swing, `swing-final`)의 기능을 v2(Electron 화면 + Java 엔진)로 모�
 | V-08 | 상태 표시줄 PC·Mark as PC, Tunnels 외톨이 표시 | N-14·N-12 | #423, #433 | `cycle.e2e.ts` "the table follows the clock…"(상태 표시줄 PC), "Mark as PC…" · 엔진 `RecordTest.theHeadOfTheTableAndTheStatusBarReadTheDatapath`; find.e2e "Tunnels: … a lone one in amber…"(외톨이 표시) | D-144(상태 표시줄 PC·Mark as PC, N-14), D-150(Tunnels 외톨이 표시, N-12) |
 | V-09 | 스크린샷 실행기 위생과 데모 값 | 과정 |  |  | v1 검토·릴리스 과정이라 옮길 기능이 아님 |
 | V-10 | v1.0.1 공개 릴리스 | 과정 |  |  | v1 검토·릴리스 과정이라 옮길 기능이 아님 |
-| X-01 | 첫 실행 창 크기, 포크 전용 창 설정 | N-19·N-17 |  |  |  |
+| X-01 | 첫 실행 창 크기, 포크 전용 창 설정 | N-19·N-17 | #434 | `labpc.e2e.ts` "nothing written…"(다음 시작은 작업 영역 전체·최대화, 첫 화면), "every setting is for this run only…"(배율·분할선·칸·탭·Show Bus Widths·클럭 속도를 바꾸고 끄고 다시 켜면 기본값) · `real-engine.e2e.ts` "the settings (N-19)…" · unit `run-settings.test.ts` | D-152. 창·설정은 실행마다 기본값(실습실 규칙, D-135 11). 창 설정 화면은 N-17 |
 | X-02 | 도구 모음 넘침(Icons Only 자동 → » 메뉴) | N-17 |  |  |  |
 | X-03 | 좁은 창의 패널 비율(캔버스 최소 폭) | N-17 |  |  |  |
 | X-04 | Registers PC 줄 이름·안내 조건·칩과 강조 선 간격 | N-14 | #423 | `cycle.e2e.ts` "Mark as PC…", "a narrow window…"(안내) · 엔진 `RecordTest.theRegisterRowsAgreeWithV1MachineState` | 칩과 강조 선 간격은 N-05/N-15 |

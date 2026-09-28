@@ -18,6 +18,7 @@ import type { Snapshot } from '../../src/main/protocol.ts';
 import { answerOpen, answerSave, canvasSettled, DATAPATH, INSIDE_PIN_VALUES, launch, newCircuit, openFile, PARENT_PORT_VALUES, repo, sample, type LaunchOptions } from './harness.ts';
 import { alive, call, circuitsOf, enginePid, fileModel, journalLength, killEngine, killMainAndSeeEngineEnd, openFileIds } from './model.ts';
 import { click, menu, opened, partMiddle, rightClick, shown, wireAtPort } from './overlay-helpers.ts';
+import { changeEverySetting, settingsNow } from './settings.ts';
 
 const JAR = path.join(repo, 'engine/build/stage/hcs-engine.jar');
 const real: LaunchOptions['env'] = { HCS_ENGINE_CMD: '', HCS_ENGINE_JAR: JAR };
@@ -296,6 +297,127 @@ test('the real engine killed after edits: the replayed model equals the one befo
   } finally {
     await r.close();
   }
+});
+
+test('the real engine and the app killed (N-19): the recovery file beside the saved file only, none for the new one; opened again, Recover is the model before in every circuit, unsaved; Ctrl+S removes it', async () => {
+  const work = mkdtempSync(path.join(tmpdir(), 'hcs-work-'));
+  const file = sample(work, DATAPATH);
+  const saved = readFileSync(file);
+  // No writes after an idle moment: the recovery file there is the one the engine writes as it ends.
+  const r = await launch(undefined, { env: { ...real, HCS_RECOVERY_IDLE_MS: '600000', HCS_RECOVERY_MAX_MS: '600000' } });
+  const { page } = r;
+  let before: Record<string, unknown>;
+  try {
+    await openFile(r, file);
+    await page.getByTitle('New circuit (Ctrl+N)').click();
+    await expect(page.locator('.filebar .ptab')).toHaveCount(2);
+    const [datapath, untitled] = await openFileIds(r.app);
+    const dc = await circuitsOf(page, datapath);
+    const and = await call<{ id: string }>(page, 'edit.addComponent', { fileId: datapath, circuitId: dc.alu, lib: 'Gates', name: 'AND Gate', loc: [600, 600] });
+    await call(page, 'edit.setAttr', { fileId: datapath, circuitId: dc.alu, ids: [and.id], attr: 'inputs', value: '3' });
+    const main = await call<Snapshot>(page, 'model.circuit', { fileId: datapath, circuitId: dc.main });
+    await call(page, 'edit.move', { fileId: datapath, circuitId: dc.main, ids: [main.components.find((c) => c.name === 'Tunnel')!.id], dx: 0, dy: 10 });
+    await call(page, 'edit.addWire', { fileId: datapath, circuitId: dc.main, points: [[1000, 1000], [1100, 1000]] });
+    await call(page, 'edit.undo', { fileId: datapath, circuitId: dc.main });
+    await call(page, 'edit.redo', { fileId: datapath, circuitId: dc.main });
+    await call(page, 'edit.addComponent', { fileId: untitled, circuitId: (await circuitsOf(page, untitled)).main, lib: 'Wiring', name: 'Pin', loc: [100, 100] });
+    before = await fileModel(page, datapath, true);   // subcircuits by name: the next start's engine has its own ids
+    expect(JSON.stringify(before)).toContain('[\\"inputs\\",\\"3\\"]');
+    expect(await killMainAndSeeEngineEnd(r.app, (await enginePid(r.app))!, 20_000)).toBe('both ended');
+    await Promise.race([r.app.close().catch(() => {}), new Promise((done) => setTimeout(done, 5_000))]);
+  } finally {
+    // (Windows: the killed app's Chromium children may still hold its run folder a moment)
+    try { rmSync(r.dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 }); } catch { /* a scratch folder */ }
+  }
+  expect(readdirSync(work).sort()).toEqual(['demo-datapath.circ', 'demo-datapath.circ.hcs-recover']);
+  expect(readFileSync(file)).toEqual(saved);
+
+  const next = await launch(undefined, { env: real });
+  try {
+    await answerOpen(next.app, file);
+    await next.page.keyboard.press('Control+o');
+    const dialog = next.page.locator('dialog.ask');
+    await expect(dialog.locator('h2')).toHaveText('저장하지 않은 편집이 있습니다');
+    await expect(dialog.locator('.askfile')).toHaveText(['File: demo-datapath.circ', 'Recovery file: demo-datapath.circ.hcs-recover']);
+    await expect(dialog.locator('.askfile .mono')).toHaveText(['demo-datapath.circ', 'demo-datapath.circ.hcs-recover']);   // the names mono, the labels not
+    await expect(dialog.locator('.askdetail')).toHaveCount(0);
+    await dialog.getByRole('button', { name: 'Recover' }).click();
+    await expect(next.page.locator('.filebar .ptab')).toHaveText(['demo-datapath.circ•']);
+    const [fileId] = await openFileIds(next.app);
+    expect(await fileModel(next.page, fileId, true)).toEqual(before);
+    expect((await call<{ dirty: boolean }>(next.page, 'file.dirty', { fileId })).dirty).toBe(true);
+    await next.page.keyboard.press('Control+s');
+    await expect(next.page.locator('.status .ok')).toContainText('저장했습니다 · demo-datapath.circ');
+    expect(readdirSync(work).sort()).toEqual(['demo-datapath.circ']);
+    // (what was saved, opened again, is the same model to the nets: engine RecoveryFileTest)
+  } finally {
+    await next.close();
+    rmSync(work, { recursive: true, force: true });
+  }
+});
+
+test('the real engine and the settings (N-19): every setting changed, quit, started again -- each is its default', async () => {
+  const work = mkdtempSync(path.join(tmpdir(), 'hcs-work-'));
+  const file = sample(work, DATAPATH);
+  const r = await launch(undefined, { env: real });
+  let defaults: Awaited<ReturnType<typeof settingsNow>>;
+  try {
+    await openFile(r, file);
+    await expect(r.page.locator('.canvas .canvas-view canvas')).toBeVisible();
+    defaults = await settingsNow(r.page);
+    await changeEverySetting(r.page, 'alu');
+    expect(await settingsNow(r.page)).not.toEqual(defaults);
+  } finally {
+    await r.close();
+  }
+  const next = await launch(undefined, { env: real });
+  try {
+    await openFile(next, file);
+    await expect(next.page.locator('.canvas .canvas-view canvas')).toBeVisible();
+    expect(await settingsNow(next.page)).toEqual(defaults);
+  } finally {
+    await next.close();
+    rmSync(work, { recursive: true, force: true });
+  }
+});
+
+test('the real engine and leaving (N-19): the close button asks about the unsaved file, Save writes the edit through the engine, then the app quits and the recovery file is gone', async () => {
+  const work = mkdtempSync(path.join(tmpdir(), 'hcs-work-'));
+  const file = sample(work, 'tests/circ/gates.circ');
+  const r = await launch(undefined, { env: { ...real, HCS_RECOVERY_IDLE_MS: '200' } });
+  const { page, app } = r;
+  const quit = app.waitForEvent('close', { timeout: 60_000 });
+  try {
+    await openFile(r, file);
+    const [fileId] = await openFileIds(app);
+    await call(page, 'edit.addComponent', { fileId, circuitId: (await circuitsOf(page, fileId)).main, lib: 'Gates', name: 'XOR Gate', loc: [700, 700] });
+    await expect.poll(() => readdirSync(work).sort(), { timeout: 20_000 }).toEqual(['gates.circ', 'gates.circ.hcs-recover']);
+    await app.evaluate(({ BrowserWindow }) => { BrowserWindow.getAllWindows()[0].close(); });
+    const dialog = page.locator('dialog.ask');
+    await expect(dialog.locator('.askfile')).toHaveText('File: gates.circ');
+    await dialog.getByRole('button', { name: 'Save' }).click();
+    await quit;
+    expect(readdirSync(work).sort()).toEqual(['gates.circ']);
+    expect(readFileSync(file, 'utf8')).toContain('name="XOR Gate"');
+  } finally {
+    try { rmSync(r.dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 }); } catch { /* scratch */ }
+    rmSync(work, { recursive: true, force: true });
+  }
+});
+
+test('the real engine blocked (N-19): its engine thread held, the window\'s process killed -- java still ends within its deadline', async () => {
+  const java = process.env.HCS_JAVA ?? 'java';
+  // the engine with its test hook (test.block) and a short deadline, started as the app starts it otherwise
+  const cmd = JSON.stringify([java, '-Djava.awt.headless=true', '-Dhcs.testHooks=true', '-Dhcs.exitDeadlineMs=3000', '-jar', JAR]);
+  const r = await launch(undefined, { env: { HCS_ENGINE_CMD: cmd } });
+  const pid = (await enginePid(r.app))!;
+  await expect(r.page.locator('.status .engine')).toContainText('Logisim 2.7.1');
+  // the engine thread held for ten minutes (the call never answers)
+  await r.app.evaluate(() => { void (globalThis as unknown as { __hcs: { engine: { call(m: string, p: unknown): Promise<unknown> } } }).__hcs.engine.call('test.block', { ms: 600000 }).catch(() => {}); });
+  await new Promise((done) => setTimeout(done, 500));
+  expect(await killMainAndSeeEngineEnd(r.app, pid, 20_000)).toBe('both ended');
+  await Promise.race([r.app.close().catch(() => {}), new Promise((done) => setTimeout(done, 5_000))]);
+  try { rmSync(r.dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 }); } catch { /* scratch */ }
 });
 
 test('the real engine and no orphan java: killing the window\'s process ends the engine (its stdin closes, or it sees its parent end)', async () => {

@@ -17,35 +17,50 @@
    stand next to an error.  With no `cancel`, it has one button.
 
    The buttons are names, in English (Close, Cancel, Try Again: one name
-   for one command everywhere); the title and the sentences are Korean. */
+   for one command everywhere); the title and the sentences are Korean.
+
+   choose() is the same dialog when both buttons do something and Esc is
+   neither (N-19: Recover / Discard of a recovery file, where Esc must not
+   discard): it answers 'ok', 'cancel' or null (Esc); with `extra`, a third
+   button between them answers 'extra' (Save / Discard / Cancel). */
 
 import { character, code, h, prose } from './dom.ts';
 
 export interface Question {
   title: string;
   file?: string;      // the file the question is about
+  names?: [string, string][];   // more lines like File's: an English label, a name in the mono font (Recovery file: …)
   body: string | Node;
   detail?: string;    // facts under the sentence (what was tried), in the mono font
   ok: string;
   cancel?: string | null;   // null: no cancel button (Esc still closes, as cancel)
+  extra?: string;           // a third answer, between cancel and ok (choose() only)
   danger?: boolean;   // the ok button discards something
   character?: boolean;      // default true; false for errors
 }
 
 export function ask(q: Question): Promise<boolean> {
+  return choose(q).then((r) => r === 'ok');
+}
+
+export function choose(q: Question): Promise<'ok' | 'extra' | 'cancel' | null> {
   return new Promise((answer) => {
     const ok = h('button', { class: `btn ${q.danger ? 'danger' : 'primary'}`, type: 'button' }, q.ok);
     const cancel = q.cancel === null ? null : h('button', { class: 'btn', type: 'button' }, q.cancel ?? 'Cancel');
+    const extra = q.extra ? h('button', { class: 'btn', type: 'button' }, q.extra) : null;
     const withCharacter = q.character !== false;
     const dialog = h('dialog', { class: `modal ask${withCharacter ? '' : ' plain'}`, 'aria-label': q.title },
       h('div', { class: 'askbody' }, withCharacter ? character('haram', 96) : null,
         h('div', { class: 'asktext' }, h('h2', {}, q.title),
-          q.file ? h('p', { class: 'askfile' }, 'File: ', code(q.file)) : null, h('p', {}, prose(q.body)),
+          q.file ? h('p', { class: 'askfile' }, 'File: ', code(q.file)) : null,
+          ...(q.names ?? []).map(([label, name]) => h('p', { class: 'askfile' }, `${label}: `, code(name))),
+          h('p', {}, prose(q.body)),
           q.detail ? h('pre', { class: 'askdetail mono' }, q.detail) : null,
-          h('div', { class: 'row end' }, cancel, ok))));
-    let result = false;
-    ok.addEventListener('click', () => { result = true; dialog.close(); });
-    cancel?.addEventListener('click', () => dialog.close());
+          h('div', { class: 'row end' }, cancel, extra, ok))));
+    let result: 'ok' | 'extra' | 'cancel' | null = null;
+    ok.addEventListener('click', () => { result = 'ok'; dialog.close(); });
+    cancel?.addEventListener('click', () => { result = 'cancel'; dialog.close(); });
+    extra?.addEventListener('click', () => { result = 'extra'; dialog.close(); });
     dialog.addEventListener('close', () => {
       dialog.remove();
       document.body.classList.remove('dialog-open', 'error-dialog');

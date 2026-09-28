@@ -50,6 +50,8 @@ public final class Main {
             System.exit(3);
         }
         Server server = new Server(System.in, protocol, log);
+        // 화면이 사라지면 늦어도 이만큼 뒤에는 끝난다(엔진 스레드가 멈춰 있어도, N-19·D-152)
+        server.haltAfter(Long.getLong("hcs.exitDeadlineMs", 10_000L));
         new Engine(server);
         watchParent(server, log);
         String reason = server.serve();
@@ -69,7 +71,7 @@ public final class Main {
         }
         ProcessHandle.current().parent().ifPresent(parent -> parent.onExit().thenRun(() -> {
             log.println("[hcs-engine] info: the parent process " + parent.pid() + " ended");
-            server.requestShutdown("parent ended");
+            server.clientGone("parent ended");
         }));
     }
 
