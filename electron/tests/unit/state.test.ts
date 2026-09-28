@@ -15,7 +15,7 @@ import { test } from 'node:test';
 
 import { APP_GUID } from '../../tools/package-config.ts';
 import {
-  ALLOWED, allowedByInstall, counts, diffStates, judge, loadNoise, measureNoise, noiseOf, parseRegQuery, report, unexpected,
+  ALLOWED, allowedByInstall, counts, diffStates, judge, measureNoise, noiseOf, parseRegQuery, readNoise, report, unexpected,
   type Change, type NoiseFile, type State,
 } from '../../tools/windows/state.ts';
 
@@ -277,25 +277,32 @@ test('noise never covers a change that names this program, nor a new file in %AP
   assert.deepEqual(judge(ch('registry', 'added', `${RECORD} :: x`, 'REG_SZ y'), 'install', noise), { kind: 'ok' });
 });
 
-test('noise from every control period so far: their union, from a report folder\'s noise-*.json only; the report says what let a change through', () => {
+test('noise per phase: a check is excused only by the control period(s) it is given -- one named file each, never the other phases\' -- and the report says what let a change through', () => {
   const dir = mkdtempSync(path.join(os.tmpdir(), 'noise-'));
   try {
     const x = ch('files', 'changed', 'LOCALAPPDATA\\x');
     const y = ch('registry', 'changed', 'HKCU\\Software\\Vendor\\y :: v', 'REG_SZ 2');
+    const late = ch('files', 'added', 'LOCALAPPDATA\\Vendor\\late.db');   // seen only in a control period after the run
     writeFileSync(path.join(dir, 'noise-clean.json'), JSON.stringify(control('clean', [x])));
     writeFileSync(path.join(dir, 'noise-first-run.json'), JSON.stringify(control('first-run', [x, y])));
-    writeFileSync(path.join(dir, 'state-control-clean.json'), JSON.stringify(control('not noise', [ch('files', 'changed', 'APPDATA\\z')])));
-    writeFileSync(path.join(dir, 'diff-installed.txt'), 'x');
-    const files = loadNoise(dir);
-    assert.deepEqual(files.map((f) => f.name), ['clean', 'first-run']);
-    assert.deepEqual([...noiseOf(files)], [['files\tLOCALAPPDATA\\x', 'clean'], ['registry\tHKCU\\Software\\Vendor\\y :: v', 'first-run']]);
-    assert.deepEqual(loadNoise(path.join(dir, 'none')), []);
+    writeFileSync(path.join(dir, 'noise-uninstall.json'), JSON.stringify(control('uninstall', [late])));
+    // The run's check: its own control period only; what a later control period saw still counts.
+    const run = readNoise([path.join(dir, 'noise-first-run.json')]);
+    assert.deepEqual(run.map((f) => f.name), ['first-run']);
+    assert.deepEqual(unexpected([x, y, late], 'none', noiseOf(run)).map((c) => c.path), ['LOCALAPPDATA\\Vendor\\late.db']);
+    // The install's check: the clean control period's; the run's place y counts there.
+    assert.deepEqual(unexpected([x, y], 'install', noiseOf(readNoise([path.join(dir, 'noise-clean.json')]))).map((c) => c.path), ['HKCU\\Software\\Vendor\\y :: v']);
+    // Given several, their union, each place with the first that saw it.
+    assert.deepEqual([...noiseOf(readNoise([path.join(dir, 'noise-clean.json'), path.join(dir, 'noise-first-run.json')]))],
+      [['files\tLOCALAPPDATA\\x', 'clean'], ['registry\tHKCU\\Software\\Vendor\\y :: v', 'first-run']]);
+    // A control period not measured is an error, not "no noise".
+    assert.throws(() => readNoise([path.join(dir, 'noise-again.json')]));
     const changes = [x, y, ch('files', 'changed', 'APPDATA\\z'), ch('temp', 'added', 'TEMP\\playwright-artifacts-Q1', 'dir'), ch('registry', 'added', RECORD, 'key')];
-    const r = report('first-run', changes, 'install', files);
+    const r = report('first-run', changes, 'install', run);
     assert.deepEqual(r.bad.map((c) => c.path), ['APPDATA\\z']);
-    assert.equal(r.lines[0], 'first-run (expect install): 5 difference(s), 1 not allowed; Windows\' own noise: 2 place(s) in 2 control period(s) (clean, first-run)');
+    assert.equal(r.lines[0], 'first-run (expect install): 5 difference(s), 1 not allowed; Windows\' own noise: 2 place(s) in 1 control period(s) (first-run)');
     assert.deepEqual(r.lines.slice(1).map((l) => l.split(' ')[0]), ['noise', 'noise', 'FAIL', 'info', 'ok']);
-    assert.match(r.lines[1], /changed by Windows itself in the control period before clean$/);
+    assert.match(r.lines[1], /changed by Windows itself in the control period before first-run$/);
     assert.match(r.lines[4], /-- Playwright \(the test tool\)/);
     assert.equal(report('second-run', [], 'none').lines[0], 'second-run (expect none): 0 difference(s), 0 not allowed; Windows\' own noise: 0 place(s) in 0 control period(s)');
   } finally {

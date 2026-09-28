@@ -7,8 +7,9 @@
   %LOCALAPPDATA% and the desktops, the registry keys the program or its
   installer could write).  Before each install or uninstall a control
   period (Control) measures what Windows changes by itself meanwhile
-  (<Report>/noise-<phase>.json); every comparison lets those places through,
-  and nothing else but state.ts ALLOWED.
+  (<Report>/noise-<phase>.json); that phase's comparison lets those places
+  through -- only its own control period's -- and nothing else but state.ts
+  ALLOWED.
 
     check-install.ps1 -Phase clean     -Setup <exe> -Version <v> -Report <dir>
         from nothing: /S, then exactly the install folder, the Start menu
@@ -74,8 +75,10 @@ function V1Entries {
     Where-Object { $_.DisplayName -eq 'HallymCircuitStudio' })
 }
 function Snap([string]$name) { & node tools/windows/state.ts snapshot (Join-Path $Report "state-$name.json") | Out-Host }
-function StateDiff([string]$a, [string]$b, [string]$expect, [string]$what) {
-  & node tools/windows/state.ts diff (Join-Path $Report "state-$a.json") (Join-Path $Report "state-$b.json") --expect $expect --noise $Report --report (Join-Path $Report "diff-$b.txt") | Out-Host
+# The comparison of state $a with $b lets through only the places Windows changed by itself in the control period
+# measured just before this phase ($control: report/noise-<control>.json), never another phase's.
+function StateDiff([string]$a, [string]$b, [string]$expect, [string]$control, [string]$what) {
+  & node tools/windows/state.ts diff (Join-Path $Report "state-$a.json") (Join-Path $Report "state-$b.json") --expect $expect --noise (Join-Path $Report "noise-$control.json") --report (Join-Path $Report "diff-$b.txt") | Out-Host
   Check ($LASTEXITCODE -eq 0) "$what (state $a -> $b, expect ${expect}: $Report\diff-$b.txt)"
 }
 # Starts a program and waits for it, without the shell (Start-Process goes through ShellExecute,
@@ -96,8 +99,8 @@ function OursRunning {
    started the same way -- a program started and ended without the shell (Run), the read-only looks at the
    uninstall entries, folders and shortcuts --, a wait as long as the phase takes on the runner, snapshot B
    (state-<as>, the phase's "before"), nothing of ours running all along.  What changed from A to B is
-   report/noise-<name>.json: Windows changed those places by itself.  StateDiff lets through the places in
-   every noise file so far (the comparison spans them), never a change that names this program. #>
+   report/noise-<name>.json: Windows changed those places by itself.  The phase's StateDiff lets through the
+   places in that file only, never a change that names this program. #>
 function Control([string]$name, [int]$seconds, [string]$as) {
   $o = @(OursRunning)
   Check ($o.Count -eq 0) "before the control period for $name`: nothing of ours running ($(if ($o.Count) { $o -join '; ' } else { 'none' }))"
@@ -176,7 +179,7 @@ try {
     Check ((Split-Path -Leaf $Setup) -eq "HallymCircuitStudio-$Version-win-x64-setup.exe") "the installer's name: $(Split-Path -Leaf $Setup)"
     $ms = Install $Setup 'install'
     Snap 'installed'
-    StateDiff 'before' 'installed' 'install' 'the installer wrote only the Start menu shortcut and the uninstall entry (and the install folder)'
+    StateDiff 'before' 'installed' 'install' 'clean' 'the installer wrote only the Start menu shortcut and the uninstall entry (and the install folder)'
     OneOfEach 'installed' $Version
     $entry = (Ours)[0]
     Note "entry: $($entry.DisplayName) $($entry.DisplayVersion), publisher $($entry.Publisher), uninstall $($entry.UninstallString)"
@@ -216,7 +219,7 @@ try {
     $null = Install $Setup 'install again'
     OneOfEach 'again' $Version
     Snap 'again'
-    StateDiff 'before' 'again' 'install' 'installed twice: still only the shortcut and the entry'
+    StateDiff 'before' 'again' 'install' 'again' 'installed twice: still only the shortcut and the entry'
   }
 
   if ($Phase -eq 'uninstall') {
@@ -224,7 +227,7 @@ try {
     Control 'uninstall' 15 'pre-uninstall'
     Uninstall 'uninstalled'
     Snap 'uninstalled'
-    StateDiff 'before' 'uninstalled' 'uninstalled' 'nothing left after uninstall'
+    StateDiff 'before' 'uninstalled' 'uninstalled' 'uninstall' 'nothing left after uninstall'
     $s = State 'uninstalled'
     Check ($s.entries.Count -eq 0 -and $s.folders.Count -eq 0 -and $s.shortcuts.Count -eq 0) 'no entry, folder or shortcut of ours'
   }
@@ -239,11 +242,11 @@ try {
     $null = Install $Setup "install $Version over $OlderVersion"
     OneOfEach 'over' $Version
     Snap 'over'
-    StateDiff 'before-over' 'over' 'install' "$Version over $OlderVersion`: only the shortcut and the entry"
+    StateDiff 'before-over' 'over' 'install' 'over' "$Version over $OlderVersion`: only the shortcut and the entry"
     Control 'over-uninstall' 15 'pre-over-uninstall'
     Uninstall 'over-uninstalled'
     Snap 'over-uninstalled'
-    StateDiff 'before-over' 'over-uninstalled' 'uninstalled' 'nothing left after uninstall'
+    StateDiff 'before-over' 'over-uninstalled' 'uninstalled' 'over-uninstall' 'nothing left after uninstall'
   }
 
   if ($Phase -eq 'msi') {
@@ -274,7 +277,7 @@ try {
     foreach ($e in $oldExe) { Check (-not (Test-Path $e)) "the 1.0.x program is gone: $e" }
     foreach ($l in $s1.shortcuts) { if ($l -ne $shortcut) { Check (-not (Test-Path $l)) "the 1.0.x shortcut is gone: $l" } }
     Snap 'after'
-    StateDiff 'before' 'after' 'install' 'from before the MSI to after the setup exe: only the new shortcut and entry (the MSI left nothing)'
+    StateDiff 'before' 'after' 'install' 'msi' 'from before the MSI to after the setup exe: only the new shortcut and entry (the MSI left nothing)'
     Set-Content (Join-Path $Report 'installed.txt') $exe
   }
 } finally {

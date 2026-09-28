@@ -7,7 +7,7 @@
 
      node tools/windows/state.ts snapshot <out.json>
      node tools/windows/state.ts noise <a.json> <b.json> <out.json>
-     node tools/windows/state.ts diff <before.json> <after.json> [--expect none|install|uninstalled] [--noise <dir>] [--report <file>]
+     node tools/windows/state.ts diff <before.json> <after.json> [--expect none|install|uninstalled] [--noise <noise.json>] [--report <file>]
 
    The places:
      files     %APPDATA%, %LOCALAPPDATA% (not the install folder; Temp is
@@ -31,8 +31,11 @@
    checked period a control period -- snapshot A, the harness's own helpers
    started as in the checked period, the same wait, snapshot B, nothing of
    ours running -- and every place that changed from A to B is Windows' noise
-   in this job ("noise", NOISE files in the report folder; --noise).  A
-   change in a checked period counts unless it is at such a place, exactly,
+   for that period (report/noise-<period>.json; --noise).  Only the control
+   period measured just before a check excuses anything in it: not the union
+   of all, so that a control period after something of ours ran cannot
+   excuse a later check.  A change in a checked period counts unless it is
+   at such a place, exactly,
    or in ALLOWED below: the few records Windows keeps of any program that
    starts, the test tool's own folder, and for an install what Windows does
    when any program is installed.  A change that names this program counts
@@ -78,8 +81,8 @@ export function diffStates(a: State, b: State): Change[] {
 
 // ---- Windows' own noise, measured -------------------------------------------------------------
 
-/* The places Windows changed by itself in this job's control periods: each place (where + path,
-   exactly: not its folder, not its neighbours) -> the control period it was seen in.  A control
+/* The places Windows changed by itself in the control period(s) a check is given: each place
+   (where + path, exactly: not its folder, not its neighbours) -> the control period it was seen in.  A control
    period is as long as the period it stands for, with the same helpers of the harness, and runs
    while nothing of ours does (the callers check that), so what changes in it is not ours. */
 export type Noise = Map<string, string>;
@@ -103,11 +106,10 @@ export function noiseOf(files: NoiseFile[]): Noise {
   return n;
 }
 
-// Every control period measured so far in a report folder (noise-<name>.json): Windows' noise in this job.
-export const NOISE_FILE = /^noise-.+\.json$/;
-export function loadNoise(dir: string): NoiseFile[] {
-  if (!existsSync(dir)) return [];
-  return readdirSync(dir).filter((f) => NOISE_FILE.test(f)).sort().map((f) => JSON.parse(readFileSync(path.join(dir, f), 'utf8')) as NoiseFile);
+// The control period(s) named for a check, each its own file (report/noise-<name>.json): a missing one is an error,
+// never "no noise" silently taken from elsewhere.
+export function readNoise(files: string[]): NoiseFile[] {
+  return files.map((f) => JSON.parse(readFileSync(f, 'utf8')) as NoiseFile);
 }
 
 // ---- what does not count ----------------------------------------------------------------------
@@ -406,14 +408,14 @@ function main(argv: string[]): number {
   }
   if (command === 'diff' && rest[0] && rest[1]) {
     const expect = (option('--expect') ?? 'none') as Expect;
-    const dir = option('--noise');
-    const { lines, bad } = report(`${rest[0]} -> ${rest[1]}`, diffStates(readState(rest[0]), readState(rest[1])), expect, dir ? loadNoise(dir) : []);
+    const noise = rest.flatMap((a, i) => (a === '--noise' && rest[i + 1] ? [rest[i + 1]] : []));
+    const { lines, bad } = report(`${rest[0]} -> ${rest[1]}`, diffStates(readState(rest[0]), readState(rest[1])), expect, readNoise(noise));
     console.log(lines.join('\n'));
     const r = option('--report');
     if (r) writeFileSync(r, `${lines.join('\n')}\n`);
     return bad.length ? 1 : 0;
   }
-  console.error('usage: state.ts snapshot <out.json> | noise <a.json> <b.json> <out.json> | diff <before.json> <after.json> [--expect none|install|uninstalled] [--noise <dir>] [--report <file>]');
+  console.error('usage: state.ts snapshot <out.json> | noise <a.json> <b.json> <out.json> | diff <before.json> <after.json> [--expect none|install|uninstalled] [--noise <noise.json>]... [--report <file>]');
   return 2;
 }
 

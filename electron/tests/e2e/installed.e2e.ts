@@ -22,7 +22,7 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, writeFileSync } from 
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { describe, diffStates, loadNoise, measureNoise, quiet, report as stateReport, snapshot, type State } from '../../tools/windows/state.ts';
+import { describe, diffStates, measureNoise, quiet, report as stateReport, snapshot, type NoiseFile, type State } from '../../tools/windows/state.ts';
 import { alive, enginePid } from './model.ts';
 
 const exe = process.env.HCS_E2E_EXE;
@@ -87,12 +87,12 @@ const SEARCH = path.join(process.env.LOCALAPPDATA ?? '', 'Packages', 'Microsoft.
 /* Windows' own noise before a run (D-148 12): snapshot A, the harness's
    helpers as around a run -- a program started and ended without a shell
    (as Playwright starts the program), wmic (as imagePath) --, a wait as
-   long as a run or longer (the run's own length, its launch to its quit, is
-   on its report's first line), snapshot B; nothing of ours running all along.  What changed from A to B
-   is Windows' noise, saved as report/noise-<what>.json beside the install
-   checks' own (tools/windows/check-install.ps1); B is the run's "before". */
+   long as a run or longer (checked: the run's own length, its launch to
+   its quit, may not exceed it; both are on its report's first line), snapshot B; nothing of ours running all along.  What changed from A to B
+   is Windows' noise for this run only (saved as report/noise-<what>.json);
+   B is the run's "before". */
 const CONTROL_MS = 20_000;
-async function control(what: string): Promise<State> {
+async function control(what: string): Promise<{ before: State; noise: NoiseFile }> {
   expect(oursRunning(), `before the control period for ${what}: nothing of ours running`).toEqual([]);
   console.log(`Windows Search: ${await quiet([SEARCH])}`);
   const a = snapshot();
@@ -106,12 +106,14 @@ async function control(what: string): Promise<State> {
   mkdirSync(report, { recursive: true });
   writeFileSync(path.join(report, `noise-${what}.json`), `${JSON.stringify(n, null, 1)}\n`);
   console.log(`control period before ${what} (${CONTROL_MS} ms): ${n.changes.length} place(s) changed by Windows itself`);
-  return b;
+  return { before: b, noise: n };
 }
 
-function nothingLeft(before: State, what: string, runMs: number): void {
+// A run's changes; only its own control period's noise lets any through.
+function nothingLeft({ before, noise }: { before: State; noise: NoiseFile }, what: string, runMs: number): void {
+  expect(runMs, `${what}: the run (${Math.round(runMs)} ms) no longer than its control period`).toBeLessThanOrEqual(CONTROL_MS);
   const after = snapshot();
-  const { lines, bad } = stateReport(`${what} (run ${Math.round(runMs)} ms, control ${CONTROL_MS} ms)`, diffStates(before, after), 'none', loadNoise(report));
+  const { lines, bad } = stateReport(`${what} (run ${Math.round(runMs)} ms, control ${CONTROL_MS} ms)`, diffStates(before, after), 'none', [noise]);
   mkdirSync(report, { recursive: true });
   writeFileSync(path.join(report, `state-${what}.txt`), `${lines.join('\n')}\n`);
   expect(bad.map(describe), `${what}: left on the PC (report/state-${what}.txt)`).toEqual([]);
