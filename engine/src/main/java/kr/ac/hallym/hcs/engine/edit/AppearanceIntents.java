@@ -11,7 +11,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.WeakHashMap;
 
 import com.cburch.draw.actions.ModelAddAction;
 import com.cburch.draw.actions.ModelChangeAttributeAction;
@@ -89,13 +88,12 @@ public final class AppearanceIntents {
         }
     }
 
-    private static final Map<Circuit, Session> SESSIONS = new WeakHashMap<>();
-
+    // 문서에 둔다: 세션이 회로·프로젝트를 강하게 잡으므로 회로를 약한 열쇠로 둔 정적 표는 풀리지 않는다
     private static Session session(Doc d, Circuit c) {
-        Session s = SESSIONS.get(c);
+        Session s = (Session) d.appearanceSessions.get(c);
         if (s == null) {
             s = new Session(d, c);
-            SESSIONS.put(c, s);
+            d.appearanceSessions.put(c, s);
         }
         return s;
     }
