@@ -222,7 +222,7 @@ async function view(r: Running, v: { x: number; y: number; zoom: number }): Prom
   const r = await launch(FHD);
   const { page } = r;
   await openFile(r, sample(r.dir, DATAPATH));
-  await page.locator('.canvas h3', { hasText: '부품 35개' }).waitFor();
+  await drawn(r);
   const grip = (await page.locator('[role="separator"][aria-label="Messages"]').boundingBox())!;
   await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
   await page.mouse.down();
@@ -259,7 +259,7 @@ async function view(r: Running, v: { x: number; y: number; zoom: number }): Prom
   const r = await launch(FHD, { env: { FAKE_ENGINE_MODE: 'wide-registers' } });
   const { page } = r;
   await openFile(r, sample(r.dir, DATAPATH));
-  await page.locator('.canvas h3', { hasText: '부품 35개' }).waitFor();
+  await drawn(r);
   const grip = (await page.locator('[role="separator"][aria-label="Messages"]').boundingBox())!;
   await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
   await page.mouse.down();

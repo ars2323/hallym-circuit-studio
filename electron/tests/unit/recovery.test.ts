@@ -284,10 +284,13 @@ test('recovery: files opened again under their ids, every edit replayed in the o
 
 test('recovery: Mark as PC, Mark as Register File and Register Mapping are replayed; the PC register found again by what it is', async () => {
   const { dir, datapath } = scratch();
+  // under another name: the fake reads the .circ itself (not the canvas fixture's fixed ids), so a new engine gives new ids
+  const copy = path.join(dir, 'datapath-copy.circ');
+  copyFileSync(datapath, copy);
   const { engine, sup } = fake();
   try {
     await engine.start();
-    const a = await win<OpenResult>(engine, 'file.open', { path: datapath });
+    const a = await win<OpenResult>(engine, 'file.open', { path: copy });
     const main = a.circuits.find((c) => c.name === 'main')!.circuitId;
     const regfile = a.circuits.find((c) => c.name === 'regfile')!.circuitId;
     const snap = await win<Snapshot>(engine, 'model.circuit', { fileId: a.fileId, circuitId: main });
