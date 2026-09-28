@@ -212,7 +212,7 @@ Swing판 v1.1.0은 내지 않는다(D-132). 엔진 쪽 항목은 v2의 N-00에�
 | N-02 | electron/ 기반: Hallym MIPS 스택·공유 코드 가져오기(ORIGIN.md, shared/), 빌드·테스트·e2e·스크린샷·패키징 뼈대 | #378 | 완료 | #413 | electron/(Hallym MIPS v2.3.0에서 48개 파일, ORIGIN.md, import-hmips.ts), 엔진 클라이언트·가짜 엔진, 시작 화면, 단위 88·e2e 32(폭 4종)·돌연변이 37/37, 스크린샷 14장(electron/docs/screens), D-135(14항: v2 문구 규칙) |
 | N-03 | Java 엔진 서버: headless Logisim, JSON-RPC, 파일·모델·시뮬레이션 API, GUI 없는 기존 코드 이전 | #379 | 완료 | #411 | engine/ 모듈(hcs-engine.jar), :engine:test 139개(상수 해시 138), tests/circ 저장 원조와 바이트 같음(D-006), EditParityTest 11, hello 응답 약 81ms·빈 엔진 42~46MB·ref-mips 약 115MB(Linux, D-134 12항). GUI 없는 기존 코드의 engine/ 이전은 N-27 |
 | N-04 | jlink JRE 번들, 엔진 시작·종료·재시작·복구 | #380 | 완료 | #422 | jlink 런타임(Temurin 21.0.12, AppCDS): zip 32~36MB, hello 52~109ms, ref-mips 열기 304ms(Linux CI)·454ms(Windows CI), 부모 감시, 메모리 저널로 엔진 복구(디스크 기록 없음), NOTICE·About에 OpenJDK, 테스트 수와 측정은 D-142(머지 시점 main 누계: 단위 132·e2e 44·돌연변이 66/66) |
-| N-05 | 캔버스 보기: 그리기 엔진, 부품 렌더러 등록표(수업 부품 전부), 선·연결점·점프·버스, 라벨·터널 색·포트 이름·값 칩, 배율·이동 | #381 | 완료 | #425 | 렌더러 등록표(벡터 모양 정의, Canvas 2D, SVG 내보내기 같은 정의), 수업 부품 53종 전용 렌더러, 값 색·범례, 칩 간격 규칙, 25~400% 배율, Canvas·SVG 측정(클럭 중 값 갱신에서 SVG 프레임 누락 44~57% → Canvas 결정), D-137 |
+| N-05 | 캔버스 보기: 그리기 엔진, 부품 렌더러 등록표(수업 부품 전부), 선·연결점·점프·버스, 라벨·터널 색·포트 이름·값 칩, 배율·이동 | #381 | 완료 | #425 | 렌더러 등록표(벡터 모양 정의, Canvas 2D, SVG 내보내기 같은 정의), 수업 부품 53종 전용 렌더러, 값 색·범례, 칩 간격 규칙, 25~400% 배율, Canvas·SVG 측정(값 갱신 최악 경우에 SVG 프레임 누락 44~57%, 실제 엔진 스트림에서 5~13% → Canvas 결정), D-137 |
 | N-06 | 기하 동등성 검사(부품 × 속성, 엔진 포트 위치 = 렌더러 포트) | #382 | 완료 | #425 | 엔진이 만든 883개 조합·63종, 포트 검사 8,408번 문제 0, CI에서 자료 다시 만들기 동일 확인(#436로 결정성 확보), D-137 |
 | N-07 | 시뮬레이션 연결: Poke, 1 Cycle, N Cycles, Run, Reset, 주파수, 값 스트림, 진동 | #383 | 대기 |  |  |
 | N-08 | 편집 도구와 조작(원조와 같은 사용감 표 전부) | #384 | 진행 | #410 | 조작 동등성 표 docs/interaction-parity.md(I-01~I-213, D-139). 구현은 캔버스(N-05) 뒤 |
@@ -221,7 +221,7 @@ Swing판 v1.1.0은 내지 않는다(D-132). 엔진 쪽 항목은 v2의 N-00에�
 | N-11 | 여러 파일 탭, 탭 간 라이브러리, 서브회로(들어가기, 포트 순서, Auto Appearance, 모양 편집, 가져오기), 창 분리·나란히 보기 | #387 | 대기 |  |  |
 | N-12 | 부품 목록·검색 팔레트, Splitter 편집기, 찾기, Tunnels, Minimap | #388 | 완료 | #433 | Components 검색, 검색 창(Ctrl+K), Find(find.query), Tunnels(색·외톨이), Minimap, Splitter 편집기, 사건 규약 tool-events.ts, D-150 |
 | N-13 | Messages(정적·동적 진단), E/X 출처, 진동, 가까운 이름 | #389 | 완료 | #421 | engine diag.*·trace.origin, Messages 패널·상태 표시줄 개수, 정상 회로 11개 0건·고장 회로 22개 한 줄씩, 가까운 이름(짝 없는 터널, 후보 하나일 때만), hcs:reveal 이벤트(캔버스 연결은 N-05), D-143 |
-| N-14 | Cycle View, Run Until, Registers·Memory·Instruction(Hallym MIPS 패널), Mark as PC, Register Mapping | #390 | 완료 | #423 | record.* 20개, Cycle View·Run Until, Hallym MIPS Registers·Data·Inspector 패널(SPIM 유래 제외), Mark as PC·Register Mapping(hcs:ext), 지난 사이클 경합 수정, D-144 |
+| N-14 | Cycle View, Run Until, Registers·Memory·Instruction(Hallym MIPS 패널), Mark as PC, Register Mapping | #390 | 완료 | #423 | record.* 메서드 19개(RecordTest 20개), Cycle View·Run Until, Hallym MIPS Registers·Data·Inspector 패널(SPIM 유래 제외), Mark as PC·Register Mapping(hcs:ext), 지난 사이클 경합 수정, D-144 |
 | N-15 | Signal Flow, 영향 경로, 활성 경로, 버스 값 칩, 신호 그룹, 영역 메모 | #391 | 완료 | #432 | Signal Flow, 영향 경로, 활성 경로, 필드 색 띠, 버스 값 칩, 신호 그룹, 영역 메모(hcs:ext), D-151 |
 | N-16 | MIPS: Load Program(.hmx·.s), 요약, entry·시작 값, 디스어셈블, Console, 자동 재로드, 실패 시 유지 띠 | #392 | 완료 | #428 | mips.load·facts·disasm·console·reload, Load Program…(.hmx만), 요약, Console 탭, 다시 불러오기 실패 유지 띠, D-147 |
 | N-17 | 창(frameless)·배치·도구 모음·상태 표시줄·시작 화면·대화상자·빈 상태·알림 띠 | #393 | 대기 |  |  |
