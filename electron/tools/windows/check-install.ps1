@@ -59,7 +59,8 @@ $uninstallRoot = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall'
 $guid = 'eb84d729-7626-52ce-aff8-71eda9d27e59'   # tools/package-config.ts APP_GUID
 $v1UpgradeCode = '{6206F18C-D7FA-366B-98DA-E7980F6083D6}'   # packaging/installer.nsh
 
-function Entries { @(Get-ChildItem $uninstallRoot -ErrorAction SilentlyContinue | ForEach-Object { Get-ItemProperty $_.PSPath } | Where-Object { $_.DisplayName -like '*allym*' }) }
+# An entry the uninstaller removes between the listing and the read is gone, not an error.
+function Entries { @(Get-ChildItem $uninstallRoot -ErrorAction SilentlyContinue | ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue } | Where-Object { $_.DisplayName -like '*allym*' }) }
 function Ours { @(Entries | Where-Object { $_.PSChildName -eq $guid }) }
 function Folders { @(Get-ChildItem (Join-Path $env:LOCALAPPDATA 'Programs'), $env:LOCALAPPDATA -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -like '*allym*' } | ForEach-Object { $_.FullName }) }
 function Shortcuts { @(@($startMenu) + $desktops + @(Join-Path $env:ProgramData 'Microsoft\Windows\Start Menu\Programs') | ForEach-Object { Get-ChildItem $_ -Recurse -Filter '*.lnk' -ErrorAction SilentlyContinue } | Where-Object { $_.FullName -like '*allym*' } | ForEach-Object { $_.FullName }) }
