@@ -1887,19 +1887,20 @@
   11. **변화 0을 재는 법(`electron/tools/windows/state.ts`):** 읽기만 하는 스냅숏(Node로 폴더 목록과 `reg.exe query`만. PowerShell은 제 프로필 자료를 %LOCALAPPDATA%에 쓰므로 스냅숏에 쓰지 않는다). 파일: `%APPDATA%`, `%LOCALAPPDATA%`(설치 폴더와 Temp 밖), 사용자·공용 바탕 화면, 모든 사용자 시작 메뉴의 파일마다 크기와 시각. `%TEMP%`: 맨 위 항목과 이 프로그램의 이름(`HallymCircuitStudio`, `hsperfdata_*`, `hs_err_pid*`, `hcs-*`, `jna*`, `.java*`)만 센다(나머지는 시험 도구와 Windows가 늘 쓴다). 레지스트리: HKCU·HKLM의 `Software\JavaSoft`(Java 환경설정), `HKCU\Software`의 모든 키(Microsoft·Classes는 이름만), 제거 항목, Run·RunOnce, Windows Installer 사용자별 키, `HKCU\Software\Classes`의 `.circ`와 이름에 hallym이 든 키. 설치본 실행은 이 모두가 0이어야 하고, 설치는 3항의 넷만, 제거 뒤는 설치 전과 같아야 한다.
   12. **Windows의 것(러너에서 본 것, 세지 않음):** 처음 몇 번의 CI에서 설치·실행과 상관없이, 또는 Windows가 설치에 반응해 바뀐 것을 하나씩 보고 이름을 붙였다(`state.ts`의 `WINDOWS_OWN`, 보고서에는 "info — 까닭"으로 남음). 레지스트리 하이브 파일(`UsrClass.dat*`: 레지스트리는 키 단위로 따로 비교), PowerShell의 시작 캐시(`Microsoft\PowerShell`, `Microsoft\Windows\PowerShell`: 검사 스크립트가 PowerShell이고, electron-builder 설치 파일도 "프로그램이 실행 중인가"를 PowerShell에 묻는다), Store 앱 자료(`%LOCALAPPDATA%\Packages`: 시작 메뉴가 바뀌면 Windows Search가 앱 목록을 다시 색인), 셸 캐시(`Microsoft\Windows\Caches`), 알림 플랫폼 DB(`Microsoft\Windows\Notifications`), 그 밖의 `%LOCALAPPDATA%\Microsoft\Windows`(Windows 구성 요소: 설치 중에 웹 캐시 DB `WebCache`가 바뀌는 것을 봤다. 프로그램이 제 자료를 두는 곳이 아니다), 바탕 화면 배경 캐시(`Microsoft\Windows\Themes`: 화면 크기를 바꾼 뒤), **Windows 맞춤법 단어 목록**(`%APPDATA%\Microsoft\Spelling\<언어>\default.*`, 아래 13), 설치 중에는 셸의 점프 목록(`Recent\AutomaticDestinations`: msiexec와 설치 파일이 시작된 기록). 프로그램 실행 검사에서는 새 점프 목록과 최근 항목을 세고, 셸이 이미 있던 목록을 다시 쓰는 것(탐색기의 `5f7b5f1e01b83767`, 실행 중에 본 것)만 세지 않는다. 폴더 연결(`%LOCALAPPDATA%\Application Data` 같은 junction)은 따라가지 않고 연결로만 적는다(따라가면 대상의 시각이 바뀐 것으로 보인다).
   13. **맞춤법 검사기는 끈다, 그래도 Windows 단어 목록은 생긴다:** 창(`webPreferences.spellcheck: false`)과 세션(`setSpellCheckerEnabled(false)`)의 맞춤법 검사를 끈다(회로·라벨 이름은 낱말이 아니고, 사용자 단어 목록에 아무것도 더하지 않는다). 그래도 Chromium이 시작할 때 Windows 맞춤법 검사기를 OS 언어로 열어 Windows가 `%APPDATA%\Microsoft\Spelling\en-US\default.dic/.exc/.acl`(각 2바이트, 빈 목록)을 만든다. 창·세션의 설정, 프로필(Preferences)에 맞춤법 끔·사전 없음을 미리 적기를 모두 해 봤으나 막지 못했다(Electron이 세션을 만들 때 OS 언어로 사전을 채워 연다; Linux에서는 같은 자리에서 Hunspell 사전을 실행 폴더로 받는다). 이 파일은 맞춤법을 쓰는 모든 프로그램(Edge, Office, Windows 입력)이 함께 쓰는 Windows의 것이고 비어 있으며 학생의 자취가 없어 Windows의 것으로 센다. 실습실 PC에는 이미 있을 가능성이 크다(needs-human에서 확인).
-- **잰 값(CI windows-2022, CI run 36359897490, 2026-09-28, 화면 1920×1080):**
+- **잰 값(CI windows-2022, 화면 1920×1080, 2026-09-28):** 이 PR의 CI run 36362618182(모든 작업 초록)와, 앞선 실행들(36357934330~36361839377)에서 같은 단계가 낸 값을 합친 폭.
 
-  | | 값 |
-  |---|---|
-  | setup exe | 116.7 MB (122,360,579 바이트) |
-  | 설치 뒤 크기 | 431.6 MB, 파일 179개: `HallymCircuitStudio.exe` 234.6 MB(Electron), 번들 JRE 102.2 MB, `resources` 전체 111.2 MB(엔진 jar 4.0 MB, `app.asar` 5.1 MB), dxcompiler 24.6 MB, Chromium 고지 19.5 MB |
-  | 조용한 설치(`/S`, 처음) | 21.6 s (v1.0.2 MSI 위: 27.4 s — MSI 제거 포함) |
-  | 같은 파일로 다시 설치 | 9.8 s |
-  | 조용한 제거 | 3.2 s |
-  | 설치 뒤 첫 시작: 창 / 첫 화면 / 엔진 준비(상태 표시줄에 Java 21) | 1883 / 1920 / 1924 ms (setup-upgrade 작업: 403 / 1584 / 1590 ms) |
-  | 두 번째 시작 | 166 / 392 / 470 ms |
+  | | run 36362618182 | 모든 실행의 폭 |
+  |---|---|---|
+  | setup exe | 116.7 MB (122,384,442 바이트) | 116.7 MB |
+  | 설치 뒤 크기 | 431.7 MB, 파일 179개: `HallymCircuitStudio.exe` 234.6 MB(Electron), 번들 JRE 102.3 MB, 엔진 jar 4.0 MB, `app.asar` 5.1 MB, dxcompiler 24.6 MB, Chromium 고지 19.5 MB | |
+  | 조용한 설치(`/S`, 처음) | 20.5 s | 20.5~35.2 s |
+  | v1.0.2 MSI 위에 설치(MSI 제거 포함) | 31.7 s | 27.2~32.0 s |
+  | 같은 파일로 다시 설치 / 1.99.0 위에 설치 | 11.3 s / 10.9 s | 9.5~11.4 s |
+  | 조용한 제거 | 3.3 s | 3.1~3.3 s |
+  | 설치 뒤 첫 시작: 창 / 첫 화면 / 엔진 준비(상태 표시줄에 Java 21) | 2184 / 2229 / 2236 ms (setup-upgrade: 267 / 1298 / 1301 ms) | 첫 화면 1.27~2.50 s, 엔진 준비는 그 뒤 4~12 ms |
+  | 두 번째 시작 | 1005 / 1266 / 1270 ms | 첫 화면 0.39~1.27 s, 엔진 준비는 그 뒤 3~78 ms |
 
-  시간은 Playwright `_electron.launch()` 호출부터다(CDP 연결 포함). 첫 시작이 느린 것은 디스크 캐시가 비어 있어서이고(설치 직후), 엔진 준비는 첫 화면과 거의 같은 때다(AppCDS, D-142). N-22의 "첫 시작 4초 안"을 이 러너에서 넘지 않는다. 설치 파일 LZMA 압축에 2분(`setup-exe`), 엔진·런타임 빌드 1분이 걸린다.
+  시간은 Playwright `_electron.launch()` 호출부터다(CDP 연결 포함). 첫 시작이 느린 것은 설치 직후라 디스크 캐시가 비어 있어서이고, 엔진 준비는 첫 화면과 거의 같은 때다(AppCDS, D-142). N-22의 "첫 시작 4초 안"을 이 러너에서 넘은 적이 없다. CI에서 설치 파일 NSIS 압축에 2분(`setup-exe`, 1.99.0 것까지 두 번), 엔진·런타임 빌드에 1분이 걸린다.
 - **이유:** 사용자 결정(v2 지시 2·8절, D-122의 동작 결정). Hallym MIPS와 같은 설치 파일(같은 electron-builder NSIS)이라 학생이 두 프로그램을 같은 방식으로 설치하고 지운다. 원클릭은 묻는 것이 없어 실습실에서 한 줄(`/S`)로 깔 수 있다. 새 프로그램을 놓은 뒤 예전 MSI를 지우면 어떤 실패에도 학생 PC에 쓸 프로그램이 남는다. 릴리스 규칙을 한 파일에 두고 올리기 전·뒤·게시 때 모두 같은 규칙으로 보면, 손으로 올리는 PDF까지 막을 수 있다. 변화 0은 설치본을 실제로 돌려 재야 실습실 규칙(아무것도 남지 않음)의 근거가 된다.
 - **대안(버림):**
   - Hallym MIPS 2.4.0처럼 페이지가 있는 설치 파일(진행·마침 화면, "지금 실행하기"): 사용자 결정이 원클릭이다.
