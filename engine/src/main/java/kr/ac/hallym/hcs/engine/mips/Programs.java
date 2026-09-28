@@ -322,8 +322,11 @@ public final class Programs {
         }
     }
 
-    /** 바꿀 것을 원조 SetAttributeAction(회로마다 하나, 이어 붙여 되돌리기 한 단계)으로 넣는다. */
-    private static void apply(Doc d, LoadReport r, String name) {
+    /**
+     * 바꿀 것을 원조 SetAttributeAction(회로마다 하나, 이어 붙여 되돌리기 한 단계)으로 넣는다. 원조 전파와 겹치지 않게
+     * 한다(편집과 같이, {@link SimSession#quiet}, D-143): 자동 다시 불러오기는 클럭이 도는 동안에도 온다.
+     */
+    private void apply(Doc d, LoadReport r, String name) {
         Map<Circuit, SetAttributeAction> byCircuit = new LinkedHashMap<>();
         for (LoadReport.Change ch : r.changes) {
             byCircuit.computeIfAbsent((Circuit) ch.circuit, c -> new SetAttributeAction(c, () -> name))
@@ -334,7 +337,16 @@ public final class Programs {
             action = action == null ? a : action.append(a);
         }
         if (action != null) {
-            d.project().doAction(action);
+            Action all = action;
+            SimSession sim = sims.apply(d);
+            if (sim == null) {
+                d.project().doAction(all);
+            } else {
+                sim.quiet(() -> {
+                    d.project().doAction(all);
+                    return null;
+                });
+            }
         }
     }
 

@@ -310,7 +310,9 @@ public final class Engine {
             if (needsCircuit) {
                 d.circuit(p.str("circuitId"));
             }
-            Intents.Result r = e.apply(d, p);
+            // 원조 전파와 겹치지 않게: 원조 CircuitState 청취자가 전파와 함께 쓰는 집합을 고친다(D-143)
+            SimSession s = sims.get(d.id());
+            Intents.Result r = s == null ? e.apply(d, p) : s.quiet(() -> e.apply(d, p));
             JsonObject o = new JsonObject();
             o.addProperty("changed", r.changed);
             if (r.outcome != null) {
@@ -388,8 +390,9 @@ public final class Engine {
             Circuit c = d.circuit(p.str("circuitId"));
             Component comp = d.component(c, p.str("componentId"));
             int[] at = p.optPoint("at");
-            boolean poked = s.poke(c, comp, at == null ? null : Location.create(at[0], at[1]),
-                    p.optStr("action", "click"));
+            // Poke도 원조 CircuitState를 고친다: 원조 전파와 겹치지 않게(D-143)
+            boolean poked = s.quiet(() -> s.poke(c, comp, at == null ? null : Location.create(at[0], at[1]),
+                    p.optStr("action", "click")));
             JsonObject o = new JsonObject();
             o.addProperty("poked", poked);
             return o;

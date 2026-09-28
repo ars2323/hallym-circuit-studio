@@ -97,8 +97,6 @@ tasks.test {
         useJUnitPlatform()
     }
     dependsOn(stage, smokeJar)
-    // 같은 곳에서 되풀이된 예외에도 스택을 남긴다: 동시성 테스트가 원조 자체의 경합을 스택으로 가려낸다(D-143, LogisimRace)
-    jvmArgs("-XX:-OmitStackTraceInFastThrow")
     systemProperty("java.awt.headless", "true")
     // 같은 JVM 안의 테스트도 엔진과 같이 메모리 전용 환경설정으로 돈다(Main이 하는 일과 같다)
     systemProperty("java.util.prefs.PreferencesFactory", "kr.ac.hallym.hcs.engine.prefs.MemoryPreferencesFactory")

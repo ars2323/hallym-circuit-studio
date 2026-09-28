@@ -15,12 +15,12 @@ import java.util.List;
 import com.cburch.logisim.circuit.Simulator;
 
 /**
- * 동시성 테스트가 원조 Logisim 2.7.1 자체의 편집·전파 경합을 가려내게 한다(D-143). 원조 CircuitState의 회로
- * 청취자(편집 스레드: 부품을 넣고 빼고 바꿀 때)와 원조 전파(시뮬레이터 스레드)가 dirtyComponents·dirtyPoints(원조
- * SmallSet, 스레드 안전하지 않음)를 함께 고친다. 둘이 겹치면 전파 쪽에서는 원조 Simulator가 예외를 잡아 System.err에
- * 찍고 시뮬레이션을 끈다(스레드는 살아 있다). 편집 쪽에서는 그 편집이 청취자 안의 예외로 끝난다. 원조 패키지는 고치지
- * 않으므로(CLAUDE.md 2절) 테스트는 이것을 우리 실패로 세지 않는다. 다만 예외가 원조 안에서 났고 우리 코드를 지나지
- * 않았는지는 확인한다. 원조와 엔진은 그 예외를 System.err에만 찍으므로 사본을 모은다.
+ * 동시성 테스트가 원조 Logisim 2.7.1의 전파가 잡아 찍은 예외를 보게 한다(D-143). 원조 CircuitState의 회로
+ * 청취자(편집 스레드: 부품을 넣고 빼고 바꿀 때)와 원조 전파(시뮬레이터 스레드)는 dirtyComponents·dirtyPoints(원조
+ * SmallSet, 스레드 안전하지 않음)를 함께 고친다. 둘이 겹치면 원조 Simulator가 전파 중의 예외를 잡아 System.err에 찍고
+ * 시뮬레이션을 끈다(스레드는 살아 있다). 원조는 그 예외를 System.err에만 찍으므로 사본을 모은다. v2 엔진은 편집을 전파
+ * 밖에서 하므로 이 예외가 없어야 하고(SimEditRaceTest), 원조 편집 경로를 그대로 쓰는 v1 기록기 테스트는 그것이 원조
+ * 안의 예외이고 우리 코드를 지나지 않았는지 확인한 뒤 시뮬레이션을 다시 켠다(RecorderEditRaceTest).
  */
 public final class LogisimRace implements AutoCloseable {
     private final PrintStream before;
@@ -76,41 +76,6 @@ public final class LogisimRace implements AutoCloseable {
         return true;
     }
 
-    /**
-     * 엔진이 method 요청의 실패로 찍은 마지막 예외가 원조 CircuitState 청취자 안에서 났으면 true: 던진 곳부터 첫 우리
-     * 프레임 앞까지가 원조·JDK 프레임뿐이고 그 가운데 청취자가 있다.
-     */
-    public boolean editFailedInLogisimListener(String method) {
-        String text = copy.text();
-        String log = "[hcs-engine] error: " + method + " failed: ";
-        int at = text.lastIndexOf(log);
-        if (at < 0) {
-            return false;
-        }
-        String[] lines = text.substring(at).split("\r?\n");
-        // lines[0]은 엔진 로그 "… failed: <예외>", 그 뒤 printStackTrace의 머리 "<예외>"와 프레임(다른 스레드의 출력이
-        // 사이에 끼어도 찾게 머리로 찾는다)
-        String header = lines[0].substring(log.length());
-        int i = 1;
-        while (i < lines.length && !lines[i].equals(header)) {
-            i++;
-        }
-        boolean listener = false;
-        int frames = 0;
-        for (i++; i < lines.length && lines[i].startsWith("\tat "); i++) {
-            String frame = frameClass(lines[i]);
-            if (frame.startsWith("kr.ac.hallym.")) {
-                break;
-            }
-            if (!frame.startsWith("com.cburch.logisim.") && !frame.startsWith("java.") && !frame.startsWith("jdk.")) {
-                return false;
-            }
-            frames++;
-            listener |= frame.startsWith("com.cburch.logisim.circuit.CircuitState$MyCircuitListener.circuitChanged");
-        }
-        return frames > 0 && listener;
-    }
-
     /** 원조 Simulator의 전파 스레드가 잡아 찍은 예외들(스택 전부). */
     public List<String> propagatorTraces() {
         List<String> traces = new ArrayList<String>();
@@ -131,14 +96,6 @@ public final class LogisimRace implements AutoCloseable {
             traces.add(cur.toString());
         }
         return traces;
-    }
-
-    /** "\tat java.base/java.util.X.y(X.java:1)" → "java.util.X.y(X.java:1)"(모듈·클래스 로더 이름을 뗀다). */
-    static String frameClass(String line) {
-        String s = line.substring("\tat ".length());
-        int paren = s.indexOf('(');
-        int slash = s.lastIndexOf('/', paren < 0 ? s.length() : paren);
-        return slash < 0 ? s : s.substring(slash + 1);
     }
 
     /** System.err를 그대로 두고 사본을 모은다. */

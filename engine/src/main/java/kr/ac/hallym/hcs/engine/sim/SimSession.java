@@ -80,12 +80,23 @@ public final class SimSession implements SimulatorListener {
     // Poke 도구의 캐럿
     private Caret caret;
     private Component caretComponent;
+    /** 모델 편집·Poke를 원조 전파와 겹치지 않게(D-143). */
+    private final SimGate gate;
 
     public SimSession(Doc doc, Server server) {
         this.doc = doc;
         this.server = server;
         this.sim = doc.project().getSimulator();
         sim.addSimulatorListener(this);
+        this.gate = new SimGate(sim);
+    }
+
+    /**
+     * 엔진 스레드에서 원조 모델을 바꾸는 일(편집, Poke)을 원조 전파와 겹치지 않게 돈다({@link SimGate}, D-143): 원조
+     * CircuitState의 더러운 부품·점 집합을 두 스레드가 함께 고치지 않게 한다.
+     */
+    public <T, X extends Exception> T quiet(SimGate.Body<T, X> body) throws X {
+        return gate.hold(body);
     }
 
     // ---- 시뮬레이터 스레드의 사건 ----
@@ -396,6 +407,7 @@ public final class SimSession implements SimulatorListener {
             pacer.finish(false);
         }
         sim.removeSimulatorListener(this);
+        gate.close();
     }
 
     /** 처리 중인 틱 수(테스트). */
