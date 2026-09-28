@@ -17,6 +17,7 @@ import path from 'node:path';
 import type { Snapshot } from '../../src/main/protocol.ts';
 import { answerOpen, answerSave, DATAPATH, INSIDE_PIN_VALUES, launch, newCircuit, openFile, PARENT_PORT_VALUES, repo, sample, type LaunchOptions } from './harness.ts';
 import { alive, call, circuitsOf, enginePid, fileModel, journalLength, killEngine, killMainAndSeeEngineEnd, openFileIds } from './model.ts';
+import { click, menu, opened, partMiddle, rightClick, shown, wireAtPort } from './overlay-helpers.ts';
 
 const JAR = path.join(repo, 'engine/build/stage/hcs-engine.jar');
 const real: LaunchOptions['env'] = { HCS_ENGINE_CMD: '', HCS_ENGINE_JAR: JAR };
@@ -428,11 +429,63 @@ test('the real engine and finding and placing (N-12): a part dragged in and one 
     const out = path.join(r.dir, 'saved.circ');
     await answerSave(r.app, out);
     await page.keyboard.press('Control+Shift+s');
-    await expect.poll(() => existsSync(out)).toBe(true);
+    // the file appears before the engine has written it: wait for its end
+    await expect.poll(() => existsSync(out) && readFileSync(out, 'utf8').includes('</project>')).toBe(true);
     const saved = readFileSync(out, 'utf8');
     expect(saved).toContain('<hcs:tunnel label="MemRead" color="#D55E00"/>');
     expect(saved).toContain('<hcs:splitter x="620" y="200" arm0="op" arm1="rs" arm2="rt" arm3="rd" arm4="shamt" arm5="fn"/>');
     expect(saved).toContain('<a name="fanout" val="6"/>');
+  } finally {
+    await r.close();
+  }
+});
+
+test('the real engine and the overlays (N-15): the PC\'s Signal Flow is v1\'s, I shows the influence, the Cycle View\'s active path and fields; a group and a memo saved in hcs:ext and undone', async () => {
+  const r = await launch(undefined, { env: real });
+  const { page } = r;
+  try {
+    await opened(r);
+    const pc = await partMiddle(page, 'Register', 'PC');
+    await click(page, pc.at);
+    await page.waitForFunction(() => (window as unknown as { __hcsOverlays: { shown(): { flow: { running: boolean } } } }).__hcsOverlays.shown().flow.running);
+    // the engine's flow.path is v1's SignalFlowPath (tests/circ/flow/demo-pc.flow)
+    expect((await shown(page)).flow.ends).toEqual(['state Instruction Memory (Addr)', 'unconnected Comparator (gt)', 'unconnected Comparator (lt)', 'output halt', 'state PC (D)']);
+    await page.keyboard.press('i');
+    await page.waitForFunction(() => (window as unknown as { __hcsOverlays: { shown(): { influence: unknown } } }).__hcsOverlays.shown().influence !== null);
+    await expect(page.locator('.status')).toContainText('Influence: Forward · all steps');
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Escape');
+    expect((await shown(page)).influence).toBeNull();
+    // with the Cycle View: the MemtoReg MUX's branch and the arms named after the instruction's fields
+    await page.getByRole('tab', { name: 'Cycle View' }).click();
+    await page.waitForFunction(() => (window as unknown as { __hcsOverlays: { shown(): { activePath: number } } }).__hcsOverlays.shown().activePath > 0);
+    const s = await shown(page);
+    expect(s.activePath).toBe(5);
+    expect(s.fields).toEqual(['rs', 'rt', 'rd']);
+    await page.getByRole('tab', { name: 'Messages' }).click();
+    // a signal group and an area memo: the engine's intents, one undo step each, saved in hcs:ext
+    const w = await wireAtPort(page, 'alu', 'Result');
+    await rightClick(page, w.at);
+    await menu(page, 'Signal Group', 'Data');
+    await page.waitForFunction((net) => (window as unknown as { __hcsCanvas: { scene: { groups: Map<string, { group: string }> } } }).__hcsCanvas.scene.groups.get(net)?.group === 'data', w.net);
+    await rightClick(page, [700, 480]);
+    await menu(page, 'Add Area Memo…');
+    const d = page.locator('dialog.ovdialog[open]');
+    await d.getByLabel('Text').fill('EX');
+    await d.getByRole('button', { name: 'OK' }).click();
+    await page.waitForFunction(() => (window as unknown as { __hcsOverlays: { shown(): { memos: unknown[] } } }).__hcsOverlays.shown().memos.length === 1);
+    const target = path.join(r.dir, 'with-ext.circ');
+    await answerSave(r.app, target);
+    await page.keyboard.press('Control+Shift+s');
+    await expect(page.locator('.status .ok')).toContainText('저장했습니다 · with-ext.circ');
+    const text = readFileSync(target, 'utf8');
+    expect(text).toContain('<hcs:group');
+    expect(text).toContain('group="data"');
+    expect(text).toMatch(/<hcs:memo [^>]*text="EX"/);
+    await page.keyboard.press('Control+z');
+    await page.waitForFunction(() => (window as unknown as { __hcsOverlays: { shown(): { memos: unknown[] } } }).__hcsOverlays.shown().memos.length === 0);
+    await page.keyboard.press('Control+z');
+    await page.waitForFunction((net) => !(window as unknown as { __hcsCanvas: { scene: { groups: Map<string, unknown> } } }).__hcsCanvas.scene.groups.has(net), w.net);
   } finally {
     await r.close();
   }

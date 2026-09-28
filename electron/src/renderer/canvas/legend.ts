@@ -10,6 +10,7 @@ import { LEGEND, VALUE_VARS } from './tokens.ts';
 export interface LegendOptions {
   busWidths: boolean;
   onBusWidths(on: boolean): void;
+  extra?: HTMLElement;      // more rows (N-15: Colors, Bus Values, Active Path; overlays/controller.ts)
 }
 
 export function legend(o: LegendOptions): { button: HTMLButtonElement; panel: HTMLElement } {
@@ -24,7 +25,8 @@ export function legend(o: LegendOptions): { button: HTMLButtonElement; panel: HT
   const panel = h('div', { class: 'legend-panel', role: 'dialog', 'aria-label': 'Wire Colors', hidden: true },
     h('h4', {}, 'Wire Colors'),
     h('ul', {}, ...rows),
-    h('label', { class: 'legend-opt' }, box, 'Show Bus Widths'));
+    h('label', { class: 'legend-opt' }, box, 'Show Bus Widths'),
+    o.extra ?? null);
   const button = h('button', { type: 'button', class: 'legend-button', title: '선 색이 무엇을 뜻하는지 봅니다', 'aria-expanded': 'false' },
     h('span', { class: 'legend-dots', 'aria-hidden': 'true' },
       ...(['vOne', 'vZero', 'vFloat', 'vError'] as const).map((t) => h('span', { style: `background: var(${VALUE_VARS[t]})` }))),

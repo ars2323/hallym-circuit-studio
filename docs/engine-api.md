@@ -98,7 +98,9 @@ Snapshot = {
   circuitId, name,
   components: [Component], wires: [{id, a:[x,y], b:[x,y]}],
   nets: [{id, width, wires:[wireId], ports:[[componentId, portIndex]]}],
-  junctions: [[x,y]]            // 세 갈래 이상이 만나는 점(연결점)
+  junctions: [[x,y]],           // 세 갈래 이상이 만나는 점(연결점)
+  groups?: [{net, group:"control"|"data"|"address", assigned}],   // 신호 그룹(N-15), 없으면 빠진다
+  memos?: [{x, y, w, h, color, text}]                               // 영역 메모(N-15), 없으면 빠진다
 }
 Component = {
   id, lib, name,                // 예: "Gates", "AND Gate"
@@ -115,6 +117,7 @@ Component = {
 - `ports[].name`은 포크의 부품 등록표 이름(서브회로는 안쪽 핀의 라벨)이다. `dir`은 부품 쪽에서 본 방향이다(출력 핀은 넷을 읽으므로 `"in"`).
 - 넷은 원조 연결 계산으로 묶은 선과 그 선의 끝·선 위에 닿은 포트, 선 없이 한 점에 닿은 포트들이다. 같은 이름의 터널은 한 넷이다(스플리터는 넷을 잇지 않는다). 모든 포트와 선은 정확히 한 넷에 든다.
 - `junctions`: 선 끝 가운데 선·포트가 셋 이상 만나는 점(원조가 점을 그리는 조건).
+- `groups`·`memos`(N-15, D-151): 학생이 회로에 둔 표시 정보(.circ 확장 정보 hcs:ext, 원조 회로 부분과 무관). `groups`는 그룹이 있는 넷(`net`은 이 스냅숏의 넷 번호)이고 `assigned`는 학생이 정한 것, 아니면 이름이 `control`인 서브회로 인스턴스의 출력이라 기본 Control인 것이다(v1 E-04). `memos`는 파일 차례의 영역 메모이고 `color`는 터널 색 팔레트 번호(0~11, v1 E-08)다. 없으면 두 칸 모두 빠진다(빈 목록과 같다).
 - `appearance`(N-05, D-137): 서브회로 인스턴스를 원조와 같은 자리·크기로 그리는 도형. 기본 모양(원조가 핀으로 만드는 상자와 홈)도 사용자 모양도 같은 꼴이다.
 
   ```
@@ -185,8 +188,8 @@ Component = {
 | `edit.loadLibrary` | `kind:"builtin"\|"circ"\|"jar", name?, path?` | Project › Load Library |
 | `edit.unloadLibrary` | `name` | Unload Library |
 | `edit.tunnelColor` | `id, color?:"#rrggbb"` | 터널 색(v1 팔레트 12색, 없으면 Automatic). 그 회로의 같은 이름 터널 모두. hcs:ext(N-12, 아래) |
-| `edit.signalGroup` | `wire, group?:"control"\|"data"\|"address"` | 신호 그룹(없으면 없음). hcs:ext |
-| `edit.areaMemo` | `at, ids?, text?, color?, bounds?:[x,y,w,h], delete?` | 영역 메모 더하기(고른 것을 감싼 상자에서 시작)·지우기. hcs:ext |
+| `edit.signalGroup` | `wire, group?:"control"\|"data"\|"address"` | 신호 그룹(없으면 없음). hcs:ext. **N-15에서 엔진에 들어감**(아래) |
+| `edit.areaMemo` | `at, ids?, text?, color?, bounds?:[x,y,w,h], delete?` | 영역 메모 더하기(고른 것을 감싼 상자에서 시작)·고치기·맞추기·지우기. hcs:ext. **N-15에서 엔진에 들어감**(아래) |
 | `edit.splitterEdit` | `id, ranges, names?, lsbTop?` | Splitter 편집기 적용(원조 fanout·incoming·bitN + 팔 이름 hcs:ext, N-12, 아래) |
 | `edit.splitterSplit` | `wire, at, ranges, names?, lsbTop?` | 여러 비트 선에 새 스플리터(Split Bits…, Take One Bit, N-12, 아래). result `id`: 새 스플리터 |
 
@@ -196,7 +199,7 @@ Component = {
 - `edit.setAttr`: 선은 건너뛴다. 모든 부품에 그 속성이 있어야 한다(없으면 -32602). 속성은 부품 객체 안에서 바뀌므로 같은 id가 `added`로 온다.
 - 편집하면 그 회로가 시뮬레이션의 지금 회로가 된다(Swing에서 보고 있는 회로를 편집하는 것과 같다). 다른 회로를 보고 있었다면 화면이 `sim.watch`를 다시 보낸다.
 
-`edit.setToolAttr`부터 아래 줄은 편집 동등성 골든(N-01, D-136)을 적으려고 **제안한** 의도다. 지금 엔진에는 아직 없고, N-08·N-09에서 엔진에 더하면서 이 표를 확정한다. 다만 `edit.tunnelColor`·`edit.splitterEdit`·`edit.splitterSplit`은 N-12(D-150)가 확정했다(아래). 그때까지 위 다섯 줄(`addComponent`~`setAttr`)과 `undo`·`redo`의 계약이 기준이다(`ids`는 반드시 준다, `path`는 절대 경로).
+`edit.setToolAttr`부터 아래 줄은 편집 동등성 골든(N-01, D-136)을 적으려고 **제안한** 의도다. `edit.signalGroup`·`edit.areaMemo`는 N-15(D-151)에서 엔진에 들어갔고 뜻은 아래 "신호 그룹·영역 메모"와 같다. 지금 엔진에는 아직 없고, N-08·N-09에서 엔진에 더하면서 이 표를 확정한다. 다만 `edit.tunnelColor`·`edit.splitterEdit`·`edit.splitterSplit`은 N-12(D-150)가 확정했다(아래). 그때까지 위 다섯 줄(`addComponent`~`setAttr`)과 `undo`·`redo`의 계약이 기준이다(`ids`는 반드시 준다, `path`는 절대 경로).
 
 편집 동등성(N-01, D-136, `tests/parity/`)에서 본 것 — **N-09에서 맞출 차이(아직 계약이 아님)**:
 
@@ -215,10 +218,17 @@ Component = {
 - `ids`의 부품은 엔진 id다. 의도 파일은 id 대신 기호(앞 `edit.addComponent`의 `as`, result `id`로 바꾼다)·`label:`·`at:x,y`·`wire:x,y`로 적는다(형식은 `tests/parity/README.md`).
 - `view.zoom`(`{factor}`)은 화면 배율이라 엔진 메서드가 아니다(의도 파일에만 있고 엔진은 아무것도 하지 않는다).
 
-`model.changed = {fileId, circuitId, removed:[id], added:[Component|Wire], nets, junctions, dirty}`
+**신호 그룹·영역 메모(N-15, D-151).** 둘 다 v1 우클릭 항목의 동작(`SignalGroups.action`, `AreaMemos.action`)을 `Project.doAction`에 한 번 넘긴다: 되돌리기 한 단계이고 .circ 확장 정보(hcs:ext)만 바뀌며 원조 회로 부분은 바이트까지 그대로다. 편집 동등성 골든(tests/parity 13·16·18)의 Swing 경로와 같은 코드다.
+
+- `edit.signalGroup {wire, group?}`: 선 `wire`의 넷에 그룹을 정한다(`group`이 없으면 None: 학생이 정한 그룹을 뗀다). 넷은 이름(터널·핀 라벨), 없으면 가장 작은 자리로 저장된다(v1). 이미 같으면 `changed:false, outcome:"same"`(Swing은 같은 그룹도 한 단계로 적는다: 차이는 되돌리기 기록뿐이고 저장 결과는 같다). 선이 아니면 -32602, 모르는 그룹 -32602.
+- `edit.areaMemo {at, ids?, text?, color?, bounds?, delete?}`: `at`을 감싸는 메모(겹치면 가장 작은 것)가 있으면 그 메모를 **고친다**: 준 것만 바뀐다(`text` 앞뒤 공백 뺌, `color` 0~11, `bounds` [x,y,w,h] 폭·높이 20 이상), `bounds` 없이 `ids`를 주면 그 부품·선 둘레로 맞춘다(Fit Area Memo to Selection), 같으면 `outcome:"same"`. `delete:true`면 그 메모를 지운다(없으면 `outcome:"noMemo"`). 감싸는 메모가 없으면 **더한다**(Add Area Memo…): `ids`의 둘레(여백 20, 격자에 맞춤), 없으면 `at`에 200×120, 색은 주지 않으면 메모 수로 돌아가며. result `outcome`: `"added"`·`"edited"`·`"deleted"`. 되돌린 지우기는 메모를 목록 끝에 다시 붙인다(v1, 그리기 차례만 다르다).
+- 두 의도 뒤에는 부품이 바뀌지 않아도 `model.changed`가 온다(`removed`·`added`는 비고 `groups`·`memos`가 새것). 되살리기 저널(7절)에 그대로 적힌다: `wire`·`ids`는 부품으로, `at`·`bounds`는 자리다.
+
+`model.changed = {fileId, circuitId, removed:[id], added:[Component|Wire], nets, junctions, groups, memos, dirty}`
 
 - 화면은 `removed`를 먼저 지우고 `added`를 id로 넣거나 바꾼다(upsert). 제자리에서 바뀐 부품(같은 id)은 `added`에만 온다.
 - `nets`·`junctions`는 그 회로의 **전체** 목록이다(넷 번호를 다시 매겼다). 한 편집이 다른 회로도 바꾸면(예: 서브회로 핀을 바꿔 인스턴스 포트가 바뀜) 회로마다 하나씩 온다. `dirty`는 파일의 저장 필요 여부다.
+- `groups`·`memos`(N-15)도 그 회로의 **전체** 목록이다(빈 목록이면 없음). 부품·선이 그대로이고 그룹·메모만 바뀐 편집(과 그 되돌리기)도 이 알림으로 온다.
 
 ### sim
 
@@ -365,9 +375,39 @@ FindPlace = {circuitId, root, path:[componentId], componentId, at:[x,y], place, 
 - 색인은 부를 때마다 지금 모델로 새로 만든다(편집 뒤 곧바로 맞다, I-171 정함). 모델을 읽기만 한다(`OpenSaveParityTest`의 화면이 여는 동안 하는 일에 든다). 화면은 편집(`model.changed`) 뒤 열린 찾기 창의 글로 다시 묻는다.
 - 화면이 자리로 가는 것은 "이곳 보이기"(`hcs:reveal`, 5절 끝)에 `tone:"find"`를 붙인 것이다: 그 인스턴스 안으로 가서 부품을 선택의 파란 모양으로 보인다.
 
+### flow·trace(캔버스 덧그림, N-15, D-151)
+
+| 메서드 | params | result |
+| --- | --- | --- |
+| `trace.influence` | `{fileId, circuitId, from:[id], mode:"forward"\|"backward"\|"both"\|"between", throughRegisters?, depth?}` | `Influence` |
+| `trace.net` | `{fileId, circuitId, wire? \| netId?}` | `{netId, width, name, drivers, readers, others}`: 포트마다 `{componentId, port, text}` |
+| `flow.path` | `{fileId, circuitId, componentId, port?} \| {fileId, circuitId, wire, at?}` + `{backward?, throughRegisters?, activePathOnly?}` | `FlowPath` |
+| `flow.activePath` | `{fileId, circuitId}` | `{circuitId, watched, muxes:[{componentId, input, segments:[[[x,y],[x,y]]]}]}` |
+
+모두 **읽기만** 한다: 회로 모델도 시뮬레이션 상태도 바꾸지 않는다(`model.changed` 없음, 파일이 더러워지지 않음; `OpenSaveParityTest`가 이 요청을 거친 뒤에도 저장 결과가 원래와 같은지 본다). 계산은 v1의 GUI 없는 코드 그대로다: 공용 연결 엔진(`Netlist`, `Trace`)과 `Influence`(P-01), `SignalFlowPath`·`ActivePath`(P-07), `ActiveBranches`(C-08·V-04, v1 `ActivePathOverlay`에서 떼어 낸 계산). 회로는 화면이 보이는 회로이고(서브회로 인스턴스 안을 보면 그 서브회로), 경로는 그 회로를 맨 위로 삼는다.
+
+```
+Influence = {mode, depth, maxDepth, throughRegisters,
+  forward:{wires:[id], parts:[id]}, backward:{wires:[id], parts:[id]},
+  stops:[id], origin:[id], inside:[{componentId, name, places}], tunnels:[id], links:[[[x,y],[x,y]]]}
+FlowPath = {circuitId, backward, total, click?:[x,y],
+  segments:[{path, circuitId, from, to, start, length, width, cycle}],
+  jumps:[{path, circuitId, from, to, start}],
+  passes:[{path, circuitId, componentId, name, time, boundary, cycle}],
+  endpoints:[{path, circuitId, componentId, port, at, time, kind:"output"|"state"|"unconnected"|"source", label}],
+  loops:[id], undetermined:[id]}
+```
+
+- **`trace.influence`**(v1 P-01, D-062): `from`(부품·선)에서 앞(`forward`: 그것이 구동하는 곳), 뒤(`backward`: 그것을 구동하는 곳), 양쪽(`both`), 또는 두 부품 사이(`between`: 첫째에서 앞으로 ∩ 둘째에서 뒤로, `from`이 부품 둘이어야 한다). 상태 부품(레지스터·메모리)에서 멈추고 `throughRegisters`면 넘는다. `depth`는 건넌 부품 수의 한계(없거나 -1이면 끝까지, 0은 -32602, `maxDepth` 이상은 끝까지로 돌려준다). `maxDepth`는 끝까지 갔을 때의 가장 깊은 곳이다(화면의 [ ]가 쓴다). `stops`는 멈춘 상태 부품, `origin`은 시작, `inside`는 안쪽에 닿은 서브회로 인스턴스와 그 안에서 닿은 곳 수(`name`은 서브회로 이름, "alu: 3 places"), `tunnels`는 닿은 넷의 터널(자리 순), `links`는 터널이 딱 둘인 넷의 두 터널(클럭 넷 빼고, v1). 선·부품 목록은 v1 `Influence.View`의 차례다.
+- **`trace.net`**(v1 B-09 Net Information…): 선 `wire`의 넷 또는 `netId`의 폭, 이름(터널 라벨 → 구동하는 핀 → 다른 핀, 없으면 `""`), 값을 내는 포트·읽는 포트·그 밖(터널·스플리터 등). `text`는 v1 넷 정보와 같은 공용 식별자 글(`alu #1 (Result)`, 포트 하나짜리는 부품 이름)이고, 목록은 포트 자리(y, x)·부품 이름·포트 번호 순이다(넷의 포트 차례는 해시 차례를 따를 수 있어 자리로 정렬한다).
+- **`flow.path`**(v1 P-07, V-06, D-063): 부품 `componentId`(`port`를 주면 그 포트만, 없으면 앞으로는 모든 출력·뒤로는 모든 입력) 또는 선 `wire`(앞으로는 그 넷의 드라이버에서, `at`은 누른 점으로 `click`에 돌아온다)에서 신호가 가는 길. 시각·길이는 회로 단위의 거리다: 선을 따라 간 길이에 부품 30, 터널 점프 30, 서브회로 경계 20, 스플리터 10을 더한다(소수 한 자리). `backward`면 출처에서 누른 곳으로 흐르게 시각을 뒤집는다. `path`는 맨 위 회로에서 그 걸음의 회로까지 거친 서브회로 인스턴스 id들(맨 위는 `[]`), `cycle`은 상태 부품을 넘은 수(`throughRegisters`), `boundary`는 서브회로 경계를 지난 것이다. 끝점 `label`은 학생 라벨 먼저(`PC (D)`, `Splitter [31:26]`, 서브회로 안이면 `regfile › WD`). `activePathOnly`면 MUX·Demux·Decoder·Priority Encoder에서 선택이 정해진 가지만 건너고 정해지지 않은 부품은 `undetermined`에 든다. 값은 화면이 `sim.watch`로 보고 있는 회로 상태에서만 읽는다(그 회로를 보고 있지 않으면 값을 모르는 것으로: 모든 가지와 `undetermined`). 서브회로 안의 값은 원조가 이미 붙인 하위 상태만 따라가고 상태를 새로 만들지 않는다. 같은 누름은 늘 같은 글자다.
+- **`flow.activePath`**(v1 C-08, V-04, D-079, D-099): 화면이 보고 있는 회로 상태(`sim.watch`, 지난 사이클을 보이면 `record.view`가 바꿔 끼운 그 사이클의 상태)에서 MUX마다 선택 값이 정해졌으면 고른 데이터 입력(`input`)까지 오는 가지의 선분들. 그 넷을 내는 포트에서 그 입력까지의 가장 짧은 선 경로만이고(`Netlist.branch`), 내는 포트를 모르면 넷 전체다. 그 회로를 보고 있지 않으면 `watched:false`와 빈 목록이다.
+- 필드 색(C-07)의 선은 `record.fieldPaths`(위 record 절)가 준다.
+- **화면:** 캔버스 덧그림(`electron/src/renderer/canvas/overlays/`)이 이 답을 그린다. 선택은 캔버스의 `hcs:selection` 사건(`canvas/events.ts`), 도구는 `hcs:tool` 사건 또는 도구 모음에서 읽는다.
+
 ## 6. 확장
 
-영향 경로, Signal Flow는 각 N 항목에서 이 문서에 절을 더하며 늘린다. 메서드 이름은 `trace.*`로 묶는다(`mips.*`와 기록 `record.*`는 5절, `diag.*`·`trace.origin`은 5절 끝에 있다).
+다른 경로 계산이 생기면 이 문서에 절을 더하며 늘린다. 메서드 이름은 `trace.*`·`flow.*`로 묶는다(`mips.*`와 기록 `record.*`는 5절, `diag.*`·`trace.origin`과 `flow.*`·`trace.influence`·`trace.net`은 5절 끝에 있다).
 
 ## 7. 수명: 시작, 끝, 다시 시작, 되살리기(N-04, D-142)
 

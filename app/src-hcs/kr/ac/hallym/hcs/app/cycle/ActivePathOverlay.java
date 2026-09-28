@@ -10,26 +10,19 @@ import java.awt.BasicStroke;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 
 import com.cburch.logisim.circuit.Circuit;
 import com.cburch.logisim.circuit.CircuitState;
-import com.cburch.logisim.circuit.Wire;
-import com.cburch.logisim.comp.Component;
 import com.cburch.logisim.data.Location;
-import com.cburch.logisim.data.Value;
 import com.cburch.logisim.gui.main.Canvas;
 import com.cburch.logisim.proj.Project;
 
 import kr.ac.hallym.hcs.app.Settings;
-import kr.ac.hallym.hcs.app.flow.ActivePath;
 import kr.ac.hallym.hcs.app.model.Netlist;
-import kr.ac.hallym.hcs.app.model.RefKey;
 import kr.ac.hallym.hcs.app.theme.Tokens;
 
 /**
@@ -44,8 +37,6 @@ public final class ActivePathOverlay {
     static final float HALO_ALPHA = 0.7f;
 
     private static final Set<Project> SHOWN = Collections.newSetFromMap(new WeakHashMap<>());
-    /** 회로마다 회로 모양 서명과 넷 목록(부품·선이 그대로면 다시 쓴다). */
-    private static final Map<Circuit, Object[]> NETS = new WeakHashMap<>();
 
     private ActivePathOverlay() {
     }
@@ -81,76 +72,16 @@ public final class ActivePathOverlay {
     }
 
     /**
-     * MUX마다 선택 값이 정해졌으면, 고른 데이터 입력까지 오는 가지의 선분들(V-04): 그 넷을 내는 포트에서 그 입력 포트까지의
-     * 가장 짧은 선 경로만. 같은 넷의 다른 가지(다른 부품으로 가는 선)는 칠하지 않는다. 내는 포트를 모르면(스플리터·터널만
-     * 있는 넷) 넷 전체. GUI 없이 테스트한다.
+     * MUX마다 선택 값이 정해졌으면, 고른 데이터 입력까지 오는 가지의 선분들(V-04). 계산은 GUI 없는
+     * {@link ActiveBranches}(v2 엔진도 쓴다, D-151)가 한다.
      */
     static List<Location[]> selected(Circuit circ, CircuitState state) {
-        List<Location[]> out = new ArrayList<>();
-        if (circ == null || state == null) {
-            return out;
-        }
-        Netlist nl = null;
-        for (Component c : circ.getNonWires()) {
-            if (!c.getFactory().getName().equals("Multiplexer")) {
-                continue;
-            }
-            int n = c.getEnds().size();
-            int k = ActivePath.dataCount(c, n); // 포트: 데이터 0..k-1, 선택 k, (enable), 출력 마지막
-            if (k >= n) {
-                continue;
-            }
-            Value sel = state.getValue(c.getEnd(k).getLocation());
-            if (sel == null || !sel.isFullyDefined()) {
-                continue;
-            }
-            int i = sel.toIntValue();
-            if (i < 0 || i >= k) {
-                continue;
-            }
-            if (nl == null) {
-                nl = netlist(circ);
-            }
-            Netlist.Net net = nl.netOf(c, i);
-            if (net == null) {
-                continue;
-            }
-            Location to = c.getEnd(i).getLocation();
-            Location from = null;
-            if (!net.drivers().isEmpty()) {
-                from = net.drivers().get(0).location();
-            } else {
-                for (Netlist.PortRef p : net.ports()) {
-                    if (p.component != c && !p.data().isInput()) {
-                        from = p.location();
-                        break;
-                    }
-                }
-            }
-            List<Location[]> branch = from == null ? Collections.<Location[]>emptyList() : Netlist.branch(net, from, to);
-            if (branch.isEmpty()) {
-                for (Wire w : net.wires()) {
-                    out.add(new Location[] {w.getEnd0(), w.getEnd1()});
-                }
-            } else {
-                out.addAll(branch);
-            }
-        }
-        return out;
+        return ActiveBranches.segments(circ, state);
     }
 
-    /** 부품·선이 그대로면 지난 넷 목록. 서명은 부품·선의 정체를 비교한다(D-129: identity hash 합이 아니라). */
+    /** 부품·선이 그대로면 지난 넷 목록({@link ActiveBranches#netlist}). */
     static Netlist netlist(Circuit circ) {
-        RefKey sig = RefKey.shape(circ);
-        synchronized (NETS) {
-            Object[] hit = NETS.get(circ);
-            if (hit != null && hit[0].equals(sig)) {
-                return (Netlist) hit[1];
-            }
-            Netlist nl = Netlist.of(circ);
-            NETS.put(circ, new Object[] {sig, nl});
-            return nl;
-        }
+        return ActiveBranches.netlist(circ);
     }
 
     /** CanvasPainter가 부품을 그린 뒤 부른다(회로 좌표, 배율이 걸린 Graphics). */
@@ -195,7 +126,7 @@ public final class ActivePathOverlay {
                 area.subtract(lines);
             }
             java.awt.Rectangle box = area.getBounds();
-            for (Component x : circ.getNonWires()) {
+            for (com.cburch.logisim.comp.Component x : circ.getNonWires()) {
                 com.cburch.logisim.data.Bounds b = x.getBounds();
                 java.awt.Rectangle r = new java.awt.Rectangle(b.getX() - 1, b.getY() - 1, b.getWidth() + 2,
                         b.getHeight() + 2);

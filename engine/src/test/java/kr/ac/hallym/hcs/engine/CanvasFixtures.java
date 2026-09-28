@@ -59,8 +59,11 @@ public final class CanvasFixtures {
         }
         // Components·검색 창·Find·Splitter 편집기의 자료(N-12, D-150)
         FindFixtures.write(out, repo);
-        System.out.println("canvas fixtures: " + cases + " geometry cases, 3 circuits, library, find, splitter ranges -> "
-                + out);
+        // 캔버스 덧그림(N-15, D-151): 같은 id로 영향 경로·Signal Flow·활성 경로·넷 정보·필드 경로
+        File demo = repo.resolve("tests/circ/demo-datapath.circ").toFile();
+        FlowFixtures.write(demo, FlowFixtures.target(out, demo));
+        System.out.println("canvas fixtures: " + cases + " geometry cases, 3 circuits, library, find, splitter ranges, "
+                + "overlays -> " + out);
         System.exit(0);
     }
 
@@ -496,6 +499,11 @@ public final class CanvasFixtures {
             JsonArray na = new JsonArray();
             ns.forEach(na::add);
             o.add("nets", na);
+            if (o.has("groups")) { // 신호 그룹(N-15)의 넷도 새 번호로
+                for (JsonElement g : o.getAsJsonArray("groups")) {
+                    g.getAsJsonObject().addProperty("net", netMap.get(g.getAsJsonObject().get("net").getAsString()));
+                }
+            }
             return o;
         }
 

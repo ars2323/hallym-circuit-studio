@@ -33,6 +33,8 @@ public final class ModelTracker {
     private final LogisimFile file;
     private final Map<Circuit, Map<String, JsonObject>> last = new IdentityHashMap<>();
     private final Map<Circuit, Netlist> netlists = new IdentityHashMap<>();
+    /** 마지막으로 알린 신호 그룹·영역 메모(hcs:ext, N-15 D-151): 그것만 바뀐 편집도 알린다. */
+    private final Map<Circuit, JsonObject> lastExt = new IdentityHashMap<>();
     /** 화면이 본 .circ 라이브러리의 회로(읽기 전용). 그 부품 id도 살려 둔다(인스턴스 경로에 쓴다). */
     private final Set<Circuit> viewedLibraryCircuits = Collections.newSetFromMap(new IdentityHashMap<>());
 
@@ -49,8 +51,10 @@ public final class ModelTracker {
     public void baseline() {
         last.clear();
         netlists.clear();
+        lastExt.clear();
         for (Circuit c : file.getCircuits()) {
             last.put(c, state(c));
+            lastExt.put(c, json.ext(c, () -> netlist(c)));
         }
     }
 
@@ -71,6 +75,7 @@ public final class ModelTracker {
         List<JsonObject> out = new ArrayList<>();
         List<Component> live = new ArrayList<>();
         Map<Circuit, Map<String, JsonObject>> next = new IdentityHashMap<>();
+        Map<Circuit, JsonObject> nextExt = new IdentityHashMap<>();
         for (Circuit c : file.getCircuits()) {
             live.addAll(c.getNonWires());
             live.addAll(c.getWires());
@@ -92,10 +97,20 @@ public final class ModelTracker {
                     added.add(e.getValue());
                 }
             }
-            if (removed.isEmpty() && added.isEmpty()) {
+            boolean shape = !(removed.isEmpty() && added.isEmpty());
+            if (shape) {
+                netlists.remove(c);
+            }
+            // 신호 그룹·영역 메모만 바뀐 편집(edit.signalGroup, edit.areaMemo와 그 되돌리기)도 알린다
+            JsonObject ext = json.ext(c, () -> netlist(c));
+            nextExt.put(c, ext);
+            JsonObject extBefore = lastExt.get(c);
+            boolean extSame = extBefore == null
+                    ? ext.getAsJsonArray("groups").size() == 0 && ext.getAsJsonArray("memos").size() == 0
+                    : ext.equals(extBefore);
+            if (!shape && extSame) {
                 continue;
             }
-            netlists.remove(c);
             removed.sort(null);
             added.sort(ModelJson.ORDER);
             JsonObject o = new JsonObject();
@@ -107,11 +122,15 @@ public final class ModelTracker {
             o.add("added", ModelJson.toArray(added));
             o.add("nets", json.nets(c, netlist(c)));
             o.add("junctions", ModelJson.junctions(c));
+            o.add("groups", ext.get("groups"));
+            o.add("memos", ext.get("memos"));
             o.addProperty("dirty", dirty);
             out.add(o);
         }
         last.clear();
         last.putAll(next);
+        lastExt.clear();
+        lastExt.putAll(nextExt);
         netlists.keySet().retainAll(next.keySet());
         for (Circuit c : viewedLibraryCircuits) {
             live.addAll(c.getNonWires());

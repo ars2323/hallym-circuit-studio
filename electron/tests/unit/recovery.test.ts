@@ -353,6 +353,59 @@ test('recovery: Tunnel Color and the Splitter editor (N-12) are journaled with t
   }
 });
 
+test('the journal: a signal group names its wire, an area memo the parts it goes around, as parts (N-15)', () => {
+  const s = new Shadow();
+  const j = new Journal();
+  s.answer('file.open', {}, { fileId: 'f1', circuits: [{ circuitId: 'c1', name: 'main' }] });
+  s.answer('model.circuit', { fileId: 'f1', circuitId: 'c1' }, snapshot('c1', { comps: [['k7', and(300, 200)]], wires: [['w3', [100, 100], [200, 100]]] }));
+  j.opened('f1', { kind: 'path', path: '/a.circ', readOnly: false }, { main: 'c1' }, 'sum');
+  j.record('f1', 'edit.signalGroup', { fileId: 'f1', circuitId: 'c1', wire: 'w3', group: 'control' }, s);
+  j.record('f1', 'edit.areaMemo', { fileId: 'f1', circuitId: 'c1', at: [600, 600], ids: ['k7', 'w3'], text: 'IF', color: 2 }, s);
+  j.record('f1', 'edit.areaMemo', { fileId: 'f1', circuitId: 'c1', at: [600, 600], delete: true }, s);
+  const [g, add, del] = j.files.get('f1')!.entries;
+  assert.equal(j.files.get('f1')!.broken, null);
+  assert.ok(journaled('edit.signalGroup') && journaled('edit.areaMemo'));
+  const wire = refOf({ id: 'w3', a: [100, 100], b: [200, 100] });
+  assert.deepEqual(g.refs.wire, wire);
+  assert.deepEqual(add.refs.ids, [refOf(and(300, 200)), wire]);
+  assert.deepEqual(del.refs, {}, 'a memo is found by its place');
+});
+
+test('recovery: signal groups and area memos (N-15) are replayed with the wire and the parts found again; the memos and groups come back', async () => {
+  const { dir, datapath } = scratch();
+  const copy = path.join(dir, 'datapath-ext.circ');   // the fake reads it itself: a new engine gives new ids
+  copyFileSync(datapath, copy);
+  const { engine, sup } = fake();
+  try {
+    await engine.start();
+    const a = await win<OpenResult>(engine, 'file.open', { path: copy });
+    const main = a.circuits.find((c) => c.name === 'main')!.circuitId;
+    const snap = await win<Snapshot>(engine, 'model.circuit', { fileId: a.fileId, circuitId: main });
+    const w = snap.wires[0];
+    const pc = snap.components.find((c) => c.name === 'Register' && c.attrs.label === 'PC')!;
+    await win(engine, 'edit.signalGroup', { fileId: a.fileId, circuitId: main, wire: w.id, group: 'address' });
+    await win(engine, 'edit.areaMemo', { fileId: a.fileId, circuitId: main, at: [900, 900], ids: [pc.id], text: 'IF', color: 2 });
+    const replayed: [string, Record<string, unknown>][] = [];
+    engine.on('answer', (x) => { if (x.tag === 'recovery' && x.method.startsWith('edit.')) replayed.push([x.method, x.params as Record<string, unknown>]); });
+    const done = recovered(sup);
+    engine.kill();
+    const r = await done;
+    assert.deepEqual(r.restored, [{ fileId: a.fileId, edits: 2, dirty: true }]);
+    assert.deepEqual(replayed.map(([m]) => m), ['edit.signalGroup', 'edit.areaMemo']);
+    const now = await win<Snapshot>(engine, 'model.circuit', { fileId: a.fileId, circuitId: main });
+    const wNow = now.wires.find((x) => x.a[0] === w.a[0] && x.a[1] === w.a[1] && x.b[0] === w.b[0] && x.b[1] === w.b[1])!;
+    const pcNow = now.components.find((c) => c.name === 'Register' && c.attrs.label === 'PC')!;
+    assert.notEqual(wNow.id, w.id, 'the new engine\'s ids');
+    assert.equal(replayed[0][1].wire, wNow.id);
+    assert.deepEqual(replayed[1][1].ids, [pcNow.id]);
+    assert.equal(now.memos?.[0].text, 'IF');
+    assert.equal(now.groups?.[0].group, 'address');
+  } finally {
+    await engine.shutdown();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('recovery: a file changed on disk since it was opened opens as it is now, its edits not replayed', async () => {
   const { dir, gates } = scratch();
   const { engine, sup } = fake();

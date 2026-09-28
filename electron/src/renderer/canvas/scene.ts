@@ -5,7 +5,7 @@
    authority; this only indexes what it says for drawing -- which net a
    wire or a port is on, the value there, where the parts and wires are. */
 
-import type { Component, ModelChanged, Net, Point, SimValues, Snapshot, Wire } from '../../main/protocol.ts';
+import type { AreaMemo, Component, GroupRef, ModelChanged, Net, Point, SimValues, Snapshot, Wire } from '../../main/protocol.ts';
 import type { Body } from './parts/common.ts';
 import { type Box, boxUnion, EMPTY_BOX } from './shapes.ts';
 
@@ -19,6 +19,9 @@ export class Scene {
   junctions: Point[] = [];
   readonly values = new Map<string, string>();        // net id → value
   readonly bodies = new Map<string, Body>();          // component id → body state
+  // What the student put on the circuit (hcs:ext, N-15): signal groups by net id, area memos in file order.
+  groups = new Map<string, GroupRef>();
+  memos: AreaMemo[] = [];
   /* Bumped by model changes and by values: whoever caches drawings compares. */
   modelVersion = 0;
   valueVersion = 0;
@@ -33,7 +36,13 @@ export class Scene {
     this.name = s.name;
     for (const c of s.components) this.components.set(c.id, c);
     for (const w of s.wires) this.wires.set(w.id, w);
+    this.setExt(s.groups ?? [], s.memos ?? []);
     this.setNets(s.nets, s.junctions);
+  }
+
+  private setExt(groups: GroupRef[], memos: AreaMemo[]): void {
+    this.groups = new Map(groups.map((g) => [g.net, g]));
+    this.memos = memos;
   }
 
   private setNets(nets: Net[], junctions: Point[]): void {
@@ -80,6 +89,8 @@ export class Scene {
       if ('a' in x) this.wires.set(x.id, x);
       else this.components.set(x.id, x);
     }
+    // the engine sends the circuit's whole lists with every change (an older one none: keep them)
+    if (c.groups || c.memos) this.setExt(c.groups ?? [...this.groups.values()], c.memos ?? this.memos);
     this.setNets(c.nets, c.junctions);
   }
 
@@ -121,7 +132,10 @@ export class Scene {
 
   // The circuit as a snapshot again (the side panels read it: counts, tunnels).
   snapshot(): Snapshot {
-    return { circuitId: this.circuitId, name: this.name, components: [...this.components.values()], wires: [...this.wires.values()], nets: this.nets, junctions: this.junctions };
+    return {
+      circuitId: this.circuitId, name: this.name, components: [...this.components.values()], wires: [...this.wires.values()], nets: this.nets, junctions: this.junctions,
+      ...(this.groups.size ? { groups: [...this.groups.values()] } : {}), ...(this.memos.length ? { memos: this.memos } : {}),
+    };
   }
 
   // Everything drawn (parts and wires), for fitting the view.
@@ -134,6 +148,8 @@ export class Scene {
     for (const w of this.wires.values()) {
       b = boxUnion(b, { x0: Math.min(w.a[0], w.b[0]), y0: Math.min(w.a[1], w.b[1]), x1: Math.max(w.a[0], w.b[0]), y1: Math.max(w.a[1], w.b[1]) });
     }
+    // area memos (N-15) and their words above the box
+    for (const m of this.memos) b = boxUnion(b, { x0: m.x, y0: m.y - 20, x1: m.x + m.w, y1: m.y + m.h });
     return b;
   }
 }

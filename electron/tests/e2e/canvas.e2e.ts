@@ -97,7 +97,7 @@ test('demo-datapath is drawn: the wires in the colours the legend shows (1, 0, a
     // bus widths off and on (this run only)
     const before = await page.evaluate(() => (window as unknown as { __hcsCanvas: { busWidths: boolean } }).__hcsCanvas.busWidths);
     expect(before).toBe(true);
-    await panel.getByRole('checkbox').uncheck();
+    await panel.getByRole('checkbox', { name: 'Show Bus Widths' }).uncheck();
     expect(await page.evaluate(() => (window as unknown as { __hcsCanvas: { busWidths: boolean } }).__hcsCanvas.busWidths)).toBe(false);
     await page.keyboard.press('Escape');
     await expect(panel).toBeHidden();

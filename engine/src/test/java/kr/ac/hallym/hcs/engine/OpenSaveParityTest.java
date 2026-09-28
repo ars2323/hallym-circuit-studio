@@ -41,7 +41,7 @@ import kr.ac.hallym.hcs.regress.CircNormalizer;
  * 차례로 열고 화면이 여는 동안 하는 일(회로마다 model.circuit과 그 안 서브회로 인스턴스의 모양(appearance), model.library,
  * diag.list, mips.facts, 찾기(find.query, N-12), sim.watch와 값 스트림의 몸체 상태(bodies), Cycle View의 record.*(D-144: 표·Registers·Memory·
  * Instruction·필드 경로, 지난 사이클 보기와 돌아오기), 몇 사이클, 캔버스가 서브회로 인스턴스 안으로 들어가 보기(sim.watch
- * path, N-05))을 한 뒤 저장하면 원래 글자와 같다(D-006 정규화). 기록기는 파일을 열 때 붙고(file.open) 사이클마다 적는다.
+ * path, N-05), 캔버스 덧그림이 묻는 영향 경로·Signal Flow·활성 경로·넷 정보(N-15))을 한 뒤 저장하면 원래 글자와 같다(D-006 정규화). 기록기는 파일을 열 때 붙고(file.open) 사이클마다 적는다.
  * Mark as PC·레지스터 파일 표시는 하지 않는다(학생이 고른 표시는 파일을 바꾸는 편집이다). 더 돌리고 한 번 더 저장해도 같다. 새 부품을 쓰는 파일도
  * 열기만으로는 아무것도 늘지 않는다.
  */
@@ -292,6 +292,34 @@ class OpenSaveParityTest {
         return "saved file differs from the original; missing " + missing + ", added " + extra;
     }
 
+    /**
+     * 캔버스 덧그림이 묻는 것(N-15, D-151): 활성 경로, 부품마다(앞 몇 개) 영향 경로·Signal Flow(Active Path Only,
+     * Through Registers 포함), 첫 선의 넷 정보와 선에서 시작한 흐름. 모두 읽기만 한다.
+     */
+    void overlays(String fileId, String main, JsonObject snap) {
+        e.client.callObject("flow.activePath", params("fileId", fileId, "circuitId", main));
+        if (snap == null) {
+            return;
+        }
+        int n = 0;
+        for (JsonElement ce : snap.getAsJsonArray("components")) {
+            if (n++ >= 6) {
+                break;
+            }
+            String id = ce.getAsJsonObject().get("id").getAsString();
+            e.client.callObject("trace.influence", params("fileId", fileId, "circuitId", main, "from",
+                    java.util.List.of(id), "mode", "both", "throughRegisters", true));
+            e.client.callObject("flow.path", params("fileId", fileId, "circuitId", main, "componentId", id,
+                    "activePathOnly", true, "throughRegisters", true));
+        }
+        JsonArray wires = snap.getAsJsonArray("wires");
+        if (wires.size() > 0) {
+            String w = wires.get(0).getAsJsonObject().get("id").getAsString();
+            e.client.callObject("trace.net", params("fileId", fileId, "circuitId", main, "wire", w));
+            e.client.callObject("flow.path", params("fileId", fileId, "circuitId", main, "wire", w, "backward", true));
+        }
+    }
+
     /** 화면(electron app.ts)이 파일을 열 때 부르는 것 전부와 몇 사이클. */
     void screenOpens(String fileId, JsonObject opened) {
         JsonObject mainSnapshot = null;
@@ -340,6 +368,7 @@ class OpenSaveParityTest {
         }
         e.client.callObject("diag.list", params("fileId", fileId));
         e.client.callObject("mips.facts", params("fileId", fileId));
+        overlays(fileId, main, mainSnapshot);
         // 캔버스가 서브회로 인스턴스 안을 보는 길(sim.watch path)과 돌아오기
         if (mainSnapshot != null) {
             for (JsonElement c : mainSnapshot.getAsJsonArray("components")) {

@@ -31,6 +31,7 @@
 import type { CircuitRef, ConsoleUpdate, DiagList, DiagMessage, EngineStatus, FindResult, LibraryGroup, MipsFacts, ModelChanged, NewResult, Point, RecordState, Recovered, Reloaded, RunUntilDone, SimState, SimValues, Snapshot } from '../../main/protocol.ts';
 import { CircuitCanvas } from '../canvas/canvas.ts';
 import { legend } from '../canvas/legend.ts';
+import { Overlays } from '../canvas/overlays/controller.ts';
 import { Scene } from '../canvas/scene.ts';
 import { toCircuit, type View, visible } from '../canvas/view.ts';
 import { zoomControl } from '../canvas/zoom.ts';
@@ -118,7 +119,18 @@ function selected(ids: string[]): void {
 const zoomCtl = zoomControl({
   zoom: () => board.view.zoom, zoomTo: (z) => board.zoomTo(z), fit: () => board.fitView(), step: (d) => board.zoomStep(d),
 });
-const wireLegend = legend({ busWidths: true, onBusWidths: (on) => { board.busWidths = on; board.invalidate(); } });
+// The Canvas's overlays (N-15, D-151, ../canvas/overlays/): influence, Signal Flow, the active path and the
+// field colours while the Cycle View is shown, bus values, signal groups, area memos, a net's highlight.
+const overlays = new Overlays({
+  board,
+  call: (method, params) => api.call(method, params),
+  ready: () => engine.state === 'ready',
+  cycleViewShown: () => bottomHead.selected() === 1 && !bottomCollapsed && files.active() !== null,
+  note: (cls, text) => { note = text ? { cls, text } : null; renderStatus(); },
+  failed: (name, e) => { note = { cls: 'err', text: commandError(name, e as CallError) }; renderStatus(); },
+  changed: () => { renderStatus(); flowToggle.setAttribute('aria-pressed', String(overlays.settings.onClick)); },
+});
+const wireLegend = legend({ busWidths: true, onBusWidths: (on) => { board.busWidths = on; board.invalidate(); }, extra: overlays.legendRows() });
 let boardKey = '';
 
 // ---- the title bar ------------------------------------------------------------
@@ -132,6 +144,13 @@ const TOOLS: [string, string, string][] = [
 const toolButtons = TOOLS.map(([name, ic, title], i) => h('button', {
   type: 'button', role: 'radio', title, 'aria-label': name, 'aria-checked': String(i === 0), class: i === 0 ? 'on' : undefined, disabled: true,
 }, icon(ic), h('span', { class: 'label' }, name)));
+// Signal Flow is a switch (Signal Flow on Click, Ctrl+Shift+F; v1 I-188), not a tool: it stays with the tools.
+const flowToggle = toolButtons[TOOLS.length - 1];
+flowToggle.setAttribute('role', 'button');
+flowToggle.removeAttribute('aria-checked');
+flowToggle.classList.add('flowtoggle');
+flowToggle.title = 'Signal Flow on Click (Ctrl+Shift+F)';
+flowToggle.addEventListener('click', () => overlays.toggleOnClick());
 const bSave = iconButton('Save (Ctrl+S)', 'save', () => void save(false));
 const bUndo = iconButton('Undo (Ctrl+Z)', 'undo-2', () => void edit('edit.undo', 'Undo'));
 const bRedo = iconButton('Redo (Ctrl+Y)', 'redo-2', () => void edit('edit.redo', 'Redo'));
@@ -461,6 +480,7 @@ function renderCycleBody(): void {
 // Whether the Cycle View is on screen (its tab chosen, the panel open, a file open): it asks the engine only then.
 function cycleShown(): void {
   cycleView.setVisible(bottomHead.selected() === 1 && !bottomCollapsed && files.active() !== null && cycleBody.root.firstChild === cycleView.root);
+  void overlays.refreshCycle(true);   // the active path and the field colours show with the Cycle View (N-15)
 }
 const bCollapse = headButton('Collapse', 'Collapse the panel', () => toggleBottom());
 bottomHead.aside.append(bCollapse);
@@ -575,6 +595,8 @@ function render(): void {
   frequency.disabled = !f || !ready;
   bCycles.disabled = true;   // N-07: the count to go
   bLoad.disabled = !f || !ready;
+  flowToggle.disabled = !f || !ready;
+  flowToggle.setAttribute('aria-pressed', String(overlays.settings.onClick));
   const ticking = f?.sim?.ticking ?? false;
   bRun.replaceChildren(icon(ticking ? 'square' : 'play'), h('span', { class: 'label' }, ticking ? 'Stop' : 'Run'), h('kbd', {}, 'F5'));
   bRun.title = ticking ? 'Stop (F5)' : 'Run (F5)';
@@ -810,6 +832,7 @@ function renderStatus(): void {
     }
     // The program: its name, PC ≠ entry at cycle 0, an old Stack, a .s path (facts, not messages; N-16).
     parts.push(...programs.statusNodes(f.fileId));
+    parts.push(...overlays.statusNodes());
   }
   if (note) parts.push(span(note.cls, note.text));
   parts.push(span('grow'));
@@ -928,6 +951,7 @@ async function closeFile(fileId: string): Promise<void> {
   diags.delete(fileId);
   programs.drop(fileId);
   consoleView.drop(fileId);
+  overlays.fileClosed(fileId);
   note = null;
   if (files.count() === 0) start.go('first');
   render();
@@ -1088,6 +1112,7 @@ api.onNotify((method, params) => {
     files.setSim(st);
     if (st.fileId === files.active()?.fileId && FREQUENCIES.some(([, hz]) => hz === st.hz)) frequency.value = String(st.hz);
     render();
+    overlays.cycleChanged(st.fileId);
   } else if (method === 'model.changed') {
     const c = p as unknown as ModelChanged;
     // The engine is the authority: its change goes into every scene of that circuit (and instances of it).
@@ -1095,6 +1120,7 @@ api.onNotify((method, params) => {
     libraries.delete(c.fileId); // the first part of a pending library puts it in the file
     watching.delete(c.fileId);  // an edit makes its circuit the simulation's own: watch the shown one again
     if (typeof c.dirty === 'boolean') files.setDirty(c.fileId, c.dirty);
+    overlays.modelChanged(c);
     board.invalidate();
     render();
     finder.refresh();   // its index is the model now (I-171 정함)
@@ -1115,10 +1141,11 @@ api.onNotify((method, params) => {
     const sc = scenes.get(v.path?.length ? sceneKey(v.fileId, v.root ?? v.circuitId, v.path) : sceneKey(v.fileId, v.circuitId));
     if (sc && sc.circuitId === v.circuitId) {
       sc.applyValues(v);
-      if (board.scene === sc) board.invalidate();
+      if (board.scene === sc) { board.invalidate(); overlays.values(v); }
     }
   } else if (method === 'record.state') {
     cycleView.onState(p as unknown as RecordState);
+    overlays.cycleChanged(String(p.fileId));
   } else if (method === 'record.runUntil') {
     cycleView.onRunUntil(p as unknown as RunUntilDone);
   } else if (method === 'engine.log') {

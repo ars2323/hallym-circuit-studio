@@ -69,6 +69,11 @@
 | Cycle View, Previous Cycle, Next Cycle, Latest Cycle, Add to Cycle View, Remove from Cycle View, Show Bits, Hide Bits | 사이클 뷰 |
 | Run Until…, Stop, Condition, Value, Max Cycles, PC Is, Next Instruction Is, Row Changes, E or X Appears, Halt or Exit | 여기까지 실행 |
 | Registers, Memory, Instruction, Cycles, Signed Decimal, Mark as PC, Unmark as PC, Mark as Register File, Unmark Register File, Register Mapping… | 레지스터 파일로 표시 |
+| Signal Flow, Signal Flow on Click, Show Signal Flow, Show Signal Flow (Backward), Stop Signal Flow, Flow Speed, Slow, Normal, Fast, Active Path Only, Reduce Motion, Smooth (60 fps) | |
+| Influence, Show Influence (Forward), Show Influence (Backward), Show Influence (Both), Path Between Selected, Through Registers, Clear Influence | |
+| Active Path, Bus Values, Hex, Dec, Signed, Off, Colors: Values, Groups, Wire Colors | |
+| Signal Group, Control, Data, Address, None, Highlight Net, Clear Net Highlight | |
+| Add Area Memo…, Edit Area Memo…, Fit Area Memo to Selection, Delete Area Memo, Text, Color | |
 | Duplicate, Undo, Redo | |
 | Getting Started, Shortcuts | |
 

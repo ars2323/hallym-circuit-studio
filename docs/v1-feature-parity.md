@@ -19,7 +19,7 @@ v1(Swing, `swing-final`)의 기능을 v2(Electron 화면 + Java 엔진)로 모�
 | B-06 | 도구 모음·상태 표시줄·도구 조작(Edit·Poke·Wire·Text…) | N-17·N-08 |  |  |  |
 | B-07 | 라벨 칩, 터널 색 칩, 포트 이름, 마우스 오버 정보 | N-05 | #425 | canvas.e2e "hover, selection…", "the drawing rules"; unit canvas-labels |  |
 | B-08 | 터널 이동(짝 터널로), 찾기(Ctrl+F) | N-12 | #433 | find.e2e "Find (Ctrl+F): …", "Tunnels: … each press the next tunnel…"; 엔진 `FindTest` | D-150. 엔진 `find.query`(v1 NameIndex + 핀·부품 이름). 터널 우클릭 "Go to Next" 메뉴 항목은 N-10이 Tunnels 칸과 같은 `revealPart`를 쓴다 |
-| B-09 | 넷 강조(Highlight Net), 넷 정보 | N-15 |  |  |  |
+| B-09 | 넷 강조(Highlight Net), 넷 정보 | N-15 | #432 | overlays.e2e "a wire's right click: Net Information…"(v1 글, Highlight Net·Clear Net Highlight, 읽기만) · 엔진 `FlowTest` 넷 정보 | D-151. `trace.net`. Select Whole Net 등 나머지 선 우클릭 항목은 N-10 |
 | B-10 | 정적 진단과 Messages 탭(정상 회로 0건) | N-13 |  | messages.e2e.ts "a broken circuit…", "nothing to say…"; 엔진 `DiagTest.normalCircuitsHaveNoMessagesBeforeAndAfterCycles` | D-143. 정상 회로 0건은 열 때와 6사이클 뒤 모두 |
 | B-11 | 따라오는 선(SafeMove), 선 한 토막 끌기 | N-08 |  |  |  |
 | B-12 | 서브회로 인스턴스 안내와 포트 변경 영향 알림 | N-11 |  |  |  |
@@ -65,8 +65,8 @@ v1(Swing, `swing-final`)의 기능을 v2(Electron 화면 + Java 엔진)로 모�
 | W-03 | 묶음 재배선 | N-08 |  |  |  |
 | W-04 | 연결점과 넷(#82) | N-05 | #425 | unit canvas-scene "wires: the engine's dots and every T, jumps"; unit canvas-draw |  |
 | W-05 | 새 선 A.4 검사기 통일 | N-08 |  |  |  |
-| P-01 | 영향 경로(#83) | N-15 |  |  |  |
-| P-07 | Signal Flow 애니메이션(추가 지시, P-01 다음) | N-15 |  |  |  |
+| P-01 | 영향 경로(#83) | N-15 | #432 | overlays.e2e "the influence (I-187)…" · real-engine.e2e "the real engine and the overlays (N-15)…" · 엔진 `FlowTest` 영향 | D-151. `trace.influence`(v1 `Influence`). "서브회로 안에서 보기"는 옮기지 않음(개수 칩만, D-151) |
+| P-07 | Signal Flow 애니메이션(추가 지시, P-01 다음) | N-15 | #432 | overlays.e2e "Signal Flow on a click (I-188)…" · real-engine.e2e "the real engine and the overlays (N-15)…"(PC 끝점 = v1 `demo-pc.flow`) · 엔진 `FlowTest` 흐름 · unit overlays "the flow's front…", "an end's label…" | D-151. `flow.path`(v1 `SignalFlowPath`) |
 | P-02 | 서브회로 인스턴스 안내(#84) | N-11 |  |  |  |
 | P-03 | 탭 간 라이브러리(#85) | N-11 |  |  |  |
 | P-04 | 서브회로 포트 순서 끌어 바꾸기 | N-11 |  |  |  |
@@ -79,7 +79,7 @@ v1(Swing, `swing-final`)의 기능을 v2(Electron 화면 + Java 엔진)로 모�
 | C-05 | 레지스터 패널 | N-14 | #423 | `cycle.e2e.ts` "Registers, Memory and Instruction follow the cycle on show" · `real-engine.e2e.ts` (data.regs) · 엔진 `RecordTest.theRegistersAtExitAreTheOracles` | Hallym MIPS Registers 패널 |
 | C-06 | 메모리 패널(#98) | N-14 | #423 | `cycle.e2e.ts` "Registers, Memory and Instruction…" · `real-engine.e2e.ts` · 엔진 `RecordTest.theMemoryTableShowsTheLoadedDataAndTheStack` | Hallym MIPS Data 탭 한 표(D-140) |
 | C-07 | 명령어 필드 색 | N-14 | #423 | `cycle.e2e.ts` "Registers, Memory and Instruction…" (Instruction 필드) · 엔진 `RecordTest.theInstructionIsSplitIntoHallymMipsFields`·`fieldPathsFollowTheNamedSplitterArms` | 캔버스 선의 필드 색 띠는 N-15(`record.fieldPaths` 데이터) |
-| C-08 | 버스 값 칩과 활성 경로 | N-15 |  |  |  |
+| C-08 | 버스 값 칩과 활성 경로 | N-15 | #432 | overlays.e2e "bus values: …", "with the Cycle View: the active path…" · unit overlays "bus values…", "bus chips stand WIRE_GAP off every wire…" · 엔진 `FlowTest` 활성 경로 | D-151. `flow.activePath`(v1 `ActivePathOverlay` → `ActiveBranches`), 필드 색은 `record.fieldPaths`(C-07, D-144) |
 | C-09 | Console 탭과 자동 재로드(.hmx. .s 자동 재로드는 D-141에서 없앰) | N-16 | #428 | `program.e2e.ts` "the Console tab…", "a reload that fails keeps the program on show…" · 엔진 `ProgramsTest.aFailedLoadOrReloadKeepsTheLoadedProgramAndTheSimulation`, `anExportedAgainImageLoadsWhenTheFileOpensAndAtReset`, `theConsoleStreamsTheProgramOutputAndResetClearsIt` | D-147. 감시는 앱이 도는 동안만, 실패하면 올라가 있던 것 그대로(띠). Console은 출력만(부품에 입력 syscall 없음) |
 | C-10 | 사이클 뷰 테스트 | N-14 | #423 | `cycle.e2e.ts` 7개 · `messages.e2e.ts` · `real-engine.e2e.ts` · 엔진 `RecordTest` 20개·`RunUntilTicksTest` 4개·`OpenSaveParityTest`(Cycle View 요청) |  |
 | D-01 | E·X 출처 추적 | N-13 |  | 엔진 `DiagTest.traceOriginFollowsAnXBackToTheInputPin` | D-143. `trace.origin` API. 선 우클릭 "Find E/X Origin" 메뉴는 캔버스 메뉴(N-10)가 이 API를 부른다(후속). E 발생 메시지(`E_APPEARED`)는 원인 한 곳을 이미 담는다 |
@@ -91,11 +91,11 @@ v1(Swing, `swing-final`)의 기능을 v2(Electron 화면 + Java 엔진)로 모�
 | E-01 | N개 복제 | N-21 |  |  |  |
 | E-02 | 정렬·같은 간격, 선택 필터 | N-21 |  |  |  |
 | E-03 | 버스 폭 표시와 선 색 범례 | N-05 | #425 | canvas.e2e "demo-datapath is drawn"(범례 = 화면 선 색, 버스 폭 끄기); unit canvas-scene·canvas-labels "bus widths" |  |
-| E-04 | 신호 그룹 색 | N-15 |  |  |  |
+| E-04 | 신호 그룹 색 | N-15 | #432 | overlays.e2e "signal groups: …" · real-engine.e2e(저장한 .circ의 hcs:ext, 되돌리기) · 엔진 `ExtIntentsTest` · unit recovery "signal groups and area memos (N-15) are replayed…" | D-151. `edit.signalGroup` |
 | E-05 | Undo History | N-21 |  |  |  |
 | E-06 | Create Submission | N-21 |  |  |  |
 | E-07 | Export Image | N-21 |  |  |  |
-| E-08 | 미니맵과 영역 메모 | N-12·N-15 | #433 | find.e2e "the Minimap: …"(미니맵) | D-150. 미니맵은 N-12, 영역 메모는 N-15에 남음 |
+| E-08 | 미니맵과 영역 메모 | N-12·N-15 | #433(미니맵) · #432(영역 메모) | find.e2e "the Minimap: …"(미니맵) · overlays.e2e "area memos: …" · real-engine.e2e(저장한 .circ의 hcs:ext, 되돌리기) · 엔진 `ExtIntentsTest` · unit overlays "area memos…" | D-150(미니맵), D-151(영역 메모, `edit.areaMemo`) |
 | E-09 | 단축키 설정 창 | N-21 |  |  |  |
 | E-10 | 첫 실행 튜토리얼 | N-18 |  |  |  |
 | E-11 | About 창 | N-20 |  |  |  |
@@ -103,9 +103,9 @@ v1(Swing, `swing-final`)의 기능을 v2(Electron 화면 + Java 엔진)로 모�
 | V-01 | 새 파일에서도 Hallym MIPS가 보이고 바로 쓰임 | N-12 | #433 | find.e2e "Components: … Hallym MIPS before the file has it…", "a part dragged … puts the library in the file"; real-engine.e2e "…finding and placing (N-12)" | D-150. 엔진 `model.library`의 `pending`(D-096) |
 | V-02 | 진단 문구 정확성(E 원인 종류, 내부 포트 이름 숨김) | N-13 |  | 엔진 `DiagTest.everyFaultCircuitGivesOneMessageInBothLanguages`, `DiagTextTest` | D-143. 내부 포트 이름 없음, "충돌"은 충돌에만, 한국어 틀에서 이름 뒤 조사 없음 |
 | V-03 | 메시지를 누르면 원인이 사이클 표에 | N-14 | #423 | messages.e2e.ts "the clock runs…"(임시 줄 `MemWrite`, 그 사이클 테두리, Reset이면 걷힘) · 엔진 `RecordTest.resetStartsTheRecordingAgainAndTakesThePinnedRowsAway` (`record.pin`) · `cycle.test.ts` `pinGone` | 원인(`location`)과 E·X가 보인 자리(`appeared`), 메시지가 사라지면 `record.unpin`(D-114) |
-| V-04 | 활성 경로는 가지만 칠함 | N-15 |  |  |  |
+| V-04 | 활성 경로는 가지만 칠함 | N-15 | #432 | overlays.e2e "with the Cycle View: the active path around the selected MUX input…"(띠가 고른 입력의 가지에만) · 엔진 `FlowTest` 활성 경로 선분 · v1 `ActivePathOverlayTest` | D-151 |
 | V-05 | 같은 이름 파일 탭 구분 | N-11 |  |  |  |
-| V-06 | Signal Flow 터널 호가 부품·라벨을 피함 | N-15 |  |  |  |
+| V-06 | Signal Flow 터널 호가 부품·라벨을 피함 | N-15 | #432 | unit overlays "a tunnel jump's arc: eight shapes…" · overlays.e2e "Signal Flow on a click (I-188)…" | D-151 |
 | V-07 | 빈 캔버스 안내와 예제 메뉴 | N-17 |  |  |  |
 | V-08 | 상태 표시줄 PC·Mark as PC, Tunnels 외톨이 표시 | N-14·N-12 | #423, #433 | `cycle.e2e.ts` "the table follows the clock…"(상태 표시줄 PC), "Mark as PC…" · 엔진 `RecordTest.theHeadOfTheTableAndTheStatusBarReadTheDatapath`; find.e2e "Tunnels: … a lone one in amber…"(외톨이 표시) | D-144(상태 표시줄 PC·Mark as PC, N-14), D-150(Tunnels 외톨이 표시, N-12) |
 | V-09 | 스크린샷 실행기 위생과 데모 값 | 과정 |  |  | v1 검토·릴리스 과정이라 옮길 기능이 아님 |

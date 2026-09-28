@@ -24,6 +24,29 @@ import { type Theme, THEME, themeFrom, valueColor, valueKind } from './tokens.ts
 import { between, clampZoom, fit, percent, step, toCircuit, type View, visible, wheelZoom, zoomAt } from './view.ts';
 import { dotUnits, jumpUnits, type WireMarks, wireMarks } from './wires.ts';
 
+/* An overlay on the circuit (N-15, D-151: overlays/ -- influence, Signal Flow, active path, field colours,
+   bus values, signal groups, area memos, a net's highlight).  It draws at three points of a frame, in
+   circuit units (the view's transform is set): under the wires (after the grid: bands around wires, memos),
+   over the wires (before the parts: what must stay under the parts' bodies), and over the parts and chips
+   (before the selection's and hover's outlines).  An overlay never changes the scene or the model. */
+export interface OverlayDraw {
+  ctx: CanvasRenderingContext2D;
+  canvas: CircuitCanvas;
+  scene: Scene;
+  zoom: number;
+  shown: Box;                  // the circuit area drawn (the view and a margin)
+  look: Look;
+  print: boolean;              // the picture only (no grid, no hover): overlays that are not the circuit's stay out
+}
+export interface CanvasOverlay {
+  under?(d: OverlayDraw): void;
+  overWires?(d: OverlayDraw): void;
+  over?(d: OverlayDraw): void;
+  svg?(canvas: CircuitCanvas): string[];      // in the picture export, behind everything (area memos)
+  animating?(): boolean;                      // wants the next frame (Signal Flow)
+  sceneChanged?(scene: Scene | null): void;   // another circuit (or none) is shown
+}
+
 export interface CanvasHost {
   onView?(view: View): void;                       // the zoom changed (the status bar's display)
   onEnter?(componentId: string): void;             // double click on a subcircuit instance
@@ -65,6 +88,7 @@ export class CircuitCanvas {
   private spaceDown = false;
   private fitted = false;
   lastFrameMs = 0;                           // how long the last frame took to draw (the measurement)
+  private readonly overlays: CanvasOverlay[] = [];
   paused = false;                            // the measurement draws the other way meanwhile (tools/measure-canvas.ts)
 
   private readonly host: CanvasHost;
@@ -84,6 +108,7 @@ export class CircuitCanvas {
   // ---- what to draw ---------------------------------------------------------------------------
 
   setScene(scene: Scene | null, view?: View): void {
+    const other = scene !== this.scene;
     this.scene = scene;
     this.laidOut = -1;
     this.hovered = null;
@@ -94,7 +119,26 @@ export class CircuitCanvas {
     if (view) { this.view = view; this.fitted = true; } else this.fitted = false;
     this.readTheme();
     if (!view && this.width > 0) this.fitView(false);
+    if (other) {
+      for (const o of this.overlays) o.sceneChanged?.(scene);
+      this.selectionChanged();
+    }
     this.invalidate();
+  }
+
+  // ---- overlays (N-15) ---------------------------------------------------------------------------
+
+  addOverlay(o: CanvasOverlay): void {
+    this.overlays.push(o);
+    this.invalidate();
+  }
+
+  // The parts selected now (the overlays' commands start from them).
+  selectedIds(): string[] { return [...this.selected]; }
+
+  // The host sends it on as hcs:selection (app.ts, tool-events.ts: one sender, with the instance path).
+  private selectionChanged(): void {
+    this.host.onSelect?.([...this.selected]);
   }
 
   // After the scene changed (model or values): draw again.
@@ -230,7 +274,7 @@ export class CircuitCanvas {
         e.preventDefault();
         this.setView({ ...this.view, x: this.view.x + move[e.key][0], y: this.view.y + move[e.key][1] });
       }
-      if (e.key === 'Escape' && this.selected.size) { this.selected.clear(); this.host.onSelect?.([]); this.invalidate(); }
+      if (e.key === 'Escape' && this.selected.size) { this.selected.clear(); this.selectionChanged(); this.invalidate(); }
     });
     c.addEventListener('keyup', (e) => { if (e.key === ' ') { this.spaceDown = false; c.classList.remove('grab'); } });
   }
@@ -271,7 +315,7 @@ export class CircuitCanvas {
     const id = this.partAt(toCircuit(this.view, at));
     if (!add) this.selected.clear();
     if (id) { if (add && this.selected.has(id)) this.selected.delete(id); else this.selected.add(id); }
-    this.host.onSelect?.([...this.selected]);
+    this.selectionChanged();
     this.invalidate();
   }
 
@@ -394,7 +438,7 @@ export class CircuitCanvas {
     const t0 = performance.now();
     this.draw();
     this.lastFrameMs = performance.now() - t0;
-    if (this.anim) this.invalidate();
+    if (this.anim || this.overlays.some((o) => o.animating?.())) this.invalidate();
   }
 
   // print: the picture only -- no grid, no hover, no selection, no port names (what exportSvg writes).
@@ -414,6 +458,8 @@ export class CircuitCanvas {
     const margin = 40;
     const shown: Box = { x0: view.x0 - margin, y0: view.y0 - margin, x1: view.x1 + margin, y1: view.y1 + margin };
     const look: Look = { theme: this.theme, zoom: z, minText: MIN_TEXT_PX };
+    const od: OverlayDraw = { ctx, canvas: this, scene: s, zoom: z, shown, look, print };
+    for (const o of this.overlays) o.under?.(od);
 
     // selection behind (a tint), hover and selection outlines after the parts
     for (const id of print ? [] : this.selected) {
@@ -422,6 +468,7 @@ export class CircuitCanvas {
     }
     if (this.marked && !print) this.drawMarked(true);
     this.drawWires(shown);
+    for (const o of this.overlays) o.overWires?.(od);
     // parts: every body fill first, then outlines, marks and text (layers.ts: no part hidden by another's fill)
     const partsShown: Component[] = [];
     for (const c of s.components.values()) {
@@ -447,6 +494,7 @@ export class CircuitCanvas {
       }
     }
     if (print) return;
+    for (const o of this.overlays) o.over?.(od);
     for (const id of this.selected) {
       const c = s.components.get(id);
       if (c) this.outline(c, null, this.theme.select, 2);
@@ -593,11 +641,11 @@ export class CircuitCanvas {
     }
   }
 
-  private drawChips(shown: Box, look: Look): void {
+  private drawChips(shown: Box, look: Look, owners?: ReadonlySet<string>): void {
     const ctx = this.ctx, s = this.scene!, z = this.view.zoom;
     const wiresUnder: Box[] = [];
     for (const ch of this.chips) {
-      if (!boxesMeet(ch.box, shown)) continue;
+      if (!boxesMeet(ch.box, shown) || (owners && !owners.has(ch.owner))) continue;
       if (ch.size * z < MIN_TEXT_PX) continue;    // unreadable: not drawn at all (not a band of colour either)
       const b = ch.box;
       let text = ch.text;
@@ -659,6 +707,47 @@ export class CircuitCanvas {
     ctx.stroke();
   }
 
+  // ---- what the overlays draw again (the influence's parts over its dimming) --------------------------
+
+  // Stroke these wires as the Canvas does (their value colour and width).
+  paintWireIds(ids: Iterable<string>): void {
+    const s = this.scene, m = this.marks;
+    if (!s || !m) return;
+    const want = new Set(ids);
+    const ctx = this.ctx, z = this.view.zoom;
+    ctx.lineCap = 'round';
+    for (const seg of m.segments) {
+      if (!want.has(seg.id)) continue;
+      ctx.beginPath(); ctx.moveTo(seg.a[0], seg.a[1]); ctx.lineTo(seg.b[0], seg.b[1]);
+      ctx.strokeStyle = this.wireColor(seg.net); ctx.lineWidth = wirePx(z, seg.bits) / z; ctx.stroke();
+    }
+  }
+
+  // Paint these parts again (both passes, larger first) and their chips.
+  paintPartIds(ids: Iterable<string>, look: Look, shown: Box): void {
+    const s = this.scene;
+    if (!s) return;
+    const want = new Set(ids);
+    const parts = [...s.components.values()].filter((c) => want.has(c.id));
+    const ordered = byArea(parts);
+    for (const c of ordered) this.paintShapes(c, this.layersOf(c).base, look);
+    for (const c of ordered) this.paintShapes(c, this.layersOf(c).top, look);
+    this.drawChips(shown, look, want);
+  }
+
+  // Where the chips stand (the overlays' own chips keep off them).
+  chipBoxes(): Box[] {
+    this.layout();
+    return this.chips.map((c) => c.box);
+  }
+
+  wireSegments(): WireMarks['segments'] {
+    this.layout();
+    return this.marks?.segments ?? [];
+  }
+
+  get context(): CanvasRenderingContext2D { return this.ctx; }
+
   /* The picture of the circuit as drawn now, as SVG (picture export, N-21, writes this to a file):
      the same wires, jumps, dots, parts' shapes and chips as the Canvas at 100 %, without the grid,
      hover or selection.  `box` defaults to everything drawn with a 20-unit margin. */
@@ -669,6 +758,7 @@ export class CircuitCanvas {
     const look = { theme: this.theme, zoom: 1, minText: MIN_TEXT_PX, fitted: (t: TextShape) => fittedSize(this.ctx, t) };
     const m = this.marks!;
     const out: string[] = [];
+    for (const o of this.overlays) out.push(...(o.svg?.(this) ?? []));
     for (const seg of m.segments) out.push(wireSvg(seg.a, seg.b, undefined, seg.bits, look).replace(/stroke="[^"]*"/, `stroke="${this.wireColor(seg.net)}"`));
     const r = jumpUnits(1);
     const byId = new Map(m.segments.map((x) => [x.id, x]));
