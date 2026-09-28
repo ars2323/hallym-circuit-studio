@@ -502,7 +502,13 @@ export const SCREEN_SCENES = ['01-place-parts', '02-wires', '03-move-following',
 
 // What may go by the bridge until N-10 gives it a control: an attribute no key sets, a circuit's attribute, the
 // right-click menu's Duplicate N, Align, Distribute, Only Components/Wires.
-const NO_CONTROL_YET = /^(edit\.setToolAttr (label|output|size|negate\d+|value|facing|incoming)|edit\.setAttr (facing|size|output|labelloc|selloc|value|label|width|inputs|select)|edit\.setCircuitAttr \w+|edit\.duplicateN|edit\.align|edit\.distribute|edit\.select)$/;
+// (A tool's facing has the arrows; a label F2; inputs, select and bit widths the digits and Alt+digits: not here.)
+const NO_CONTROL_YET = /^(edit\.setToolAttr (label|output|size|negate\d+|value|incoming)|edit\.setAttr (facing|size|output|labelloc|selloc|value)|edit\.setCircuitAttr \w+|edit\.duplicateN|edit\.align|edit\.distribute|edit\.select)$/;
+
+// How many intents of each scene go by the bridge (D-159, tests/parity/README.md): one more fails.
+const BRIDGED: Record<string, number> = {
+  '01-place-parts': 10, '02-wires': 1, '03-move-following': 7, '05-copy-paste-duplicate': 4, '07-attributes': 10, '10-undo-redo': 2, '15-zoom': 0,
+};
 
 for (const scene of SCREEN_SCENES) {
   test(`the screen makes the golden: ${scene} (D-159)`, async () => {
@@ -534,6 +540,7 @@ for (const scene of SCREEN_SCENES) {
       test.info().annotations.push({ type: 'bridged (no control until N-10)', description: s.byApi.join(', ') || 'none' });
       if (process.env.PARITY_DEBUG) console.log(`BRIDGED ${scene}: ${s.byApi.length}/${script.length} ${s.byApi.join(', ')}`);
       expect(s.byApi.filter((x) => !NO_CONTROL_YET.test(x))).toEqual([]);
+      expect(s.byApi.length, `${scene}: intents by the bridge (${s.byApi.join(', ')})`).toBe(BRIDGED[scene]);
       expect(s.byApi.filter((x) => x.startsWith('edit.select')).length, 'only Only Components/Wires is a bridged select').toBe(script.filter((i) => i.method === 'edit.select' && typeof i.filter === 'string').length);
     } finally {
       await r.close();
