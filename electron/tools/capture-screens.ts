@@ -75,6 +75,7 @@ async function shot(r: Running, name: string, o: { keepFocus?: boolean; keepPoin
 // The first screen's video, stopped at `t` seconds, that frame on screen (Hallym MIPS 2.5.0 capture-screens.ts).
 const START_AT = 3.0;
 async function videoAt(r: Running, t = START_AT): Promise<void> {
+  if (await r.page.locator('.stage-welcome').isHidden()) throw new Error('videoAt: the first screen is not on show');
   await r.page.waitForSelector('.wback.playing');
   await r.page.evaluate((t) => new Promise<void>((done) => {
     const v = document.querySelector('.wback video') as HTMLVideoElement;
@@ -134,7 +135,6 @@ const kill = (r: Running) => r.app.evaluate(() => (globalThis as unknown as { __
   await page.keyboard.press('Escape');
   await kill(r);
   await page.locator('.band', { hasText: '다시 시작했습니다' }).waitFor();
-  await videoAt(r);
   await shot(r, 'engine-restarted');
   await r.close();
 }
