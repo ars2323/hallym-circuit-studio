@@ -106,6 +106,38 @@ xvfb-run -a ./gradlew :app:guiTest --tests kr.ac.hallym.hcs.app.parity.EditParit
 | `17-open-existing` | 9 | 서브회로가 있는 파일 열어 고치기: 선 가운데에 프로브 놓기, 옮기기, 지우기, 라벨·회로 이름 바꾸기, 인스턴스 놓기 | 열림 · 부품 20 |
 | `18-open-ext` | 7 | hcs:ext가 있는 파일 열어 고치기: 터널 지우기(색 항목 빠짐), 메모 지우기·더하기, 색·그룹 바꾸기, 두 넷 잇기 | 열림 · 부품 2 |
 
+## v2 재생(N-09, D-159)
+
+v2(Electron 화면 + Java 엔진)가 이 골든을 두 층에서 다시 만든다. 비교 기준은 위의 D-006 규칙 그대로다.
+
+**엔진 층: 18장면 전부.** `EngineParityReplayTest`가 장면마다 의도를 in-process 엔진에 보내고(기호·`label:`·`at:`·`wire:`는 엔진 id로 바꾼다) 저장한 파일을 골든과 비교한다. 남은 장면은 없다.
+
+```
+./gradlew :engine:test --tests kr.ac.hallym.hcs.engine.EngineParityReplayTest
+./gradlew :engine:test --tests kr.ac.hallym.hcs.engine.EngineParityReplayTest -Phcs.constantHash=true   # CI도 두 번
+```
+
+**화면 층: 7장면을 학생이 하는 길로.** `electron/tests/e2e/real-engine-parity.e2e.ts`가 진짜 창과 진짜 엔진에서 의도마다 그 조작을 한다: Components 목록에서 부품 들기, 든 부품의 방향 키·숫자·Alt+숫자, Canvas 누르기·끌기(놓기·선·고르기·사각형·옮기기, 끄는 동안 Shift), Delete·Ctrl+C/X/V/D·Ctrl+Z/Y, F2, 상태 표시줄의 배율 메뉴. 파일은 Ctrl+O로 열고 Ctrl+S로 저장한다.
+
+| 장면 | 보는 것 | 화면 조작이 아직 없어 창의 다리(`window.app.call`)로 보낸 의도 |
+| --- | --- | --- |
+| `01-place-parts` | 놓기, 도구 속성(키), 방향 | 10/44: 도구의 라벨·Output?·크기·부정 입력·상수 값·스플리터 비트 수 |
+| `02-wires` | 선 합치기·나누기·ㄱ자·줄이기·지우기 | 1/25: 도구의 Output? |
+| `03-move-following` | 따라오는 선, Shift로 선 없이 | 7/30: 도구의 라벨·Output? |
+| `05-copy-paste-duplicate` | 복사·잘라내기·붙여넣기(떠 있는 사본 끌기)·복제 | 4/25: 도구의 라벨, Duplicate N |
+| `07-attributes` | 입력 수·비트 수·라벨(F2)·MUX 선택 비트(키) | 10/31: 부품의 방향·크기·Output?·라벨 자리·선택 자리·상수 값, 회로 속성 |
+| `10-undo-redo` | 되돌리기·다시 실행 사슬, 붙여넣기 되돌리기 | 2/36: 도구의 크기 |
+| `15-zoom` | 200·50·150 %에서 놓기·긋기·옮기기·사각형·선분 끌기 | 0/17 |
+
+다리로 가는 것은 속성 표와 우클릭 메뉴(N-10)가 올 때까지만이다. 테스트는 그 목록 밖의 의도가 다리로 가면 실패하고, 목록을 Playwright 주석으로 남긴다.
+
+```
+./gradlew :engine:stage
+cd electron && HCS_E2E_REAL_ENGINE=1 PARITY_DEBUG=1 xvfb-run -a npx playwright test real-engine-parity
+```
+
+CI에서는 `runtime (ubuntu-24.04)` 작업의 `real-engine` e2e에 들어 있다.
+
 ## 알아 둘 동작(N-09 엔진이 맞춰야 할 것)
 
 골든을 만들며 확인한 원조·v1 동작이다. 엔진이 원조 코드를 그대로 쓰면 저절로 맞지만, 하나라도 다시 짜면 여기서 어긋난다.
