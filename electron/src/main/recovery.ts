@@ -38,6 +38,13 @@
    could not be restored.  A file that cannot be opened again (gone from
    disk) is closed.  The simulation is not restored: it starts from Reset.
 
+   A file opened from its recovery file (N-19, D-152: the app had died; the
+   student chose Recover) has that file as its base, not the saved one: it
+   is opened again from it (file.open recovery), and each time the engine
+   writes that recovery file again (recovery-files.ts) the journal starts
+   over from it -- the recovery file is then what the engine had.  The
+   Supervisor's own closes keep the recovery files (file.close keepRecovery).
+
    Nothing here knows Electron: tests/unit/recovery.test.ts drives it with
    the fake engine. */
 
@@ -73,6 +80,10 @@ export const journaled = (method: string): boolean => method.startsWith('edit.')
 // The window's calls carry this tag (main.ts); the Supervisor's own, 'recovery'.
 export const WINDOW = 'window';
 const RECOVERY = 'recovery';
+
+// The recovery file beside a student's file (N-19, D-152; recovery-files.ts writes it through the engine).
+export const RECOVERY_SUFFIX = '.hcs-recover';
+export const recoveryPathOf = (circ: string): string => `${circ}${RECOVERY_SUFFIX}`;
 
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const samePoint = (p: Point, q: Point) => p[0] === q[0] && p[1] === q[1];
@@ -215,7 +226,11 @@ export class Shadow {
 
 // ---- the journal --------------------------------------------------------------------------
 
-export type Opened = { kind: 'path'; path: string; readOnly: boolean } | { kind: 'new' };
+// recover: opened from its recovery file (N-19): that file is the base, its fingerprint the journal's.
+export type Opened = { kind: 'path'; path: string; readOnly: boolean; recover?: boolean } | { kind: 'new' };
+
+// The file whose bytes are a journal's base: the recovery file for a file opened from it.
+export const baseOf = (o: Extract<Opened, { kind: 'path' }>): string => (o.recover ? recoveryPathOf(o.path) : o.path);
 
 export interface Entry {
   seq: number;                              // the order the engine answered, over every file
@@ -248,6 +263,13 @@ export class Journal {
     if (!f) return;
     const readOnly = false; // saving to a path makes it writable (docs/engine-api.md file.save)
     Object.assign(f, { opened: { kind: 'path', path, readOnly }, fingerprint, circuits, entries: [], broken: null });
+  }
+
+  // A file opened from its recovery file, written again (N-19): that file is what the engine had; its edits start over.
+  rebased(fileId: string, circuits: Record<string, string>, fingerprint: string | null): void {
+    const f = this.files.get(fileId);
+    if (!f || f.opened.kind !== 'path' || !f.opened.recover) return;
+    Object.assign(f, { fingerprint, circuits, entries: [], broken: null });
   }
 
   closed(fileId: string): void { this.files.delete(fileId); }
@@ -352,8 +374,13 @@ export class Supervisor extends EventEmitter<Events> {
       } else if (a.method === 'file.new' && typeof r.fileId === 'string') {
         this.journal.opened(r.fileId, { kind: 'new' }, circuitIds(r.circuits), null);
       } else if (a.method === 'file.open' && typeof r.fileId === 'string' && r.alreadyOpen !== true && typeof p.path === 'string') {
-        this.journal.opened(r.fileId, { kind: 'path', path: p.path, readOnly: p.readOnly === true }, circuitIds(r.circuits), this.fingerprint(p.path));
+        const opened = { kind: 'path' as const, path: p.path, readOnly: p.readOnly === true, ...(p.recovery === 'recover' ? { recover: true } : {}) };
+        this.journal.opened(r.fileId, opened, circuitIds(r.circuits), this.fingerprint(baseOf(opened)));
       }
+    }
+    // A recovery file written again (recovery-files.ts): the base of a file opened from it (N-19).
+    if (a.method === 'file.recoverWrite' && typeof p.fileId === 'string' && r.written === true && typeof r.path === 'string') {
+      this.journal.rebased(p.fileId, this.shadow.circuitIds(p.fileId), this.fingerprint(r.path));
     }
     // Saved or closed by anyone (the main process saves for the window).
     if (a.method === 'file.save' && typeof p.fileId === 'string' && a.tag !== RECOVERY) {
@@ -434,14 +461,17 @@ export class Supervisor extends EventEmitter<Events> {
     return this.engine.call<T>(method, params, { tag: RECOVERY });
   }
 
-  // Opens one file again with its old ids: 'ok', or why it could not be.
+  // Opens one file again with its old ids: 'ok', or why it could not be.  A
+  // file opened from its recovery file is opened from it again while it is
+  // the one the journal started from; otherwise as saved ('changedOnDisk').
   private async openAgain(f: FileJournal): Promise<'ok' | 'missing' | 'openFailed'> {
     const restore = { fileId: f.fileId, circuits: f.circuits };
     try {
       if (f.opened.kind === 'new') await this.call('file.new', { restore });
       else {
         if (this.fingerprint(f.opened.path) === null) return 'missing';
-        await this.call('file.open', { path: f.opened.path, ...(f.opened.readOnly ? { readOnly: true } : {}), restore });
+        const recover = f.opened.recover === true && this.fingerprint(baseOf(f.opened)) === f.fingerprint;
+        await this.call('file.open', { path: f.opened.path, ...(f.opened.readOnly ? { readOnly: true } : {}), ...(recover ? { recovery: 'recover' } : {}), restore });
       }
       return 'ok';
     } catch (e) {
@@ -465,10 +495,14 @@ export class Supervisor extends EventEmitter<Events> {
         continue;
       }
       open.push(f);
+      if (f.opened.kind === 'path' && f.opened.recover && this.fingerprint(baseOf(f.opened)) !== f.fingerprint) {
+        lost.set(f.fileId, 'changedOnDisk');   // opened as saved: the recovered edits are not there
+        continue;
+      }
       if (f.entries.length === 0 && !f.broken) continue;
       if (!replay) lost.set(f.fileId, 'crashedAgain');
       else if (f.broken) lost.set(f.fileId, 'notRecorded');
-      else if (f.opened.kind === 'path' && this.fingerprint(f.opened.path) !== f.fingerprint) lost.set(f.fileId, 'changedOnDisk');
+      else if (f.opened.kind === 'path' && this.fingerprint(baseOf(f.opened)) !== f.fingerprint) lost.set(f.fileId, 'changedOnDisk');
     }
 
     // Every file's edits together, in the order the engine first answered them.
@@ -480,8 +514,8 @@ export class Supervisor extends EventEmitter<Events> {
       } catch (err) {
         if (!(err instanceof EngineError || err instanceof ReplayError)) throw err;
         lost.set(f.fileId, 'replayFailed');
-        // Its last saved version, from scratch.
-        await this.call('file.close', { fileId: f.fileId }).catch((x) => { if (x instanceof EngineGone) throw x; });
+        // Its last saved version, from scratch (the recovery file beside it stays: N-19).
+        await this.call('file.close', { fileId: f.fileId, keepRecovery: true }).catch((x) => { if (x instanceof EngineGone) throw x; });
         const how = await this.openAgain(f);
         if (how !== 'ok') {
           lost.delete(f.fileId);
@@ -500,7 +534,11 @@ export class Supervisor extends EventEmitter<Events> {
         // What the engine has now is the file as last saved (or new).
         f.entries = [];
         f.broken = null;
-        if (f.opened.kind === 'path') f.fingerprint = this.fingerprint(f.opened.path);
+        if (f.opened.kind === 'path') {
+          // what it was opened from: its recovery file while that is the journal's base, else the saved file
+          if (f.opened.recover && this.fingerprint(baseOf(f.opened)) !== f.fingerprint) f.opened = { ...f.opened, recover: false };
+          f.fingerprint = this.fingerprint(baseOf(f.opened));
+        }
       } else {
         const dirty = edits > 0 ? (await this.call<{ dirty: boolean }>('file.dirty', { fileId: f.fileId })).dirty : false;
         report.restored.push({ fileId: f.fileId, edits, dirty });

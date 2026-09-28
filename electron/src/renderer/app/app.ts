@@ -26,9 +26,13 @@
    events they meet the Canvas on are in tool-events.ts.
 
    Nothing is restored from an earlier run and nothing is written but the
-   files the student saves (the lab-PC rule; src/main/main.ts). */
+   files the student saves (the lab-PC rule; src/main/main.ts) -- and, for
+   a file saved at least once, its recovery file beside it until it is
+   saved or closed: opening it again after the app died asks first
+   (logic/recovery-ask.ts, N-19).  Every setting is for this run only
+   (logic/run-settings.ts). */
 
-import type { CircuitRef, ConsoleUpdate, DiagList, DiagMessage, EngineStatus, FindResult, LibraryGroup, MipsFacts, ModelChanged, NewResult, Point, RecordState, Recovered, Reloaded, RunUntilDone, SimState, SimValues, Snapshot } from '../../main/protocol.ts';
+import type { CircuitRef, ConsoleUpdate, DiagList, DiagMessage, EngineStatus, FindResult, LibraryGroup, MipsFacts, ModelChanged, NewResult, Point, RecordState, Recovered, RecoveryAsk, Reloaded, RunUntilDone, SimState, SimValues, Snapshot } from '../../main/protocol.ts';
 import { CircuitCanvas } from '../canvas/canvas.ts';
 import { legend } from '../canvas/legend.ts';
 import { Overlays } from '../canvas/overlays/controller.ts';
@@ -36,7 +40,7 @@ import { Scene } from '../canvas/scene.ts';
 import { toCircuit, type View, visible } from '../canvas/view.ts';
 import { zoomControl } from '../canvas/zoom.ts';
 import { aboutDialog } from '../shared/about.ts';
-import { ask } from '../shared/ask.ts';
+import { ask, choose } from '../shared/ask.ts';
 import { band } from '../shared/band.ts';
 import { code, codeText, h, icon } from '../shared/dom.ts';
 import { noticeHost } from '../shared/notice.ts';
@@ -67,6 +71,8 @@ import { messagesPanel } from './messages.ts';
 import { programs as programController } from './program.ts';
 import { emitReveal, onReveal, type Reveal } from './reveal.ts';
 import { recoveredText } from './logic/recovered.ts';
+import { answerRecovery, recoveredNote } from './logic/recovery-ask.ts';
+import { RUN_DEFAULTS } from './logic/run-settings.ts';
 import { startScreen } from './start.ts';
 
 const api = window.app;
@@ -130,7 +136,7 @@ const overlays = new Overlays({
   failed: (name, e) => { note = { cls: 'err', text: commandError(name, e as CallError) }; renderStatus(); },
   changed: () => { renderStatus(); flowToggle.setAttribute('aria-pressed', String(overlays.settings.onClick)); },
 });
-const wireLegend = legend({ busWidths: true, onBusWidths: (on) => { board.busWidths = on; board.invalidate(); }, extra: overlays.legendRows() });
+const wireLegend = legend({ busWidths: RUN_DEFAULTS.busWidths, onBusWidths: (on) => { board.busWidths = on; board.invalidate(); }, extra: overlays.legendRows() });
 let boardKey = '';
 
 // ---- the title bar ------------------------------------------------------------
@@ -159,7 +165,7 @@ const bCycle = button('1 Cycle', 'step-forward', 'F10', () => void cycles(1));
 const bCycles = button('N Cycles', 'fast-forward', '', () => {});
 const bReset = button('Reset', 'rotate-ccw', '', () => void reset());
 const frequency = h('select', { title: 'Clock speed', 'aria-label': 'Clock speed' },
-  ...FREQUENCIES.map(([label, hz]) => h('option', { value: String(hz), selected: hz === 1 }, label)));
+  ...FREQUENCIES.map(([label, hz]) => h('option', { value: String(hz), selected: hz === RUN_DEFAULTS.hz }, label)));
 // A new speed while the clock runs applies at once (as v1's menu did).
 frequency.addEventListener('change', () => { if (files.active()?.sim?.ticking) void simCall('sim.run', { on: true, hz: Number(frequency.value) }, 'Run'); });
 // Load Program… (N-16): an executable image (.hmx) into the circuit's memories (program.ts).
@@ -898,6 +904,12 @@ function openedOrError(r: Opened | null, e?: unknown): void {
   if (!r) return;
   if (r.already && files.get(r.fileId)) { showFile(r.fileId); return; }
   added({ fileId: r.fileId, name: r.name, path: r.path, circuits: r.circuits, main: r.main });
+  // Opened from its recovery file (N-19): unsaved edits.
+  if (r.recovered) {
+    files.setDirty(r.fileId, true);
+    note = { cls: '', text: recoveredNote(r.name) };
+    render();
+  }
   // What the original loader would have shown in its dialogs (e.g. a component it does not know).
   if (r.messages?.length) {
     note = { cls: 'err', text: `불러오며 알린 것 ${r.messages.length}개 — ${r.messages[0]}` };
@@ -905,10 +917,13 @@ function openedOrError(r: Opened | null, e?: unknown): void {
   }
 }
 
+// A file with a recovery file beside it: the question first (logic/recovery-ask.ts, N-19); Esc opens nothing.
+const recoveryAnswered = (r: Opened | RecoveryAsk | null) => answerRecovery(r, (q) => choose(q), (id, c) => api.openRecovery(id, c));
+
 async function openFile(): Promise<void> {
   if (!(await engineReady())) return;
   try {
-    openedOrError(await api.openFile());
+    openedOrError(await recoveryAnswered(await api.openFile()));
   } catch (e) {
     openedOrError(null, e);
   }
@@ -1238,7 +1253,7 @@ async function begin(): Promise<void> {
   if (startup) {
     let r: Opened | null = null;
     let err: unknown;
-    try { r = await api.openStartupFile(); } catch (e) { err = e; }
+    try { r = await recoveryAnswered(await api.openStartupFile()); } catch (e) { err = e; }
     opening = false;
     openedOrError(r, err);
     render();

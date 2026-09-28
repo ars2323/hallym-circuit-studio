@@ -39,6 +39,19 @@ export interface OpenResult extends NewResult {
   alreadyOpen?: boolean;    // the same path was open: its fileId
 }
 
+/* Opening a file that has a recovery file beside it (N-19, D-152): the
+   window asks first -- Recover (its content, as unsaved edits) or Discard
+   (removed once the file is open) -- and answers with the id; Esc answers
+   null (nothing opened, the recovery file left). */
+export interface RecoveryAsk {
+  ask: {
+    id: string;             // for file:openRecovery
+    name: string;           // the file's name (lab3.circ)
+    recovery: string;       // the recovery file's name (lab3.circ.hcs-recover)
+    modified: number;       // when it was written (ms since 1970)
+  };
+}
+
 export interface SaveResult {
   path: string;
   bytes: number;

@@ -17,7 +17,11 @@
    stand next to an error.  With no `cancel`, it has one button.
 
    The buttons are names, in English (Close, Cancel, Try Again: one name
-   for one command everywhere); the title and the sentences are Korean. */
+   for one command everywhere); the title and the sentences are Korean.
+
+   choose() is the same dialog when both buttons do something and Esc is
+   neither (N-19: Recover / Discard of a recovery file, where Esc must not
+   discard): it answers 'ok', 'cancel' or null (Esc). */
 
 import { character, code, h, prose } from './dom.ts';
 
@@ -33,6 +37,10 @@ export interface Question {
 }
 
 export function ask(q: Question): Promise<boolean> {
+  return choose(q).then((r) => r === 'ok');
+}
+
+export function choose(q: Question): Promise<'ok' | 'cancel' | null> {
   return new Promise((answer) => {
     const ok = h('button', { class: `btn ${q.danger ? 'danger' : 'primary'}`, type: 'button' }, q.ok);
     const cancel = q.cancel === null ? null : h('button', { class: 'btn', type: 'button' }, q.cancel ?? 'Cancel');
@@ -43,9 +51,9 @@ export function ask(q: Question): Promise<boolean> {
           q.file ? h('p', { class: 'askfile' }, 'File: ', code(q.file)) : null, h('p', {}, prose(q.body)),
           q.detail ? h('pre', { class: 'askdetail mono' }, q.detail) : null,
           h('div', { class: 'row end' }, cancel, ok))));
-    let result = false;
-    ok.addEventListener('click', () => { result = true; dialog.close(); });
-    cancel?.addEventListener('click', () => dialog.close());
+    let result: 'ok' | 'cancel' | null = null;
+    ok.addEventListener('click', () => { result = 'ok'; dialog.close(); });
+    cancel?.addEventListener('click', () => { result = 'cancel'; dialog.close(); });
     dialog.addEventListener('close', () => {
       dialog.remove();
       document.body.classList.remove('dialog-open', 'error-dialog');

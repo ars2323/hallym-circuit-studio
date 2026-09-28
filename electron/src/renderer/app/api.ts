@@ -1,6 +1,6 @@
 /* window.app, as src/main/preload.cjs exposes it. */
 
-import type { EngineStatus, Hello, LoadResult, OpenResult, Recovered, WindowMethod } from '../../main/protocol.ts';
+import type { EngineStatus, Hello, LoadResult, OpenResult, Recovered, RecoveryAsk, WindowMethod } from '../../main/protocol.ts';
 
 // Load Program's options: the memory right-clicked (target), the answer to
 // "which memory?" (picks, loading the same file again), an old .s to open next to.
@@ -14,6 +14,7 @@ export interface LoadProgramOptions {
 export interface Opened extends OpenResult {
   path: string;
   already: boolean;     // it was open: go to its tab
+  recovered?: boolean;  // opened from its recovery file: unsaved edits (N-19)
 }
 
 // A failed call (preload.cjs): the engine's code and data when the engine answered with an error.
@@ -33,8 +34,10 @@ export interface AppApi {
   // The engine died and started again: what came back (src/main/recovery.ts, D-142).
   onEngineRecovered(listener: (report: Recovered) => void): void;
   startupFile(): Promise<{ name: string } | null>;      // a .circ named on the command line
-  openStartupFile(): Promise<Opened | null>;
-  openFile(): Promise<Opened | null>;                   // the open dialog, then the engine
+  // A file with a recovery file beside it comes back as a question first (N-19): openRecovery answers it.
+  openStartupFile(): Promise<Opened | RecoveryAsk | null>;
+  openFile(): Promise<Opened | RecoveryAsk | null>;     // the open dialog, then the engine
+  openRecovery(id: string, choice: 'recover' | 'discard' | null): Promise<Opened | null>;
   saveFile(fileId: string, file: { name: string; saveAs?: boolean }): Promise<{ path: string; name: string; bytes: number; needsMipsJar: boolean } | null>;
   // Load Program (N-16): the .hmx dialog in the main process, then mips.load; null: the dialog was cancelled.
   loadProgram(fileId: string, options?: LoadProgramOptions): Promise<LoadResult | null>;

@@ -29,7 +29,12 @@
    the real engine's (docs/engine-api.md, engine/ D-134): Logisim's project
    name (Untitled, a file's name without .circ), alreadyOpen, messages,
    needsMipsJar; and a restarted engine's engine.hello idFloor and
-   file.new/open restore (docs/engine-api.md 7, D-142).  record.* (N-14):
+   file.new/open restore (docs/engine-api.md 7, D-142).  Recovery files
+   (N-19, D-152): file.recoverWrite writes the fake's model as a small .circ
+   beside the file (what readCirc reads back), file.open recovery
+   recover|discard, and when engine.hello asked (recoveryFiles) the
+   file is removed on save, close and engine.shutdown and written for every
+   file with unsaved edits when stdin ends (the main process is gone).  record.* (N-14):
    tests/fake-engine/fake-record.ts -- a file with an Instruction Memory
    runs the recursive factorial on a tiny machine there, one instruction a
    cycle.  The overlays (N-15, D-151): tests/fake-engine/fake-flow.ts --
@@ -65,7 +70,7 @@
    so the Canvas's tests and screenshots draw real circuits, the same
    pixels every time. */
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import * as find from './fake-find.ts';
@@ -85,6 +90,7 @@ interface File {
   mipsIn?: boolean;         // a Hallym MIPS part was placed: the library is in the file (V-01)
   // a canvas fixture (tests/fixtures/circuits): its circuits under this file's circuit ids, the watched circuit
   fixture?: Fixture; fixtureIds?: Map<string, string>; watched?: { circuitId: string; watchKey: string; root: string; path: string[] };
+  recovered?: boolean;      // opened from its recovery file: unsaved until saved (N-19)
   rec: rec.RecordFile;
   // the overlays (fake-flow.ts, N-15): the real engine's answers for a fixture circuit; groups and memos per circuit
   flow?: flow.FlowFixture; ext: Map<string, flow.Ext>;
@@ -110,6 +116,7 @@ const crashOn = process.env.FAKE_ENGINE_CRASH_ON ?? '';
 const failAfterRestart = process.env.FAKE_ENGINE_FAIL_AFTER_RESTART ?? '';
 const crashAfterRestart = process.env.FAKE_ENGINE_CRASH_AFTER_RESTART ?? '';
 let restarted = false;
+let recoveryFiles = false;    // engine.hello recoveryFiles: the app keeps recovery files beside its files (N-19)
 const files = new Map<string, File>();
 let nextFile = 1;
 let nextCircuit = 1;
@@ -168,6 +175,44 @@ const EMPTY = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
   </circuit>
 </project>
 `;
+
+// ---- recovery files (N-19, D-152) ----------------------------------------------------
+
+const RECOVERY = '.hcs-recover';
+// Values as readCirc read them (it does not unescape: what was escaped in the file stays so).
+const esc = (s: string) => s;
+
+// The fake's model as a .circ its own readCirc reads back (the real engine writes what a save would).
+function writeCirc(f: File): string {
+  const libs = [...new Set(f.circuits.flatMap((c) => c.comps.map((k) => k.lib)).filter((l) => l !== 'circuit'))];
+  const out = ['<?xml version="1.0" encoding="UTF-8" standalone="no"?>', '<project source="2.7.1" version="1.0">'];
+  libs.forEach((l, i) => out.push(`  <lib desc="#${esc(l)}" name="${i}"/>`));
+  out.push(`  <main name="${esc(f.main)}"/>`);
+  for (const c of f.circuits) {
+    out.push(`  <circuit name="${esc(c.name)}">`);
+    for (const w of c.wires) out.push(`    <wire from="(${w.a[0]},${w.a[1]})" to="(${w.b[0]},${w.b[1]})"/>`);
+    for (const k of c.comps) {
+      const lib = k.lib === 'circuit' ? '' : ` lib="${libs.indexOf(k.lib)}"`;
+      const attrs = Object.entries(k.attrs).map(([n, v]) => `      <a name="${esc(n)}" val="${esc(v)}"/>`);
+      out.push(`    <comp${lib} loc="(${k.loc[0]},${k.loc[1]})" name="${esc(k.name)}">`, ...attrs, '    </comp>');
+    }
+    out.push('  </circuit>');
+  }
+  out.push('</project>', '');
+  return out.join('\n');
+}
+const recoveryOf = (file: string) => `${file}${RECOVERY}`;
+function removeRecovery(file: string | null): void {
+  if (!file) return;
+  for (const p of [recoveryOf(file), `${recoveryOf(file)}.tmp`]) rmSync(p, { force: true });
+}
+function writeRecovery(f: File): { path: string; bytes: number } {
+  const target = recoveryOf(f.path!);
+  const text = writeCirc(f);
+  writeFileSync(`${target}.tmp`, text);
+  renameSync(`${target}.tmp`, target);
+  return { path: target, bytes: Buffer.byteLength(text) };
+}
 
 function fileOf(p: Params): File {
   const f = files.get(String(p.fileId));
@@ -245,8 +290,15 @@ const LIBRARY = [
 const stem = (name: string) => name.replace(/\.circ$/i, '');
 
 const methods: Record<string, (p: Params) => unknown> = {
-  'engine.hello': () => ({ engine: 'fake-engine', version: '0', logisim: '2.7.1', java: 'none (fake engine, Node)', api: '0' }),
-  'engine.shutdown': () => { setImmediate(() => process.exit(0)); return {}; },
+  'engine.hello': (p) => {
+    if (typeof p.recoveryFiles === 'boolean') recoveryFiles = p.recoveryFiles;
+    return { engine: 'fake-engine', version: '0', logisim: '2.7.1', java: 'none (fake engine, Node)', api: '0' };
+  },
+  'engine.shutdown': () => {
+    if (recoveryFiles) for (const f of files.values()) removeRecovery(f.path);
+    setImmediate(() => process.exit(0));
+    return {};
+  },
   'file.new': (p) => {
     const c: Circuit = { circuitId: `c${nextCircuit++}`, name: 'main', comps: [], wires: [] };
     const fileIdFor0 = fileIdFor(p);
@@ -260,11 +312,19 @@ const methods: Record<string, (p: Params) => unknown> = {
     const file = String(p.path ?? '');
     const open = [...files.values()].find((x) => x.path === file);
     if (open) return { fileId: open.fileId, name: open.name, circuits: refs(open), main: mainId(open), libraries: libRefs(open), messages: [], alreadyOpen: true };
+    const recovery = p.recovery;
+    if (recovery !== undefined && recovery !== 'recover' && recovery !== 'discard') throw new Failure(-32602, 'param \'recovery\' must be "recover" or "discard"');
     let bytes: Buffer;
     try { bytes = readFileSync(file); } catch (e) {
       // The real engine's words and reasons (engine/ Files.open, docs/engine-api.md 2): English, for developers.
       if ((e as NodeJS.ErrnoException).code === 'ENOENT') throw new Failure(2, `no such file: ${file}`, { path: file, reason: 'notFound' });
       throw new Failure(2, `cannot read: ${file}`, { path: file, reason: 'unreadable' });
+    }
+    if (recovery === 'recover') {
+      // the recovery file's content in the file's place (the real engine: the original loader's substitution)
+      try { bytes = readFileSync(recoveryOf(file)); } catch {
+        throw new Failure(2, `no recovery file: ${recoveryOf(file)}`, { path: recoveryOf(file), reason: 'notFound' });
+      }
     }
     const text = bytes.toString('utf8');
     if (!text.includes('<project')) throw new Failure(2, `The file does not appear to be a Logisim project file: ${file}`, { path: file, reason: 'loadFailed' });
@@ -272,7 +332,7 @@ const methods: Record<string, (p: Params) => unknown> = {
     const r = readCirc(text);
     const f: File = { fileId, name: stem(path.basename(file)), path: file, bytes, circuits: r.circuits, main: r.main, libs: r.libs, cycle: 0, ticking: false, hz: 1, on: true, dirty: false, undo: [], redo: [], diag: DIAG[path.basename(file)] ?? null, ran: false, mips: mips.newState(), rec: rec.newRecordFile(fileId, false, new Map()), ext: new Map() };
     const fx = path.join(FIXTURES, `${stem(path.basename(file))}.json`);
-    if (existsSync(fx)) {
+    if (recovery !== 'recover' && existsSync(fx)) {
       f.fixture = JSON.parse(readFileSync(fx, 'utf8')) as Fixture;
       // the fixture's parts, copied: this fake's edits change them (and model.circuit shows the edits)
       f.circuits = f.fixture.circuits.map((c) => ({ circuitId: c.circuitId, name: c.name, comps: structuredClone(c.components), wires: structuredClone(c.wires) }));
@@ -286,7 +346,9 @@ const methods: Record<string, (p: Params) => unknown> = {
     adopt(f, p);
     if (f.fixture) f.fixtureIds = new Map(f.circuits.map((c, i) => [c.circuitId, f.fixture!.circuits[i].circuitId]));
     f.flow = flow.load(path.basename(file));
+    if (recovery === 'recover') { f.dirty = true; f.recovered = true; }
     files.set(f.fileId, f);
+    if (recovery === 'discard') removeRecovery(file);   // after it opened
     setImmediate(() => recordChanged(f));
     const messages = process.env.FAKE_ENGINE_OPEN_MESSAGE ? [process.env.FAKE_ENGINE_OPEN_MESSAGE] : [];
     return { fileId: f.fileId, name: f.name, circuits: refs(f), main: mainId(f), libraries: libRefs(f), messages };
@@ -299,12 +361,26 @@ const methods: Record<string, (p: Params) => unknown> = {
     try { writeFileSync(target, bytes); } catch (e) {
       throw new Failure(2, `cannot write ${target}`, { path: target, reason: 'writeFailed' });
     }
+    if (recoveryFiles) { removeRecovery(f.path); removeRecovery(target); }
     f.path = target;
     f.name = stem(path.basename(target));
     f.dirty = false;
+    f.recovered = false;
     return { path: target, bytes: bytes.length, needsMipsJar: modes.has('needs-mips') };
   },
-  'file.close': (p) => { mips.close(fileOf(p)); files.delete(String(p.fileId)); return {}; },
+  'file.close': (p) => {
+    const f = fileOf(p);
+    if (recoveryFiles && p.keepRecovery !== true) removeRecovery(f.path);
+    mips.close(f);
+    files.delete(String(p.fileId));
+    return {};
+  },
+  'file.recoverWrite': (p) => {
+    const f = fileOf(p);
+    if (!f.path) return { path: null, written: false };
+    if (!f.dirty) { removeRecovery(f.path); return { path: recoveryOf(f.path), written: false }; }
+    return { ...writeRecovery(f), written: true };
+  },
   'file.dirty': (p) => ({ dirty: fileOf(p).dirty }),
   'model.circuit': (p) => {
     const f = fileOf(p);
@@ -864,4 +940,8 @@ process.stdin.on('data', (chunk: string) => {
   rest = parts.pop() ?? '';
   for (const p of parts) if (p.trim()) handle(p.trim());
 });
-process.stdin.on('end', () => setImmediate(() => process.exit(0)));
+// The main process is gone: the recovery file of every file with unsaved edits first (N-19; the real engine: Files.closeAll).
+process.stdin.on('end', () => setImmediate(() => {
+  if (recoveryFiles) for (const f of files.values()) if (f.path && f.dirty) { try { writeRecovery(f); } catch { /* the last one stays */ } }
+  process.exit(0);
+}));
