@@ -431,7 +431,7 @@ FlowPath = {circuitId, backward, total, click?:[x,y],
 ### 끝
 
 - 앱을 끝낼 때: `engine.shutdown` → 엔진이 답하고 열린 파일을 닫은 뒤 코드 0으로 끝난다. 3초 안에 끝나지 않으면 main이 강제로 끝낸다.
-- main 프로세스가 죽으면(작업 관리자, 충돌): 엔진의 stdin이 닫히고 엔진이 스스로 끝난다. stdin이 닫히지 않아도 엔진은 시작할 때의 부모 프로세스가 끝나는 것을 지켜보다 끝난다(`Main.watchParent`, Windows CI에서 stdin만으로는 끝나지 않은 것을 보고 더했다. `-Dhcs.watchParent=false`로 끈다). 떠도는 java 프로세스가 남지 않는다.
+- main 프로세스가 죽으면(작업 관리자, 충돌): 엔진의 stdin이 닫히고 엔진이 스스로 끝난다. Windows에서 main은 엔진을 `detached`로 띄운다: Node가 자식을 넣는 "부모와 함께 죽는" 작업 개체 밖이라, 엔진이 끝나기 전에 복구 파일을 쓸 수 있다(N-19). stdin이 닫히지 않아도 엔진은 시작할 때의 부모 프로세스가 끝나는 것을 지켜보다 끝난다(`Main.watchParent`, Windows CI에서 stdin만으로는 끝나지 않은 것을 보고 더했다. `-Dhcs.watchParent=false`로 끈다). 떠도는 java 프로세스가 남지 않는다.
 - 엔진의 stderr(로그)는 main의 메모리에 마지막 40줄만 둔다. 파일로 쓰지 않는다. JVM 충돌 보고서(`hs_err`)는 실행 폴더에 떨어지고 실행 폴더와 함께 지워진다.
 
 ### 스스로 끝났을 때(충돌): 다시 시작

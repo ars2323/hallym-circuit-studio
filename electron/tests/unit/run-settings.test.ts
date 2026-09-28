@@ -55,6 +55,8 @@ test('the main process writes to disk only this run\'s folder: the student\'s fi
     'main/run-folder.ts rmSync',         // (the script that removes this one after quit)
     'main/run-folder.ts rmdirSync',
   ].sort());
+  // Windows: the engine outside libuv's kill-on-close job, so a killed app's engine still writes the recovery files
+  assert.match(code(path.join(SRC, 'main/main.ts')), /detached: process\.platform === 'win32'/);
   // recovery-files.ts only looks (stat): the engine writes and removes them
   assert.doesNotMatch(code(path.join(SRC, 'main/recovery-files.ts')), /from 'node:fs'.*(write|rm|unlink|rename)/);
 });

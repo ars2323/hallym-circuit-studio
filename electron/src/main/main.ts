@@ -88,7 +88,12 @@ const engine = new EngineClient({
     if (!located.ok) throw new Error(`${located.reason}\n${located.looked.map((l) => `  ${l}`).join('\n')}`);
     const env = { ...process.env };
     delete env.ELECTRON_RUN_AS_NODE;
-    return spawn(located.engine.command, located.engine.args, { cwd: located.engine.cwd, env, stdio: 'pipe', windowsHide: true });
+    // Windows: not in libuv's kill-on-close job object (detached), so that if this process is killed the engine
+    // is not killed with it at once but sees its parent end (Main.watchParent) and first writes the recovery
+    // files of the unsaved files (N-19, D-152).  Its stdio stay these pipes; it ends with this process all the same.
+    return spawn(located.engine.command, located.engine.args, {
+      cwd: located.engine.cwd, env, stdio: 'pipe', windowsHide: true, detached: process.platform === 'win32',
+    });
   },
 });
 supervisor = new Supervisor(engine);
