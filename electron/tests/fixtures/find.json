@@ -947,7 +947,7 @@
               ],
               "at": [
                 100,
-                200
+                250
               ],
               "place": "main › alu #1 › ALUOp",
               "near": true,
@@ -955,7 +955,7 @@
                 "name": "Pin",
                 "loc": [
                   100,
-                  200
+                  250
                 ]
               }
             }
@@ -980,7 +980,7 @@
               ],
               "at": [
                 100,
-                200
+                250
               ],
               "place": "main › alu #1 › ALUOp",
               "near": true,
@@ -988,7 +988,7 @@
                 "name": "Tunnel",
                 "loc": [
                   100,
-                  200
+                  250
                 ]
               }
             },
@@ -1169,7 +1169,7 @@
                 }
               ],
               "at": [
-                420,
+                360,
                 570
               ],
               "place": "main › regfile #1 › Decoder #1 (output 1)",
@@ -1177,7 +1177,7 @@
               "component": {
                 "name": "Tunnel",
                 "loc": [
-                  420,
+                  360,
                   570
                 ]
               }
@@ -1202,7 +1202,7 @@
                 }
               ],
               "at": [
-                420,
+                360,
                 580
               ],
               "place": "main › regfile #1 › Decoder #1 (output 2)",
@@ -1210,7 +1210,7 @@
               "component": {
                 "name": "Tunnel",
                 "loc": [
-                  420,
+                  360,
                   580
                 ]
               }
@@ -1261,7 +1261,7 @@
                 }
               ],
               "at": [
-                420,
+                360,
                 590
               ],
               "place": "main › regfile #1 › Decoder #1 (output 3)",
@@ -1269,7 +1269,7 @@
               "component": {
                 "name": "Tunnel",
                 "loc": [
-                  420,
+                  360,
                   590
                 ]
               }

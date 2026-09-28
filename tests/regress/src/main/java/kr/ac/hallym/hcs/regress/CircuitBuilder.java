@@ -147,23 +147,32 @@ public final class CircuitBuilder {
 
     /**
      * 포트 위에 라벨 터널을 놓되, 터널 몸체가 부품 바깥으로 향하게 한다(부품 안쪽 글자와 겹치지 않게). 연결은
-     * {@link #tunnel}과 같다(터널은 끝점과 이름으로만 잇는다).
+     * {@link #tunnel}과 같다(터널은 끝점과 이름으로만 잇는다). 바깥은 포트에서 가장 가까운 경계 변의 바깥이다(D-156:
+     * 스플리터 팔처럼 포트가 경계 가장자리 한 단위 안에 있어도 그 변 쪽으로 뻗는다). 거리가 1 단위까지 차이 나는 변은
+     * 같게 보고 서·동·북·남 차례로 고른다(원조 경계는 오른쪽·아래로 1 단위 넓어, 스플리터 첫 팔은 위 변 0, 오른쪽 변 1).
      */
     public void tunnelOutward(Component c, int index, String label) {
         Location at = port(c, index);
-        com.cburch.logisim.data.Bounds b = c.getBounds();
-        String facing;
-        if (at.getX() <= b.getX()) {
-            facing = "east"; // 왼쪽 변: 몸체는 왼쪽으로
-        } else if (at.getX() >= b.getX() + b.getWidth()) {
-            facing = "west";
-        } else if (at.getY() <= b.getY()) {
-            facing = "south";
-        } else {
-            facing = "north";
-        }
         add("Wiring", "Tunnel", at.getX(), at.getY(),
-                "width", Integer.toString(width(c, index)), "label", label, "facing", facing);
+                "width", Integer.toString(width(c, index)), "label", label, "facing", outwardFacing(c, at));
+    }
+
+    /** 부품 c의 경계에서 at과 가장 가까운 변의 바깥으로 몸체를 뻗는 터널의 facing(터널 끝은 at을 본다). */
+    static String outwardFacing(Component c, Location at) {
+        com.cburch.logisim.data.Bounds b = c.getBounds();
+        int left = at.getX() - b.getX();
+        int right = b.getX() + b.getWidth() - at.getX();
+        int top = at.getY() - b.getY();
+        int bottom = b.getY() + b.getHeight() - at.getY();
+        int near = Math.min(Math.min(left, right), Math.min(top, bottom)) + 1;
+        if (left <= near) {
+            return "east"; // 왼쪽 변: 몸체는 왼쪽으로
+        } else if (right <= near) {
+            return "west";
+        } else if (top <= near) {
+            return "south";
+        }
+        return "north";
     }
 
     /** 출력 핀을 만들고 라벨 터널로 연결한다. */
@@ -171,6 +180,14 @@ public final class CircuitBuilder {
         Component pin = add("Wiring", "Pin", x, y,
                 "facing", "west", "output", "true", "width", Integer.toString(width), "label", label);
         tunnel(pin, 0, label);
+        return pin;
+    }
+
+    /** 출력 핀을 만들고 라벨 터널로 연결하되, 터널 몸체가 핀 바깥(핀 왼쪽)으로 뻗게 한다(D-156). */
+    public Component outputOutward(String label, int width, int x, int y) {
+        Component pin = add("Wiring", "Pin", x, y,
+                "facing", "west", "output", "true", "width", Integer.toString(width), "label", label);
+        tunnelOutward(pin, 0, label);
         return pin;
     }
 
