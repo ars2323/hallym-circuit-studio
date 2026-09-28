@@ -8,9 +8,6 @@ package kr.ac.hallym.hcs.app.record;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
-import java.io.ByteArrayOutputStream;
-import java.io.OutputStream;
-import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.management.LockInfo;
@@ -18,9 +15,7 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MonitorInfo;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.locks.LockSupport;
@@ -38,6 +33,7 @@ import com.cburch.logisim.proj.Project;
 
 import kr.ac.hallym.hcs.app.diag.DiagnosticSet;
 import kr.ac.hallym.hcs.regress.CircuitBuilder;
+import kr.ac.hallym.hcs.regress.LogisimRace;
 
 /**
  * 모델 스레드가 부품을 잇달아 넣는 동안 원조 시뮬레이터가 빠르게 틱해도 시뮬레이터 스레드가 죽지 않고 기록이 이어진다
@@ -49,7 +45,7 @@ import kr.ac.hallym.hcs.regress.CircuitBuilder;
  * 읽기 잠금을 기다리기만 해서 편집 3초 동안 틱이 몇 번밖에 돌지 않는다. 쉬면 편집 수백 번이 틱·캡처 수백 번과
  * 번갈아 겹친다.
  * <p>
- * 원조 자체의 경합(고치지 않음, D-143): 편집 스레드의 원조 CircuitState 청취자가 넣은 부품을 dirtyComponents에 더하는
+ * 원조 자체의 경합(고치지 않음, D-143, {@link LogisimRace}): 편집 스레드의 원조 CircuitState 청취자가 넣은 부품을 dirtyComponents에 더하는
  * 동안 원조 전파(시뮬레이터 스레드)가 같은 집합을 배열로 옮기거나 비우면 예외가 난다. 원조 Simulator는 그 예외를 잡아
  * 찍고 시뮬레이션을 끈다(스레드는 살아 있고, 학생은 Simulation Enabled를 다시 켠다). 그러면 틱이 멈춰 기록도 멈추므로,
  * 이 테스트는 그때 찍힌 예외가 원조 전파 안의 것이고 우리 코드를 지나지 않았는지 보고 시뮬레이션을 다시 켠다. 부품을
@@ -83,9 +79,7 @@ class RecorderEditRaceTest {
             uncaught.add(t.getName() + ": " + w);
         });
         // 원조 Simulator는 전파 중의 예외를 잡아 System.err에 찍기만 한다: 그 사본을 모은다
-        PrintStream errBefore = System.err;
-        ErrCopy err = new ErrCopy(errBefore);
-        System.setErr(new PrintStream(err, true, StandardCharsets.UTF_8));
+        LogisimRace race = LogisimRace.watch();
         Project proj = new Project(file);
         Simulator sim = proj.getSimulator();
         try {
@@ -97,8 +91,15 @@ class RecorderEditRaceTest {
             sim.setTickFrequency(4096);
             sim.setIsTicking(true);
 
+            // 원조 전파가 제 경합으로 시뮬레이션을 껐으면(우리 코드를 지나지 않았는지 확인하고) 학생이 Simulation
+            // Enabled를 다시 켜듯 켠다
             int[] stops = {0};
-            Runnable resume = () -> stops[0] += resumeAfterLogisimStop(sim, err) ? 1 : 0;
+            Runnable resume = () -> {
+                if (race.stoppedByLogisim(sim)) {
+                    stops[0]++;
+                    sim.setIsRunning(true);
+                }
+            };
             long end = System.currentTimeMillis() + 3000;
             int edits = 0;
             while (edits < 1000 && System.currentTimeMillis() < end && uncaught.isEmpty()) {
@@ -125,81 +126,8 @@ class RecorderEditRaceTest {
         } finally {
             sim.setIsTicking(false);
             sim.shutDown();
-            System.setErr(errBefore);
+            race.close();
             Thread.setDefaultUncaughtExceptionHandler(before);
-        }
-    }
-
-    /**
-     * 원조 전파가 스스로 잡은 예외로 시뮬레이션을 껐으면 다시 켜고 true. 꺼졌는데 원조가 예외를 만나지 않았거나(다른 까닭),
-     * 원조 전파가 찍은 예외가 우리 코드를 지났으면 실패한다.
-     */
-    static boolean resumeAfterLogisimStop(Simulator sim, ErrCopy err) {
-        if (sim.isRunning()) {
-            return false;
-        }
-        if (!sim.isExceptionEncountered()) {
-            throw new AssertionError("the simulation stopped without an exception in Logisim's propagator");
-        }
-        List<String> caught = err.propagatorTraces();
-        if (caught.isEmpty()) {
-            throw new AssertionError("the simulation stopped but Logisim printed no propagator exception");
-        }
-        for (String t : caught) {
-            if (t.contains("at kr.ac.hallym.")) {
-                throw new AssertionError("Logisim's propagator caught an exception from our code:\n" + t);
-            }
-        }
-        sim.setIsRunning(true); // 학생이 Simulation Enabled를 다시 켜듯
-        return true;
-    }
-
-    /** System.err를 그대로 두고 사본을 모은다. */
-    static final class ErrCopy extends OutputStream {
-        private final PrintStream out;
-        private final ByteArrayOutputStream copy = new ByteArrayOutputStream();
-
-        ErrCopy(PrintStream out) {
-            this.out = out;
-        }
-
-        @Override
-        public synchronized void write(int b) {
-            out.write(b);
-            copy.write(b);
-        }
-
-        @Override
-        public synchronized void write(byte[] b, int off, int len) {
-            out.write(b, off, len);
-            copy.write(b, off, len);
-        }
-
-        @Override
-        public void flush() {
-            out.flush();
-        }
-
-        /** 원조 Simulator의 전파 스레드가 잡아 찍은 예외들(스택 전부). */
-        synchronized List<String> propagatorTraces() {
-            List<String> traces = new ArrayList<>();
-            StringBuilder cur = null;
-            for (String line : copy.toString(StandardCharsets.UTF_8).split("\n")) {
-                boolean frame = line.startsWith("\t") || line.startsWith("Caused by:") || line.startsWith("Suppressed:");
-                if (!frame) {
-                    if (cur != null && cur.indexOf("Simulator$PropagationManager.run") >= 0) {
-                        traces.add(cur.toString());
-                    }
-                    cur = new StringBuilder();
-                }
-                if (cur != null) {
-                    cur.append(line).append('\n');
-                }
-            }
-            if (cur != null && cur.indexOf("Simulator$PropagationManager.run") >= 0) {
-                traces.add(cur.toString());
-            }
-            return traces;
         }
     }
 

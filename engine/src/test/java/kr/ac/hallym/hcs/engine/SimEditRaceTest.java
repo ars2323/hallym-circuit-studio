@@ -22,9 +22,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import com.cburch.logisim.circuit.Simulator;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+
+import kr.ac.hallym.hcs.engine.rpc.RpcError;
+import kr.ac.hallym.hcs.regress.LogisimRace;
 
 /**
  * 엔진 스레드의 편집·모델·진단 요청과 원조 시뮬레이터 스레드의 사이클이 겹쳐도 시뮬레이터 스레드가 죽지 않는다(D-143).
@@ -34,6 +38,11 @@ import com.google.gson.JsonObject;
  * 돌고(MemWrite 3상태), 편집마다 기록을 새로 시작해 원인 문장(부품 이름·번호)을 다시 만든다. 옮기기는 엔진의 화면
  * 없는 Canvas를 만든다(원조 Canvas는 클럭 틱마다 시뮬레이터 스레드에서 회로 경계를 쟀다). 서브회로(alu)에 핀을 넣고
  * 빼는 편집은 원조가 두 회로(alu, main)의 쓰기 잠금을 함께 쥐는 경우다(읽기 잠금과 교착하지 않는지).
+ * <p>
+ * 원조 자체의 경합(고치지 않음, D-143, {@link LogisimRace}): 원조 CircuitState 청취자(엔진 스레드)와 원조 전파
+ * (시뮬레이터 스레드)가 더러운 부품·점 집합을 함께 고쳐, 드물게 편집이 그 청취자 안의 예외로 끝나거나 원조가 전파 중
+ * 예외를 잡아 시뮬레이션을 끈다. 그 편집 묶음은 그만두고, 꺼진 시뮬레이션은 다시 켜서 잇는다. 예외가 원조 안에서 났고
+ * 우리 코드를 지나지 않았는지는 확인한다.
  */
 class SimEditRaceTest {
     static final File BROKEN = new File(System.getProperty("hcs.electronFixtures"), "broken-datapath.circ");
@@ -49,6 +58,17 @@ class SimEditRaceTest {
     /** 테스트 동안 스레드가 잡지 못한 예외로 끝난 것(시뮬레이터 스레드는 원조 코드라 처리기가 없다). */
     final List<String> uncaught = new CopyOnWriteArrayList<>();
     Thread.UncaughtExceptionHandler before;
+    /** 원조와 엔진이 System.err에 찍는 예외(엔진 서버가 붙잡기 전에 모으기 시작한다). */
+    LogisimRace race;
+    Simulator sim;
+    /** 원조 청취자 경합으로 그만둔 편집 묶음, 원조가 끈 시뮬레이션을 다시 켠 수. */
+    int listenerRaces;
+    int stops;
+
+    /** 편집이 원조 CircuitState 청취자 안의 경합으로 끝났다: 그 묶음을 그만둔다. */
+    static final class ListenerRace extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+    }
 
     @BeforeEach
     void start() throws Exception {
@@ -58,17 +78,40 @@ class SimEditRaceTest {
             x.printStackTrace(new PrintWriter(w));
             uncaught.add(t.getName() + ": " + w);
         });
+        race = LogisimRace.watch();
         e = new InProcess();
     }
 
     @AfterEach
     void stop() {
         e.close();
+        race.close();
         Thread.setDefaultUncaughtExceptionHandler(before);
     }
 
     JsonObject call(String method, Object... kv) {
         return e.client.callObject(method, params(kv));
+    }
+
+    /** 편집 요청. 원조 청취자 안의 경합으로 끝났으면 ListenerRace, 다른 실패는 그대로 던진다. */
+    JsonObject edit(String method, Object... kv) {
+        try {
+            return call(method, kv);
+        } catch (Client.Failure f) {
+            if (f.code == RpcError.INTERNAL_ERROR && race.editFailedInLogisimListener(method)) {
+                throw new ListenerRace();
+            }
+            throw f;
+        }
+    }
+
+    /** 원조 전파가 경합으로 시뮬레이션을 껐으면 확인하고 다시 켜서(Simulation Enabled) N Cycles를 잇는다. */
+    void resumeIfLogisimStopped() {
+        if (race.stoppedByLogisim(sim)) {
+            stops++;
+            call("sim.enable", "fileId", fileId, "on", true);
+            call("sim.cycles", "fileId", fileId, "n", 1_000_000);
+        }
     }
 
     long cycle() {
@@ -103,6 +146,7 @@ class SimEditRaceTest {
             }
         }
         assertTrue(alu != null, "broken-datapath has the alu subcircuit");
+        sim = e.onEngine(() -> e.engine.files().get(fileId).project().getSimulator());
 
         call("sim.cycles", "fileId", fileId, "n", 1_000_000);
         long cycleAtStart = cycle();
@@ -110,30 +154,35 @@ class SimEditRaceTest {
         int rounds = 0;
         while (rounds < ROUNDS && System.currentTimeMillis() < end) {
             rounds++;
-            // 부품 여럿을 잇달아 넣는다(편집마다 시뮬레이터 스레드가 기록을 새로 시작하며 넷을 다시 읽는다)
-            List<String> ids = new ArrayList<>();
-            for (int k = 0; k < 4; k++) {
-                int x = 2000 + 60 * k;
-                int y = 2000 + 90 * rounds;
-                ids.add(call("edit.addComponent", "fileId", fileId, "circuitId", main, "lib", "Gates", "name",
-                        "NOT Gate", "loc", new int[] {x, y}).get("id").getAsString());
-            }
-            call("edit.setAttr", "fileId", fileId, "circuitId", main, "ids", new Object[] {ids.get(0)}, "attr",
-                    "label", "value", "n" + rounds);
-            // 옮기면 원조는 새 부품을 넣는다(새 id): 옮긴 것은 두고 나머지를 지운다
-            call("edit.move", "fileId", fileId, "circuitId", main, "ids", new Object[] {ids.remove(1)}, "dx", 0,
-                    "dy", 30);
-            call("model.circuit", "fileId", fileId, "circuitId", main);
-            call("diag.list", "fileId", fileId);
-            call("edit.delete", "fileId", fileId, "circuitId", main, "ids", ids.toArray());
-            call("edit.undo", "fileId", fileId);
-            call("edit.redo", "fileId", fileId);
-            if (rounds % 3 == 0) {
-                // 서브회로의 핀: main의 alu 인스턴스 포트가 바뀐다(원조가 alu·main 쓰기 잠금을 함께 쥔다)
-                call("edit.addComponent", "fileId", fileId, "circuitId", alu, "lib", "Wiring", "name", "Pin", "loc",
-                        new int[] {1500, 1500 + 20 * (rounds % 10)});
+            resumeIfLogisimStopped();
+            try {
+                // 부품 여럿을 잇달아 넣는다(편집마다 시뮬레이터 스레드가 기록을 새로 시작하며 넷을 다시 읽는다)
+                List<String> ids = new ArrayList<>();
+                for (int k = 0; k < 4; k++) {
+                    int x = 2000 + 60 * k;
+                    int y = 2000 + 90 * rounds;
+                    ids.add(edit("edit.addComponent", "fileId", fileId, "circuitId", main, "lib", "Gates", "name",
+                            "NOT Gate", "loc", new int[] {x, y}).get("id").getAsString());
+                }
+                edit("edit.setAttr", "fileId", fileId, "circuitId", main, "ids", new Object[] {ids.get(0)}, "attr",
+                        "label", "value", "n" + rounds);
+                // 옮기면 원조는 새 부품을 넣는다(새 id): 옮긴 것은 두고 나머지를 지운다
+                edit("edit.move", "fileId", fileId, "circuitId", main, "ids", new Object[] {ids.remove(1)}, "dx", 0,
+                        "dy", 30);
                 call("model.circuit", "fileId", fileId, "circuitId", main);
-                call("edit.undo", "fileId", fileId);
+                call("diag.list", "fileId", fileId);
+                edit("edit.delete", "fileId", fileId, "circuitId", main, "ids", ids.toArray());
+                edit("edit.undo", "fileId", fileId);
+                edit("edit.redo", "fileId", fileId);
+                if (rounds % 3 == 0) {
+                    // 서브회로의 핀: main의 alu 인스턴스 포트가 바뀐다(원조가 alu·main 쓰기 잠금을 함께 쥔다)
+                    edit("edit.addComponent", "fileId", fileId, "circuitId", alu, "lib", "Wiring", "name", "Pin",
+                            "loc", new int[] {1500, 1500 + 20 * (rounds % 10)});
+                    call("model.circuit", "fileId", fileId, "circuitId", main);
+                    edit("edit.undo", "fileId", fileId);
+                }
+            } catch (ListenerRace r) {
+                listenerRaces++;
             }
             noUncaught("after " + rounds + " rounds of edits");
         }
@@ -142,15 +191,18 @@ class SimEditRaceTest {
         // 시뮬레이터 스레드가 살아 있다: 사이클이 늘고, 동적 진단(X 쓰기)이 다시 보인다
         long wait = System.currentTimeMillis() + Client.TIMEOUT_MS;
         while (cycle() <= cycleAtStart + 2 && System.currentTimeMillis() < wait) {
+            resumeIfLogisimStopped();
             Thread.sleep(20);
         }
         assertTrue(cycle() > cycleAtStart + 2, "the cycles stopped: " + cycleAtStart + " → " + cycle());
         JsonArray messages = call("diag.list", "fileId", fileId).getAsJsonArray("messages");
         while (!hasDynamic(messages) && System.currentTimeMillis() < wait) {
+            resumeIfLogisimStopped();
             Thread.sleep(20);
             messages = call("diag.list", "fileId", fileId).getAsJsonArray("messages");
         }
         assertTrue(hasDynamic(messages), "no dynamic message after the edits: " + messages);
         noUncaught("after the edits");
+        System.out.println("RACE-INFO rounds=" + rounds + " listenerRaces=" + listenerRaces + " stops=" + stops);
     }
 }
