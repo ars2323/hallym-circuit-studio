@@ -84,6 +84,12 @@ public final class Recorder {
     };
     private final LibraryListener libraryListener = new LibraryListener() {
         public void libraryChanged(LibraryEvent e) {
+            // 저장·첫 편집의 "고침 표시" 바뀜과 파일 이름은 넷을 바꾸지 않는다: 새로 시작하면 지난 사이클이 모두 버려진다
+            // (Mark as Register File·Mark as PC처럼 회로를 고치지 않는 첫 동작이나 저장 뒤, RecordTest가 CI에서 가끔 실패).
+            // 회로를 고치는 편집은 원조 회로 사건(TRANSACTION_DONE 등)으로 온다
+            if (e.getAction() == LibraryEvent.DIRTY_STATE || e.getAction() == LibraryEvent.SET_NAME) {
+                return;
+            }
             listenToCircuits();
             edited = true;
         }
@@ -188,6 +194,16 @@ public final class Recorder {
      */
     public boolean resetPending() {
         return resetPending;
+    }
+
+    /**
+     * 다음 전파(또는 틱)에서 지금 상태를 스텝 0으로 새로 적는다. 원조 시뮬레이터는 리셋하지 않는다. v2 엔진(D-143)이
+     * 파일을 연 요청에서 모든 청취자(진단)가 붙은 뒤에 부른다: 파일을 연 첫 전파가 기록기만 붙고 진단은 아직 붙지 않은
+     * 사이에 끝나면 진단이 스텝 0의 알림을 받지 못하고, 지금 상태를 읽는 MIPS 부품 검사(D-04)가 처음부터 있던 문제를
+     * 사이클 1로 말한다(DiagTest가 가끔 실패).
+     */
+    public void restartAtNextPropagation() {
+        resetPending = true;
     }
 
     /** 지금 시뮬레이터가 도는 최상위 회로의 기록. 없으면 null. */

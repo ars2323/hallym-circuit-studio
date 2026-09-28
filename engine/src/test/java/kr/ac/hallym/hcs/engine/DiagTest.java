@@ -244,6 +244,26 @@ class DiagTest {
         golden("messages.v2.en.expected", en.toString());
     }
 
+    /**
+     * 파일을 열 때부터 있는 MIPS 부품 문제(정렬되지 않은 주소, 영역 밖 주소)는 돌리기 전에 사이클 0으로 나온다. 파일을 연
+     * 첫 전파가 기록기만 붙고 진단은 아직 붙지 않은 사이에 끝나면, 진단이 스텝 0을 못 보고 첫 틱에 지금 상태를 읽어
+     * "사이클 1"로 말했다(everyFaultCircuitGivesOneMessageInBothLanguages가 가끔 실패). 엔진은 모든 청취자가 붙은 뒤
+     * 스텝 0을 다시 적는다(D-143).
+     */
+    @Test
+    void aMipsProblemThereFromTheStartIsCycle0BeforeTheClockRuns() throws Exception {
+        for (String name : new String[] {"mips-imem-unaligned", "mips-no-region"}) {
+            open(Fixtures.copyWithSiblings(new File(FAULTS, name + ".circ"), Files.createTempDirectory(tmp, "m")));
+            JsonArray l = listUntil(1);
+            assertEquals(1, l.size(), name + ": " + l);
+            JsonObject m = l.get(0).getAsJsonObject();
+            assertEquals("MIPS_STATUS", m.get("code").getAsString(), name);
+            assertEquals(0, m.getAsJsonObject("location").get("cycle").getAsInt(), name);
+            assertTrue(text(m, "en").startsWith("Cycle 0: "), text(m, "en"));
+            e.client.call("file.close", params("fileId", fileId));
+        }
+    }
+
     /** 기대 파일과 비교한다. 갱신: ./gradlew :engine:test -Phcs.update=true. */
     static void golden(String name, String got) throws Exception {
         File expected = new File(FAULTS, name);

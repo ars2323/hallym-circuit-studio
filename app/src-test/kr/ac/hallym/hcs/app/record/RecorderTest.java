@@ -96,4 +96,98 @@ public class RecorderTest {
         waitFor(() -> rec.current().last() == 5, "then continue at 5");
         assertTrue(rec.current().checkpointCount() >= 1);
     }
+
+    /** 카운터와 클럭 하나: 틱마다 스텝이 하나 는다. */
+    private Object[] counter() throws Exception {
+        LogisimFile file = CircuitBuilder.newFile(new Loader(null), tmp.toFile());
+        CircuitBuilder b = new CircuitBuilder(file, file.getMainCircuit());
+        Component clk = b.add("Wiring", "Clock", 100, 200);
+        b.tunnel(clk, 0, "clk");
+        Component ctr = b.add("Memory", "Counter", 400, 200, "width", "8", "label", "PC");
+        b.tunnel(ctr, 2, "clk");
+        b.commit();
+        return new Object[] {file, new Project(file)};
+    }
+
+    /** 전파를 요청하고 원조 시뮬레이터가 그 전파를 마쳤다고 알릴 때까지 기다린다. */
+    static void propagateAndWait(Simulator sim) throws Exception {
+        java.util.concurrent.atomic.AtomicInteger done = new java.util.concurrent.atomic.AtomicInteger();
+        com.cburch.logisim.circuit.SimulatorListener l = new com.cburch.logisim.circuit.SimulatorListener() {
+            public void propagationCompleted(com.cburch.logisim.circuit.SimulatorEvent e) {
+                done.incrementAndGet();
+            }
+
+            public void tickCompleted(com.cburch.logisim.circuit.SimulatorEvent e) {
+            }
+
+            public void simulatorStateChanged(com.cburch.logisim.circuit.SimulatorEvent e) {
+            }
+        };
+        sim.addSimulatorListener(l);
+        try {
+            sim.requestPropagate();
+            waitFor(() -> done.get() > 0, "the requested propagation");
+        } finally {
+            sim.removeSimulatorListener(l);
+        }
+    }
+
+    /**
+     * 저장(고침 표시가 꺼짐)이나 회로를 고치지 않는 첫 동작(Mark as Register File·Mark as PC: 고침 표시가 켜짐)은 넷을
+     * 바꾸지 않는다: 지난 사이클을 버리고 새로 적지 않는다(원조 라이브러리 사건 DIRTY_STATE, RecordTest가 CI에서 가끔
+     * 실패).
+     */
+    @Test
+    void savingOrMarkingTheFileDirtyKeepsThePastSteps() throws Exception {
+        Object[] fp = counter();
+        LogisimFile file = (LogisimFile) fp[0];
+        Project proj = (Project) fp[1];
+        Simulator sim = proj.getSimulator();
+        Recorder rec = Recorder.of(proj);
+        Recorder.requestReset(proj);
+        waitFor(() -> rec.current() != null && rec.current().last() == 0, "step 0");
+        for (int i = 0; i < 4; i++) {
+            sim.tick();
+            final int want = i + 1;
+            waitFor(() -> rec.current().last() == want, "tick " + want);
+        }
+        Recording r = rec.current();
+        int generation = r.generation();
+        file.setDirty(true); // 첫 동작
+        propagateAndWait(sim);
+        file.setDirty(false); // 저장
+        propagateAndWait(sim);
+        sim.tick();
+        waitFor(() -> rec.current().last() == 5, "tick 5");
+        assertSame(r, rec.current());
+        assertEquals(generation, r.generation(), "not started again");
+        assertEquals(0, r.first(), "the past steps are kept");
+    }
+
+    /**
+     * restartAtNextPropagation(v2 엔진이 파일을 연 요청에서 진단이 붙은 뒤에 부른다, D-143): 원조 리셋 없이 다음 전파에서
+     * 스텝 0을 새로 적고, 뒤에 붙은 청취자도 그 스텝 0을 받는다.
+     */
+    @Test
+    void aLaterListenerGetsStepZeroWhenTheRecordingRestarts() throws Exception {
+        Object[] fp = counter();
+        Project proj = (Project) fp[1];
+        Simulator sim = proj.getSimulator();
+        Recorder rec = Recorder.of(proj);
+        propagateAndWait(sim);
+        waitFor(() -> rec.current() != null && rec.current().last() == 0, "step 0 before the listener");
+        int generation = rec.current().generation();
+        java.util.List<int[]> heard = new java.util.concurrent.CopyOnWriteArrayList<>();
+        rec.addListener(x -> heard.add(new int[] {x.first(), x.last(), x.generation()}));
+        propagateAndWait(sim);
+        assertTrue(heard.isEmpty(), "an unchanged propagation is not a new step");
+        rec.restartAtNextPropagation();
+        assertTrue(rec.resetPending());
+        propagateAndWait(sim);
+        waitFor(() -> !heard.isEmpty(), "the listener hears step 0");
+        assertEquals(0, heard.get(0)[0]);
+        assertEquals(0, heard.get(0)[1]);
+        assertEquals(generation + 1, heard.get(0)[2], "a new recording from step 0");
+        assertTrue(!rec.resetPending());
+    }
 }
