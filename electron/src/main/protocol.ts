@@ -192,6 +192,82 @@ export interface PokeResult { poked: boolean; caret?: boolean }
 // or "rect", the drag's meaning); id: a part the edit put in (edit.addComponent, edit.text); circuitId: a new circuit.
 export interface EditResult { changed: boolean; outcome?: string; id?: string; circuitId?: string }
 
+/* The attribute table (model.attributes, N-10, D-157): what Logisim's
+   attribute table shows -- the selection's attributes (only those every
+   part has; a value that differs is empty, `mixed`), the circuit's when
+   nothing is selected, or the tool's in hand -- each row with its editor.
+   Values are the .circ's text (`value`) and the table's text (`text`). */
+export type AttrType = 'option' | 'number' | 'text' | 'font' | 'color' | 'contents';
+export interface AttrOption { value: string; display: string; checked?: boolean }
+export interface AttrRow {
+  attr: string;             // the .circ name ("width")
+  display: string;          // the original table's name ("Data Bits")
+  value: string | null;     // the .circ text; null: the parts differ (or a ROM's contents, not carried)
+  text: string;             // what the table shows
+  type: AttrType;
+  readOnly: boolean;
+  mixed: boolean;
+  options?: AttrOption[];   // option: the original list box's choices
+  radix?: 10 | 16;          // number
+  min?: number;             // number: the original range
+  max?: number;
+  styles?: AttrOption[];    // font: plain, italic, bold, bold italic
+  families?: string[];      // font
+}
+// Quick Attributes (v1 QuickBar, I-103, I-104): the kind's frequent attributes, the original's number keys.
+export interface QuickFacts {
+  attrs: string[];
+  hints: { keys: string; attr: string; display: string }[];
+  rotate: boolean;          // R rotates it
+  label: boolean;           // F2 edits its label
+  count: number;            // parts of the one kind chosen
+  autoAppearance?: string;  // a subcircuit of this file with its default appearance: its circuitId
+}
+export interface AttrTable {
+  target: 'selection' | 'circuit' | 'tool';
+  circuitId?: string;
+  lib?: string | null;      // tool
+  name?: string;            // tool
+  title: string;            // "Selection: AND Gate", "Circuit: main", "Tool: Pin"
+  editable: boolean;        // a file that can be written and a circuit of this file
+  rows: AttrRow[];
+  quick?: QuickFacts;
+}
+
+/* The right-click menu's facts (model.menu, N-10, D-157): the menu registry
+   (renderer app/menus/) picks its items from these. */
+export interface MenuPort { i: number; name: string; dir: 'in' | 'out' | 'inout'; width: number; negate?: string; negated?: boolean }
+export interface MenuPart {
+  name: string; display: string; label?: string;
+  labelAttr: boolean; facing: boolean; width: boolean; inputs: boolean; gate: boolean;
+  port?: MenuPort;
+  swaps?: string[];                               // Change Gate To
+  options: { size?: AttrOption[]; pull?: AttrOption[] };
+  pin?: { output: boolean; tristate: boolean };
+  tunnel?: { same: string[]; index: number };     // same-named tunnels, top to bottom
+  subcircuit?: { circuitId: string; name: string; library?: string; defaultAppearance: boolean; registerFile: boolean };
+  pcMarked?: boolean;                             // a Register or Counter: marked as PC
+  original?: { i: number; text: string; enabled: boolean }[];   // the original's own menu items (Splitter Distribute)
+  memory?: 'ram' | 'rom' | 'program';           // RAM, ROM (the original's MemMenu), a Hallym MIPS memory (Load Program…)
+  source?: string;                                // a Hallym MIPS memory's source attribute
+}
+export interface MenuFacts {
+  circuitId: string;
+  editable: boolean;
+  kind: 'part' | 'wire' | 'empty' | 'many';
+  summary: string;                                // the bold first line (v1 MenuLayout.summary)
+  id?: string;                                    // the part or wire right-clicked
+  selection: { ids: string[]; ordered: boolean; parts: number; wires: number };
+  part?: MenuPart;
+  wire?: { width: number; net: string };
+  common?: { facing: boolean; width: boolean; label: boolean; labels: string[] };
+  probes?: string[];                              // an empty spot: the circuit's probes
+  combine?: number[];                             // wires only chosen: their widths in the order chosen
+}
+
+// RAM and ROM contents (mem.read, N-10): unsigned words from `from`.
+export interface MemWords { kind: 'ram' | 'rom'; addrBits: number; dataBits: number; from: number; total: number; words: number[] }
+
 /* edit.selection: what the engine's selection holds (the original Canvas's
    Selection) after an edit changed it: ids in the circuit, and the parts and
    wires floating (a paste or a duplicate not yet dropped into the circuit;
@@ -598,6 +674,8 @@ export const WINDOW_METHODS = [
   'edit.deleteCircuit', 'edit.moveCircuit', 'edit.portOrder', 'edit.autoAppearance', 'edit.appearance', 'edit.unloadLibrary',
   'model.ports', 'model.instances', 'model.pinImpact', 'model.appearance', 'model.appearanceHit', 'model.appearanceHandles',
   'model.appearanceMenu', 'model.libraries',
+  'model.attributes', 'model.menu', 'edit.labels', 'edit.attach', 'edit.swapGate', 'edit.deleteNet', 'edit.wireToTunnels',
+  'edit.probe', 'edit.deleteProbes', 'edit.combineBus', 'edit.originalItem', 'edit.memContents', 'mem.read', 'mem.write', 'mem.clear',
 ] as const;
 export type WindowMethod = typeof WINDOW_METHODS[number];
 

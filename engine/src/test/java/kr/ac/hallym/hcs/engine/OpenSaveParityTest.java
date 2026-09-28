@@ -445,6 +445,43 @@ class OpenSaveParityTest {
             }
             e.client.callObject("model.textAt", params("fileId", fileId, "circuitId", main, "loc", new int[] {5, 5}));
         }
+        // N-10(D-157): 속성 표(고른 것·회로·도구), 우클릭 메뉴의 사실(부품·선·빈 곳), RAM·ROM 내용 읽기 — 모델을 바꾸지 않는다
+        if (mainSnapshot != null) {
+            e.client.callObject("model.attributes", params("fileId", fileId, "circuitId", main));
+            e.client.callObject("model.attributes", params("fileId", fileId, "circuitId", main, "circuit", true));
+            e.client.callObject("model.menu", params("fileId", fileId, "circuitId", main, "at", new int[] {-40, -40}));
+            for (JsonElement c : mainSnapshot.getAsJsonArray("components")) {
+                JsonObject o = c.getAsJsonObject();
+                String id = o.get("id").getAsString();
+                JsonArray b = o.getAsJsonArray("bounds");
+                int[] mid = {b.get(0).getAsInt() + b.get(2).getAsInt() / 2, b.get(1).getAsInt() + b.get(3).getAsInt() / 2};
+                JsonArray one = new JsonArray();
+                one.add(id);
+                e.client.callObject("model.attributes", params("fileId", fileId, "circuitId", main, "ids", one));
+                e.client.callObject("model.menu", params("fileId", fileId, "circuitId", main, "at", mid, "id", id));
+                String n = o.get("name").getAsString();
+                if (n.equals("RAM") || n.equals("ROM")) {
+                    try {
+                        e.client.callObject("mem.read", params("fileId", fileId, "circuitId", main, "componentId", id,
+                                "count", 64));
+                    } catch (Client.Failure notYet) {
+                        assertEquals(4, notYet.code, notYet.getMessage()); // 아직 전파가 닿지 않은 RAM
+                    }
+                }
+            }
+            for (JsonElement w : mainSnapshot.getAsJsonArray("wires")) {
+                JsonObject o = w.getAsJsonObject();
+                JsonArray a = o.getAsJsonArray("a");
+                e.client.callObject("model.menu", params("fileId", fileId, "circuitId", main, "at",
+                        new int[] {a.get(0).getAsInt(), a.get(1).getAsInt()}, "id", o.get("id").getAsString()));
+                break;
+            }
+            try {
+                e.client.callObject("model.attributes", params("fileId", fileId, "lib", "Gates", "name", "AND Gate"));
+            } catch (Client.Failure noLibrary) {
+                assertEquals(1, noLibrary.code, noLibrary.getMessage());
+            }
+        }
         // 캔버스가 서브회로 인스턴스 안을 보는 길(sim.watch path)과 돌아오기
         if (mainSnapshot != null) {
             for (JsonElement c : mainSnapshot.getAsJsonArray("components")) {

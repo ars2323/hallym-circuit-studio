@@ -46,6 +46,28 @@ export interface CircuitsPanel {
 
 export const CIRCUIT_MIME = 'application/x-hcs-circuit';
 
+// A circuit's items (the original's explorer and Project menu): one list for the Circuits panel, the circuit tabs
+// and the Components list's circuits (N-10's menu registry, app/menus/side-menus.ts).
+export function circuitItems(st: { circuits: CircuitRef[]; main: string; editable: boolean }, circuitId: string, run: (cmd: CircuitCommand, circuitId: string) => void): MenuEntry[] {
+  const i = st.circuits.findIndex((k) => k.circuitId === circuitId);
+  if (i < 0) return [];
+  const ed = st.editable;
+  return [
+    { label: 'Edit Circuit Layout', run: () => run('layout', circuitId) },
+    { label: 'Edit Circuit Appearance', run: () => run('appearance', circuitId) },
+    SEPARATOR,
+    { label: 'Rename…', disabled: !ed, run: () => run('rename', circuitId) },
+    { label: 'Set As Main Circuit', disabled: !ed || circuitId === st.main, run: () => run('main', circuitId) },
+    SEPARATOR,
+    { label: 'Port Order…', disabled: !ed, run: () => run('portOrder', circuitId) },
+    { label: 'Auto Appearance', disabled: !ed, run: () => run('autoAppearance', circuitId) },
+    SEPARATOR,
+    { label: 'Move Circuit Up', disabled: !ed || i <= 0, run: () => run('up', circuitId) },
+    { label: 'Move Circuit Down', disabled: !ed || i >= st.circuits.length - 1, run: () => run('down', circuitId) },
+    { label: 'Remove Circuit', disabled: !ed || st.circuits.length <= 1, run: () => run('remove', circuitId) },
+  ];
+}
+
 export function circuitsPanel(o: {
   host: NoticeHost;
   circuit(cmd: CircuitCommand, circuitId: string): void;
@@ -85,23 +107,7 @@ export function circuitsPanel(o: {
   }
 
   function menuFor(c: CircuitRef, x: number, y: number): void {
-    const st = state!;
-    const i = st.circuits.findIndex((k) => k.circuitId === c.circuitId);
-    const ed = st.editable;
-    const entries: MenuEntry[] = [
-      { label: 'Edit Circuit Layout', run: () => o.circuit('layout', c.circuitId) },
-      { label: 'Edit Circuit Appearance', run: () => o.circuit('appearance', c.circuitId) },
-      SEPARATOR,
-      { label: 'Rename…', disabled: !ed, run: () => o.circuit('rename', c.circuitId) },
-      { label: 'Set As Main Circuit', disabled: !ed || c.circuitId === st.main, run: () => o.circuit('main', c.circuitId) },
-      SEPARATOR,
-      { label: 'Port Order…', disabled: !ed, run: () => o.circuit('portOrder', c.circuitId) },
-      { label: 'Auto Appearance', disabled: !ed, run: () => o.circuit('autoAppearance', c.circuitId) },
-      SEPARATOR,
-      { label: 'Move Circuit Up', disabled: !ed || i <= 0, run: () => o.circuit('up', c.circuitId) },
-      { label: 'Move Circuit Down', disabled: !ed || i >= st.circuits.length - 1, run: () => o.circuit('down', c.circuitId) },
-      { label: 'Remove Circuit', disabled: !ed || st.circuits.length <= 1, run: () => o.circuit('remove', c.circuitId) },
-    ];
+    const entries = circuitItems(state!, c.circuitId, o.circuit);
     marked(list.querySelector<HTMLElement>(`li:has(> button[data-circuit="${c.circuitId}"])`), showMenu(entries, x, y));
   }
 

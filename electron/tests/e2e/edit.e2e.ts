@@ -149,7 +149,7 @@ test('the Edit tool selects (I-09..I-15, I-18, I-19): a click, Shift+click, a cl
   }
 });
 
-test('the Attributes panel follows the selection with its facts (D-146): one part, several, pasted and not placed, none', async () => {
+test('the Attributes panel follows the selection with its facts (D-146): one part, several, pasted and not placed, none (the circuit\'s attributes, N-10)', async () => {
   const r = await launch();
   const { page } = r;
   try {
@@ -157,21 +157,22 @@ test('the Attributes panel follows the selection with its facts (D-146): one par
     const panel = page.locator('.pbody.attributes');
     await tool(page, 'Edit').click();
     await click(page, [600, 100]);
-    await expect(panel.locator('.notice h3')).toHaveText('고른 부품이 없습니다');
+    await expect(panel.locator('.aname')).toHaveText('main');
+    await expect(panel.locator('.ahead .badge')).toHaveText('Circuit');
     await click(page, mid(and));
-    await expect(panel.locator('.sel-facts h3')).toHaveText('AND Gate');
-    await expect(panel.locator('.sel-facts li')).toHaveText(['Location (300, 200)', 'Facing east']);
+    await expect(panel.locator('.aname')).toHaveText('AND Gate');
+    await expect(panel.locator('.afacts li')).toHaveText(['Location (300, 200)', 'Facing east']);
     await expect(panel.locator('.notice')).toHaveCount(0);
     await click(page, mid(or), ['Shift']);
-    await expect(panel.locator('.sel-facts h3')).toHaveText('2 components');
-    await expect(panel.locator('.sel-facts li')).toHaveText(['AND Gate', 'OR Gate']);
+    await expect(panel.locator('.aname')).toHaveText('2 components');
+    await expect(panel.locator('.afacts li')).toHaveText(['AND Gate', 'OR Gate']);
     // copied and pasted: the paste floats (not in the circuit yet) and is what is selected
     await page.keyboard.press('Control+c');
     await page.keyboard.press('Control+v');
-    await expect(panel.locator('.sel-facts h3')).toHaveText('2 components');
+    await expect(panel.locator('.aname')).toHaveText('2 components');
     await click(page, [600, 100]);
-    await expect(panel.locator('.notice h3')).toHaveText('고른 부품이 없습니다');
-    await expect(panel.locator('.sel-facts')).toHaveCount(0);
+    await expect(panel.locator('.aname')).toHaveText('main');
+    await expect(panel.locator('.afacts')).toHaveCount(0);
   } finally {
     await r.close();
   }

@@ -252,6 +252,18 @@ public final class Doc {
         return canvas().getSelection();
     }
 
+    /**
+     * 고른 차례(v1 {@code SelectionOrder}, I-10·I-90, N-10): 편집 의도 하나가 한 입력이다(Engine.edit가 의도마다
+     * 갱신한다). Shift+누름으로 하나씩 고르면 고른 차례를 알고, 사각형처럼 한 번에 여럿이 들어오면 모른다. 우클릭
+     * "Combine N Wires into One Bus"가 비트 차례로 쓴다.
+     */
+    private final kr.ac.hallym.hcs.app.menu.SelectionOrder<Component> selectionOrder =
+            new kr.ac.hallym.hcs.app.menu.SelectionOrder<>();
+
+    public kr.ac.hallym.hcs.app.menu.SelectionOrder<Component> selectionOrder() {
+        return selectionOrder;
+    }
+
     /** 선택이 바뀌면 비우는 부품별 키 설정기(원조 SelectTool.keyHandlers, 여러 자리 숫자의 상태를 든다). */
     public Map<Component, com.cburch.logisim.tools.key.KeyConfigurator> keyHandlers;
     /** 부품 놓기 도구의 키 설정기(원조 AddTool.keyHandler, 도구마다). */

@@ -532,7 +532,8 @@ export class CycleView {
     }
   }
 
-  private async mapping(): Promise<void> {
+  // Register Mapping… (also the Canvas menu of a register file instance, N-10)
+  async mapping(): Promise<void> {
     const fileId = this.host.fileId();
     if (!fileId) return;
     const m = await this.call<RegisterMapping>('record.registerMapping', { fileId }, 'Register Mapping');

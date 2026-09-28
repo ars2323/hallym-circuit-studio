@@ -117,19 +117,19 @@ v2(Electron 화면 + Java 엔진)가 이 골든을 두 층에서 다시 만든�
 ./gradlew :engine:test --tests kr.ac.hallym.hcs.engine.EngineParityReplayTest -Phcs.constantHash=true   # CI도 두 번
 ```
 
-**화면 층: 7장면을 학생이 하는 길로.** `electron/tests/e2e/real-engine-parity.e2e.ts`가 진짜 창과 진짜 엔진에서 의도마다 그 조작을 한다: Components 목록에서 부품 들기, 든 부품의 방향 키·숫자·Alt+숫자, Canvas 누르기·끌기(놓기·선·고르기·사각형·옮기기, 끄는 동안 Shift), Delete·Ctrl+C/X/V/D·Ctrl+Z/Y, F2, 상태 표시줄의 배율 메뉴. 파일은 Ctrl+O로 열고 Ctrl+S로 저장한다.
+**화면 층: 7장면을 학생이 하는 길로.** `electron/tests/e2e/real-engine-parity.e2e.ts`가 진짜 창과 진짜 엔진에서 의도마다 그 조작을 한다: Components 목록에서 부품 들기, 든 부품의 방향 키·숫자·Alt+숫자, Canvas 누르기·끌기(놓기·선·고르기·사각형·옮기기, 끄는 동안 Shift), Delete·Ctrl+C/X/V/D·Ctrl+Z/Y, F2, 상태 표시줄의 배율 메뉴, Attributes 패널(든 도구의 표·고른 것의 표·아무것도 고르지 않았을 때 회로의 표에서 목록 고르기·글 넣고 Enter), 우클릭 Duplicate N…과 그 창(N-10, D-157). 파일은 Ctrl+O로 열고 Ctrl+S로 저장한다.
 
-| 장면 | 보는 것 | 화면 조작이 아직 없어 창의 다리(`window.app.call`)로 보낸 의도 |
-| --- | --- | --- |
-| `01-place-parts` | 놓기, 도구 속성(키), 방향 | 10/44: 도구의 라벨·Output?·크기·부정 입력·상수 값·스플리터 비트 수 |
-| `02-wires` | 선 합치기·나누기·ㄱ자·줄이기·지우기 | 1/25: 도구의 Output? |
-| `03-move-following` | 따라오는 선, Shift로 선 없이 | 7/30: 도구의 라벨·Output? |
-| `05-copy-paste-duplicate` | 복사·잘라내기·붙여넣기(떠 있는 사본 끌기)·복제 | 4/25: 도구의 라벨, Duplicate N |
-| `07-attributes` | 입력 수·비트 수·라벨(F2)·MUX 선택 비트(키) | 10/31: 부품의 방향·크기·Output?·라벨 자리·선택 자리·상수 값, 회로 속성 |
-| `10-undo-redo` | 되돌리기·다시 실행 사슬, 붙여넣기 되돌리기 | 2/36: 도구의 크기 |
-| `15-zoom` | 200·50·150 %에서 놓기·긋기·옮기기·사각형·선분 끌기 | 0/17 |
+| 장면 | 보는 것 | 키가 없어 Attributes 패널·우클릭 메뉴로 한 의도 | 창의 다리(`window.app.call`) |
+| --- | --- | --- | --- |
+| `01-place-parts` | 놓기, 도구 속성(키), 방향 | 10/44: 도구의 라벨·Output?·크기·부정 입력·상수 값·스플리터 비트 수 | 0 |
+| `02-wires` | 선 합치기·나누기·ㄱ자·줄이기·지우기 | 1/25: 도구의 Output? | 0 |
+| `03-move-following` | 따라오는 선, Shift로 선 없이 | 7/30: 도구의 라벨·Output? | 0 |
+| `05-copy-paste-duplicate` | 복사·잘라내기·붙여넣기(떠 있는 사본 끌기)·복제 | 4/25: 도구의 라벨, Duplicate N… | 0 |
+| `07-attributes` | 입력 수·비트 수·라벨(F2)·MUX 선택 비트(키) | 10/31: 부품의 방향·크기·Output?·라벨 자리·선택 자리·상수 값, 회로 속성(Shared Label·방향·이름) | 0 |
+| `10-undo-redo` | 되돌리기·다시 실행 사슬, 붙여넣기 되돌리기 | 2/36: 도구의 크기 | 0 |
+| `15-zoom` | 200·50·150 %에서 놓기·긋기·옮기기·사각형·선분 끌기 | 0/17 | 0 |
 
-다리로 가는 것은 속성 표와 우클릭 메뉴(N-10)가 올 때까지만이다. 테스트는 그 목록 밖의 의도가 다리로 가면 실패하고, 목록을 Playwright 주석으로 남긴다.
+N-10 전에는 위 셋째 칸의 의도가 창의 다리로 갔다(D-159). 이제 이 장면들은 다리를 쓰지 않는다. 다리가 남은 것은 Align·Distribute·Only Components/Wires(`06`, 화면 층 밖)뿐이고, 테스트는 그 밖의 의도가 다리로 가거나 장면의 다리 수(모두 0)를 넘으면 실패하며 목록을 Playwright 주석으로 남긴다.
 
 ```
 ./gradlew :engine:stage

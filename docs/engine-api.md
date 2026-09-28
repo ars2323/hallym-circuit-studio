@@ -206,11 +206,21 @@ Component = {
 | `edit.areaMemo` | `at, ids?, text?, color?, bounds?:[x,y,w,h], delete?` | 영역 메모 더하기(고른 것을 감싼 상자에서 시작)·고치기·맞추기·지우기. hcs:ext(N-15, 아래) |
 | `edit.splitterEdit` | `id, ranges, names?, lsbTop?` | Splitter 편집기 적용(원조 fanout·incoming·bitN + 팔 이름 hcs:ext, N-12, 아래) |
 | `edit.splitterSplit` | `wire, at, ranges, names?, lsbTop?` | 여러 비트 선에 새 스플리터(Split Bits…, Take One Bit, N-12, 아래). result `id`: 새 스플리터 |
+| `edit.labels` | `ids, labels:[글]` | Edit Labels of N Components…(v1 `LabelsDialog`): `ids`와 같은 차례의 라벨, 원조 `SetAttributeAction` 한 단계(N-10, 아래) |
+| `edit.attach` | `id, port, what:"pin"\|"constant"\|"probe"\|"tunnel"` | Attach to <포트> ▸(v1 `CircuitEdits.attach`, 검사기 W-05) |
+| `edit.swapGate` | `id, to` | Change Gate To ▸(v1 `CircuitEdits.swapGate`: AND·OR·NAND·NOR·XOR·XNOR, 입력 자리 그대로, 검사기) |
+| `edit.deleteNet` | `wire` | Delete Net Wires(v1 W-04) |
+| `edit.wireToTunnels` | `wire, label` | Replace Wire with Tunnels…(v1, 검사기) |
+| `edit.probe` | `wire, at, radix?` | Attach Probe ▸ 진법, P 키(`radix` 없음: 1비트 2진, 여러 비트 16진; v1 `QuickProbe`, 검사기). result `id`: 새 프로브 |
+| `edit.deleteProbes` | — | Delete All Probes (n)(v1 `ProbeMenu`: 프로브와 함께 놓인 막다른 짧은 선도) |
+| `edit.combineBus` | `ids`(선, 고른 차례) | Combine N Wires into One Bus(v1 `SplitterMenu.combine`: 먼저 고른 선이 위 팔, 새 스플리터는 오른쪽 +60에 서쪽, 잇지 않음). result `id`: 새 스플리터 |
+| `edit.originalItem` | `id, index` | 원조 부품 메뉴의 항목을 원조 코드로(Splitter의 Distribute Ascending·Descending = 원조 `SplitterDistributeItem`) |
+| `edit.memContents` | `id, addr?, values?, clear?, file?` | ROM 내용(Contents 속성): 값 쓰기, 비우기, 이미지 읽기. 원조 `RomContentsListener`의 "Edit ROM Contents" 동작(붙은 곳은 한 단계로 합침) |
 
 - `edit.addComponent`: `lib:null`(또는 빼면)이면 이 파일의 회로를 이름(`name`)으로 놓는다. `attrs`는 놓는 부품에만 쓴다(도구의 기본값은 바꾸지 않는다). `loc`은 그대로 쓴다(격자 맞추기는 화면 몫). 오류: 없는 도구 1, `circular`·`exclusive`·`negativeCoord` 3, 모르는 속성·틀린 값 -32602.
 - `edit.addWire`: 2점은 가로·세로 곧은 선(3점이면 가운데 점이 그 선 위), ㄱ자는 `[시작, 꺾는 점, 끝]`이고 꺾는 점이 `[끝x, 시작y]`(가로 먼저) 또는 `[시작x, 끝y]`(세로 먼저)여야 한다. 원조처럼 한쪽 끝이 있는 선을 따라 되돌아 끌면 그 선을 줄이거나 지운다(`outcome:"shortened"|"removed"`; 따로 `edit.shortenWire`를 두지 않는다: 원조 WiringTool도 떼는 순간 같은 두 점으로 판단한다). 시작과 끝이 같으면 `changed:false, outcome:"empty"`.
 - `edit.move`: `connect`(기본 true)면 원조 연결 유지 계산 뒤 v1 SafeMove(D-055)의 기준으로 남긴다. `outcome`: `"moved"`, `"movedWithoutWires"`(선을 잇지 못하고 옮김), `"refused"`(`changed:false`, 다른 넷이 바뀌므로 옮기지 않음), `"empty"`(고른 것이 없음). 원조처럼 선택 경계가 0 밑으로 가지 않게 자르고, 격자에 붙는 부품이 있으면 10에 맞춘다. 다른 출력과 한 점에 겹치면 오류 3 `exclusive`. 선 하나만 옮기면 v1 선분 끌기(양쪽 다리가 늘고 준다)다.
-- `edit.setAttr`: 선은 건너뛴다. 모든 부품에 그 속성이 있어야 한다(없으면 -32602). 속성은 부품 객체 안에서 바뀌므로 같은 id가 `added`로 온다.
+- `edit.setAttr`: 선은 건너뛴다. 모든 부품에 그 속성이 있어야 한다(없으면 -32602). 속성은 부품 객체 안에서 바뀌므로 같은 id가 `added`로 온다. 값은 원조 `Attribute.parse`로 읽고(원조 속성 표와 같은 규칙), 읽지 못하면 -32602에 `data:{reason:"badValue", attr, value}`(N-10: 화면이 한국어 문장을 짓는다; `setToolAttr`·`setCircuitAttr`·`labels`도 같다). `keepSelection:true`와 `ids`면 원조 `AttrTableComponentModel`처럼 그 부품들만 바꾸고 선택은 그대로다(우클릭 메뉴의 한 부품 항목, v1 `EditMenus`; 동작 이름 "Change Attribute").
 - 편집하면 그 회로가 시뮬레이션의 지금 회로가 된다(Swing에서 보고 있는 회로를 편집하는 것과 같다). 다른 회로를 보고 있었다면 화면이 `sim.watch`를 다시 보낸다.
 
 `edit.selection = {fileId, circuitId, ids, floating}`(N-08, D-146): 편집 의도 뒤, 선택이 앞에 알린 것과 다르면 보낸다(`edit.select` 뒤에는 늘 보낸다: 화면이 누른 즉시 그린 짐작을 바로잡는다). `circuitId`는 선택이 생긴 회로다(시뮬레이션이 다른 회로를 보고 있어도). `ids`는 회로에 있는 고른 부품·선(번호 차례), `floating`은 떠 있는 붙여넣기·복제 사본의 모습(Component·Wire JSON: 회로에 없어 `model.changed`에 오지 않는다; id는 엔진 id라 내려앉으면 같은 id로 `added`에 온다). `model.changed` 뒤에 온다(새로 놓인 부품의 id를 화면이 먼저 안다).
@@ -221,7 +231,35 @@ Component = {
 | --- | --- | --- |
 | `model.tool` | `fileId, lib, name, loc?, attrs?` | `{component}`: 그 놓기 도구가 지금 속성(과 `attrs`)으로 `loc`에 놓을 부품의 모습(id `"ghost"`). 원조 AddTool이 끄는 동안 그리는 유령 |
 | `model.movePreview` | `fileId, circuitId, dx, dy, connect?` | `{dx, dy, added:[[a,b]], removed:[id], unconnected:[[x,y]]}`: 고른 것을 그만큼 끌 때 원조 `MoveGesture`가 더할 선·뺄 선·잇지 못한 점(`SelectTool.handleMoveDrag`), `dx`·`dy`는 `edit.move`와 같이 자르고 맞춘 값 |
+| `model.attributes` | `fileId, circuitId, ids?, circuit?` 또는 `fileId, lib, name` | 속성 표(N-10, 아래 `AttrTable`): 고른 것(`ids`, 없으면 엔진의 선택; 없으면 회로), `circuit:true`면 회로, `name`이면 든 도구 |
+| `model.menu` | `fileId, circuitId, at, id?` | 우클릭 메뉴의 사실(N-10, 아래 `MenuFacts`). `id`는 화면이 누른 곳에서 찾은 부품·선(없으면 엔진이 찾는다) |
 | `model.textAt` | `fileId, circuitId, loc` | 글자 도구가 `loc`을 누르면 원조 `TextTool.mousePressed`가 여는 칸: 고른 것 먼저, 그다음 회로 전체에서 그 점을 포함하고 칸을 주는 부품(라벨이 비었으면 몸체 어디든, 있으면 라벨 위) → `{id, text, box:[x,y,w,h]}`; 없으면 새 Label → `{id:null, text:"", box}`; 음수 자리면 `{id:null, none:true}` |
+
+**속성 표와 우클릭 메뉴(N-10, D-157).**
+
+```
+AttrTable = {target:"selection"|"circuit"|"tool", circuitId?, lib?, name?, title, editable, rows:[AttrRow], quick?}
+AttrRow = {attr, display, value, text, type, readOnly, mixed, options?:[{value, display}], radix?, min?, max?, styles?, families?}
+QuickFacts = {attrs:[attr], hints:[{keys, attr, display}], rotate, label, count, autoAppearance?}
+MenuFacts = {circuitId, editable, kind:"part"|"wire"|"empty"|"many", summary, id?, selection:{ids, ordered, parts, wires},
+             part?, wire?:{width, net}, common?:{facing, width, label, labels}, probes?:[id], combine?:[width]}
+```
+
+- `model.attributes`: 원조 속성 표가 보이는 것 그대로다. 고른 것은 원조 `AttrTableSelectionModel`·`SelectionAttributes`의 규칙(선이 아닌 것이 있으면 선은 빼고, 모두가 가진 속성만 첫 부품의 차례로, 값이 다르면 `value:null, mixed:true`), 고른 것이 없으면 회로 속성(`AttrTableCircuitModel`: `circuit`·`clabel`·`clabelup`·`clabelfont`), 도구는 `AttrTableToolModel`. `title`은 원조 글(`Selection: AND Gate × 2`, `Selection: Various items × 3`, `Circuit: main`, `Tool: Pin`). `value`는 .circ 글자(`toStandardString`), `text`는 원조 표의 글(`toDisplayString`). `type`은 편집기: `option`(원조 편집기가 목록 상자: 비트 폭, 방향, Yes/No, 부품이 정한 선택지. 목록의 항목이 값이 아니라 보기 객체인 속성은 원조 표처럼 차례가 값: Splitter `bitN`), `number`(`radix` 16이면 원조가 16진으로 쓰는 값, `min`·`max`는 원조 범위), `text`, `font`(`styles`·`families`), `color`, `contents`(ROM 내용: 표에 싣지 않고 16진 편집기가 `mem.read`로 읽는다). `editable`은 파일을 쓸 수 있고 이 파일의 회로일 때. `quick`은 고른 선 아닌 부품이 모두 한 종류일 때의 빠른 속성 창(v1 `QuickAttrs`: 부품 종류 등록표의 차례로 최대 5개, 원조 숨은 숫자 키를 키 설정기에 넣어 보고 알아낸 `hints`, R·F2, 기본 모양 서브회로의 `autoAppearance` 회로). 모델을 바꾸지 않는다.
+- `model.menu`: v1 우클릭 메뉴가 기대던 사실만 v1 코드로 답한다(항목은 화면의 메뉴 등록표 `electron/src/renderer/app/menus/`가 정한다). `summary`는 v1 `MenuLayout.summary`(단수·복수, S-25: `AND #1 · 2 inputs · 1 bit`, `PC(Register) · 32 bits`, `Net pc · 32 bits`, `2 components`, `Empty spot · main`), `kind`는 v1 규칙(선 아닌 것 둘 이상을 골랐고 누른 곳이 그 안이거나 빈 곳이면 `many`). `selection.ids`는 고른 차례(v1 `SelectionOrder`: 편집 의도 하나가 한 입력, 한 번에 여럿이 들어오면 `ordered:false`). `part`는 포트(5px 안: `port = {i, name, dir, width, negate?, negated?}`), 게이트(`gate`, `swaps`), 원조 선택지(`options.size`·`options.pull`, 지금 것 `checked`), 핀(`pin`), 라벨 있는 터널(`tunnel.same`: 같은 이름, 위→아래), 서브회로(`subcircuit = {circuitId, name, library?, defaultAppearance, registerFile}`), Register·Counter의 `pcMarked`, 메모리(`memory: "ram"|"rom"|"program"`, 프로그램 메모리의 `source`), 원조 부품 메뉴의 항목(`original = [{i, text, enabled}]`: 창 없이 원조 코드로 할 수 있는 Splitter Distribute). 빈 곳이면 `probes`, 고른 것이 모두 선이고 둘 이상이면 `combine`(고른 차례의 폭). 모델을 바꾸지 않는다.
+- 우클릭 메뉴의 편집 의도(위 표)는 모두 v1 항목의 동작을 `Project.doAction` 한 번에 넘긴다: 되돌리기 한 단계, 원조 부품·속성만 바뀐다. 새 부품·선을 자동으로 두는 것(`attach`·`swapGate`·`wireToTunnels`·`probe`·`combineBus`)은 v1 검사기(W-05)를 거치고, 막히면 `changed:false, outcome:"refused"`. `probe`는 자리가 없으면 `outcome:"noRoom"`, `combineBus`는 합이 32비트를 넘으면 `outcome:"tooWide"`, `originalItem`은 꺼진 항목이면 `outcome:"disabled"`, 같은 값이면 `outcome:"same"`. 되살리기 저널(7절)에 저절로 적히고 `ids`·`id`·`wire`는 부품으로 적는다(`labels`가 `ids`와 같은 차례의 목록인 까닭).
+
+**RAM·ROM 내용(N-10, D-157, 원조 `MemMenu`).**
+
+| 메서드 | params | result |
+| --- | --- | --- |
+| `mem.read` | `{fileId, circuitId, path?, componentId, from?, count?}` | `{kind:"ram"\|"rom", addrBits, dataBits, from, total, words:[부호 없는 수]}`(`count` 1~4096, 기본 256) |
+| `mem.write` | `{fileId, circuitId, path?, componentId, addr, values}` | `{changed}`: RAM(시뮬레이션 상태) |
+| `mem.clear` | `{fileId, circuitId, path?, componentId}` | `{changed}`: RAM Clear Contents |
+| `mem.loadImage`, `mem.saveImage` | `{…, componentId, file}` | 원조 `HexFile.open`·`save`(창은 부르지 못한다: main의 고르기 창이 부른다) |
+
+- RAM의 내용은 원조처럼 시뮬레이션 상태다(원조 HexFrame이 RAM 상태를 고치는 것과 같다): .circ에 남지 않고 되돌리기에 들지 않으며 되살리기 저널에 적지 않는다. `circuitId`·`path`는 보이는 상태(`sim.watch`와 같다). 내용 객체는 원조 상태 객체에서 읽기만 해서 얻는다. 아직 전파가 닿지 않은 RAM은 오류 4 `notReady`. 폭을 넘는 값은 -32602 `badValue`.
+- ROM의 내용은 Contents 속성(.circ에 저장)이라 편집 의도 `edit.memContents`다(원조 메뉴처럼 원조 `RomContentsListener`를 달아 고칠 때마다 원조 "Edit ROM Contents" 동작이 되돌리기에 든다). `mem.read`·`mem.saveImage`는 둘 다 읽는다.
 
 **편집 동등성(N-01, D-136, `tests/parity/`)과 N-09(D-146에서 풂).** 의도 파일은 `edit.move`·`edit.delete`·`edit.copy` 등에서 `ids`를 빼고 "앞 `edit.select`로 고른 것"을 대상으로 적는다. 엔진이 원조 선택을 들고 있으므로(위) 그대로 보내면 된다. 재생기(`EngineParityReplayTest`)가 채우는 것은 회로 이름 → `circuitId`(`circuit`은 그 의도의 회로, `target`은 회로 전체에 하는 의도의 대상), `fileId`, 기호·`label:`·`at:`·`wire:` → 엔진 id(`ids`·`id`·`wire`; 기호는 원조 `ReplacementMap`을 따라간다), 라이브러리의 보이는 이름(`Hallym MIPS`) → 엔진 이름이다. 상대 경로(`tests/parity` 기준, `file.open`·`edit.importCircuits`·`edit.loadLibrary`)는 재생기가 작업 폴더의 절대 경로로 바꾼다(`file.open`은 지금 재생기가 쓴다; 나머지 둘은 N-11 의도와 함께). 18장면 가운데 N-11 의도(Port Order, Auto Appearance, Import, 라이브러리 싣기)를 쓰는 08·09·11을 뺀 15장면을 엔진이 재생해 Swing 골든과 같은 .circ를 저장한다(D-006 정규화).
 

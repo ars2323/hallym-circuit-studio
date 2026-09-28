@@ -296,7 +296,7 @@ test('a paste still floating when another circuit is shown: dropped where it was
     await page.keyboard.press('Control+v');
     // the paste floats: nothing in the circuit yet, the Attributes panel says it is the selection
     await expect.poll(() => selected(page)).toEqual([]);
-    await expect(page.locator('.pbody.attributes .sel-facts h3')).toHaveText('Adder');
+    await expect(page.locator('.pbody.attributes .aname')).toHaveText('Adder');
     expect(adders(await byName(), 'main')).toBe(adders(before, 'main'));
     // another circuit on show: the window drops the paste into main first
     await page.getByRole('tab', { name: 'Circuits' }).click();

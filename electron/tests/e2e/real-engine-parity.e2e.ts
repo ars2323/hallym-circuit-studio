@@ -3,18 +3,19 @@
    gestures, keys and menus a student uses -- the Components list, the
    toolbar's Wire and Edit tools, clicks and drags on the Canvas, Delete,
    Ctrl+C/X/V/D, Ctrl+Z/Y, the digits and arrows of a held part, F2, the
-   status bar's zoom menu -- and the saved .circ compared with the Swing
+   status bar's zoom menu, the Attributes panel (a held tool's, the
+   selection's and the circuit's table) and the right-click Duplicate N…
+   (N-10, D-157) -- and the saved .circ compared with the Swing
    golden by the D-006 rule.  This shows the screen sends the intents a user
    makes; EngineParityReplayTest shows the engine does with those intents
    what the Swing app did.
 
-   A few intents have no control on the screen until the attribute table and
-   the right-click menus (N-10): a tool's or a part's attribute no key sets
-   (a label on a tool, Output?, Size, a constant's value), a circuit's
-   attribute, Duplicate N, Align, Only Components/Wires.  Those go through
-   the window's own bridge to the engine (`window.app.call`, what those
-   controls will call; the journal records them the same), and the test
-   lists them per scene -- it fails if anything else takes that way.
+   Every intent of these scenes has a control now (N-10 gave the Attributes
+   panel and Duplicate N…).  Align, Distribute and Only Components/Wires
+   (scene 06, not done here) would still go through the window's own bridge
+   to the engine (`window.app.call`); the test lists bridged intents per
+   scene and fails if any other takes that way, or if a scene bridges more
+   than its count (0 for all).
 
    Opt-in, as the other real-engine e2e:
      ./gradlew :engine:stage
@@ -89,7 +90,7 @@ const ARROW: Record<string, string> = { east: 'ArrowRight', west: 'ArrowLeft', n
 // ---- the scene in the window ----
 
 class Screen {
-  readonly byApi: string[] = [];            // the intents with no control yet (N-10), in order
+  readonly byApi: string[] = [];            // the intents sent by the bridge (none in these scenes), in order
   private held = '';                        // lib/name of the part in hand
   private symbols = new Map<string, { id: string; name: string; loc: P }>();
   private fileId = '';
@@ -126,6 +127,46 @@ class Screen {
     this.byApi.push(i.method + (typeof i.attr === 'string' ? ` ${i.attr}` : ''));
     await call(this.page, i.method, { fileId: this.fileId, ...params });
     await this.settle();
+  }
+
+  /* An attribute set in the Attributes panel (N-10): the table on show (a held tool's, the selection's, or the
+     circuit's with nothing chosen), its row's list or field; the intent the panel sends.  The keys go back to the
+     Canvas afterwards (a list keeps the focus, and would take the digits). */
+  private async panelSet(method: string, attr: string, value: string): Promise<void> {
+    const page = this.page;
+    const row = page.locator(`.pbody.attributes tr[data-attr="${attr}"]`);
+    await row.waitFor();
+    const before = await this.sent(method);
+    const list = row.locator('select');
+    if (await list.count()) {
+      if ((await list.first().inputValue()) === value) return;   // the same value: Logisim does nothing, as the Swing table
+      await list.first().selectOption(value);
+    } else {
+      const field = row.locator('input[type="text"]').first();
+      if ((await field.inputValue()) === value) return;
+      await field.fill(value);
+      await field.press('Enter');
+    }
+    await this.expectSent(method, before);
+    await page.locator('.canvas-view canvas').focus();
+  }
+
+  // Duplicate N… from the right-click menu of the chosen parts (N-10): the dialog's count, direction, spacing, labels.
+  private async duplicateN(i: Intent, ids: string[]): Promise<void> {
+    const page = this.page;
+    const grab = await this.select(ids);
+    const q = await this.point(grab!);
+    await page.mouse.click(q.x, q.y, { button: 'right' });
+    await page.locator('.ovmenu button', { hasText: 'Duplicate N…' }).click();
+    const d = page.locator('dialog.menudlg[open]');
+    await d.getByLabel('Count').fill(String(i.count));
+    await d.getByLabel('Direction').selectOption(String(i.direction));
+    if (typeof i.spacing === 'number') await d.getByLabel('Spacing (px)').fill(String(i.spacing));
+    const number = d.locator('input[type="checkbox"]');
+    if (await number.isEnabled() && (await number.isChecked()) !== (i.number === true)) await number.setChecked(i.number === true);
+    const before = await this.sent('edit.duplicateN');
+    await d.getByRole('button', { name: 'OK' }).click();
+    await this.expectSent('edit.duplicateN', before);
   }
 
   private async circuitId(name?: unknown): Promise<string> {
@@ -277,6 +318,8 @@ class Screen {
       await expect.poll(async () => (await selected(this.page)).length + ((await overlay(this.page)).ghost ? 1 : 0)).toBe(0);
       return null;
     }
+    // a press inside a selection of several keeps them all (Logisim): choose nothing first, then these alone
+    if (!add && (await selected(this.page)).length > 1) return this.select([]).then(() => this.select(ids));
     let first: P | null = null, n = before;
     const want: string[] = [];
     for (const [k, ref] of ids.entries()) {
@@ -317,10 +360,7 @@ class Screen {
     const lib = String(i.lib), name = String(i.name), attr = String(i.attr), value = String(i.value);
     await this.hold(lib, name);
     const key = attr === 'facing' ? 'arrow' : keyFor(name, attr);
-    if (key === null || !/^[0-9]+$/.test(value) && key !== 'arrow') {
-      await this.api(i, { lib, name, attr, value });
-      return;
-    }
+    if (key === null || !/^[0-9]+$/.test(value) && key !== 'arrow') return this.panelSet('edit.setToolAttr', attr, value);
     const before = await this.sent('edit.keyConfig');
     if (key === 'arrow') await this.page.keyboard.press(ARROW[value]);
     else await this.digits(value, key === 'alt');
@@ -456,11 +496,17 @@ class Screen {
           await expect.poll(() => this.sent('edit.keyConfig')).toBeGreaterThan(before);
           return this.settle();
         }
-        return this.api(i, { circuitId: await this.circuitId(i.circuit), ids: targets.map((t) => t.id), attr, value });
+        await this.select(ids!);
+        return this.panelSet('edit.setAttr', attr, value);
       }
-      case 'edit.setCircuitAttr':
-        return this.api(i, { circuitId: await this.circuitId(i.target), attr: i.attr, value: i.value });
-      case 'edit.duplicateN': case 'edit.align': case 'edit.distribute': {
+      case 'edit.setCircuitAttr': {
+        if ((await this.circuitId(i.target)) !== (await this.circuitId())) throw new Error(`${String(i.target)} is not on show`);
+        await this.select([]);   // nothing chosen: the circuit's table
+        return this.panelSet('edit.setCircuitAttr', String(i.attr), String(i.value));
+      }
+      case 'edit.duplicateN':
+        return this.duplicateN(i, ids ?? []);
+      case 'edit.align': case 'edit.distribute': {
         const targets = ids ? (await Promise.all(ids.map((x) => this.resolve(x)))).map((t) => t.id) : undefined;
         const { method: _m, ids: _i, circuit: _c, ...rest } = i;
         return this.api(i, { circuitId: await this.circuitId(i.circuit), ...(targets ? { ids: targets } : {}), ...rest });
@@ -503,11 +549,11 @@ export const SCREEN_SCENES = ['01-place-parts', '02-wires', '03-move-following',
 // What may go by the bridge until N-10 gives it a control: an attribute no key sets, a circuit's attribute, the
 // right-click menu's Duplicate N, Align, Distribute, Only Components/Wires.
 // (A tool's facing has the arrows; a label F2; inputs, select and bit widths the digits and Alt+digits: not here.)
-const NO_CONTROL_YET = /^(edit\.setToolAttr (label|output|size|negate\d+|value|incoming)|edit\.setAttr (facing|size|output|labelloc|selloc|value)|edit\.setCircuitAttr \w+|edit\.duplicateN|edit\.align|edit\.distribute|edit\.select)$/;
+const NO_CONTROL_YET = /^(edit\.align|edit\.distribute|edit\.select)$/;
 
 // How many intents of each scene go by the bridge (D-159, tests/parity/README.md): one more fails.
 const BRIDGED: Record<string, number> = {
-  '01-place-parts': 10, '02-wires': 1, '03-move-following': 7, '05-copy-paste-duplicate': 4, '07-attributes': 10, '10-undo-redo': 2, '15-zoom': 0,
+  '01-place-parts': 0, '02-wires': 0, '03-move-following': 0, '05-copy-paste-duplicate': 0, '07-attributes': 0, '10-undo-redo': 0, '15-zoom': 0,
 };
 
 for (const scene of SCREEN_SCENES) {
@@ -537,7 +583,7 @@ for (const scene of SCREEN_SCENES) {
       expect(normalizeCirc(saved), `${scene}: the window's save differs from the Swing app's golden`)
         .toBe(normalizeCirc(readFileSync(path.join(PARITY, `${scene}.circ`), 'utf8')));
       // only what has no control yet went by the bridge (listed in the report)
-      test.info().annotations.push({ type: 'bridged (no control until N-10)', description: s.byApi.join(', ') || 'none' });
+      test.info().annotations.push({ type: 'bridged (no control)', description: s.byApi.join(', ') || 'none' });
       if (process.env.PARITY_DEBUG) console.log(`BRIDGED ${scene}: ${s.byApi.length}/${script.length} ${s.byApi.join(', ')}`);
       expect(s.byApi.filter((x) => !NO_CONTROL_YET.test(x))).toEqual([]);
       expect(s.byApi.length, `${scene}: intents by the bridge (${s.byApi.join(', ')})`).toBe(BRIDGED[scene]);

@@ -33,11 +33,8 @@ test('security: context isolation, no Node in the page; the page may call only t
     expect(await page.evaluate(() => ['require', 'process', 'module', 'ipcRenderer', 'contextBridge']
       .map((n) => typeof (globalThis as Record<string, unknown>)[n]))).toEqual(['undefined', 'undefined', 'undefined', 'undefined', 'undefined']);
     expect(await page.evaluate(() => Object.isFrozen(window.app) || Object.getOwnPropertyDescriptor(window, 'app')?.writable === false)).toBe(true);
-    expect(await page.evaluate(() => Object.keys(window.app).sort())).toEqual(['about', 'attach', 'call', 'closeCancelled', 'detach', 'editOriginal', 'engineStatus', 'importApply', 'importChoose', 'importPlan',
-      'leave', 'license', 'loadLibrary', 'loadProgram', 'onAdopt', 'onCloseRequest', 'onEngineRecovered', 'onEngineStatus', 'onFilesChanged', 'onLeave', 'onNotify',
-      'openCredits', 'openDropped', 'openFile', 'openFilesAll', 'openRecovery', 'openStartupFile', 'reportDirty', 'retryEngine', 'saveFile', 'setOverlay', 'startupFile',
-      'useOpenFile', 'windowClosed', 'windowRole']);
-    for (const method of ['file.open', 'file.save', 'engine.shutdown', 'engine.hello', 'mips.load', 'file.recoverWrite', 'edit.importCircuits', 'edit.loadLibrary', 'file.peek', 'model.importPlan', 'file.originOf', 'edit.reloadLibrary']) {
+    expect(await page.evaluate(() => Object.keys(window.app).sort())).toEqual(['about', 'attach', 'call', 'closeCancelled', 'detach', 'editOriginal', 'engineStatus', 'importApply', 'importChoose', 'importPlan', 'leave', 'license', 'loadLibrary', 'loadProgram', 'memoryImage', 'onAdopt', 'onCloseRequest', 'onEngineRecovered', 'onEngineStatus', 'onFilesChanged', 'onLeave', 'onNotify', 'openCredits', 'openDropped', 'openFile', 'openFilesAll', 'openRecovery', 'openStartupFile', 'reportDirty', 'retryEngine', 'saveFile', 'setOverlay', 'startupFile', 'useOpenFile', 'windowClosed', 'windowRole']);
+    for (const method of ['file.open', 'file.save', 'engine.shutdown', 'engine.hello', 'mips.load', 'file.recoverWrite', 'edit.importCircuits', 'edit.loadLibrary', 'file.peek', 'model.importPlan', 'file.originOf', 'edit.reloadLibrary', 'mem.loadImage', 'mem.saveImage']) {
       const answer = await page.evaluate((m) => window.app.call(m as never, { path: '/etc/passwd' }).then(() => 'answered', (e: { message: string }) => e.message), method);
       expect(answer, method).toBe(`not a method the window may call: ${method}`);
     }

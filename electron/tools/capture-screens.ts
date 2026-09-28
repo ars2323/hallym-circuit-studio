@@ -571,6 +571,36 @@ const canvasPoint = (r: Running, p: [number, number]) => r.page.evaluate((q) => 
   await r.close();
 }
 
+// The Attributes panel, Quick Attributes and the right-click menus (N-10, D-157): demo-datapath at 150 % around the
+// PC register, Signal Flow on Click off (a click only chooses); the PC chosen: its table in the Inspector form and the
+// bar by it; the bar's Data Bits list open; the PC's menu; the menu of the wire from its output.
+{
+  const r = await launch(FHD);
+  const { page } = r;
+  await openFile(r, sample(r.dir, DATAPATH));
+  await drawn(r);
+  await page.getByRole('button', { name: 'Signal Flow', exact: true }).click();
+  const pc = await partMiddle(page, 'Register', 'PC');
+  await view(r, { x: pc.at[0] - 420, y: pc.at[1] - 250, zoom: 1.5 });
+  await click(page, pc.at);
+  await page.locator('.pbody.attributes .aname', { hasText: 'PC · Register' }).waitFor();
+  await page.locator('.quickbar:not([hidden])').waitFor();
+  await shot(r, 'attributes');
+  await page.locator('.quickbar .qbtn', { hasText: 'Data Bits' }).click();
+  await page.locator('.ovmenu').first().waitFor();
+  await shot(r, 'quick-attributes', { keepFocus: true });
+  await page.keyboard.press('Escape');
+  await rightClick(page, pc.at);
+  await page.locator('.ovmenu .mhead').waitFor();
+  await shot(r, 'menu-part', { keepFocus: true });
+  await page.keyboard.press('Escape');
+  const w = await wireAtPort(page, 'Register', 'Q');
+  await rightClick(page, w.quarter);
+  await page.locator('.ovmenu .mhead', { hasText: 'Net' }).waitFor();
+  await shot(r, 'menu-wire', { keepFocus: true });
+  await r.close();
+}
+
 // The lab PCs at 125 % and 150 % (1536x816 and 1280x672 CSS px), and half a screen.
 for (const [name, size, scale] of [
   ['lab-125', { width: 1536, height: 816 }, '1.25'],

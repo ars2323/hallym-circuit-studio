@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('app', {
   reportDirty: (dirty) => ipcRenderer.invoke('app:dirty', dirty),
   saveFile: (fileId, file) => ipcRenderer.invoke('file:save', fileId, file).then(unwrap),
   loadProgram: (fileId, options) => ipcRenderer.invoke('program:load', fileId, options ?? {}).then(unwrap),
+  memoryImage: (fileId, options) => ipcRenderer.invoke('memory:image', fileId, options).then(unwrap),
   about: () => ipcRenderer.invoke('about:info'),
   license: (i) => ipcRenderer.invoke('about:license', i).then(unwrap),
   openCredits: () => ipcRenderer.invoke('about:openCredits').then(unwrap),

@@ -12,6 +12,16 @@ export interface LoadProgramOptions {
   forSource?: string;
 }
 
+// A RAM's or a ROM's image (N-10): which memory, as the engine names it, and load or save.
+export interface MemoryImageOptions {
+  circuitId: string;      // the memory's circuit
+  root: string;           // the circuit the view starts from, and the instances gone into (a RAM's state)
+  path: string[];
+  componentId: string;
+  kind: 'ram' | 'rom';
+  mode: 'load' | 'save';
+}
+
 export interface Opened extends OpenResult {
   path: string;
   already: boolean;     // it was open: go to its tab
@@ -46,6 +56,8 @@ export interface AppApi {
   saveFile(fileId: string, file: { name: string; saveAs?: boolean }): Promise<{ path: string; name: string; bytes: number; needsMipsJar: boolean } | null>;
   // Load Program (N-16): the .hmx dialog in the main process, then mips.load; null: the dialog was cancelled.
   loadProgram(fileId: string, options?: LoadProgramOptions): Promise<LoadResult | null>;
+  // Load Image… / Save Image… of a RAM or a ROM (N-10): the file dialog in the main process, then the engine; null: cancelled.
+  memoryImage(fileId: string, options: MemoryImageOptions): Promise<unknown>;
   about(): Promise<AboutInfo>;
   license(index: number): Promise<string>;  // LICENSES[index]; one past the end: Electron's
   openCredits(): Promise<void>;             // LICENSES.chromium.html, in the browser

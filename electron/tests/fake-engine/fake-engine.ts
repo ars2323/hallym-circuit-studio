@@ -56,7 +56,12 @@
    appearances, libraries, other files (N-11): tests/fake-engine/fake-circuits.ts
    -- file.info, file.changed, edit.createCircuit … edit.appearance,
    model.appearance*, Load/Unload Library, Import Subcircuits (one undo step
-   of the file's state each).  Anything else: -32601.
+   of the file's state each).  The
+   attribute table, the right-click menu's facts and its intents, RAM and
+   ROM contents (N-10, D-157): tests/fake-engine/fake-attrs.ts -- the real
+   engine's rows and menu facts (tests/fixtures/attributes.json), this
+   fake's values; a value the rows cannot take is refused (badValue).
+   Anything else: -32601.
 
    FAKE_ENGINE_MODE (comma-separated) for the tests of the client:
      silent-hello   never answers engine.hello
@@ -91,6 +96,7 @@ import * as mips from './fake-mips.ts';
 import * as rec from './fake-record.ts';
 import * as flow from './fake-flow.ts';
 import * as circuitsFake from './fake-circuits.ts';
+import * as attrs from './fake-attrs.ts';
 
 type Params = Record<string, unknown>;
 interface Comp { id: string; lib: string; name: string; loc: [number, number]; attrs: Record<string, string>; ext?: { color?: string; arms?: string[] } }
@@ -115,6 +121,7 @@ interface File {
   flow?: flow.FlowFixture; ext: Map<string, flow.Ext>;
   // N-08: the selection (the circuit it is in, its parts and wires, a paste or duplicate not yet dropped) and the last one told
   sel?: { circuitId: string; ids: string[]; floating: (Comp | Wire)[] }; selSent?: string;
+  selUnordered?: boolean;   // N-10: the selection came in at once (a rectangle, all): its order is not known
 }
 
 // Messages (diag.*): the real engine's, for a few circuits (tests/fixtures/messages.json).
@@ -537,7 +544,8 @@ const methods: Record<string, (p: Params) => unknown> = {
   },
   'edit.setAttr': (p) => {
     const c = circuitOf(p);
-    const ids = targets(fileOf(p), c, p);
+    const ids = p.keepSelection === true && Array.isArray(p.ids) ? partsOf(c, p.ids) : targets(fileOf(p), c, p);
+    for (const k of c.comps.filter((x) => ids.has(x.id))) attrCheck(k, String(p.attr), String(p.value));
     return edit(p, c, () => {
       const added = c.comps.filter((k) => ids.has(k.id));
       for (const k of added) k.attrs = { ...k.attrs, [String(p.attr)]: String(p.value) };
@@ -915,6 +923,172 @@ const methods: Record<string, (p: Params) => unknown> = {
     };
     return extEdit(f, c, (ext) => { const r = flowCall(() => flow.areaMemo(ext, p, around)); return r === 'same' || r === 'noMemo' ? null : r; }, true);
   },
+  // ---- the circuit's and the arranging intents the N-10 menus send (the engine's rules: the engine's tests) ----
+  'edit.setMainCircuit': (p) => {
+    const f = fileOf(p);
+    const c = circuitOf(p);
+    if (f.main === c.circuitId) return { changed: false, outcome: 'same' };
+    f.main = c.circuitId;
+    f.dirty = true;
+    return { changed: true };
+  },
+  'edit.setCircuitAttr': (p) => {
+    const f = fileOf(p);
+    const c = circuitOf(p);
+    if (p.attr === 'circuit') c.name = String(p.value);
+    f.dirty = true;
+    return { changed: true };
+  },
+  'edit.duplicateN': (p) => {
+    const c = circuitOf(p);
+    const ids = targets(fileOf(p), c, p);
+    const n = Number(p.count);
+    if (!Number.isInteger(n) || n < 1 || n > 64) throw new Failure(-32602, 'count must be 1..64');
+    const made = Array.from({ length: n }, (_, i) => copies(c.comps.filter((k) => ids.has(k.id)), [], 10 * (i + 1)) as Comp[]).flat();
+    return edit(p, c, () => { c.comps.push(...made); return { removed: [], added: made }; });
+  },
+  'edit.align': (p) => { circuitOf(p); return { changed: false, outcome: 'nothing' }; },
+  'edit.distribute': (p) => { circuitOf(p); return { changed: false, outcome: 'nothing' }; },
+  // ---- N-10: the attribute table, the right-click menu's facts and intents, memories (fake-attrs.ts) ----
+  'model.attributes': (p) => {
+    const f = fileOf(p);
+    if (typeof p.name === 'string') {
+      const lib = (p.lib as string | null | undefined) ?? null;
+      return failing(() => attrs.toolTable(lib, p.name as string, toolAttrs.get(`${lib ?? 'circuit'}/${p.name}`) ?? {}));
+    }
+    const c = circuitOf(p);
+    if (p.circuit === true) return attrs.circuitTable(c, true);
+    const ids: string[] = Array.isArray(p.ids) ? [...partsOf(c, p.ids)] : f.sel?.circuitId === c.circuitId ? f.sel.ids : [];
+    const chosen: (Comp | Wire)[] = ids.map((id) => c.comps.find((k) => k.id === id) ?? c.wires.find((w) => w.id === id)).filter((x): x is Comp | Wire => !!x);
+    if (!Array.isArray(p.ids) && f.sel?.circuitId === c.circuitId) chosen.push(...f.sel.floating);
+    return attrs.selectionTable(chosen as attrs.Comp[], c, true);
+  },
+  'model.menu': (p) => {
+    const f = fileOf(p);
+    const c = circuitOf(p);
+    const at = p.at as [number, number];
+    if (!Array.isArray(at)) throw new Failure(-32602, 'at is required');
+    let id = typeof p.id === 'string' ? p.id : null;
+    if (id !== null) partsOf(c, [id]);
+    else { const hits = hitsAt(c, at); id = hits.find((x) => x.startsWith('k')) ?? hits[0] ?? null; }
+    const fx = f.fixture?.circuits.find((x) => x.circuitId === f.fixtureIds?.get(c.circuitId));
+    const width = (w: string) => ((fx?.nets as { width: number; wires: string[] }[] | undefined)?.find((n) => n.wires.includes(w))?.width ?? 1);
+    return attrs.menuFacts({
+      file: f.name, fixtureCircuit: f.fixtureIds?.get(c.circuitId) ?? null, circuit: c, comps: c.comps as attrs.Comp[], wires: c.wires,
+      selected: f.sel?.circuitId === c.circuitId ? f.sel.ids : [], ordered: !f.selUnordered, editable: true, netWidth: width,
+    }, at, id);
+  },
+  'edit.labels': (p) => {
+    const c = circuitOf(p);
+    const list = Array.isArray(p.ids) ? p.ids as string[] : [];
+    const texts = Array.isArray(p.labels) ? p.labels as string[] : [];
+    if (texts.length !== list.length) throw new Failure(-32602, 'labels must have one text for each of ids');
+    const ids = partsOf(c, list);
+    const labels = Object.fromEntries(list.map((id, i) => [id, String(texts[i])]));
+    const parts = c.comps.filter((k) => ids.has(k.id) && (k.attrs.label ?? '') !== labels[k.id].trim());
+    if (!parts.length) return { changed: false, outcome: 'same' };
+    return edit(p, c, () => {
+      for (const k of parts) k.attrs = { ...k.attrs, label: labels[k.id].trim() };
+      return { removed: [], added: parts };
+    });
+  },
+  'edit.attach': (p) => {
+    const c = circuitOf(p);
+    const k = one(c, p.id);
+    const what = String(p.what ?? '');
+    const names: Record<string, string> = { pin: 'Pin', constant: 'Constant', probe: 'Probe', tunnel: 'Tunnel' };
+    if (!names[what]) throw new Failure(-32602, 'what must be pin, constant, probe or tunnel');
+    const port = ((k as Comp & { ports?: { loc: [number, number] }[] }).ports ?? [])[Number(p.port)]?.loc ?? k.loc;
+    const add: Comp = { id: `k${nextComp++}`, lib: 'Wiring', name: names[what], loc: [port[0], port[1]], attrs: what === 'constant' ? { value: '0x0' } : { label: '' } };
+    return edit(p, c, () => { c.comps.push(add); return { removed: [], added: [add] }; });
+  },
+  'edit.swapGate': (p) => {
+    const c = circuitOf(p);
+    const k = one(c, p.id);
+    const to = String(p.to ?? '');
+    if (!/^(AND|OR|NAND|NOR|XOR|XNOR) Gate$/.test(k.name) || !/^(AND|OR|NAND|NOR|XOR|XNOR) Gate$/.test(to)) throw new Failure(-32602, 'not a gate');
+    if (k.name === to) return { changed: false, outcome: 'same' };
+    return edit(p, c, () => { k.name = to; return { removed: [], added: [k] }; });
+  },
+  'edit.deleteNet': (p) => {
+    const f = fileOf(p);
+    const c = circuitOf(p);
+    const w = String(p.wire ?? '');
+    partsOf(c, [w]);
+    const net = fixtureNets(f, p).find((n) => n.wires.includes(w));
+    const gone = new Set(net ? net.wires : [w]);
+    return edit(p, c, () => { c.wires = c.wires.filter((x) => !gone.has(x.id)); return { removed: [...gone], added: [] }; });
+  },
+  'edit.wireToTunnels': (p) => {
+    const c = circuitOf(p);
+    const w = c.wires.find((x) => x.id === p.wire);
+    if (!w) throw new Failure(1, `no such component id: ${String(p.wire)}`, { kind: 'component', id: String(p.wire) });
+    const label = String(p.label ?? '').trim();
+    if (!label) throw new Failure(-32602, 'a tunnel needs a name');
+    const t1: Comp = { id: `k${nextComp++}`, lib: 'Wiring', name: 'Tunnel', loc: w.a, attrs: { label } };
+    const t2: Comp = { id: `k${nextComp++}`, lib: 'Wiring', name: 'Tunnel', loc: w.b, attrs: { label } };
+    return edit(p, c, () => { c.wires = c.wires.filter((x) => x !== w); c.comps.push(t1, t2); return { removed: [w.id], added: [t1, t2] }; });
+  },
+  'edit.probe': (p) => {
+    const c = circuitOf(p);
+    const w = c.wires.find((x) => x.id === p.wire);
+    if (!w) throw new Failure(1, `no such component id: ${String(p.wire)}`, { kind: 'component', id: String(p.wire) });
+    const at = p.at as [number, number];
+    const k: Comp = { id: `k${nextComp++}`, lib: 'Wiring', name: 'Probe', loc: [Math.round(at[0] / 10) * 10, Math.round(at[1] / 10) * 10 - 20], attrs: { radix: String(p.radix ?? '16'), label: '' } };
+    return edit(p, c, () => { c.comps.push(k); return { removed: [], added: [k] }; }, { id: k.id });
+  },
+  'edit.deleteProbes': (p) => {
+    const c = circuitOf(p);
+    const probes = c.comps.filter((k) => k.name === 'Probe' || k.name === 'Radix Probe');
+    if (!probes.length) return { changed: false, outcome: 'empty' };
+    return edit(p, c, () => { c.comps = c.comps.filter((k) => !probes.includes(k)); return { removed: probes.map((k) => k.id), added: [] }; });
+  },
+  'edit.combineBus': (p) => {
+    const c = circuitOf(p);
+    const ids = partsOf(c, p.ids);
+    const ws = c.wires.filter((w) => ids.has(w.id));
+    if (ws.length < 2) throw new Failure(-32602, 'pick two or more wires');
+    const x = Math.max(...ws.flatMap((w) => [w.a[0], w.b[0]])) + 60;
+    const y = Math.round(ws.reduce((s2, w) => s2 + w.a[1], 0) / ws.length / 10) * 10;
+    const k: Comp = { id: `k${nextComp++}`, lib: 'Wiring', name: 'Splitter', loc: [Math.round(x / 10) * 10, y], attrs: { facing: 'west', fanout: String(ws.length), incoming: String(ws.length) } };
+    return edit(p, c, () => { c.comps.push(k); return { removed: [], added: [k] }; }, { id: k.id });
+  },
+  'edit.originalItem': (p) => {
+    const c = circuitOf(p);
+    const k = one(c, p.id);
+    if (k.name !== 'Splitter') throw new Failure(-32602, 'no menu items the engine can do');
+    return edit(p, c, () => { k.attrs = { ...k.attrs, appear: Number(p.index) === 0 ? 'left' : 'right' }; return { removed: [], added: [k] }; });
+  },
+  'edit.memContents': (p) => {
+    const f = fileOf(p);
+    const c = circuitOf(p);
+    const k = one(c, p.id);
+    if (k.name !== 'ROM') throw new Failure(-32602, 'not a ROM');
+    let changed: boolean;
+    if (p.clear === true) changed = attrs.clear(f.fileId, k as attrs.Comp);
+    else if (typeof p.file === 'string') {
+      const vals = readFileSync(p.file, 'utf8').split('\n').slice(1).join(' ').split(/\s+/).filter(Boolean).map((t) => parseInt(t, 16));
+      changed = failing(() => attrs.write(f.fileId, k as attrs.Comp, 0, vals));
+    } else changed = failing(() => attrs.write(f.fileId, k as attrs.Comp, Number(p.addr), (p.values as number[]).map(Number)));
+    if (!changed) return { changed: false, outcome: 'same' };
+    return edit(p, c, () => ({ removed: [], added: [k] }));
+  },
+  'mem.read': (p) => { const f = fileOf(p); return failing(() => attrs.read(f.fileId, memoryOf(f, p), p)); },
+  'mem.write': (p) => { const f = fileOf(p); const k = memoryOf(f, p); if (k.name !== 'RAM') throw new Failure(-32602, 'not a RAM'); return { changed: failing(() => attrs.write(f.fileId, k as attrs.Comp, Number(p.addr), (p.values as number[]).map(Number))) }; },
+  'mem.clear': (p) => { const f = fileOf(p); const k = memoryOf(f, p); if (k.name !== 'RAM') throw new Failure(-32602, 'not a RAM'); return { changed: attrs.clear(f.fileId, k as attrs.Comp) }; },
+  'mem.loadImage': (p) => {
+    const f = fileOf(p);
+    const k = memoryOf(f, p);
+    const vals = readFileSync(String(p.file), 'utf8').split('\n').slice(1).join(' ').split(/\s+/).filter(Boolean).map((t) => parseInt(t, 16));
+    return { changed: failing(() => attrs.write(f.fileId, k as attrs.Comp, 0, vals)) };
+  },
+  'mem.saveImage': (p) => {
+    const f = fileOf(p);
+    const k = memoryOf(f, p);
+    const m = attrs.words(f.fileId, k as attrs.Comp);
+    writeFileSync(String(p.file), `v2.0 raw\n${m.map((v) => v.toString(16)).join(' ')}\n`);
+    return {};
+  },
   // The marks are undoable model edits in the engine (hcs:ext): the file is unsaved after them.
   'record.markPc': (p) => {
     const c = circuitOf(p);
@@ -951,6 +1125,33 @@ const methods: Record<string, (p: Params) => unknown> = {
     return { changed: true, dirty: true };
   },
 };
+
+// ---- N-10's helpers -------------------------------------------------------------------------
+
+// One part by id (-32602/1 as the engine).
+function one(c: Circuit, id: unknown): Comp {
+  const k = c.comps.find((x) => x.id === id);
+  if (!k) throw new Failure(1, `no such component id: ${String(id)}`, { kind: 'component', id: String(id) });
+  return k;
+}
+// A value the part's rows cannot take: the engine's badValue (fake-attrs.ts check).
+function attrCheck(k: Comp, attr: string, value: string): void {
+  try { attrs.check(k as attrs.Comp, attr, value); } catch (e) {
+    const x = e as { code?: number; message: string; data?: unknown };
+    throw new Failure(x.code ?? -32602, x.message, x.data);
+  }
+}
+// The RAM or ROM of mem.*: a part of any of the file's circuits (a subcircuit's own, seen through a path).
+function memoryOf(f: File, p: Params): Comp {
+  for (const c of f.circuits) {
+    const k = c.comps.find((x) => x.id === p.componentId);
+    if (k) {
+      if (k.name !== 'RAM' && k.name !== 'ROM') throw new Failure(-32602, `component ${k.id} is not a RAM or a ROM`);
+      return k;
+    }
+  }
+  throw new Failure(1, `no such component: ${String(p.componentId)}`, { kind: 'component', id: String(p.componentId) });
+}
 
 // ---- ids and edits -----------------------------------------------------------------
 
@@ -1008,7 +1209,7 @@ const partJson = (x: Comp | Wire) => ('a' in x ? x : (x as Comp & { ports?: unkn
 function failing<T>(f: () => T): T {
   try { return f(); } catch (e) {
     const code = (e as { code?: number }).code;
-    throw code ? new Failure(code, (e as Error).message) : e;
+    throw code ? new Failure(code, (e as Error).message, (e as { data?: unknown }).data) : e;
   }
 }
 
@@ -1151,11 +1352,12 @@ function selectIntent(p: Params): unknown {
       if (!p.toggle) { dropFloating(f, c); select(f, c, []); } else select(f, c, ids);
       return { changed: false, outcome: 'rect' };
     }
-    if (p.all) { select(f, c, [...c.comps.map((k) => k.id), ...c.wires.map((w) => w.id)]); return { changed: false }; }
+    if (p.all) { f.selUnordered = true; select(f, c, [...c.comps.map((k) => k.id), ...c.wires.map((w) => w.id)]); return { changed: false }; }
     if (Array.isArray(p.rect)) {
       const [x0, y0, x1, y1] = (p.rect as number[]).map(Number);
       const inside = [...c.comps.filter((k) => { const [x, y, w, h] = boxOf(k); return x >= Math.min(x0, x1) && y >= Math.min(y0, y1) && x + w <= Math.max(x0, x1) && y + h <= Math.max(y0, y1); }).map((k) => k.id),
         ...c.wires.filter((w) => Math.min(w.a[0], w.b[0]) >= Math.min(x0, x1) && Math.max(w.a[0], w.b[0]) <= Math.max(x0, x1) && Math.min(w.a[1], w.b[1]) >= Math.min(y0, y1) && Math.max(w.a[1], w.b[1]) <= Math.max(y0, y1)).map((w) => w.id)];
+      if (inside.length > 1) f.selUnordered = true;
       if (!p.add) { dropFloating(f, c); select(f, c, inside); } else select(f, c, [...now.filter((id) => !inside.includes(id)), ...inside.filter((id) => !now.includes(id))]);
       return { changed: false };
     }
@@ -1165,6 +1367,8 @@ function selectIntent(p: Params): unknown {
       return { changed: false };
     }
     const ids = Array.isArray(p.ids) ? [...partsOf(c, p.ids)] : [];
+    if (!p.add && !p.toggle) f.selUnordered = ids.length > 1;
+    else if (ids.length > 1) f.selUnordered = true;
     if (p.toggle) select(f, c, [...now.filter((id) => !ids.includes(id)), ...ids.filter((id) => !now.includes(id))]);
     else if (p.add) select(f, c, [...now, ...ids.filter((id) => !now.includes(id))]);
     else { dropFloating(f, c); select(f, c, ids); }
