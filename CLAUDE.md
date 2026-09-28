@@ -69,7 +69,9 @@ git과 gh는 설치·로그인돼 있다. 저장소 관리는 전부 직접 한�
   4. `gh pr merge --squash --delete-branch`로 직접 머지한다.
 - **커밋:** 영어 명령형 한 줄 제목(`Add Data Memory component`)에 필요하면 본문을 단다. 작은 단위로 자주 커밋한다.
 - **CI (GitHub Actions):** Linux에서 빌드, 단위 테스트, 엔진 회귀, 어셈블 일치를 매 push·PR마다 돌린다. Windows 러너 작업(`hcs-asm.exe`, jpackage zip/MSI)은 1단계 배포 전에 추가한다.
-- **릴리스:** 단계 산출물은 태그와 GitHub Release로 만든다. 중간 단계 Release는 draft로 둔다. **v1.0.0은 사용자 확정(최종 완성 지시)에 따라 모든 품질 게이트(docs/PROGRESS.md Q-01~Q-05) 통과 뒤 공개 릴리스로 게시한다.**
+- **릴리스:** 단계 산출물은 태그와 GitHub Release로 만든다. 중간 단계 Release는 draft로 둔다. **v1.0.0은 사용자 확정(최종 완성 지시)에 따라 모든 품질 게이트(docs/PROGRESS.md Q-01~Q-05) 통과 뒤 공개 릴리스로 게시한다.** 순서는 `docs/release.md`를 따른다.
+  - **크기와 해시는 공개된 자산의 것만 의미가 있다.** NSIS가 빌드 시각을 넣어 설치 파일 바이트가 빌드마다 다르므로, PR·main 실행에서 만든 파일의 크기·SHA-256을 릴리스 값으로 적지 않는다. 노트와 보고의 값은 릴리스에 붙은(공개 주소에서 받은) 파일의 것이다(D-154).
+  - **태그는 버전을 올린 커밋에 단다.** 그 커밋의 검사에서 문제가 나왔을 때만, 버전을 바꾸지 않고 그 문제만 고친 초록 후손 커밋에 달 수 있다. 이때 모든 검사를 태그 커밋에서 다시 돌리고, 보고에 두 커밋(버전을 올린 커밋, 태그 커밋)을 적는다(D-154).
 - **.gitignore:** `resources/`, `ref/`, `build/`, `.gradle/`, `native/**/build/`, IDE 파일.
 - **진행 추적:** 최종 완성 지시의 항목 ID(S-, W-, P-, C-, D-, E-, R-, Q-)는 이슈 하나씩이고, `docs/PROGRESS.md` 추적표(ID | 이슈 | 상태 | PR | 스크린샷)를 항목이 끝날 때마다 갱신한다. 컨텍스트가 끊기면 이 파일과 PLAN·CLAUDE·DECISIONS만 읽고 이어간다.
 - **스크린샷 보고(`docs/SCREENSHOTS.md`):** UI가 바뀌는 작업은 스크린샷을 올리고 링크를 단다.
