@@ -328,7 +328,11 @@ test('the Canvas\'s right-click menu (I-85..I-98, I-174, I-211; B-03, S-25): one
   }
 });
 
-test('the Components list\'s and the circuit tabs\' menus (I-109): from the same registry; Set As Main Circuit; a library\'s tool has none', async () => {
+// A circuit's items: the Circuits panel's own list (N-11's circuitItems), wherever the circuit is right-clicked.
+const CIRCUIT_ITEMS = ['Edit Circuit Layout', 'Edit Circuit Appearance', 'Rename…', 'Set As Main Circuit', 'Port Order…', 'Auto Appearance',
+  'Move Circuit Up', 'Move Circuit Down', 'Remove Circuit'];
+
+test('the Components list\'s and the circuit tabs\' menus (I-109): from the same registry, the Circuits panel\'s items; Set As Main Circuit; a library\'s Unload Library; a library\'s tool has none', async () => {
   const r = await launch();
   const { page } = r;
   try {
@@ -337,7 +341,7 @@ test('the Components list\'s and the circuit tabs\' menus (I-109): from the same
     await recordCalls(r.app);
     const tree = page.locator('.comptree');
     await tree.locator('[data-tool="/alu"]').click({ button: 'right' });
-    await expect(menu(page).locator(':scope > button .label')).toHaveText(['Edit Circuit Layout', 'Set As Main Circuit']);
+    await expect(menu(page).locator(':scope > button .label')).toHaveText(CIRCUIT_ITEMS);
     await item(page, 'Set As Main Circuit').click();
     await expect.poll(async () => (await sent(r, 'edit.setMainCircuit')).at(-1)).toMatchObject({});
     await tree.locator('[data-tool="/main"]').click({ button: 'right' });
@@ -345,10 +349,15 @@ test('the Components list\'s and the circuit tabs\' menus (I-109): from the same
     await expect(page.locator('.circuitbar .ptab.on')).toHaveText('main');
     await tree.locator('[data-tool="Wiring/Pin"]').click({ button: 'right' });
     await expect(page.locator('.ovmenu')).toHaveCount(0);
+    // a library's head: Unload Library (N-11's, in the same registry); one menu, not two
+    await tree.locator('summary', { hasText: 'Wiring' }).click({ button: 'right' });
+    await expect(page.locator('.ovmenu')).toHaveCount(1);
+    await expect(menu(page).locator(':scope > button .label')).toHaveText(['Unload Library (Wiring)']);
+    await page.keyboard.press('Escape');
     // the circuit tabs: alu is the main circuit now, so main's tab offers it back
     await expect(page.locator('.upper .list li', { hasText: 'alu' }).locator('.mainmark')).toHaveCount(1);
     await page.locator('.circuitbar .ptab', { hasText: 'main' }).click({ button: 'right' });
-    await expect(menu(page).locator(':scope > button .label')).toHaveText(['Set As Main Circuit']);
+    await expect(menu(page).locator(':scope > button .label')).toHaveText(CIRCUIT_ITEMS);
     await item(page, 'Set As Main Circuit').click();
     await expect.poll(async () => (await sent(r, 'edit.setMainCircuit')).length).toBe(2);
     await page.locator('.circuitbar .ptab', { hasText: 'main' }).click({ button: 'right' });
