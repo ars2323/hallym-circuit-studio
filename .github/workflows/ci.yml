@@ -258,13 +258,24 @@ jobs:
           path: electron/setup-earlier
       # The runner's other programs write into %APPDATA%, %LOCALAPPDATA% and HKCU at any time: Firefox's
       # default browser agent (a scheduled task) and the Microsoft account service (wlidsvc: a device
-      # credential and HKCU\Software\Microsoft\AuthCookies) were seen doing so mid-check.  Off for the
-      # checks, rather than widening what the checks let through (D-148 12).
-      - name: Quiet the runner's other programs (their scheduled tasks, the Microsoft account service)
+      # credential and HKCU\Software\Microsoft\AuthCookies) were seen doing so mid-check.  So do Windows' own
+      # scheduled tasks that run in the user's session, each once at a time of its own after the runner
+      # starts (seen: the startup-app scan's RunNotification and toast settings, the device census's Census
+      # key) -- what happens once, a control period cannot measure.  Off for the checks, rather than widening
+      # what the checks let through (D-148 12); the tasks that still ran are listed at the end.
+      - name: Quiet the runner's other programs (their scheduled tasks, Windows' tasks in the user's session, the Microsoft account service)
         run: |
+          "HCS_CHECKS_FROM=$((Get-Date).ToUniversalTime().ToString('o'))" >> $env:GITHUB_ENV
           $tasks = @(Get-ScheduledTask | Where-Object { $_.TaskPath -like '\Mozilla\*' -or $_.TaskName -match 'Firefox|GoogleUpdate|MicrosoftEdgeUpdate|OneDrive' })
           $tasks | ForEach-Object { "disabled: $($_.TaskPath)$($_.TaskName)" }
           $tasks | Disable-ScheduledTask | Out-Null
+          $service = '^(SYSTEM|LOCAL SERVICE|NETWORK SERVICE|NT AUTHORITY\\(SYSTEM|LOCAL SERVICE|NETWORK SERVICE)|S-1-5-(18|19|20))$'
+          $session = @(Get-ScheduledTask | Where-Object { $_.State -ne 'Disabled' -and $_.Principal.UserId -notmatch $service -and ($_.Principal.UserId -or $_.Principal.GroupId -or $_.Principal.LogonType -eq 'Interactive') })
+          foreach ($t in $session) {
+            try { $t | Disable-ScheduledTask -ErrorAction Stop | Out-Null; "disabled: $($t.TaskPath)$($t.TaskName) (runs as $($t.Principal.UserId)$($t.Principal.GroupId))" }
+            catch { "not disabled: $($t.TaskPath)$($t.TaskName) ($($_.Exception.Message.Trim()))" }
+          }
+          Get-ScheduledTask | Where-Object State -eq 'Running' | ForEach-Object { "running: $($_.TaskPath)$($_.TaskName)" }
           Get-Process -Name 'firefox', 'default-browser-agent', 'GoogleUpdate', 'MicrosoftEdgeUpdate' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
           Set-Service -Name wlidsvc -StartupType Disabled -ErrorAction SilentlyContinue
           Stop-Service -Name wlidsvc -Force -ErrorAction SilentlyContinue
@@ -312,6 +323,16 @@ jobs:
               "| first start after install: window / first screen / engine ready | $($l.first.windowMs) / $($l.first.startScreenMs) / $($l.first.engineReadyMs) ms |",
               "| second start: window / first screen / engine ready | $($l.second.windowMs) / $($l.second.startScreenMs) / $($l.second.engineReadyMs) ms |") -join "`n" >> $env:GITHUB_STEP_SUMMARY
           }
+      - name: Scheduled tasks that ran during the checks (report/tasks-run.txt)
+        if: always()
+        run: |
+          New-Item -ItemType Directory -Force -Path report | Out-Null
+          $from = [DateTime]::Parse($env:HCS_CHECKS_FROM).ToUniversalTime()
+          @(Get-ScheduledTask | ForEach-Object {
+            $i = $_ | Get-ScheduledTaskInfo -ErrorAction SilentlyContinue
+            if ($i -and $i.LastRunTime.ToUniversalTime() -gt $from) { '{0:HH:mm:ss}Z  {1}{2}  (runs as {3}{4})' -f $i.LastRunTime.ToUniversalTime(), $_.TaskPath, $_.TaskName, $_.Principal.UserId, $_.Principal.GroupId }
+          } | Sort-Object) | Tee-Object -FilePath report/tasks-run.txt
+          exit 0
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -350,13 +371,24 @@ jobs:
         run: gh release download v1.0.2 --repo $env:GITHUB_REPOSITORY --pattern '*.msi' --dir v1msi
       # The runner's other programs write into %APPDATA%, %LOCALAPPDATA% and HKCU at any time: Firefox's
       # default browser agent (a scheduled task) and the Microsoft account service (wlidsvc: a device
-      # credential and HKCU\Software\Microsoft\AuthCookies) were seen doing so mid-check.  Off for the
-      # checks, rather than widening what the checks let through (D-148 12).
-      - name: Quiet the runner's other programs (their scheduled tasks, the Microsoft account service)
+      # credential and HKCU\Software\Microsoft\AuthCookies) were seen doing so mid-check.  So do Windows' own
+      # scheduled tasks that run in the user's session, each once at a time of its own after the runner
+      # starts (seen: the startup-app scan's RunNotification and toast settings, the device census's Census
+      # key) -- what happens once, a control period cannot measure.  Off for the checks, rather than widening
+      # what the checks let through (D-148 12); the tasks that still ran are listed at the end.
+      - name: Quiet the runner's other programs (their scheduled tasks, Windows' tasks in the user's session, the Microsoft account service)
         run: |
+          "HCS_CHECKS_FROM=$((Get-Date).ToUniversalTime().ToString('o'))" >> $env:GITHUB_ENV
           $tasks = @(Get-ScheduledTask | Where-Object { $_.TaskPath -like '\Mozilla\*' -or $_.TaskName -match 'Firefox|GoogleUpdate|MicrosoftEdgeUpdate|OneDrive' })
           $tasks | ForEach-Object { "disabled: $($_.TaskPath)$($_.TaskName)" }
           $tasks | Disable-ScheduledTask | Out-Null
+          $service = '^(SYSTEM|LOCAL SERVICE|NETWORK SERVICE|NT AUTHORITY\\(SYSTEM|LOCAL SERVICE|NETWORK SERVICE)|S-1-5-(18|19|20))$'
+          $session = @(Get-ScheduledTask | Where-Object { $_.State -ne 'Disabled' -and $_.Principal.UserId -notmatch $service -and ($_.Principal.UserId -or $_.Principal.GroupId -or $_.Principal.LogonType -eq 'Interactive') })
+          foreach ($t in $session) {
+            try { $t | Disable-ScheduledTask -ErrorAction Stop | Out-Null; "disabled: $($t.TaskPath)$($t.TaskName) (runs as $($t.Principal.UserId)$($t.Principal.GroupId))" }
+            catch { "not disabled: $($t.TaskPath)$($t.TaskName) ($($_.Exception.Message.Trim()))" }
+          }
+          Get-ScheduledTask | Where-Object State -eq 'Running' | ForEach-Object { "running: $($_.TaskPath)$($_.TaskName)" }
           Get-Process -Name 'firefox', 'default-browser-agent', 'GoogleUpdate', 'MicrosoftEdgeUpdate' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
           Set-Service -Name wlidsvc -StartupType Disabled -ErrorAction SilentlyContinue
           Stop-Service -Name wlidsvc -Force -ErrorAction SilentlyContinue
@@ -375,6 +407,16 @@ jobs:
           node node_modules\@playwright\test\cli.js test installed -g "first screen"
       - name: Uninstall (silent), nothing left -- of the MSI either
         run: tools/windows/check-install.ps1 -Phase uninstall -Report report
+      - name: Scheduled tasks that ran during the checks (report/tasks-run.txt)
+        if: always()
+        run: |
+          New-Item -ItemType Directory -Force -Path report | Out-Null
+          $from = [DateTime]::Parse($env:HCS_CHECKS_FROM).ToUniversalTime()
+          @(Get-ScheduledTask | ForEach-Object {
+            $i = $_ | Get-ScheduledTaskInfo -ErrorAction SilentlyContinue
+            if ($i -and $i.LastRunTime.ToUniversalTime() -gt $from) { '{0:HH:mm:ss}Z  {1}{2}  (runs as {3}{4})' -f $i.LastRunTime.ToUniversalTime(), $_.TaskPath, $_.TaskName, $_.Principal.UserId, $_.Principal.GroupId }
+          } | Sort-Object) | Tee-Object -FilePath report/tasks-run.txt
+          exit 0
       - uses: actions/upload-artifact@v4
         if: always()
         with:

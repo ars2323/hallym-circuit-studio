@@ -1,15 +1,23 @@
 /* tools/windows/state.ts (N-23, D-148): the Windows checks' rule for what
    the program and its installer may leave.  The snapshot itself is taken
    on Windows (CI setup-e2e, setup-upgrade); here its parts that are not
-   Windows: reading reg.exe's answer, the difference, what counts -- and
-   that what Windows and the test tools change is let through only at the
-   exact place, kind of change and check it was seen in on the runner. */
+   Windows: reading reg.exe's answer, the difference, what counts -- that
+   Windows' own noise is measured in a control period and let through only
+   at the exact places that changed there, never when a change names this
+   program, and that besides it only ALLOWED's few records of any program
+   (each at its exact place, kind of change and check) do not count. */
 
 import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { test } from 'node:test';
 
 import { APP_GUID } from '../../tools/package-config.ts';
-import { allowedByInstall, counts, diffStates, KNOWN, notOurs, parseRegQuery, unexpected, type Change, type Expect, type State } from '../../tools/windows/state.ts';
+import {
+  ALLOWED, allowedByInstall, counts, diffStates, judge, loadNoise, measureNoise, noiseOf, parseRegQuery, report, unexpected,
+  type Change, type NoiseFile, type State,
+} from '../../tools/windows/state.ts';
 
 const state = (p: Partial<State>): State => ({ files: {}, temp: {}, registry: {}, taken: '', ...p });
 const UNINSTALL = `HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${APP_GUID}`;
@@ -18,6 +26,8 @@ const SHORTCUT = 'APPDATA\\Microsoft\\Windows\\Start Menu\\Programs\\Hallym Circ
 const SEARCH = 'LOCALAPPDATA\\Packages\\Microsoft.Windows.Search_cw5n1h2txyewy';
 const ch = (where: Change['where'], what: Change['what'], path: string, after = what === 'removed' ? undefined : '1 1'): Change =>
   ({ where, what, path, ...(after === undefined ? {} : { after }), ...(what === 'changed' ? { before: '1 0' } : {}) });
+const control = (name: string, changes: Change[]): NoiseFile => ({ name, from: 'a', to: 'b', changes });
+const CHECKS = ['none', 'install', 'uninstalled'] as const;
 
 test('reg.exe query: keys, values (the default value in any language), empty data', () => {
   const text = [
@@ -80,14 +90,15 @@ test('a run of the program may change nothing: anywhere in %APPDATA%, %LOCALAPPD
   assert.deepEqual(unexpected(counted, 'none').map((c) => c.path), counted.map((c) => c.path));
   // Windows' spelling word lists (the program keeps Chromium from opening the Windows spell checker: D-148 13).
   for (const c of [ch('files', 'added', 'APPDATA\\Microsoft\\Spelling\\en-US\\default.dic', '2 1'), ch('files', 'added', 'APPDATA\\Microsoft\\Spelling', 'dir')]) {
-    for (const e of ['none', 'install', 'uninstalled'] as const) assert.equal(counts(c, e), true, `${c.path} (${e})`);
+    for (const e of CHECKS) assert.equal(counts(c, e), true, `${c.path} (${e})`);
   }
   assert.equal(counts(ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Spelling\\Options', 'key'), 'none'), true);
   // Microsoft's account service (stopped on the runner, D-148 12): counted.
   assert.equal(counts(ch('files', 'added', 'LOCALAPPDATA\\Microsoft\\Credentials\\DFBE70A7E5CC19A398EBF1B96859CE5D'), 'none'), true);
-  // Playwright's own folder per launch.
-  assert.equal(counts(ch('temp', 'added', 'TEMP\\playwright-artifacts-Zpo2Y7'), 'none'), false);
-  assert.equal(counts(ch('temp', 'added', 'TEMP\\playwright-artifacts-Zpo2Y7\\trace'), 'none'), false);
+  // Playwright's own folder per launch, empty.
+  assert.equal(counts(ch('temp', 'added', 'TEMP\\playwright-artifacts-Zpo2Y7', 'dir'), 'none'), false);
+  assert.equal(counts(ch('temp', 'added', 'TEMP\\playwright-artifacts-Zpo2Y7', '1 1'), 'none'), true);           // a file of that name
+  assert.equal(counts(ch('temp', 'added', 'TEMP\\playwright-artifacts-Zpo2Y7\\trace', 'dir'), 'none'), true);   // something in it
 });
 
 test('an install may add exactly its shortcut, its uninstall entry and electron-builder\'s install record', () => {
@@ -101,8 +112,9 @@ test('an install may add exactly its shortcut, its uninstall entry and electron-
   });
   const changes = diffStates(before, after);
   assert.deepEqual(unexpected(changes, 'install'), []);
-  // Windows' own empty containers are not the installer's.
-  assert.deepEqual(changes.filter((c) => !counts(c, 'install')).map((c) => c.path), ['LOCALAPPDATA\\Programs', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall']);
+  // The installer's own four places; Windows' own empty containers are not the installer's.
+  assert.deepEqual(changes.filter((c) => judge(c, 'install').kind === 'ok').map((c) => c.path).filter((p) => p !== SHORTCUT).every((p) => p.startsWith(UNINSTALL) || p.startsWith(RECORD)), true);
+  assert.deepEqual(changes.filter((c) => judge(c, 'install').kind === 'allowed').map((c) => c.path), ['LOCALAPPDATA\\Programs', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall']);
   // None of it may come from a run of the program.
   assert.equal(unexpected(changes, 'none').length, changes.length);
   const more: Change[] = [
@@ -137,23 +149,33 @@ test('after an uninstall nothing is left: the uninstaller\'s copy in %TEMP%, an 
   ]) assert.equal(counts(c, 'uninstalled'), true, c.path);
 });
 
-test('a run: only what was seen on the runner, at its exact place, kind of change and data; its neighbours count', () => {
-  const seen: Change[] = [
+test('any check: only the records Windows keeps of any program that starts, at their exact place, kind and data; the rest is measured', () => {
+  const kept: Change[] = [
     ch('files', 'changed', 'LOCALAPPDATA\\Microsoft\\Windows\\UsrClass.dat.LOG1'),
-    ch('files', 'changed', 'LOCALAPPDATA\\Microsoft\\Windows\\Notifications\\wpndatabase.db-wal'),
-    ch('files', 'added', 'APPDATA\\Microsoft\\Windows\\Themes\\CachedFiles\\CachedImage_1920_1080_POS4.jpg'),
+    ch('files', 'changed', 'LOCALAPPDATA\\Microsoft\\Windows\\UsrClass.dat'),
     ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Spelling', 'key'),
     ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\WinTrust\\Trust Providers\\Software Publishing', 'key'),
     ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\WinTrust\\Trust Providers\\Software Publishing :: State', 'REG_DWORD 0x23c00'),
-    ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings :: QuietHoursTelemetryLastRun', 'REG_BINARY 00'),
-    ch('temp', 'added', 'TEMP\\playwright-artifacts-Zpo2Y7'),
+    ch('temp', 'added', 'TEMP\\playwright-artifacts-Zpo2Y7', 'dir'),
+    ch('files', 'changed', `${SEARCH}\\LocalState\\AppIconCache\\100\\kr_ac_hallym_circuit-studio`),
   ];
-  for (const c of seen) for (const e of ['none', 'install', 'uninstalled'] as const) assert.equal(counts(c, e), false, `${c.what} ${c.path} (${e})`);
+  for (const c of kept) for (const e of CHECKS) assert.equal(counts(c, e), false, `${c.what} ${c.path} (${e})`);
+  // Windows' own, but not only when a program starts: counted unless a control period measured it (not listed).
   for (const c of [
-    ch('files', 'added', 'LOCALAPPDATA\\Microsoft\\Windows\\Notifications\\wpndatabase.db-wal'),       // made, not written
-    ch('files', 'changed', 'LOCALAPPDATA\\Microsoft\\Windows\\Notifications\\wpndatabase.db'),
+    ch('files', 'changed', 'LOCALAPPDATA\\Microsoft\\Windows\\Notifications\\wpndatabase.db-wal'),
+    ch('files', 'added', 'APPDATA\\Microsoft\\Windows\\Themes\\CachedFiles\\CachedImage_1920_1080_POS4.jpg'),
+    ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings :: QuietHoursTelemetryLastRun', 'REG_BINARY 00'),
+    ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\RunNotification :: SecurityHealth', 'REG_DWORD 0x0'),
+    ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings\\Windows.SystemToast.StartupApp', 'key'),
+    ch('registry', 'removed', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\WinTrust'),
+    ch('files', 'changed', `${SEARCH}\\Settings\\settings.dat.LOG2`),
+  ]) assert.equal(counts(c, 'none'), true, `${c.what} ${c.path}`);
+  // Their neighbours count.
+  for (const c of [
+    ch('files', 'changed', 'LOCALAPPDATA\\Microsoft\\Windows\\UsrClass.dat.LOG3'),
+    ch('files', 'added', 'LOCALAPPDATA\\Microsoft\\Windows\\UsrClass.dat.LOG1'),
+    ch('files', 'removed', 'LOCALAPPDATA\\Microsoft\\Windows\\UsrClass.dat'),
     ch('files', 'changed', 'LOCALAPPDATA\\Microsoft\\Windows\\Explorer\\iconcache_32.db'),
-    ch('files', 'added', 'APPDATA\\Microsoft\\Windows\\Themes\\TranscodedWallpaper'),
     ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Spelling\\Dictionaries', 'key'),                // a language opened
     ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Spelling :: x', 'REG_SZ y'),
     ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\WinTrust\\Trust Providers\\Software Publishing :: State', 'REG_DWORD 0x0'),
@@ -161,11 +183,118 @@ test('a run: only what was seen on the runner, at its exact place, kind of chang
     ch('registry', 'added', 'HKCU\\Software\\Microsoft\\RestartManager', 'key'),
     ch('files', 'added', 'APPDATA\\Microsoft\\Windows\\Recent\\AutomaticDestinations\\13d33cf42d4c3237.automaticDestinations-ms'),
     ch('files', 'added', `${SEARCH}\\LocalState\\AppIconCache\\100\\Chrome`),
+    ch('files', 'removed', `${SEARCH}\\LocalState\\AppIconCache\\100\\kr_ac_hallym_circuit-studio`),
     ch('temp', 'added', 'TEMP\\playwright-transform-cache\\a.js'),
-    ch('temp', 'added', 'TEMP\\playwright-artifactsZ'),
+    ch('temp', 'added', 'TEMP\\playwright-artifactsZ', 'dir'),
   ]) assert.equal(counts(c, 'none'), true, `${c.what} ${c.path}`);
   // Every entry says why.
-  for (const k of KNOWN) assert.ok(k.why.length > 20, k.path.source);
+  for (const k of ALLOWED) assert.ok(k.why.length > 20, k.path.source);
+});
+
+test('Windows\' noise, measured: a place that changed in a control period does not count in the checked period, exactly that place, in any check', () => {
+  const SETTINGS = `${SEARCH}\\Settings\\settings.dat.LOG2`;
+  const RUN = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\RunNotification :: SecurityHealth';
+  const WALLPAPER = 'APPDATA\\Microsoft\\Windows\\Themes\\CachedFiles\\CachedImage_1920_1080_POS4.jpg';
+  const AGENT = 'HKCU\\Software\\Vendor\\Agent :: LastRun';
+  const a = state({ files: { [SETTINGS]: '24576 5' }, registry: { [AGENT]: 'REG_SZ 1' }, taken: 't1' });
+  const b = state({ files: { [SETTINGS]: '49152 5', [WALLPAPER]: '124996 7' }, registry: { [RUN]: 'REG_DWORD 0x0' }, taken: 't2' });
+  const measured = measureNoise('first-run', a, b);
+  assert.deepEqual({ ...measured, changes: measured.changes.map((c) => `${c.what} ${c.path}`) },
+    { name: 'first-run', from: 't1', to: 't2', changes: [`added ${WALLPAPER}`, `changed ${SETTINGS}`, `added ${RUN}`, `removed ${AGENT}`] });
+  const noise = noiseOf([measured]);
+  // In both the control period and the run: not counted, and said so -- whatever the kind of change in the run.
+  for (const c of [ch('files', 'changed', SETTINGS), ch('files', 'removed', SETTINGS), ch('registry', 'changed', RUN, 'REG_DWORD 0x3')]) {
+    assert.equal(counts(c, 'none'), true, `${c.path} without the noise`);
+    assert.deepEqual(judge(c, 'none', noise), { kind: 'noise', control: 'first-run' }, c.path);
+  }
+  for (const c of [ch('files', 'changed', WALLPAPER), ch('registry', 'added', AGENT, 'REG_SZ 2')]) {
+    for (const e of CHECKS) {
+      assert.equal(counts(c, e), true, `${c.path} without the noise (${e})`);
+      assert.deepEqual(judge(c, e, noise), { kind: 'noise', control: 'first-run' }, `${c.path} (${e})`);
+    }
+  }
+  // Only there: its folder, its neighbours, another value of that key, the key itself, the same path in another place count.
+  for (const c of [
+    ch('files', 'changed', `${SEARCH}\\Settings\\settings.dat.LOG1`),
+    ch('files', 'added', `${SEARCH}\\Settings\\x`),
+    ch('files', 'changed', `${SEARCH}\\Settings`, '1 1'),
+    ch('files', 'added', 'APPDATA\\Microsoft\\Windows\\Themes\\CachedFiles\\CachedImage_1920_1080_POS5.jpg'),
+    ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\RunNotification :: AzureArcSetup', 'REG_DWORD 0x0'),
+    ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\RunNotification', 'key'),
+    ch('registry', 'added', 'HKCU\\Software\\Vendor\\Agent', 'key'),
+    ch('temp', 'changed', SETTINGS),
+  ]) assert.equal(counts(c, 'none', noise), true, `${c.what} ${c.where} ${c.path}`);
+  assert.deepEqual(unexpected([ch('files', 'changed', SETTINGS), ch('files', 'changed', `${SEARCH}\\Settings\\settings.dat.LOG1`)], 'none', noise).map((c) => c.path),
+    [`${SEARCH}\\Settings\\settings.dat.LOG1`]);
+});
+
+test('noise never covers a change that names this program, nor a new file in %APPDATA%, %LOCALAPPDATA% or %TEMP% at a place it did not measure', () => {
+  // Places Windows changed by itself in the control period -- some naming the program: a MuiCache entry of its exe, its temp folder.
+  const MUI = 'HKCU\\Software\\Classes\\Local Settings\\MuiCache\\281\\52C64B7E';
+  const EXE = `${MUI} :: C:\\Users\\u\\AppData\\Local\\Programs\\Hallym Circuit Studio\\HallymCircuitStudio.exe.FriendlyAppName`;
+  const JUMP = 'APPDATA\\Microsoft\\Windows\\Recent\\CustomDestinations\\x.customDestinations-ms';
+  const WPN = 'LOCALAPPDATA\\Microsoft\\Windows\\Notifications\\wpndatabase.db-wal';
+  const noise = noiseOf([control('first-run', [
+    ch('registry', 'added', EXE, 'REG_SZ Hallym Circuit Studio'),
+    ch('registry', 'added', `${MUI} :: x`, 'REG_SZ y'),
+    ch('files', 'changed', JUMP),
+    ch('registry', 'added', `${RECORD} :: x`, 'REG_SZ y'),
+    ch('temp', 'added', 'TEMP\\HallymCircuitStudio', 'dir'),
+    ch('files', 'changed', WPN),
+  ])]);
+  // Named -- by its name, in its data, by electron-builder's key for it: counted, in every check.
+  for (const c of [
+    ch('registry', 'added', EXE, 'REG_SZ Hallym Circuit Studio'),
+    ch('registry', 'changed', `${MUI} :: x`, 'REG_SZ kr.ac.hallym.circuit-studio'),
+    ch('registry', 'added', `${RECORD} :: x`, 'REG_SZ y'),
+    ch('temp', 'added', 'TEMP\\HallymCircuitStudio', 'dir'),
+    ch('files', 'changed', JUMP, '1 1 C:\\Hallym'),
+  ]) {
+    for (const e of ['none', 'uninstalled'] as const) assert.equal(counts(c, e, noise), true, `${c.path} ${c.after} (${e})`);
+  }
+  // The same places, not naming it: Windows' noise.
+  assert.equal(counts(ch('registry', 'changed', `${MUI} :: x`, 'REG_SZ other'), 'none', noise), false);
+  assert.equal(counts(ch('files', 'changed', JUMP), 'none', noise), false);
+  assert.equal(counts(ch('files', 'changed', WPN), 'none', noise), false);
+  // A new file or folder in %APPDATA%, %LOCALAPPDATA% or %TEMP% at a place the control period did not change: counted.
+  for (const c of [
+    ch('files', 'added', 'APPDATA\\x\\settings.json'),
+    ch('files', 'added', 'APPDATA\\Microsoft\\Windows\\Notifications\\wpndatabase.db-wal'),   // another root than the noise's
+    ch('files', 'added', 'LOCALAPPDATA\\Microsoft\\Windows\\Explorer\\wpndatabase.db-wal'),
+    ch('files', 'added', 'LOCALAPPDATA\\electron\\Cache', 'dir'),
+    ch('temp', 'added', 'TEMP\\scoped_dir1234_567', 'dir'),
+    ch('temp', 'added', 'TEMP\\x.tmp'),
+  ]) {
+    for (const e of CHECKS) assert.equal(counts(c, e, noise), true, `${c.path} (${e})`);
+  }
+  // The installer's own in an install check stay the installer's.
+  assert.deepEqual(judge(ch('registry', 'added', `${RECORD} :: x`, 'REG_SZ y'), 'install', noise), { kind: 'ok' });
+});
+
+test('noise from every control period so far: their union, from a report folder\'s noise-*.json only; the report says what let a change through', () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'noise-'));
+  try {
+    const x = ch('files', 'changed', 'LOCALAPPDATA\\x');
+    const y = ch('registry', 'changed', 'HKCU\\Software\\Vendor\\y :: v', 'REG_SZ 2');
+    writeFileSync(path.join(dir, 'noise-clean.json'), JSON.stringify(control('clean', [x])));
+    writeFileSync(path.join(dir, 'noise-first-run.json'), JSON.stringify(control('first-run', [x, y])));
+    writeFileSync(path.join(dir, 'state-control-clean.json'), JSON.stringify(control('not noise', [ch('files', 'changed', 'APPDATA\\z')])));
+    writeFileSync(path.join(dir, 'diff-installed.txt'), 'x');
+    const files = loadNoise(dir);
+    assert.deepEqual(files.map((f) => f.name), ['clean', 'first-run']);
+    assert.deepEqual([...noiseOf(files)], [['files\tLOCALAPPDATA\\x', 'clean'], ['registry\tHKCU\\Software\\Vendor\\y :: v', 'first-run']]);
+    assert.deepEqual(loadNoise(path.join(dir, 'none')), []);
+    const changes = [x, y, ch('files', 'changed', 'APPDATA\\z'), ch('temp', 'added', 'TEMP\\playwright-artifacts-Q1', 'dir'), ch('registry', 'added', RECORD, 'key')];
+    const r = report('first-run', changes, 'install', files);
+    assert.deepEqual(r.bad.map((c) => c.path), ['APPDATA\\z']);
+    assert.equal(r.lines[0], 'first-run (expect install): 5 difference(s), 1 not allowed; Windows\' own noise: 2 place(s) in 2 control period(s) (clean, first-run)');
+    assert.deepEqual(r.lines.slice(1).map((l) => l.split(' ')[0]), ['noise', 'noise', 'FAIL', 'info', 'ok']);
+    assert.match(r.lines[1], /changed by Windows itself in the control period before clean$/);
+    assert.match(r.lines[4], /-- Playwright \(the test tool\)/);
+    assert.equal(report('second-run', [], 'none').lines[0], 'second-run (expect none): 0 difference(s), 0 not allowed; Windows\' own noise: 0 place(s) in 0 control period(s)');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('an install or uninstall: Windows\' own stores do not count, the installer\'s places in them and anything naming this program do', () => {
@@ -217,26 +346,29 @@ test('a change that names this program is never Windows\' own -- but for Windows
   assert.equal(counts(ch('registry', 'added', `${MUI} :: C:\\Windows\\system32,@elscore.dll,-1`, 'REG_SZ Microsoft Language Detection'), 'install'), false);
   assert.equal(counts(ch('registry', 'added', `${MUI} :: C:\\Users\\u\\AppData\\Local\\Programs\\Hallym Circuit Studio\\HallymCircuitStudio.exe.FriendlyAppName`, 'REG_SZ Hallym Circuit Studio'), 'install'), true);
   assert.equal(counts(ch('registry', 'added', `${MUI} :: x`, 'REG_SZ kr.ac.hallym.circuit-studio'), 'install'), true);
+  assert.equal(counts(ch('registry', 'added', `${MUI} :: x`, `REG_SZ ${APP_GUID}`), 'install'), true);
   // Explorer's open-with lists: Windows Media Player's are Windows', .circ never is.
   const EXTS = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts';
   assert.equal(counts(ch('registry', 'added', `${EXTS}\\.aif\\OpenWithProgids :: WMP11.AssocFile.AIFF`, 'REG_NONE'), 'install'), false);
   for (const p of [`${EXTS}\\.circ`, `${EXTS}\\.circ\\OpenWithProgids`, `${EXTS}\\.circ\\OpenWithProgids :: x`, `${EXTS}\\.circ\\UserChoice`]) {
     assert.equal(counts(ch('registry', 'added', p, 'key'), 'install'), true, p);
   }
-  // Windows' records that do name it, each at its exact place (D-148 12).
+  // Windows' records that do name it, by its app id, each at its exact place (D-148 12).
   const UA = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\UserAssist\\{CEBFF5CD-ACE2-4F4F-9178-9926F41749EA}\\Count';
-  for (const e of ['none', 'install', 'uninstalled'] as const) {
+  for (const e of CHECKS) {
     assert.equal(counts(ch('registry', 'added', `${UA} :: xe.np.unyylz.pvephvg-fghqvb`, 'REG_BINARY 00'), e), false, e);
   }
   assert.equal(counts(ch('registry', 'added', `${UA} :: P:\\Hfref\\h\\NccQngn\\Ybpny\\Cebtenzf\\Unyylz Pvephvg Fghqvb\\UnyylzPvephvgFghqvb.rkr`, 'REG_BINARY 00'), 'uninstalled'), true);
   const ICON = 'LOCALAPPDATA\\Packages\\Microsoft.Windows.Search_cw5n1h2txyewy\\LocalState\\AppIconCache\\100\\kr_ac_hallym_circuit-studio';
-  assert.equal(counts(ch('files', 'added', ICON), 'uninstalled'), false);
-  assert.equal(counts(ch('files', 'added', ICON), 'none'), true);
+  for (const e of CHECKS) assert.equal(counts(ch('files', 'added', ICON), e), false, e);
+  const V1_ICON = 'LOCALAPPDATA\\Packages\\Microsoft.Windows.Search_cw5n1h2txyewy\\LocalState\\AppIconCache\\100\\C__Users_u_AppData_Local_HallymCircuitStudio_HallymCircuitStudio_exe';
+  assert.equal(counts(ch('files', 'added', V1_ICON), 'uninstalled'), false);
+  assert.equal(counts(ch('files', 'added', V1_ICON), 'none'), true);
   const SHC = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\UFH\\SHC :: 88';
   assert.equal(counts(ch('registry', 'added', SHC, 'REG_MULTI_SZ C:\\...\\Hallym Circuit Studio\\HallymCircuitStudio.lnk'), 'uninstalled'), false);
   assert.equal(counts(ch('registry', 'added', SHC, 'REG_MULTI_SZ x'), 'none'), true);
   // Nowhere else: a jump list, a Search icon or a Start menu cache entry named after it counts.
   assert.equal(counts(ch('files', 'added', 'LOCALAPPDATA\\Packages\\Microsoft.Windows.Search_cw5n1h2txyewy\\LocalState\\AppIconCache\\100\\hallym_other'), 'install'), true);
   assert.equal(counts(ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\RunNotification :: HallymCircuitStudio', 'REG_DWORD 0x0'), 'install'), true);
-  assert.equal(notOurs(ch('files', 'changed', 'LOCALAPPDATA\\Microsoft\\Windows\\UsrClass.dat.LOG2')), 'the HKCU\\Software\\Classes hive\'s own log (the registry is compared key by key)');
+  assert.deepEqual(judge(ch('files', 'changed', 'LOCALAPPDATA\\Microsoft\\Windows\\UsrClass.dat.LOG2')), { kind: 'allowed', why: 'the files of the HKCU\\Software\\Classes hive (the registry itself is compared key by key)' });
 });

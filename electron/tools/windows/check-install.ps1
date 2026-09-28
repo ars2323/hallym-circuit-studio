@@ -5,7 +5,10 @@
   and fails if any FAIL.  What changed on the PC is compared by
   tools/windows/state.ts (read-only snapshots: files under %APPDATA%,
   %LOCALAPPDATA% and the desktops, the registry keys the program or its
-  installer could write).
+  installer could write).  Before each install or uninstall a control
+  period (Control) measures what Windows changes by itself meanwhile
+  (<Report>/noise-<phase>.json); every comparison lets those places through,
+  and nothing else but state.ts ALLOWED.
 
     check-install.ps1 -Phase clean     -Setup <exe> -Version <v> -Report <dir>
         from nothing: /S, then exactly the install folder, the Start menu
@@ -71,7 +74,7 @@ function V1Entries {
 }
 function Snap([string]$name) { & node tools/windows/state.ts snapshot (Join-Path $Report "state-$name.json") | Out-Host }
 function StateDiff([string]$a, [string]$b, [string]$expect, [string]$what) {
-  & node tools/windows/state.ts diff (Join-Path $Report "state-$a.json") (Join-Path $Report "state-$b.json") --expect $expect --report (Join-Path $Report "diff-$b.txt") | Out-Host
+  & node tools/windows/state.ts diff (Join-Path $Report "state-$a.json") (Join-Path $Report "state-$b.json") --expect $expect --noise $Report --report (Join-Path $Report "diff-$b.txt") | Out-Host
   Check ($LASTEXITCODE -eq 0) "$what (state $a -> $b, expect ${expect}: $Report\diff-$b.txt)"
 }
 # Starts a program and waits for it, without the shell (Start-Process goes through ShellExecute,
@@ -82,6 +85,31 @@ function Run([string]$exe, [string]$arguments) {
   $p = [Diagnostics.Process]::Start($si)
   $p.WaitForExit()
   return $p
+}
+# The processes of ours: the program and anything else run from its folder, the uninstaller's copy, the 1.0.x program.
+function OursRunning {
+  @(Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -and ($_.Path -like "$dir\*" -or $_.Path -like '*\~nsu*.tmp\*' -or $_.Path -like '*\HallymCircuitStudio*') } |
+    ForEach-Object { "$($_.Id) $($_.Path)" })
+}
+<# Windows' own noise before a phase (D-148 12): snapshot A (state-control-<name>), the helpers the phase uses
+   started the same way -- a program started and ended without the shell (Run), the read-only looks at the
+   uninstall entries, folders and shortcuts --, a wait as long as the phase takes on the runner, snapshot B
+   (state-<as>, the phase's "before"), nothing of ours running all along.  What changed from A to B is
+   report/noise-<name>.json: Windows changed those places by itself.  StateDiff lets through the places in
+   every noise file so far (the comparison spans them), never a change that names this program. #>
+function Control([string]$name, [int]$seconds, [string]$as) {
+  $o = @(OursRunning)
+  Check ($o.Count -eq 0) "before the control period for $name`: nothing of ours running ($(if ($o.Count) { $o -join '; ' } else { 'none' }))"
+  Snap "control-$name"
+  $sw = [Diagnostics.Stopwatch]::StartNew()
+  $null = Run (Join-Path $env:SystemRoot 'System32\hostname.exe') ''
+  $null = @(Entries); $null = @(Folders); $null = @(Shortcuts)
+  $left = $seconds * 1000 - $sw.ElapsedMilliseconds
+  if ($left -gt 0) { Start-Sleep -Milliseconds $left }
+  $o = @(OursRunning)
+  Check ($o.Count -eq 0) "the control period for $name ($seconds s): nothing of ours running ($(if ($o.Count) { $o -join '; ' } else { 'none' }))"
+  Snap $as
+  & node tools/windows/state.ts noise (Join-Path $Report "state-control-$name.json") (Join-Path $Report "state-$as.json") (Join-Path $Report "noise-$name.json") | Out-Host
 }
 function Install([string]$setupExe, [string]$what) {
   $sw = [Diagnostics.Stopwatch]::StartNew()
@@ -136,7 +164,7 @@ Push-Location (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))   # electr
 try {
   if ($Phase -eq 'clean') {
     Write-Host "== clean: $Setup"
-    Snap 'before'
+    Control 'clean' 30 'before'
     $s0 = State 'before'
     Check ($s0.entries.Count -eq 0 -and $s0.folders.Count -eq 0 -and $s0.shortcuts.Count -eq 0) 'nothing of ours installed to begin with'
     # The installer asks for no administrator (per user; a one-click NSIS installer's own manifest).
@@ -183,6 +211,7 @@ try {
 
   if ($Phase -eq 'again') {
     Write-Host "== again: $Setup over itself"
+    Control 'again' 15 'pre-again'
     $null = Install $Setup 'install again'
     OneOfEach 'again' $Version
     Snap 'again'
@@ -191,6 +220,7 @@ try {
 
   if ($Phase -eq 'uninstall') {
     Write-Host '== uninstall'
+    Control 'uninstall' 15 'pre-uninstall'
     Uninstall 'uninstalled'
     Snap 'uninstalled'
     StateDiff 'before' 'uninstalled' 'uninstalled' 'nothing left after uninstall'
@@ -200,7 +230,7 @@ try {
 
   if ($Phase -eq 'over') {
     Write-Host "== over: $Older ($OlderVersion), then $Setup ($Version)"
-    Snap 'before-over'
+    Control 'over' 25 'before-over'
     $s0 = State 'before-over'
     Check ($s0.entries.Count -eq 0 -and $s0.folders.Count -eq 0) 'nothing of ours installed to begin with'
     $null = Install $Older "install $OlderVersion"
@@ -209,6 +239,7 @@ try {
     OneOfEach 'over' $Version
     Snap 'over'
     StateDiff 'before-over' 'over' 'install' "$Version over $OlderVersion`: only the shortcut and the entry"
+    Control 'over-uninstall' 15 'pre-over-uninstall'
     Uninstall 'over-uninstalled'
     Snap 'over-uninstalled'
     StateDiff 'before-over' 'over-uninstalled' 'uninstalled' 'nothing left after uninstall'
@@ -216,7 +247,7 @@ try {
 
   if ($Phase -eq 'msi') {
     Write-Host "== msi: $Msi, then $Setup"
-    Snap 'before'
+    Control 'msi' 45 'before'
     $s0 = State 'before'
     Check ($s0.entries.Count -eq 0 -and (V1Products).Count -eq 0) 'nothing of ours installed to begin with'
     $p = Run (Join-Path $env:SystemRoot 'System32\msiexec.exe') "/i `"$((Resolve-Path $Msi).Path)`" /qn /norestart"
