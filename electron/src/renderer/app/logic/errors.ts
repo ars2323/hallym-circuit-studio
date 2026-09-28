@@ -72,6 +72,7 @@ export function commandError(command: string, e: FailedCall): string {
     if (reason === 'oscillating') return `${command}: 회로가 발진해서 시뮬레이션이 꺼져 있습니다. 회로를 고친 뒤 Reset을 누르세요`;
     if (reason === 'off') return `${command}: 시뮬레이션이 꺼져 있습니다. Reset을 누르세요`;
     if (reason === 'frozenPin') return `${command}: 서브회로 안의 입력 핀은 바깥 회로가 정합니다`;
+    if (reason === 'running') return `${command}: 시뮬레이션이 켜져 있을 때는 할 수 없습니다. Ctrl+E 키로 끈 뒤 하세요`;
     return `${command}: 지금 시뮬레이션 상태에서는 할 수 없습니다`;
   }
   if (e.code === ERR_READ_ONLY) {

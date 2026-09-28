@@ -34,6 +34,7 @@
 
 import type { CircuitRef, ConsoleUpdate, DiagList, DiagMessage, EngineStatus, FindResult, LibraryGroup, MipsFacts, ModelChanged, NewResult, Point, RecordState, Recovered, RecoveryAsk, Reloaded, RunUntilDone, SimState, SimValues, Snapshot } from '../../main/protocol.ts';
 import { CircuitCanvas } from '../canvas/canvas.ts';
+import { emitTool } from '../canvas/events.ts';
 import { legend } from '../canvas/legend.ts';
 import { Overlays } from '../canvas/overlays/controller.ts';
 import { Scene } from '../canvas/scene.ts';
@@ -53,6 +54,8 @@ import { componentsPanel, type Pick, TOOL_MIME } from './components.ts';
 import { consolePanel } from './console.ts';
 import { CycleView, type PinSpot } from './cycleview.ts';
 import { cycleFacts } from './logic/cycle.ts';
+import { askCycles } from './cycles-dialog.ts';
+import { Editor, type ToolName } from './editor.ts';
 import { findWindow } from './find.ts';
 import { revealOfPlace } from './logic/find.ts';
 import type { CommandId, SearchItem } from './logic/search.ts';
@@ -63,6 +66,7 @@ import { splitterEditor } from './splitter-editor.ts';
 import { type EditSplitter, emitPlaceTool, emitSelection, onEditSplitter, type PlaceTool, snap } from './tool-events.ts';
 import { tunnelsPanel } from './tunnels.ts';
 import { commandError, fileError } from './logic/errors.ts';
+import { FREQUENCIES, going, resetTurnsOn, runLabel, simBand, simFacts } from './logic/sim.ts';
 import { circuitFacts, count, counted, engineFact, engineVersion } from './logic/facts.ts';
 import { Files, type OpenFile } from './logic/files.ts';
 import { arrange, nothingDragged, PAD, SPLITTER } from './logic/layout.ts';
@@ -73,7 +77,7 @@ import { emitReveal, onReveal, type Reveal } from './reveal.ts';
 import { recoveredText } from './logic/recovered.ts';
 import { answerRecovery, recoveredNote } from './logic/recovery-ask.ts';
 import { settleUnsaved, type Leaving } from './logic/unsaved.ts';
-import { RUN_DEFAULTS } from './logic/run-settings.ts';
+import { RUN_DEFAULTS, RUN_ONLY } from './logic/run-settings.ts';
 import { startScreen } from './start.ts';
 
 const api = window.app;
@@ -101,8 +105,7 @@ let bottomCollapsed = false;
 let startSeen = false;
 let untitled = 0;
 let cycleFile: string | null = null;                     // the file the Cycle View shows
-// The clock's speed, ticks per second: v1's list (and the engine's, docs/engine-api.md sim.run).
-const FREQUENCIES: [string, number][] = [['1 Hz', 1], ['4 Hz', 4], ['16 Hz', 16], ['64 Hz', 64], ['256 Hz', 256], ['1 kHz', 1024], ['4 kHz', 4096]];
+let lastCycles: number | null = null;                  // the N Cycles count given last (this run only)
 
 const key = (fileId: string, circuitId: string) => `${fileId} ${circuitId}`;
 const sceneKey = (fileId: string, circuitId: string, path: string[] = []) => (path.length ? `${key(fileId, circuitId)} ${path.join('/')}` : key(fileId, circuitId));
@@ -139,6 +142,20 @@ const overlays = new Overlays({
 });
 const wireLegend = legend({ busWidths: RUN_DEFAULTS.busWidths, onBusWidths: (on) => { board.busWidths = on; board.invalidate(); }, extra: overlays.legendRows() });
 let boardKey = '';
+// The tools in hand on the Canvas (editor.ts): Poke (N-07), and Edit (N-05's click selection until N-08's).
+const editor = new Editor({
+  board,
+  call: (method, params) => api.call(method, params),
+  where: () => {
+    const f = files.active();
+    return f && board.scene ? { fileId: f.fileId, circuitId: board.scene.circuitId } : null;
+  },
+  ready: () => engine.state === 'ready',
+  enter: (id) => enterInstance(id),
+  failed: (command, e) => { note = { cls: 'err', text: commandError(command, e as CallError) }; renderStatus(); },
+  // the tool in hand: the toolbar shows it, the others hear it (hcs:tool, N-15's canvas/events.ts)
+  toolChanged: (t) => { showTool(t); emitTool(t); },
+});
 
 // ---- the title bar ------------------------------------------------------------
 
@@ -158,14 +175,28 @@ flowToggle.removeAttribute('aria-checked');
 flowToggle.classList.add('flowtoggle');
 flowToggle.title = 'Signal Flow on Click (Ctrl+Shift+F)';
 flowToggle.addEventListener('click', () => overlays.toggleOnClick());
+// The tools in hand so far (editor.ts): Edit and Poke (N-07); the others come with N-08 and N-15.
+const WORKING_TOOLS = new Set<string>(['Edit', 'Poke']);
+toolButtons.forEach((b, i) => {
+  const name = TOOLS[i][0];
+  if (WORKING_TOOLS.has(name)) b.addEventListener('click', () => editor.setTool(name as ToolName));
+});
+function showTool(t: ToolName): void {
+  toolButtons.forEach((b, i) => {
+    if (b === flowToggle) return;   // a switch, not a tool (N-15)
+    const on = TOOLS[i][0] === t;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-checked', String(on));
+  });
+}
 const bSave = iconButton('Save (Ctrl+S)', 'save', () => void save(false));
 const bUndo = iconButton('Undo (Ctrl+Z)', 'undo-2', () => void edit('edit.undo', 'Undo'));
 const bRedo = iconButton('Redo (Ctrl+Y)', 'redo-2', () => void edit('edit.redo', 'Redo'));
 const bRun = button('Run', 'play', 'F5', () => void run());
 const bCycle = button('1 Cycle', 'step-forward', 'F10', () => void cycles(1));
-const bCycles = button('N Cycles', 'fast-forward', '', () => {});
+const bCycles = button('N Cycles', 'fast-forward', '', () => void nCycles());
 const bReset = button('Reset', 'rotate-ccw', '', () => void reset());
-const frequency = h('select', { title: 'Clock speed', 'aria-label': 'Clock speed' },
+const frequency = h('select', { title: `Clock speed · ${RUN_ONLY}`, 'aria-label': 'Clock speed' },
   ...FREQUENCIES.map(([label, hz]) => h('option', { value: String(hz), selected: hz === RUN_DEFAULTS.hz }, label)));
 // A new speed while the clock runs applies at once (as v1's menu did).
 frequency.addEventListener('change', () => { if (files.active()?.sim?.ticking) void simCall('sim.run', { on: true, hz: Number(frequency.value) }, 'Run'); });
@@ -188,6 +219,8 @@ const bar = titleBar({
 const notices = band();
 // While a reload of the program has failed: what is on show and since when (N-16, program.ts).
 const programBand = band('progband');
+// While the simulation is off (an oscillation, or Ctrl+E): values do not change (N-07, logic/sim.ts).
+const simOffBand = band('simband');
 const status = h('footer', { class: 'status' });
 
 // ---- the first screen -----------------------------------------------------------
@@ -542,7 +575,7 @@ center.append(canvasPanel, bottomGrip, bottomPanel);
 shell.append(leftCol, leftSplit, center, rightSplit, rightCol);
 const work = h('main', { class: 'work' }, stage, shell);
 
-document.body.append(h('div', { class: 'app' }, bar.root, bar.row, h('div', { class: 'bands' }, notices.root, programBand.root), work, status), zoomCtl.menu, wireLegend.panel);
+document.body.append(h('div', { class: 'app' }, bar.root, bar.row, h('div', { class: 'bands' }, notices.root, simOffBand.root, programBand.root), work, status), zoomCtl.menu, wireLegend.panel);
 
 function toggleBottom(): void {
   bottomCollapsed = !bottomCollapsed;
@@ -578,6 +611,7 @@ function layout(): void {
     }
   }
   bar.fit();
+  fitStatus();
 }
 
 // ---- rendering ----------------------------------------------------------------------
@@ -589,6 +623,7 @@ function renderToolbarState(): void {
   const off = !f || engine.state !== 'ready';
   bRun.disabled = off || until;
   bCycle.disabled = off || until;
+  bCycles.disabled = off || until;
 }
 
 function render(): void {
@@ -598,17 +633,21 @@ function render(): void {
   bar.setFile(f ? f.name : null, f?.dirty ?? false);
   bar.showToolbar(f !== null);
   const ready = engine.state === 'ready';
-  for (const b of [bSave, bUndo, bRedo, bRun, bCycle, bReset]) b.disabled = !f || !ready;
+  for (const b of [bSave, bUndo, bRedo, bRun, bCycle, bCycles, bReset]) b.disabled = !f || !ready;
   renderToolbarState();
   frequency.disabled = !f || !ready;
-  bCycles.disabled = true;   // N-07: the count to go
   bLoad.disabled = !f || !ready;
+  toolButtons.forEach((b, i) => { b.disabled = !f || !ready || !WORKING_TOOLS.has(TOOLS[i][0]); });
   flowToggle.disabled = !f || !ready;
   flowToggle.setAttribute('aria-pressed', String(overlays.settings.onClick));
-  const ticking = f?.sim?.ticking ?? false;
-  bRun.replaceChildren(icon(ticking ? 'square' : 'play'), h('span', { class: 'label' }, ticking ? 'Stop' : 'Run'), h('kbd', {}, 'F5'));
-  bRun.title = ticking ? 'Stop (F5)' : 'Run (F5)';
-  bRun.classList.toggle('primary', ticking);
+  // Run is the clock (Ticks Enabled); while the clock ticks or N Cycles goes it is Stop (logic/sim.ts, D-145)
+  const label = runLabel(f?.sim);
+  // Both words take their room in either state (the one not shown is hidden): the toolbar is as wide running as
+  // stopped, so the fitting rule (TOOLBAR_STEPS: key hints go first) gives both states the same key hints
+  const word = (w: 'Run' | 'Stop') => h('span', w === label ? {} : { class: 'off', 'aria-hidden': 'true' }, w);
+  bRun.replaceChildren(icon(label === 'Stop' ? 'square' : 'play'), h('span', { class: 'label swap' }, word('Run'), word('Stop')), h('kbd', {}, 'F5'));
+  bRun.title = `${label} (F5)`;
+  bRun.classList.toggle('primary', label === 'Stop');
   if (f) {
     fileStrip.set(files.list().map((x) => ({ id: x.fileId, label: x.name, title: x.path ?? x.name, dirty: x.dirty })), f.fileId);
     circuitStrip.set(f.tabs.map((c) => ({ id: c, label: files.circuitName(f, c) })), f.circuit);
@@ -627,8 +666,16 @@ function render(): void {
   renderMessages();
   consoleView.show(f?.fileId ?? null);
   renderProgramBand();
+  renderSimBand();
   renderStatus();
   layout();
+}
+
+// The band while the active file's simulation is off (N-07).
+function renderSimBand(): void {
+  const text = simBand(files.active()?.sim);
+  if (text) simOffBand.show(text, 'error');
+  else if (simOffBand.text() !== null) simOffBand.hide();
 }
 
 // The band over the work while the active file's program could not be loaded again (N-16).
@@ -741,6 +788,7 @@ function renderCanvas(f: OpenFile): void {
       if (board.scene && boardKey) views.set(boardKey, { ...board.view });
       boardKey = w.k;
       board.setScene(scene, views.get(w.k));
+      editor.sceneChanged();
     }
     board.setCrumbs(w.path.length ? [files.circuitName(f, f.circuit), ...w.names] : [], (i) => leaveInstance(f, i));
     if (pendingReveal?.k === w.k) { board.reveal(pendingReveal.r); pendingReveal = null; }
@@ -827,17 +875,16 @@ function renderStatus(): void {
       b.addEventListener('click', () => showMessages());
       parts.push(b);
     }
-    // The cycle on show and PC (N-14): the recording's, "Cycle 5 / 12" on a past cycle; the clock's count before it is known.
+    // Simulation On/Off, then the cycle on show and PC (N-14: the recording's, "Cycle 5 / 12" on a past
+    // cycle; the clock's count before it is known), then the clock -- 1 Hz, Running (64 Hz), N Cycles · n left (N-07)
+    const sf = simFacts(f.sim, { cycle: false });
+    if (sf[0]) parts.push(dropFirst(span(`sim ${sf[0].cls}`.trim(), sf[0].text), sf[0].cls === '' ? 3 : 0));
     const rec = cycleView.state(f.fileId) ?? null;
     const facts = cycleFacts(rec, f.sim ? f.sim.cycle : null);
-    if (facts.cycle) parts.push(span(facts.past ? 'warn' : '', facts.cycle));
+    if (facts.cycle) parts.push(span(`sim ${facts.past ? 'warn' : ''}`.trim(), facts.cycle));
     if (facts.pc) parts.push(span('', code(facts.pc)));
     if (rec?.runUntil) parts.push(span('run', 'Running (Run Until)'));
-    if (f.sim) {
-      const speed = FREQUENCIES.find(([, hz]) => hz === f.sim?.hz)?.[0];
-      if (f.sim.ticking) parts.push(span('run', speed ? `Running (${speed})` : 'Running'));
-      if (!f.sim.running) parts.push(span('err', f.sim.oscillating ? '발진으로 시뮬레이션이 꺼졌습니다' : '시뮬레이션이 꺼져 있습니다'));
-    }
+    for (const x of sf.slice(1)) parts.push(dropFirst(span(`sim ${x.cls}`.trim(), x.text), x.cls === '' ? 1 : 0));
     // The program: its name, PC ≠ entry at cycle 0, an old Stack, a .s path (facts, not messages; N-16).
     parts.push(...programs.statusNodes(f.fileId));
     parts.push(...overlays.statusNodes());
@@ -846,8 +893,25 @@ function renderStatus(): void {
   parts.push(span('grow'));
   if (f && board.scene && board.root.isConnected) parts.push(wireLegend.button, zoomCtl.button);
   const v = engineVersion(engine);
-  if (v) parts.push(span('engine', v));
+  if (v) parts.push(dropFirst(span('engine', v), 2));
   status.replaceChildren(...parts);
+  fitStatus();
+}
+
+/* A status bar too narrow for its facts (half a screen) leaves out the ones that say least, in this order
+   (N-07): the clock's speed while it does not run (the toolbar shows it), the engine's versions, then
+   Simulation On (Off always stays).  0: never left out. */
+function dropFirst(el: HTMLElement, order: number): HTMLElement {
+  if (order > 0) el.dataset.drop = String(order);
+  return el;
+}
+function fitStatus(): void {
+  const drop = [...status.querySelectorAll<HTMLElement>('[data-drop]')].sort((a, b) => Number(a.dataset.drop) - Number(b.dataset.drop));
+  for (const el of drop) el.hidden = false;
+  for (const el of drop) {
+    if (status.scrollWidth <= status.clientWidth + 1) break;
+    el.hidden = true;
+  }
 }
 
 // ---- files ------------------------------------------------------------------------------
@@ -879,6 +943,19 @@ function added(f: { fileId: string; name: string; path: string | null; circuits:
   void loadDiags(f.fileId);
   void programs.refresh(f.fileId);
   void loadConsole(f.fileId);
+  void loadSimState(f.fileId);
+}
+
+// The simulation's state from the start (Simulation On, Cycle 0, the clock's speed): then sim.state notifications.
+async function loadSimState(fileId: string): Promise<void> {
+  try {
+    const st = await api.call<SimState>('sim.state', { fileId });
+    if (!files.get(fileId) || files.get(fileId)!.sim) return;   // a notification came first: it is newer
+    files.setSim(st);
+    if (files.active()?.fileId === fileId) render();
+  } catch {
+    // the notifications will tell
+  }
 }
 
 async function newCircuit(): Promise<void> {
@@ -1020,7 +1097,7 @@ async function edit(method: 'edit.undo' | 'edit.redo', name: string): Promise<vo
   renderStatus();
 }
 
-async function simCall(method: 'sim.run' | 'sim.cycles' | 'sim.reset' | 'sim.enable', params: Record<string, unknown>, name: string): Promise<void> {
+async function simCall(method: 'sim.run' | 'sim.cycles' | 'sim.reset' | 'sim.enable' | 'sim.tick' | 'sim.step', params: Record<string, unknown>, name: string): Promise<void> {
   const f = files.active();
   if (!f || engine.state !== 'ready') return;
   try {
@@ -1031,9 +1108,27 @@ async function simCall(method: 'sim.run' | 'sim.cycles' | 'sim.reset' | 'sim.ena
   }
   renderStatus();
 }
-const run = () => simCall('sim.run', { on: !(files.active()?.sim?.ticking ?? false), hz: Number(frequency.value) }, 'Run');
+// Run starts the clock; while the clock ticks or N Cycles goes, it stops them (logic/sim.ts, D-145).
+const run = () => simCall('sim.run', { on: !going(files.active()?.sim), hz: Number(frequency.value) }, going(files.active()?.sim) ? 'Stop' : 'Run');
 const cycles = (n: number) => simCall('sim.cycles', { n }, n === 1 ? '1 Cycle' : 'N Cycles');
-const reset = () => simCall('sim.reset', {}, 'Reset');
+// Reset; after an oscillation it also turns the simulation on again (as Messages' Reset Simulation).
+async function reset(): Promise<void> {
+  const on = resetTurnsOn(files.active()?.sim);
+  await simCall('sim.reset', {}, 'Reset');
+  if (on) await simCall('sim.enable', { on: true }, 'Reset');
+}
+// N Cycles: the count from its dialog (v1: 10 at first, 1 to 100000), then the engine paces the ticks (D-123).
+async function nCycles(): Promise<void> {
+  if (!files.active() || engine.state !== 'ready') return;
+  const n = await askCycles(lastCycles);
+  if (n === null) return;
+  lastCycles = n;
+  await cycles(n);
+}
+// Simulate › Simulation Enabled (Ctrl+E), Tick Once (Ctrl+T), Step Simulation (Ctrl+I, only while off).
+const toggleSimulation = () => simCall('sim.enable', { on: !(files.active()?.sim?.running ?? true) }, 'Simulation Enabled');
+const tickOnce = () => simCall('sim.tick', {}, 'Tick Once');
+const stepSimulation = () => simCall('sim.step', {}, 'Step Simulation');
 // Messages' Reset Simulation (an oscillation turned the simulation off): Reset, then on again.
 async function resetSimulation(): Promise<void> {
   await simCall('sim.reset', {}, 'Reset');
@@ -1148,7 +1243,7 @@ function onRecovered(r: Recovered): void {
   render();
   for (const f of files.list()) void loadDiags(f.fileId);   // their messages name parts by the new ids
   // The program's facts and the Console: the new engine's (N-16; the simulation starts from Reset)
-  for (const f of files.list()) { consoleView.drop(f.fileId); void programs.refresh(f.fileId); void loadConsole(f.fileId); }
+  for (const f of files.list()) { consoleView.drop(f.fileId); void programs.refresh(f.fileId); void loadConsole(f.fileId); void loadSimState(f.fileId); }
   void ask({ title: text.title, body: text.body, detail: text.detail || undefined, ok: 'Close', cancel: null, character: false });
 }
 
@@ -1253,6 +1348,15 @@ window.addEventListener('keydown', (e) => {
   // Ctrl+K the search palette, Ctrl+F Find (D-139, I-168, I-171; e.code too: a Korean keyboard layout)
   if ((k === 'k' || e.code === 'KeyK') && !e.shiftKey && !e.altKey) { e.preventDefault(); if (files.active()) pal.open(''); return; }
   if ((k === 'f' || e.code === 'KeyF') && !e.shiftKey && !e.altKey) { e.preventDefault(); if (files.active()) finder.open(); return; }
+  // Simulate's keys (docs/interaction-parity.md I-148..I-152; the physical key: a Korean layout gives the same code)
+  if (!e.shiftKey && !e.altKey && files.active()) {
+    const code = e.code;
+    if (code === 'KeyE') { e.preventDefault(); void toggleSimulation(); return; }
+    if (code === 'KeyR') { e.preventDefault(); void reset(); return; }
+    if (code === 'KeyT') { e.preventDefault(); void tickOnce(); return; }
+    if (code === 'KeyI') { e.preventDefault(); void stepSimulation(); return; }
+  }
+  if (e.code === 'KeyR') { e.preventDefault(); return; }   // never the page's reload (I-206)
   if (k === 'n') { e.preventDefault(); void newCircuit(); }
   else if (k === 'o') { e.preventDefault(); void openFile(); }
   else if (k === 'q') { e.preventDefault(); void leave(); }

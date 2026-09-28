@@ -157,9 +157,10 @@ public final class RecordSession {
 
     void close() {
         recorder.removeListener(listener);
+        boolean held = until != null; // 빠른 틱은 쥔 수를 센다(N-07, D-145): 쥔 것만 놓는다
         until = null;
         untilActive = false;
-        if (sim != null) {
+        if (sim != null && held) {
             sim.fastTicks(false);
         }
     }

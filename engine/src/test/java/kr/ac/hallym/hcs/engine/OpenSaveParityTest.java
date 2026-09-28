@@ -379,6 +379,27 @@ class OpenSaveParityTest {
             // 진동으로 멈춘 회로는 Reset 전까지 더 돌지 않는다(오류 4, D-134 9항): 화면도 그대로 둔다
             assertEquals(4, stopped.code, stopped.getMessage());
         }
+        // N-07(D-145): Tick Once 두 번(한 사이클), 주 회로의 첫 입력 핀을 Poke로 두 번(제자리), 캐럿 닫기
+        try {
+            e.client.call("sim.tick", params("fileId", fileId));
+            e.client.call("sim.tick", params("fileId", fileId));
+        } catch (Client.Failure stopped) {
+            assertEquals(4, stopped.code, stopped.getMessage()); // 진동으로 꺼져 있다
+        }
+        if (mainSnapshot != null) {
+            for (JsonElement c : mainSnapshot.getAsJsonArray("components")) {
+                JsonObject o = c.getAsJsonObject();
+                if (o.get("name").getAsString().equals("Pin")
+                        && "false".equals(o.getAsJsonObject("attrs").get("output").getAsString())) {
+                    for (int k = 0; k < 2; k++) {
+                        e.client.call("sim.poke", params("fileId", fileId, "circuitId", main, "componentId",
+                                o.get("id").getAsString()));
+                    }
+                    e.client.call("sim.pokeStop", params("fileId", fileId));
+                    break;
+                }
+            }
+        }
         e.client.callObject("diag.list", params("fileId", fileId));
         e.client.callObject("mips.facts", params("fileId", fileId));
         overlays(fileId, main, mainSnapshot);

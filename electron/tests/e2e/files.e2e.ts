@@ -57,14 +57,15 @@ test('Undo and Redo go to the engine (a new circuit has nothing to undo: nothing
     await page.keyboard.press('Control+y');
     await page.keyboard.press('Control+z');
     await expect(page.locator('.status .err')).toHaveCount(0);
-    // The Canvas tools and N Cycles wait for their items: off.  Load Program is on (N-16).
-    for (const name of ['Edit', 'Poke', 'Wire', 'Text', 'Pin', 'Tunnel', 'Probe']) {
+    // The Canvas tools wait for their items: Edit and Poke are on (N-07), the others off.  N Cycles (N-07) and Load Program (N-16) are on.
+    for (const name of ['Edit', 'Poke']) await expect(page.getByRole('radio', { name, exact: true })).toBeEnabled();
+    for (const name of ['Wire', 'Text', 'Pin', 'Tunnel', 'Probe']) {
       await expect(page.getByRole('radio', { name, exact: true })).toBeDisabled();
     }
     // Signal Flow is a switch (Signal Flow on Click, N-15), on with a Canvas and pressed (v1's default)
     await expect(page.getByRole('button', { name: 'Signal Flow', exact: true })).toBeEnabled();
     await expect(page.getByRole('button', { name: 'Signal Flow', exact: true })).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.getByRole('button', { name: /N Cycles/ })).toBeDisabled();
+    await expect(page.getByRole('button', { name: /N Cycles/ })).toBeEnabled();
     await expect(page.getByRole('button', { name: /Load Program/ })).toBeEnabled();
     await expect(page.getByRole('button', { name: /1 Cycle/ })).toBeEnabled();
   } finally {

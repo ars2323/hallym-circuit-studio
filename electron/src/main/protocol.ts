@@ -179,8 +179,12 @@ export interface SimState {
   ticking: boolean;         // the clock ticks (Run)
   cycle: number;
   oscillating: boolean;
-  hz?: number;              // ticks per second
+  hz?: number;              // ticks per second (the student's, also while N Cycles ticks fast)
+  cyclesLeft?: number;      // N Cycles going: the cycles still to come (0: none, N-07)
 }
+
+// sim.poke's answer: whether the part took the press, and whether it keeps a caret for keys (N-07).
+export interface PokeResult { poked: boolean; caret?: boolean }
 
 // ---- Messages and E/X origin (docs/engine-api.md "diag·trace", D-143) ----
 
@@ -454,7 +458,7 @@ export const WINDOW_METHODS = [
   'model.circuit', 'model.library',
   'edit.addComponent', 'edit.addWire', 'edit.move', 'edit.delete', 'edit.setAttr', 'edit.undo', 'edit.redo',
   'edit.tunnelColor', 'edit.splitterEdit', 'edit.splitterSplit', 'find.query',
-  'sim.reset', 'sim.poke', 'sim.cycles', 'sim.run', 'sim.enable', 'sim.watch', 'sim.state',
+  'sim.reset', 'sim.poke', 'sim.pokeKey', 'sim.pokeStop', 'sim.cycles', 'sim.tick', 'sim.step', 'sim.run', 'sim.enable', 'sim.watch', 'sim.state',
   'diag.list', 'trace.origin',
   'mips.facts', 'mips.reload', 'mips.disasm', 'mips.console',
   'record.state', 'record.table', 'record.addRow', 'record.removeRow', 'record.rowBits', 'record.pin', 'record.unpin',

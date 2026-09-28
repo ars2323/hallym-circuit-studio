@@ -17,7 +17,7 @@
 
    SCREENS_OUT: write somewhere else. */
 
-import { copyFileSync, mkdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { answerOpen, canvasSettled, DATAPATH, launch, openFile, repo, root, sample, type Running } from '../tests/e2e/harness.ts';
@@ -183,6 +183,60 @@ async function view(r: Running, v: { x: number; y: number; zoom: number }): Prom
   await page.locator('.canvas-crumbs .here', { hasText: 'regfile' }).waitFor();
   await drawn(r);
   await shot(r, 'canvas-inside');
+  await r.close();
+}
+// The simulation (N-07, D-145), with the real engine (engine/build/stage: ./gradlew :engine:stage; its facts
+// are the circuit's own -- the fake engine's recording runs a program of its own, whose PC the status bar would
+// show beside demo-datapath's): demo-datapath with the Poke tool in hand -- the lens on the subcircuits, a poked
+// wire's value box -- and the clock running at 64 Hz (Run is Stop, the status bar's facts); then the N Cycles
+// dialog; then the simulation turned off with Ctrl+E (the band, Simulation Off).
+{
+  const jar = path.join(repo, 'engine/build/stage/hcs-engine.jar');
+  if (!existsSync(jar)) throw new Error(`${jar}: ./gradlew :engine:stage (the simulation's screens use the real engine)`);
+  const r = await launch(FHD, { env: { HCS_ENGINE_CMD: '', HCS_ENGINE_JAR: jar } });
+  const { page } = r;
+  await openFile(r, sample(r.dir, DATAPATH));
+  await drawn(r);
+  await page.getByRole('button', { name: /1 Cycle/ }).click();
+  await page.locator('.status', { hasText: 'Cycle 1' }).waitFor();
+  await view(r, { x: 70, y: 40, zoom: 1 });
+  await page.getByRole('radio', { name: 'Poke' }).click();
+  const wire = await page.evaluate(() => {
+    type W = { a: number[]; b: number[] };
+    const c = (window as unknown as { __hcsCanvas: { canvas: HTMLCanvasElement; view: { x: number; y: number; zoom: number }; scene: { wires: Map<string, W>; wireValue(id: string): string | undefined } } }).__hcsCanvas;
+    // a long level 32-bit wire in the upper left: the value box has room beside it
+    const w = [...c.scene.wires.entries()].map(([id, x]) => ({ id, ...x }))
+      .filter((x) => x.a[1] === x.b[1] && Math.abs(x.a[0] - x.b[0]) >= 60 && (c.scene.wireValue(x.id)?.length ?? 0) === 32)
+      .sort((p, q) => p.a[1] - q.a[1] || p.a[0] - q.a[0])[0];
+    const rr = c.canvas.getBoundingClientRect();
+    const mx = (w.a[0] + w.b[0]) / 2, my = w.a[1];
+    return { x: rr.left + (mx - c.view.x) * c.view.zoom, y: rr.top + (my - c.view.y) * c.view.zoom };
+  });
+  await page.mouse.click(wire.x, wire.y);
+  await page.getByRole('combobox', { name: 'Clock speed' }).selectOption('64');
+  await page.keyboard.press('F5');
+  await page.locator('.status .run', { hasText: 'Running (64 Hz)' }).waitFor();
+  // shot when the status bar's PC and the PC register on the Canvas show the same cycle (the clock runs on meanwhile)
+  await page.waitForFunction(() => {
+    const c = (window as unknown as { __hcsCanvas: { scene: { components: Map<string, { id: string; name: string; attrs: Record<string, string> }>; portValue(id: string, i: number): string | undefined } } }).__hcsCanvas;
+    const pc = [...c.scene.components.values()].find((k) => k.name === 'Register' && k.attrs.label === 'PC');
+    const v = pc ? c.scene.portValue(pc.id, 0) : undefined;
+    const m = /PC 0x([0-9a-f]{8})/.exec(document.querySelector('.status')?.textContent ?? '');
+    return !!v && /^[01]{32}$/.test(v) && !!m && parseInt(v, 2) === parseInt(m[1], 16);
+  }, undefined, { polling: 5, timeout: 20_000 });
+  await shot(r, 'sim-running');
+  await page.keyboard.press('F5');
+  await page.getByRole('button', { name: /Reset/ }).click();
+  await page.locator('.status', { hasText: 'Cycle 0' }).waitFor();
+  await page.getByRole('button', { name: /N Cycles/ }).click();
+  await page.locator('dialog.cycles').waitFor();
+  await shot(r, 'n-cycles');
+  await page.keyboard.press('Escape');
+  await page.getByRole('radio', { name: 'Edit' }).click();
+  await page.keyboard.press('Control+e');
+  await page.locator('.simband').waitFor();
+  await page.locator('.status', { hasText: 'Simulation Off' }).waitFor();
+  await shot(r, 'sim-off');
   await r.close();
 }
 {

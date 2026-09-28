@@ -50,6 +50,9 @@ test('commandError: the command\'s name, then what it means in Korean -- never t
   const sim = (reason: string) => ({ name: 'EngineError', code: 4, message: 'the simulation stopped because the circuit oscillates', data: { reason } });
   assert.equal(commandError('1 Cycle', sim('oscillating')), '1 Cycle: 회로가 발진해서 시뮬레이션이 꺼져 있습니다. 회로를 고친 뒤 Reset을 누르세요');
   assert.equal(commandError('Run', sim('off')), 'Run: 시뮬레이션이 꺼져 있습니다. Reset을 누르세요');
+  // N-07: Step Simulation only while off; a pin inside a subcircuit follows the parent
+  assert.equal(commandError('Step Simulation', sim('running')), 'Step Simulation: 시뮬레이션이 켜져 있을 때는 할 수 없습니다. Ctrl+E 키로 끈 뒤 하세요');
+  assert.equal(commandError('Poke', sim('frozenPin')), 'Poke: 서브회로 안의 입력 핀은 바깥 회로가 정합니다');
   assert.match(commandError('Undo', { name: 'EngineError', code: 3, message: 'read-only file', data: { reason: 'readOnly' } }), /^Undo: 읽기 전용 파일입니다/);
   assert.equal(commandError('Reset', { name: 'EngineGone', message: 'x' }), 'Reset: 엔진이 멈춰서 하지 못했습니다');
   for (const s of [commandError('Run', sim('off')), commandError('Redo', { name: 'EngineError', code: -32603, message: 'NullPointerException' })]) {

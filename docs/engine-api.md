@@ -240,16 +240,22 @@ Component = {
 | 메서드 | params | result |
 | --- | --- | --- |
 | `sim.reset` | `{fileId}` | `{}`(원조 Reset Simulation, 사이클 수 0. N Cycles 도중이면 처리 중인 틱이 끝난 뒤 재설정하고 그때 `sim.state`) |
-| `sim.poke` | `{fileId, circuitId, componentId, at?:[x,y], action?}` | `{poked}`(Poke 도구와 같은 동작: 핀 값 바꾸기 등) |
+| `sim.poke` | `{fileId, circuitId, componentId, at?:[x,y], action?}` | `{poked, caret}`(Poke 도구와 같은 동작: 핀 값 바꾸기 등) |
+| `sim.pokeKey` | `{fileId, key}` | `{poked}`(Poke로 누른 부품의 캐럿에 키 하나, N-07) |
+| `sim.pokeStop` | `{fileId}` | `{}`(Poke 캐럿을 닫는다: 원조 PokeTool.removeCaret, N-07) |
 | `sim.cycles` | `{fileId, n}` | `{}` 곧바로. 틱은 엔진이 따라오는 만큼만 요청한다(D-123). 끝나면 `sim.state` |
+| `sim.tick` | `{fileId}` | `{}` 곧바로(원조 Simulate › Tick Once: 틱 한 번 = 반 사이클, N-07) |
+| `sim.step` | `{fileId}` | `{}`(원조 Simulate › Step Simulation: 꺼져 있을 때만 전파 한 단계, N-07) |
 | `sim.run` | `{fileId, on, hz?}` | `{}` |
 | `sim.enable` | `{fileId, on}` | `{}`(원조 Simulation Enabled: 발진으로 꺼진 뒤 다시 켠다) |
 | `sim.watch` | `{fileId, circuitId, path?:[componentId]}` | `{}`: 이 회로(서브회로 안이면 인스턴스 경로)의 넷 값을 보낸다 |
 | `sim.state` | `{fileId}` | 아래 `sim.state`와 같은 객체(요청으로도 물을 수 있다) |
 
-- `sim.poke`: `action`은 `"click"`(기본, 누르고 뗌), `"press"`, `"release"`(버튼처럼 누르는 동안만 켜지는 부품은 화면이 누를 때와 뗄 때 따로 보낸다). `at`은 회로 좌표(여러 비트 핀에서 어느 비트인지), 없으면 부품 가운데. 누를 것이 없는 부품·선은 `poked:false`. 보고 있지 않은 회로의 부품을 누르면 그 회로가 시뮬레이션의 지금 회로가 된다. 서브회로를 보며 그 안의 입력 핀을 누르면 오류 4 `frozenPin`(원조는 상태를 복제할지 묻는다).
-- `sim.cycles`: `n` ≥ 1, 한 사이클 = 원조 틱 2번. 처리 중인 틱이 8개를 넘지 않게 요청하고 틱 완료로 센다(틱이 빠지지 않는다). 돌고 있으면 `n`을 더한다. 시뮬레이션이 꺼져 있으면 오류 4(`off`·`oscillating`), 도중에 꺼지면 `engine.log`와 `sim.state`로 알리고 멈춘다. 끝나면 그 순간의 값(`sim.values`)을 먼저, `sim.state`를 뒤에 보낸다.
-- `sim.run`: `on`이면 원조 틱(Ticks Enabled)을 켜고, `hz`는 원조 틱 주파수(초당 틱, Swing 속도 메뉴와 같은 값: 1·4·16·64·256·1024·4096)다. 켤 때 시뮬레이션이 꺼져 있으면 오류 4.
+- `sim.poke`: `action`은 `"click"`(기본, 누르고 뗌), `"press"`, `"release"`(버튼처럼 누르는 동안만 켜지는 부품은 화면이 누를 때와 뗄 때 따로 보낸다). `at`은 회로 좌표(여러 비트 핀에서 어느 비트인지), 없으면 부품 가운데. 여러 비트 입력 핀은 원조 `PinPoker.getBit`가 `at`으로 비트를 고른다(오른쪽 아래가 비트 0, 한 줄 8비트, 칸은 가로 10·세로 20): 화면은 누른 점을 정수로 내려 보낸다. 누를 것이 없는 부품·선은 `poked:false`. `caret`: 누른 뒤 그 부품에 원조 캐럿이 남았다(키를 줄 수 있다: `sim.pokeKey`). 보고 있지 않은 회로의 부품을 누르면 그 회로가 시뮬레이션의 지금 회로가 된다. 서브회로를 보며 그 안의 입력 핀을 누르면 오류 4 `frozenPin`(원조는 상태를 복제할지 묻는다).
+- `sim.pokeKey`(N-07, D-145): `key`는 화면 `KeyboardEvent.key`의 글자 하나 또는 `Backspace`·`Enter`·`Tab`·`Delete`·`Escape`·`ArrowLeft`·`ArrowRight`·`ArrowUp`·`ArrowDown`·`Home`·`End`(그 밖은 -32602). 원조 PokeTool처럼 캐럿에 keyPressed, 글자가 있으면 keyTyped, keyReleased를 준다: Register·Counter는 16진 글자를 오른쪽에서 밀어 넣고(`RegisterPoker`), RAM·ROM은 값·주소(`MemPoker`), Shift Register(`ShiftRegisterPoker`), Keyboard(`Keyboard.Poker`)가 받는다. 캐럿이 없으면 `poked:false`. 누르던 부품이 모델에서 사라지면 캐럿도 닫힌다.
+- `sim.cycles`: `n` ≥ 1, 한 사이클 = 원조 틱 2번. 도는 클럭(Ticks Enabled)은 먼저 끈다: 요청한 수만큼만 돈다(N-07, D-145). 처리 중인 틱이 8개를 넘지 않게 요청하고 틱 완료로 센다(틱이 빠지지 않는다). 도는 동안 원조 틱 스레드가 틱마다 학생의 틱 주파수만큼(1 Hz면 최대 100ms) 자지 않게 원조 틱 주파수를 1024 Hz(한 주기 1ms)로 두고 끝나면 되돌린다(`sim.state.hz`는 늘 학생의 값). ref-mips 1000 사이클 약 1.4초(v1 25초, D-145). 돌고 있으면 `n`을 더한다. 시뮬레이션이 꺼져 있으면 오류 4(`off`·`oscillating`), 도중에 꺼지면 `engine.log`와 `sim.state`로 알리고 멈춘다. 끝나면 그 순간의 값(`sim.values`)을 먼저, `sim.state`를 뒤에 보낸다. `sim.tick`은 같은 실행기로 틱 한 번이다.
+- `sim.step`: 시뮬레이션이 켜져 있으면 오류 4 `running`(원조 메뉴 항목이 꺼져 있는 것과 같다). 원조가 그리던 전파 지점(파란 원)은 보내지 않는다(docs/interaction-parity.md I-150).
+- `sim.run`: `on`이면 원조 틱(Ticks Enabled)을 켜고, `hz`는 원조 틱 주파수(초당 틱, Swing 속도 메뉴와 같은 값: 1·4·16·64·256·1024·4096)다. 켤 때 시뮬레이션이 꺼져 있으면 오류 4. 돌고 있는 N Cycles(`sim.cycles`·`sim.tick`)는 켜든 끄든 멈춘다: 남은 틱을 더 요청하지 않고 처리 중인 틱(8개 이하)만 끝내며, 사이클 가운데면 한 틱을 더해 사이클을 채운다(화면의 Stop, D-145).
 - `sim.watch`: `circuitId`는 시작 회로, `path`는 거기서 내려가는 서브회로 인스턴스 id들이다. 보는 회로는 시뮬레이션의 지금 상태가 된다(Swing에서 그 회로·인스턴스를 여는 것과 같다). 파일마다 하나만 본다(다시 보내면 바꾼다). 처음에는 모든 넷을 한 번 보낸다. 없는 경로는 오류 1.
 
 `sim.values = {fileId, circuitId, root?, path?, nets:{netId: value}, bodies?:{componentId: Body}}` — 보고 있는 회로의 바뀐 넷만, 화면 프레임(약 16ms)마다 묶어서. `circuitId`는 값이 속한 회로(경로의 끝), `root`·`path`는 `path`로 볼 때만 온다. 모델이 바뀌면(넷 번호가 새로 매겨지면) 다음 묶음에 모든 넷을 다시 보낸다.
@@ -264,7 +270,7 @@ Component = {
   | Console | `{lines:[글자], exited, status?, error?}`: 출력의 마지막 줄들(원조 몸체와 같은 접기), `-- exit --` 또는 문제 |
   | Radix Probe | `{lines:[글자 셋], primary}`: 주 진법이 첫 줄인 16·10·2진수, 조작 도구로 바꾼 주 진법 포함 |
 
-`sim.state = {fileId, running, ticking, cycle, oscillating, hz}` — 무엇이든 바뀌면 보내고(사이클 수만 바뀐 것은 프레임마다 많아야 한 번), N Cycles가 끝날 때와 Reset 뒤에도 보낸다. `running`은 원조 Simulation Enabled, `ticking`은 틱 켜짐, `cycle`은 Reset 뒤 끝난 틱 수의 절반, `hz`는 틱 주파수다. `record.view`로 지난 사이클을 보이면 `cycle`은 그 사이클이 되고, 거기서 진행하면 거기서 이어 센다(기록과 같다). Run Until이 도는 동안 엔진은 원조 틱 스레드가 사이클마다 쉬지 않게 틱 주파수를 잠시 1024로 두지만 `hz`는 학생이 고른 값을 알리고, 끝나면 되돌린다(D-144).
+`sim.state = {fileId, running, ticking, cycle, oscillating, hz, cyclesLeft}` — 무엇이든 바뀌면 보내고(사이클 수만 바뀐 것은 프레임마다 많아야 한 번), N Cycles가 끝날 때와 Reset 뒤에도 보낸다. `running`은 원조 Simulation Enabled, `ticking`은 틱 켜짐, `cycle`은 Reset 뒤 끝난 틱 수의 절반, `hz`는 학생이 고른 틱 주파수, `cyclesLeft`는 N Cycles(`sim.cycles`·`sim.tick`)에 남은 사이클(처리 중인 틱 포함, 반 사이클은 올림; 없으면 0, N-07)이다. `record.view`로 지난 사이클을 보이면 `cycle`은 그 사이클이 되고, 거기서 진행하면 거기서 이어 센다(기록과 같다). N Cycles와 Run Until이 도는 동안 엔진은 원조 틱 스레드가 틱마다 쉬지 않게 틱 주파수를 잠시 1024로 두지만(둘이 겹쳐도 되게 쥔 수를 센다) `hz`는 학생이 고른 값을 알리고, 끝나면 되돌린다(D-144, D-145). Run Until이 도는 동안 `sim.run {on:true}`와 `sim.cycles`·`sim.tick`은 오류 4 `busy`다.
 
 ### record(N-14, D-144)
 
