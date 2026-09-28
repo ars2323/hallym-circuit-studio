@@ -62,13 +62,15 @@ public final class CanvasFixtures {
         }
         // Components·검색 창·Find·Splitter 편집기의 자료(N-12, D-150)
         FindFixtures.write(out, repo);
+        // 속성 표·빠른 속성 창·우클릭 메뉴(N-10, D-157)
+        AttrFixtures.write(out, repo);
         // 캔버스 덧그림(N-15, D-151): 같은 id로 영향 경로·Signal Flow·활성 경로·넷 정보·필드 경로
         File demo = repo.resolve("tests/circ/demo-datapath.circ").toFile();
         FlowFixtures.write(demo, FlowFixtures.target(out, demo));
         // 모양 편집·Port Order·인스턴스 안내(N-11, D-153): 같은 id로 회로마다 모양·포트·인스턴스 경로
         AppearanceFixtures.write(demo, AppearanceFixtures.target(out, demo));
         System.out.println("canvas fixtures: " + cases + " geometry cases, 3 circuits, library, find, splitter ranges, "
-                + "overlays, appearances -> " + out);
+                + "overlays, appearances, attributes -> " + out);
         System.exit(0);
     }
 

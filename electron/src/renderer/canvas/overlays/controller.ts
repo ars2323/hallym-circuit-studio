@@ -38,7 +38,7 @@ import { memoDialog, netDialog } from './dialogs.ts';
 import { FlowOverlay } from './flow.ts';
 import { InfluenceOverlay } from './influence.ts';
 import { BUS_MODE_NAMES, BUS_MODES, type BusMode, busText, FLOW_SPEED_NAMES, FLOW_SPEED_PX, type FlowSpeed, type FlowTarget, flowTarget, GROUP_COLORS, GROUP_NAMES, memoStart, widen } from './logic.ts';
-import { closeMenus, type MenuEntry, menuOpen, SEPARATOR, showMenu } from './menu.ts';
+import { closeMenus, type MenuEntry, menuOpen, SEPARATOR } from './menu.ts';
 import { memoAt, MemoOverlay } from './memos.ts';
 import { influenceStatus, typing } from './words.ts';
 
@@ -231,13 +231,6 @@ export class Overlays {
       const at = toCircuit(this.host.board.view, [e.clientX - r.left, e.clientY - r.top]);
       const shift = e.shiftKey;
       timer = window.setTimeout(() => { timer = 0; void this.clickAt(at, shift); }, 150);
-    });
-    c.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-      const r = c.getBoundingClientRect();
-      const at = toCircuit(this.host.board.view, [e.clientX - r.left, e.clientY - r.top]);
-      const entries = this.menu(at);
-      if (entries.length) showMenu(entries, e.clientX, e.clientY);
     });
   }
 
@@ -439,7 +432,7 @@ export class Overlays {
     return false;
   }
 
-  // ---- the right-click items (N-10's menu takes them as they are) ------------------------------------
+  // ---- the right-click items: the Canvas's menu (N-10, app/menus/canvas-items.ts) places them by id ------
 
   menu(at: [number, number]): MenuEntry[] {
     const s = this.scene, b = this.host.board;
@@ -450,10 +443,10 @@ export class Overlays {
     if (out.length) out.push(SEPARATOR);
     if (wire) {
       const g = this.groupOf(wire);
-      out.push({ label: 'Net Information…', run: () => void this.netInfo(wire) });
-      out.push({ label: 'Add to Cycle View', run: () => void this.addRow(wire) });
-      out.push({ label: this.highlighted(wire) ? 'Clear Net Highlight' : 'Highlight Net', run: () => this.toggleHighlight(wire) });
-      out.push({ label: 'Signal Group', items: [
+      out.push({ id: 'netInfo', label: 'Net Information…', run: () => void this.netInfo(wire) });
+      out.push({ id: 'addRow', label: 'Add to Cycle View', run: () => void this.addRow(wire) });
+      out.push({ id: 'highlight', label: this.highlighted(wire) ? 'Clear Net Highlight' : 'Highlight Net', run: () => this.toggleHighlight(wire) });
+      out.push({ id: 'signalGroup', label: 'Signal Group', items: [
         ...(['control', 'data', 'address'] as SignalGroup[]).map((k) => ({ label: GROUP_NAMES[k], checked: g?.group === k, radio: true, run: () => void this.setGroup(wire, k) })),
         { label: 'None', checked: !g || !g.assigned, radio: true, run: () => void this.setGroup(wire, null) },
       ] });
@@ -464,14 +457,14 @@ export class Overlays {
     const partsChosen = sel.filter((id) => s.components.has(id));
     const inf: MenuEntry[] = [];
     if (starts.length) {
-      inf.push({ label: 'Show Influence (Forward)', run: () => void this.showInfluence('forward', starts) });
-      inf.push({ label: 'Show Influence (Backward)', run: () => void this.showInfluence('backward', starts) });
+      inf.push({ label: 'Show Influence (Forward)', keys: 'I', run: () => void this.showInfluence('forward', starts) });
+      inf.push({ label: 'Show Influence (Backward)', keys: 'Shift+I', run: () => void this.showInfluence('backward', starts) });
       inf.push({ label: 'Show Influence (Both)', run: () => void this.showInfluence('both', starts) });
     }
     if (partsChosen.length === 2) inf.push({ label: 'Path Between Selected', run: () => void this.showInfluence('between', partsChosen) });
     inf.push({ label: 'Through Registers', checked: this.influenceThrough, run: () => this.setInfluenceThrough(!this.influenceThrough) });
-    if (this.influence.result) inf.push({ label: 'Clear Influence', run: () => this.clearInfluence() });
-    if (inf.length > 1 || this.influence.result) out.push({ label: 'Influence', items: inf });
+    if (this.influence.result) inf.push({ label: 'Clear Influence', keys: 'Esc', run: () => this.clearInfluence() });
+    if (inf.length > 1 || this.influence.result) out.push({ id: 'influence', label: 'Influence', items: inf });
     const f = this.settings;
     const flow: MenuEntry[] = [];
     const t = flowTarget(s, at, (p) => b.partAt(p), (p) => b.wireAt(p));
@@ -481,20 +474,20 @@ export class Overlays {
     }
     if (this.flow.running) flow.push({ label: 'Stop Signal Flow', run: () => this.stopFlow() });
     if (flow.length) flow.push(SEPARATOR);
-    flow.push({ label: 'Signal Flow on Click', checked: f.onClick, run: () => this.toggleOnClick(), title: 'Edit Tool로 부품이나 선을 누르면 신호가 가는 길을 흐름으로 보입니다(Shift+누름: 거꾸로)' });
+    flow.push({ label: 'Signal Flow on Click', keys: 'Ctrl+Shift+F', checked: f.onClick, run: () => this.toggleOnClick(), title: 'Edit Tool로 부품이나 선을 누르면 신호가 가는 길을 흐름으로 보입니다(Shift+누름: 거꾸로)' });
     flow.push({ label: 'Flow Speed', items: (['slow', 'normal', 'fast'] as FlowSpeed[]).map((k) => ({ label: FLOW_SPEED_NAMES[k], checked: f.speed === k, radio: true, run: () => this.setFlow('speed', k) })) });
     flow.push({ label: 'Through Registers', checked: f.throughRegisters, run: () => this.setFlow('throughRegisters', !f.throughRegisters), title: '레지스터와 메모리를 넘어 다음 사이클까지 이어서 보입니다(점선 흐름)' });
     flow.push({ label: 'Active Path Only', checked: f.activePathOnly, run: () => this.setFlow('activePathOnly', !f.activePathOnly), title: '지금 값으로 MUX·Demux·Decoder가 고른 가지만 따라갑니다' });
     flow.push({ label: 'Reduce Motion', checked: f.reduceMotion, run: () => this.setFlow('reduceMotion', !f.reduceMotion), title: '움직이지 않고 방향 화살표와 순서 번호로 보입니다' });
     flow.push({ label: 'Smooth (60 fps)', checked: f.smooth, run: () => this.setFlow('smooth', !f.smooth), title: '초당 30장 대신 60장으로 그립니다' });
-    out.push({ label: 'Signal Flow', items: flow });
+    out.push({ id: 'flow', label: 'Signal Flow', items: flow });
     if (!part && !wire) {
       const here = memoAt(s.memos, at);
-      if (!here) out.push({ label: 'Add Area Memo…', run: () => void this.memo(at, { around: partsChosen.length ? sel : [] }) });
+      if (!here) out.push({ id: 'memo', label: 'Add Area Memo…', run: () => void this.memo(at, { around: partsChosen.length ? sel : [] }) });
       else {
-        out.push({ label: 'Edit Area Memo…', run: () => void this.memo(at) });
-        if (sel.length) out.push({ label: 'Fit Area Memo to Selection', run: () => void this.memo(at, { fit: true, around: sel }) });
-        out.push({ label: 'Delete Area Memo', run: () => void this.memo(at, { delete: true }) });
+        out.push({ id: 'memo', label: 'Edit Area Memo…', run: () => void this.memo(at) });
+        if (sel.length) out.push({ id: 'memo', label: 'Fit Area Memo to Selection', run: () => void this.memo(at, { fit: true, around: sel }) });
+        out.push({ id: 'memo', label: 'Delete Area Memo', run: () => void this.memo(at, { delete: true }) });
       }
     }
     return out;

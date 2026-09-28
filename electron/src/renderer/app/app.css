@@ -129,9 +129,3 @@ table.summary tr.warn td { background: var(--amber-tint); color: var(--amber-tex
 .modal.ask:is(.cycles, .pinvalue) .field:focus { outline: 2px solid var(--teal); outline-offset: -1px; border-color: var(--teal); }
 .modal.ask:is(.cycles, .pinvalue) .field[aria-invalid="true"] { border-color: var(--error); }
 .modal.ask:is(.cycles, .pinvalue) .hint.err { min-height: 18px; color: var(--error-text); }
-
-/* The Attributes panel's facts about the selection until the attribute table (N-10, D-146) */
-.sel-facts { padding: 16px 20px; }
-.sel-facts h3 { margin: 0 0 6px; font-size: 14px; font-weight: 600; color: var(--navy); overflow-wrap: anywhere; }
-.sel-facts ul { margin: 0; padding: 0; list-style: none; font-size: 12.5px; line-height: 1.6; color: var(--text-2); }
-.sel-facts li { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

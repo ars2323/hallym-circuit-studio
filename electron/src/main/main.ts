@@ -380,6 +380,33 @@ function registerHandlers(): void {
     });
   }));
 
+  // A RAM's or a ROM's image (N-10, D-157; the original MemMenu's Load Image… and Save Image…): the dialog here,
+  // then the engine -- a RAM's contents are the simulation's (mem.loadImage), a ROM's its Contents attribute
+  // (edit.memContents with the file: one undo step, journaled); Save Image… writes either (mem.saveImage).
+  const images = new Map<string, string>();
+  ipcMain.handle('memory:image', (_e, fileId: string, o: { circuitId: string; root: string; path: string[]; componentId: string; kind: 'ram' | 'rom'; mode: 'load' | 'save' }) => answer(async () => {
+    if (!openFiles.has(fileId)) throw new Error(`no open file ${fileId}`);
+    const title = `${o.mode === 'load' ? 'Load' : 'Save'} ${o.kind === 'ram' ? 'RAM' : 'ROM'} Image`;
+    const last = images.get(`${fileId} ${o.componentId}`) ?? images.get(fileId);
+    let file: string;
+    if (o.mode === 'load') {
+      const r = await dialog.showOpenDialog(win, { title, ...(last ? { defaultPath: last } : {}), properties: ['openFile'] });
+      if (r.canceled || r.filePaths.length === 0) return null;
+      file = r.filePaths[0];
+    } else {
+      const r = await dialog.showSaveDialog(win, { title, ...(last ? { defaultPath: last } : {}) });
+      if (r.canceled || !r.filePath) return null;
+      file = r.filePath;
+    }
+    file = path.resolve(file);
+    images.set(`${fileId} ${o.componentId}`, file);
+    images.set(fileId, file);
+    const base = { fileId, circuitId: o.root, path: o.path, componentId: o.componentId };
+    if (o.mode === 'save') return windowCall('mem.saveImage', { ...base, file });
+    if (o.kind === 'ram') return windowCall('mem.loadImage', { ...base, file });
+    return windowCall('edit.memContents', { fileId, circuitId: o.circuitId, id: o.componentId, file });
+  }));
+
   ipcMain.handle('about:info', () => ({
     version, electron: process.versions.electron, chrome: process.versions.chrome, node: process.versions.node,
     engine: engine.status().hello, licenses: LICENSES.map((l) => l.title),

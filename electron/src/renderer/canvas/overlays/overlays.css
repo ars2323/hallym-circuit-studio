@@ -7,13 +7,19 @@
   background: var(--white); box-shadow: 0 6px 24px rgba(0, 32, 91, .16); font-size: var(--fs);
 }
 .ovmenu button {
-  display: grid; grid-template-columns: 16px 1fr 12px; align-items: center; gap: 6px; width: 100%;
+  display: grid; grid-template-columns: 16px 1fr auto; align-items: center; gap: 6px; width: 100%;
   padding: 5px 8px; border: 0; border-radius: 4px; background: none; color: var(--text); text-align: left; white-space: nowrap;
 }
 .ovmenu button:hover:not(:disabled), .ovmenu button:focus-visible { background: var(--blue-tint); color: var(--navy); outline: none; }
 .ovmenu button:disabled { color: var(--dim); }
 .ovmenu .mark { color: var(--blue); font-size: 11px; text-align: center; }
 .ovmenu .sub { color: var(--muted); }
+/* N-10: the summary line on top (v1 MenuLayout: bold, not an item), key hints on the right, colour swatches */
+.ovmenu .mhead { padding: 5px 8px 6px; font-weight: 600; color: var(--navy); white-space: nowrap; max-width: 420px; overflow: hidden; text-overflow: ellipsis; }
+.ovmenu .keys { min-width: 12px; padding-left: 18px; color: var(--muted); font-size: 12px; }
+.ovmenu .swatchmark { display: inline-flex; align-items: center; justify-content: center; position: relative; }
+.ovmenu .swatchmark .swatch { width: 12px; height: 12px; border-radius: 3px; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .25); }
+.ovmenu .swatchmark .on { position: absolute; font-size: 7px; color: var(--white); }
 .ovmenu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 2px; }
 
 .modal.ovdialog { width: min(440px, calc(100vw - 32px)); }

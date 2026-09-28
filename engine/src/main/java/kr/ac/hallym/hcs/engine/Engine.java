@@ -566,6 +566,10 @@ public final class Engine {
         });
         edit("edit.setAttr", true, (d, p) -> {
             Circuit c = d.circuit(p.str("circuitId"));
+            if (p.optBool("keepSelection", false) && p.has("ids")) {
+                // 우클릭 메뉴의 한 부품(N-10, v1 EditMenus: 선택은 그대로, 원조 "Change Attribute" 한 단계)
+                return Intents.setAttr(d, c, d.components(c, p.strings("ids")), p.str("attr"), p.str("value"));
+            }
             return SelectionIntents.setAttr(d, c, p.has("ids") ? d.components(c, p.strings("ids")) : null,
                     p.str("attr"), p.str("value"));
         });

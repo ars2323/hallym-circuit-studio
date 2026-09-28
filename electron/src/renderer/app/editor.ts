@@ -17,7 +17,7 @@
 import type { Component, EditResult, EditSelection, PokeResult, WindowMethod } from '../../main/protocol.ts';
 import type { CanvasPointer, CanvasTool, CircuitCanvas } from '../canvas/canvas.ts';
 import { KEYED, onMagnifier, pokeKey, pokePoint, pokeTarget, wireValueText } from '../canvas/poke.ts';
-import { EditTool, floatingOverlay, type Held, PlaceTool, TextTool, type ToolsHost, type Where, WireTool } from './edit-tools.ts';
+import { EditTool, editLabel, floatingOverlay, type Held, PlaceTool, TextTool, type ToolsHost, type Where, WireTool } from './edit-tools.ts';
 
 export type { Held, Where } from './edit-tools.ts';
 export type ToolName = 'Edit' | 'Poke' | 'Wire' | 'Text' | 'Place';
@@ -46,7 +46,8 @@ export class Editor {
   readonly place: PlaceTool;
   readonly text: TextTool;
   private sel: EditSelection | null = null;
-  private told = '';                     // the selection last told (hcs:selection), not told again
+  private told = '';
+  private readonly tools: ToolsHost;                     // the selection last told (hcs:selection), not told again
 
   constructor(host: EditorHost) {
     this.host = host;
@@ -74,6 +75,7 @@ export class Editor {
       },
       pinValue: (c) => host.pinValue?.(c),
     };
+    this.tools = tools;
     this.edit = new EditTool(tools);
     this.wire = new WireTool(tools);
     this.place = new PlaceTool(tools);
@@ -173,6 +175,12 @@ export class Editor {
   forgetWire(): void {
     this.edit.lastWire = false;
     this.wire.lastWire = false;
+  }
+
+  // A part's label in place (F2's field; Quick Attributes' Label, N-10).
+  editLabel(id: string): void {
+    const c = this.host.board.scene?.components.get(id);
+    if (c) void editLabel(this.tools, c);
   }
 
   // The floating paste as drawn (tests).

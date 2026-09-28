@@ -92,7 +92,7 @@ public final class MenuFacts {
         } else if (kind.equals("wire")) {
             o.add("wire", wire(c, (Wire) hit));
         }
-        if (kind.equals("empty")) {
+        if (hit == null) { // 빈 곳(여러 개를 고른 채여도): v1 ProbeMenu의 Select/Delete All Probes
             JsonArray probes = new JsonArray();
             for (Component p : QuickProbe.probes(c)) {
                 probes.add(d.ids().of(p));
@@ -268,6 +268,19 @@ public final class MenuFacts {
         }
         if (kr.ac.hallym.hcs.app.sim.PcMark.markable(x)) {
             o.addProperty("pcMarked", kr.ac.hallym.hcs.app.sim.PcMark.marked(d.file(), c) == x);
+        }
+        // RAM·ROM(원조 MemMenu), Hallym MIPS 메모리(Load Program…, lib-mips LoadProgramMenu)
+        if (kr.ac.hallym.hcs.engine.sim.Memories.isRam(x)) {
+            o.addProperty("memory", "ram");
+        } else if (kr.ac.hallym.hcs.engine.sim.Memories.isRom(x)) {
+            o.addProperty("memory", "rom");
+        } else if (x.getFactory().getClass().getName().startsWith("kr.ac.hallym.hcs.mips.")
+                && (f.equals("Instruction Memory") || f.equals("Data Memory"))) {
+            o.addProperty("memory", "program");
+            String source = standard(x, "source");
+            if (source != null && !source.isEmpty()) {
+                o.addProperty("source", source);
+            }
         }
         JsonArray original = originalItems(d, c, x);
         if (original.size() > 0) {

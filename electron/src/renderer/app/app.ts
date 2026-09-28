@@ -23,7 +23,9 @@
    Components list and its search (components.ts), the search palette
    (Ctrl+K, palette.ts), Find (Ctrl+F, find.ts), Tunnels (tunnels.ts), the
    Minimap (minimap.ts) and the Splitter editor (splitter-editor.ts); the
-   events they meet the Canvas on are in tool-events.ts.
+   events they meet the Canvas on are in tool-events.ts.  The Attributes
+   panel (attributes.ts), Quick Attributes (quick-attributes.ts) and every
+   right-click menu (menus/: one registry) are N-10's (D-157).
 
    Circuits, appearances, libraries and windows (N-11, D-153): the Circuits
    panel (circuits.ts) and what its commands do (circuit-control.ts, the
@@ -48,7 +50,7 @@ import type { Handover } from '../../main/windows.ts';
 import { type MenuEntry, SEPARATOR, showMenu } from '../canvas/overlays/menu.ts';
 import { AppearanceEditor } from './appearance-editor.ts';
 import { CircuitControl } from './circuit-control.ts';
-import { circuitsPanel } from './circuits.ts';
+import { circuitItems, circuitsPanel } from './circuits.ts';
 import { distinguishers, libraryUpdatedText, pinAddText, pinPreviewText, portImpactText, frozenPinText, newStateNote, newStateQuestion, type SimNode, type SimPart, simTree, standaloneText } from './logic/circuits.ts';
 import { CircuitCanvas } from '../canvas/canvas.ts';
 import { emitTool } from '../canvas/events.ts';
@@ -72,6 +74,12 @@ import { consolePanel } from './console.ts';
 import { CycleView, type PinSpot } from './cycleview.ts';
 import { StatusKeeper } from './logic/engine-status.ts';
 import { selectionFacts } from './logic/selection-facts.ts';
+import { AttributesPanel, EMPTY_ATTRIBUTES } from './attributes.ts';
+import { requestFor } from './logic/attributes.ts';
+import { QuickBar } from './quick-attributes.ts';
+import { installCanvasMenu } from './menus/canvas-menu.ts';
+import { installSideMenus } from './menus/side-menus.ts';
+import { registerMenu } from './menus/registry.ts';
 import { cycleFacts } from './logic/cycle.ts';
 import { askCycles } from './cycles-dialog.ts';
 import { Editor, type MenuCommand, type ToolName } from './editor.ts';
@@ -144,7 +152,7 @@ const sceneKey = (fileId: string, circuitId: string, path: string[] = []) => (pa
 // ---- the Canvas ------------------------------------------------------------------------
 
 const board = new CircuitCanvas({
-  onView: (v) => zoomCtl.update(v.zoom),
+  onView: (v) => { zoomCtl.update(v.zoom); quickBar?.place(); },
   onEnter: (id) => enterInstance(id),
   onSelect: (ids) => selected(ids),
 });
@@ -158,6 +166,7 @@ function selected(ids: string[]): void {
   selection = { fileId: f.fileId, circuitId: w.circuit, ids };
   emitSelection({ fileId: f.fileId, circuitId: w.circuit, path: w.path, ids });
   renderAttributes();
+  void attrsPanel.refresh();
 }
 const zoomCtl = zoomControl({
   zoom: () => board.view.zoom, zoomTo: (z) => board.zoomTo(z), fit: () => board.fitView(), step: (d) => board.zoomStep(d),
@@ -172,7 +181,6 @@ const overlays = new Overlays({
   note: (cls, text) => { note = text ? { cls, text } : null; renderStatus(); },
   failed: (name, e) => { note = { cls: 'err', text: commandError(name, e as CallError) }; renderStatus(); },
   changed: () => { renderStatus(); flowToggle.setAttribute('aria-pressed', String(overlays.settings.onClick)); },
-  partMenu: (_at, part) => instanceMenu(part),
 });
 const wireLegend = legend({ busWidths: RUN_DEFAULTS.busWidths, onBusWidths: (on) => { board.busWidths = on; board.invalidate(); }, extra: overlays.legendRows() });
 let boardKey = '';
@@ -196,6 +204,8 @@ const editor = new Editor({
   toolChanged: (t) => {
     showTool(t);
     emitTool(t);
+    renderAttributes();   // a part held, the Text tool: the tool's attributes (the original's AttrTableToolModel)
+    quickBar?.update();
     const f = files.active();
     if (f) renderCanvas(f);   // an empty circuit shows the Canvas while a part, a wire or a text is being put in
   },
@@ -377,6 +387,71 @@ const canvasPanel = h('section', { class: 'panel canvaspanel', 'aria-label': 'Ca
   instanceBand,
   canvasBody.root);
 
+// ---- the Attributes panel, Quick Attributes, the right-click menus (N-10, D-157) -----------------
+
+// The attribute table of the selection (the circuit's when nothing is chosen) or of the tool in hand.
+const attrsPanel = new AttributesPanel(attributesBody, {
+  call: (method, params) => api.call(method, params),
+  failed: (name, e) => { note = { cls: 'err', text: commandError(name, e as CallError) }; renderStatus(); },
+  facts: () => selectedFacts(),
+  circuitNames: (fileId, except) => (files.get(fileId)?.circuits ?? []).filter((c) => c.circuitId !== except).map((c) => c.name),
+  contents: (id) => openContents(id),
+  toolChanged: () => { if (editor.tool === 'Place') void editor.place.refresh(); },
+  quickToggled: () => quickBar?.update(),
+});
+attrsPanel.selected = () => editor.selection()?.ids ?? [];
+// The bar by the selection (v1 QuickBar): the panel's table, the Edit tool, this run's Quick Attributes switch.
+let quickBar: QuickBar | null = null;
+quickBar = new QuickBar({
+  board,
+  table: () => attrsPanel.table,
+  selected: () => editor.selection()?.ids ?? [],
+  toolIsEdit: () => editor.tool === 'Edit',
+  on: () => attrsPanel.quickOn,
+  apply: async (attr, value) => {
+    const t = attrsPanel.table;
+    const row = t?.rows.find((r) => r.attr === attr);
+    return t && row ? attrsPanel.apply(t, row, value) : false;
+  },
+  editLabel: (id) => editor.editLabel(id),
+  showAll: () => showAttributesPanel(),
+});
+attrsPanel.onTable(() => quickBar?.update());
+new ResizeObserver(() => quickBar?.place()).observe(board.root);
+// The Attributes panel forward: its own column, or its tab of the left panel when the window is narrow.
+function showAttributesPanel(): void {
+  if (attributesBody.root.parentElement === upperPanel) { upperHead.select(2); showUpper(2); }
+  (attributesBody.root.querySelector('input, select, button') as HTMLElement | null)?.scrollIntoView({ block: 'nearest' });
+}
+// A ROM's Contents row (the table's "(click to edit)"): the hex editor, as the menu's Edit Contents….
+function openContents(id: string): void {
+  canvasMenu.contents(id, attrsPanel.table?.editable ?? false);
+}
+// The Canvas's right-click menu (menus/canvas-menu.ts) and the side panels' (menus/side-menus.ts).
+const canvasMenu = installCanvasMenu({
+  board, overlays,
+  call: (method, params) => api.call(method, params),
+  ready: () => engine.state === 'ready',
+  where: () => {
+    const f = files.active();
+    if (!f || !board.scene) return null;
+    const w = shown(f);
+    return { fileId: f.fileId, circuitId: board.scene.circuitId, root: w.root, path: w.path };
+  },
+  failed: (name, e) => { note = { cls: 'err', text: commandError(name, e as CallError) }; renderStatus(); },
+  note: (cls, text) => { note = text ? { cls, text } : null; renderStatus(); },
+  menuCommand: (cmd) => editor.menu(cmd),
+  enter: (id) => enterInstance(id),
+  showAttributes: () => showAttributesPanel(),
+  reveal: (id) => revealPart(id),
+  tunnelColor: (id, color) => void setTunnelColor(id, color),
+  loadProgram: (fileId, target, forSource) => void programs.load(fileId, { target, ...(forSource ? { forSource } : {}) }),
+  registerMapping: () => void cycleView.mapping(),
+  memoryImage: (fileId, o) => api.memoryImage(fileId, o),
+  quietQuick: () => quickBar?.hush(),
+  tool: () => editor.tool,
+});
+
 // ---- finding and placing (N-12, D-150) --------------------------------------------------
 
 // Components: the library tree and its search; a part picked or dropped goes through hcs:place-tool.
@@ -390,7 +465,6 @@ const components = componentsPanel({
     const f = files.active();
     if (lib && f) pickTool({ lib, name: circuit }, 'components');
   })(),
-  onLibraryMenu: (lib, display, x, y) => showMenu([{ label: `Unload Library (${display})`, disabled: !editableFile(), run: () => void circuitCtl.unload(lib) }], x, y),
   recent: () => pal.recent(),
   favorites: () => pal.favorites(),
 });
@@ -422,6 +496,21 @@ const appearance = new AppearanceEditor({
   attributes: (content) => { if (content) attributesBody.fill(content); else attributesBody.empty({ title: '고른 부품이 없습니다', body: codeText('Canvas에서 부품을 고르면 그 속성(`Data Bits`, `Facing`, `Label` …)이 여기에 나옵니다.') }); },
   layout: async (fileId, circuitId) => scenes.get(key(fileId, circuitId))?.snapshot() ?? await api.call<Snapshot>('model.circuit', { fileId, circuitId }).catch(() => null),
 });
+// The Components list's and the circuit tabs' right-click menus (N-10: the registry's 'components' and 'circuitTab').
+installSideMenus({
+  components: componentsBody.root,
+  circuitTabs: circuitStrip.root,
+  file: () => {
+    const f = files.active();
+    if (!f) return null;
+    const lib = libraries.get(f.fileId);
+    return { fileId: f.fileId, main: f.main, editable: engine.state === 'ready', libraries: Array.isArray(lib) ? lib : null, circuitName: (id) => files.circuitName(f, id) };
+  },
+  circuitItems: (id) => { const f = files.active(); return f ? circuitItems({ circuits: f.circuits, main: f.main, editable: editableFile() }, id, (cmd, c) => void circuitCtl.command(cmd, c)) : []; },
+  libraryItems: (lib, display) => [{ label: `Unload Library (${display})`, disabled: !editableFile(), run: () => void circuitCtl.unload(lib) }],
+});
+// A subcircuit instance's items after View (N-11: v1 I-95), in the Canvas's menu registry.
+registerMenu('canvas', { id: 'subcircuit', order: 11, items: (t) => (t.facts.kind === 'part' && t.facts.id ? instanceMenu(t.facts.id).slice(1) : []) });
 // Tunnels: by name; a name goes to its next tunnel, the chip sets Tunnel Color.
 const tunnels = tunnelsPanel({
   host: tunnelsBody,
@@ -1176,9 +1265,9 @@ function renderEmptyPanels(): void {
   renderCycleBody();
 }
 
-// The Attributes panel: until the attribute table (N-10), the facts of what is selected on the Canvas -- the
-// parts and wires in the circuit on show, and those pasted and not yet placed (D-146); nothing selected: its empty state.
-function renderAttributes(): void {
+// The facts of what is selected on the Canvas (N-08, D-146): the parts and wires in the circuit on show, and those
+// pasted and not yet placed; null: nothing selected.  The Attributes panel shows them over its table.
+function selectedFacts(): ReturnType<typeof selectionFacts> {
   const f = files.active();
   const s = board.scene;
   const chosen: (Component | Wire)[] = [];
@@ -1189,14 +1278,20 @@ function renderAttributes(): void {
     }
   }
   if (f && s) chosen.push(...(editor.selection()?.floating ?? []));
-  const facts = selectionFacts(chosen);
-  if (!facts) {
-    attributesBody.empty({ title: '고른 부품이 없습니다', body: codeText('Canvas에서 부품을 고르면 그 속성(`Data Bits`, `Facing`, `Label` …)이 여기에 나옵니다.') });
+  return selectionFacts(chosen);
+}
+
+// The Attributes panel (attributes.ts, N-10): the table of the tool in hand, else of the selection in the circuit on
+// show (the circuit's own when nothing is chosen); no file: its empty state.
+function renderAttributes(): void {
+  const f = files.active();
+  const s = board.scene;
+  if (!f || !s || engine.state !== 'ready') {
+    attrsPanel.show(null);
+    if (!f) attributesBody.empty(EMPTY_ATTRIBUTES);
     return;
   }
-  attributesBody.fill(h('div', { class: 'sel-facts' },
-    h('h3', {}, facts.title),
-    facts.lines.length ? h('ul', {}, ...facts.lines.map((l) => h('li', {}, l))) : null));
+  attrsPanel.show(requestFor(f.fileId, s.circuitId, editor.tool, editor.tool === 'Place' ? editor.place.held ?? null : null));
 }
 
 function renderStatus(): void {
@@ -1812,6 +1907,7 @@ api.onNotify((method, params) => {
   } else if (method === 'edit.selection') {
     editor.onSelection(p as unknown as EditSelection);
     renderAttributes();   // pasted parts (floating) change it without changing the ids
+    void attrsPanel.refresh();
   } else if (method === 'model.changed') {
     const c = p as unknown as ModelChanged;
     // The engine is the authority: its change goes into every scene of that circuit (and instances of it).
@@ -1826,6 +1922,7 @@ api.onNotify((method, params) => {
     board.invalidate();
     render();
     finder.refresh();   // its index is the model now (I-171 정함)
+    if (c.fileId === files.active()?.fileId) void attrsPanel.refresh();   // values changed in place (N-10)
   } else if (method === 'mips.facts') {
     if (files.get(String(p.fileId))) programs.facts(p as unknown as MipsFacts);
   } else if (method === 'mips.reloaded') {
