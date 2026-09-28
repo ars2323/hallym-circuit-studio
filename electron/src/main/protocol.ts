@@ -565,7 +565,7 @@ export interface SaveCut { fileId: string; file: string; instances: string[]; co
 export interface PortImpact { fileId: string; circuitId: string; name: string; broken: number; kept: number }
 
 // file.libraryUpdated: a library file saved in another tab came in (its instances replaced, Reset).
-export interface LibraryUpdated { fileId: string; library: string }
+export interface LibraryUpdated { fileId: string; library: string; lib: string }   // library: the saved file's name; lib: its name in this file (journaled as edit.reloadLibrary, D-153)
 
 // Error codes (docs/engine-api.md 2).
 export const ERR_NOT_FOUND = 1;

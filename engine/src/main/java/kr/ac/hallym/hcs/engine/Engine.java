@@ -8,6 +8,7 @@ package kr.ac.hallym.hcs.engine;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -16,7 +17,9 @@ import com.cburch.logisim.circuit.Circuit;
 import com.cburch.logisim.circuit.SubcircuitFactory;
 import com.cburch.logisim.circuit.Wire;
 import com.cburch.logisim.comp.Component;
+import com.cburch.logisim.comp.ComponentFactory;
 import com.cburch.logisim.data.Location;
+import com.cburch.logisim.file.LoadedLibrary;
 import com.cburch.logisim.tools.AddTool;
 import com.cburch.logisim.tools.Library;
 import com.cburch.logisim.tools.Tool;
@@ -43,6 +46,7 @@ import kr.ac.hallym.hcs.engine.record.Records;
 import kr.ac.hallym.hcs.engine.rpc.Params;
 import kr.ac.hallym.hcs.engine.rpc.RpcError;
 import kr.ac.hallym.hcs.engine.rpc.Server;
+import kr.ac.hallym.hcs.engine.sim.SimGate;
 import kr.ac.hallym.hcs.engine.sim.SimSession;
 
 /**
@@ -230,10 +234,12 @@ public final class Engine {
             Doc d = files.get(p.str("fileId"));
             String path = p.optStr("path", null);
             File saved = files.save(d, path == null ? null : new File(path).getAbsoluteFile());
-            // 이 파일을 라이브러리로 쓰는 다른 열린 파일에 새 버전(v1 P-03 저장 반영, D-065·D-153)
-            List<Doc> touched = kr.ac.hallym.hcs.engine.edit.CircuitService.afterSave(files.all(), d);
-            if (!touched.isEmpty()) {
-                call.after(() -> libraryUpdated(touched, saved));
+            // 이 파일을 라이브러리로 쓰는 다른 열린 파일에 새 버전(v1 P-03 저장 반영, D-065·D-153): 파일마다 그
+            // 시뮬레이터를 세운 채 바꾸고, 알림(file.libraryUpdated)으로 창의 되살리기 저널에 edit.reloadLibrary를 남긴다
+            Map<Doc, LoadedLibrary> users = kr.ac.hallym.hcs.engine.edit.CircuitService.libraryUsers(files.all(), d);
+            if (!users.isEmpty()) {
+                reloadLibraries(users);
+                call.after(() -> libraryUpdated(users, saved));
             }
             JsonObject o = new JsonObject();
             o.addProperty("path", saved.getPath());
@@ -710,6 +716,32 @@ public final class Engine {
                 p.str("kind"), p.optStr("name", null),
                 p.has("path") ? kr.ac.hallym.hcs.engine.edit.LibraryIntents.resolve(d, p.str("path")) : null,
                 p.optStr("className", null), files.all()));
+        // 다른 파일에서 저장한 라이브러리의 새 버전(file.save가 한 일): 창의 되살리기 저널이 file.libraryUpdated를 이
+        // 의도로 적어 재생한다(D-153). 이 라이브러리를 쓰는 열린 파일 모두가 새 버전을 받고, 이 파일의 답이 편집이다
+        edit("edit.reloadLibrary", false, (d, p) -> {
+            LoadedLibrary lib = kr.ac.hallym.hcs.engine.edit.CircuitService.circLibrary(d, p.str("lib"));
+            if (lib == null) {
+                throw RpcError.notFound("library", p.str("lib"));
+            }
+            Map<Doc, LoadedLibrary> users = new java.util.LinkedHashMap<>();
+            users.put(d, lib);
+            for (Doc o : files.all()) {
+                if (o != d && kr.ac.hallym.hcs.engine.edit.CircuitService.circLibrary(o, lib.getName()) == lib) {
+                    users.put(o, lib);
+                }
+            }
+            List<Doc> changed = reloadLibraries(users);
+            for (Doc o : changed) {
+                if (o != d) {
+                    publishChanges(o);
+                }
+            }
+            SimSession s = sims.get(d.id());
+            if (s != null && changed.contains(d) && s.reset()) {
+                s.sendState(true);
+            }
+            return kr.ac.hallym.hcs.engine.edit.CircuitService.reloaded(changed.contains(d));
+        });
         edit("edit.unloadLibrary", false, (d, p) -> kr.ac.hallym.hcs.engine.edit.LibraryIntents.unloadLibrary(d,
                 p.str("name")));
         // 물음(모델을 바꾸지 않는다)
@@ -810,8 +842,9 @@ public final class Engine {
      * 저장한 파일을 라이브러리로 쓰던 파일들이 새 버전을 받은 뒤(v1 LibrarySync.afterSave): 모델 알림, 시뮬레이션을
      * 처음으로(v1 Recorder.requestReset), {@code file.libraryUpdated {fileId, library}}(화면의 " · Updated").
      */
-    private void libraryUpdated(List<Doc> touched, File saved) {
-        for (Doc t : touched) {
+    private void libraryUpdated(Map<Doc, LoadedLibrary> users, File saved) {
+        for (Map.Entry<Doc, LoadedLibrary> u : users.entrySet()) {
+            Doc t = u.getKey();
             if (!files.all().contains(t)) {
                 continue;
             }
@@ -823,8 +856,47 @@ public final class Engine {
             JsonObject o = new JsonObject();
             o.addProperty("fileId", t.id());
             o.addProperty("library", saved.getName());
+            o.addProperty("lib", u.getValue().getName()); // 이 파일에서의 라이브러리 이름: 저널의 edit.reloadLibrary
             server.notify("file.libraryUpdated", o);
         }
+    }
+
+    /**
+     * 라이브러리 새 버전을 쓰는 파일들에 넣는다(D-153): 라이브러리마다 한 번 디스크에서 다시 읽고(그 라이브러리를 쓰는
+     * 모든 파일의 시뮬레이터를 세운 채: 나눠 쓰는 LoadedLibrary라 모두의 부품 팩토리가 바뀐다), 파일마다 그 파일의
+     * 시뮬레이터를 세운 채 옛 버전 부품을 바꾼다. 바뀐 파일들.
+     */
+    private List<Doc> reloadLibraries(Map<Doc, LoadedLibrary> users) {
+        Map<LoadedLibrary, Map<ComponentFactory, ComponentFactory>> known = new IdentityHashMap<>();
+        for (Map.Entry<Doc, LoadedLibrary> u : users.entrySet()) {
+            LoadedLibrary lib = u.getValue();
+            if (known.containsKey(lib)) {
+                continue;
+            }
+            List<SimSession> quiet = new ArrayList<>();
+            for (Map.Entry<Doc, LoadedLibrary> v : users.entrySet()) {
+                SimSession s = sims.get(v.getKey().id());
+                if (v.getValue() == lib && s != null) {
+                    quiet.add(s);
+                }
+            }
+            known.put(lib, quietAll(quiet, 0, () -> kr.ac.hallym.hcs.engine.edit.CircuitService.reload(u.getKey(), lib)));
+        }
+        List<Doc> changed = new ArrayList<>();
+        for (Map.Entry<Doc, LoadedLibrary> u : users.entrySet()) {
+            Doc t = u.getKey();
+            SimSession s = sims.get(t.id());
+            SimGate.Body<Boolean, RuntimeException> body =
+                    () -> kr.ac.hallym.hcs.engine.edit.CircuitService.refresh(t, u.getValue(), known.get(u.getValue()));
+            if (s == null ? body.run() : s.quiet(body)) {
+                changed.add(t);
+            }
+        }
+        return changed;
+    }
+
+    private static <T> T quietAll(List<SimSession> ss, int i, SimGate.Body<T, RuntimeException> body) {
+        return i == ss.size() ? body.run() : ss.get(i).quiet(() -> quietAll(ss, i + 1, body));
     }
 
     // ---- sim ----

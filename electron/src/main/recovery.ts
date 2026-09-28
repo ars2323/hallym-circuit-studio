@@ -353,7 +353,14 @@ export class Supervisor extends EventEmitter<Events> {
     this.engine = engine;
     this.fingerprint = options.fingerprint ?? fingerprintOf;
     engine.on('answer', (a) => this.answered(a));
-    engine.on('notification', (method, params) => this.shadow.notification(method, params));
+    engine.on('notification', (method, params) => {
+      this.shadow.notification(method, params);
+      // A library saved in another file came into this one (N-11, D-153): not the window's call, but a change of
+      // this file's model -- journaled as the intent a replay does again (the library read again from disk).
+      if (method === 'file.libraryUpdated' && !this.recovering && isObject(params) && typeof params.fileId === 'string' && typeof params.lib === 'string') {
+        this.journal.record(params.fileId, 'edit.reloadLibrary', { fileId: params.fileId, lib: params.lib }, this.shadow);
+      }
+    });
     engine.on('status', (s) => this.status(s));
   }
 

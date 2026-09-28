@@ -364,5 +364,94 @@ class LibrariesTest {
         String otherText = new String(Files.readAllBytes(otherFile.toPath()), StandardCharsets.UTF_8);
         assertTrue(hostText.contains("<a name=\"label\" val=\"p\"/>"), "the host's Pin tool took the source's");
         assertFalse(otherText.contains("<a name=\"label\" val=\"p\"/>"), "another open file keeps its own (D-149)");
+        // Undo of the import takes the circuits back but not the tool settings: they are not part of the original's
+        // action either (the original's loader sets them as it reads the file; golden 09, D-153)
+        call("edit.undo", "fileId", host);
+        call("file.save", "fileId", host);
+        hostText = new String(Files.readAllBytes(tmp.resolve("host.circ")), StandardCharsets.UTF_8);
+        assertFalse(hostText.contains("<circuit name=\"half_adder\">"), "the import undone");
+        assertTrue(hostText.contains("<a name=\"label\" val=\"p\"/>"), "the Pin tool's settings stay, as in the original");
+    }
+
+    /** host.circ에 lib.circ의 adder 인스턴스 하나(main). host의 fileId, main. */
+    String[] hostWithAdder() throws Exception {
+        File lib = libFile();
+        String host = openHost();
+        call("edit.loadLibrary", "fileId", host, "kind", "circ", "path", lib.getPath());
+        String main = mainId(host);
+        call("edit.addComponent", "fileId", host, "circuitId", main, "lib", "lib", "name", "adder",
+                "loc", new int[] {300, 300});
+        call("file.save", "fileId", host);
+        return new String[] {host, main};
+    }
+
+    int adderPorts(String host, String main) {
+        for (JsonElement c : call("model.circuit", "fileId", host, "circuitId", main).getAsJsonArray("components")) {
+            if (c.getAsJsonObject().has("subcircuit")) {
+                return c.getAsJsonObject().getAsJsonArray("ports").size();
+            }
+        }
+        return -1;
+    }
+
+    @Test
+    void aLibrarySavedWhileTheFileUsingItRunsIsPutInWithItsSimulatorHeld() throws Exception {
+        String[] h = hostWithAdder();
+        String host = h[0];
+        String main = h[1];
+        assertEquals(3, adderPorts(host, main));
+        // host runs (the clock fast, as N Cycles does): the new version goes in with host's simulator held (SimGate)
+        call("sim.watch", "fileId", host, "circuitId", main);
+        call("sim.run", "fileId", host, "on", true, "hz", 4096);
+        JsonObject opened = e.client.callObject("file.open", params("path", tmp.resolve("lib.circ").toString()));
+        String libId = opened.get("fileId").getAsString();
+        String adder = CircuitsTest.circuitNamed(opened, "adder");
+        String pinB = null;
+        for (JsonElement c : call("model.circuit", "fileId", libId, "circuitId", adder).getAsJsonArray("components")) {
+            JsonObject o = c.getAsJsonObject();
+            if (o.getAsJsonObject("attrs").has("label") && o.getAsJsonObject("attrs").get("label").getAsString().equals("b")) {
+                pinB = o.get("id").getAsString();
+            }
+        }
+        call("edit.delete", "fileId", libId, "circuitId", adder, "ids", new Object[] {pinB});
+        for (int i = 0; i < 5; i++) {
+            int m = e.client.mark();
+            call("file.save", "fileId", libId);
+            JsonObject upd = e.client.awaitNotificationAfter(m, "file.libraryUpdated",
+                    o -> o.get("fileId").getAsString().equals(host));
+            assertEquals("lib", upd.get("lib").getAsString(), "the library's name in host: the journal's edit.reloadLibrary");
+            if (i == 0) {
+                assertTrue(e.client.notificationsAfter(m, "model.changed").stream()
+                        .anyMatch(o -> o.get("fileId").getAsString().equals(host)), "host's model.changed");
+            }
+        }
+        assertEquals(2, adderPorts(host, main), "the new version");
+        call("sim.run", "fileId", host, "on", false);
+        assertEquals(0, e.client.notifications("engine.log").stream()
+                .filter(o -> String.valueOf(o).contains("Exception")).count(), "nothing went wrong on the simulator thread");
+    }
+
+    @Test
+    void reloadLibraryReadsTheLibraryAgainFromDiskAsARecoveryReplayDoes() throws Exception {
+        String[] h = hostWithAdder();
+        String host = h[0];
+        String main = h[1];
+        // lib.circ changed on disk (the saved version the journal's entry stands for)
+        LogisimFile f = CircuitBuilder.newFile(new Loader(null), tmp.toFile());
+        Circuit adder = new Circuit("adder");
+        f.addCircuit(adder);
+        CircuitBuilder cb = new CircuitBuilder(f, adder);
+        cb.add("Wiring", "Pin", 100, 100, "label", "a");
+        cb.add("Wiring", "Pin", 300, 100, "facing", "west", "output", "true", "label", "s");
+        cb.commit();
+        CircuitBuilder.save(f, tmp.resolve("lib.circ").toFile());
+        call("sim.watch", "fileId", host, "circuitId", main);
+        call("sim.run", "fileId", host, "on", true, "hz", 4096);
+        JsonObject r = call("edit.reloadLibrary", "fileId", host, "lib", "lib");
+        call("sim.run", "fileId", host, "on", false);
+        assertTrue(r.get("changed").getAsBoolean());
+        assertEquals(2, adderPorts(host, main), "the version on disk");
+        assertEquals(1, e.client.fail("edit.reloadLibrary", params("fileId", host, "lib", "nope")).code);
     }
 }
+

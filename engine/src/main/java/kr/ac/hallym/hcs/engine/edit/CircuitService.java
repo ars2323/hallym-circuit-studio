@@ -256,47 +256,102 @@ public final class CircuitService {
     }
 
     /**
-     * 저장 뒤(v1 {@code LibrarySync.afterSave}): 저장한 파일을 쓰는 다른 열린 파일마다 라이브러리를 원조
-     * {@code Loader.reload}로 새 버전으로 바꾸고, 그 부품을 새 팩토리의 부품으로 바꾼다(원조
-     * {@code LoadedLibrary.replaceAll}과 같은 CircuitMutation, 되돌리기 기록에 남지 않는다). 바뀐 파일들.
+     * 저장 뒤(v1 {@code LibrarySync.afterSave}) 새 버전을 받을 파일들: 저장한 파일을 file# 라이브러리로 쓰는 다른 열린 파일과
+     * 그 라이브러리. 새 버전을 넣는 일은 엔진이 파일마다 그 파일의 시뮬레이터를 세운 채 한다({@link #reload},
+     * {@link #refresh}, Engine.reloadLibraries, D-153).
      */
-    public static List<Doc> afterSave(Collection<Doc> all, Doc saved) {
-        List<Doc> touched = new ArrayList<>();
+    public static Map<Doc, LoadedLibrary> libraryUsers(Collection<Doc> all, Doc saved) {
         File f = saved.loader().getMainFile();
-        if (f == null) {
-            return touched;
-        }
-        Set<LoadedLibrary> reloaded = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
-        for (Map.Entry<Doc, LoadedLibrary> u : users(all, saved, f).entrySet()) {
-            LoadedLibrary lib = u.getValue();
-            Map<String, ComponentFactory> before = new LinkedHashMap<>();
-            for (Tool t : lib.getTools()) {
-                if (t instanceof AddTool && ((AddTool) t).getFactory(false) != null) {
-                    before.put(t.getName(), ((AddTool) t).getFactory(false));
+        return f == null ? new LinkedHashMap<>() : users(all, saved, f);
+    }
+
+    /** edit.reloadLibrary의 답: 이 파일의 부품이 바뀌었는지. */
+    public static Intents.Result reloaded(boolean changed) {
+        return changed ? new Intents.Result(true, null, null) : Intents.Result.unchanged("same");
+    }
+
+    /** 이 파일의 라이브러리 중 이름이 name인 Logisim 라이브러리(.circ). */
+    public static LoadedLibrary circLibrary(Doc d, String name) {
+        for (com.cburch.logisim.tools.Library l : d.file().getLibraries()) {
+            if (l instanceof LoadedLibrary && l.getName().equals(name)) {
+                try {
+                    if (com.cburch.logisim.file.LibraryManager.instance.getDescriptor(d.loader(), l).startsWith("file#")) {
+                        return (LoadedLibrary) l;
+                    }
+                } catch (RuntimeException unknown) {
+                    // 원조 LibraryManager가 모르는 라이브러리: 다시 읽을 곳이 없다
                 }
             }
-            if (reloaded.add(lib)) {
-                u.getKey().loader().reload(lib); // 여러 파일이 같은 라이브러리를 나눠 쓴다
-                u.getKey().loader().drainErrors();
+        }
+        return null;
+    }
+
+    /** 라이브러리의 도구 팩토리, 이름으로. */
+    static Map<String, ComponentFactory> factories(com.cburch.logisim.tools.Library lib) {
+        Map<String, ComponentFactory> out = new LinkedHashMap<>();
+        for (Tool t : lib.getTools()) {
+            if (t instanceof AddTool && ((AddTool) t).getFactory(false) != null) {
+                out.put(t.getName(), ((AddTool) t).getFactory(false));
             }
-            Map<ComponentFactory, ComponentFactory> map = new IdentityHashMap<>();
-            for (Map.Entry<String, ComponentFactory> e : before.entrySet()) {
-                Tool t = lib.getTool(e.getKey());
-                ComponentFactory now = t instanceof AddTool ? ((AddTool) t).getFactory() : null;
-                if (now != e.getValue()) {
-                    map.put(e.getValue(), now);
+        }
+        return out;
+    }
+
+    /**
+     * 라이브러리를 디스크에서 다시 읽는다(원조 {@code Loader.reload}; 여러 파일이 같은 LoadedLibrary를 나눠 쓰므로 한 번).
+     * 앞 도구 팩토리 → 새 팩토리(없어진 도구는 null). 부르는 쪽이 이 라이브러리를 쓰는 모든 파일의 시뮬레이터를 세운다.
+     */
+    public static Map<ComponentFactory, ComponentFactory> reload(Doc d, LoadedLibrary lib) {
+        Map<String, ComponentFactory> before = factories(lib);
+        d.loader().reload(lib);
+        d.loader().drainErrors();
+        Map<String, ComponentFactory> now = factories(lib);
+        Map<ComponentFactory, ComponentFactory> map = new IdentityHashMap<>();
+        for (Map.Entry<String, ComponentFactory> e : before.entrySet()) {
+            ComponentFactory n = now.get(e.getKey());
+            if (n != e.getValue()) {
+                map.put(e.getValue(), n);
+            }
+        }
+        return map;
+    }
+
+    /**
+     * 이 파일의 부품 가운데 라이브러리의 옛 버전을 가리키는 것을 지금 버전의 부품으로 바꾼다(원조
+     * {@code LoadedLibrary.replaceAll}과 같은 CircuitMutation, 되돌리기 기록에 남지 않는다). known은 {@link #reload}의 답.
+     * 저장이 이미 바꾼 라이브러리(원조 LibraryManager.fileSaved)나 앞서 다른 파일이 다시 읽은 것처럼 known에 없는 옛
+     * 버전은 이름으로 찾는다: 이 파일의 회로도, 어느 라이브러리의 지금 도구도 아닌 서브회로 팩토리. 부르는 쪽이 이
+     * 파일의 시뮬레이터를 세운다. 바뀐 것이 있는지.
+     */
+    public static boolean refresh(Doc d, LoadedLibrary lib, Map<ComponentFactory, ComponentFactory> known) {
+        Map<String, ComponentFactory> now = factories(lib);
+        Set<ComponentFactory> live = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
+        for (Circuit c : d.file().getCircuits()) {
+            live.add(c.getSubcircuitFactory());
+        }
+        for (com.cburch.logisim.tools.Library l : d.file().getLibraries()) {
+            live.addAll(factories(l).values());
+        }
+        Map<ComponentFactory, ComponentFactory> map = new IdentityHashMap<>();
+        for (Circuit c : d.file().getCircuits()) {
+            for (Component comp : c.getNonWires()) {
+                ComponentFactory f = comp.getFactory();
+                if (known.containsKey(f)) {
+                    map.put(f, known.get(f));
+                } else if (f instanceof SubcircuitFactory && !live.contains(f) && now.containsKey(f.getName())) {
+                    map.put(f, now.get(f.getName()));
                 }
             }
-            for (Circuit c : u.getKey().file().getCircuits()) {
-                replaceAll(c, map);
-            }
-            touched.add(u.getKey());
         }
-        return touched;
+        boolean changed = false;
+        for (Circuit c : d.file().getCircuits()) {
+            changed |= replaceAll(c, map);
+        }
+        return changed;
     }
 
     /** 원조 {@code LoadedLibrary.replaceAll(Circuit, …)}과 같다(그 메서드는 원조 창의 프로젝트에만 불린다). */
-    static void replaceAll(Circuit circuit, Map<ComponentFactory, ComponentFactory> map) {
+    static boolean replaceAll(Circuit circuit, Map<ComponentFactory, ComponentFactory> map) {
         List<Component> toReplace = new ArrayList<>();
         for (Component comp : circuit.getNonWires()) {
             if (map.containsKey(comp.getFactory())) {
@@ -304,7 +359,7 @@ public final class CircuitService {
             }
         }
         if (toReplace.isEmpty()) {
-            return;
+            return false;
         }
         CircuitMutation xn = new CircuitMutation(circuit);
         for (Component comp : toReplace) {
@@ -325,6 +380,7 @@ public final class CircuitService {
             }
         }
         xn.execute();
+        return true;
     }
 
     /** file.originOf(v1 Edit Original File, {@code LibrarySync.originFile}): 라이브러리 회로의 파일. 이 파일의 회로면 null. */

@@ -485,6 +485,13 @@ export function methods(ctx: Ctx): Record<string, (p: Params) => unknown> {
       }, { plan });
     },
     // other open files that use this one as a library (by its name) and have its parts: 2 connections a part
+    // the library read again from disk (a recovery's replay of file.libraryUpdated): nothing of the fake's to change
+    'edit.reloadLibrary': (p) => {
+      const f = ctx.fileOf(p);
+      if (!f.libs.includes(String(p.lib))) ctx.fail(1, `no library ${String(p.lib)}`, { kind: 'library', id: String(p.lib) });
+      told(ctx, f);
+      return { changed: true };
+    },
     'file.saveImpact': (p) => {
       const f = ctx.fileOf(p);
       const lib = f.path ? path.basename(f.path, '.circ') : null;
@@ -510,7 +517,7 @@ export function saved(ctx: Ctx, f: CFile): void {
   if (!f.path) return;
   const lib = path.basename(f.path, '.circ');
   for (const o of ctx.files.values()) {
-    if (o !== f && o.libs.includes(lib)) setImmediate(() => ctx.notify('file.libraryUpdated', { fileId: o.fileId, library: lib }));
+    if (o !== f && o.libs.includes(lib)) setImmediate(() => ctx.notify('file.libraryUpdated', { fileId: o.fileId, library: path.basename(f.path!), lib }));
   }
 }
 
