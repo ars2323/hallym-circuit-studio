@@ -370,7 +370,8 @@ test('the real engine and the settings (N-19): every setting changed, quit, star
   let defaults: Awaited<ReturnType<typeof settingsNow>>;
   try {
     await openFile(r, file);
-    await expect(r.page.locator('.canvas .canvas-view canvas')).toBeVisible();
+    // the zoom is the first view's (fitted to the window once the Canvas knows its size): read it after that
+    await canvasSettled(r.page);
     defaults = await settingsNow(r.page);
     await changeEverySetting(r.page, 'alu');
     expect(await settingsNow(r.page)).not.toEqual(defaults);
@@ -380,7 +381,7 @@ test('the real engine and the settings (N-19): every setting changed, quit, star
   const next = await launch(undefined, { env: real });
   try {
     await openFile(next, file);
-    await expect(next.page.locator('.canvas .canvas-view canvas')).toBeVisible();
+    await canvasSettled(next.page);   // (CI read 100% before the first fit: 81%)
     expect(await settingsNow(next.page)).toEqual(defaults);
   } finally {
     await next.close();
@@ -592,9 +593,9 @@ test('the real engine and the overlays (N-15): the PC\'s Signal Flow is v1\'s, I
     // with the Cycle View: the MemtoReg MUX's branch and the arms named after the instruction's fields
     await page.getByRole('tab', { name: 'Cycle View' }).click();
     await page.waitForFunction(() => (window as unknown as { __hcsOverlays: { shown(): { activePath: number } } }).__hcsOverlays.shown().activePath > 0);
-    const s = await shown(page);
-    expect(s.activePath).toBe(5);
-    expect(s.fields).toEqual(['rs', 'rt', 'rd']);
+    // the fields come with the instruction's facts, a moment after the path (both the Cycle View's)
+    await expect.poll(async () => (await shown(page)).fields).toEqual(['rs', 'rt', 'rd']);
+    expect((await shown(page)).activePath).toBe(5);
     await page.getByRole('tab', { name: 'Messages' }).click();
     // a signal group and an area memo: the engine's intents, one undo step each, saved in hcs:ext
     const w = await wireAtPort(page, 'alu', 'Result');
