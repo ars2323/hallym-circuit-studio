@@ -314,6 +314,10 @@ jobs:
             if ($wait -gt 0) { "Windows' first-logon work: waiting $wait s (until logon + 6.5 min)"; Start-Sleep -Seconds $wait }
           }
           "Explorer's startup-app check done: $(Test-Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\RunNotification')"
+          # Subversion's first run: the runner has svn, whose per-user config (%APPDATA%\Subversion) appeared in the middle of
+          # the first guided install checked (D-155, not named after this program, nothing of ours runs svn); made here, once,
+          # as any first-time work of the runner's other programs is done before the checks (D-148 12).
+          if (Get-Command svn -ErrorAction SilentlyContinue) { $null = & svn --version --quiet 2>&1; "Subversion's per-user config: $(Test-Path (Join-Path $env:APPDATA 'Subversion'))" }
           exit 0
       # The students' screen; the start is measured there. Reported either way (report/screen.txt).
       - name: Screen 1920x1080 (tools/windows/screen-1920.ps1)

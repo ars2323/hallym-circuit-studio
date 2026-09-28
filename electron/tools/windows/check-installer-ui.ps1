@@ -238,10 +238,15 @@ while ((Get-Date) -lt $deadline -and -not $p.HasExited) {
         Shot $page.Top 'installer-progress.png'; $shotProgress = $true
         $script:progressHead = @($page.Controls | Where-Object { $_.Text -eq '설치하는 중' }).Count -eq 1
         # The filled part of the bar, as the screen shows it: the app's blue (#0055A5), not Windows' green.
+        # (Its position is read before the screen shows it: a first sample can still be the pale track, seen once
+        # on the runner -- so up to 2 s of samples, each noted.)
         $br = New-Object Ui+RECT; [void][Ui]::GetWindowRect($bar, [ref]$br)
-        $c = PixelAt ($br.Left + 6) ([int](($br.Top + $br.Bottom) / 2))
-        Note "the progress bar's filled part: rgb($($c.R), $($c.G), $($c.B))"
-        $script:barBlue = ($c.B -gt 140 -and $c.R -lt 60 -and $c.G -lt 130)
+        for ($k = 0; $k -lt 20 -and -not $script:barBlue; $k++) {
+          $c = PixelAt ($br.Left + 4) ([int](($br.Top + $br.Bottom) / 2))
+          Note "the progress bar's filled part: rgb($($c.R), $($c.G), $($c.B))"
+          $script:barBlue = ($c.B -gt 140 -and $c.R -lt 60 -and $c.G -lt 130)
+          if (-not $script:barBlue) { Start-Sleep -Milliseconds 100 }
+        }
       }
     }
     if ($page.Kind -eq 'finish') { $finish = $page; break }
