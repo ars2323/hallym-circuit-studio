@@ -42,7 +42,7 @@ test('the real engine: hello, a new circuit, a .circ with the MIPS library, the 
     await expect(page.locator('.canvas .canvas-view canvas')).toBeVisible(); // drawn (N-05)
     await expect(page.locator('.status')).toContainText('35 components');
     // View only until alpha.1 (D-154): the editing tools stay off with the real engine too.
-    for (const name of ['Edit', 'Poke', 'Wire', 'Text', 'Pin', 'Tunnel', 'Probe']) {
+    for (const name of ['Wire', 'Text', 'Pin', 'Tunnel', 'Probe']) {
       await expect(page.getByRole('radio', { name, exact: true })).toBeDisabled();
     }
     await page.getByRole('tab', { name: 'Circuits' }).click();

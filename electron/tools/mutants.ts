@@ -155,7 +155,7 @@ export const MUTANTS: Mutant[] = [
   // ---- the window (e2e)
   // view only until alpha.1 (D-154): the editing tools off, the versions About's only
   { module: 'window', file: 'src/renderer/app/app.ts', what: 'alpha.0: the editing tools on',
-    find: "class: i === 0 ? 'on' : undefined, disabled: true,", replace: "class: i === 0 ? 'on' : undefined, disabled: false,",
+    find: "const WORKING_TOOLS = new Set<string>(['Edit', 'Poke']);", replace: "const WORKING_TOOLS = new Set<string>(['Edit', 'Poke', 'Wire']);",
     tests: ['tests/e2e/files.e2e.ts'] },
   { module: 'window', file: 'src/renderer/app/app.ts', what: 'alpha.0: the engine\'s versions in the status bar again',
     find: "  // The engine's and Java's versions are About's only, not the student's status bar (D-154).\n",

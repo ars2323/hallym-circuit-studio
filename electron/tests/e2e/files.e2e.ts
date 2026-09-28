@@ -80,13 +80,14 @@ test('view only until alpha.1 (D-154): a file open and drawn, the editing tools 
     await openFile(r, sample(r.dir, DATAPATH));
     await expect(page.locator('.canvas .canvas-view canvas')).toBeVisible();
     await expect(page.locator('.status')).toContainText('35 components');
-    // The Canvas's editing tools wait for N-08: shown, and off, even with a Canvas drawn.
-    for (const name of ['Edit', 'Poke', 'Wire', 'Text', 'Pin', 'Tunnel', 'Probe']) {
+    // The editing tools wait for N-08: shown, and off, even with a Canvas drawn.  Edit (choosing, into a
+    // subcircuit) and Poke (N-07) are on.
+    for (const name of ['Wire', 'Text', 'Pin', 'Tunnel', 'Probe']) {
       await expect(page.getByRole('radio', { name, exact: true })).toBeDisabled();
     }
-    await expect(page.getByRole('button', { name: /N Cycles/ })).toBeDisabled();
+    for (const name of ['Edit', 'Poke']) await expect(page.getByRole('radio', { name, exact: true })).toBeEnabled();
     // What alpha.0 offers: the clock, Load Program, the Messages and the Cycle View.
-    for (const name of [/^Run/, /^1 Cycle/, /^Reset/, /^Load Program/]) await expect(page.getByRole('button', { name })).toBeEnabled();
+    for (const name of [/^Run/, /^1 Cycle/, /^N Cycles/, /^Reset/, /^Load Program/]) await expect(page.getByRole('button', { name })).toBeEnabled();
     await expect(page.getByRole('combobox', { name: 'Clock speed' })).toBeEnabled();
     const bottom = page.locator('section.bottom');
     for (const name of ['Messages', 'Cycle View']) {
