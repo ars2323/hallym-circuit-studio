@@ -75,6 +75,7 @@
 | Signal Group, Control, Data, Address, None, Highlight Net, Clear Net Highlight | |
 | Add Area Memo…, Edit Area Memo…, Fit Area Memo to Selection, Delete Area Memo, Text, Color | |
 | Duplicate, Undo, Redo | |
+| Recover, Discard | |
 | Getting Started, Shortcuts | |
 
 "문장 안에서 쓰지 않는 번역" 칸의 말은 한국어 설명 문장에 나오면 안 된다. 쉼표로 나누고, 빈 칸은 확인하지 않는다. `UiLanguageTest`가 원조 한국어 번들, 앱 `messages_ko.properties`, lib-mips `Text.of`의 한국어 문장을 확인한다.

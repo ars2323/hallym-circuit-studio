@@ -7,7 +7,7 @@ Hallym Circuit Studio 2의 화면(Electron)과 Java 엔진(headless Logisim 2.7.
 - **엔진이 권위다.** 회로 모델의 진짜 상태는 엔진에 있다. 화면은 사본을 들고, 엔진이 보내는 변경분(`model.changed`)으로 맞춘다.
 - **편집은 의도로 보낸다.** 화면은 "이 자리에 AND를 놓아라", "이 두 점을 선으로 이어라"만 보내고, 실제 변경은 엔진이 **Logisim의 편집 코드**(선 합치기·나누기, 연결점, 되돌리기 기록)로 한다. 그래서 결과 .circ가 원조와 같다(편집 동등성 N-09).
 - **엔진을 고치지 않는다.** 엔진 패키지(`com.cburch.logisim.circuit/comp/data/instance/std/file`)는 그대로 쓰고, 서버 코드는 `kr.ac.hallym.hcs.engine.*`에 둔다.
-- **디스크에 설정을 남기지 않는다.** 엔진은 메모리 전용 Preferences로 돌고 원조 Logisim의 디스크 설정을 읽지 않는다(실습실 규칙, N-19).
+- **디스크에 설정을 남기지 않는다.** 엔진은 메모리 전용 Preferences로 돌고 원조 Logisim의 디스크 설정을 읽지 않는다(실습실 규칙, N-19). 학생 파일 말고 쓰는 것은 한 번이라도 저장한 파일 옆의 복구 파일 하나뿐이다(7절 "복구 파일", D-152).
 
 ## 2. 전송
 
@@ -62,28 +62,33 @@ Hallym Circuit Studio 2의 화면(Electron)과 Java 엔진(headless Logisim 2.7.
 
 | 메서드 | params | result |
 | --- | --- | --- |
-| `engine.hello` | `{client, version, idFloor?}` | `{engine:"hcs-engine", version, logisim:"2.7.1", java, api:"0"}` |
+| `engine.hello` | `{client, version, idFloor?, recoveryFiles?}` | `{engine:"hcs-engine", version, logisim:"2.7.1", java, api:"0"}` |
 | `engine.shutdown` | `{}` | `{}` 뒤 종료 |
 
 `engine.log = {level:"info"|"warn"|"error", message}`: 응답에 딸리지 않은 알림(예: N Cycles가 발진으로 멈춤, 보던 인스턴스가 사라짐).
 
 - `idFloor`(0 이상의 정수): 다시 시작한 엔진에 main이 준다. 이 엔진이 새로 매기는 파일·회로·부품·선 번호는 모두 이 수보다 크다(7절). 없으면 1부터다.
+- `recoveryFiles`(참·거짓, N-19): 참이면 엔진이 학생 파일 옆의 복구 파일을 맡는다(7절 "복구 파일"): 저장·닫기·`engine.shutdown`에 지우고, 화면이 사라져 끝날 때(stdin 닫힘·부모 끝남) 저장하지 않은 파일마다 쓴다. 앱(main)은 늘 참으로 준다. 없거나 거짓이면 명시한 요청(`file.recoverWrite`, `file.open`의 `recovery`) 말고는 복구 파일을 건드리지 않는다(테스트, 다른 클라이언트).
 
 ### file
 
 | 메서드 | params | result |
 | --- | --- | --- |
 | `file.new` | `{restore?}` | `{fileId, name, circuits:[CircuitRef], main, libraries:[LibRef]}`(원조 File › New의 기본 틀) |
-| `file.open` | `{path, readOnly?, restore?}` | `{fileId, name, circuits:[CircuitRef], main, libraries:[LibRef], messages:[글], alreadyOpen?}` |
+| `file.open` | `{path, readOnly?, restore?, recovery?}` | `{fileId, name, circuits:[CircuitRef], main, libraries:[LibRef], messages:[글], alreadyOpen?}` |
 | `file.save` | `{fileId, path?}` | `{path, bytes, needsMipsJar}`(Logisim 저장 코드, 새 부품을 안 쓴 파일은 원조와 바이트 같음) |
-| `file.close` | `{fileId}` | `{}` |
+| `file.close` | `{fileId, keepRecovery?}` | `{}` |
 | `file.dirty` | `{fileId}` | `{dirty}` |
+| `file.recoverWrite` | `{fileId}` | `{path, written, bytes?}`(복구 파일, N-19: 7절) |
 
 `CircuitRef = {circuitId, name}`, `LibRef = {lib, display, kind:"builtin"|"jar"|"circ", path?}`(`path`는 .circ에 적힌 경로 글자)
 
 - `path`는 절대 경로로 보낸다(상대 경로는 엔진 프로세스의 작업 폴더 기준이다).
 - `restore = {fileId, circuits?:{회로 이름: circuitId}}`: 다시 시작한 엔진이 파일을 되살릴 때만 쓴다(7절). 새 id 대신 앞 엔진의 파일 id를 쓰고, 이름이 같은 회로에 앞 엔진의 회로 id를 붙인다(이름이 없는 회로는 새 id). `fileId`가 `"f"`+숫자가 아니거나 지금 열린 파일이 쓰면 -32602, 모양이 틀린 회로 id는 붙이지 않는다.
 - `file.open`: `messages`는 원조 로더가 대화상자로 보이던 경고(예: 알 수 없는 부품)다. 이미 열린 파일(같은 경로)을 다시 열면 그 `fileId`를 `alreadyOpen:true`와 함께 돌려준다. `readOnly`면 편집과 경로 없는 저장이 오류 3(`readOnly`)이다.
+- `file.open`의 `recovery`(N-19, 7절 "복구 파일"): `"recover"`면 `path` 옆 `<이름>.circ.hcs-recover`의 내용을 `path` 자리에서 연다(원조 Loader의 바꿔 읽기, 명령줄 `-sub`와 같은 길): 파일 경로·이름·상대 경로 라이브러리는 `path`의 것이고 저장하지 않은 편집이다(`dirty`, 되돌리기를 모두 되돌려도, 저장할 때까지). 복구 파일이 없으면 오류 2(`notFound`, `data.path`는 복구 파일). `"discard"`면 `path`를 보통으로 연 뒤 복구 파일을 지운다(열지 못하면 남긴다). 그 밖의 값은 -32602. 이미 열린 파일이면 무시한다.
+- `file.close`의 `keepRecovery`: 참이면 엔진이 복구 파일을 맡고 있어도(`recoveryFiles`) 지우지 않는다. main의 되살리기가 재생에 실패한 파일을 닫고 다시 열 때 쓴다(7절).
+- `file.recoverWrite`: 저장하지 않은 편집이 있으면 연 파일 옆 `<이름>.circ.hcs-recover`에 쓰고 `{path, written:true, bytes}`, 없으면 있던 것을 지우고 `{path, written:false}`. 둘 곳이 없는 파일(한 번도 저장하지 않은 새 파일, 읽기 전용)은 아무것도 쓰지 않고 `{path:null, written:false}`. 쓰지 못하면 오류 2(`writeFailed`). 창은 부를 수 없다(main만).
 - `file.save`: `path`가 없으면 연 파일(또는 마지막으로 저장한 경로)에 쓴다. 한 번도 저장하지 않은 새 파일은 `path`가 있어야 한다(-32602). 다른 경로에 저장하면 그 경로가 이 파일의 경로가 되고(Save As) 읽기 전용이 풀린다. 포크의 .circ 확장 정보(D-024)도 원조 방식으로 저장한 뒤 붙인다. `needsMipsJar`: MIPS 부품을 쓰는데 저장한 .circ 옆에 `hcs-mips.jar`가 없다(원조 2.7.1이 열려면 필요, 화면이 알린다).
 
 ### model
@@ -455,4 +460,15 @@ main은 열린 파일마다 메모리에 **저널**을 든다(`recovery.ts`).
 - 연 뒤 디스크의 파일이 바뀌었음(SHA-256이 다름) → 재생하지 않고 지금 디스크의 파일로 연다(`changedOnDisk`).
 - 파일이 그 자리에 없거나 열리지 않음 → 탭을 닫는다(`closed`).
 - **시뮬레이션 상태는 되살리지 않는다.** 새 엔진은 Reset 상태에서 시작하고, 대화상자와 띠가 그렇게 말한다.
-- 되살리기 파일(복구 파일)은 쓰지 않는다. 저널은 앱 프로세스가 살아 있는 동안만 있다. 앱 자체가 죽었을 때 학생 파일 옆에 복구 파일을 둘지는 N-19가 정한다.
+- 저널은 앱 프로세스가 살아 있는 동안만 있다. 앱 자체가 죽었을 때는 아래 복구 파일이 맡는다(N-19).
+- 복구 파일의 내용으로 연 파일(아래)은 그 복구 파일이 저널의 기준이다: 되살릴 때 복구 파일에서 다시 열고(`recovery:"recover"`), main이 그 복구 파일을 다시 쓸 때마다 저널을 비운다(그 뒤의 편집만 재생). 그사이 복구 파일이 바뀌었으면 저장한 파일로 연다(`changedOnDisk`). main이 되살리는 중에 닫는 파일은 `keepRecovery`로 닫아 복구 파일을 남긴다.
+
+### 복구 파일(N-19, D-152)
+
+앱 전체(Electron main)가 죽으면(작업 관리자, 전원) 메모리의 저널도 함께 사라진다. 그래서 학생이 **한 번이라도 저장한 파일**(디스크에서 열었거나 저장해서 경로가 있는 파일)에는 그 옆에 복구 파일 `<이름>.circ.hcs-recover`를 둔다. 실습실 규칙대로 앱 전역 자리(설정 폴더, 임시 폴더)에는 아무것도 쓰지 않는다. 한 번도 저장하지 않은 새 파일은 복구하지 않는다(어디에도 쓰지 않는다).
+
+- **내용:** 그 순간 저장하면 쓰일 .circ 그대로다(원조 writer `LogisimFile.write`와 확장 정보. 새 부품을 안 쓴 파일은 원조와 바이트 호환, D-006). 상대 경로 라이브러리는 같은 폴더라 그대로 풀린다. 쓰기는 같은 폴더의 `<이름>.circ.hcs-recover.tmp`에 쓴 뒤 옮긴다(반쯤 쓴 복구 파일이 남지 않게).
+- **쓰는 때:** main(`recovery-files.ts`)이 창의 편집(저널에 드는 의도) 뒤에 `file.recoverWrite`를 부른다: 마지막 편집 뒤 10초, 아직 쓰지 않은 첫 편집 뒤 60초가 넘지 않게, 또는 편집 30개마다. 엔진이 되살리는 중에는 기다린다. 그리고 엔진은 화면이 사라져 끝날 때(stdin 닫힘·부모 끝남) 저장하지 않은 파일마다 한 번 더 쓴다(`recoveryFiles`): main을 죽여도 엔진이 가진 마지막 편집까지 남는다. 앞의 쓰기는 둘이 함께 끝날 때(전원)를 위한 것이다.
+- **지우는 때:** 저장(앞 경로와 새 경로 옆 모두), 닫기(학생이 저장하지 않고 닫기를 골랐다), 앱 정상 종료(`engine.shutdown`), 편집을 모두 되돌려 저장한 파일과 같아졌을 때(`file.recoverWrite`가 지움), Discard.
+- **여는 때(main `openPath`):** 파일 옆에 복구 파일이 있고 그 파일보다 오래되지 않았으면(같은 시각 포함) 열기 전에 창이 묻는다(`RecoveryAsk`, 대화상자 "저장하지 않은 편집이 있습니다", 쓴 시각, 캐릭터 없음). Recover → `file.open {recovery:"recover"}`(저장하지 않은 편집, Ctrl+S가 학생 파일에 쓰고 복구 파일을 지운다), Discard → `file.open {recovery:"discard"}`, Esc → 열지 않고 복구 파일을 둔다. 파일보다 오래된 복구 파일은 묻지 않는다(그 뒤에 다른 프로그램이 파일을 저장했다): 이 파일을 편집하면 새 것으로 바뀌고, 저장하거나 닫으면 지워진다.
+- 창은 경로를 넘기지 않는다: main이 물은 것의 id(`file:openRecovery`)로만 답한다.
