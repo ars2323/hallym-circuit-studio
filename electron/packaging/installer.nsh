@@ -45,7 +45,7 @@
     ${StdUtils.ExecShellAsUser} $0 "$launchLink" "open" ""
   FunctionEnd
   !define MUI_FINISHPAGE_TITLE "설치가 완료되었습니다"
-  !define MUI_FINISHPAGE_TEXT "Hallym Circuit Studio 설치를 마쳤습니다.$\r$\n$\r$\n다음부터는 시작 메뉴의 Hallym Circuit Studio 항목으로 엽니다."
+  !define MUI_FINISHPAGE_TEXT "Hallym Circuit Studio 설치를 마쳤습니다.$\r$\n$\r$\n다음부터는 시작 메뉴에서 엽니다: Hallym Circuit Studio"
   !define MUI_FINISHPAGE_RUN
   !define MUI_FINISHPAGE_RUN_TEXT "지금 실행하기"
   !define MUI_FINISHPAGE_RUN_FUNCTION "HcsStartApp"
