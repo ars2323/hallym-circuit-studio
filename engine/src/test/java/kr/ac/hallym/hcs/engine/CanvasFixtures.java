@@ -17,10 +17,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.cburch.logisim.circuit.Simulator;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+
+import kr.ac.hallym.hcs.engine.sim.SimSession;
 
 /**
  * 화면 캔버스의 시험 자료(N-05, N-06, D-137). 모두 엔진 API(docs/engine-api.md)로만 만든다: 화면이 받는 것과 같은
@@ -412,11 +415,11 @@ public final class CanvasFixtures {
         int nextWire = 1;
 
         void snapshot(JsonObject snap) {
-            for (JsonElement c : snap.getAsJsonArray("components")) {
-                parts.put(c.getAsJsonObject().get("id").getAsString(), "k" + nextComponent++);
+            for (JsonObject c : ordered(snap.getAsJsonArray("components"))) {
+                parts.put(c.get("id").getAsString(), "k" + nextComponent++);
             }
-            for (JsonElement w : snap.getAsJsonArray("wires")) {
-                parts.put(w.getAsJsonObject().get("id").getAsString(), "w" + nextWire++);
+            for (JsonObject w : ordered(snap.getAsJsonArray("wires"))) {
+                parts.put(w.get("id").getAsString(), "w" + nextWire++);
             }
             // 넷: 든 선·포트 가운데 가장 앞의 것(새 번호) 순
             List<String[]> keyed = new ArrayList<>();
@@ -440,6 +443,29 @@ public final class CanvasFixtures {
             nets.put(snap.get("circuitId").getAsString(), m);
         }
 
+        /**
+         * 스냅숏 차례(위→아래, 왼쪽→오른쪽, 이름)가 같은 것끼리는 엔진이 id 글자로 가른다. 엔진 id는 JVM 안의 일련번호라
+         * 같은 자리에서 시작하는 두 선의 차례가 앞서 연 파일 수(번호의 자릿수)에 따라 바뀐다: 그 둘은 id 없이 나머지
+         * 글자(끝점, 속성 …)로 가른다.
+         */
+        static List<JsonObject> ordered(JsonArray items) {
+            List<JsonObject> l = new ArrayList<>();
+            items.forEach(x -> l.add(x.getAsJsonObject()));
+            l.sort(java.util.Comparator.<JsonObject>comparingInt(o -> at(o).get(1).getAsInt())
+                    .thenComparingInt(o -> at(o).get(0).getAsInt())
+                    .thenComparing(o -> o.has("name") ? o.get("name").getAsString() : "")
+                    .thenComparing(o -> {
+                        JsonObject c = o.deepCopy();
+                        c.remove("id");
+                        return c.toString();
+                    }));
+            return l;
+        }
+
+        private static JsonArray at(JsonObject o) {
+            return o.has("loc") ? o.getAsJsonArray("loc") : o.getAsJsonArray("a");
+        }
+
         private static String sortKey(String id, int port) {
             // 부품(k)이 선(w)보다 앞, 번호는 자릿수를 맞춘다
             String kind = id.substring(0, 1);
@@ -456,6 +482,11 @@ public final class CanvasFixtures {
             Map<String, String> netMap = nets.get(circuit);
             JsonObject o = snap.deepCopy();
             o.addProperty("circuitId", circuits.get(circuit));
+            for (String part : new String[] {"components", "wires"}) {
+                JsonArray sortedParts = new JsonArray();
+                ordered(o.getAsJsonArray(part)).forEach(sortedParts::add);
+                o.add(part, sortedParts);
+            }
             for (JsonElement c : o.getAsJsonArray("components")) {
                 JsonObject co = c.getAsJsonObject();
                 co.addProperty("id", parts.get(co.get("id").getAsString()));
@@ -528,59 +559,101 @@ public final class CanvasFixtures {
     record Watch(String root, List<String> path, String circuit, List<JsonObject> frames) {
     }
 
-    /** sim.watch 뒤 처음 값(모든 넷과 몸체). 이어지는 전파가 끝나도록 잠깐 더 모은다. path가 있으면 인스턴스 안. */
+    /*
+     * 값 프레임은 정해진 자리에서 찍는다(D-137 검토 반영 11): 전파가 끝난 뒤({@link #settle}) 같은 보기를 다시 보내(sim.watch)
+     * 그 응답 뒤 첫 sim.values(모든 넷과 몸체)를 그 자리의 값 전체로 삼고, 사이클 프레임은 앞 자리의 전체와 다른 것만
+     * 적는다. 예전처럼 오는 대로 겹치면 16ms 묶음의 경계가 한 사이클(틱 두 번) 가운데에 떨어졌는지에 따라 0→1→0인
+     * 클럭 넷이 프레임에 들기도 하고 빠지기도 했다(값은 같고 열쇠만 다름, 세 번에 한 번꼴로 CI 비교 실패).
+     */
+
+    /** sim.watch 뒤 전파가 끝난 자리의 값 전체(모든 넷과 몸체). path가 있으면 인스턴스 안. */
     private static JsonObject firstFrame(InProcess e, String fileId, String root, List<String> path)
-            throws InterruptedException {
-        int mark = e.client.mark();
-        JsonArray p = new JsonArray();
-        path.forEach(p::add);
-        e.client.callObject("sim.watch", path.isEmpty() ? params("fileId", fileId, "circuitId", root)
-                : params("fileId", fileId, "circuitId", root, "path", p));
-        e.client.awaitNotificationAfter(mark, "sim.values", v -> path.isEmpty() != v.has("path"));
-        Thread.sleep(300);
-        return merged(e, mark, null);
+            throws Exception {
+        JsonObject watch = watchParams(fileId, root, path);
+        e.client.callObject("sim.watch", watch);
+        return settledFrame(e, fileId, watch, path);
     }
 
-    /** Reset에서 시작해 처음 값과 1 Cycle마다의 바뀐 값(CYCLES번). */
+    private static JsonObject watchParams(String fileId, String root, List<String> path) {
+        JsonArray p = new JsonArray();
+        path.forEach(p::add);
+        return path.isEmpty() ? params("fileId", fileId, "circuitId", root)
+                : params("fileId", fileId, "circuitId", root, "path", p);
+    }
+
+    /** 전파가 끝나기를 기다린 뒤 같은 보기를 다시 보내고, 그 응답 뒤 첫 sim.values(보낸 적 없는 상태의 전체). */
+    private static JsonObject settledFrame(InProcess e, String fileId, JsonObject watch, List<String> path)
+            throws Exception {
+        settle(e, fileId);
+        int after = e.client.callMark("sim.watch", watch);
+        JsonObject v = e.client.awaitNotificationAfter(after, "sim.values", x -> path.isEmpty() != x.has("path"));
+        JsonObject o = new JsonObject();
+        o.add("nets", sorted(v.getAsJsonObject("nets")));
+        o.add("bodies", sorted(v.has("bodies") ? v.getAsJsonObject("bodies") : new JsonObject()));
+        return o;
+    }
+
+    /**
+     * 원조 시뮬레이터 스레드가 지금까지의 요청(Reset, 보기를 바꾸며 생긴 전파)을 모두 처리하고 전파를 마칠 때까지. 전파를
+     * 요청하고({@code requestPropagate}: 원조 GUI가 편집마다 하는 것, 끝난 회로에서는 아무것도 바꾸지 않음) 엔진
+     * 세션이 듣는 전파 완료 알림이 하나 더 오기를 기다리기를 세 번. 전파 분기의 알림은 큐가 빈 뒤에만 오고, Reset
+     * 분기의 알림(재설정 직후, 전파 전)은 밀린 Reset 하나에 한 번이며 첫째나 둘째 알림이다. 셋째 알림은 그 뒤의 전파
+     * 분기에서 오므로 첫 요청 앞의 모든 요청이 반영된 끝난 상태다. (원조 시뮬레이터의 청취자 목록은 스레드 안전하지
+     * 않아 여기서 청취자를 붙였다 떼지 않는다: 도는 중에 붙이면 원조 전파 스레드가 NPE로 죽는다.)
+     */
+    static void settle(InProcess e, String fileId) throws Exception {
+        Simulator sim = e.onEngine(() -> e.engine.files().get(fileId).project().getSimulator());
+        SimSession session = e.onEngine(() -> e.engine.sim(fileId));
+        for (int round = 0; round < 3; round++) {
+            long seen = session.propagations();
+            sim.requestPropagate();
+            long end = System.currentTimeMillis() + Client.TIMEOUT_MS;
+            while (session.propagations() == seen) {
+                if (System.currentTimeMillis() > end) {
+                    throw new AssertionError("the simulator did not complete a propagation");
+                }
+                Thread.sleep(1);
+            }
+        }
+    }
+
+    /** Reset에서 시작해 처음 값 전체와, 1 Cycle마다 앞 자리와 달라진 넷·몸체(CYCLES번). */
     private static List<JsonObject> cycleFrames(InProcess e, String fileId, String root, List<String> path,
-            String circuit) throws InterruptedException {
+            String circuit) throws Exception {
         int reset = e.client.mark();
         e.client.callObject("sim.reset", params("fileId", fileId));
         e.client.awaitNotificationAfter(reset, "sim.state", st -> st.get("cycle").getAsLong() == 0
                 && !st.get("ticking").getAsBoolean());
+        JsonObject watch = watchParams(fileId, root, path);
         List<JsonObject> frames = new ArrayList<>();
-        frames.add(firstFrame(e, fileId, root, path));
+        JsonObject full = firstFrame(e, fileId, root, path);
+        frames.add(full);
         for (int k = 1; k <= CYCLES; k++) {
             int mark = e.client.mark();
             e.client.callObject("sim.cycles", params("fileId", fileId, "n", 1));
             final long want = k;
             e.client.awaitNotificationAfter(mark, "sim.state", st -> st.get("cycle").getAsLong() >= want
                     && !st.get("ticking").getAsBoolean());
-            frames.add(merged(e, mark, circuit));
+            JsonObject next = settledFrame(e, fileId, watch, path);
+            frames.add(changed(full, next));
+            full = next;
         }
         return frames;
     }
 
-    /** mark 뒤에 온 sim.values를 겹친 것: {nets, bodies}. */
-    private static JsonObject merged(InProcess e, int mark, String circuitId) {
-        JsonObject nets = new JsonObject();
-        JsonObject bodies = new JsonObject();
-        for (JsonObject v : e.client.notificationsAfter(mark, "sim.values")) {
-            if (circuitId != null && !v.get("circuitId").getAsString().equals(circuitId)) {
-                continue;
-            }
-            for (Map.Entry<String, JsonElement> n : v.getAsJsonObject("nets").entrySet()) {
-                nets.add(n.getKey(), n.getValue());
-            }
-            if (v.has("bodies")) {
-                for (Map.Entry<String, JsonElement> b : v.getAsJsonObject("bodies").entrySet()) {
-                    bodies.add(b.getKey(), b.getValue());
+    /** now에서 before와 값이 다른(또는 새) 넷·몸체. */
+    static JsonObject changed(JsonObject before, JsonObject now) {
+        JsonObject o = new JsonObject();
+        for (String part : new String[] {"nets", "bodies"}) {
+            JsonObject b = before.getAsJsonObject(part);
+            JsonObject d = new JsonObject();
+            for (Map.Entry<String, JsonElement> x : now.getAsJsonObject(part).entrySet()) {
+                if (!x.getValue().equals(b.get(x.getKey()))) {
+                    d.add(x.getKey(), x.getValue());
                 }
             }
+            o.add(part, sorted(d));
         }
-        JsonObject o = new JsonObject();
-        o.add("nets", sorted(nets));
-        o.add("bodies", sorted(bodies));
         return o;
     }
 
