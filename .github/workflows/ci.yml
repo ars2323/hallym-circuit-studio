@@ -345,10 +345,11 @@ jobs:
           tools/windows/check-install.ps1 -Phase over -Older (Get-Item setup-earlier/*-setup.exe).FullName -OlderVersion 1.99.0 -Setup (Get-Item setup/*-setup.exe).FullName -Version $v -Report report
       # D-155: after the checks above, which count what is left on the PC (the screen is read here with PowerShell).
       # The first screen's video as the screen shows it, tinted toward the navy and blurred, at 1920x1080 100/125/150 %
-      # (and the still under reduced motion): installed silently, measured, uninstalled silently.
-      - name: The installed program's first screen on the screen at 100/125/150 % (tests/e2e/windows-start.e2e.ts)
+      # (and the still under reduced motion); then pictures of the installed program with its real engine (the first
+      # screen, About's engine line, demo-datapath after 1 Cycle): installed silently, measured, uninstalled silently.
+      - name: The installed program's first screen on the screen at 100/125/150 %, and its pictures (tests/e2e/windows-start.e2e.ts)
         if: ${{ !cancelled() }}
-        timeout-minutes: 10
+        timeout-minutes: 12
         run: |
           $p = Start-Process (Get-Item setup/*-setup.exe).FullName -ArgumentList '/S' -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "silent install: exit $($p.ExitCode)" }
@@ -380,12 +381,16 @@ jobs:
         if: ${{ !cancelled() }}
         timeout-minutes: 8
         run: tools/windows/check-installer-ui.ps1 -Setup (Get-Item setup/*-setup.exe).FullName -Report report/installer
-      # The installer's, finish and uninstaller's pages as pictures (every run; a tag run's are the release's).
+      # Pictures (every run, so a tag run's and a workflow_dispatch run's are the release's): the installer's progress,
+      # finish and uninstaller's pages and the program 마침 started; the installed program with its real engine.
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
-          name: installer-screens
-          path: electron/report/installer/*.png
+          name: windows-screens
+          path: |
+            electron/report/installer/*.png
+            electron/report/installer/*.jpg
+            electron/report/installed-screens/
           if-no-files-found: warn
       - name: Sizes and times (the job summary)
         if: always()

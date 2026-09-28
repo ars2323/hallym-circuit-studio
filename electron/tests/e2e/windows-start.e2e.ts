@@ -11,14 +11,21 @@
 
    Apart from installed.e2e.ts, whose runs count what is left on the PC:
    the screen is read here with PowerShell (which writes its own caches) --
-   so this file's name does not match that step's filter ("installed"). */
+   so this file's name does not match that step's filter ("installed").
+
+   Then pictures of the installed program with its REAL engine (every run,
+   so a tag run's are the release's; CI uploads them as windows-screens):
+   the first screen, About with the engine's line (hcs-engine · Logisim
+   2.7.1 · Java 21), demo-datapath after 1 Cycle with its values -- into
+   $HCS_E2E_REPORT/installed-screens/, each 1.5 MB or less. */
 
 import { _electron, expect, test, type ElectronApplication, type Page } from '@playwright/test';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { compare, groundRect, rawPixels, screenPixels } from './backdrop-measure.ts';
-import { resize, type Running } from './harness.ts';
+import { answerOpen, canvasSettled, DATAPATH, repo, resize, type Running } from './harness.ts';
+import { engineHello } from './model.ts';
 
 const exe = process.env.HCS_E2E_EXE;
 const report = path.resolve(process.env.HCS_E2E_REPORT ?? 'report');
@@ -77,3 +84,61 @@ for (const [scale, size] of [[1, { width: 1920, height: 1032 }], [1.25, { width:
     }
   });
 }
+
+// A picture of the window: PNG, or JPEG when a PNG would be over 1.5 MB (the first screen's video is a photo).
+const MAX_PICTURE = 1536 * 1024;
+async function picture(page: Page, dir: string, name: string): Promise<string> {
+  await page.mouse.move(-10, -10);
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  await page.waitForTimeout(400);
+  let file = path.join(dir, `${name}.png`);
+  await page.screenshot({ path: file });
+  if (statSync(file).size > MAX_PICTURE) {
+    file = path.join(dir, `${name}.jpg`);
+    await page.screenshot({ path: file, type: 'jpeg', quality: 85 });
+  }
+  expect(statSync(file).size, file).toBeLessThanOrEqual(MAX_PICTURE);
+  console.log(`picture: ${path.basename(file)} (${Math.round(statSync(file).size / 1024)} KB)`);
+  return file;
+}
+
+test('installed: pictures with the real engine -- the first screen, About (hcs-engine, Logisim 2.7.1, Java 21), demo-datapath after 1 Cycle', async () => {
+  test.setTimeout(180_000);
+  const dir = path.join(report, 'installed-screens');
+  mkdirSync(dir, { recursive: true });
+  const r = await start(1, { width: 1920, height: 1032 });
+  const { app, page } = r;
+  try {
+    await expect.poll(() => engineHello(app), { timeout: 60_000 }).toMatchObject({ engine: 'hcs-engine', logisim: '2.7.1', java: expect.stringMatching(/^21\b/) });
+    // The first screen, its video held at 3.0 s (as tools/capture-screens.ts); the runner shows it whatever its animation setting.
+    await page.waitForSelector('.wback.playing', { timeout: 30_000 });
+    await page.evaluate(() => new Promise<void>((done) => {
+      const v = document.querySelector('.wback video') as HTMLVideoElement;
+      v.pause();
+      v.addEventListener('seeked', () => requestAnimationFrame(() => requestAnimationFrame(() => done())), { once: true });
+      v.currentTime = 3;
+    }));
+    await picture(page, dir, 'installed-start');
+    // About: the engine's line says the real engine and the bundled Java.
+    await page.getByTitle('About').click();
+    const line = page.locator('dialog.about p.hint', { hasText: /^Engine / });
+    await expect(line).toHaveText(/^Engine hcs-engine \S+ · Logisim 2\.7\.1 · Java 21\b/, { timeout: 30_000 });
+    await picture(page, dir, 'installed-about');
+    await page.locator('dialog.about').getByRole('button', { name: 'Close' }).click();
+    // A circuit with the MIPS library, after one clock cycle: its values drawn by the real engine.
+    const work = path.join(path.dirname(report), 'test-results', 'windows-screens');
+    mkdirSync(work, { recursive: true });
+    const file = path.join(work, 'demo-datapath.circ');
+    copyFileSync(path.join(repo, DATAPATH), file);
+    await answerOpen(app, file);
+    await page.keyboard.press('Control+o');
+    await page.locator('.filebar .ptab', { hasText: 'demo-datapath.circ' }).waitFor({ timeout: 60_000 });
+    await page.locator('.canvas .canvas-view canvas').waitFor();
+    await page.keyboard.press('F10');
+    await expect(page.locator('.status')).toContainText('Cycle 1', { timeout: 30_000 });
+    await canvasSettled(page);
+    await picture(page, dir, 'installed-cycle-1');
+  } finally {
+    await r.close();
+  }
+});

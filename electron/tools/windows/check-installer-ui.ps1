@@ -23,7 +23,7 @@
   끝났습니다", the same band), as Settings > Apps does.  Pictures, in <Report>:
     installer-progress.png  the progress page
     installer-finish.png    the finish page
-    installer-started.png   the program 마침 started (its first screen)
+    installer-started.jpg   the program 마침 started (its first screen; JPEG: a photo)
     uninstaller-finish.png  the uninstaller's finish page
 
   Usage (CI, with nothing of ours installed):
@@ -91,7 +91,8 @@ function Shot([IntPtr]$h, [string]$name) {
   $bmp = New-Object System.Drawing.Bitmap $w, $hgt
   $g = [System.Drawing.Graphics]::FromImage($bmp)
   $g.CopyFromScreen($r.Left, $r.Top, 0, 0, $bmp.Size)
-  $bmp.Save((Join-Path $Report $name), [System.Drawing.Imaging.ImageFormat]::Png)
+  $format = if ($name -like '*.jpg') { [System.Drawing.Imaging.ImageFormat]::Jpeg } else { [System.Drawing.Imaging.ImageFormat]::Png }
+  $bmp.Save((Join-Path $Report $name), $format)
   $g.Dispose(); $bmp.Dispose()
   Note "picture: $name (${w}x${hgt})"
 }
@@ -206,7 +207,7 @@ if ($finish) {
   if ($app) {
     Start-Sleep -Seconds 6 # the first screen's video playing
     $app.Refresh()
-    Shot $app.MainWindowHandle 'installer-started.png'
+    Shot $app.MainWindowHandle 'installer-started.jpg'
     # What this launch shows behind the card -- the video, or the still:
     # Windows' "animation effects" (SPI_GETCLIENTAREAANIMATION) is what
     # prefers-reduced-motion follows; and whether the picture moves.
