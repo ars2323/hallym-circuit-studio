@@ -163,6 +163,13 @@ jobs:
         run: |
           npm run build:ui
           HCS_JAVA="$GITHUB_WORKSPACE/engine/build/runtime/bin/java" xvfb-run -a -s '-screen 0 2400x1400x24' npx playwright test real-engine
+      # N-22(D-160): the v2 performance goals on the bundled runtime (tools/perf.ts): the start, ref-mips open, pan and zoom
+      # at display 100/150 %, N Cycles 1000 with factorial.hmx against v1, Run at 4 kHz. The table in the log and the job
+      # summary, engine/build/perf-linux.json in the artifact; fails only over a goal's CI limit (tools/perf-goals.ts).
+      - name: Performance goals (Linux, tools/perf.ts)
+        if: runner.os == 'Linux'
+        working-directory: electron
+        run: HCS_JAVA="$GITHUB_WORKSPACE/engine/build/runtime/bin/java" xvfb-run -a -s '-screen 0 2400x1400x24' node tools/perf.ts --runs 3 --json ../engine/build/perf-linux.json
       - name: The window with the real engine on the bundled runtime (Windows, crash recovery and no orphan)
         if: runner.os == 'Windows'
         shell: bash
@@ -178,6 +185,8 @@ jobs:
           path: |
             engine/build/distributions/hcs-runtime-*.zip
             engine/build/engine-runtime-measure.json
+            engine/build/perf-linux.json
+          if-no-files-found: ignore
       - name: e2e results
         if: failure()
         uses: actions/upload-artifact@v4
@@ -367,6 +376,29 @@ jobs:
             $exe = [regex]::Match($e.QuietUninstallString, '"([^"]+)"').Groups[1].Value
             $uargs = ($e.QuietUninstallString -replace '"[^"]+"', '').Trim()
             Start-Process $exe -ArgumentList $uargs -Wait
+          }
+          Start-Sleep -Seconds 5
+          exit $code
+      # N-22(D-160): the v2 performance goals on the installed program (tools/perf.ts): starts, ref-mips open, pan and zoom
+      # at display 100/150 %, N Cycles 1000 with factorial.hmx against v1, Run at 4 kHz, with the checks' sizes
+      # (report/install.json) and first start after the install (report/launch.json). Installed silently, measured,
+      # uninstalled silently; the table in the job summary, report/perf.json in setup-e2e-report. Frames and Run are
+      # report-only here (no GPU on the runner); the rest fails only over its CI limit (tools/perf-goals.ts).
+      - name: Performance goals on the installed program (tools/perf.ts)
+        if: ${{ !cancelled() }}
+        timeout-minutes: 15
+        run: |
+          $p = Start-Process (Get-Item setup/*-setup.exe).FullName -ArgumentList '/S' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "silent install: exit $($p.ExitCode)" }
+          $exe = Join-Path $env:LOCALAPPDATA 'Programs\Hallym Circuit Studio\HallymCircuitStudio.exe'
+          node tools/perf.ts --exe $exe --runs 3 --install-json report/install.json --launch-json report/launch.json --json report/perf.json
+          $code = $LASTEXITCODE
+          Get-Process HallymCircuitStudio, java -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$env:LOCALAPPDATA\Programs\Hallym Circuit Studio\*" } | Stop-Process -Force
+          $entry = Get-ChildItem 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall' | ForEach-Object { Get-ItemProperty $_.PSPath } | Where-Object { $_.DisplayName -like 'Hallym Circuit Studio *' }
+          foreach ($e in @($entry)) {
+            $uexe = [regex]::Match($e.QuietUninstallString, '"([^"]+)"').Groups[1].Value
+            $uargs = ($e.QuietUninstallString -replace '"[^"]+"', '').Trim()
+            Start-Process $uexe -ArgumentList $uargs -Wait
           }
           Start-Sleep -Seconds 5
           exit $code

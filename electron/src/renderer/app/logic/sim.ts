@@ -27,6 +27,14 @@ export interface SimFact { cls: '' | 'run' | 'err' | 'warn'; text: string }
 // Something is going: the clock ticks, or N Cycles has cycles left.
 export const going = (s: SimState | null | undefined): boolean => !!s && (s.ticking || (s.cyclesLeft ?? 0) > 0);
 
+/* Only the count moved (N-22, D-160): the clock or N Cycles went on -- the cycle, the cycles left -- and nothing
+   else the window shows from the state did (on/off, the clock ticking, oscillation, the speed, Run or Stop).  The
+   engine says so up to once a frame while it runs; the status bar alone then changes, not the whole window
+   (redrawing every panel each frame made Run at 4 kHz stutter on ref-mips: 9 frames a second). */
+export const countOnly = (before: SimState | null | undefined, now: SimState): boolean => !!before && before.fileId === now.fileId
+  && before.running === now.running && before.ticking === now.ticking && before.oscillating === now.oscillating
+  && before.hz === now.hz && going(before) === going(now);
+
 export const runLabel = (s: SimState | null | undefined): 'Run' | 'Stop' => (going(s) ? 'Stop' : 'Run');
 
 // The status bar's facts for a file's simulation (null state: nothing yet).

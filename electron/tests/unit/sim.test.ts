@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import type { SimState } from '../../src/main/protocol.ts';
-import { CYCLES_DEFAULT, CYCLES_MAX, FREQUENCIES, going, parseCycles, resetTurnsOn, runLabel, simBand, simFacts, speedName } from '../../src/renderer/app/logic/sim.ts';
+import { countOnly, CYCLES_DEFAULT, CYCLES_MAX, FREQUENCIES, going, parseCycles, resetTurnsOn, runLabel, simBand, simFacts, speedName } from '../../src/renderer/app/logic/sim.ts';
 
 const st = (over: Partial<SimState> = {}): SimState => ({ fileId: 'f1', running: true, ticking: false, cycle: 0, oscillating: false, hz: 1, ...over });
 const texts = (s: SimState) => simFacts(s).map((f) => f.text);
@@ -63,4 +63,21 @@ test('parseCycles: 1 to 100000, spaces and separators ignored, anything else ref
   assert.deepEqual(parseCycles('100_000'), { n: CYCLES_MAX });
   assert.equal(CYCLES_DEFAULT, 10);
   for (const bad of ['', '0', '100001', '-3', '1.5', '1e3', 'ten', '0x10']) assert.ok('error' in parseCycles(bad), bad);
+});
+
+// N-22, D-160: while the clock runs, the engine's sim.state up to once a frame only moves the count -- the status bar
+// alone is drawn again; anything else the window shows from the state (Run/Stop, the band, the speed) draws it all.
+test('countOnly: the cycle and the cycles left moved, nothing else', () => {
+  assert.equal(countOnly(st({ ticking: true, cycle: 5 }), st({ ticking: true, cycle: 9 })), true);
+  assert.equal(countOnly(st({ cyclesLeft: 900, cycle: 100 }), st({ cyclesLeft: 400, cycle: 600 })), true);
+  assert.equal(countOnly(st({ cycle: 5 }), st({ cycle: 5 })), true);
+  assert.equal(countOnly(undefined, st()), false, 'the first state: all of it');
+  assert.equal(countOnly(null, st()), false);
+  assert.equal(countOnly(st({ fileId: 'f2' }), st()), false, 'another file');
+  assert.equal(countOnly(st({ ticking: true }), st({ ticking: false })), false, 'Run became Stop');
+  assert.equal(countOnly(st({ cyclesLeft: 1, cycle: 999 }), st({ cyclesLeft: 0, cycle: 1000 })), false, 'N Cycles ended: Stop is Run again');
+  assert.equal(countOnly(st(), st({ cyclesLeft: 10 })), false, 'N Cycles began');
+  assert.equal(countOnly(st(), st({ running: false })), false, 'switched off: the band');
+  assert.equal(countOnly(st(), st({ oscillating: true })), false, 'an oscillation');
+  assert.equal(countOnly(st({ hz: 1 }), st({ hz: 64 })), false, 'another speed');
 });
