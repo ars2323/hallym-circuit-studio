@@ -161,6 +161,8 @@ export const ALLOWED: Allowed[] = [
   { where: 'registry', what: ['added', 'changed'], in: ALL, data: /^REG_BINARY [0-9A-F]{16}$/,
     path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings :: QuietHoursTelemetryLastRun$/,
     why: 'the notification platform\'s quiet-hours telemetry time (a time only), written once a session 1 to 8 s after an app\'s window first comes up (seen after the program\'s first start in both setup-upgrade runs of 2026-09-28)' },
+  { where: 'files', what: ['changed'], in: ALL, path: new RegExp(`^${SEARCH}Settings\\\\settings\\.dat\\.LOG[12]$`),
+    why: 'the log of Windows Search\'s own settings hive, written when a program newly in the Start menu is first opened (seen on first runs after an install only, never on a second run)' },
   { where: 'files', what: ['changed'], in: ALL, path: /^LOCALAPPDATA\\Microsoft\\Windows\\UsrClass\.dat(\.LOG[12])?$/,
     why: 'the files of the HKCU\\Software\\Classes hive (the registry itself is compared key by key)' },
   // ---- an install or an uninstall: Windows' own stores, which Windows changes when any program is installed or

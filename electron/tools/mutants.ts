@@ -337,6 +337,8 @@ export const MUTANTS: Mutant[] = [
     find: 'for (const f of files) for (const c of f.changes)', replace: 'for (const f of files.slice(0, 1)) for (const c of f.changes)', tests: ['tests/unit/state.test.ts'] },
   { module: 'state', file: 'tools/windows/state.ts', what: 'a snapshot in the report folder taken for a control period\'s noise',
     find: 'export const NOISE_FILE = /^noise-.+\\.json$/;', replace: 'export const NOISE_FILE = /\\.json$/;', tests: ['tests/unit/state.test.ts'] },
+  { module: 'state', file: 'tools/windows/state.ts', what: 'Windows Search\'s whole settings folder taken for its hive\'s log',
+    find: 'Settings\\\\\\\\settings\\\\.dat\\\\.LOG[12]$', replace: 'Settings\\\\\\\\.*$', tests: ['tests/unit/state.test.ts'] },
   { module: 'state', file: 'tools/windows/state.ts', what: 'any data taken for the quiet-hours telemetry time',
     find: 'data: /^REG_BINARY [0-9A-F]{16}$/,', replace: '', tests: ['tests/unit/state.test.ts'] },
   { module: 'state', file: 'tools/windows/state.ts', what: 'any file beside the Classes hive taken for its files',

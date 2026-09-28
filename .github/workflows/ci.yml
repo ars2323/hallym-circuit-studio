@@ -278,6 +278,13 @@ jobs:
             try { $t | Disable-ScheduledTask -ErrorAction Stop | Out-Null; "disabled: $($t.TaskPath)$($t.TaskName) (runs as $($t.Principal.UserId)$($t.Principal.GroupId))" }
             catch { "not disabled: $($t.TaskPath)$($t.TaskName) ($($_.Exception.Message.Trim()))" }
           }
+          # Disabling does not end an instance already running (seen: WinINet's CacheTask flushing WebCache mid-run): ended too.
+          foreach ($t in $session) {
+            if ((Get-ScheduledTask -TaskPath $t.TaskPath -TaskName $t.TaskName -ErrorAction SilentlyContinue).State -eq 'Running') {
+              try { Stop-ScheduledTask -TaskPath $t.TaskPath -TaskName $t.TaskName -ErrorAction Stop; "ended: $($t.TaskPath)$($t.TaskName)" }
+              catch { "not ended: $($t.TaskPath)$($t.TaskName) ($($_.Exception.Message.Trim()))" }
+            }
+          }
           Get-ScheduledTask | Where-Object State -eq 'Running' | ForEach-Object { "running: $($_.TaskPath)$($_.TaskName)" }
           Get-Process -Name 'firefox', 'default-browser-agent', 'GoogleUpdate', 'MicrosoftEdgeUpdate' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
           Set-Service -Name wlidsvc -StartupType Disabled -ErrorAction SilentlyContinue
@@ -402,6 +409,13 @@ jobs:
           foreach ($t in $session) {
             try { $t | Disable-ScheduledTask -ErrorAction Stop | Out-Null; "disabled: $($t.TaskPath)$($t.TaskName) (runs as $($t.Principal.UserId)$($t.Principal.GroupId))" }
             catch { "not disabled: $($t.TaskPath)$($t.TaskName) ($($_.Exception.Message.Trim()))" }
+          }
+          # Disabling does not end an instance already running (seen: WinINet's CacheTask flushing WebCache mid-run): ended too.
+          foreach ($t in $session) {
+            if ((Get-ScheduledTask -TaskPath $t.TaskPath -TaskName $t.TaskName -ErrorAction SilentlyContinue).State -eq 'Running') {
+              try { Stop-ScheduledTask -TaskPath $t.TaskPath -TaskName $t.TaskName -ErrorAction Stop; "ended: $($t.TaskPath)$($t.TaskName)" }
+              catch { "not ended: $($t.TaskPath)$($t.TaskName) ($($_.Exception.Message.Trim()))" }
+            }
           }
           Get-ScheduledTask | Where-Object State -eq 'Running' | ForEach-Object { "running: $($_.TaskPath)$($_.TaskName)" }
           Get-Process -Name 'firefox', 'default-browser-agent', 'GoogleUpdate', 'MicrosoftEdgeUpdate' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue

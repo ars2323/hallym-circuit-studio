@@ -158,6 +158,7 @@ test('any check: only the records Windows keeps of any program that starts, at t
     ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\WinTrust\\Trust Providers\\Software Publishing :: State', 'REG_DWORD 0x23c00'),
     ch('temp', 'added', 'TEMP\\playwright-artifacts-Zpo2Y7', 'dir'),
     ch('files', 'changed', `${SEARCH}\\LocalState\\AppIconCache\\100\\kr_ac_hallym_circuit-studio`),
+    ch('files', 'changed', `${SEARCH}\\Settings\\settings.dat.LOG2`),
     ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings :: QuietHoursTelemetryLastRun', 'REG_BINARY 7736BA6A00000000'),
     ch('registry', 'changed', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings :: QuietHoursTelemetryLastRun', 'REG_BINARY E035BA6A00000000'),
   ];
@@ -169,13 +170,15 @@ test('any check: only the records Windows keeps of any program that starts, at t
     ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\RunNotification :: SecurityHealth', 'REG_DWORD 0x0'),
     ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings\\Windows.SystemToast.StartupApp', 'key'),
     ch('registry', 'removed', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\WinTrust'),
-    ch('files', 'changed', `${SEARCH}\\Settings\\settings.dat.LOG2`),
+    ch('files', 'changed', 'LOCALAPPDATA\\Microsoft\\Windows\\WebCache\\WebCacheV01.dat'),
   ]) assert.equal(counts(c, 'none'), true, `${c.what} ${c.path}`);
   // Their neighbours count.
   for (const c of [
     ch('files', 'changed', 'LOCALAPPDATA\\Microsoft\\Windows\\UsrClass.dat.LOG3'),
     ch('files', 'added', 'LOCALAPPDATA\\Microsoft\\Windows\\UsrClass.dat.LOG1'),
     ch('files', 'removed', 'LOCALAPPDATA\\Microsoft\\Windows\\UsrClass.dat'),
+    ch('files', 'changed', `${SEARCH}\\Settings\\settings.dat`),
+    ch('files', 'added', `${SEARCH}\\Settings\\settings.dat.LOG3`),
     ch('files', 'changed', 'LOCALAPPDATA\\Microsoft\\Windows\\Explorer\\iconcache_32.db'),
     ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Spelling\\Dictionaries', 'key'),                // a language opened
     ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Spelling :: x', 'REG_SZ y'),
@@ -195,18 +198,18 @@ test('any check: only the records Windows keeps of any program that starts, at t
 });
 
 test('Windows\' noise, measured: a place that changed in a control period does not count in the checked period, exactly that place, in any check', () => {
-  const SETTINGS = `${SEARCH}\\Settings\\settings.dat.LOG2`;
+  const WEBCACHE = 'LOCALAPPDATA\\Microsoft\\Windows\\WebCache\\WebCacheV01.dat';
   const RUN = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\RunNotification :: SecurityHealth';
   const WALLPAPER = 'APPDATA\\Microsoft\\Windows\\Themes\\CachedFiles\\CachedImage_1920_1080_POS4.jpg';
   const AGENT = 'HKCU\\Software\\Vendor\\Agent :: LastRun';
-  const a = state({ files: { [SETTINGS]: '24576 5' }, registry: { [AGENT]: 'REG_SZ 1' }, taken: 't1' });
-  const b = state({ files: { [SETTINGS]: '49152 5', [WALLPAPER]: '124996 7' }, registry: { [RUN]: 'REG_DWORD 0x0' }, taken: 't2' });
+  const a = state({ files: { [WEBCACHE]: '24576 5' }, registry: { [AGENT]: 'REG_SZ 1' }, taken: 't1' });
+  const b = state({ files: { [WEBCACHE]: '49152 5', [WALLPAPER]: '124996 7' }, registry: { [RUN]: 'REG_DWORD 0x0' }, taken: 't2' });
   const measured = measureNoise('first-run', a, b);
   assert.deepEqual({ ...measured, changes: measured.changes.map((c) => `${c.what} ${c.path}`) },
-    { name: 'first-run', from: 't1', to: 't2', changes: [`added ${WALLPAPER}`, `changed ${SETTINGS}`, `added ${RUN}`, `removed ${AGENT}`] });
+    { name: 'first-run', from: 't1', to: 't2', changes: [`added ${WALLPAPER}`, `changed ${WEBCACHE}`, `added ${RUN}`, `removed ${AGENT}`] });
   const noise = noiseOf([measured]);
   // In both the control period and the run: not counted, and said so -- whatever the kind of change in the run.
-  for (const c of [ch('files', 'changed', SETTINGS), ch('files', 'removed', SETTINGS), ch('registry', 'changed', RUN, 'REG_DWORD 0x3')]) {
+  for (const c of [ch('files', 'changed', WEBCACHE), ch('files', 'removed', WEBCACHE), ch('registry', 'changed', RUN, 'REG_DWORD 0x3')]) {
     assert.equal(counts(c, 'none'), true, `${c.path} without the noise`);
     assert.deepEqual(judge(c, 'none', noise), { kind: 'noise', control: 'first-run' }, c.path);
   }
@@ -218,17 +221,17 @@ test('Windows\' noise, measured: a place that changed in a control period does n
   }
   // Only there: its folder, its neighbours, another value of that key, the key itself, the same path in another place count.
   for (const c of [
-    ch('files', 'changed', `${SEARCH}\\Settings\\settings.dat.LOG1`),
-    ch('files', 'added', `${SEARCH}\\Settings\\x`),
-    ch('files', 'changed', `${SEARCH}\\Settings`, '1 1'),
+    ch('files', 'changed', 'LOCALAPPDATA\\Microsoft\\Windows\\WebCache\\WebCacheV01.jfm'),
+    ch('files', 'added', 'LOCALAPPDATA\\Microsoft\\Windows\\WebCache\\x'),
+    ch('files', 'changed', 'LOCALAPPDATA\\Microsoft\\Windows\\WebCache', '1 1'),
     ch('files', 'added', 'APPDATA\\Microsoft\\Windows\\Themes\\CachedFiles\\CachedImage_1920_1080_POS5.jpg'),
     ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\RunNotification :: AzureArcSetup', 'REG_DWORD 0x0'),
     ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\RunNotification', 'key'),
     ch('registry', 'added', 'HKCU\\Software\\Vendor\\Agent', 'key'),
-    ch('temp', 'changed', SETTINGS),
+    ch('temp', 'changed', WEBCACHE),
   ]) assert.equal(counts(c, 'none', noise), true, `${c.what} ${c.where} ${c.path}`);
-  assert.deepEqual(unexpected([ch('files', 'changed', SETTINGS), ch('files', 'changed', `${SEARCH}\\Settings\\settings.dat.LOG1`)], 'none', noise).map((c) => c.path),
-    [`${SEARCH}\\Settings\\settings.dat.LOG1`]);
+  assert.deepEqual(unexpected([ch('files', 'changed', WEBCACHE), ch('files', 'changed', 'LOCALAPPDATA\\Microsoft\\Windows\\WebCache\\WebCacheV01.jfm')], 'none', noise).map((c) => c.path),
+    ['LOCALAPPDATA\\Microsoft\\Windows\\WebCache\\WebCacheV01.jfm']);
 });
 
 test('noise never covers a change that names this program, nor a new file in %APPDATA%, %LOCALAPPDATA% or %TEMP% at a place it did not measure', () => {
