@@ -10,9 +10,15 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.lang.management.LockInfo;
+import java.lang.management.ManagementFactory;
+import java.lang.management.MonitorInfo;
+import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.BooleanSupplier;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -84,7 +90,8 @@ class RecorderEditRaceTest {
             }
             // 스레드가 살아 있다: 편집을 멈춘 뒤에도 기록이 늘어난다
             int last = rec.current().last();
-            RecorderTest.waitFor(() -> rec.current().last() > last + 4, "steps after the edits");
+            waitOrDump(() -> rec.current().last() > last + 4, "steps after the edits (" + edits + " edits)", sim,
+                    rec);
             assertTrue(edits >= 50, "only " + edits + " edits");
             assertTrue(uncaught.isEmpty(), String.join("\n", uncaught));
             diags.detach();
@@ -93,5 +100,55 @@ class RecorderEditRaceTest {
             sim.shutDown();
             Thread.setDefaultUncaughtExceptionHandler(before);
         }
+    }
+
+    /** ok가 참이 될 때까지(10초) 기다린다. 못 기다리면 시뮬레이터·기록 상태와 모든 스레드의 덤프를 실패 문구에 담는다. */
+    static void waitOrDump(BooleanSupplier ok, String what, Simulator sim, Recorder rec) throws Exception {
+        long end = System.currentTimeMillis() + 10_000;
+        while (!ok.getAsBoolean()) {
+            if (System.currentTimeMillis() > end) {
+                Recording r = rec.current();
+                String state = "timed out: " + what + "\nsimulator running=" + sim.isRunning() + " ticking="
+                        + sim.isTicking() + " exceptionEncountered=" + sim.isExceptionEncountered() + " hz="
+                        + sim.getTickFrequency() + "; recording "
+                        + (r == null ? "null" : "first=" + r.first() + " last=" + r.last() + " cursor=" + r.cursor())
+                        + "\n" + threadDump();
+                System.err.println(state);
+                throw new AssertionError(state);
+            }
+            Thread.sleep(10);
+        }
+    }
+
+    /** 모든 스레드: 상태, 기다리는 잠금과 그 임자, 스택, 쥔 모니터·잠금. 교착이면 그 스레드들도. */
+    static String threadDump() {
+        ThreadMXBean mx = ManagementFactory.getThreadMXBean();
+        StringBuilder b = new StringBuilder("--- thread dump ---\n");
+        for (ThreadInfo t : mx.dumpAllThreads(true, true)) {
+            b.append('"').append(t.getThreadName()).append("\" ").append(t.getThreadState());
+            if (t.getLockName() != null) {
+                b.append(" on ").append(t.getLockName());
+            }
+            if (t.getLockOwnerName() != null) {
+                b.append(" owned by \"").append(t.getLockOwnerName()).append('"');
+            }
+            b.append('\n');
+            StackTraceElement[] st = t.getStackTrace();
+            for (int i = 0; i < st.length; i++) {
+                b.append("\tat ").append(st[i]).append('\n');
+                for (MonitorInfo m : t.getLockedMonitors()) {
+                    if (m.getLockedStackDepth() == i) {
+                        b.append("\t- locked ").append(m).append('\n');
+                    }
+                }
+            }
+            for (LockInfo l : t.getLockedSynchronizers()) {
+                b.append("\t- holds ").append(l).append('\n');
+            }
+            b.append('\n');
+        }
+        long[] dead = mx.findDeadlockedThreads();
+        b.append("deadlocked threads: ").append(dead == null ? 0 : dead.length).append('\n');
+        return b.toString();
     }
 }
