@@ -91,6 +91,7 @@ export const windowsContainer = (c: Change): boolean => c.what === 'added' && (
                                        installer asks PowerShell whether the program is running
      Store apps' data (Packages)       Windows Search re-indexes the Start menu's programs
      the shell's caches                icons, the desktop wallpaper at a new screen size
+     the notification platform         its database notes the Start menu's programs
      Windows' spelling word lists      %APPDATA%\Microsoft\Spelling\<language>\default.*: the
                                        system spell checker's per-user lists, shared by every
                                        program that checks spelling; Chromium opens it at its
@@ -102,6 +103,7 @@ export const WINDOWS_OWN: [RegExp, string][] = [
   [/^LOCALAPPDATA\\Microsoft\\(Windows\\)?PowerShell\\/i, 'PowerShell\'s startup cache'],
   [/^LOCALAPPDATA\\Packages\\/i, 'Store apps\' data (Windows Search)'],
   [/^LOCALAPPDATA\\Microsoft\\Windows\\Caches\\/i, 'the shell\'s caches'],
+  [/^LOCALAPPDATA\\Microsoft\\Windows\\Notifications\\/i, 'the notification platform\'s database'],
   [/^APPDATA\\Microsoft\\Windows\\Themes\\/i, 'the desktop wallpaper\'s cache'],
   [/^APPDATA\\Microsoft\\Spelling(\\|$)/i, 'Windows\' spelling word lists'],
 ];

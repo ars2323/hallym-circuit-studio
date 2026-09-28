@@ -17,7 +17,7 @@
 ## 조교·실습실 관리자용
 
 - **설치 위치:** 사용자마다 `%LOCALAPPDATA%\Programs\Hallym Circuit Studio`. 설치 파일이 쓰는 것은 이 폴더, 시작 메뉴 바로 가기(`%APPDATA%\Microsoft\Windows\Start Menu\Programs\Hallym Circuit Studio.lnk`), `HKCU`의 제거 항목(`Software\Microsoft\Windows\CurrentVersion\Uninstall\eb84d729-7626-52ce-aff8-71eda9d27e59`)과 그 옆 설치 기록(`Software\eb84d729-7626-52ce-aff8-71eda9d27e59`: 설치 위치, 덮어 설치에 씀)뿐이다. 바탕 화면 바로 가기, 파일 연결, 자동 업데이트, 설치 파일 사본은 없다.
-- **조용한 설치·제거:** `HallymCircuitStudio-<버전>-win-x64-setup.exe /S`. 제거는 제거 항목의 `QuietUninstallString`(`"...\Uninstall Hallym Circuit Studio.exe" /currentuser /S`).
+- **조용한 설치·제거:** `HallymCircuitStudio-<버전>-win-x64-setup.exe /S`. 제거는 제거 항목의 `QuietUninstallString`(`"...\Uninstall HallymCircuitStudio.exe" /currentuser /S`).
 - **실행해도 남는 것이 없다:** 프로그램은 설정을 기억하지 않는다. 실행하는 동안 `%TEMP%\HallymCircuitStudio\run-<pid>-<시각>`을 쓰고 끝나면 지운다. 레지스트리(`HKCU\Software\JavaSoft\Prefs` 포함), `%APPDATA%`, `%LOCALAPPDATA%`(설치 폴더 밖)에 쓰지 않는다. CI가 설치본을 실행해 확인한다(`setup-e2e`).
 - **복원 소프트웨어가 있는 PC:** 사용자별 설치가 재부팅 때 지워지는 PC에서는 설치 파일을 공용 폴더에 두고 매번 `/S`로 설치하거나, 복원 기준 이미지에 설치해 둔다.
 - **예전 MSI를 관리자가 모든 사용자용으로 설치했다면:** 새 설치 파일은 관리자 권한을 쓰지 않으므로 그것을 지우지 못하고 "설정 › 앱에서 다음 항목을 직접 제거하세요: HallymCircuitStudio" 안내를 띄운다(새 버전은 설치된다). 관리자가 `msiexec /x {145CACD7-ADE5-3DF4-8496-7C4ACF95DF62} /qn`(1.0.2)처럼 지운다.
