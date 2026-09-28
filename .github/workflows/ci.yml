@@ -156,7 +156,7 @@ jobs:
           HCS_E2E_REAL_ENGINE: '1'
         run: |
           npm run build:ui
-          HCS_JAVA="$GITHUB_WORKSPACE/engine/build/runtime/bin/java.exe" npx playwright test real-engine -g "ended by a crash|killed after edits|no orphan java"
+          HCS_JAVA="$GITHUB_WORKSPACE/engine/build/runtime/bin/java.exe" npx playwright test real-engine -g "ended by a crash|killed after edits|no orphan java|the app killed"
       - uses: actions/upload-artifact@v4
         with:
           name: engine-runtime-${{ runner.os }}

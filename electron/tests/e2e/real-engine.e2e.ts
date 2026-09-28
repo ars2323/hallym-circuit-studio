@@ -18,6 +18,7 @@ import type { Snapshot } from '../../src/main/protocol.ts';
 import { answerOpen, answerSave, canvasSettled, DATAPATH, INSIDE_PIN_VALUES, launch, newCircuit, openFile, PARENT_PORT_VALUES, repo, sample, type LaunchOptions } from './harness.ts';
 import { alive, call, circuitsOf, enginePid, fileModel, journalLength, killEngine, killMainAndSeeEngineEnd, openFileIds } from './model.ts';
 import { click, menu, opened, partMiddle, rightClick, shown, wireAtPort } from './overlay-helpers.ts';
+import { changeEverySetting, settingsNow } from './settings.ts';
 
 const JAR = path.join(repo, 'engine/build/stage/hcs-engine.jar');
 const real: LaunchOptions['env'] = { HCS_ENGINE_CMD: '', HCS_ENGINE_JAR: JAR };
@@ -295,6 +296,85 @@ test('the real engine killed after edits: the replayed model equals the one befo
     expect(undone.changed).toBe(true);
   } finally {
     await r.close();
+  }
+});
+
+test('the real engine and the app killed (N-19): the recovery file beside the saved file only, none for the new one; opened again, Recover is the model before in every circuit, unsaved; Ctrl+S removes it', async () => {
+  const work = mkdtempSync(path.join(tmpdir(), 'hcs-work-'));
+  const file = sample(work, DATAPATH);
+  const saved = readFileSync(file);
+  // No writes after an idle moment: the recovery file there is the one the engine writes as it ends.
+  const r = await launch(undefined, { env: { ...real, HCS_RECOVERY_IDLE_MS: '600000', HCS_RECOVERY_MAX_MS: '600000' } });
+  const { page } = r;
+  let before: Record<string, unknown>;
+  try {
+    await openFile(r, file);
+    await page.getByTitle('New circuit (Ctrl+N)').click();
+    await expect(page.locator('.filebar .ptab')).toHaveCount(2);
+    const [datapath, untitled] = await openFileIds(r.app);
+    const dc = await circuitsOf(page, datapath);
+    const and = await call<{ id: string }>(page, 'edit.addComponent', { fileId: datapath, circuitId: dc.alu, lib: 'Gates', name: 'AND Gate', loc: [600, 600] });
+    await call(page, 'edit.setAttr', { fileId: datapath, circuitId: dc.alu, ids: [and.id], attr: 'inputs', value: '3' });
+    const main = await call<Snapshot>(page, 'model.circuit', { fileId: datapath, circuitId: dc.main });
+    await call(page, 'edit.move', { fileId: datapath, circuitId: dc.main, ids: [main.components.find((c) => c.name === 'Tunnel')!.id], dx: 0, dy: 10 });
+    await call(page, 'edit.addWire', { fileId: datapath, circuitId: dc.main, points: [[1000, 1000], [1100, 1000]] });
+    await call(page, 'edit.undo', { fileId: datapath, circuitId: dc.main });
+    await call(page, 'edit.redo', { fileId: datapath, circuitId: dc.main });
+    await call(page, 'edit.addComponent', { fileId: untitled, circuitId: (await circuitsOf(page, untitled)).main, lib: 'Wiring', name: 'Pin', loc: [100, 100] });
+    before = await fileModel(page, datapath);
+    expect(JSON.stringify(before)).toContain('[\\"inputs\\",\\"3\\"]');
+    expect(await killMainAndSeeEngineEnd(r.app, (await enginePid(r.app))!, 20_000)).toBe('both ended');
+    await Promise.race([r.app.close().catch(() => {}), new Promise((done) => setTimeout(done, 5_000))]);
+  } finally {
+    rmSync(r.dir, { recursive: true, force: true });
+  }
+  expect(readdirSync(work).sort()).toEqual(['demo-datapath.circ', 'demo-datapath.circ.hcs-recover']);
+  expect(readFileSync(file)).toEqual(saved);
+
+  const next = await launch(undefined, { env: real });
+  try {
+    await answerOpen(next.app, file);
+    await next.page.keyboard.press('Control+o');
+    const dialog = next.page.locator('dialog.ask');
+    await expect(dialog.locator('h2')).toHaveText('저장하지 않은 편집이 있습니다');
+    await expect(dialog.locator('.askdetail')).toHaveText('복구 파일: demo-datapath.circ.hcs-recover');
+    await dialog.getByRole('button', { name: 'Recover' }).click();
+    await expect(next.page.locator('.filebar .ptab')).toHaveText(['demo-datapath.circ•']);
+    const [fileId] = await openFileIds(next.app);
+    expect(await fileModel(next.page, fileId)).toEqual(before);
+    expect((await call<{ dirty: boolean }>(next.page, 'file.dirty', { fileId })).dirty).toBe(true);
+    await next.page.keyboard.press('Control+s');
+    await expect(next.page.locator('.status .ok')).toContainText('저장했습니다 · demo-datapath.circ');
+    expect(readdirSync(work).sort()).toEqual(['demo-datapath.circ']);
+    // (what was saved, opened again, is the same model to the nets: engine RecoveryFileTest)
+  } finally {
+    await next.close();
+    rmSync(work, { recursive: true, force: true });
+  }
+});
+
+test('the real engine and the settings (N-19): every setting changed, quit, started again -- each is its default', async () => {
+  const work = mkdtempSync(path.join(tmpdir(), 'hcs-work-'));
+  const file = sample(work, DATAPATH);
+  const r = await launch(undefined, { env: real });
+  let defaults: Awaited<ReturnType<typeof settingsNow>>;
+  try {
+    await openFile(r, file);
+    await expect(r.page.locator('.canvas .canvas-view canvas')).toBeVisible();
+    defaults = await settingsNow(r.page);
+    await changeEverySetting(r.page, 'alu');
+    expect(await settingsNow(r.page)).not.toEqual(defaults);
+  } finally {
+    await r.close();
+  }
+  const next = await launch(undefined, { env: real });
+  try {
+    await openFile(next, file);
+    await expect(next.page.locator('.canvas .canvas-view canvas')).toBeVisible();
+    expect(await settingsNow(next.page)).toEqual(defaults);
+  } finally {
+    await next.close();
+    rmSync(work, { recursive: true, force: true });
   }
 });
 

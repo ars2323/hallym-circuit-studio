@@ -1,8 +1,10 @@
 /* The lab-PC rule: nothing is kept from one run to the next and nothing is
-   written but the files the student saves.  After quit: the run's folder is
-   gone, HOME (and its XDG folders) holds nothing new, the opened file is
-   byte for byte as it was; the next start is the first screen over the
-   whole work area, not the last run's window. */
+   written but the files the student saves (and, while a saved file has
+   unsaved edits, its recovery file beside it: N-19, D-152).  After quit: the
+   run's folder is gone, HOME (and its XDG folders) holds nothing new, the
+   opened file is byte for byte as it was; the next start is the first
+   screen over the whole work area, not the last run's window, and every
+   setting (tests/e2e/settings.ts) is its default again. */
 
 import { expect, test } from '@playwright/test';
 import { createHash } from 'node:crypto';
@@ -11,6 +13,9 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { answerSave, DATAPATH, launch, openFile, sample } from './harness.ts';
+import { call, circuitsOf, openFileIds } from './model.ts';
+import { RUN_DEFAULTS } from '../../src/renderer/app/logic/run-settings.ts';
+import { changeEverySetting, settingsNow } from './settings.ts';
 
 // On Linux the libraries under Chromium keep their own caches in the user's
 // ~/.cache before the app's code runs -- fontconfig's font cache and the GPU
@@ -73,8 +78,8 @@ test('nothing written: after quit no run folder, an empty HOME, the opened file 
   rmSync(work, { recursive: true, force: true });
 });
 
-test('the opened file is not written by opening it; the only file written is the one the student saves', async () => {
-  const r = await launch();
+test('the opened file is not written by opening it; the only files written are the one the student saves and, while it has unsaved edits, its recovery file', async () => {
+  const r = await launch(undefined, { env: { HCS_RECOVERY_IDLE_MS: '200' } });
   const work = mkdtempSync(path.join(tmpdir(), 'hcs-work-'));
   try {
     const file = sample(work, DATAPATH);
@@ -91,10 +96,54 @@ test('the opened file is not written by opening it; the only file written is the
     await expect(r.page.locator('.status .ok')).toHaveText('저장했습니다 · mine.circ');
     expect(Object.keys(tree(work)).sort()).toEqual(['demo-datapath.circ', 'mine.circ']);
     expect(tree(work)['demo-datapath.circ']).toBe(before['demo-datapath.circ']);
+    // An edit of the saved file: its recovery file beside it (N-19), until it is saved.
+    const [, mine] = await openFileIds(r.app);
+    await call(r.page, 'edit.addComponent', { fileId: mine, circuitId: (await circuitsOf(r.page, mine)).main, lib: 'Gates', name: 'OR Gate', loc: [300, 300] });
+    await expect.poll(() => Object.keys(tree(work)).sort(), { timeout: 10_000 }).toEqual(['demo-datapath.circ', 'mine.circ', 'mine.circ.hcs-recover']);
+    await r.page.keyboard.press('Control+s');
+    await expect(r.page.locator('.filebar .ptab.on')).toHaveText('mine.circ');
+    expect(Object.keys(tree(work)).sort()).toEqual(['demo-datapath.circ', 'mine.circ']);
   } finally {
     await r.close();
     rmSync(work, { recursive: true, force: true });
   }
+});
+
+test('every setting is for this run only: changed, quit, started again -- each is its default; nothing written', async () => {
+  const runs = mkdtempSync(path.join(tmpdir(), 'hcs-runs-'));
+  const work = mkdtempSync(path.join(tmpdir(), 'hcs-work-'));
+  const file = sample(work, DATAPATH);
+  const before = tree(work);
+  const r = await launch(undefined, { userData: runs });
+  let defaults;
+  try {
+    await openFile(r, file);
+    defaults = await settingsNow(r.page);
+    // the defaults (logic/run-settings.ts): 1 Hz, bus widths shown, the panels' first tabs, the main circuit only
+    expect(defaults).toMatchObject({ hz: String(RUN_DEFAULTS.hz), busWidths: RUN_DEFAULTS.busWidths, bottomCollapsed: false,
+      tabs: ['Components', 'Tunnels', 'Messages'], circuitTabs: ['main'] });
+    await changeEverySetting(r.page, 'alu');
+    const changed = await settingsNow(r.page);
+    for (const k of Object.keys(defaults) as (keyof typeof defaults)[]) expect(changed[k], `${k} changed`).not.toEqual(defaults[k]);
+    for (const k of Object.keys(defaults.sizes)) expect(changed.sizes[k], `${k} changed`).not.toEqual(defaults.sizes[k]);
+  } finally {
+    await r.app.close();
+  }
+  await expect.poll(() => (existsSync(runs) ? readdirSync(runs) : []), { timeout: 20_000 }).toEqual([]);
+  expect(written(tree(r.home))).toEqual([]);
+  expect(tree(work)).toEqual(before);
+  rmSync(r.dir, { recursive: true, force: true });
+
+  const next = await launch(undefined, { userData: runs });
+  try {
+    await openFile(next, file);
+    await expect(next.page.locator('.zoom-button')).toBeVisible();
+    expect(await settingsNow(next.page)).toEqual(defaults);
+  } finally {
+    await next.close();
+  }
+  rmSync(runs, { recursive: true, force: true });
+  rmSync(work, { recursive: true, force: true });
 });
 
 test('no spell checker, no spelling language: nothing opened (Windows\' word lists) or downloaded (a Hunspell dictionary)', async () => {
