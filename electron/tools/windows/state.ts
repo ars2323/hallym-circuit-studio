@@ -92,6 +92,8 @@ export const windowsContainer = (c: Change): boolean => c.what === 'added' && (
      Store apps' data (Packages)       Windows Search re-indexes the Start menu's programs
      the shell's caches                icons, the desktop wallpaper at a new screen size
      the notification platform         its database notes the Start menu's programs
+     the rest of LOCALAPPDATA\Microsoft\Windows   Windows' components (the web cache database
+                                       changed during an install), never a program's data
      Windows' spelling word lists      %APPDATA%\Microsoft\Spelling\<language>\default.*: the
                                        system spell checker's per-user lists, shared by every
                                        program that checks spelling; Chromium opens it at its
@@ -106,6 +108,9 @@ export const WINDOWS_OWN: [RegExp, string][] = [
   [/^LOCALAPPDATA\\Microsoft\\Windows\\Notifications\\/i, 'the notification platform\'s database'],
   [/^APPDATA\\Microsoft\\Windows\\Themes\\/i, 'the desktop wallpaper\'s cache'],
   [/^APPDATA\\Microsoft\\Spelling(\\|$)/i, 'Windows\' spelling word lists'],
+  // The rest of %LOCALAPPDATA%\Microsoft\Windows is Windows' too (its web cache database, seen
+  // changing during an install; history, thumbnails): no program keeps its own data there.
+  [/^LOCALAPPDATA\\Microsoft\\Windows(\\|$)/i, 'Windows\' own components (%LOCALAPPDATA%\\Microsoft\\Windows)'],
 ];
 // And while installing: the shell's jump lists record the installers it saw start (msiexec, the setup exe).
 const JUMP_LISTS = /^APPDATA\\Microsoft\\Windows\\Recent\\(Automatic|Custom)Destinations\\/i;

@@ -116,6 +116,7 @@ test('what Windows and the test tools write whatever runs (seen on the CI runner
     ['APPDATA\\Microsoft\\Spelling\\en-US\\default.dic', 'Windows\' spelling word lists'],
     ['APPDATA\\Microsoft\\Spelling', 'Windows\' spelling word lists'],
     ['LOCALAPPDATA\\Microsoft\\Windows\\Notifications\\wpndatabase.db-wal', 'the notification platform\'s database'],
+    ['LOCALAPPDATA\\Microsoft\\Windows\\WebCache\\WebCacheV01.dat', 'Windows\' own components (%LOCALAPPDATA%\\Microsoft\\Windows)'],
   ];
   for (const [p, why] of seen) {
     for (const expect of ['none', 'install', 'uninstalled'] as const) assert.equal(notOurs({ where: 'files', what: 'changed', path: p }, expect), why, `${p} (${expect})`);
@@ -130,7 +131,7 @@ test('what Windows and the test tools write whatever runs (seen on the CI runner
   const explorer: Change = { where: 'files', what: 'changed', path: 'APPDATA\\Microsoft\\Windows\\Recent\\AutomaticDestinations\\5f7b5f1e01b83767.automaticDestinations-ms', before: '1536 1', after: '1536 2' };
   assert.equal(notOurs(explorer, 'none'), 'the shell rewriting a jump list it had');
   // Anything else under %APPDATA% or %LOCALAPPDATA% counts, a program's own folder above all.
-  for (const p of ['APPDATA\\Hallym Circuit Studio\\Preferences', 'LOCALAPPDATA\\hallym-circuit-studio-updater\\installer.exe', 'LOCALAPPDATA\\Microsoft\\Windows\\INetCache\\x',
+  for (const p of ['APPDATA\\Hallym Circuit Studio\\Preferences', 'LOCALAPPDATA\\hallym-circuit-studio-updater\\installer.exe', 'LOCALAPPDATA\\Microsoft\\Edge\\User Data\\x', 'LOCALAPPDATA\\Microsoft\\WindowsApps\\x.exe',
     'APPDATA\\Microsoft\\Windows\\Recent\\demo-datapath.circ.lnk']) {
     assert.equal(notOurs({ where: 'files', what: 'added', path: p, after: '1 1' }, 'none'), null, p);
   }
