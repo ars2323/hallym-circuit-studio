@@ -13,6 +13,8 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.function.Predicate;
 
 import com.google.gson.JsonElement;
@@ -44,11 +46,18 @@ final class Client implements AutoCloseable {
 
     static final long TIMEOUT_MS = 30_000;
 
+    /** 기다리다 실패할 때 문구에 담는 마지막 메시지 수와 메시지 하나의 글자 수(문구가 힙을 넘지 않게). */
+    static final int TAIL = 10;
+    static final int TAIL_CHARS = 400;
+
     private final OutputStream out;
     private final Thread reader;
-    /** 받은 모든 메시지(응답과 알림) 순서대로. */
+    /** 받은 모든 메시지(응답과 알림) 순서대로. {@link #lean()}이면 아직 가져가지 않은 응답만. */
     private final List<JsonObject> received = new ArrayList<>();
     private final List<String> raw = new ArrayList<>();
+    /** 메서드마다 받은 알림 수(버린 것도 센다). */
+    private final Map<String, Integer> notified = new TreeMap<>();
+    private boolean lean;
     private boolean eof;
     private int nextId = 1;
 
@@ -65,7 +74,16 @@ final class Client implements AutoCloseable {
             while ((line = r.readLine()) != null) {
                 JsonObject o = JsonParser.parseString(line).getAsJsonObject();
                 synchronized (this) {
-                    raw.add(line);
+                    String method = optString(o, "method");
+                    if (method != null) {
+                        notified.merge(method, 1, Integer::sum);
+                    }
+                    if (lean && method != null) {
+                        continue; // 알림은 세기만 한다
+                    }
+                    if (!lean) {
+                        raw.add(line);
+                    }
                     received.add(o);
                     notifyAll();
                 }
@@ -132,11 +150,24 @@ final class Client implements AutoCloseable {
             for (JsonObject o : received) {
                 if (o.has("id") && !o.get("id").isJsonNull() && o.get("id").getAsString().equals(id.toString())
                         && !o.has("method")) {
+                    if (lean) {
+                        received.remove(o);
+                    }
                     return o;
                 }
             }
             waitUntil(end, "response " + id);
         }
+    }
+
+    /**
+     * 이제부터 알림은 세기만 하고 버리며, 응답은 돌려준 뒤 잊는다. 요청과 응답만 쓰는 오래 도는 테스트(엔진이 프레임마다
+     * 보내는 값·진단 알림이 쌓여 테스트 JVM의 힙을 채우지 않게). 알림을 기다리는 메서드는 쓸 수 없다.
+     */
+    synchronized void lean() {
+        lean = true;
+        received.removeIf(o -> o.has("method"));
+        raw.clear();
     }
 
     /** 응답 가운데 id가 null인 것(구문 오류 등)을 기다린다. */
@@ -242,10 +273,10 @@ final class Client implements AutoCloseable {
     private void waitUntil(long end, String what) {
         long left = end - System.currentTimeMillis();
         if (left <= 0) {
-            throw new AssertionError("timed out waiting for " + what + "; received " + received);
+            throw new AssertionError("timed out waiting for " + what + "; " + received());
         }
         if (eof) {
-            throw new AssertionError("engine output closed while waiting for " + what + "; received " + received);
+            throw new AssertionError("engine output closed while waiting for " + what + "; " + received());
         }
         try {
             wait(Math.min(left, 200));
@@ -253,6 +284,21 @@ final class Client implements AutoCloseable {
             Thread.currentThread().interrupt();
             throw new AssertionError(e);
         }
+    }
+
+    /**
+     * 기다리다 실패할 때의 문구: 받은 수, 메서드마다의 알림 수, 마지막 {@link #TAIL}개(하나에 {@link #TAIL_CHARS}자까지).
+     * 받은 것 전부를 글자로 만들면 오래 돈 테스트에서는 그것만으로 힙을 넘는다.
+     */
+    private String received() {
+        StringBuilder b = new StringBuilder("received ").append(received.size()).append(" messages, notifications ")
+                .append(notified).append("; the last ").append(Math.min(TAIL, received.size())).append(':');
+        for (int i = Math.max(0, received.size() - TAIL); i < received.size(); i++) {
+            String s = received.get(i).toString();
+            b.append("\n  ").append(s.length() <= TAIL_CHARS ? s : s.substring(0, TAIL_CHARS) + "… (" + s.length()
+                    + " chars)");
+        }
+        return b.toString();
     }
 
     private static String optString(JsonObject o, String key) {

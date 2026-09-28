@@ -69,6 +69,15 @@ class SimEditRaceTest {
         });
         race = LogisimRace.watch();
         e = new InProcess();
+        // 요청·응답만 쓴다: 사이클이 도는 동안 프레임마다 오는 값·기록·진단 알림(진단은 목록 전체)을 쌓아 두면 빠른
+        // 사이클에서 테스트 JVM의 힙이 찬다(PR #431의 CI에서 엔진 출력이 끊기고 그 실패 문구를 만들다 힙이 넘쳤다)
+        e.client.lean();
+    }
+
+    /** 실패 문구에 넣을 글(길면 앞만). */
+    static String brief(Object o) {
+        String s = String.valueOf(o);
+        return s.length() <= 2000 ? s : s.substring(0, 2000) + "… (" + s.length() + " chars)";
     }
 
     @AfterEach
@@ -88,7 +97,7 @@ class SimEditRaceTest {
 
     void noUncaught(String when) {
         if (!uncaught.isEmpty()) {
-            fail("a thread died " + when + ":\n" + String.join("\n", uncaught));
+            fail(uncaught.size() + " threads died " + when + ", the first:\n" + brief(uncaught.get(0)));
         }
     }
 
@@ -161,11 +170,12 @@ class SimEditRaceTest {
             Thread.sleep(20);
             messages = call("diag.list", "fileId", fileId).getAsJsonArray("messages");
         }
-        assertTrue(hasDynamic(messages), "no dynamic message after the edits: " + messages);
+        assertTrue(hasDynamic(messages), "no dynamic message after the edits: " + brief(messages));
         noUncaught("after the edits");
         // 편집이 전파와 겹치지 않았다: 원조 전파가 잡은 예외가 없고 시뮬레이션은 켜져 있다
-        assertTrue(race.propagatorTraces().isEmpty(),
-                "Logisim's propagator caught exceptions:\n" + String.join("\n", race.propagatorTraces()));
+        List<String> caught = race.propagatorTraces();
+        assertTrue(caught.isEmpty(), () -> caught.size() + " exceptions caught by Logisim's propagator, the first:\n"
+                + brief(caught.get(0)));
         assertTrue(call("sim.state", "fileId", fileId).get("running").getAsBoolean(), "the simulation is off");
     }
 }

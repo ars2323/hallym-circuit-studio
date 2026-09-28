@@ -54,6 +54,9 @@ import kr.ac.hallym.hcs.regress.LogisimRace;
 class RecorderEditRaceTest {
     /** 편집 사이에 쉬는 시간: 기다리던 기록기가 읽기 잠금을 얻고 틱이 돈다. */
     static final long PAUSE_NANOS = 100_000;
+    /** 실패 문구의 스레드 덤프: 스레드마다 스택 프레임 수, 글 전체 글자 수. */
+    static final int DUMP_FRAMES = 40;
+    static final int DUMP_CHARS = 400_000;
 
     @TempDir
     Path tmp;
@@ -111,7 +114,7 @@ class RecorderEditRaceTest {
                 LockSupport.parkNanos(PAUSE_NANOS);
             }
             if (!uncaught.isEmpty()) {
-                fail("the simulator thread died after " + edits + " edits:\n" + String.join("\n", uncaught));
+                fail(uncaught.size() + " threads died after " + edits + " edits, the first:\n" + uncaught.get(0));
             }
             // 스레드가 살아 있다: 편집을 멈춘 뒤에도 기록이 늘어난다
             int last = rec.current().last();
@@ -120,7 +123,7 @@ class RecorderEditRaceTest {
                             + " times)",
                     sim, rec);
             assertTrue(edits >= 50, "only " + edits + " edits");
-            assertTrue(uncaught.isEmpty(), String.join("\n", uncaught));
+            assertTrue(uncaught.isEmpty(), () -> uncaught.size() + " threads died, the first:\n" + uncaught.get(0));
             System.out.println(edits + " edits; Logisim's propagator stopped the simulation " + stops[0] + " times");
             diags.detach();
         } finally {
@@ -152,11 +155,18 @@ class RecorderEditRaceTest {
         }
     }
 
-    /** 모든 스레드: 상태, 기다리는 잠금과 그 임자, 스택, 쥔 모니터·잠금. 교착이면 그 수도. */
+    /**
+     * 모든 스레드: 상태, 기다리는 잠금과 그 임자, 스택({@link #DUMP_FRAMES}개까지), 쥔 모니터·잠금. 교착이면 그 수도.
+     * 앞 테스트들이 남긴 시뮬레이터 스레드가 수백 개라 스레드마다 스택을 줄이고, 글 전체도 {@link #DUMP_CHARS}자까지만.
+     */
     static String threadDump() {
         ThreadMXBean mx = ManagementFactory.getThreadMXBean();
         StringBuilder b = new StringBuilder("--- thread dump ---\n");
         for (ThreadInfo t : mx.dumpAllThreads(true, true)) {
+            if (b.length() > DUMP_CHARS) {
+                b.append("… (more threads)\n");
+                break;
+            }
             b.append('"').append(t.getThreadName()).append("\" ").append(t.getThreadState());
             if (t.getLockName() != null) {
                 b.append(" on ").append(t.getLockName());
@@ -166,7 +176,7 @@ class RecorderEditRaceTest {
             }
             b.append('\n');
             StackTraceElement[] st = t.getStackTrace();
-            for (int i = 0; i < st.length; i++) {
+            for (int i = 0; i < Math.min(st.length, DUMP_FRAMES); i++) {
                 b.append("\tat ").append(st[i]).append('\n');
                 for (MonitorInfo m : t.getLockedMonitors()) {
                     if (m.getLockedStackDepth() == i) {
