@@ -15,9 +15,14 @@
                             onto the Canvas, the Components list's Open Files):
                             its saved path
      file:editOriginal      a library circuit's file, opened (or its tab) --
-                            v1 Edit Original File */
+                            v1 Edit Original File
+     file:openDropped       .circ files dragged from the desktop onto the
+                            window, each opened (v1 DropOpen, I-181): the
+                            preload turns the page's File objects into paths
+                            (webUtils), so the page still names none */
 
 import type { BrowserWindow, Dialog, IpcMainInvokeEvent } from 'electron';
+import { statSync } from 'node:fs';
 import path from 'node:path';
 
 import type { EditResult, ImportPeek, ImportPlan, OpenResult, RecoveryAsk } from './protocol.ts';
@@ -29,6 +34,7 @@ export interface CircuitFilesHost {
   // the file, or first the question of its recovery file (N-19): the page answers it as for File › Open
   openPath(p: string): Promise<(OpenResult & { path: string; already: boolean }) | RecoveryAsk>;
   parent(e: IpcMainInvokeEvent): BrowserWindow;
+  isMain(e: IpcMainInvokeEvent): boolean;
   handle(channel: string, f: (e: IpcMainInvokeEvent, ...args: unknown[]) => unknown): void;
 }
 
@@ -38,6 +44,22 @@ const JAR = { name: 'JAR library', extensions: ['jar'] };
 // The folder a dialog opens in: the file's own (the saved one), else none (the system's choice).
 export function dialogFolder(saved: string | null | undefined): string | undefined {
   return saved ? path.dirname(saved) : undefined;
+}
+
+// What a drop may open: .circ files that are there (a folder, another kind of file, a name the preload could not
+// turn into a path: left out), each once, at most 20 (a drop of a whole folder's worth is not a request).
+export const DROP_MAX = 20;
+export function droppedCircs(paths: unknown): string[] {
+  if (!Array.isArray(paths)) return [];
+  const out: string[] = [];
+  for (const p of paths) {
+    if (typeof p !== 'string' || !/\.circ$/i.test(p) || !path.isAbsolute(p)) continue;
+    try { if (!statSync(p).isFile()) continue; } catch { continue; }
+    const r = path.resolve(p);
+    if (!out.includes(r)) out.push(r);
+    if (out.length >= DROP_MAX) break;
+  }
+  return out;
 }
 
 export function registerCircuitFiles(h: CircuitFilesHost): void {
@@ -97,6 +119,14 @@ export function registerCircuitFiles(h: CircuitFilesHost): void {
     const saved = h.openFiles.get(other);
     if (!saved) throw Object.assign(new Error('the file was never saved'), { name: 'Unsaved' });
     return h.windowCall<EditResult>('edit.loadLibrary', { fileId: id, kind: 'circ', path: path.resolve(saved) });
+  });
+
+  // .circ files dropped on the window: opened in the main window, one after another (a window of its own holds one file)
+  h.handle('file:openDropped', async (e, paths) => {
+    if (!h.isMain(e)) return [];
+    const out: unknown[] = [];
+    for (const p of droppedCircs(paths)) out.push(await h.openPath(p));
+    return out;
   });
 
   h.handle('file:editOriginal', async (_e, fileId, circuitId) => {

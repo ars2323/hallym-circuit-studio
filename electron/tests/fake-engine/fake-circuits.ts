@@ -444,7 +444,7 @@ export function methods(ctx: Ctx): Record<string, (p: Params) => unknown> {
         builtins: ctx.builtins.filter((b) => !have.includes(b)).map((b) => ({ name: b, display: BUILTIN_DISPLAY(b) })),
         loaded: have.map((b) => ({ name: b, display: BUILTIN_DISPLAY(b), usedIn: used(b) })),
         openFiles: [...ctx.files.values()].filter((o) => o !== f).map((o) => ({
-          fileId: o.fileId, state: o.path === null ? 'unsaved' : have.includes(path.basename(o.path, '.circ')) ? 'loaded' : 'ok',
+          fileId: o.fileId, name: o.path ? path.basename(o.path) : `${o.name}.circ`, state: o.path === null ? 'unsaved' : have.includes(path.basename(o.path, '.circ')) ? 'loaded' : 'ok',
           ...(o.path && have.includes(path.basename(o.path, '.circ')) ? { lib: path.basename(o.path, '.circ') } : {}),
           circuits: o.circuits.map((c) => c.name), main: mainOf(o)?.name ?? null,
         })),

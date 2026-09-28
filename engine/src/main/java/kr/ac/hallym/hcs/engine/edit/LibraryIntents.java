@@ -432,6 +432,8 @@ public final class LibraryIntents {
             JsonObject x = new JsonObject();
             x.addProperty("fileId", other.id());
             File of = other.loader().getMainFile();
+            // the file's own name (its tab's): a window of its own has the tab, not this window (N-11)
+            x.addProperty("name", of != null ? of.getName() : other.file().getName());
             String state;
             if (of == null || !of.isFile()) {
                 state = "unsaved";

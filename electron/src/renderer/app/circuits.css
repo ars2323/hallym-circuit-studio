@@ -16,6 +16,10 @@
 .circlist .tag { font-size: 11px; color: var(--teal-text); background: var(--teal-tint); border-radius: 4px; padding: 0 5px; }
 .circlist li.on > button .tag { margin-left: auto; }
 .circlist .mainmark + .tag { margin-left: 4px; }
+.circlist { flex: 1 1 auto; }
+.simhead { flex: none; margin: 0; padding: 8px 12px 4px; border-top: 1px solid var(--border); font-size: 12px; font-weight: 600; color: var(--muted); }
+.simtree { overflow: auto; flex: 0 1 auto; max-height: 45%; min-height: 0; padding-bottom: 4px; }
+.simtree li > button .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ---- the circuit tab row: Layout | Appearance ---- */
 .circuitbar .grow { flex: 1; }

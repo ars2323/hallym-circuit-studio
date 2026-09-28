@@ -238,6 +238,8 @@ test('file tabs: two files of one name show their folders; Detach Tab makes a wi
     const own = app.windows().find((w) => w !== page)!;
     await own.locator('.filebar .ptab', { hasText: 'lab.circ' }).waitFor();
     await expect(own.locator('.filebar .ptab .tabnote')).toContainText('Window');
+    // the main window's Components: that file under Open Files by its name, not its id
+    await expect(page.locator('.upper .libgroup summary', { hasText: 'Open Files' })).toHaveText([/Open Files · lab\.circ/]);
     // Attach Tab: back to the main window, the window closes
     await own.locator('.filebar .ptab').click({ button: 'right' });
     await own.locator('.ovmenu button', { hasText: 'Attach Tab' }).click();

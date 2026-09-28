@@ -550,7 +550,7 @@ export interface LibrariesInfo {
   fileId: string;
   builtins: { name: string; display: string }[];
   loaded: { name: string; display: string; usedIn: string | null }[];
-  openFiles: { fileId: string; state: 'ok' | 'loaded' | 'unsaved' | 'self' | 'circular'; lib?: string; circuits: string[]; main: string | null }[];
+  openFiles: { fileId: string; name: string; state: 'ok' | 'loaded' | 'unsaved' | 'self' | 'circular'; lib?: string; circuits: string[]; main: string | null }[];
   mips: boolean;
 }
 

@@ -10,7 +10,11 @@ import { test } from 'node:test';
 
 import type { BrowserWindow } from 'electron';
 
-import { dialogFolder } from '../../src/main/circuit-files.ts';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
+import { DROP_MAX, dialogFolder, droppedCircs } from '../../src/main/circuit-files.ts';
 import { Shadow } from '../../src/main/recovery.ts';
 import { FileWindows, halves, offset } from '../../src/main/windows.ts';
 import { Files } from '../../src/renderer/app/logic/files.ts';
@@ -98,4 +102,19 @@ test('the recovery shadow follows file.changed: a renamed circuit\'s edits are w
   assert.deepEqual(s.circuitIds('f1'), { alu32: 'c7' });
   s.answer('file.info', { fileId: 'f1' }, { fileId: 'f1', circuits: [{ circuitId: 'c8', name: 'x' }] });
   assert.equal(s.circuitName('f1', 'c8'), 'x');
+});
+
+test('a drop opens .circ files that are there, each once, twenty at most; folders, other files and non-paths are left out', () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'hcs-drop-'));
+  try {
+    const a = path.join(dir, 'a.circ'), b = path.join(dir, 'B.CIRC'), s = path.join(dir, 'x.s'), folder = path.join(dir, 'f.circ');
+    writeFileSync(a, '<project/>'); writeFileSync(b, '<project/>'); writeFileSync(s, '');
+    mkdirSync(folder);
+    assert.deepEqual(droppedCircs([a, b, s, folder, a, path.join(dir, 'gone.circ'), 'rel.circ', 7, null]), [a, b]);
+    assert.deepEqual(droppedCircs('/etc/passwd'), []);
+    const many = Array.from({ length: 30 }, (_, i) => { const p = path.join(dir, `m${i}.circ`); writeFileSync(p, ''); return p; });
+    assert.equal(droppedCircs(many).length, DROP_MAX);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

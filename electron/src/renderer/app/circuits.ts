@@ -13,11 +13,14 @@
      drag onto another  moves it there (the original's explorer drag, I-107)
      the head row     Add Circuit…, Import…, Libraries ▾ (Load Library ›
                       Built-in…, Logisim…, JAR…; Unload Libraries…)
+     Simulation Tree  below: main and its instances (I-118, v1 View
+                      Simulation Tree); a click goes into that instance
 
    It only says what was asked; the engine does it (edit.*) and the file's
    new structure comes back as file.changed. */
 
 import type { CircuitRef } from '../../main/protocol.ts';
+import type { SimNode } from './logic/circuits.ts';
 import { type MenuEntry, SEPARATOR, showMenu } from '../canvas/overlays/menu.ts';
 import { h, icon } from '../shared/dom.ts';
 import type { NoticeHost } from '../shared/notice.ts';
@@ -32,6 +35,8 @@ export interface CircuitsState {
   shown: string;                // the circuit on show
   appearance: boolean;          // its appearance (not its layout) is on show
   editable: boolean;            // not a read-only file
+  tree?: SimNode[];             // the Simulation Tree (main and its instances), when known
+  inside?: string[];            // the instance path on show from main (null: main's own tab is not on show)
 }
 
 export interface CircuitsPanel {
@@ -46,6 +51,7 @@ export function circuitsPanel(o: {
   circuit(cmd: CircuitCommand, circuitId: string): void;
   file(cmd: FileCommand): void;
   moveTo(circuitId: string, to: number): void;
+  enter(node: SimNode): void;
 }): CircuitsPanel {
   let state: CircuitsState | null = null;
   const add = h('button', { type: 'button', class: 'hbtn', title: 'Add Circuit… (Project › Add Circuit)' }, icon('plus'), 'Add Circuit');
@@ -66,7 +72,9 @@ export function circuitsPanel(o: {
   });
   const bar = h('div', { class: 'circbar' }, add, imp, libs);
   const list = h('ul', { class: 'list circlist', 'aria-label': 'Circuits' });
-  const root = h('div', { class: 'circpanel' }, bar, list);
+  const tree = h('ul', { class: 'list simtree', 'aria-label': 'Simulation Tree' });
+  const treeHead = h('h3', { class: 'simhead' }, 'Simulation Tree');
+  const root = h('div', { class: 'circpanel' }, bar, list, treeHead, tree);
 
   function menuFor(c: CircuitRef, x: number, y: number): void {
     const st = state!;
@@ -125,6 +133,17 @@ export function circuitsPanel(o: {
         if (from.fileId === st.fileId && from.circuitId !== c.circuitId) o.moveTo(from.circuitId, i);
       });
       return h('li', { class: c.circuitId === st.shown ? 'on' : undefined }, b);
+    }));
+    const nodes = st.tree ?? [];
+    treeHead.hidden = nodes.length === 0;
+    const here = st.inside ? st.inside.join('/') : null;
+    tree.replaceChildren(...nodes.map((n) => {
+      const on = here !== null && n.ids.join('/') === here;
+      const b = h('button', { type: 'button', 'aria-current': on ? 'true' : undefined, style: `padding-left:${10 + n.depth * 14}px`,
+        title: n.depth ? `${[st.circuits.find((c) => c.circuitId === st.main)?.name ?? 'main', ...n.names].join(' › ')}: 그 인스턴스 안의 값을 봅니다` : `${n.text}: main 회로` },
+      h('span', { class: 'mono' }, n.text));
+      b.addEventListener('click', () => o.enter(n));
+      return h('li', { class: on ? 'on' : undefined }, b);
     }));
   }
 

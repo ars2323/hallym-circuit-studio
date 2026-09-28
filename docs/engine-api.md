@@ -276,7 +276,7 @@ Component = {
 | `model.appearanceHit` | `{fileId, circuitId, at?, selected?, zoom?, rect?:[x0,y0,x1,y1]}` | `{handle?:{shape, at}, clicked?, top, topFilled, removable?, insertable?, inRect?}`: 원조 고르기 도구가 누른 자리에서 묻는 것(고른 도형의 움직이는 손잡이(배율에 따른 크기), 채움 없이·채운 것으로 본 맨 위 도형, 지울·더할 꼭짓점, 사각형 안 도형) |
 | `model.appearanceHandles` | `{fileId, circuitId, shape, at, dx, dy, shift?, ctrl?, alt?}` | `{handles:[[x,y]]}`: 손잡이를 끄는 동안의 모습(원조 `getHandles(gesture)`) |
 | `model.appearanceMenu` | `{fileId, circuitId, shapes, vertexShape?, vertexAt?}` | `{cut, copy, paste, delete, duplicate, raise, lower, raiseTop, lowerBottom, addVertex, removeVertex}`: 원조 Edit 메뉴의 켜짐(`computeEnabled`) |
-| `model.libraries` | `{fileId}` | `{builtins:[{name, display}], loaded:[{name, display, usedIn}], openFiles:[{fileId, state, lib?, circuits, main}], mips}`: Load/Unload Library 창과 탭 간 라이브러리. `state`: `ok`, `loaded`(이미 라이브러리), `unsaved`, `self`, `circular` |
+| `model.libraries` | `{fileId}` | `{builtins:[{name, display}], loaded:[{name, display, usedIn}], openFiles:[{fileId, name, state, lib?, circuits, main}], mips}`: Load/Unload Library 창과 탭 간 라이브러리. `state`: `ok`, `loaded`(이미 라이브러리), `unsaved`, `self`, `circular`. `name`: 그 파일의 이름(자기 창에 있는 파일도 이름으로 보인다) |
 | `model.importPlan` | `{fileId, path, circuits}` | `{order:[{name, as}], skipped:[글]}`: 가져오기 계획(v1 계획 창) |
 | `file.info` | `{fileId}` | `{fileId, name, circuits, main, libraries, dirty, saved, readOnly}`: 열린 파일 하나의 지금 모습(`file.changed`와 같은 꼴과 저장한 적 있는지·읽기 전용인지). 창을 나눠 다른 창이 그 파일을 받을 때 쓴다(N-11) |
 | `file.peek` | `{fileId, path}` | `{name, main, circuits:[{name, uses:[이름]}]}`: 가져오기 창의 목록 |

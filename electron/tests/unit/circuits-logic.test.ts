@@ -9,7 +9,7 @@ import { test } from 'node:test';
 
 import {
   createRefusal, distinguishers, IMPACT_PLACES, impactPlaces, impactSentence, importedText, libraryUpdatedText, loadRefusal, moved,
-  nameProblem, pinAddText, pinPreviewText, planLines, portImpactText, removeRefusal, saveCutLines, saveCutSentence, standaloneText, unloadRefusal,
+  nameProblem, pinAddText, pinPreviewText, planLines, portImpactText, removeRefusal, saveCutLines, saveCutSentence, simTree, standaloneText, unloadRefusal,
 } from '../../src/renderer/app/logic/circuits.ts';
 import {
   closes, curveControl, dragged, handleDelta, handleSize, lineEnd, moveDelta, onCurve, poly, pressCount, rectFromDrag, snap, snap8, toolAttributes, toolAttrs,
@@ -200,4 +200,22 @@ test('presses in a row (PolyTool\'s click count): within 500 ms and 4 px counts 
   assert.equal(pressCount(b, 1801, 103, 96).n, 1);   // too late
   assert.equal(pressCount(b, 1400, 108, 96).n, 1);   // too far
   assert.equal(pressCount(b, 1400, 103, 91).n, 1);
+});
+
+test('the Simulation Tree: main, then each instance under its parent -- its label, else circuit(x,y) -- by name, then place; no recursion', () => {
+  const names: Record<string, string> = { c1: 'main', c2: 'datapath', c3: 'alu' };
+  const parts: Record<string, { id: string; label: string; loc: [number, number]; subcircuit: string }[]> = {
+    c1: [{ id: 'k9', label: '', loc: [300, 200], subcircuit: 'c2' }, { id: 'k2', label: '', loc: [100, 200], subcircuit: 'c2' }, { id: 'k5', label: 'ALU0', loc: [0, 0], subcircuit: 'c3' }],
+    c2: [{ id: 'k7', label: '', loc: [50, 60], subcircuit: 'c3' }, { id: 'k8', label: '', loc: [10, 10], subcircuit: 'c2' }],   // itself: skipped
+    c3: [],
+  };
+  const t = simTree('c1', (id) => names[id], (id) => parts[id]);
+  assert.deepEqual(t.map((n) => '  '.repeat(n.depth) + n.text), [
+    'main', '  ALU0', '  datapath(100,200)', '    alu(50,60)', '  datapath(300,200)', '    alu(50,60)',
+  ]);
+  const deep = t[3];
+  assert.deepEqual([deep.ids, deep.names, deep.circuits, deep.circuit], [['k2', 'k7'], ['datapath', 'alu'], ['c2', 'c3'], 'c3']);
+  assert.deepEqual([t[1].names], [['ALU0']]);
+  // a circuit not asked yet: no children under it
+  assert.deepEqual(simTree('c1', (id) => names[id], () => undefined).map((n) => n.text), ['main']);
 });

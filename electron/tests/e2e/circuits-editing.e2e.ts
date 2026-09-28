@@ -19,6 +19,8 @@
      windows of their own    the main window's close asks each of them first */
 
 import { expect, type Page, test } from '@playwright/test';
+import { writeFileSync } from 'node:fs';
+import path from 'node:path';
 
 import { answerOpen, DATAPATH, launch, openFile, recordCalls, sample, type SentCall, sentCalls } from './harness.ts';
 import { menu, rightClick } from './overlay-helpers.ts';
@@ -346,6 +348,45 @@ test('closing the main window: a window of its own asks about its unsaved file f
     await expect(ask).toContainText('subcircuit.circ');
     await ask.getByRole('button', { name: 'Discard' }).click();
     await app.waitForEvent('close');
+  } finally {
+    await r.close();
+  }
+});
+
+test('the Simulation Tree under the Circuits list: main and its instances by name and place; a click goes into one, main comes back out', async () => {
+  const r = await launch();
+  const { page } = r;
+  try {
+    await openFile(r, sample(r.dir, SUB));
+    await circuitsTab(page);
+    const tree = page.locator('.simtree li');
+    await expect(tree.locator('.mono')).toHaveText(['main', 'half_adder(500,300)', 'half_adder(500,500)']);
+    await tree.nth(2).locator('button').click();
+    await expect(page.locator('.canvas-crumbs')).toContainText('half_adder');
+    await expect(page.locator('.simtree li.on')).toHaveText('half_adder(500,500)');
+    await tree.nth(0).locator('button').click();
+    await expect(page.locator('.canvas-crumbs')).toBeHidden();
+    await expect(page.locator('.simtree li.on')).toHaveText('main');
+  } finally {
+    await r.close();
+  }
+});
+
+test('.circ files dropped from the desktop onto the window: each opened in a tab of its own; other files are not', async () => {
+  const r = await launch();
+  const { page } = r;
+  try {
+    const a = sample(r.dir, GATES, 'drop-a.circ');
+    const b = sample(r.dir, SUB, 'drop-b.circ');
+    const other = path.join(r.dir, 'notes.txt');
+    writeFileSync(other, 'x');
+    const cdp = await page.context().newCDPSession(page);
+    const data = { items: [], files: [a, b, other], dragOperationsMask: 1 };
+    for (const type of ['dragEnter', 'dragOver', 'drop'] as const) await cdp.send('Input.dispatchDragEvent', { type, x: 900, y: 500, data });
+    await expect(page.locator('.filebar .ptab')).toHaveCount(2);
+    await expect(page.locator('.filebar .ptab').first()).toContainText('drop-a.circ');
+    await expect(page.locator('.filebar .ptab.on')).toContainText('drop-b.circ');
+    expect(page.url()).toMatch(/index\.html/);   // the page stays (no navigation to a dropped file)
   } finally {
     await r.close();
   }

@@ -34,7 +34,7 @@ test('security: context isolation, no Node in the page; the page may call only t
     expect(await page.evaluate(() => Object.isFrozen(window.app) || Object.getOwnPropertyDescriptor(window, 'app')?.writable === false)).toBe(true);
     expect(await page.evaluate(() => Object.keys(window.app).sort())).toEqual(['about', 'attach', 'call', 'closeCancelled', 'detach', 'editOriginal', 'engineStatus', 'importApply', 'importChoose', 'importPlan',
       'leave', 'license', 'loadLibrary', 'loadProgram', 'onAdopt', 'onCloseRequest', 'onEngineRecovered', 'onEngineStatus', 'onLeave', 'onNotify',
-      'openCredits', 'openFile', 'openRecovery', 'openStartupFile', 'reportDirty', 'retryEngine', 'saveFile', 'setOverlay', 'startupFile',
+      'openCredits', 'openDropped', 'openFile', 'openRecovery', 'openStartupFile', 'reportDirty', 'retryEngine', 'saveFile', 'setOverlay', 'startupFile',
       'useOpenFile', 'windowClosed', 'windowRole']);
     for (const method of ['file.open', 'file.save', 'engine.shutdown', 'engine.hello', 'mips.load', 'file.recoverWrite', 'edit.importCircuits', 'edit.loadLibrary', 'file.peek', 'model.importPlan', 'file.originOf']) {
       const answer = await page.evaluate((m) => window.app.call(m as never, { path: '/etc/passwd' }).then(() => 'answered', (e: { message: string }) => e.message), method);

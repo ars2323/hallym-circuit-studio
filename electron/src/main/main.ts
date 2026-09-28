@@ -244,6 +244,9 @@ function makeWindow(bounds: { x: number; y: number; width: number; height: numbe
 function wireWindow(w: BrowserWindow): void {
   // No page zoom by a pinch (I-207): the Canvas zooms itself; Ctrl+wheel is the page's to stop (app.ts)
   void w.webContents.setVisualZoomLevelLimits(1, 1);
+  // A file dropped where the page does not take it never replaces the page (I-181: .circ files are opened instead)
+  w.webContents.on('will-navigate', (e) => e.preventDefault());
+  w.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 }
 
 // A file tab into a window of its own: 'window' (Detach Tab, a tab dragged out: +60, +60) or 'side' (View Side by Side).
@@ -425,6 +428,7 @@ function registerHandlers(): void {
   registerCircuitFiles({
     dialog, windowCall, openFiles, openPath,
     parent: (e) => from(e),
+    isMain: (e) => windows.isMain(from(e)),
     handle: (channel, f) => ipcMain.handle(channel, (e, ...args: unknown[]) => answer(() => f(e, ...args))),
   });
 

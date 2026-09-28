@@ -8,7 +8,7 @@
    The page never names a path: opening and saving go through the main
    process's dialogs, and the engine's methods it may call are a fixed list
    (src/main/protocol.ts WINDOW_METHODS). */
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 const unwrap = (r) => {
   if (r && r.ok === false) return Promise.reject({ ...r.error });
@@ -42,6 +42,11 @@ contextBridge.exposeInMainWorld('app', {
   loadLibrary: (fileId, kind, name) => ipcRenderer.invoke('library:load', fileId, kind, name).then(unwrap),
   useOpenFile: (fileId, otherFileId) => ipcRenderer.invoke('library:useOpenFile', fileId, otherFileId).then(unwrap),
   editOriginal: (fileId, circuitId) => ipcRenderer.invoke('file:editOriginal', fileId, circuitId).then(unwrap),
+  // .circ files dropped from the desktop (I-181): their paths are found here, never handed to the page
+  openDropped: (files) => {
+    const paths = Array.from(files ?? []).map((f) => { try { return webUtils.getPathForFile(f); } catch { return ''; } }).filter((p) => p);
+    return ipcRenderer.invoke('file:openDropped', paths).then(unwrap);
+  },
   // N-11: a file tab in a window of its own (src/main/windows.ts)
   windowRole: () => ipcRenderer.invoke('win:role'),
   detach: (fileId, handover, how) => ipcRenderer.invoke('win:detach', fileId, handover, how).then(unwrap),

@@ -58,6 +58,7 @@ export interface AppApi {
   importApply(fileId: string, circuits: string[]): Promise<EditResult & { plan?: ImportPlan }>;
   loadLibrary(fileId: string, kind: 'builtin' | 'circ' | 'jar', name?: string): Promise<(EditResult & { lib?: string }) | null>;
   useOpenFile(fileId: string, otherFileId: string): Promise<EditResult & { lib?: string }>;
+  openDropped(files: File[]): Promise<(Opened | RecoveryAsk)[]>;   // .circ files dropped on the window (I-181)
   editOriginal(fileId: string, circuitId: string): Promise<((Opened | RecoveryAsk) & { circuit: string }) | null>;
   // N-11 (src/main/windows.ts): this window (the main one, or a file's own and what it starts from), Detach Tab /
   // View Side by Side, Attach Tab, a window of its own closed after its file, the close question cancelled.

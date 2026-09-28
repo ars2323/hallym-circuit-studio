@@ -15,7 +15,9 @@
                       came in, the connections a save would break (P-03)
      same names       file tabs of the same name get the shortest folder
                       that tells them apart (v1 V-05, D-100)
-     port order       moving one port in its side's list */
+     port order       moving one port in its side's list
+     simulation tree  main and the subcircuit instances inside it, as the
+                      original's Simulation Tree names and orders them */
 
 import type { CircuitRef, Impact, ImportPlan, PortImpact, SaveCut } from '../../../main/protocol.ts';
 
@@ -168,5 +170,39 @@ export function moved<T>(list: readonly T[], from: number, to: number): T[] {
   if (from < 0 || from >= out.length || to < 0 || to >= out.length || from === to) return out;
   const [x] = out.splice(from, 1);
   out.splice(to, 0, x);
+  return out;
+}
+
+// ---- the Simulation Tree (I-118, v1 Project › View Simulation Tree) ----
+
+// A subcircuit instance in a circuit (model.circuit's parts that have `subcircuit`).
+export interface SimPart { id: string; label: string; loc: readonly [number, number]; subcircuit: string }
+export interface SimNode {
+  text: string;          // its label, else its circuit's name and place: "half_adder(500,300)" (SimulationTreeCircuitNode.toString)
+  depth: number;         // 0: main
+  circuit: string;       // the circuit it shows
+  ids: string[];         // the instance path from main (Canvas crumbs, sim.watch path)
+  names: string[];       // the crumbs' names: the label, else the circuit's name
+  circuits: string[];
+}
+export const SIM_TREE_DEPTH = 16;
+
+// Main first, then each instance under its parent, siblings by text (case aside) then place (SimulationTreeCircuitNode
+// compare); a circuit already on the path is not entered again (a recursion the original refuses on its own).
+export function simTree(main: string, nameOf: (circuitId: string) => string, partsOf: (circuitId: string) => readonly SimPart[] | undefined): SimNode[] {
+  const out: SimNode[] = [{ text: nameOf(main), depth: 0, circuit: main, ids: [], names: [], circuits: [] }];
+  const visit = (circuit: string, at: SimNode, seen: string[]) => {
+    if (at.depth >= SIM_TREE_DEPTH) return;
+    const place = (p: SimPart) => `(${p.loc[0]},${p.loc[1]})`;
+    const kids = [...(partsOf(circuit) ?? [])].map((p) => ({ p, text: p.label || `${nameOf(p.subcircuit)}${place(p)}` }))
+      .sort((a, b) => a.text.toLowerCase().localeCompare(b.text.toLowerCase()) || place(a.p).localeCompare(place(b.p)));
+    for (const { p, text } of kids) {
+      if (seen.includes(p.subcircuit)) continue;
+      const n: SimNode = { text, depth: at.depth + 1, circuit: p.subcircuit, ids: [...at.ids, p.id], names: [...at.names, p.label || nameOf(p.subcircuit)], circuits: [...at.circuits, p.subcircuit] };
+      out.push(n);
+      visit(p.subcircuit, n, [...seen, p.subcircuit]);
+    }
+  };
+  visit(main, out[0], [main]);
   return out;
 }

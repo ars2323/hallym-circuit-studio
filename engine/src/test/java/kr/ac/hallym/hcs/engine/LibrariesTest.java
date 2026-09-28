@@ -171,6 +171,7 @@ class LibrariesTest {
         JsonObject list = call("model.libraries", "fileId", host);
         JsonObject other = list.getAsJsonArray("openFiles").get(0).getAsJsonObject();
         assertEquals(libId, other.get("fileId").getAsString());
+        assertEquals("lib.circ", other.get("name").getAsString(), "the file's own name (a window of its own has its tab)");
         assertEquals("loaded", other.get("state").getAsString());
         assertEquals("lib", other.get("lib").getAsString());
         assertTrue(other.getAsJsonArray("circuits").toString().contains("adder"));

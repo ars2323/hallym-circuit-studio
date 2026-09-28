@@ -49,7 +49,7 @@ import { type MenuEntry, SEPARATOR, showMenu } from '../canvas/overlays/menu.ts'
 import { AppearanceEditor } from './appearance-editor.ts';
 import { CircuitControl } from './circuit-control.ts';
 import { circuitsPanel } from './circuits.ts';
-import { distinguishers, libraryUpdatedText, pinAddText, pinPreviewText, portImpactText, standaloneText } from './logic/circuits.ts';
+import { distinguishers, libraryUpdatedText, pinAddText, pinPreviewText, portImpactText, type SimNode, type SimPart, simTree, standaloneText } from './logic/circuits.ts';
 import { CircuitCanvas } from '../canvas/canvas.ts';
 import { emitTool } from '../canvas/events.ts';
 import { legend } from '../canvas/legend.ts';
@@ -405,6 +405,7 @@ const circuitsList = circuitsPanel({
   circuit: (cmd, id) => void circuitCtl.command(cmd, id),
   file: (cmd) => void circuitCtl.fileCommand(cmd),
   moveTo: (id, to) => void circuitCtl.moveTo(id, to),
+  enter: (n) => { const f = files.active(); if (f) enterPath(f.fileId, n.ids, n.names, n.circuits); },
 });
 // The appearance editor (N-11): a circuit tab switched to Appearance shows it instead of the Canvas.
 const appearance = new AppearanceEditor({
@@ -695,6 +696,9 @@ function showBody(bodies: HTMLElement[], i: number): void {
 // The upper left panel's tabs: only the bodies in that panel (Attributes has its own column when wide).
 function showUpper(i: number): void {
   upperBodies.forEach((b, k) => { b.hidden = b.parentElement === upperPanel ? k !== i : false; });
+  // the Circuits tab: its Simulation Tree is asked for when it comes into view
+  const f = files.active();
+  if (i === 1 && f) renderCircuits(f);
 }
 showUpper(0);
 showBody(lowerBodies, 0);
@@ -896,7 +900,53 @@ function pinMessage(r: Reveal): void {
 
 // The Circuits panel (circuits.ts): the main circuit marked with a house (not a second "main", D-135).
 function renderCircuits(f: OpenFile): void {
-  circuitsList.set({ fileId: f.fileId, circuits: f.circuits, main: f.main, shown: f.circuit, appearance: appearanceShown(f), editable: editableFile() });
+  const inst = inside.get(key(f.fileId, f.main));
+  circuitsList.set({
+    fileId: f.fileId, circuits: f.circuits, main: f.main, shown: f.circuit, appearance: appearanceShown(f), editable: editableFile(),
+    tree: simTreeOf(f), inside: f.circuit === f.main && !appearanceShown(f) ? inst?.ids ?? [] : undefined,
+  });
+}
+
+// The Simulation Tree (I-118): each circuit's subcircuit instances (model.circuit), asked once per change of the file.
+const simParts = new Map<string, SimPart[]>();   // key(fileId, circuitId)
+const simAsking = new Set<string>();
+function simTreeOf(f: OpenFile): SimNode[] | undefined {
+  if (engine.state !== 'ready' || circuitsBody.root.hidden) return undefined;   // asked only while the Circuits tab is up
+  const missing = new Set<string>();
+  const tree = simTree(f.main, (id) => files.circuitName(f, id), (id) => {
+    const got = simParts.get(key(f.fileId, id));
+    if (!got) missing.add(id);
+    return got;
+  });
+  for (const id of missing) void askSimParts(f.fileId, id);
+  return missing.size ? undefined : tree;
+}
+async function askSimParts(fileId: string, circuitId: string): Promise<void> {
+  const k = key(fileId, circuitId);
+  if (simAsking.has(k)) return;
+  simAsking.add(k);
+  try {
+    const s = await api.call<Snapshot>('model.circuit', { fileId, circuitId });
+    simParts.set(k, s.components.filter((c) => c.subcircuit !== undefined && c.subcircuit !== null)
+      .map((c) => ({ id: c.id, label: (c.attrs.label as string | undefined) ?? '', loc: c.loc, subcircuit: c.subcircuit! })));
+  } catch {
+    simParts.set(k, []);   // a circuit of a library: nothing inside to show
+  } finally {
+    simAsking.delete(k);
+  }
+  const f = files.active();
+  if (f?.fileId === fileId) renderCircuits(f);
+}
+// Into an instance from main (the Simulation Tree, Go to Instance): main's tab, down the path.
+function enterPath(fileId: string, ids: string[], names: string[], circuits: string[]): void {
+  const f = files.get(fileId);
+  if (!f) return;
+  files.activate(fileId);
+  files.openCircuit(fileId, f.main);
+  appearanceTabs.delete(key(fileId, f.main));
+  if (ids.length) inside.set(key(fileId, f.main), { ids: [...ids], names: [...names], circuits: [...circuits] });
+  else inside.delete(key(fileId, f.main));
+  render();
 }
 
 // The file on show can be edited (not read-only; the engine says so on its edits too).
@@ -928,11 +978,19 @@ function renderComponents(f: OpenFile): void {
   const lib = libraries.get(f.fileId);
   // The first group is this file's circuits (lib null); the bundled Hallym MIPS is listed before it is in the file (pending).
   const info = libInfo.get(f.fileId);
-  const openFiles = info?.openFiles.map((o) => ({ fileId: o.fileId, name: files.get(o.fileId)?.name ?? o.fileId, state: o.state, circuits: o.circuits })) ?? [];
+  const openFiles = info?.openFiles.map((o) => ({ fileId: o.fileId, name: files.get(o.fileId)?.name ?? o.name, state: o.state, circuits: o.circuits })) ?? [];
   components.set({ fileId: f.fileId, fileName: f.name, circuit: shown(f).circuit, libraries: lib, openFiles });
   if (lib === undefined) void loadLibrary(f.fileId);
-  if (!info && files.count() > 1 && engine.state === 'ready') void loadLibInfo(f.fileId);
+  // the other open files may be in windows of their own (N-11): asked whatever this window holds
+  if (!info && engine.state === 'ready') void loadLibInfo(f.fileId);
 }
+// Back to this window: files opened or closed in another window since are asked again (the Open Files group).
+window.addEventListener('focus', () => {
+  if (!libInfo.size) return;
+  libInfo.clear();
+  const f = files.active();
+  if (f) renderComponents(f);
+});
 
 // model.libraries (N-11): the other open files for the Components list's Open Files group.
 async function loadLibInfo(fileId: string): Promise<void> {
@@ -1258,6 +1316,29 @@ async function openFile(): Promise<void> {
     openedOrError(null, e);
   }
 }
+
+// .circ files dragged from the desktop onto the window (v1 DropOpen, I-181): each opened, the recovery question first.
+// Only the main window opens files; a drop anywhere else never replaces the page.
+function droppedFiles(e: DragEvent): boolean { return (e.dataTransfer?.types ?? []).includes('Files'); }
+window.addEventListener('dragover', (e) => {
+  if (!droppedFiles(e)) return;
+  e.preventDefault();
+  e.dataTransfer!.dropEffect = role.main ? 'copy' : 'none';
+});
+window.addEventListener('drop', (e) => {
+  if (!droppedFiles(e)) return;
+  e.preventDefault();
+  const list = e.dataTransfer?.files;
+  if (!role.main || !list || !list.length) return;
+  void (async () => {
+    if (!(await engineReady())) return;
+    try {
+      for (const r of await api.openDropped([...list])) openedOrError(await recoveryAnswered(r));   // an array: a FileList does not cross the bridge
+    } catch (err) {
+      openedOrError(null, err);
+    }
+  })();
+});
 
 async function save(saveAs: boolean): Promise<void> {
   const f = files.active();
@@ -1693,6 +1774,7 @@ api.onNotify((method, params) => {
     for (const sc of scenes.values()) if (sc.fileId === c.fileId && sc.circuitId === c.circuitId) sc.applyChange(c);
     libraries.delete(c.fileId); // the first part of a pending library puts it in the file
     for (const k of [...instCache.keys()]) if (k.startsWith(`${c.fileId} `)) instCache.delete(k);   // instances, pins (N-11)
+    simParts.delete(key(c.fileId, c.circuitId));   // the Simulation Tree asks that circuit again
     bandShown = '';
     watching.delete(c.fileId);  // an edit makes its circuit the simulation's own: watch the shown one again
     if (typeof c.dirty === 'boolean') files.setDirty(c.fileId, c.dirty);
