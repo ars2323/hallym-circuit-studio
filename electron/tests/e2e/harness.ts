@@ -119,6 +119,28 @@ export async function newCircuit(r: Running): Promise<void> {
 
 export const statusText = (page: Page) => page.locator('.status').innerText();
 
+/* The engine calls the window makes from now on, as the main process sends them (its EngineClient's
+   call, wrapped): what an intent carried, e.g. a poke's point and press/release (N-07, N-08). */
+export interface SentCall { method: string; params: Record<string, unknown> }
+export async function recordCalls(app: ElectronApplication): Promise<void> {
+  await app.evaluate(() => {
+    type E = { call(method: string, params?: unknown, options?: unknown): Promise<unknown> };
+    const g = globalThis as unknown as { __hcs: { engine: E }; __calls?: { method: string; params: unknown }[] };
+    g.__calls = [];
+    if ((g.__hcs.engine as unknown as { __wrapped?: boolean }).__wrapped) return;
+    const call = g.__hcs.engine.call.bind(g.__hcs.engine);
+    g.__hcs.engine.call = (method, params, options) => {
+      g.__calls?.push({ method, params: JSON.parse(JSON.stringify(params ?? {})) });
+      return call(method, params, options);
+    };
+    (g.__hcs.engine as unknown as { __wrapped?: boolean }).__wrapped = true;
+  });
+}
+export const sentCalls = (app: ElectronApplication, method?: string): Promise<SentCall[]> => app.evaluate((_e, m) => {
+  const g = globalThis as unknown as { __calls?: SentCall[] };
+  return (g.__calls ?? []).filter((c) => !m || c.method === m);
+}, method);
+
 // The university's characters visible anywhere on the page (none may be, next to an error).
 export const visibleCharacters = (page: Page): Promise<number> => page.evaluate(() =>
   [...document.querySelectorAll('img.char')].filter((e) => e.checkVisibility({ visibilityProperty: true })).length);

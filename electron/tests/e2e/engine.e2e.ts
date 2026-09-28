@@ -72,18 +72,21 @@ test('the engine\'s notifications reach the window: 1 Cycle, Run, Reset in the s
   }
 });
 
-test('an oscillation: the status bar says it in the window\'s words (not the engine\'s), until Reset', async () => {
+test('an oscillation: a band says it in the window\'s words (not the engine\'s), the status bar Simulation Off, until Reset', async () => {
   const r = await launch(undefined, { env: { FAKE_ENGINE_MODE: 'oscillate' } });
   const { page } = r;
   try {
     await newCircuit(r);
     await page.keyboard.press('F10');
-    await expect(page.locator('.status')).toContainText('발진으로 시뮬레이션이 꺼졌습니다');
+    await expect(page.locator('.simband')).toContainText('발진으로 시뮬레이션이 꺼졌습니다');
+    await expect(page.locator('.status .sim.err')).toHaveText('Simulation Off');
+    expect(await visibleCharacters(page)).toBe(0);   // the band says something went wrong: no character
     await page.keyboard.press('F10');
     await expect(page.locator('.status .err').last()).toHaveText('1 Cycle: 회로가 발진해서 시뮬레이션이 꺼져 있습니다. 회로를 고친 뒤 Reset을 누르세요');
     expect(await page.locator('.status').innerText()).not.toMatch(/oscillat|simulation is off/);
     await page.getByRole('button', { name: /Reset/ }).click();
-    await expect(page.locator('.status')).not.toContainText('꺼졌습니다');
+    await expect(page.locator('.simband')).toBeHidden();
+    await expect(page.locator('.status')).toContainText('Simulation On');
     await expect(page.locator('.status')).toContainText('Cycle 0');
   } finally {
     await r.close();

@@ -15,7 +15,11 @@
    plain records: a move gives a part a new id, as Logisim's new objects
    do; undo brings the parts back under new ids; model.changed after the
    answer), sim.reset/cycles/run/enable/state (a cycle count and the
-   clock, told back as sim.state), diag.list and
+   clock, told back as sim.state; more than 200 cycles go on over time
+   with cyclesLeft, and Run or Stop ends them, D-145), sim.tick/step,
+   sim.poke/pokeKey/pokeStop (N-07: an input pin flips the bit under the
+   pointer, a clock flips, a button is 1 while pressed, a register takes
+   hex digits -- on a canvas fixture's nets), diag.list and
    diag.changed (D-143: the real engine's words for the circuits in
    tests/fixtures/messages.json -- written by tools/diag-fixture.ts --
    matched by file name; the list after cycles once the file has run the
@@ -88,6 +92,11 @@ interface File {
   cycle: number; ticking: boolean; hz: number; on: boolean; dirty: boolean; undo: Step[]; redo: Step[]; diag: Diag | null; ran: boolean;
   mips: mips.MipsState;     // mips.* (fake-mips.ts, N-16)
   mipsIn?: boolean;         // a Hallym MIPS part was placed: the library is in the file (V-01)
+  // N-07: half a cycle ticked (sim.tick), the net values last sent, the poked part that takes keys,
+  // a long N Cycles still going (its cycles left and timer)
+  half?: boolean; values: Map<string, string>; caret?: { id: string; net: string | null; width: number } | null;
+  going?: { left: number; timer: ReturnType<typeof setInterval> } | null;
+  offByHand?: boolean;      // Simulation Enabled turned off (sim.enable), not an oscillation
   // a canvas fixture (tests/fixtures/circuits): its circuits under this file's circuit ids, the watched circuit
   fixture?: Fixture; fixtureIds?: Map<string, string>; watched?: { circuitId: string; watchKey: string; root: string; path: string[] };
   recovered?: boolean;      // opened from its recovery file: unsaved until saved (N-19)
@@ -275,7 +284,7 @@ function restartRecording(f: File): void {
 function recordChanged(f: File): void {
   if (files.has(f.fileId)) notify('record.state', rec.recordState(f.rec, untils.get(f.fileId)?.until ?? null));
 }
-const simState = (f: File) => ({ fileId: f.fileId, running: f.on, ticking: f.ticking, cycle: f.cycle, oscillating: !f.on, hz: f.hz });
+const simState = (f: File) => ({ fileId: f.fileId, running: f.on, ticking: f.ticking, cycle: f.cycle, oscillating: !f.on && !f.offByHand, hz: f.hz, cyclesLeft: f.going?.left ?? 0 });
 const libRefs = (f: File) => (f.libs.length ? f.libs : BUILTIN).map((lib) => ({ lib, display: lib === 'I/O' ? 'Input/Output' : lib, kind: 'builtin' }));
 const BUILTIN = ['Wiring', 'Gates', 'Plexers', 'Arithmetic', 'Memory', 'I/O', 'Base'];
 
@@ -302,7 +311,7 @@ const methods: Record<string, (p: Params) => unknown> = {
   'file.new': (p) => {
     const c: Circuit = { circuitId: `c${nextCircuit++}`, name: 'main', comps: [], wires: [] };
     const fileIdFor0 = fileIdFor(p);
-    const f: File = { fileId: fileIdFor0, name: 'Untitled', path: null, bytes: null, circuits: [c], main: 'main', libs: [], cycle: 0, ticking: false, hz: 1, on: true, dirty: false, undo: [], redo: [], diag: null, ran: false, mips: mips.newState(), rec: rec.newRecordFile(fileIdFor0, false, new Map()), ext: new Map() };
+    const f: File = { fileId: fileIdFor0, name: 'Untitled', path: null, bytes: null, circuits: [c], main: 'main', libs: [], cycle: 0, ticking: false, hz: 1, on: true, dirty: false, undo: [], redo: [], diag: null, ran: false, mips: mips.newState(), values: new Map(), rec: rec.newRecordFile(fileIdFor0, false, new Map()), ext: new Map() };
     adopt(f, p);
     files.set(f.fileId, f);
     setImmediate(() => recordChanged(f));
@@ -330,7 +339,7 @@ const methods: Record<string, (p: Params) => unknown> = {
     if (!text.includes('<project')) throw new Failure(2, `The file does not appear to be a Logisim project file: ${file}`, { path: file, reason: 'loadFailed' });
     const fileId = fileIdFor(p);
     const r = readCirc(text);
-    const f: File = { fileId, name: stem(path.basename(file)), path: file, bytes, circuits: r.circuits, main: r.main, libs: r.libs, cycle: 0, ticking: false, hz: 1, on: true, dirty: false, undo: [], redo: [], diag: DIAG[path.basename(file)] ?? null, ran: false, mips: mips.newState(), rec: rec.newRecordFile(fileId, false, new Map()), ext: new Map() };
+    const f: File = { fileId, name: stem(path.basename(file)), path: file, bytes, circuits: r.circuits, main: r.main, libs: r.libs, cycle: 0, ticking: false, hz: 1, on: true, dirty: false, undo: [], redo: [], diag: DIAG[path.basename(file)] ?? null, ran: false, mips: mips.newState(), values: new Map(), rec: rec.newRecordFile(fileId, false, new Map()), ext: new Map() };
     const fx = path.join(FIXTURES, `${stem(path.basename(file))}.json`);
     if (recovery !== 'recover' && existsSync(fx)) {
       f.fixture = JSON.parse(readFileSync(fx, 'utf8')) as Fixture;
@@ -370,6 +379,7 @@ const methods: Record<string, (p: Params) => unknown> = {
   },
   'file.close': (p) => {
     const f = fileOf(p);
+    stopRun(f);
     if (recoveryFiles && p.keepRecovery !== true) removeRecovery(f.path);
     mips.close(f);
     files.delete(String(p.fileId));
@@ -494,7 +504,8 @@ const methods: Record<string, (p: Params) => unknown> = {
   'edit.redo': (p) => undoRedo(fileOf(p), 'redo'),
   'sim.reset': (p) => {
     const f = fileOf(p);
-    f.cycle = 0; f.ticking = false; f.on = true;
+    stopRun(f);
+    f.cycle = 0; f.ticking = false; f.on = true; f.offByHand = false; f.half = false;
     sendFrames(f, 0, 0);
     setImmediate(() => notify('sim.state', simState(f)));
     mips.reset(f, notify);
@@ -505,9 +516,35 @@ const methods: Record<string, (p: Params) => unknown> = {
   'sim.cycles': (p) => {
     const f = fileOf(p);
     if (!f.on) throw new Failure(4, 'the simulation stopped because the circuit oscillates', { reason: 'oscillating' });
+    const n = Number(p.n ?? 1);
+    if (!(n >= 1)) throw new Failure(-32602, 'n must be positive');
+    f.ticking = false;             // N Cycles stops the clock first (D-145)
+    if (n > LONG_CYCLES || f.going) {
+      // a long run goes on over time (so Stop can end it): RUN_STEP cycles every 20 ms, cyclesLeft told
+      if (f.going) f.going.left += n;
+      else {
+        f.cycle = f.rec.view ?? f.cycle;   // from a past cycle on show, the run goes on from there
+        f.rec.view = null;
+        f.going = { left: n, timer: setInterval(() => {
+          const g = f.going;
+          if (!g) return;
+          const k = Math.min(RUN_STEP, g.left);
+          const from = f.cycle;
+          f.cycle += k;
+          f.rec.cycle = f.cycle;
+          recordChanged(f);
+          g.left -= k;
+          sendFrames(f, from + 1, f.cycle);
+          if (g.left === 0) stopRun(f);
+          notify('sim.state', simState(f));
+        }, 20) };
+      }
+      setImmediate(() => notify('sim.state', simState(f)));
+      return {};
+    }
     const from = f.cycle;
     // From a past cycle on show the later ones are dropped and the run goes on from there (as the engine's recording).
-    f.rec.cycle = (f.rec.view ?? f.rec.cycle) + Number(p.n ?? 1);
+    f.rec.cycle = (f.rec.view ?? f.rec.cycle) + n;
     f.rec.view = null;
     f.cycle = f.rec.cycle;
     setImmediate(() => recordChanged(f));
@@ -527,12 +564,47 @@ const methods: Record<string, (p: Params) => unknown> = {
   },
   'sim.run': (p) => {
     const f = fileOf(p);
+    if (p.on && !f.on) throw new Failure(4, 'the simulation is off', { reason: f.offByHand ? 'off' : 'oscillating' });
+    stopRun(f);                    // Run and Stop end N Cycles (D-145)
     f.ticking = Boolean(p.on);
     if (typeof p.hz === 'number') f.hz = p.hz;
     setImmediate(() => notify('sim.state', simState(f)));
     return {};
   },
-  'sim.enable': (p) => { const f = fileOf(p); f.on = Boolean(p.on); setImmediate(() => notify('sim.state', simState(f))); return {}; },
+  'sim.enable': (p) => { const f = fileOf(p); f.on = Boolean(p.on); f.offByHand = !f.on; if (!f.on) stopRun(f); setImmediate(() => notify('sim.state', simState(f))); return {}; },
+  // N-07: Tick Once (half a cycle), Step Simulation (only while off), Poke and its keys.
+  'sim.tick': (p) => {
+    const f = fileOf(p);
+    if (!f.on) throw new Failure(4, 'the simulation is off', { reason: 'off' });
+    stopRun(f);
+    f.half = !f.half;
+    if (!f.half) { f.cycle += 1; f.rec.cycle = f.cycle; f.rec.view = null; recordChanged(f); sendFrames(f, f.cycle, f.cycle); }
+    setImmediate(() => notify('sim.state', simState(f)));
+    return {};
+  },
+  'sim.step': (p) => {
+    const f = fileOf(p);
+    if (f.on) throw new Failure(4, 'Step Simulation works while the simulation is off', { reason: 'running' });
+    return {};
+  },
+  'sim.poke': (p) => poke(fileOf(p), circuitOf(p), p),
+  'sim.pokeKey': (p) => {
+    const f = fileOf(p);
+    const key = String(p.key ?? '');
+    if (!key || ([...key].length !== 1 && !/^(Backspace|Enter|Tab|Delete|Escape|Arrow(Left|Right|Up|Down)|Home|End)$/.test(key))) {
+      throw new Failure(-32602, 'key must be one character or a named key');
+    }
+    if (!f.caret) return { poked: false };
+    const d = Number.parseInt(key, 16);
+    if ([...key].length === 1 && !Number.isNaN(d) && f.caret.net) {
+      // a register or counter: the hex digit shifts in from the right (RegisterPoker.keyTyped)
+      const now = BigInt(`0b${(f.values.get(f.caret.net) ?? '0'.repeat(f.caret.width)).replace(/[^01]/g, '0')}`);
+      const mask = (1n << BigInt(f.caret.width)) - 1n;
+      setNet(f, f.caret.net, ((now * 16n + BigInt(d)) & mask).toString(2).padStart(f.caret.width, '0'));
+    }
+    return { poked: true };
+  },
+  'sim.pokeStop': (p) => { fileOf(p).caret = null; return {}; },
   'sim.state': (p) => simState(fileOf(p)),
   'sim.watch': (p) => {
     const f = fileOf(p);
@@ -870,6 +942,78 @@ function extChanged(f: File, c: Circuit): void {
   setImmediate(() => notify('model.changed', params));
 }
 
+// ---- N-07: long N Cycles, Poke ----------------------------------------------------------
+
+const LONG_CYCLES = 200;   // more than this goes on over time (a Stop can end it)
+const RUN_STEP = 25;       // cycles every 20 ms
+
+function stopRun(f: File): void {
+  if (!f.going) return;
+  clearInterval(f.going.timer);
+  f.going = null;
+}
+
+// A net's value set by a poke: sent as the engine would (the watched circuit's changed nets).
+function setNet(f: File, net: string, value: string): void {
+  f.values.set(net, value);
+  const w = f.watched;
+  if (!w) return;
+  const params: Record<string, unknown> = { fileId: f.fileId, circuitId: w.circuitId, nets: { [net]: value } };
+  if (w.path.length) { params.root = w.root; params.path = w.path; }
+  setImmediate(() => notify('sim.values', params));
+}
+
+// The fixture's net at a component's port (a canvas fixture's circuit, under this file's circuit id).
+function netAt(f: File, circuitId: string, componentId: string, port: number): { id: string; width: number } | null {
+  const fx = f.fixture?.circuits.find((c) => c.circuitId === (f.fixtureIds?.get(circuitId) ?? circuitId));
+  for (const n of (fx?.nets ?? []) as { id: string; width: number; ports: [string, number][] }[]) {
+    if (n.ports.some(([c, i]) => c === componentId && i === port)) return { id: n.id, width: n.width };
+  }
+  return null;
+}
+
+/* sim.poke as Logisim's pokers do it, for the parts the window's tests poke: an input pin flips the bit
+   under the pointer (PinPoker.getBit: bit 0 at the right, eight a row, rows of 20 from the bottom), a
+   clock flips, a button is 1 while pressed, a register or counter keeps a caret for its hex digits. */
+function poke(f: File, c: Circuit, p: Params): unknown {
+  const k = c.comps.find((x) => x.id === p.componentId) as (Comp & { bounds?: [number, number, number, number] }) | undefined;
+  if (!k) {
+    if (c.wires.some((w) => w.id === p.componentId)) return { poked: false, caret: false };
+    throw new Failure(1, `no such component id: ${String(p.componentId)}`, { kind: 'component', id: String(p.componentId) });
+  }
+  const action = String(p.action ?? 'click');
+  if (!['click', 'press', 'release'].includes(action)) throw new Failure(-32602, 'action must be click, press or release');
+  const at = Array.isArray(p.at) ? (p.at as [number, number]) : null;
+  const net = netAt(f, c.circuitId, k.id, 0);
+  const now = (width: number) => (net ? f.values.get(net.id) : undefined) ?? '0'.repeat(width);
+  const flip = (v: string, bit: number) => { const i = v.length - 1 - bit; return v.slice(0, i) + (v[i] === '1' ? '0' : '1') + v.slice(i + 1); };
+  if (k.name === 'Pin' && k.attrs.output !== 'true') {
+    const width = Number(k.attrs.width ?? '1');
+    let bit = 0;
+    if (width > 1 && at && k.bounds) {
+      const i = Math.trunc((k.bounds[0] + k.bounds[2] - at[0]) / 10), j = Math.trunc((k.bounds[1] + k.bounds[3] - at[1]) / 20);
+      bit = 8 * j + i;
+    }
+    if (action !== 'press' && net && bit >= 0 && bit < width) setNet(f, net.id, flip(now(width), bit));
+    f.caret = { id: k.id, net: null, width };
+    return { poked: true, caret: true };
+  }
+  if (k.name === 'Clock') {
+    if (action !== 'press' && net) setNet(f, net.id, flip(now(1), 0));
+    return { poked: true, caret: true };
+  }
+  if (k.name === 'Button') {
+    if (net) setNet(f, net.id, action === 'release' ? '0' : '1');
+    if (action === 'click' && net) setNet(f, net.id, '0');
+    return { poked: true, caret: action === 'press' };
+  }
+  if (k.name === 'Register' || k.name === 'Counter') {
+    f.caret = { id: k.id, net: net?.id ?? null, width: Number(k.attrs.width ?? '8') };
+    return { poked: true, caret: true };
+  }
+  return { poked: false, caret: false };
+}
+
 // A fixture circuit's id as this file's.
 function currentId(f: File, fixtureId: string): string {
   for (const [cur, fx] of f.fixtureIds ?? []) if (fx === fixtureId) return cur;
@@ -891,6 +1035,7 @@ function sendFrames(f: File, from: number, to: number): void {
     Object.assign(bodies, fr.bodies);
   }
   if (!Object.keys(nets).length && !Object.keys(bodies).length) return;
+  for (const [k, v] of Object.entries(nets)) f.values.set(k, v);
   const params: Record<string, unknown> = { fileId: f.fileId, circuitId: w.circuitId, nets, bodies };
   if (w.path.length) { params.root = w.root; params.path = w.path; }
   setImmediate(() => notify('sim.values', params));

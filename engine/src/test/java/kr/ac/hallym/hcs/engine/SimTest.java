@@ -311,6 +311,229 @@ class SimTest {
         assertTrue(changedAt >= 0 && changedAt < valuesAt);
     }
 
+    // ---- N-07(D-145): 빠른 N 사이클, 클럭 멈춤, Tick Once, Step, 키로 Poke ----
+
+    /** 카운터 회로를 열고 q 넷을 본다. q 넷 id. */
+    String openCounterAndWatch(int[] markOut) throws Exception {
+        open(Fixtures.counter(tmp));
+        JsonObject s = snapshot();
+        String counter = Fixtures.byName(s.getAsJsonArray("components"), "Counter").get(0).get("id").getAsString();
+        String q = Fixtures.netOf(s.getAsJsonArray("nets"), counter, 0);
+        int mark = e.client.mark();
+        e.client.call("sim.watch", params("fileId", fileId, "circuitId", main));
+        awaitValue(mark, main, q, "00000000");
+        markOut[0] = mark;
+        return q;
+    }
+
+    static String bits8(long n) {
+        String b = Long.toBinaryString(n & 0xff);
+        return "00000000".substring(b.length()) + b;
+    }
+
+    @Test
+    void cyclesStopTheRunningClockAndCountEveryTick() throws Exception {
+        int[] m = new int[1];
+        String q = openCounterAndWatch(m);
+        e.client.call("sim.run", params("fileId", fileId, "on", true, "hz", 64));
+        e.client.awaitNotificationAfter(m[0], "sim.state", s -> s.get("cycle").getAsLong() >= 2);
+        int m2 = e.client.mark();
+        e.client.call("sim.cycles", params("fileId", fileId, "n", 30));
+        JsonObject first = e.client.awaitNotificationAfter(m2, "sim.state", s -> true);
+        assertFalse(first.get("ticking").getAsBoolean(), "N Cycles stops the clock first");
+        JsonObject done = e.client.awaitNotificationAfter(m2, "sim.state", s -> s.get("cyclesLeft").getAsLong() == 0
+                && !s.get("ticking").getAsBoolean() && s.get("cycle").getAsLong() >= 32);
+        long cycle = done.get("cycle").getAsLong();
+        // exactly its own 60 ticks after the clock's queued ones (the counter counts rising edges: (ticks + 1) / 2)
+        long[] run = e.onEngine(() -> e.engine.sim(fileId).lastPacer());
+        assertEquals(60, run[1], "requested");
+        assertEquals(60, run[2], "counted: only its own ticks");
+        assertEquals((run[0] + 60) / 2, cycle, "the cycle: where the clock stopped, then exactly 30 more");
+        awaitValue(m2, main, q, bits8((run[0] + 60 + 1) / 2));
+        Thread.sleep(300);
+        assertEquals(cycle, e.client.callObject("sim.state", params("fileId", fileId)).get("cycle").getAsLong(),
+                "nothing ticks once the cycles are done");
+        assertEquals(64.0, done.get("hz").getAsDouble());
+        assertEquals(64.0, (double) e.onEngine(() -> e.engine.files().get(fileId).project().getSimulator()
+                .getTickFrequency()), "the clock's own speed is the student's again");
+    }
+
+    /**
+     * N Cycles while the clock runs fast (the original ticker has queued ticks in the propagation manager, up to 16): those
+     * queued automatic ticks are done first and not counted as N Cycles' own; then exactly 2n ticks.
+     */
+    @Test
+    void nCyclesWhileTheClockRunsFastCountsOnlyItsOwnTicks() throws Exception {
+        int[] m = new int[1];
+        String q = openCounterAndWatch(m);
+        e.client.call("sim.run", params("fileId", fileId, "on", true, "hz", 4096));
+        e.client.awaitNotificationAfter(m[0], "sim.state", s -> s.get("cycle").getAsLong() >= 40);
+        int m2 = e.client.mark();
+        e.client.call("sim.cycles", params("fileId", fileId, "n", 10));
+        JsonObject done = e.client.awaitNotificationAfter(m2, "sim.state", s -> s.get("cyclesLeft").getAsLong() == 0
+                && !s.get("ticking").getAsBoolean() && e.client.notificationsAfter(m2, "sim.state").size() > 1);
+        long[] run = e.onEngine(() -> e.engine.sim(fileId).lastPacer());
+        assertEquals(20, run[1]);
+        assertEquals(20, run[2]);
+        long end = run[0] + 20;
+        Thread.sleep(300);
+        long cycle = e.client.callObject("sim.state", params("fileId", fileId)).get("cycle").getAsLong();
+        assertEquals(end / 2, cycle, "exactly 10 cycles after the clock's own ticks; nothing after: " + done);
+        awaitValue(m2, main, q, bits8((end + 1) / 2));
+        assertEquals(4096.0, done.get("hz").getAsDouble());
+    }
+
+    /** Stop (or Reset) while N Cycles waits for the clock's queued ticks: nothing of its own is ever asked. */
+    @Test
+    void stopWhileWaitingForTheClocksTicksAsksNothing() throws Exception {
+        int[] m = new int[1];
+        openCounterAndWatch(m);
+        e.client.call("sim.run", params("fileId", fileId, "on", true, "hz", 4096));
+        e.client.awaitNotificationAfter(m[0], "sim.state", s -> s.get("cycle").getAsLong() >= 10);
+        e.client.call("sim.cycles", params("fileId", fileId, "n", 50));
+        e.client.call("sim.run", params("fileId", fileId, "on", false));   // at once: still waiting
+        Thread.sleep(400);
+        long[] run = e.onEngine(() -> e.engine.sim(fileId).lastPacer());
+        assertEquals(0, run[1], "no tick of its own was asked");
+        JsonObject st = e.client.callObject("sim.state", params("fileId", fileId));
+        assertEquals(0, st.get("cyclesLeft").getAsLong());
+        assertFalse(st.get("ticking").getAsBoolean());
+    }
+
+    /**
+     * Keys to a poked counter while N Cycles runs: the original poker's key handlers change the circuit state on the engine
+     * thread while the simulator thread propagates; they wait for the propagation as edits do (SimGate, D-143). No thread
+     * dies and the simulation stays on.
+     */
+    @Test
+    void keysToAPokedPartWhileCyclesRunKeepTheSimulationOn() throws Exception {
+        java.util.List<String> died = new java.util.concurrent.CopyOnWriteArrayList<>();
+        Thread.UncaughtExceptionHandler before = Thread.getDefaultUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler((th, x) -> died.add(th.getName() + ": " + x));
+        try {
+            int[] m = new int[1];
+            openCounterAndWatch(m);
+            String counter = Fixtures.byName(snapshot().getAsJsonArray("components"), "Counter").get(0).get("id")
+                    .getAsString();
+            assertTrue(e.client.callObject("sim.poke", params("fileId", fileId, "circuitId", main, "componentId",
+                    counter)).get("caret").getAsBoolean());
+            int m2 = e.client.mark();
+            e.client.call("sim.cycles", params("fileId", fileId, "n", 5000));
+            for (int k = 0; k < 100; k++) {
+                e.client.call("sim.pokeKey", params("fileId", fileId, "key", Integer.toHexString(k % 16)));
+            }
+            e.client.call("sim.pokeStop", params("fileId", fileId));
+            e.client.call("sim.run", params("fileId", fileId, "on", false));
+            e.client.awaitNotificationAfter(m2, "sim.state", s -> s.get("cyclesLeft").getAsLong() == 0);
+            JsonObject st = e.client.callObject("sim.state", params("fileId", fileId));
+            assertTrue(st.get("running").getAsBoolean(), "the simulation is still on (no propagation error): " + st);
+            assertTrue(st.get("cycle").getAsLong() > 0);
+            assertEquals(java.util.List.of(), died);
+        } finally {
+            Thread.setDefaultUncaughtExceptionHandler(before);
+        }
+    }
+
+    @Test
+    void stopEndsLongCyclesAfterTheTicksInFlight() throws Exception {
+        int[] m = new int[1];
+        String q = openCounterAndWatch(m);
+        int m2 = e.client.mark();
+        e.client.call("sim.cycles", params("fileId", fileId, "n", 100000));
+        JsonObject going = e.client.awaitNotificationAfter(m2, "sim.state", s -> s.get("cyclesLeft").getAsLong() > 0);
+        assertTrue(going.get("cyclesLeft").getAsLong() <= 100000);
+        e.client.awaitNotificationAfter(m2, "sim.state", s -> s.get("cycle").getAsLong() >= 5);
+        e.client.call("sim.run", params("fileId", fileId, "on", false));
+        JsonObject stopped = e.client.awaitNotificationAfter(m2, "sim.state",
+                s -> s.get("cyclesLeft").getAsLong() == 0);
+        long cycle = stopped.get("cycle").getAsLong();
+        assertTrue(cycle < 100000);
+        awaitValue(m2, main, q, bits8(cycle));
+        Thread.sleep(300);
+        assertEquals(cycle, e.client.callObject("sim.state", params("fileId", fileId)).get("cycle").getAsLong());
+        assertEquals(1.0, (double) e.onEngine(() -> e.engine.files().get(fileId).project().getSimulator()
+                .getTickFrequency()));
+    }
+
+    @Test
+    void tickOnceIsHalfACycle() throws Exception {
+        int[] m = new int[1];
+        String q = openCounterAndWatch(m);
+        int m2 = e.client.mark();
+        e.client.call("sim.tick", params("fileId", fileId));
+        Thread.sleep(200);
+        assertEquals(0, e.client.callObject("sim.state", params("fileId", fileId)).get("cycle").getAsLong());
+        e.client.call("sim.tick", params("fileId", fileId));
+        awaitCycle(m2, 1);
+        awaitValue(m2, main, q, "00000001");
+    }
+
+    @Test
+    void stepSimulationOnlyWhileOff() throws Exception {
+        open(Fixtures.counter(tmp));
+        Client.Failure f = e.client.fail("sim.step", params("fileId", fileId));
+        assertEquals(4, f.code);
+        assertEquals("running", f.reason());
+        e.client.call("sim.enable", params("fileId", fileId, "on", false));
+        assertEquals(new JsonObject(), e.client.call("sim.step", params("fileId", fileId)));
+    }
+
+    @Test
+    void keysGoToThePokedRegister() throws Exception {
+        JsonObject r = e.client.callObject("file.new", params());
+        fileId = r.get("fileId").getAsString();
+        main = r.get("main").getAsString();
+        String reg = e.client.callObject("edit.addComponent", params("fileId", fileId, "circuitId", main, "lib",
+                "Memory", "name", "Register", "loc", xy(200, 200))).get("id").getAsString();
+        JsonObject regJson = Fixtures.byId(snapshot().getAsJsonArray("components"), reg);
+        String qNet = Fixtures.netOf(snapshot().getAsJsonArray("nets"), reg, 0);
+        assertNotNull(regJson);
+        int mark = e.client.mark();
+        e.client.call("sim.watch", params("fileId", fileId, "circuitId", main));
+        awaitValue(mark, main, qNet, "00000000");
+        assertFalse(e.client.callObject("sim.pokeKey", params("fileId", fileId, "key", "7")).get("poked")
+                .getAsBoolean(), "nothing poked yet: no caret");
+        JsonObject poked = e.client.callObject("sim.poke", params("fileId", fileId, "circuitId", main,
+                "componentId", reg));
+        assertTrue(poked.get("caret").getAsBoolean());
+        assertTrue(e.client.callObject("sim.pokeKey", params("fileId", fileId, "key", "a")).get("poked")
+                .getAsBoolean());
+        awaitValue(mark, main, qNet, "00001010");
+        e.client.call("sim.pokeKey", params("fileId", fileId, "key", "5"));
+        awaitValue(mark, main, qNet, "10100101");
+        e.client.call("sim.pokeKey", params("fileId", fileId, "key", "z")); // 16진 글자가 아니면 그대로
+        e.client.call("sim.pokeKey", params("fileId", fileId, "key", "ArrowLeft"));
+        e.client.call("sim.pokeStop", params("fileId", fileId));
+        assertFalse(e.client.callObject("sim.pokeKey", params("fileId", fileId, "key", "1")).get("poked")
+                .getAsBoolean());
+        assertEquals("10100101", values(mark, main).get(qNet));
+        assertEquals(-32602, e.client.fail("sim.pokeKey", params("fileId", fileId, "key", "Hyper")).code);
+    }
+
+    @Test
+    void fastTicksAreCountedPerHolder() throws Exception {
+        open(Fixtures.counter(tmp));
+        double[] hz = e.onEngine(() -> {
+            kr.ac.hallym.hcs.engine.sim.SimSession s = e.engine.sim(fileId);
+            com.cburch.logisim.circuit.Simulator sim = e.engine.files().get(fileId).project().getSimulator();
+            double[] out = new double[4];
+            s.fastTicks(true);
+            s.fastTicks(true);
+            out[0] = sim.getTickFrequency();
+            s.fastTicks(false);
+            out[1] = sim.getTickFrequency();
+            out[2] = s.state().get("hz").getAsDouble();
+            s.fastTicks(false);
+            out[3] = sim.getTickFrequency();
+            s.fastTicks(false); // 한 번 더 놓아도 그대로
+            return out;
+        });
+        assertEquals(1024.0, hz[0]);
+        assertEquals(1024.0, hz[1], "Run Until and N Cycles can hold it at once");
+        assertEquals(1.0, hz[2], "sim.state tells the student's speed meanwhile");
+        assertEquals(1.0, hz[3]);
+    }
+
     @Test
     void valueText() {
         assertEquals("x", kr.ac.hallym.hcs.engine.sim.SimSessionTestAccess.text(null, 1));

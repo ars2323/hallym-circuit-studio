@@ -102,6 +102,12 @@ body.error-dialog img.char, body.band-shown img.char { visibility: hidden; }
 .btn:disabled { color: var(--gray); cursor: default; }
 .btn:disabled img { opacity: .35; }
 .btn kbd { font: 11px var(--code); color: inherit; opacity: .7; }
+/* A label that swaps words (Run / Stop): as wide as the wider one in either state */
+.btn .label.swap { display: inline-grid; }
+.btn .label.swap > * { grid-area: 1 / 1; }
+.btn .label.swap > .off { visibility: hidden; }
+/* (its gaps 2px tighter: the room the wider word takes, so the bar at 1920 px keeps its key hints) */
+.btn:has(> .label.swap) { gap: 4px; }
 .btn.small { height: 26px; padding: 0 8px; }
 .iconbtn { width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; border: 0; background: none; color: var(--text-2); flex: none; }
 .iconbtn:hover:not(:disabled) { background: var(--hover); }

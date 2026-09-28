@@ -506,10 +506,32 @@ public final class Engine {
                     p.optStr("action", "click")));
             JsonObject o = new JsonObject();
             o.addProperty("poked", poked);
+            o.addProperty("caret", s.hasCaret(comp));
             return o;
         });
+        server.register("sim.pokeKey", (p, call) -> {
+            JsonObject o = new JsonObject();
+            o.addProperty("poked", session(p).pokeKey(p.str("key")));
+            return o;
+        });
+        server.register("sim.pokeStop", (p, call) -> {
+            session(p).dropCaret();
+            return new JsonObject();
+        });
         server.register("sim.cycles", (p, call) -> {
-            session(p).cycles(p.integer("n"));
+            SimSession s = session(p);
+            s.cycles(p.integer("n"));
+            call.after(() -> s.sendState(false));
+            return new JsonObject();
+        });
+        server.register("sim.tick", (p, call) -> {
+            SimSession s = session(p);
+            s.tickOnce();
+            call.after(() -> s.sendState(false));
+            return new JsonObject();
+        });
+        server.register("sim.step", (p, call) -> {
+            session(p).step();
             return new JsonObject();
         });
         server.register("sim.run", (p, call) -> {

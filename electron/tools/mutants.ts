@@ -506,6 +506,23 @@ export const MUTANTS: Mutant[] = [
     find: "    h('p', { class: 'legend-note' }, RUN_ONLY));", replace: '  );', tests: ['tests/e2e/labpc.e2e.ts'] },
   { module: 'labpc', file: 'src/renderer/app/app.ts', what: 'a clock speed other than the default at the start',
     find: 'selected: hz === RUN_DEFAULTS.hz', replace: 'selected: hz === 64', tests: ['tests/e2e/labpc.e2e.ts'] },
+  // ---- the simulation (N-07, D-145: logic/sim.ts, canvas/poke.ts, app/editor.ts)
+  { module: 'sim', file: 'src/renderer/app/logic/sim.ts', what: 'Run stays Run while N Cycles goes (no way to stop it)',
+    find: "!!s && (s.ticking || (s.cyclesLeft ?? 0) > 0)", replace: '!!s && s.ticking', tests: ['tests/unit/sim.test.ts'] },
+  { module: 'sim', file: 'src/renderer/app/logic/sim.ts', what: 'Reset turns on what Ctrl+E turned off',
+    find: '!!s && !s.running && s.oscillating;', replace: '!!s && !s.running;', tests: ['tests/unit/sim.test.ts'] },
+  { module: 'sim', file: 'src/renderer/app/logic/sim.ts', what: 'N Cycles takes 0',
+    find: 'if (n < CYCLES_MIN || n > CYCLES_MAX)', replace: 'if (n > CYCLES_MAX)', tests: ['tests/unit/sim.test.ts'] },
+  { module: 'sim', file: 'src/renderer/canvas/poke.ts', what: 'the poked wire\'s decimal unsigned',
+    find: "const s = v[0] === '1' ? u - (1n << BigInt(width)) : u;", replace: 'const s = u;', tests: ['tests/unit/canvas-poke.test.ts'] },
+  { module: 'sim', file: 'src/renderer/canvas/poke.ts', what: 'the lens too wide (a double click anywhere in the box goes inside)',
+    find: 'return dx * dx + dy * dy <= 60;', replace: 'return dx * dx + dy * dy <= 6000;', tests: ['tests/unit/canvas-poke.test.ts'] },
+  { module: 'sim', file: 'src/renderer/canvas/poke.ts', what: 'keys with Ctrl go to a poked register',
+    find: 'if (e.ctrlKey || e.altKey || e.metaKey || e.isComposing) return null;', replace: 'if (e.isComposing) return null;', tests: ['tests/unit/canvas-poke.test.ts'] },
+  { module: 'sim', file: 'src/renderer/app/editor.ts', what: 'a poke sent as one click (the pin\'s press and release not apart)',
+    find: "void this.send(p.where, p.id, e.at, 'release')", replace: 'void Promise.resolve(null)', tests: ['tests/e2e/sim.e2e.ts'] },
+  { module: 'sim', file: 'src/renderer/app/app.ts', what: 'the band not shown while the simulation is off',
+    find: '  if (text) simOffBand.show(text, \'error\');', replace: '  if (false) simOffBand.show(text!, \'error\');', tests: ['tests/e2e/sim.e2e.ts'] },
 ];
 
 function copyTree(dir: string): void {

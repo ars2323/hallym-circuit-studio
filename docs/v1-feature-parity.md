@@ -122,6 +122,6 @@ v1(Swing, `swing-final`)의 기능을 v2(Electron 화면 + Java 엔진)로 모�
 | Y-05 | 작은 것(빈 Attributes 칸, 아이콘만 모드 글자 단추) | N-10·N-17 |  |  |  |
 | Y-06 | 확인과 릴리스(review-shots v103, v1.0.3, needs-human) | 과정 |  |  | v1 검토·릴리스 과정이라 옮길 기능이 아님 |
 | Y-07 | MSI 배포 중단(zip만), setup exe 결정(v1.1.0, #334) | N-23 |  |  |  |
-| Y-08 | 틱 누락 확인(N Cycles 고침, Run Until·기록·연속 실행은 해당 없음) | N-07 |  |  |  |
+| Y-08 | 틱 누락 확인(N Cycles 고침, Run Until·기록·연속 실행은 해당 없음) | N-07 | #431 | `real-engine-sim.e2e.ts` "a counter -- 1 Cycle, N Cycles 100 exactly…", "N Cycles 1000 on ref-mips…" · `sim.e2e.ts` "N Cycles: …" · 엔진 `SimTest.cyclesTickACounterAndStreamTheValue`, `cyclesStopTheRunningClockAndCountEveryTick`, `NCyclesSpeedTest` | D-123 한도 그대로, D-145: 빠른 틱으로 ref-mips 1000 사이클 1.4초(v1 25초) |
 | Y-10 | 메시지를 누르면 초점이 검색 칸으로 옮겨 가던 것 | N-13 |  | messages.e2e.ts "choosing a message…"(초점이 메시지에 남음, Tab·Enter) | D-143 |
 | Y-09 | 촬영·검토 절차(장면마다 새 JVM, 병렬, 같은 코드면 같은 픽셀, 바뀐 것만 검토, core·feature 세트) | 과정 |  |  | v1 검토·릴리스 과정이라 옮길 기능이 아님 |

@@ -6,6 +6,7 @@
 package kr.ac.hallym.hcs.engine.sim;
 
 import java.awt.HeadlessException;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -107,6 +108,9 @@ public final class SimSession implements SimulatorListener {
     public void propagationCompleted(SimulatorEvent e) {
         valuesDirty = true;
         propagations++;
+        if (draining) {
+            server.submit(this::onDrainStep);
+        }
     }
 
     /** 원조 시뮬레이터가 알린 전파 완료 수(시험 자료가 전파가 끝난 자리를 기다릴 때, CanvasFixtures.settle). */
@@ -129,10 +133,40 @@ public final class SimSession implements SimulatorListener {
 
     private void onTick() {
         ticks++;
-        if (pacer != null) {
+        if (pacer != null && pacer.waiting) {
+            drainSawTick = true; // Run이 쌓아 둔 자동 틱: 실행기의 것이 아니다(사이클에는 센다)
+        } else if (pacer != null) {
             pacer.onTick();
         }
     }
+
+    /**
+     * Run을 멈춘 뒤 원조가 이미 받아 둔 자동 틱(PropagationManager, 16개까지)을 다 치르기를 기다린다: 틱 없이 끝난 전파
+     * 한 바퀴가 오면(그때 원조의 틱 요청 수가 0) 실행기를 시작한다. 틱이 있던 바퀴면 전파를 다시 요청해 한 바퀴 더 본다.
+     * 틱 완료 알림은 같은 바퀴의 전파 완료 알림보다 먼저 엔진 스레드에 온다(원조 run 루프의 차례, 같은 실행기).
+     */
+    private void onDrainStep() {
+        if (!draining || pacer == null || !pacer.waiting) {
+            return;
+        }
+        if (drainSawTick) {
+            drainSawTick = false;
+            sim.requestPropagate();
+            return;
+        }
+        draining = false;
+        pacer.go();
+    }
+
+    /** 자동 틱을 치르기를 기다리는 중(시뮬레이터 스레드도 읽는다). */
+    private volatile boolean draining;
+    /** 기다리는 동안 틱이 있었다(엔진 스레드). */
+    private boolean drainSawTick;
+    /**
+     * 원조 틱 스레드(SimulatorTicker)는 깨어 있음을 읽은 뒤 틱을 요청하고 1~100ms 잔다. 멈춘 뒤 이만큼 지나면 그 스레드는
+     * 꺼진 것을 읽었다(그 뒤로 자동 틱을 요청하지 않는다).
+     */
+    static final int TICKER_SETTLE_MS = 150;
 
     private void onStateChanged() {
         if (pacer != null) {
@@ -197,16 +231,81 @@ public final class SimSession implements SimulatorListener {
         valuesDirty = true;
     }
 
+    /** sim.cycles: n 사이클(틱 2n번). 곧바로 돌아오고 끝나면 sim.state를 보낸다. */
+    public void cycles(int n) throws RpcError {
+        if (n <= 0) {
+            throw RpcError.params("n must be positive");
+        }
+        ticks(2L * n);
+    }
+
+    /** sim.tick: 원조 Simulate › Tick Once(틱 한 번, 반 사이클). N 사이클과 같은 실행기로 센다. */
+    public void tickOnce() throws RpcError {
+        ticks(1);
+    }
+
     /**
-     * record.runUntil(N-14): 원조 틱 스레드(SimulatorTicker)는 한 번 틱 요청을 처리한 뒤 틱 주파수의 한 주기만큼(1 Hz면
-     * 최대 100ms) 잔다. Run Until은 한 사이클씩 요청하므로(D-075) 그대로면 사이클마다 그만큼 기다린다. 도는 동안만 원조
-     * 틱 주파수를 {@link #FAST_HZ}(한 주기 1ms)로 두고, sim.state에는 학생이 고른 값을 알린다. 끝나면 되돌린다.
+     * 틱 count번(D-123 실행기). 도는 클럭(Run)은 먼저 멈춘다: 요청한 수만큼만 돌아야 사이클 수가 맞는다(N-07, D-145).
+     * 실행기가 도는 동안 원조 틱 스레드가 틱 사이에 학생의 틱 주파수만큼 자지 않게 한다({@link #fastTicks}).
+     */
+    private void ticks(long count) throws RpcError {
+        requireRunning();
+        if (runUntilHolds()) {
+            // Run Until이 한 사이클씩 요청하며 조건을 본다(D-075): 틱을 더 끼우면 조건을 넘는다
+            throw RpcError.simState("busy", "Run Until is running");
+        }
+        boolean stopped = false;
+        if (sim.isTicking()) {
+            sim.setIsTicking(false);
+            stopped = true;
+        }
+        if (pacer == null || pacer.finished) {
+            pacer = new Pacer(count);
+            pacer.whole = count % 2 == 0;
+            if (stopped) {
+                // 도는 클럭이 이미 쌓아 둔 자동 틱을 먼저 치른다: 그 틱 완료를 실행기의 것으로 세면 더 돈다(D-145)
+                pacer.afterAutoTicks();
+                return;
+            }
+            pacer.start();
+        } else {
+            pacer.left += count;
+            pacer.whole &= count % 2 == 0;
+        }
+        pacer.pump();
+    }
+
+    /** 마지막 실행기: {시작할 때의 틱 수, 요청한 틱, 끝난 틱}(테스트: 요청한 만큼만 셌는지). 없으면 null. */
+    public long[] lastPacer() {
+        return pacer == null ? null : new long[] {pacer.startTicks, pacer.requested, pacer.completed};
+    }
+
+    /**
+     * sim.step: 원조 Simulate › Step Simulation(시뮬레이션이 꺼져 있을 때만: 전파를 한 단계 진행). 켜져 있으면 오류 4
+     * {@code running}(원조 메뉴 항목이 꺼져 있는 것과 같다).
+     */
+    public void step() throws RpcError {
+        if (sim.isRunning()) {
+            throw RpcError.simState("running", "Step Simulation works while the simulation is off");
+        }
+        sim.step();
+        valuesDirty = true;
+    }
+
+    /**
+     * N 사이클 동안 원조 틱 스레드(SimulatorTicker)는 틱 요청을 처리할 때마다 틱 주파수의 한 주기만큼(1 Hz면 최대
+     * 100ms) 잔다. 그래서 틱 완료로 다음 틱을 요청해도 사이클마다 그만큼 기다렸다(ref-mips 1000 사이클 25초, D-145).
+     * 실행기가 도는 동안만 원조 틱 주파수를 {@link #FAST_HZ}(한 주기 1ms)로 두고 sim.state에는 학생이 고른 값을 알린다.
+     * 틱을 요청하는 것은 여전히 실행기뿐이다(클럭 자동 틱은 꺼져 있다). N-14 Run Until과 같은 방법(D-144)이고, 둘이
+     * 겹쳐도 되게 쥔 수를 센다.
      */
     public void fastTicks(boolean on) {
-        if (on && heldHz == null) {
-            heldHz = sim.getTickFrequency();
-            sim.setTickFrequency(FAST_HZ);
-        } else if (!on && heldHz != null) {
+        if (on) {
+            if (fastHolders++ == 0) {
+                heldHz = sim.getTickFrequency();
+                sim.setTickFrequency(FAST_HZ);
+            }
+        } else if (fastHolders > 0 && --fastHolders == 0) {
             double hz = heldHz;
             heldHz = null;
             sim.setTickFrequency(hz);
@@ -217,30 +316,24 @@ public final class SimSession implements SimulatorListener {
     static final double FAST_HZ = 1024;
     /** {@link #fastTicks} 동안 학생이 고른 틱 주파수. */
     private Double heldHz;
+    private int fastHolders;
 
     /** N 사이클이 돌고 있다(record.view·Run Until이 기다리게 한다). */
     public boolean busy() {
         return pacer != null && !pacer.finished;
     }
 
-    /** sim.cycles: n 사이클(틱 2n번). 곧바로 돌아오고 끝나면 sim.state를 보낸다. */
-    public void cycles(int n) throws RpcError {
-        if (n <= 0) {
-            throw RpcError.params("n must be positive");
-        }
-        requireRunning();
-        if (pacer == null || pacer.finished) {
-            pacer = new Pacer(2L * n);
-            pacer.start();
-        } else {
-            pacer.left += 2L * n;
-        }
-        pacer.pump();
+    /** 빠른 틱을 N 사이클 말고 다른 것(record.runUntil, N-14)이 쥐고 있다: Run Until이 돌고 있다. */
+    private boolean runUntilHolds() {
+        return fastHolders - (busy() && pacer.fast ? 1 : 0) > 0;
     }
 
-    /** sim.run: 틱을 켜고 끈다(원조 Ticks Enabled), hz는 원조 틱 주파수(틱/초). */
+    /**
+     * sim.run: 틱을 켜고 끈다(원조 Ticks Enabled), hz는 원조 틱 주파수(틱/초). 돌고 있는 N 사이클은 멈춘다: 남은 틱을
+     * 더 요청하지 않고 처리 중인 틱(8개 이하)만 끝낸다(Run·Stop이 N Cycles를 멈추는 길, D-145).
+     */
     public void run(boolean on, Double hz) throws RpcError {
-        if (on && heldHz != null) {
+        if (on && runUntilHolds()) {
             // Run Until이 한 사이클씩 돌리는 중: 원조 틱을 켜면 조건을 넘어 더 돈다(D-075). 속도만 바꾸는 것은 받는다
             throw RpcError.simState("busy", "Run Until is running");
         }
@@ -248,14 +341,23 @@ public final class SimSession implements SimulatorListener {
             if (!(hz > 0) || hz > 1_000_000) {
                 throw RpcError.params("hz must be between 0 and 1000000");
             }
-            if (heldHz != null) {
-                heldHz = hz; // Run Until이 끝나면 이 값으로(fastTicks)
-            } else {
-                sim.setTickFrequency(hz);
-            }
         }
         if (on) {
             requireRunning();
+        }
+        if (busy() && pacer.waiting) {
+            pacer.finish(true); // 아직 하나도 요청하지 않았다
+        } else if (busy()) {
+            // 남은 틱은 요청하지 않는다. 처리 중인 틱이 끝났을 때 사이클 가운데(클럭이 1)면 한 틱 더: 사이클을 채워 멈춘다
+            pacer.left = pacer.whole && (ticks + pacer.pending) % 2 == 1 ? 1 : 0;
+            pacer.releaseFast();
+        }
+        if (hz != null) {
+            if (heldHz != null) {
+                heldHz = hz; // 빠른 틱이 끝나면 이 값으로
+            } else {
+                sim.setTickFrequency(hz);
+            }
         }
         sim.setIsTicking(on);
     }
@@ -296,6 +398,10 @@ public final class SimSession implements SimulatorListener {
 
     /** 모델이 바뀐 뒤: 보던 인스턴스 경로가 사라졌으면 보기를 멈춘다. */
     public void modelChanged() {
+        if (caretComponent != null && !doc.project().getCurrentCircuit().contains(caretComponent)
+                && (watchState == null || !watchState.getCircuit().contains(caretComponent))) {
+            dropCaret(); // 누르던 부품이 지워졌거나 바뀌었다
+        }
         if (watchState == null) {
             return;
         }
@@ -397,6 +503,78 @@ public final class SimSession implements SimulatorListener {
         return new MouseEvent(canvas, id, System.currentTimeMillis(), 0, at.getX(), at.getY(), 1, false);
     }
 
+    /** 부품에 Poke 캐럿이 남아 있다(키를 받을 수 있다: 레지스터·카운터 16진 글자, RAM·ROM 값, Keyboard 글자). */
+    public boolean hasCaret(Component comp) {
+        return caret != null && caretComponent == comp;
+    }
+
+    /**
+     * sim.pokeKey: 원조 PokeTool이 캐럿에 넘기는 키(keyPressed, 글자가 있으면 keyTyped, keyReleased). key는 화면
+     * KeyboardEvent.key 글자: 한 글자, 또는 Backspace·Enter·Tab·Delete·Escape·ArrowLeft·ArrowRight·ArrowUp·
+     * ArrowDown·Home·End. 캐럿이 없으면(Poke로 누른 부품이 없음) false.
+     */
+    public boolean pokeKey(String key) throws RpcError {
+        if (key == null || key.isEmpty()) {
+            throw RpcError.params("key is required");
+        }
+        int vk;
+        char ch;
+        switch (key) {
+        case "Backspace": vk = KeyEvent.VK_BACK_SPACE; ch = '\b'; break;
+        case "Enter": vk = KeyEvent.VK_ENTER; ch = '\n'; break;
+        case "Tab": vk = KeyEvent.VK_TAB; ch = '\t'; break;
+        case "Delete": vk = KeyEvent.VK_DELETE; ch = '\u007f'; break;
+        case "Escape": vk = KeyEvent.VK_ESCAPE; ch = '\u001b'; break;
+        case "ArrowLeft": vk = KeyEvent.VK_LEFT; ch = KeyEvent.CHAR_UNDEFINED; break;
+        case "ArrowRight": vk = KeyEvent.VK_RIGHT; ch = KeyEvent.CHAR_UNDEFINED; break;
+        case "ArrowUp": vk = KeyEvent.VK_UP; ch = KeyEvent.CHAR_UNDEFINED; break;
+        case "ArrowDown": vk = KeyEvent.VK_DOWN; ch = KeyEvent.CHAR_UNDEFINED; break;
+        case "Home": vk = KeyEvent.VK_HOME; ch = KeyEvent.CHAR_UNDEFINED; break;
+        case "End": vk = KeyEvent.VK_END; ch = KeyEvent.CHAR_UNDEFINED; break;
+        default:
+            if (key.codePointCount(0, key.length()) != 1 || key.length() != 1) {
+                throw RpcError.params("key must be one character or a named key");
+            }
+            ch = key.charAt(0);
+            vk = KeyEvent.getExtendedKeyCodeForChar(ch);
+        }
+        if (caret == null) {
+            return false;
+        }
+        Canvas canvas = doc.canvas();
+        long when = System.currentTimeMillis();
+        final int code = vk;
+        final char typed = ch;
+        // 원조 poker의 키(RegisterPoker.keyTyped → fireInvalidated 등)도 원조 CircuitState를 고친다: 전파와 겹치지 않게(D-143)
+        gate.hold(() -> {
+            caret.keyPressed(new KeyEvent(canvas, KeyEvent.KEY_PRESSED, when, 0, code, typed));
+            if (typed != KeyEvent.CHAR_UNDEFINED && caret != null) {
+                caret.keyTyped(new KeyEvent(canvas, KeyEvent.KEY_TYPED, when, 0, KeyEvent.VK_UNDEFINED, typed));
+            }
+            if (caret != null) {
+                caret.keyReleased(new KeyEvent(canvas, KeyEvent.KEY_RELEASED, when, 0, code, typed));
+            }
+            return null;
+        });
+        sim.requestPropagate(); // Canvas.completeAction
+        valuesDirty = true;
+        return true;
+    }
+
+    /** Poke 캐럿을 닫는다(원조: 다른 도구를 고르거나 다른 곳을 누름, PokeTool.removeCaret). */
+    public void dropCaret() {
+        if (caret != null) {
+            Caret c = caret;
+            gate.hold(() -> { // 원조 캐럿을 닫는 것도 상태를 고친다(D-143)
+                c.stopEditing();
+                return null;
+            });
+            caret = null;
+            caretComponent = null;
+            valuesDirty = true;
+        }
+    }
+
     /** 시뮬레이션 상태(sim.state의 params). */
     public JsonObject state() {
         JsonObject o = new JsonObject();
@@ -406,6 +584,7 @@ public final class SimSession implements SimulatorListener {
         o.addProperty("cycle", ticks / 2);
         o.addProperty("oscillating", sim.isOscillating());
         o.addProperty("hz", heldHz != null ? heldHz : sim.getTickFrequency());
+        o.addProperty("cyclesLeft", busy() ? (pacer.left + pacer.pending + 1) / 2 : 0);
         return o;
     }
 
@@ -545,13 +724,43 @@ public final class SimSession implements SimulatorListener {
         boolean finished;
         /** 처리 중인 틱이 끝나면 재설정한다(sim.reset이 미룬 것). */
         boolean resetWhenDrained;
+        /** 온 사이클만 요청했다(N Cycles; Tick Once가 아니다): 멈출 때 사이클 가운데면 채운다. */
+        boolean whole = true;
+        /** 빠른 틱({@link #fastTicks})을 쥐고 있다. */
+        private boolean fast;
         private ScheduledFuture<?> timer;
+        /** 멈춘 클럭의 자동 틱을 치르기를 기다린다(아직 요청하지 않는다). */
+        boolean waiting;
+        /** 요청을 시작할 때의 틱 수. */
+        long startTicks;
 
         Pacer(long tickCount) {
             this.left = tickCount;
         }
 
+        /** 멈춘 클럭의 틱 스레드가 꺼진 것을 읽을 때까지 기다린 뒤, 쌓인 자동 틱을 치르고 시작한다. */
+        void afterAutoTicks() {
+            waiting = true;
+            server.executor().schedule(() -> {
+                if (!finished && waiting) {
+                    drainSawTick = false;
+                    draining = true;
+                    sim.requestPropagate();
+                }
+            }, TICKER_SETTLE_MS, TimeUnit.MILLISECONDS);
+        }
+
+        /** 기다림이 끝났다: 요청을 시작한다. */
+        void go() {
+            waiting = false;
+            start();
+            pump();
+        }
+
         void start() {
+            startTicks = ticks;
+            fast = true;
+            fastTicks(true);
             timer = server.executor().scheduleAtFixedRate(() -> {
                 try {
                     pump();
@@ -570,6 +779,12 @@ public final class SimSession implements SimulatorListener {
                 server.log("warn", "cycles stopped: the simulation is off" + (sim.isOscillating()
                         ? " (oscillation)" : "") + " after " + completed / 2 + " cycles", true);
                 finish(true);
+                return;
+            }
+            if (waiting) {
+                if (left == 0) {
+                    finish(true); // 요청하기 전에 멈췄다
+                }
                 return;
             }
             while (left > 0 && pending < CyclePacer.MAX_PENDING) {
@@ -595,11 +810,22 @@ public final class SimSession implements SimulatorListener {
             pump();
         }
 
+        /** 빠른 틱을 놓는다(한 번만). 남은 틱이 처리 중이어도 원조 틱 주파수를 학생의 값으로 돌린다. */
+        void releaseFast() {
+            if (fast) {
+                fast = false;
+                fastTicks(false);
+            }
+        }
+
         void finish(boolean report) {
             if (finished) {
                 return;
             }
             finished = true;
+            waiting = false;
+            draining = false;
+            releaseFast();
             if (timer != null) {
                 timer.cancel(false);
             }

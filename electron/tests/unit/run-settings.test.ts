@@ -28,6 +28,7 @@ test('the note and the defaults', () => {
   // the window takes its defaults from there
   const app = code(path.join(SRC, 'renderer/app/app.ts'));
   assert.match(app, /hz === RUN_DEFAULTS\.hz/);
+  assert.match(app, /Clock speed · \$\{RUN_ONLY\}/);   // the toolbar's clock speed says it is for this run (N-07)
   assert.match(app, /busWidths: RUN_DEFAULTS\.busWidths/);
 });
 

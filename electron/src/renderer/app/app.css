@@ -119,3 +119,15 @@ table.summary tr.warn td { background: var(--amber-tint); color: var(--amber-tex
 .modal.ask .choices { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
 .modal.ask .choices .choice { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 6px; cursor: pointer; }
 .modal.ask .choices .choice:hover { background: var(--hover); }
+
+/* ---- the simulation (N-07, sim.ts, cycles-dialog.ts) ------------------------------------
+   The band while the simulation is off: the shared band's look (shared.css .band), its own class. */
+.simband { margin: 8px 8px 0; padding: 3px 10px; border-radius: 6px; font-size: 12px; line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  background: var(--error-tint); color: var(--error-text); box-shadow: inset 3px 0 0 var(--error); }
+/* The N Cycles dialog: one field under the sentence; the reason under it when the count is out of range. */
+.modal.ask.cycles .cyclesfield { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.modal.ask.cycles .fieldname { font-weight: 600; color: var(--navy); }
+.modal.ask.cycles .field { width: 120px; height: 30px; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; color: var(--text); background: var(--white); }
+.modal.ask.cycles .field:focus { outline: 2px solid var(--teal); outline-offset: -1px; border-color: var(--teal); }
+.modal.ask.cycles .field[aria-invalid="true"] { border-color: var(--error); }
+.modal.ask.cycles .hint.err { min-height: 18px; color: var(--error-text); }

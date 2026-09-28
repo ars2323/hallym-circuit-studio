@@ -18,7 +18,8 @@
      Signal Flow        its right-click menu's Signal Flow on Click, Flow
                         Speed, Through Registers, Active Path Only, Reduce
                         Motion, Smooth (overlays controller.ts settings)
-     clock speed        the toolbar's select (sim.run hz)
+     clock speed        the toolbar's select (sim.run hz; its tooltip says RUN_ONLY)
+     N Cycles count     the count given last (the N Cycles dialog's field; app.ts lastCycles)
      circuit tabs       each file's open circuits (logic/files.ts)
      Load Program…      the .hmx picked last for a file (main.ts programs)
 

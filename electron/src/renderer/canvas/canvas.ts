@@ -12,6 +12,8 @@
 
 import type { Component } from '../../main/protocol.ts';
 import { h } from '../shared/dom.ts';
+import type { CanvasPointer, CanvasTool, Overlay } from './input.ts';
+import { magnifier, wireValueText } from './poke.ts';
 import { type Chip, layoutChips, type Measure, portNames, sceneTunnelColors, tunnelRoom } from './labels.ts';
 import { color, cssFont, fittedSize, FONTS, type Look, MIN_TEXT_PX, paintPort, paintText, portPx, strokeUnits, wirePx } from './paint.ts';
 import type { PartState } from './parts/common.ts';
@@ -21,7 +23,7 @@ import { byArea, split, type Split } from './layers.ts';
 import { type Box, boxesMeet, boxUnion, type Shape, shapeBox, type TextShape } from './shapes.ts';
 import { shapesToSvg, svgDocument, svgElement, wireSvg } from './svg.ts';
 import { type Theme, THEME, themeFrom, valueColor, valueKind } from './tokens.ts';
-import { between, clampZoom, fit, percent, step, toCircuit, type View, visible, wheelZoom, zoomAt } from './view.ts';
+import { between, clampZoom, fit, percent, step, toCircuit, toScreen, type View, visible, wheelZoom, zoomAt } from './view.ts';
 import { dotUnits, jumpUnits, type WireMarks, wireMarks } from './wires.ts';
 
 /* An overlay on the circuit (N-15, D-151: overlays/ -- influence, Signal Flow, active path, field colours,
@@ -49,9 +51,11 @@ export interface CanvasOverlay {
 
 export interface CanvasHost {
   onView?(view: View): void;                       // the zoom changed (the status bar's display)
-  onEnter?(componentId: string): void;             // double click on a subcircuit instance
+  onEnter?(componentId: string): void;             // double click on a subcircuit instance (no tool in hand)
   onSelect?(ids: string[]): void;
 }
+
+export type { CanvasPointer, CanvasTool, Overlay } from './input.ts';
 
 interface Cached { state: string; shapes: Shape[]; layers: Split }
 
@@ -87,6 +91,11 @@ export class CircuitCanvas {
   private drag: { x: number; y: number; view: View } | null = null;
   private spaceDown = false;
   private fitted = false;
+  // The tool in hand (app/editor.ts, N-07/N-08): every pointer event but panning, and the keys. None: N-05's own click and double click.
+  tool: CanvasTool | null = null;
+  private pressed = -1;                       // the pointer id of a button the tool got (down .. up)
+  // What the tool shows over the circuit (input.ts).
+  overlay: Overlay = {};
   lastFrameMs = 0;                           // how long the last frame took to draw (the measurement)
   private readonly overlays: CanvasOverlay[] = [];
   // what the last frame drew: the tests and tools wait on settled(), never on a guess of how long a frame takes
@@ -231,6 +240,33 @@ export class CircuitCanvas {
     this.invalidate();
   }
 
+  // ---- the tool's side --------------------------------------------------------------------------------
+
+  setOverlay(o: Overlay): void {
+    this.overlay = o;
+    this.invalidate();
+  }
+
+  // The selection to draw (the editor's, from the engine; N-08): component and wire ids.
+  setSelection(ids: Iterable<string>): void {
+    this.selected = new Set(ids);
+    this.invalidate();
+  }
+
+  selection(): string[] { return [...this.selected]; }
+
+  // A pointer event in circuit units, for the tool.
+  pointerOf(e: MouseEvent, pressed = this.pressed >= 0): CanvasPointer {
+    const s = this.point(e);
+    return {
+      at: toCircuit(this.view, s), screen: s, button: e.button, shift: e.shiftKey, ctrl: e.ctrlKey || e.metaKey, alt: e.altKey,
+      detail: e.detail, pressed,
+    };
+  }
+
+  // The pointer's circuit point now (the last move over the Canvas), or null.
+  lastPointer: CanvasPointer | null = null;
+
   // ---- input --------------------------------------------------------------------------------------------
 
   private point(e: MouseEvent): [number, number] {
@@ -254,10 +290,19 @@ export class CircuitCanvas {
     c.addEventListener('pointerdown', (e) => {
       c.focus({ preventScroll: true });
       if (e.button === 1 || (e.button === 0 && this.spaceDown)) {
+        // the middle button pans (and never scrolls by itself, I-208); so does any button with Space held (I-125)
         e.preventDefault();
         this.drag = { x: e.clientX, y: e.clientY, view: { ...this.view } };
         c.setPointerCapture(e.pointerId);
         c.classList.add('panning');
+        return;
+      }
+      if (this.tool) {
+        if (e.button !== 0) return;           // the right button is the context menu's (N-10)
+        this.pressed = e.pointerId;
+        c.setPointerCapture(e.pointerId);
+        this.tool.down?.(this.pointerOf(e, true));
+        this.updateCursor();
         return;
       }
       if (e.button === 0) this.click(this.point(e), e.shiftKey || e.ctrlKey || e.metaKey);
@@ -268,24 +313,46 @@ export class CircuitCanvas {
         this.setView({ ...d.view, x: d.view.x - (e.clientX - d.x) / d.view.zoom, y: d.view.y - (e.clientY - d.y) / d.view.zoom });
         return;
       }
-      this.hover(this.point(e), e);
+      const p = this.pointerOf(e);
+      this.lastPointer = p;
+      if (this.pressed < 0) this.hover(this.point(e), e);
+      this.tool?.move?.(p);
+      this.updateCursor();
     });
     const end = (e: PointerEvent) => {
-      if (!this.drag) return;
-      this.drag = null;
-      c.classList.remove('panning');
       if (c.hasPointerCapture(e.pointerId)) c.releasePointerCapture(e.pointerId);
+      if (this.drag) {
+        this.drag = null;
+        c.classList.remove('panning');
+        return;
+      }
+      if (this.pressed === e.pointerId) {
+        this.pressed = -1;
+        this.tool?.up?.(this.pointerOf(e, false));
+        this.updateCursor();
+      }
     };
     c.addEventListener('pointerup', end);
     c.addEventListener('pointercancel', end);
-    c.addEventListener('pointerleave', () => { if (!this.drag) this.hover(null); });
+    c.addEventListener('pointerleave', () => {
+      if (this.drag || this.pressed >= 0) return;
+      this.hover(null);
+      this.lastPointer = null;
+      this.tool?.leave?.();
+    });
     c.addEventListener('dblclick', (e) => {
+      if (this.tool) { this.tool.dbl?.(this.pointerOf(e, false)); return; }
       const id = this.partAt(toCircuit(this.view, this.point(e)));
       const p = id ? this.scene?.components.get(id) : undefined;
       if (p && (p.appearance || p.subcircuit !== undefined)) this.host.onEnter?.(p.id);
     });
+    // The browser's own context menu never shows over the circuit (I-211; the circuit's menu is N-10's).
+    c.addEventListener('contextmenu', (e) => e.preventDefault());
     c.addEventListener('keydown', (e) => {
-      if (e.key === ' ') { this.spaceDown = true; c.classList.add('grab'); e.preventDefault(); }
+      if (e.isComposing) return;              // Hangul being composed is not a key to act on (I-212)
+      if (this.tool?.key?.(e)) { e.preventDefault(); return; }
+      if (e.key === ' ' && !(this.tool?.wantsSpace?.() ?? false)) { this.spaceDown = true; c.classList.add('grab'); e.preventDefault(); }
+      if (this.tool) return;
       const pan = 40 / this.view.zoom;
       const move: Record<string, [number, number]> = { ArrowLeft: [-pan, 0], ArrowRight: [pan, 0], ArrowUp: [0, -pan], ArrowDown: [0, pan] };
       if (move[e.key] && !e.ctrlKey && !e.metaKey) {
@@ -294,7 +361,15 @@ export class CircuitCanvas {
       }
       if (e.key === 'Escape' && this.selected.size) { this.selected.clear(); this.selectionChanged(); this.invalidate(); }
     });
-    c.addEventListener('keyup', (e) => { if (e.key === ' ') { this.spaceDown = false; c.classList.remove('grab'); } });
+    c.addEventListener('keyup', (e) => {
+      if (e.key === ' ') { this.spaceDown = false; c.classList.remove('grab'); }
+      this.tool?.keyup?.(e);
+    });
+  }
+
+  private updateCursor(): void {
+    const want = this.drag || this.spaceDown ? '' : this.tool?.cursor?.() ?? '';
+    if (this.canvas.style.cursor !== want) this.canvas.style.cursor = want;
   }
 
   // The keys the window routes here (app.ts): Ctrl+= / Ctrl++ / Ctrl+− / Ctrl+0.
@@ -527,6 +602,83 @@ export class CircuitCanvas {
     }
     if (this.hoveredWire) this.drawNetHalo(this.hoveredWire);
     if (this.marked) this.drawMarked(false);
+    this.drawOverlay(partsShown);
+  }
+
+  // ---- what the tool shows (input.ts Overlay) ------------------------------------------------------------
+
+  private drawOverlay(partsShown: Component[]): void {
+    const o = this.overlay, ctx = this.ctx, z = this.view.zoom, s = this.scene!;
+    // The Poke tool's lens on every subcircuit (SubcircuitPoker.paint): a double click in it goes inside.
+    if (o.magnifiers) {
+      for (const c of partsShown) {
+        if (c.subcircuit === undefined && !c.appearance) continue;
+        const m = magnifier(c);
+        ctx.beginPath();
+        ctx.arc(m.cx, m.cy, m.r, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0,85,165,0.16)';
+        ctx.fill();
+        ctx.strokeStyle = this.theme.navy;
+        ctx.lineWidth = 1.2 / z + 0.2;
+        ctx.stroke();
+        ctx.beginPath();
+        m.handle.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+        ctx.closePath();
+        ctx.fillStyle = this.theme.navy;
+        ctx.fill();
+      }
+    }
+    // A poked part that takes keys (a register, a memory): the red box of Logisim's caret.
+    if (o.caret) {
+      const c = s.components.get(o.caret);
+      if (c) {
+        const [x, y, w, hh] = c.bounds;
+        ctx.strokeStyle = this.theme.error;
+        ctx.lineWidth = 2 / z;
+        ctx.strokeRect(x - 2 / z, y - 2 / z, w + 4 / z, hh + 4 / z);
+      }
+    }
+    // A poked wire: its net stands out and a box shows the value (PokeTool.WireCaret).
+    if (o.valueBox) {
+      const b = o.valueBox;
+      if (b.net) {
+        const n = s.net(b.net);
+        if (n) {
+          ctx.beginPath();
+          for (const id of n.wires) { const w = s.wires.get(id); if (w) { ctx.moveTo(w.a[0], w.a[1]); ctx.lineTo(w.b[0], w.b[1]); } }
+          ctx.strokeStyle = 'rgba(245,190,40,0.55)';
+          ctx.lineWidth = (wirePx(z, n.width) + 6) / z;
+          ctx.lineCap = 'round';
+          ctx.stroke();
+        }
+      }
+      const dpr = this.dpr;
+      ctx.save();
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const [sx, sy] = toScreen(this.view, b.at);
+      // the value now, as the net's value changes (Logisim reads it at every paint)
+      const net = b.net ? s.net(b.net) : undefined;
+      const text = net ? wireValueText(s.values.get(net.id), net.width) : b.text;
+      ctx.font = `600 12px ${FONTS.code}`;
+      const tw = ctx.measureText(text).width;
+      const bx = Math.min(sx + 4, this.width - tw - 14), by = Math.min(sy + 4, this.height - 24);
+      ctx.beginPath();
+      ctx.roundRect(bx, by, tw + 10, 20, 4);
+      ctx.fillStyle = '#fff4c2';
+      ctx.fill();
+      ctx.strokeStyle = this.theme.ink;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(sx, sy, 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = this.theme.ink;
+      ctx.fill();
+      ctx.fillStyle = this.theme.ink;
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left';
+      ctx.fillText(text, bx + 5, by + 10.5);
+      ctx.restore();
+    }
   }
 
   private outline(c: Component, fill: string | null, stroke: string | null, px: number): void {

@@ -134,10 +134,13 @@ test('an oscillation: its loop replaces the static loop, Reset Simulation brings
     await page.keyboard.press('F10');
     await expect(page.locator('.msghead .gname')).toHaveText(['Oscillation']);
     await expect(page.locator('.msg .say')).toContainText('(발진)');
-    await expect(page.locator('.status')).toContainText('발진으로 시뮬레이션이 꺼졌습니다');
+    // the band says it (N-07, D-145); the status bar's fact is Simulation Off
+    await expect(page.locator('.simband')).toContainText('발진으로 시뮬레이션이 꺼졌습니다');
+    await expect(page.locator('.status .sim.err')).toHaveText('Simulation Off');
     await page.getByRole('button', { name: 'Reset Simulation' }).click();
     await expect(page.locator('.msghead .gname')).toHaveText(['Combinational loop']);
-    await expect(page.locator('.status')).not.toContainText('꺼졌습니다');
+    await expect(page.locator('.simband')).toBeHidden();
+    await expect(page.locator('.status')).toContainText('Simulation On');
     await expect(page.locator('.status .msgcount')).toHaveText('1 message');
   } finally {
     await r.close();
