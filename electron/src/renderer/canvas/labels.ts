@@ -49,6 +49,11 @@ export interface Chip {
    where a ring is 3.3 units and the 3 px gap 4.3 units. */
 export const CHIP_GAP = 8;
 export const CLEAR = 3;
+/* A label or value chip keeps this much from a wire's centre line when it can (N-15, UI checklist 12, v1
+   X-04 LabelOverlay.WIRE_GAP): the band around a highlighted wire (the active path, the field colours, a
+   Signal Flow's rails) is 5 units wide each side, and a chip must not touch it.  Where no place keeps it,
+   CLEAR from the wire's stroke is enough (as before). */
+export const WIRE_GAP = 8;
 const RING = 4;
 const PAD_X = 3.5, PAD_Y = 2;
 
@@ -184,11 +189,16 @@ function namedByTunnel(scene: Scene, c: Component, label: string): boolean {
 
 export function layoutChips(scene: Scene, marks: WireMarks, measure: Measure, extent?: (c: Component) => Box): Chip[] {
   const obs = obstacles(scene, marks, extent);
+  const bands = new Obstacles();   // the wires with the room of a band around them
+  for (const s of marks.segments) {
+    bands.add(inflate({ x0: Math.min(s.a[0], s.b[0]), y0: Math.min(s.a[1], s.b[1]), x1: Math.max(s.a[0], s.b[0]), y1: Math.max(s.a[1], s.b[1]) }, WIRE_GAP), `wire:${s.id}`);
+  }
   const chips: Chip[] = [];
   const place = (c: Omit<Chip, 'box'>, w: number, h: number, around: Box, first: Side, force: boolean): void => {
-    // next to the part first, then a step and two further out; with nothing free, where least is covered
+    // next to the part first, then a step and two further out -- off the wires' bands when a place is,
+    // else just off the wires; with nothing free, where least is covered
     const all = [CHIP_GAP, CHIP_GAP + 10, CHIP_GAP + 20].flatMap((gap) => candidates(around, w, h, first, gap));
-    let chosen = all.find((b) => !obs.hits(inflate(b, CLEAR))) ?? null;
+    let chosen = all.find((b) => !obs.hits(inflate(b, CLEAR)) && !bands.hits(b)) ?? all.find((b) => !obs.hits(inflate(b, CLEAR))) ?? null;
     if (!chosen && !force) return;
     if (!chosen) {
       let best = Infinity;

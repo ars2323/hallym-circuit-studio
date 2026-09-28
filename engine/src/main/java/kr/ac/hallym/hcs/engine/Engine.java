@@ -71,6 +71,7 @@ public final class Engine {
         registerSim();
         records = new Records(server, files);
         registerFindAndExt();
+        registerFlow();
         server.onShutdown(this::closeAll);
         server.executor().scheduleAtFixedRate(this::frame, SimSession.FRAME_MS, SimSession.FRAME_MS,
                 TimeUnit.MILLISECONDS);
@@ -404,6 +405,35 @@ public final class Engine {
             int[] at = p.point("at");
             return ExtEdits.splitterSplit(d, c, (Wire) w, Location.create(at[0], at[1]), p.str("ranges"),
                     p.has("names") ? p.strings("names") : null, p.optBool("lsbTop", false));
+        });
+    }
+
+    // ---- 캔버스 덧그림(N-15, D-151) ----
+
+    /**
+     * 영향 경로·넷 정보·Signal Flow·활성 경로의 자료(trace.influence, trace.net, flow.path, flow.activePath)와 학생이 두는
+     * 표시 정보의 편집 의도(edit.signalGroup, edit.areaMemo: hcs:ext, 되돌리기 한 단계).
+     */
+    private void registerFlow() {
+        kr.ac.hallym.hcs.engine.flow.FlowService.register(server, files, d -> sims.get(d.id()));
+        edit("edit.signalGroup", true, (d, p) -> {
+            Circuit c = d.circuit(p.str("circuitId"));
+            return kr.ac.hallym.hcs.engine.edit.ExtIntents.signalGroup(d, c, d.component(c, p.str("wire")),
+                    p.optStr("group", null));
+        });
+        edit("edit.areaMemo", true, (d, p) -> {
+            Circuit c = d.circuit(p.str("circuitId"));
+            kr.ac.hallym.hcs.engine.edit.ExtIntents.Memo m = new kr.ac.hallym.hcs.engine.edit.ExtIntents.Memo();
+            int[] at = p.point("at");
+            m.at = Location.create(at[0], at[1]);
+            if (p.has("ids")) {
+                m.around = d.components(c, p.strings("ids"));
+            }
+            m.text = p.optStr("text", null);
+            m.color = p.has("color") ? p.integer("color") : null;
+            m.bounds = p.has("bounds") ? p.ints("bounds") : null;
+            m.delete = p.optBool("delete", false);
+            return kr.ac.hallym.hcs.engine.edit.ExtIntents.areaMemo(d, c, m);
         });
     }
 

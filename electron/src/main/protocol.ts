@@ -110,7 +110,16 @@ export interface Snapshot {
   wires: Wire[];
   nets: Net[];
   junctions: Point[];
+  groups?: GroupRef[];      // signal groups (N-15): absent = none
+  memos?: AreaMemo[];       // area memos (N-15): absent = none
 }
+
+/* What the student put on a circuit (hcs:ext, N-15, D-151; v1 E-04, E-08): a net's signal group -- chosen
+   (assigned) or, for the outputs of a subcircuit named control, Control by default -- and the area memos
+   (a box and a word; colour: the tunnel palette's index). */
+export type SignalGroup = 'control' | 'data' | 'address';
+export interface GroupRef { net: string; group: SignalGroup; assigned: boolean }
+export interface AreaMemo { x: number; y: number; w: number; h: number; color: number; text: string }
 
 export interface LibraryGroup {
   lib: string | null;       // null: this file's circuits (the first group)
@@ -223,6 +232,8 @@ export interface ModelChanged {
   added: (Component | Wire)[];
   nets: Net[];
   junctions: Point[];
+  groups?: GroupRef[];      // the circuit's whole lists (N-15; the real engine always sends them)
+  memos?: AreaMemo[];
   dirty: boolean;
 }
 
@@ -361,6 +372,60 @@ export interface RegisterMapping {
   guess: Record<string, Point | null>;
 }
 
+// ---- the Canvas's overlays (docs/engine-api.md "flow·trace", N-15, D-151) ----
+
+// trace.influence: what the start drives (forward) and what drives it (backward), in the shown circuit.
+export type InfluenceMode = 'forward' | 'backward' | 'both' | 'between';
+export interface InfluenceResult {
+  mode: InfluenceMode;
+  depth: number;            // the steps shown; -1: all
+  maxDepth: number;
+  throughRegisters: boolean;
+  forward: { wires: string[]; parts: string[] };
+  backward: { wires: string[]; parts: string[] };
+  stops: string[];          // state parts where it stopped
+  origin: string[];         // where it started
+  inside: { componentId: string; name: string; places: number }[];  // subcircuit instances reached inside
+  tunnels: string[];        // the tunnels of the nets reached
+  links: Point[][];         // the two tunnels of a net that has exactly two
+}
+
+// flow.path: the Signal Flow's shape (v1 SignalFlowPath). Times and lengths are circuit units.
+export interface FlowWhere { path: string[]; circuitId: string }
+export interface FlowSegment extends FlowWhere { from: Point; to: Point; start: number; length: number; width: number; cycle: number }
+export interface FlowJump extends FlowWhere { from: Point; to: Point; start: number }
+export interface FlowPass extends FlowWhere { componentId: string; name: string; time: number; boundary: boolean; cycle: number }
+export interface FlowEndpoint extends FlowWhere {
+  componentId: string; port: number; at: Point; time: number;
+  kind: 'output' | 'state' | 'unconnected' | 'source'; label: string;
+}
+export interface FlowPath {
+  circuitId: string;
+  backward: boolean;
+  total: number;
+  click?: Point;
+  segments: FlowSegment[];
+  jumps: FlowJump[];
+  passes: FlowPass[];
+  endpoints: FlowEndpoint[];
+  loops: string[];
+  undetermined: string[];
+}
+
+// flow.activePath: each multiplexer's selected input and the wire pieces from its driver to that input.
+export interface ActivePathResult {
+  circuitId: string;
+  watched: boolean;
+  muxes: { componentId: string; input: number; segments: [Point, Point][] }[];
+}
+
+// trace.net: a net's width, name and ports (v1 Net Information).
+export interface NetPort { componentId: string; port: number; text: string }
+export interface NetInfo { netId: string; width: number; name: string; drivers: NetPort[]; readers: NetPort[]; others: NetPort[] }
+
+// record.fieldPaths (N-14, D-144): the wires of the splitter arms named after the instruction's fields.
+export interface FieldPaths { fileId: string; circuitId: string; cycle: number; format?: string; fields: Record<string, string[]> }
+
 // Error codes (docs/engine-api.md 2).
 export const ERR_NOT_FOUND = 1;
 export const ERR_FILE = 2;
@@ -382,6 +447,7 @@ export const WINDOW_METHODS = [
   'record.state', 'record.table', 'record.addRow', 'record.removeRow', 'record.rowBits', 'record.pin', 'record.unpin',
   'record.view', 'record.values', 'record.runUntil', 'record.stop', 'record.registers', 'record.memory',
   'record.instruction', 'record.fieldPaths', 'record.markPc', 'record.markRegisterFile', 'record.registerMapping', 'record.setRegisterMapping',
+  'trace.influence', 'trace.net', 'flow.path', 'flow.activePath', 'edit.signalGroup', 'edit.areaMemo',
 ] as const;
 export type WindowMethod = typeof WINDOW_METHODS[number];
 

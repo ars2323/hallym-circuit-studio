@@ -32,7 +32,13 @@
    file.new/open restore (docs/engine-api.md 7, D-142).  record.* (N-14):
    tests/fake-engine/fake-record.ts -- a file with an Instruction Memory
    runs the recursive factorial on a tiny machine there, one instruction a
-   cycle.  Anything else: -32601.
+   cycle.  The overlays (N-15, D-151): tests/fake-engine/fake-flow.ts --
+   trace.influence, trace.net, flow.path and flow.activePath answer from the
+   real engine's answers for demo-datapath (tests/fixtures/flow/, written by
+   the engine's canvasFixtures task), found by the same fixture ids;
+   edit.signalGroup and edit.areaMemo keep the groups and memos per circuit
+   (one undo step each, model.changed with groups and memos).  Anything
+   else: -32601.
 
    FAKE_ENGINE_MODE (comma-separated) for the tests of the client:
      silent-hello   never answers engine.hello
@@ -65,12 +71,13 @@ import path from 'node:path';
 import * as find from './fake-find.ts';
 import * as mips from './fake-mips.ts';
 import * as rec from './fake-record.ts';
+import * as flow from './fake-flow.ts';
 
 type Params = Record<string, unknown>;
 interface Comp { id: string; lib: string; name: string; loc: [number, number]; attrs: Record<string, string>; ext?: { color?: string; arms?: string[] } }
 interface Wire { id: string; a: [number, number]; b: [number, number] }
 interface Circuit { circuitId: string; name: string; comps: Comp[]; wires: Wire[] }
-interface Step { circuitId: string; comps: Comp[]; wires: Wire[] }   // a circuit's parts before an edit
+interface Step { circuitId: string; comps: Comp[]; wires: Wire[]; ext?: flow.Ext }   // a circuit's parts before an edit (ext: a group or memo edit)
 interface File {
   fileId: string; name: string; path: string | null; bytes: Buffer | null; circuits: Circuit[]; main: string; libs: string[];
   cycle: number; ticking: boolean; hz: number; on: boolean; dirty: boolean; undo: Step[]; redo: Step[]; diag: Diag | null; ran: boolean;
@@ -79,6 +86,8 @@ interface File {
   // a canvas fixture (tests/fixtures/circuits): its circuits under this file's circuit ids, the watched circuit
   fixture?: Fixture; fixtureIds?: Map<string, string>; watched?: { circuitId: string; watchKey: string; root: string; path: string[] };
   rec: rec.RecordFile;
+  // the overlays (fake-flow.ts, N-15): the real engine's answers for a fixture circuit; groups and memos per circuit
+  flow?: flow.FlowFixture; ext: Map<string, flow.Ext>;
 }
 
 // Messages (diag.*): the real engine's, for a few circuits (tests/fixtures/messages.json).
@@ -241,7 +250,7 @@ const methods: Record<string, (p: Params) => unknown> = {
   'file.new': (p) => {
     const c: Circuit = { circuitId: `c${nextCircuit++}`, name: 'main', comps: [], wires: [] };
     const fileIdFor0 = fileIdFor(p);
-    const f: File = { fileId: fileIdFor0, name: 'Untitled', path: null, bytes: null, circuits: [c], main: 'main', libs: [], cycle: 0, ticking: false, hz: 1, on: true, dirty: false, undo: [], redo: [], diag: null, ran: false, mips: mips.newState(), rec: rec.newRecordFile(fileIdFor0, false, new Map()) };
+    const f: File = { fileId: fileIdFor0, name: 'Untitled', path: null, bytes: null, circuits: [c], main: 'main', libs: [], cycle: 0, ticking: false, hz: 1, on: true, dirty: false, undo: [], redo: [], diag: null, ran: false, mips: mips.newState(), rec: rec.newRecordFile(fileIdFor0, false, new Map()), ext: new Map() };
     adopt(f, p);
     files.set(f.fileId, f);
     setImmediate(() => recordChanged(f));
@@ -261,7 +270,7 @@ const methods: Record<string, (p: Params) => unknown> = {
     if (!text.includes('<project')) throw new Failure(2, `The file does not appear to be a Logisim project file: ${file}`, { path: file, reason: 'loadFailed' });
     const fileId = fileIdFor(p);
     const r = readCirc(text);
-    const f: File = { fileId, name: stem(path.basename(file)), path: file, bytes, circuits: r.circuits, main: r.main, libs: r.libs, cycle: 0, ticking: false, hz: 1, on: true, dirty: false, undo: [], redo: [], diag: DIAG[path.basename(file)] ?? null, ran: false, mips: mips.newState(), rec: rec.newRecordFile(fileId, false, new Map()) };
+    const f: File = { fileId, name: stem(path.basename(file)), path: file, bytes, circuits: r.circuits, main: r.main, libs: r.libs, cycle: 0, ticking: false, hz: 1, on: true, dirty: false, undo: [], redo: [], diag: DIAG[path.basename(file)] ?? null, ran: false, mips: mips.newState(), rec: rec.newRecordFile(fileId, false, new Map()), ext: new Map() };
     const fx = path.join(FIXTURES, `${stem(path.basename(file))}.json`);
     if (existsSync(fx)) {
       f.fixture = JSON.parse(readFileSync(fx, 'utf8')) as Fixture;
@@ -276,6 +285,7 @@ const methods: Record<string, (p: Params) => unknown> = {
     f.rec = rec.newRecordFile(fileId, cpu, names, modes.has('wide-registers'));
     adopt(f, p);
     if (f.fixture) f.fixtureIds = new Map(f.circuits.map((c, i) => [c.circuitId, f.fixture!.circuits[i].circuitId]));
+    f.flow = flow.load(path.basename(file));
     files.set(f.fileId, f);
     setImmediate(() => recordChanged(f));
     const messages = process.env.FAKE_ENGINE_OPEN_MESSAGE ? [process.env.FAKE_ENGINE_OPEN_MESSAGE] : [];
@@ -304,16 +314,16 @@ const methods: Record<string, (p: Params) => unknown> = {
       if (!snap || !c) throw new Failure(1, `no such circuit id: ${String(p.circuitId)}`, { kind: 'circuit', id: String(p.circuitId) });
       // the engine's parts as recorded, the fake's own edits on top (the nets only while there are none);
       // the fixture's circuit ids as this file's (a recovered file keeps the old engine's)
-      const edited = f.undo.length > 0 || f.redo.length > 0;
+      const edited = f.undo.some((s) => !s.ext) || f.redo.some((s) => !s.ext);   // a group or memo keeps the nets
       const comps = c.comps.map((k) => {
         const x = k as Comp & { ports?: unknown; subcircuit?: string };
         if (x.ports === undefined) return compJson(k);
         return x.subcircuit ? { ...x, subcircuit: currentId(f, x.subcircuit) } : x;
       });
-      return { circuitId: c.circuitId, name: c.name, components: comps, wires: c.wires, nets: edited ? netsOf(f, c) : snap.nets, junctions: edited ? [] : snap.junctions };
+      return { circuitId: c.circuitId, name: c.name, components: comps, wires: c.wires, nets: edited ? netsOf(f, c) : snap.nets, junctions: edited ? [] : snap.junctions, ...extJson(f, c.circuitId, true) };
     }
     const c = circuitOf(p);
-    return { circuitId: c.circuitId, name: c.name, components: c.comps.map(compJson), wires: c.wires, nets: [], junctions: [] };
+    return { circuitId: c.circuitId, name: c.name, components: c.comps.map(compJson), wires: c.wires, nets: [], junctions: [], ...extJson(f, c.circuitId, true) };
   },
   'model.library': (p) => {
     const f = fileOf(p);
@@ -550,7 +560,57 @@ const methods: Record<string, (p: Params) => unknown> = {
   'record.registers': (p) => { const f = fileOf(p); return rec.registers(f.rec, typeof p.cycle === 'number' ? p.cycle : undefined, places(f)); },
   'record.memory': (p) => rec.memory(fileOf(p).rec),
   'record.instruction': (p) => rec.instruction(fileOf(p).rec, typeof p.cycle === 'number' ? p.cycle : undefined),
-  'record.fieldPaths': (p) => { circuitOf(p); return { fileId: p.fileId, circuitId: p.circuitId, fields: {} }; },
+  'record.fieldPaths': (p) => {
+    circuitOf(p);
+    const f = fileOf(p);
+    const cycle = f.rec.view ?? f.cycle;
+    const r = flow.fieldPaths(f.flow, fixtureOf(f, p), f.fileId, String(p.circuitId), cycle, (x) => currentId(f, x));
+    // the fields of the instruction the fake's recording has in that cycle (fake-record.ts), as the engine gives only those
+    const ins = rec.instruction(f.rec, cycle) as { format?: string; fields?: { name: string }[] };
+    if (ins.fields && r.fields) {
+      const names = new Set(ins.fields.map((x) => x.name));
+      r.fields = Object.fromEntries(Object.entries(r.fields as Record<string, string[]>).filter(([n]) => names.has(n)));
+      r.format = ins.format;
+    }
+    return r;
+  },
+  // ---- the Canvas's overlays (fake-flow.ts, N-15)
+  'trace.influence': (p) => { const f = fileOf(p); circuitOf(p); return flowCall(() => flow.influence(f.flow, fixtureOf(f, p), p)); },
+  'flow.path': (p) => {
+    const f = fileOf(p);
+    const c = circuitOf(p);
+    const id = typeof p.wire === 'string' ? p.wire : String(p.componentId ?? '');
+    if (!c.comps.some((k) => k.id === id) && !c.wires.some((w) => w.id === id)) throw new Failure(1, `no such component id: ${id}`, { kind: 'component', id });
+    return flow.flowPath(f.flow, fixtureOf(f, p), c.circuitId, p, (x) => currentId(f, x));
+  },
+  'flow.activePath': (p) => { const f = fileOf(p); const c = circuitOf(p); return flow.activePath(f.flow, fixtureOf(f, p), c.circuitId, f.rec.view ?? f.cycle, (x) => currentId(f, x)); },
+  'trace.net': (p) => { const f = fileOf(p); circuitOf(p); return flowCall(() => flow.net(f.flow, fixtureNets(f, p), p)); },
+  'edit.signalGroup': (p) => {
+    const f = fileOf(p);
+    const c = circuitOf(p);
+    const wire = String(p.wire ?? '');
+    if (!c.wires.some((w) => w.id === wire)) throw new Failure(1, `no such component id: ${wire}`, { kind: 'component', id: wire });
+    const net = fixtureNets(f, p).find((n) => n.wires.includes(wire))?.id ?? `n-${wire}`;
+    return extEdit(f, c, (ext) => (flowCall(() => flow.setGroup(ext, net, typeof p.group === 'string' ? p.group : undefined)) ? 'set' : null));
+  },
+  'edit.areaMemo': (p) => {
+    const f = fileOf(p);
+    const c = circuitOf(p);
+    const around = (ids: string[]) => {
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (const id of ids) {
+        const k = c.comps.find((x) => x.id === id) as (Comp & { bounds?: number[] }) | undefined;
+        const w = c.wires.find((x) => x.id === id);
+        if (!k && !w) throw new Failure(1, `no such component id: ${id}`, { kind: 'component', id });
+        const b = k ? (k.bounds ?? compJson(k).bounds) : [Math.min(w!.a[0], w!.b[0]), Math.min(w!.a[1], w!.b[1]) - 2, Math.abs(w!.a[0] - w!.b[0]), Math.abs(w!.a[1] - w!.b[1]) + 4];
+        x0 = Math.min(x0, b[0]); y0 = Math.min(y0, b[1]); x1 = Math.max(x1, b[0] + b[2]); y1 = Math.max(y1, b[1] + b[3]);
+      }
+      if (!(x1 > x0 && y1 > y0)) return null;
+      const x = Math.floor((x0 - 20) / 10) * 10, y = Math.floor((y0 - 20) / 10) * 10;
+      return { x, y, w: Math.ceil((x1 + 20) / 10) * 10 - x, h: Math.ceil((y1 + 20) / 10) * 10 - y };
+    };
+    return extEdit(f, c, (ext) => { const r = flowCall(() => flow.areaMemo(ext, p, around)); return r === 'same' || r === 'noMemo' ? null : r; }, true);
+  },
   // The marks are undoable model edits in the engine (hcs:ext): the file is unsaved after them.
   'record.markPc': (p) => {
     const c = circuitOf(p);
@@ -656,6 +716,14 @@ function undoRedo(f: File, which: 'undo' | 'redo'): unknown {
   const step = from.pop();
   if (!step) return { changed: false };
   const c = f.circuits.find((x) => x.circuitId === step.circuitId)!;
+  if (step.ext) {
+    // a group or memo edit: its hcs:ext back, the parts (and their ids) as they are
+    to.push({ circuitId: c.circuitId, comps: [], wires: [], ext: structuredClone(extOf(f, c.circuitId)) });
+    f.ext.set(c.circuitId, step.ext);
+    f.dirty = true;
+    extChanged(f, c);
+    return { changed: true };
+  }
   to.push(copyParts(c));
   const removed = [...c.comps.map((k) => k.id), ...c.wires.map((w) => w.id)];
   // What comes back comes back under new ids (as the real engine's).
@@ -677,6 +745,53 @@ function netsOf(f: File, c: Circuit): unknown[] {
   return (fx.nets as { id: string; width: number; wires: string[]; ports: [string, number][] }[])
     .map((n) => ({ ...n, wires: n.wires.filter((w) => wires.has(w)), ports: n.ports.filter(([k]) => comps.has(k)) }))
     .filter((n) => n.wires.length || n.ports.length);
+}
+
+// ---- the overlays' helpers (N-15) ---------------------------------------------------------
+
+// fake-flow.ts throws plain errors with a code: the protocol's error.
+function flowCall<T>(run: () => T): T {
+  try { return run(); } catch (e) {
+    if (e instanceof Failure) throw e;
+    const x = e as { code?: number; message?: string; data?: unknown };
+    throw new Failure(x.code ?? -32603, x.message ?? String(e), x.data);
+  }
+}
+// The circuit's id in the overlay fixture (its canvas fixture's), or its own.
+const fixtureOf = (f: File, p: Params): string => f.fixtureIds?.get(String(p.circuitId)) ?? String(p.circuitId);
+// The circuit's nets as the fixture has them (none for a circuit without one).
+function fixtureNets(f: File, p: Params): { id: string; wires: string[] }[] {
+  const snap = f.fixture?.circuits.find((x) => x.circuitId === fixtureOf(f, p));
+  return (snap?.nets ?? []) as { id: string; wires: string[] }[];
+}
+const extOf = (f: File, circuitId: string): flow.Ext => {
+  let e = f.ext.get(circuitId);
+  if (!e) { e = flow.emptyExt(); f.ext.set(circuitId, e); }
+  return e;
+};
+// A snapshot has groups and memos when there are some; a change always has both (the circuit's whole lists).
+function extJson(f: File, circuitId: string, onlySome: boolean): Record<string, unknown> {
+  const e = f.ext.get(circuitId) ?? flow.emptyExt();
+  if (!onlySome) return { groups: e.groups, memos: e.memos };
+  return { ...(e.groups.length ? { groups: e.groups } : {}), ...(e.memos.length ? { memos: e.memos } : {}) };
+}
+// A group or memo edit: one undo step of the circuit's hcs:ext, model.changed with the nets it has.
+function extEdit(f: File, c: Circuit, change: (ext: flow.Ext) => string | null, outcome = false): unknown {
+  const ext = extOf(f, c.circuitId);
+  const before = structuredClone(ext);
+  const what = change(ext);
+  if (what === null) return { changed: false, outcome: 'same' };
+  f.undo.push({ circuitId: c.circuitId, comps: [], wires: [], ext: before });
+  f.redo = [];
+  f.dirty = true;
+  extChanged(f, c);
+  return { changed: true, ...(outcome ? { outcome: what } : {}) };
+}
+function extChanged(f: File, c: Circuit): void {
+  const edited = f.undo.some((s) => !s.ext) || f.redo.some((s) => !s.ext);
+  const snap = f.fixture?.circuits.find((x) => x.circuitId === f.fixtureIds?.get(c.circuitId));
+  const params = { fileId: f.fileId, circuitId: c.circuitId, removed: [], added: [], nets: !snap ? [] : edited ? netsOf(f, c) : snap.nets, junctions: edited || !snap ? [] : snap.junctions, ...extJson(f, c.circuitId, false), dirty: true };
+  setImmediate(() => notify('model.changed', params));
 }
 
 // A fixture circuit's id as this file's.

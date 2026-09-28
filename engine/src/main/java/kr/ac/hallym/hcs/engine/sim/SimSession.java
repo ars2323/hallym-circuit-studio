@@ -298,6 +298,15 @@ public final class SimSession implements SimulatorListener {
     }
 
     /**
+     * 화면이 보고 있는 회로 상태(sim.watch)가 회로 c의 것이면 그 상태, 아니면 null(N-15, D-151: Signal Flow의 Active
+     * Path Only와 활성 경로가 값을 읽기만 한다). 상태를 새로 만들지 않는다.
+     */
+    public CircuitState watchedState(Circuit c) {
+        CircuitState s = watchState;
+        return s != null && s.getCircuit() == c ? s : null;
+    }
+
+    /**
      * sim.poke: 원조 Poke 도구의 누름·뗌. action은 "click"(누르고 뗌), "press", "release". at은 회로 좌표(없으면
      * 부품 가운데). 캐럿이 없는 부품(선, 게이트 등)이면 false.
      */

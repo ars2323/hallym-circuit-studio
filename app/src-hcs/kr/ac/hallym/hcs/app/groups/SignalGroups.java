@@ -204,6 +204,17 @@ public final class SignalGroups {
         };
     }
 
+    /** 학생이 이 선의 넷에 정한 그룹(없으면 null, 제어 유닛 출력의 기본 Control은 아님). v2 엔진이 쓴다(D-151). */
+    public static Group assignedTo(LogisimFile file, Circuit c, Wire w) {
+        Netlist.Net net = Netlist.of(c).netOf(w);
+        return net == null ? null : assigned(file, c, key(c, net));
+    }
+
+    /** 이 넷에 학생이 정한 그룹이 있는가(넷 열쇠로). v2 엔진의 스냅숏이 기본 Control과 가른다(D-151). */
+    public static boolean isAssigned(LogisimFile file, Circuit c, Netlist.Net net) {
+        return file != null && net != null && assigned(file, c, key(c, net)) != null;
+    }
+
     /** 이 선의 그룹(표시할 것). */
     public static Group groupOf(LogisimFile file, Circuit c, Wire w) {
         return wireGroups(file, c).get(w);

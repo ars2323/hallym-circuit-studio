@@ -21,6 +21,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { answerOpen, DATAPATH, launch, openFile, repo, root, sample, type Running } from '../tests/e2e/harness.ts';
+import { click, menu, partMiddle, rightClick, wireAtPort } from '../tests/e2e/overlay-helpers.ts';
 
 const out = process.env.SCREENS_OUT ? path.resolve(process.env.SCREENS_OUT) : path.join(root, 'docs/screens');
 mkdirSync(out, { recursive: true });
@@ -253,6 +254,72 @@ async function view(r: Running, v: { x: number; y: number; zoom: number }): Prom
   await page.getByRole('button', { name: 'Run Until…' }).click();
   await page.locator('dialog.ask').getByLabel('Value').fill('fact');
   await shot(r, 'run-until');
+  await r.close();
+}
+
+// The Canvas's overlays (N-15, D-151), on demo-datapath after a cycle, fitted (Ctrl+0): the Signal Flow from the PC held
+// at a fixed time (every part of its way lit), the influence of the register file both ways, the active path and
+// the instruction's fields with the Cycle View on show, the bus values at 125 %, signal groups set from a wire's
+// right click with Colors: Groups (the Wire Colors panel open), and area memos around the stages (the engine
+// call Add Area Memo… makes with the parts chosen).
+{
+  const r = await launch(FHD);
+  const { page } = r;
+  await openFile(r, sample(r.dir, DATAPATH));
+  await drawn(r);
+  await page.getByRole('button', { name: /1 Cycle/ }).click();
+  await page.locator('.status', { hasText: 'Cycle 1' }).waitFor();
+  const fit = async () => { await page.keyboard.press('Control+0'); await page.waitForTimeout(300); };
+  await fit();
+  type Ov = { __hcsOverlays: { flow: { held: number | null; state(): { total: number } | null }; shown(): { flow: { running: boolean }; influence: unknown; activePath: number } } };
+  const pc = await partMiddle(page, 'Register', 'PC');
+  await click(page, pc.at);
+  await page.waitForFunction(() => (window as unknown as Ov).__hcsOverlays.shown().flow.running);
+  await page.evaluate(() => { const f = (window as unknown as Ov).__hcsOverlays.flow; f.held = f.state()!.total + 10; });
+  await shot(r, 'signal-flow');
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => { (window as unknown as Ov).__hcsOverlays.flow.held = null; });
+  await page.getByRole('button', { name: 'Signal Flow', exact: true }).click();   // off: a click only chooses
+  const rf = await partMiddle(page, 'regfile');
+  await click(page, rf.at);
+  await rightClick(page, rf.at);
+  await menu(page, 'Influence', 'Show Influence (Both)');
+  await page.waitForFunction(() => (window as unknown as Ov).__hcsOverlays.shown().influence !== null);
+  await shot(r, 'influence');
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => (window as unknown as Ov).__hcsOverlays.shown().influence === null);
+  await click(page, [640, 620]);   // an empty place: nothing chosen
+  await page.getByRole('button', { name: 'Signal Flow', exact: true }).click();
+  await page.locator('section.bottom').getByRole('tab', { name: 'Cycle View' }).click();
+  await page.waitForFunction(() => (window as unknown as Ov).__hcsOverlays.shown().activePath > 0);
+  await shot(r, 'active-path');
+  await page.locator('section.bottom').getByRole('tab', { name: 'Messages' }).click();
+  await view(r, { x: 640, y: 160, zoom: 1.25 });
+  await shot(r, 'bus-values');
+  await fit();
+  for (const [part, port, group] of [['alu', 'Result', 'Data'], ['Register', 'Q', 'Address'], ['Data Memory', 'ReadData', 'Data'], ['Register', 'clk', 'Control'], ['regfile', 'RegWrite', 'Control']] as const) {
+    const w = await wireAtPort(page, part, port);
+    await rightClick(page, w.at);
+    await menu(page, 'Signal Group', group);
+    await page.waitForFunction((net) => (window as unknown as { __hcsCanvas: { scene: { groups: Map<string, unknown> } } }).__hcsCanvas.scene.groups.has(net), w.net);
+  }
+  await page.getByRole('button', { name: /Wire Colors/ }).click();
+  await page.locator('.legend-panel').getByRole('button', { name: 'Groups' }).click();
+  await shot(r, 'signal-groups');
+  await page.locator('.legend-panel').getByRole('button', { name: 'Values' }).click();
+  await page.keyboard.press('Escape');
+  await page.evaluate(async () => {
+    const app = (window as unknown as { app: { call(m: string, p: unknown): Promise<unknown> } }).app;
+    const ids = (...names: string[]) => {
+      const c = (window as unknown as { __hcsCanvas: { scene: { components: Map<string, { id: string; name: string; attrs: Record<string, string> }> } } }).__hcsCanvas;
+      return names.map((n) => [...c.scene.components.values()].find((k) => k.name === n || k.attrs.label === n)!.id);
+    };
+    for (const [text, color, parts] of [['IF', 1, ids('PC', 'Adder', 'Instruction Memory')], ['ID', 3, ids('regfile')], ['EX', 5, ids('alu', 'Zero')], ['MEM', 8, ids('Data Memory')], ['WB', 10, ids('Multiplexer')]] as const) {
+      await app.call('edit.areaMemo', { fileId: 'f1', circuitId: 'c1', at: [-500, -500], ids: parts, text, color });
+    }
+  });
+  await page.waitForFunction(() => (window as unknown as { __hcsCanvas: { scene: { memos: unknown[] } } }).__hcsCanvas.scene.memos.length === 5);
+  await shot(r, 'area-memo');
   await r.close();
 }
 

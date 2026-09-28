@@ -77,7 +77,13 @@ public final class ModelJson {
         o.add("wires", toArray(wires));
         o.add("nets", nets(c, nl));
         o.add("junctions", junctions(c));
+        kr.ac.hallym.hcs.engine.flow.ExtJson.addTo(o, file, c, nl); // 신호 그룹·영역 메모(N-15, D-151)
         return o;
+    }
+
+    /** 회로의 신호 그룹·영역 메모(hcs:ext, N-15 D-151): model.changed가 늘 싣고 바뀌었는지 비교한다. */
+    public JsonObject ext(Circuit c, java.util.function.Supplier<Netlist> nl) {
+        return kr.ac.hallym.hcs.engine.flow.ExtJson.of(file, c, nl);
     }
 
     public JsonObject component(Component c) {

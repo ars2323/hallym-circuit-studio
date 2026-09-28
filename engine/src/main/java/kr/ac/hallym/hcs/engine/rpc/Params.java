@@ -149,6 +149,16 @@ public final class Params {
         return ret;
     }
 
+    /** 정수 배열(예: 영역 메모의 [x, y, w, h]). */
+    public int[] ints(String name) throws RpcError {
+        JsonArray a = array(name);
+        int[] ret = new int[a.size()];
+        for (int i = 0; i < ret.length; i++) {
+            ret[i] = toInt(name, a.get(i));
+        }
+        return ret;
+    }
+
     private JsonArray array(String name) throws RpcError {
         if (!has(name) || !o.get(name).isJsonArray()) {
             throw RpcError.params("param '" + name + "' must be an array");
