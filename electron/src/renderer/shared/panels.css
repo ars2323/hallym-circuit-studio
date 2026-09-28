@@ -1,0 +1,168 @@
+/* The Registers, Data (here: Memory) and Inspector (here: Instruction)
+   panels' look (derived from Hallym MIPS v2.3.0
+   electron/src/renderer/app/app.css, the rules of those three panels): the
+   same tokens, the same columns and bands, the same field colours -- the
+   same instruction shows the same colours in both programs.  Left out: the
+   upstream Inspector's explanation, note and destination sum (they are
+   the upstream core's words), its CP0 fold, the Data tab's base switch.
+   The panels' code: registers.ts, memory.ts, inspector.ts. */
+
+:root {
+  --cp0-tint: #eef0f2; --cp0-text: #4a5560;
+  --changed: #fff1b8; --changed-bar: #e0a100; --changed-text: #6b4a00;
+  --row: 22px; --rrow: 21px;
+}
+
+/* The format badge: R, I, J, CP0, FR, FI. */
+.badge { display: inline-flex; justify-content: center; min-width: 30px; height: 16px; line-height: 16px; border-radius: 4px; font: 700 11px var(--code); }
+.b-R { background: var(--blue-tint); color: var(--blue); }
+.b-I { background: var(--teal-tint); color: var(--teal-text); }
+.b-J { background: var(--amber-tint); color: var(--amber-text); }
+.b-CP0 { background: var(--cp0-tint); color: var(--cp0-text); }
+.b-FR, .b-FI { background: var(--blue-tint); color: var(--navy); }
+
+/* Data: Address | +0 | +4 | +8 | +C | ASCII, labels on a thin row above their line (memory.ts) */
+.data { overflow: auto; padding: 0 0 8px; font-family: var(--code); font-size: calc(var(--fs) - .5px); --dpadl: 15px; --dpadr: 12px; --dgap: 10px; }
+.data[data-style=tight] { --dpadl: 10px; --dpadr: 6px; --dgap: 6px; }
+.data[data-style=small] { --dpadl: 6px; --dpadr: 4px; --dgap: 4px; }
+.data[data-style=small] { font-size: calc(var(--fs) - 1.5px); }
+.data.hide-ascii .ascii { display: none; }
+.dtable { display: grid; min-width: max-content; --dcell: 8ch; }
+.dhead, .drow { display: grid; grid-template-columns: 10ch repeat(4, var(--dcell)) max-content; column-gap: var(--dgap); padding: 0 var(--dpadr) 0 var(--dpadl); align-items: center; white-space: nowrap; }
+.data.hide-ascii .dhead, .data.hide-ascii .drow { grid-template-columns: 10ch repeat(4, var(--dcell)); }
+.dhead { position: sticky; top: 0; z-index: 1; height: 26px; background: var(--white); border-bottom: 1px solid var(--border); }
+.dhead > span { font: 500 11.5px var(--ui); color: var(--muted); }
+.dhead > span:nth-child(-n+5) { font-family: var(--code); }
+/* A section's head never widens the table (contain): in a narrow tab it
+   takes a second line instead. */
+.dsec { display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; min-height: 30px; margin-top: 10px; padding: 4px 12px; contain: inline-size; font: 13px var(--ui); color: var(--navy); cursor: pointer;
+  background: var(--window); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); box-shadow: inset 3px 0 0 var(--blue); }
+.dsec:first-of-type { margin-top: 0; }
+.dsec b { font-weight: 700; }
+.dsec .range { color: var(--text-2); }
+.dsec .dsize, .dsec .dhint, .dsec .dfacts { color: var(--muted); font-size: 12px; }
+.dsec .dfold { width: 18px; border: 0; background: none; color: var(--navy); padding: 0; }
+.dsec.dsec-stack { box-shadow: inset 3px 0 0 var(--purple); background: #f6f3fb; color: #4b3470; }
+.drow { height: var(--row); }
+.drow.dsec-stack { box-shadow: inset 3px 0 0 #e4dcf1; }
+.drow .daddr { color: var(--muted); }
+.drow .dval.zero { color: var(--dim); }
+.drow .dval.pointed { background: var(--teal-tint); color: var(--teal-text); border-radius: 3px; box-shadow: 0 0 0 2px var(--teal-tint); }
+.drow .dval.lit, .drow .dch.lit { background: var(--amber-tint); box-shadow: 0 0 0 2px var(--amber-tint); border-radius: 3px; }
+.drow .dascii { display: flex; color: var(--text-2); padding-left: 4px; }
+/* One run of characters; between two words a faint line that takes no room. */
+.drow .dch + .dch { box-shadow: inset 1px 0 0 var(--border); }
+.drow .dch { white-space: pre; }
+.drow.dzero .dzerotext { grid-column: 2 / -1; font-family: var(--ui); font-size: 12px; color: var(--muted); padding: 0 8px; border-radius: 4px; white-space: nowrap;
+  background: repeating-linear-gradient(135deg, var(--window) 0 6px, var(--white) 6px 12px); }
+.dtags { display: flex; gap: 14px; padding: 3px 12px 0 calc(var(--dpadl) + 10ch + var(--dgap)); font-size: 12px; line-height: 16px; white-space: nowrap; }
+.dtags.dsec-stack { box-shadow: inset 3px 0 0 #e4dcf1; }
+.dtags .dlabel { color: var(--blue); font-weight: 700; }
+.dtags .dlabel .off { color: var(--muted); font-weight: 400; }
+.dtags .dptr { color: var(--teal-text); font-weight: 700; }
+
+/* Registers: hex first, decimal quieter, binary quietest; the register that
+   just changed in yellow.  The columns and how tight they sit are
+   registers.ts's (--rcols, data-style, hide-*): Hex, Dec and Bin give way
+   last. */
+.regs { font-family: var(--code); font-size: var(--fs); --rpad: 9px; --rpadr: 10px; --rgap: 10px; display: flex; flex-direction: column; min-height: 0; }
+.regs[data-style=tight] { --rpad: 5px; --rpadr: 6px; --rgap: 6px; }
+.regs[data-style=small] { --rpad: 5px; --rpadr: 6px; --rgap: 6px; font-size: calc(var(--fs) - 1px); }
+.regs-list { overflow-y: auto; overflow-x: hidden; flex: 1; min-height: 0; }
+.regs.overflow .regs-list { overflow-x: auto; }
+.rhead, .rrow { display: grid; column-gap: var(--rgap); padding: 0 var(--rpadr) 0 calc(var(--rpad) + 3px); align-items: center; white-space: nowrap;
+  grid-template-columns: var(--rcols, 7ch 10.5ch 10.5ch 28.5ch minmax(0, 1fr)); }
+.regs.overflow .rhead, .regs.overflow .rrow { width: max-content; min-width: 100%; }
+.rhead { position: sticky; top: 0; z-index: 2; height: 24px; background: var(--white); border-bottom: 1px solid var(--border); }
+.rhead > span { font: 500 11px var(--ui); color: var(--dim); }
+.rhead > span.strong { color: var(--text-2); font-weight: 600; }
+.rhead .right { text-align: right; }
+.rrow { height: var(--rrow); border-left: 3px solid transparent; padding-left: var(--rpad); }
+.rrow .rn { font-weight: 700; color: var(--navy); overflow: hidden; text-overflow: ellipsis; } /* mono: $t0 in Pretendard reads $tO */
+.rrow .rn .alias { font-weight: 400; color: var(--dim); margin-left: 6px; font-size: .85em; }
+.rrow .rn .pcmark { font: 600 10px var(--ui); color: var(--blue); margin-left: 6px; }
+.rrow .hex { color: var(--text); }
+.rrow .dec { color: var(--muted); font-size: .92em; text-align: right; overflow: hidden; }
+.rrow .bin { color: var(--dim); font-size: .82em; letter-spacing: -.3px; overflow: hidden; }
+.rrow .bin span + span { margin-left: 3px; }
+.rrow .tag { display: none; font: 600 10.5px var(--ui); background: var(--changed-bar); color: var(--white); border-radius: 8px; padding: 0 6px; line-height: 16px; justify-self: start; }
+.rrow.zero .hex, .rrow.zero .dec, .rrow.zero .bin, .rrow.zero .rn { color: var(--dim); }
+.rrow.chg { background: var(--changed); border-left-color: var(--changed-bar); }
+.rrow.chg .hex { color: var(--changed-text); font-weight: 700; }
+.rrow.chg .dec, .rrow.chg .bin { color: var(--changed-text); }
+.rrow.chg .tag { display: inline-block; }
+.regs.hide-tag .rrow .tag, .regs.hide-dec .dec, .regs.hide-bin .bin { display: none !important; }
+.rrow.flash { animation: regflash .7s ease-out; }
+/* A flash over whatever the row's own colour is, fading to nothing. */
+@keyframes regflash { from { box-shadow: inset 0 0 0 999px rgba(255, 200, 40, .75); } to { box-shadow: inset 0 0 0 999px rgba(255, 200, 40, 0); } }
+.rgroup { display: flex; align-items: baseline; gap: 8px; margin-top: 6px; padding: 5px 12px 4px; background: var(--window);
+  border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); font: 600 12px var(--ui); color: var(--navy); }
+.rhead + .rgroup { margin-top: 0; border-top: 0; }
+.rgroup .gspan { font-size: 11px; font-weight: 400; color: var(--muted); }
+
+/* ---- Inspector (here: Instruction) ------------------------------------- */
+.insp { container-type: inline-size; display: flex; flex-direction: column; min-height: 0; }
+.insp .ibody { overflow: auto; flex: 1; min-height: 0; }
+/* A narrow Inspector: smaller bits, so that 32 of them fit across. */
+@container (max-width: 520px) {
+  .insp .fbits .bit { font-size: 11px; line-height: 20px; margin: 0; }
+  .insp .franges { font-size: 9px; padding: 0 2px; }
+  .insp .fname { font-size: 11px; }
+  .insp .fmean { font-size: 10px; }
+  .insp .bitgrid { gap: 0 2px; margin: 2px 10px 0; }
+}
+@container (max-width: 400px) {
+  .insp .fbits { margin: 1px 1px; }
+  .insp .fbits .bit { font-size: 9.5px; line-height: 18px; background: none; }
+  .insp .franges { font-size: 8.5px; }
+  .insp .fname { font-size: 10px; }
+  .insp .bitgrid { gap: 0 1px; margin: 2px 6px 0; }
+}
+.ihead { display: flex; align-items: center; gap: 10px; padding: 10px 14px 6px 16px; min-width: 0; }
+.ihead .dis { font-weight: 700; font-size: calc(var(--fs) + 4px); color: var(--navy); white-space: nowrap; }
+.ihead .grow { flex: 1; }
+.ihead .where { color: var(--muted); white-space: nowrap; font-size: 12px; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; }
+/* The word: 32 cells in 32 equal columns, a field a coloured group. */
+.bitgrid { display: grid; grid-template-columns: repeat(32, minmax(0, 1fr)); gap: 0 3px; margin: 2px 16px 0; }
+.fbox { display: flex; flex-direction: column; min-width: 0; border-radius: 6px; padding: 2px 0 4px; }
+.franges { display: flex; justify-content: space-between; font-size: 10.5px; padding: 0 4px; opacity: .8; line-height: 14px; }
+.fbits { display: grid; margin: 1px 3px; }
+.fbits .bit { text-align: center; font-weight: 700; font-size: calc(var(--fs) + 2px); line-height: 26px; background: rgba(255,255,255,.55); border-radius: 3px; margin: 0 1px; }
+.fname { font: 700 12px var(--ui); text-align: center; margin-top: 3px; }
+.fmean { font-size: 11.5px; text-align: center; opacity: .9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 3px; }
+.f-opcode, .f-fmt { background: #dfe5ef; color: var(--navy); }
+.f-rs { background: var(--blue-tint); color: var(--blue); }
+.f-rt, .f-ft { background: var(--teal-tint); color: var(--teal-text); }
+.f-rd, .f-fs { background: var(--amber-tint); color: var(--amber-text); }
+.f-shamt, .f-fd { background: #efe9f6; color: var(--purple); }
+.f-funct { background: var(--cp0-tint); color: var(--cp0-text); }
+.f-immediate, .f-target, .f-offset { background: #e3eef0; color: #1d5c63; }
+.ftable { margin: 10px 16px 14px; border-collapse: collapse; font-size: var(--fs); }
+.ftable td, .ftable th { padding: 0 16px 0 0; height: 22px; text-align: left; white-space: nowrap; }
+.ftable th { font: 500 11.5px var(--ui); color: var(--muted); height: 20px; border-bottom: 1px solid var(--border); }
+.ftable .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+/* A narrow Inspector folds instead of scrolling sideways: its head on two
+   lines, the field table one field to a block -- name, value, meaning;
+   under them the bits and their binary. */
+@container (max-width: 480px) {
+  .ihead { flex-wrap: wrap; row-gap: 2px; padding: 8px 12px 4px; }
+  .ihead .grow { display: none; }
+  .ihead .where { flex: 0 1 auto; max-width: 100%; white-space: normal; overflow: visible; }
+  .ftable, .ftable tbody { display: block; margin: 8px 12px 12px; }
+  .ftable tr { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; column-gap: 12px; align-items: baseline;
+    padding: 3px 0; border-bottom: 1px solid var(--border); }
+  .ftable tr:first-child { display: none; }
+  .ftable td { height: auto; padding: 0; white-space: normal; }
+  .ftable td:nth-child(1) { grid-area: 1 / 1; }
+  .ftable td:nth-child(4) { grid-area: 1 / 2; text-align: right; }
+  .ftable td:nth-child(5) { grid-area: 1 / 3; }
+  .ftable td:nth-child(2) { grid-area: 2 / 1; padding-left: 16px; }
+  .ftable td:nth-child(3) { grid-area: 2 / 2 / auto / span 2; }
+  .ftable td:nth-child(2), .ftable td:nth-child(3) { color: var(--muted); font-size: 11.5px; }
+  .ftable td[data-label]::before { content: attr(data-label) ' '; font-family: var(--ui); color: var(--dim); }
+}
+
+/* Head buttons for columns the width took away (ui.ts columnButton). */
+.hbtn.on { background: var(--blue-tint); border-color: var(--blue-tint2); color: var(--navy); font-weight: 600; }
+.hbtn.colbtn { height: 22px; padding: 0 6px; font-size: 11px; }
+.paside:has(.colbtn) { gap: 4px; }

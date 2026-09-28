@@ -24,7 +24,7 @@
    Nothing is restored from an earlier run and nothing is written but the
    files the student saves (the lab-PC rule; src/main/main.ts). */
 
-import type { CircuitRef, ConsoleUpdate, DiagList, DiagMessage, EngineStatus, LibraryGroup, MipsFacts, ModelChanged, NewResult, Recovered, Reloaded, SimState, SimValues, Snapshot } from '../../main/protocol.ts';
+import type { CircuitRef, ConsoleUpdate, DiagList, DiagMessage, EngineStatus, LibraryGroup, MipsFacts, ModelChanged, NewResult, RecordState, Recovered, Reloaded, RunUntilDone, SimState, SimValues, Snapshot } from '../../main/protocol.ts';
 import { CircuitCanvas } from '../canvas/canvas.ts';
 import { legend } from '../canvas/legend.ts';
 import { Scene } from '../canvas/scene.ts';
@@ -41,6 +41,8 @@ import { button, iconButton, titleBar } from '../shared/titlebar.ts';
 import { headButton, panelHead, tabStrip, tabsHead } from '../shared/ui.ts';
 import type { CallError, Opened } from './api.ts';
 import { consolePanel } from './console.ts';
+import { CycleView, type PinSpot } from './cycleview.ts';
+import { cycleFacts } from './logic/cycle.ts';
 import { commandError, fileError } from './logic/errors.ts';
 import { circuitFacts, count, counted, engineFact, engineVersion } from './logic/facts.ts';
 import { Files, type OpenFile } from './logic/files.ts';
@@ -76,6 +78,7 @@ let dragged = nothingDragged();
 let bottomCollapsed = false;
 let startSeen = false;
 let untitled = 0;
+let cycleFile: string | null = null;                     // the file the Cycle View shows
 // The clock's speed, ticks per second: v1's list (and the engine's, docs/engine-api.md sim.run).
 const FREQUENCIES: [string, number][] = [['1 Hz', 1], ['4 Hz', 4], ['16 Hz', 16], ['64 Hz', 64], ['256 Hz', 256], ['1 kHz', 1024], ['4 kHz', 4096]];
 
@@ -183,7 +186,34 @@ const consoleBody = noticeHost('bottom');
 const bottomBodies = [messagesBody.root, cycleBody.root, consoleBody.root];
 // The Console tab (N-16, console.ts): every Console part's output, streamed by the engine.
 const consoleView = consolePanel(consoleBody);
-const bottomHead = tabsHead(['Messages', 'Cycle View', 'Console'], (i) => { showBody(bottomBodies, i); if (bottomCollapsed) toggleBottom(); });
+const bottomHead = tabsHead(['Messages', 'Cycle View', 'Console'], (i) => { showBody(bottomBodies, i); if (bottomCollapsed) toggleBottom(); cycleShown(); });
+// The Cycle View (N-14): the table, Registers | Memory | Instruction, Run Until (cycleview.ts).
+const cycleView = new CycleView({
+  call: (method, params) => api.call(method, params),
+  fileId: () => files.active()?.fileId ?? null,
+  ready: () => engine.state === 'ready',
+  note: (cls, text) => { note = text ? { cls, text } : null; renderStatus(); },
+  dirty: (fileId, dirty) => { files.setDirty(fileId, dirty); render(); },
+  changed: () => { renderStatus(); renderToolbarState(); renderCycleBody(); },
+});
+// The Cycle View tab: its word until there is something to show (no cycle after the first, no row, no
+// Instruction Memory), then the view itself.
+function renderCycleBody(): void {
+  const active = files.active()?.fileId ?? null;
+  if (active !== cycleFile) { cycleFile = active; cycleView.fileChanged(); }
+  if (!files.active() || cycleView.nothingYet(active)) {
+    if (!cycleBody.isEmpty() || cycleBody.root.dataset.empty !== 'true') {
+      cycleBody.empty({ title: '아직 사이클이 없습니다', body: '1 Cycle이나 Run으로 클럭을 진행하면 사이클마다 값이 여기에 쌓입니다.' });
+    }
+  } else if (cycleBody.root.firstChild !== cycleView.root) {
+    cycleBody.fill(cycleView.root);
+  }
+  cycleShown();
+}
+// Whether the Cycle View is on screen (its tab chosen, the panel open, a file open): it asks the engine only then.
+function cycleShown(): void {
+  cycleView.setVisible(bottomHead.selected() === 1 && !bottomCollapsed && files.active() !== null && cycleBody.root.firstChild === cycleView.root);
+}
 const bCollapse = headButton('Collapse', 'Collapse the panel', () => toggleBottom());
 bottomHead.aside.append(bCollapse);
 const bottomPanel = h('section', { class: 'panel bottom', 'aria-label': 'Messages' }, bottomHead.root, ...bottomBodies);
@@ -244,6 +274,7 @@ function toggleBottom(): void {
   bottomPanel.classList.toggle('collapsed', bottomCollapsed);
   bCollapse.textContent = bottomCollapsed ? 'Expand' : 'Collapse';
   bCollapse.title = bottomCollapsed ? 'Expand the panel' : 'Collapse the panel';
+  cycleShown();
   layout();
 }
 
@@ -276,6 +307,15 @@ function layout(): void {
 
 // ---- rendering ----------------------------------------------------------------------
 
+// While Run Until runs (the Cycle View's bar says Stop), the clock's own buttons wait.
+function renderToolbarState(): void {
+  const f = files.active();
+  const until = cycleView.running(f?.fileId ?? null);
+  const off = !f || engine.state !== 'ready';
+  bRun.disabled = off || until;
+  bCycle.disabled = off || until;
+}
+
 function render(): void {
   const f = files.active();
   document.title = f ? `${f.name}${f.dirty ? ' •' : ''} — ${APP_NAME}` : APP_NAME;
@@ -283,6 +323,7 @@ function render(): void {
   bar.showToolbar(f !== null);
   const ready = engine.state === 'ready';
   for (const b of [bSave, bUndo, bRedo, bRun, bCycle, bReset]) b.disabled = !f || !ready;
+  renderToolbarState();
   frequency.disabled = !f || !ready;
   bCycles.disabled = true;   // N-07: the count to go
   bLoad.disabled = !f || !ready;
@@ -340,6 +381,22 @@ function showMessages(): void {
   bottomHead.select(0);
   showBody(bottomBodies, 0);
   if (bottomCollapsed) toggleBottom();
+}
+
+// A message with a cycle (v1 D-05, V-03): the Cycle View comes forward at that cycle, with the
+// message's cause and the place its E/X appeared as the table's top rows (record.pin).
+function pinMessage(r: Reveal): void {
+  if (r.cycle === null || r.messageId === null || !files.get(r.fileId)) return;
+  const m = diags.get(r.fileId)?.find((x) => x.id === r.messageId);
+  const spots: PinSpot[] = [];
+  if (r.at) spots.push({ circuitId: r.circuitId, path: r.path, at: r.at });
+  if (m?.appeared) spots.push({ circuitId: m.appeared.circuitId, path: [...m.appeared.path], at: m.appeared.at });
+  if (spots.length === 0) return;
+  bottomHead.select(1);
+  showBody(bottomBodies, 1);
+  if (bottomCollapsed) toggleBottom();
+  cycleShown();
+  void cycleView.pinMessage(r.fileId, r.messageId, r.cycle, spots);
 }
 
 function renderCircuits(f: OpenFile): void {
@@ -479,7 +536,7 @@ function renderTunnels(s: Snapshot | null): void {
 function renderEmptyPanels(): void {
   attributesBody.empty({ title: '고른 부품이 없습니다', body: codeText('Canvas에서 부품을 고르면 그 속성(`Data Bits`, `Facing`, `Label` …)이 여기에 나옵니다.') });
   minimapBody.empty({ title: '회로 전체가 작게 나옵니다', body: 'Canvas에 그린 회로의 전체 모습과 지금 보는 곳이 여기에 나옵니다.' });
-  cycleBody.empty({ title: '아직 사이클이 없습니다', body: '1 Cycle이나 Run으로 클럭을 진행하면 사이클마다 값이 여기에 쌓입니다.' });
+  renderCycleBody();
 }
 
 function renderStatus(): void {
@@ -501,8 +558,13 @@ function renderStatus(): void {
       b.addEventListener('click', () => showMessages());
       parts.push(b);
     }
+    // The cycle on show and PC (N-14): the recording's, "Cycle 5 / 12" on a past cycle; the clock's count before it is known.
+    const rec = cycleView.state(f.fileId) ?? null;
+    const facts = cycleFacts(rec, f.sim ? f.sim.cycle : null);
+    if (facts.cycle) parts.push(span(facts.past ? 'warn' : '', facts.cycle));
+    if (facts.pc) parts.push(span('', code(facts.pc)));
+    if (rec?.runUntil) parts.push(span('run', 'Running (Run Until)'));
     if (f.sim) {
-      parts.push(span('', `Cycle ${count(f.sim.cycle)}`));
       const speed = FREQUENCIES.find(([, hz]) => hz === f.sim?.hz)?.[0];
       if (f.sim.ticking) parts.push(span('run', speed ? `Running (${speed})` : 'Running'));
       if (!f.sim.running) parts.push(span('err', f.sim.oscillating ? '발진으로 시뮬레이션이 꺼졌습니다' : '시뮬레이션이 꺼져 있습니다'));
@@ -621,6 +683,7 @@ async function closeFile(fileId: string): Promise<void> {
   for (const m of [scenes, views, inside]) for (const k of [...m.keys()]) if (k.startsWith(`${fileId} `)) m.delete(k);
   watching.delete(fileId);
   if (board.scene?.fileId === fileId) { board.setScene(null); boardKey = ''; }
+  cycleView.forget(fileId);
   libraries.delete(fileId);
   diags.delete(fileId);
   programs.drop(fileId);
@@ -710,10 +773,10 @@ function onEngine(s: EngineStatus): void {
   if (s.state === 'failed') void engineFailed();
 }
 
-// "Show this place" (a message chosen): the file and the circuit tab here; the
-// Canvas (N-05) and the Cycle View (N-14) listen to the same event for the
-// parts, the instance path and the cycle.
-onReveal((r) => void revealPlace(r));
+// "Show this place" (a message chosen): the file and the circuit tab here, the
+// Canvas (N-05) marks the parts, the instance path; for a message with a cycle
+// the Cycle View comes forward at that cycle with its place pinned (N-14).
+onReveal((r) => { void revealPlace(r); pinMessage(r); });
 
 // The place of a message (reveal.ts): its circuit -- inside the subcircuit instances when a message the
 // simulation found is in one -- then the Canvas marks the parts, wires and nets once that scene is drawn.
@@ -761,6 +824,7 @@ function onRecovered(r: Recovered): void {
   boardKey = '';
   libraries.clear();
   diags.clear();
+  cycleView.forget(null);   // the recordings were the old engine's (the engine sends record.state again)
   wanted = '';
   for (const f of r.closed) { files.close(f.fileId); programs.drop(f.fileId); consoleView.drop(f.fileId); }
   for (const f of r.restored) files.reopened(f.fileId, f.dirty);
@@ -803,6 +867,7 @@ api.onNotify((method, params) => {
     const fileId = String(p.fileId);
     if (!files.get(fileId)) return;
     diags.set(fileId, (p as unknown as DiagList).messages);
+    cycleView.messagesChanged(fileId, (p as unknown as DiagList).messages.map((m) => m.id));
     if (files.active()?.fileId === fileId) { renderMessages(); renderStatus(); }
   } else if (method === 'sim.values') {
     const v = p as unknown as SimValues;
@@ -811,6 +876,10 @@ api.onNotify((method, params) => {
       sc.applyValues(v);
       if (board.scene === sc) board.invalidate();
     }
+  } else if (method === 'record.state') {
+    cycleView.onState(p as unknown as RecordState);
+  } else if (method === 'record.runUntil') {
+    cycleView.onRunUntil(p as unknown as RunUntilDone);
   } else if (method === 'engine.log') {
     // The engine's log is English, for developers: the window says what it means
     // from sim.state (an oscillation) and from the answers; the log goes to the console only.

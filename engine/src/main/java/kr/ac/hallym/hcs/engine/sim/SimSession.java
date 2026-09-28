@@ -150,10 +150,58 @@ public final class SimSession implements SimulatorListener {
     }
 
     private void resetNow() {
-        // 원조 Reset과 같고, 기록 엔진에도 스텝 0부터 새로 적으라고 알린다(동적 진단이 걷힌다, D-143)
+        // 원조 Reset과 같고, 기록 엔진에도 스텝 0부터 새로 적으라고 알린다(동적 진단이 걷힌다 D-143, record.* N-14 D-144)
         kr.ac.hallym.hcs.app.record.Recorder.requestReset(doc.project());
         ticks = 0;
         valuesDirty = true;
+    }
+
+    /**
+     * record.view(N-14): 기록이 지난 사이클의 상태를 프로젝트에 바꿔 끼운 뒤(또는 지금으로 돌아온 뒤) 틱 수를 그 스텝에
+     * 맞춘다. 거기서 진행하면 기록이 뒤를 버리고 그 스텝부터 이어 적으므로 sim.state의 cycle도 거기서 이어진다.
+     */
+    public void syncTicks(long step) {
+        ticks = Math.max(0, step);
+    }
+
+    /** record.view(N-14): 프로젝트의 지금 상태(바꿔 끼운 상태)를 다시 보고 모든 넷을 다시 보낸다. */
+    public void rewatch() {
+        if (watchState == null) {
+            return;
+        }
+        CircuitState now = doc.project().getCircuitState();
+        if (now != null && now.getCircuit() == watchState.getCircuit()) {
+            watchState = now;
+        }
+        sentNetlist = null;
+        sent.clear();
+        valuesDirty = true;
+    }
+
+    /**
+     * record.runUntil(N-14): 원조 틱 스레드(SimulatorTicker)는 한 번 틱 요청을 처리한 뒤 틱 주파수의 한 주기만큼(1 Hz면
+     * 최대 100ms) 잔다. Run Until은 한 사이클씩 요청하므로(D-075) 그대로면 사이클마다 그만큼 기다린다. 도는 동안만 원조
+     * 틱 주파수를 {@link #FAST_HZ}(한 주기 1ms)로 두고, sim.state에는 학생이 고른 값을 알린다. 끝나면 되돌린다.
+     */
+    public void fastTicks(boolean on) {
+        if (on && heldHz == null) {
+            heldHz = sim.getTickFrequency();
+            sim.setTickFrequency(FAST_HZ);
+        } else if (!on && heldHz != null) {
+            double hz = heldHz;
+            heldHz = null;
+            sim.setTickFrequency(hz);
+        }
+    }
+
+    /** 틱 스레드가 1ms마다 깨는 가장 낮은 원조 틱 주파수(1000/1024를 반올림하면 1ms). */
+    static final double FAST_HZ = 1024;
+    /** {@link #fastTicks} 동안 학생이 고른 틱 주파수. */
+    private Double heldHz;
+
+    /** N 사이클이 돌고 있다(record.view·Run Until이 기다리게 한다). */
+    public boolean busy() {
+        return pacer != null && !pacer.finished;
     }
 
     /** sim.cycles: n 사이클(틱 2n번). 곧바로 돌아오고 끝나면 sim.state를 보낸다. */
@@ -173,11 +221,19 @@ public final class SimSession implements SimulatorListener {
 
     /** sim.run: 틱을 켜고 끈다(원조 Ticks Enabled), hz는 원조 틱 주파수(틱/초). */
     public void run(boolean on, Double hz) throws RpcError {
+        if (on && heldHz != null) {
+            // Run Until이 한 사이클씩 돌리는 중: 원조 틱을 켜면 조건을 넘어 더 돈다(D-075). 속도만 바꾸는 것은 받는다
+            throw RpcError.simState("busy", "Run Until is running");
+        }
         if (hz != null) {
             if (!(hz > 0) || hz > 1_000_000) {
                 throw RpcError.params("hz must be between 0 and 1000000");
             }
-            sim.setTickFrequency(hz);
+            if (heldHz != null) {
+                heldHz = hz; // Run Until이 끝나면 이 값으로(fastTicks)
+            } else {
+                sim.setTickFrequency(hz);
+            }
         }
         if (on) {
             requireRunning();
@@ -321,7 +377,7 @@ public final class SimSession implements SimulatorListener {
         o.addProperty("ticking", sim.isTicking());
         o.addProperty("cycle", ticks / 2);
         o.addProperty("oscillating", sim.isOscillating());
-        o.addProperty("hz", sim.getTickFrequency());
+        o.addProperty("hz", heldHz != null ? heldHz : sim.getTickFrequency());
         return o;
     }
 

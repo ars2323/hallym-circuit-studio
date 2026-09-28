@@ -125,10 +125,28 @@ test('the journal: an id the window was never shown breaks the file\'s journal (
   assert.match(j.files.get('f2')!.broken ?? '', /without a circuit/);
 });
 
-test('what is journaled: edit.* and mips.load (N-16) only; the id parameters', () => {
+test('what is journaled: edit.*, mips.load (N-16) and the Cycle View\'s marks (undoable model edits); the id parameters', () => {
   assert.ok(journaled('edit.addComponent') && journaled('edit.undo') && journaled('mips.load'));
-  for (const m of ['sim.poke', 'sim.cycles', 'model.circuit', 'file.save', 'mips.facts', 'mips.reload', 'mips.console', 'mips.disasm']) assert.ok(!journaled(m), m);
+  for (const m of ['record.markPc', 'record.markRegisterFile', 'record.setRegisterMapping']) assert.ok(journaled(m), m);
+  for (const m of ['sim.poke', 'sim.cycles', 'model.circuit', 'file.save', 'mips.facts', 'mips.reload', 'mips.console', 'mips.disasm',
+    'record.state', 'record.pin', 'record.addRow', 'record.view', 'record.runUntil', 'record.registerMapping']) assert.ok(!journaled(m), m);
   assert.deepEqual(ID_PARAMS, { ids: 'list', id: 'one', componentId: 'one', wire: 'one' });
+});
+
+test('the journal: Mark as PC names its register as a part; the register file and its mapping by circuit and places', () => {
+  const s = new Shadow();
+  const j = new Journal();
+  s.answer('file.open', {}, { fileId: 'f1', circuits: [{ circuitId: 'c1', name: 'main' }, { circuitId: 'c2', name: 'regfile' }] });
+  s.answer('model.circuit', { fileId: 'f1', circuitId: 'c1' }, snapshot('c1', { comps: [['k7', and(300, 200, { label: 'PC' })]] }));
+  j.opened('f1', { kind: 'path', path: '/a.circ', readOnly: false }, { main: 'c1', regfile: 'c2' }, 'sum');
+  j.record('f1', 'record.markPc', { fileId: 'f1', circuitId: 'c1', componentId: 'k7', on: true }, s);
+  j.record('f1', 'record.markRegisterFile', { fileId: 'f1', circuitId: 'c2', on: true }, s);
+  j.record('f1', 'record.setRegisterMapping', { fileId: 'f1', circuitId: 'c2', map: { 1: [700, 120], 3: null } }, s);
+  const [pc, rf, map] = j.files.get('f1')!.entries;
+  assert.equal(j.files.get('f1')!.broken, null);
+  assert.deepEqual(pc.refs.componentId, refOf(and(300, 200, { label: 'PC' })));
+  assert.deepEqual([rf.circuit, rf.refs], [{ id: 'c2', name: 'regfile' }, {}]);
+  assert.deepEqual([map.circuit, map.refs, map.params.map], [{ id: 'c2', name: 'regfile' }, {}, { 1: [700, 120], 3: null }]);
 });
 
 // ---- answers in the engine's order ---------------------------------------------------------
@@ -258,6 +276,39 @@ test('recovery: files opened again under their ids, every edit replayed in the o
     const c = await win<NewResult>(engine, 'file.new');
     assert.ok(Number(c.fileId.slice(1)) > Number(b.fileId.slice(1)));
     assert.ok(Number(c.fileId.slice(1)) > 30);
+  } finally {
+    await engine.shutdown();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('recovery: Mark as PC, Mark as Register File and Register Mapping are replayed; the PC register found again by what it is', async () => {
+  const { dir, datapath } = scratch();
+  const { engine, sup } = fake();
+  try {
+    await engine.start();
+    const a = await win<OpenResult>(engine, 'file.open', { path: datapath });
+    const main = a.circuits.find((c) => c.name === 'main')!.circuitId;
+    const regfile = a.circuits.find((c) => c.name === 'regfile')!.circuitId;
+    const snap = await win<Snapshot>(engine, 'model.circuit', { fileId: a.fileId, circuitId: main });
+    const pc = snap.components.find((c) => c.name === 'Register' && c.attrs.label === 'PC')!;
+    await win(engine, 'record.markPc', { fileId: a.fileId, circuitId: main, componentId: pc.id, on: true });
+    await win(engine, 'record.markRegisterFile', { fileId: a.fileId, circuitId: regfile, on: true });
+    await win(engine, 'record.setRegisterMapping', { fileId: a.fileId, circuitId: regfile, map: { 1: [700, 120] } });
+    const replayed: [string, unknown][] = [];
+    engine.on('answer', (x) => { if (x.tag === 'recovery' && x.method.startsWith('record.')) replayed.push([x.method, (x.params as { componentId?: string }).componentId]); });
+    const done = recovered(sup);
+    engine.kill();
+    const r = await done;
+    assert.deepEqual(r.restored, [{ fileId: a.fileId, edits: 3, dirty: true }]);
+    assert.deepEqual(replayed.map(([m]) => m), ['record.markPc', 'record.markRegisterFile', 'record.setRegisterMapping']);
+    const now = await win<Snapshot>(engine, 'model.circuit', { fileId: a.fileId, circuitId: main });
+    const pcNow = now.components.find((c) => c.name === 'Register' && c.attrs.label === 'PC')!;
+    assert.notEqual(pcNow.id, pc.id, 'the new engine\'s id');
+    assert.equal(replayed[0][1], pcNow.id, 'Mark as PC sent with the id the part has now');
+    const regs = await win<{ mode: string; rows: { key: string; markedPc?: boolean }[] }>(engine, 'record.registers', { fileId: a.fileId });
+    assert.equal(regs.mode, 'file');
+    assert.equal(regs.rows.find((x) => x.key === 'PC')?.markedPc, true);
   } finally {
     await engine.shutdown();
     rmSync(dir, { recursive: true, force: true });

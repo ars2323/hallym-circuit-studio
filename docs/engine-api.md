@@ -153,7 +153,7 @@ Component = {
 - **`mips.disasm`**: 메모리 부품(보통 Instruction Memory)의 워드를 lib-mips 디스어셈블러(D-127, SPIM 목록 글)로. 기호는 부품 내용과 워드가 같은 이미지의 것(`jal 0x00400024 [main]`, `bne $17, $0, -16 [next-0x00400048]`), 없으면 `symbols:false`. `from`(주소 글 `0x00400024`·`400024` 또는 수, 없으면 첫 워드)부터 `count`줄(기본 1024, 1~4096). `lines[].labels`는 그 주소의 기호(파일 순서), `entry:true`는 entry 줄.
 - **`mips.console`·알림 `mips.console`**(v1 C-09): 보고 있는 회로 상태의 맨 위부터 모든 Console 부품의 출력 전체와 exit 여부(`ConsoleText`, 서브회로 안은 경로 이름). 요청은 `{name, text, exited}`, 알림은 콘솔마다 `text`(바꿈) 또는 `append`(앞에 보낸 것에 이어진 부분)와 `exited`이고 목록에 없는 Console은 사라진 것이다. 바뀐 프레임(16ms)에만 보낸다. `sim.reset`으로 비면 `text:""`가 온다(v1: Reset이 Console을 비운다). 입력은 없다: Console 부품은 출력 syscall(1, 4, 11)과 exit(10)만 처리한다(PLAN.md 6.9, D-147).
 - 사실은 파일 내용에서 나오므로 편집(부품을 지우거나 놓음) 뒤에는 화면이 다시 묻는다(엔진도 바뀌면 알린다).
-- **Memory 표(N-14가 메서드로 싣는다):** 엔진의 `MemoryTable`이 Hallym MIPS Data 탭 같은 한 표를 만든다. 줄은 `{kind:"section"|"words"|"zeros", section:"data"|"stack", part, addr, end}`(주소는 `"0x10010000"` 꼴 글자)에 `words`(칸 네 개 +0·+4·+8·+C, 구간 밖 `null`, 정해지지 않은 칸 `"xxxxxxxx"`), `zeros`의 `count`, `labels:[{addr, names}]`, `pointers:{"$sp": addr}`, 스택 `section`의 `base`·`depth`·`peak`가 붙는다. 데이터 구간은 `0x10010000`부터(그 아래에 값이 있으면 그 줄부터) 영역 끝까지, 스택 구간은 스택 영역 맨 위에서 아래로(높은 주소가 위) 지금 `$sp`·최고 수위·깊이 기준 가운데 가장 낮은 줄까지다. 0이 이어지는 줄들은 한 줄이고, 포인터가 가리키는 줄은 줄이지 않는다. 합친 Data Memory는 두 구간, 옛 구조(스택 영역 없는 Data Memory + Stack)는 부품마다 한 구간이다.
+- **Memory 표(`record.memory`, 아래 record 절):** 엔진의 `MemoryTable`이 Hallym MIPS Data 탭 같은 한 표를 만든다. 줄은 `{kind:"section"|"words"|"zeros", section:"data"|"stack", part, addr, end}`(주소는 `"0x10010000"` 꼴 글자)에 `words`(칸 네 개 +0·+4·+8·+C, 구간 밖 `null`, 정해지지 않은 칸 `"xxxxxxxx"`), `zeros`의 `count`, `labels:[{addr, names}]`, `pointers:{"$sp": addr}`, 스택 `section`의 `base`·`depth`·`peak`가 붙는다. 데이터 구간은 `0x10010000`부터(그 아래에 값이 있으면 그 줄부터) 영역 끝까지, 스택 구간은 스택 영역 맨 위에서 아래로(높은 주소가 위) 지금 `$sp`·최고 수위·깊이 기준 가운데 가장 낮은 줄까지다. 0이 이어지는 줄들은 한 줄이고, 포인터가 가리키는 줄은 줄이지 않는다. 합친 Data Memory는 두 구간, 옛 구조(스택 영역 없는 Data Memory + Stack)는 부품마다 한 구간이다.
 
 ### edit(의도)
 
@@ -241,7 +241,48 @@ Component = {
   | Console | `{lines:[글자], exited, status?, error?}`: 출력의 마지막 줄들(원조 몸체와 같은 접기), `-- exit --` 또는 문제 |
   | Radix Probe | `{lines:[글자 셋], primary}`: 주 진법이 첫 줄인 16·10·2진수, 조작 도구로 바꾼 주 진법 포함 |
 
-`sim.state = {fileId, running, ticking, cycle, oscillating, hz}` — 무엇이든 바뀌면 보내고(사이클 수만 바뀐 것은 프레임마다 많아야 한 번), N Cycles가 끝날 때와 Reset 뒤에도 보낸다. `running`은 원조 Simulation Enabled, `ticking`은 틱 켜짐, `cycle`은 Reset 뒤 끝난 틱 수의 절반, `hz`는 틱 주파수다.
+`sim.state = {fileId, running, ticking, cycle, oscillating, hz}` — 무엇이든 바뀌면 보내고(사이클 수만 바뀐 것은 프레임마다 많아야 한 번), N Cycles가 끝날 때와 Reset 뒤에도 보낸다. `running`은 원조 Simulation Enabled, `ticking`은 틱 켜짐, `cycle`은 Reset 뒤 끝난 틱 수의 절반, `hz`는 틱 주파수다. `record.view`로 지난 사이클을 보이면 `cycle`은 그 사이클이 되고, 거기서 진행하면 거기서 이어 센다(기록과 같다). Run Until이 도는 동안 엔진은 원조 틱 스레드가 사이클마다 쉬지 않게 틱 주파수를 잠시 1024로 두지만 `hz`는 학생이 고른 값을 알리고, 끝나면 되돌린다(D-144).
+
+### record(N-14, D-144)
+
+사이클 기록(v1 C-01~C-07·V-03·V-08의 GUI 없는 코드: `Recorder`·`Recording`·`CycleModel`·`RegisterFile`·`PcMark`·`StatusModel`·`RunUntil`, 엔진 `MemoryTable`)을 연다. 기록은 파일을 열 때 시작하고, 원조 시뮬레이터가 돈 틱마다 한 스텝(한 사이클 = 두 스텝)을 적는다(버려진 틱은 돌지 않은 틱이라 적을 것이 없다, D-123). 모든 넷의 바뀐 값만 적고 64스텝마다 회로 상태 전체를 복제해 두므로, 지난 사이클의 넷 값은 다시 돌리지 않고 읽고(`record.values`, 표), 회로 상태(메모리·레지스터 부품 안·서브회로 안)는 가장 가까운 복제에서 원조 엔진으로 다시 만든다(`record.view`). Reset(`sim.reset`)과 회로 편집 뒤에는 새로 적는다(Reset은 스텝 0부터, 편집은 지금 스텝부터). `file.open`·`file.new`는 기록이 스텝 0(연 회로의 첫 전파)을 적은 뒤 답하고, Reset 바로 뒤의 `record.runUntil`·`record.view`는 재설정이 기록된 뒤 시작한다(첫 전파와 먼저 온 틱이 원조 시뮬레이터의 한 번에 겹치면 틱 뒤 상태가 스텝 0으로 적히므로). 보관 상한 100,000스텝. 값은 4절의 글자이고 보이기만 한다(판단하지 않는다, 학생 레지스터에 쓰지 않는다).
+
+| 메서드 | params | result |
+| --- | --- | --- |
+| `record.state` | `{fileId}` | 아래 `record.state` 알림과 같은 객체 |
+| `record.table` | `{fileId, from?, to?}` | 사이클 표(열 `from`~`to`, 없으면 마지막 60열, 한 번에 400열까지) |
+| `record.addRow` | `{fileId, circuitId, path?:[componentId], wireId? \| netId? \| at?:[x,y]}` | `{id, added, name?, width?}`: 그 넷을 줄로(Add to Cycle View). 같은 넷이면 `added:false`와 그 줄 |
+| `record.removeRow` | `{fileId, id}` | `{removed}` |
+| `record.rowBits` | `{fileId, id, bits}` | `{changed}`: 버스 줄을 비트로 펼쳐 보이기(v1 Show Bits, 화면 표시만) |
+| `record.pin` | `{fileId, cycle?, rows:[{circuitId, path?, at}]}` | `{ids, view?}`: 메시지의 원인·E/X가 생긴 자리를 표 맨 위 임시 줄로(있던 임시 줄은 대체, V-03). `cycle`이면 그 사이클을 본다. 넷을 찾지 못한 자리(기록 밖의 인스턴스 경로 포함)는 빠진다(v1처럼, 오류 없음) |
+| `record.unpin` | `{fileId}` | `{}`: 임시 줄을 걷는다 |
+| `record.view` | `{fileId, cycle? \| latest?:true}` | `{cycle, past}`: 그 사이클의 회로 상태를 보인다(C-03) |
+| `record.values` | `{fileId, cycle, circuitId, path?}` | `{fileId, circuitId, cycle, nets:{netId: value}}`: 기록에서 읽은 그 사이클의 넷 값(다시 돌리지 않음) |
+| `record.runUntil` | `{fileId, kind, value?, maxCycles?}` | `{}` 곧바로. 끝나면 `record.runUntil` 알림 |
+| `record.stop` | `{fileId}` | `{stopped}`: Run Until을 멈춘다 |
+| `record.registers` | `{fileId, cycle?}` | 레지스터(보는 사이클, 또는 `cycle`) |
+| `record.memory` | `{fileId}` | Memory 표(보는 사이클의 회로 상태) |
+| `record.instruction` | `{fileId, cycle?}` | 그 사이클의 명령어와 필드 |
+| `record.fieldPaths` | `{fileId, circuitId, cycle?}` | `{fileId, circuitId, cycle, format?, fields:{name: [wireId]}}`: 그 사이클 명령어의 형식에 있는 필드마다, 이 회로에서 그 이름을 붙인 스플리터 팔의 선들(v1 C-07 FieldPaths; 캔버스의 필드 색 띠는 N-15) |
+| `record.markPc` | `{fileId, circuitId, componentId, on?}` | `{changed, dirty}`: Mark as PC(V-08, D-103). 레지스터·카운터만(아니면 -32602) |
+| `record.markRegisterFile` | `{fileId, circuitId, on?}` | `{changed, dirty}`: Mark as Register File(D-076, 파일에 하나) |
+| `record.registerMapping` | `{fileId}` | `{circuitId, name, registers:[{id, name, loc}], map:{"0".."31": [x,y]\|null}, guess:{…}}`: 대응은 레지스터 파일 회로 안 Register의 자리(v1 `regmap`이 적는 그대로) |
+| `record.setRegisterMapping` | `{fileId, circuitId, map:{"n": [x,y]\|null}}` | `{changed, dirty}`: `circuitId`는 표시한 레지스터 파일(아니면 -32602), 자리에 Register가 없으면 오류 1. 빠진 번호는 지금 대응 그대로. 짐작과 다른 것만 `regmap`으로 저장 |
+
+`record.state = {fileId, empty, first, last, cycle, past, generation, pc, cpu, rows, pinned, runUntil}` — 알림. 엔진이 화면 프레임(16ms)마다 보고 바뀌었을 때만 보낸다(파일을 연 뒤 첫 프레임에도). `first`·`last`는 기록에 남은 첫·마지막 사이클, `cycle`은 보고 있는 사이클(지난 사이클을 보면 `past:true`), `generation`은 새로 적기 시작할 때마다 하나씩 는다(Reset, 다시 열기). `pc`는 상태 표시줄의 PC(D-103: Mark as PC → 라벨이 PC인 부품(터널보다 다른 부품 먼저) → Instruction Memory의 Addr, 첫 포트 값 `"0x00400024"`, 정해지지 않았으면 `null`), `cpu`는 Instruction Memory가 있어 표에 PC·명령어 줄이 있는가, `rows`·`pinned`는 줄 수, `runUntil`은 도는 동안 `{kind, value?, from}`.
+
+- **사이클과 스텝.** 열 c = 사이클 c = c번째 상승 에지 뒤 다음 상승 에지 앞(스텝 2c, 상태 표시줄 "Cycle c"). 1비트 줄의 파형은 앞 절반(스텝 2c−1, `halves`)과 뒤 절반(스텝 2c, `values`)이다(D-074).
+- **`record.table`** = `{fileId, empty, first, last, cycle, from, to, cpu, pinnedCycle, columns, rows}`. `columns:[{cycle, pc, word, text}]`: Instruction Memory(최상위 먼저, 그다음 서브회로 안에서 처음 만나는 것)의 Addr·Instr 값(`"0x…"`, 정해지지 않았으면 `null`)과 lib-mips 디스어셈블러(D-127)의 글(`"jal 0x00400058 [fact]"`: 이름표는 그 부품의 `source` 속성이 가리키는 .hmx의 기호, 읽기만 한다). `rows:[{id, name, width, bits, temp, values, halves?}]`: 임시 줄(`temp:true`) 먼저, 그다음 더한 순서. 줄은 파일에 저장하지 않는다(v1과 같다). 기록에 없는 값은 `null`.
+- **줄의 넷.** `circuitId`는 그 선이 있는 회로, `path`는 기록하는 최상위 회로(= `sim.watch`로 본 회로)에서 내려가는 인스턴스 id들이다(없으면 최상위). `wireId`·`netId`(모델 알림의 넷 id)·`at`(포트나 선 끝 자리) 가운데 하나. 이름은 그 넷의 이름(터널·핀 라벨), 없으면 그 넷을 내는 포트(`PC (Q)`), 서브회로 안이면 경로(`regfile › RD1`)다.
+- **임시 줄의 수명(D-114).** 기록이 바뀌면(Reset, 새로 적기, 임시 줄의 사이클이 기록 밖) 엔진이 걷는다. 창은 사이클이 있는 메시지를 누르면 `location`(원인)과 `appeared`(E·X가 처음 보인 자리)로 `record.pin {cycle}`을 부르고 Cycle View 탭을 앞으로 가져오며(v1 D-05·V-03), 그 메시지가 `diag.changed` 목록에서 사라지면 `record.unpin`을 부른다.
+- **`record.view`.** 지난 사이클이면 체크포인트에서 다시 만든 상태를 프로젝트에 바꿔 끼우고 클럭(Run)을 멈춘다. 서브회로 안을 보고 있으면 같은 인스턴스 안으로. `sim.values`가 그 사이클의 값을 다시 보낸다(모든 넷). `latest:true`는 마지막 스텝(떼어 둔 지금 상태). 지난 사이클에서 틱하거나(1 Cycle·N Cycles·Run Until) 입력·회로를 바꾸면 그 뒤 기록을 버리고 거기서 이어 적는다. N Cycles나 Run Until이 도는 동안은 오류 4 `busy`, 기록이 없으면 오류 4 `empty`.
+- **`record.runUntil`**(C-04, D-075): `kind`는 `pc`(`value`: `0x00400034`·`400034` 16진, 또는 .hmx 기호 이름), `instruction`(`value`: 디스어셈블러의 명령어 이름, 대소문자 무관), `row`(`value`: 줄 id, 그 줄 값이 바뀜), `errorOrX`(넷 하나라도 E가 되거나 정해져 있던 넷에 X가 생김), `halt`(라벨이 halt인 출력 핀이 1, 또는 Console의 Exit가 1, 서브회로 안도). `maxCycles` 기본 10,000. 보고 있는 사이클에서 시작하고 조건은 다음 사이클부터 본다(이미 조건인 곳에서 누르면 한 번은 나아간다). 한 사이클(틱 두 번)씩 요청하고 기록이 그 사이클을 적은 뒤 조건을 보고 다음 사이클을 요청한다(쌓이는 틱 ≤ 2, D-123). Run(틱 켜짐)은 끈다. 도는 동안 원조 틱 스레드의 주파수는 1024 Hz로 두어(틱 뒤 잠드는 시간 없이 다음 사이클로) `sim.state`의 `hz`는 학생이 고른 값을 말하고, 그동안 `sim.run {hz}`로 바꾼 속도는 끝난 뒤 적용하며, `sim.run {on:true}`는 오류 4 `busy`다. 끝나면(만남·한계·멈춤·꺼짐·파일 닫기) 학생의 속도로 돌아온다. 오류: 읽을 수 없는 값 -32602(`data.reason` `badPc`·`badInstruction`·`noRow`), 시뮬레이션 꺼짐 4 `off`·`oscillating`, 이미 돌거나 N Cycles 중 4 `busy`, 기록 없음 4 `empty`.
+  `record.runUntil`(알림) = `{fileId, result:"met"|"limit"|"stopped"|"off", cycle, from, kind, value?}`: 조건을 만남, 최대 사이클 수에 닿음, `record.stop`·Reset·회로 편집, 도중에 시뮬레이션이 꺼짐.
+- **`record.registers`** = `{fileId, cycle, circuitId, mode:"file"|"all"|"none", registerFile?, unmapped?, candidates?, rows}`. 규칙은 v1 그대로다(D-076, D-103, D-108): 레지스터 파일을 표시했으면(`mode:"file"`, `registerFile:{circuitId, name}`) $0~$31(대응: 라벨 숫자 → 라벨 이름 → 위치, 고친 것은 `regmap`), 아니면(`all`) 모든 Register 부품(인스턴스 경로별, 라벨이 `$5`·`R5`·`t0` 같으면 번호). PC(Mark as PC → 라벨 PC → Instruction Memory Addr을 내는 레지스터·카운터, 조합 부품 한 단계까지)는 `key:"PC"`. `rows:[{key, name, number, group, value, changed, alias?, componentId?, markable?, markedPc?}]`: 번호가 있는 줄은 Hallym MIPS 레지스터 창의 묶음과 순서(`Special`(PC), `Constant`, `Return values`, `Arguments`, `Temporaries`, `Saved`, `Pointers`($gp $sp $fp), `Return address`, `Reserved`($at $k0 $k1)), 이름은 `$t0` 꼴이고 회로 안의 이름(`$8`)은 `alias`. 번호가 없거나 겹친 레지스터는 `Other registers`. `changed`는 앞 사이클과 다름. `markable`: 최상위의 Register·Counter(Mark as PC를 걸 수 있음). `unmapped`: 표시가 없고 $n 이름도 없음(화면이 "레지스터 파일을 표시하지 않아 모두 나열" 안내). `candidates`: 표시가 없을 때 고를 수 있는 서브회로(최상위 아래에서 쓰이고 Register가 든 것). `circuitId`: 줄의 `componentId`가 든 최상위 회로(`record.markPc`에 쓴다).
+- **`record.memory`** = `{fileId, cycle, parts, rows}`: 보고 있는 사이클의 회로 상태에서 모든 Data Memory(옛 Stack 포함)를 위 mips 절의 Memory 표로. 라벨은 .hmx 기호, 포인터는 레지스터 $sp·$fp·$gp(정해진 값만). 시뮬레이터가 쓰는 도중에 읽혔으면 다시 읽는다.
+- **`record.instruction`** = `{fileId, cycle, pc, word, text, mnemonic, format, fields}` 또는 `{…, none:"empty"|"noCpu"|"undefined"}`. `format`: `R`·`I`·`J`·`CP0`·`FR`·`FI`. `fields:[{name, hi, lo, bits, value, meaning}]`는 높은 비트부터 32비트를 빈틈없이 덮고, 이름은 Hallym MIPS Inspector와 같다(`opcode rs rt rd shamt funct immediate target`, `fmt ft fs fd cc nd tf`, `CO code sel`): 화면이 이 이름으로 필드 색을 고르므로 두 프로그램이 같은 명령에 같은 색을 보인다. `value`는 10진(immediate는 부호 있게), `meaning`은 사실만(레지스터 이름, 16진, 분기 목적지 = 분기 주소 + imm×4(D-010·D-127)와 기호, 점프 주소, opcode·funct는 명령어 이름).
+- **`record.fieldPaths`**: 팔 이름은 v1 규칙(대소문자 무시, `op`·`opcode`, `imm`·`immediate`·`imm16`·`offset`, `addr`·`target`·`address`)으로 읽고, 필드 이름은 Hallym MIPS 이름(`opcode rs rt rd shamt funct immediate target`)으로 준다. 팔에서 첫 부품 입력까지만 따라간다(레지스터 파일·ALU 너머는 필드가 아니라 레지스터 값, D-078). 명령어가 정해지지 않았으면 모든 필드.
+- **표시(hcs:ext, v1 그대로).** Mark as PC는 회로마다 `<hcs:pc at="(x,y)"/>`, 레지스터 파일은 `<hcs:regfile/>`, 대응은 `<hcs:regmap r5="x,y" …/>`(짐작과 다른 번호만, 없음은 `-`). 원조 2.7.1은 이 확장 블록을 건너뛴다. 각각 되돌리기 한 단계(`edit.undo`·`edit.redo`)이고, 읽기 전용 파일은 오류 3 `readOnly`.
 
 ### diag·trace(Messages와 E/X 출처, N-13, D-143)
 
@@ -300,7 +341,7 @@ Message = {
 
 ## 6. 확장
 
-영향 경로, Signal Flow, 기록(사이클 표, Registers·Memory·Instruction)은 각 N 항목에서 이 문서에 절을 더하며 늘린다. 메서드 이름은 `trace.*`, `record.*`로 묶는다(`mips.*`는 5절, `diag.*`·`trace.origin`은 5절 끝에 있다).
+영향 경로, Signal Flow는 각 N 항목에서 이 문서에 절을 더하며 늘린다. 메서드 이름은 `trace.*`로 묶는다(`mips.*`와 기록 `record.*`는 5절, `diag.*`·`trace.origin`은 5절 끝에 있다).
 
 ## 7. 수명: 시작, 끝, 다시 시작, 되살리기(N-04, D-142)
 
@@ -333,7 +374,7 @@ Message = {
 
 main은 열린 파일마다 메모리에 **저널**을 든다(`recovery.ts`).
 - 연 방법: 경로(+ 읽기 전용 여부, 그때 파일 내용의 SHA-256, 회로 이름→id) 또는 `file.new`. 저장하면 저장한 경로·내용·회로로 바뀌고 의도 목록을 비운다. 닫으면 지운다.
-- 의도: 창이 보낸 `edit.*`와 `mips.load`(실행 이미지 불러오기, N-16) 가운데 엔진이 **답한** 것(오류 응답은 적지 않는다)을, 엔진이 답한 순서의 전역 번호와 함께 적는다. `sim.*`(시뮬레이션)은 파일을 바꾸지 않으므로 적지 않는다. 모델을 바꾸는 새 메서드가 `edit.` 밖에 생기면 `recovery.ts`의 `journaled`에 더한다.
+- 의도: 창이 보낸 `edit.*`와 `mips.load`(실행 이미지 불러오기, N-16) 가운데 엔진이 **답한** 것(오류 응답은 적지 않는다)을, 엔진이 답한 순서의 전역 번호와 함께 적는다. `sim.*`(시뮬레이션)은 파일을 바꾸지 않으므로 적지 않는다. 모델을 바꾸는 새 메서드가 `edit.` 밖에 생기면 `recovery.ts`의 `journaled`에 더한다. `edit.` 밖에서 적는 것은 `mips.load`와 `record.markPc`·`record.markRegisterFile`·`record.setRegisterMapping`(되돌리기 한 단계인 파일 표시, `MODEL_EDITS`, D-144)이다. 대응은 자리(`[x,y]`)로 적으므로 id를 바꿀 것이 없고, Mark as PC의 `componentId`는 위 규칙대로 부품으로 적는다.
 - 부품 id: 새 엔진은 옛 id를 모르므로 의도의 id 매개변수(`ids`, `id`, `componentId`, `wire`; 새로 생기면 `ID_PARAMS`에 더한다)는 적을 때 **부품 자체**로 바꿔 둔다. 부품은 라이브러리·이름·위치·속성 전부, 선은 두 끝이다. main은 창에 간 `model.circuit` 응답과 `model.changed` 알림으로 모델의 사본(그림자)을 들고 있고, 의도는 그 응답을 읽는 순간(편집의 `model.changed`는 응답 뒤에 온다) 곧 편집 바로 앞의 모델로 적는다. 사본에 없는 id를 쓴 의도가 있으면 그 파일은 재생할 수 없는 것으로 표시한다(`notRecorded`).
 
 엔진이 다시 시작하면:

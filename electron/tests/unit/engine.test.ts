@@ -242,7 +242,9 @@ test('the fake engine speaking in 5-byte pieces with noise first: every answer a
     rmSync(dir, { recursive: true, force: true });
     await new Promise((r) => setTimeout(r, 100));
     assert.deepEqual(notes[0], ['engine.log', { level: 'info', message: 'fake engine started' }]);
-    assert.equal((notes.at(-1)![1] as { cycle: number }).cycle, 3);
+    // (the fake engine also tells record.state since N-14: the clock's own is the last sim.state)
+    assert.equal((notes.filter(([m]) => m === 'sim.state').at(-1)![1] as { cycle: number }).cycle, 3);
+    assert.ok(notes.some(([m, p]) => m === 'record.state' && (p as { last: number }).last === 3), 'record.state whole too');
     assert.ok(logs.some((l) => l.includes('Picked up JAVA_TOOL_OPTIONS')));
   } finally {
     await engine.shutdown();

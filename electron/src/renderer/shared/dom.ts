@@ -64,6 +64,33 @@ export function codeText(text: string): DocumentFragment {
 }
 export const prose = (text: string | Node): Node => (typeof text === 'string' ? codeText(text) : text);
 
+// The width of one character of the mono font (D2Coding) at `px`: the unit
+// the tables' columns are written in (columns.ts).  (Taken with the
+// Registers and Data panels, N-14.)
+const chCache = new Map<number, number>();
+export function monoCh(px: number): number {
+  let ch = chCache.get(px);
+  if (ch === undefined) {
+    const probe = h('span', { class: 'mono', style: `position:absolute;visibility:hidden;white-space:pre;font-size:${px}px` }, '0'.repeat(40));
+    document.body.append(probe);
+    ch = probe.getBoundingClientRect().width / 40;
+    probe.remove();
+    if (document.fonts.status === 'loaded') chCache.set(px, ch); // not the fallback's
+  }
+  return ch;
+}
+
+// Whether the student scrolled `el` in the last two seconds (the wheel, its
+// scroll bar, the page keys): then nothing scrolls it for them.
+export function userScrolls(el: HTMLElement): () => boolean {
+  let at = 0;
+  const mark = () => { at = Date.now(); };
+  el.addEventListener('wheel', mark, { passive: true });
+  el.addEventListener('pointerdown', (e) => { if (e.target === el) mark(); });
+  el.addEventListener('keydown', (e) => { if (/^(Page|Home|End|Arrow)/.test(e.key)) mark(); });
+  return () => Date.now() - at < 2000;
+}
+
 // The page's own files (fonts, icons), next to it.
 export const asset = (p: string): string => `../assets/${p}`;
 // The university's marks and characters: where tools/build-ui.ts says they

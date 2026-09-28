@@ -167,22 +167,51 @@ class ProgramFixtureTest {
         return el;
     }
 
-    /** Reset 뒤 PC가 정해질 때까지(사실 pcEntry는 그 값을 본다). */
+    /**
+     * Reset 뒤 PC가 정해질 때까지(사실 pcEntry는 그 값을 본다). 원조 Reset은 시뮬레이터 스레드가 다음 차례에 하므로 PC가
+     * 정해져 있어도 Reset 앞의 값일 수 있다: 전파를 청해 끝나기를 두 번 잇달아 기다리고 두 번 모두 PC가 정해져 있으면
+     * 된다(두 번째 전파는 먼저 청한 Reset 뒤에 돈다). 기록 엔진(N-14)이 붙어 엔진 스레드가 바빠지자 상수 identity hash
+     * JVM에서 Reset 중에 사실을 세는 일이 드러났다(D-144).
+     */
     static void waitForPc(InProcess e, String fileId) throws Exception {
+        com.cburch.logisim.proj.Project proj = e.onEngine(() -> e.engine.files().get(fileId).project());
+        com.cburch.logisim.circuit.Simulator sim = proj.getSimulator();
         long end = System.currentTimeMillis() + 10_000;
-        while (System.currentTimeMillis() < end) {
+        int settled = 0;
+        while (settled < 2) {
+            if (System.currentTimeMillis() > end) {
+                throw new AssertionError("the PC never settled");
+            }
+            java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
+            com.cburch.logisim.circuit.SimulatorListener l = new com.cburch.logisim.circuit.SimulatorListener() {
+                @Override
+                public void propagationCompleted(com.cburch.logisim.circuit.SimulatorEvent ev) {
+                    done.countDown();
+                }
+
+                @Override
+                public void tickCompleted(com.cburch.logisim.circuit.SimulatorEvent ev) {
+                }
+
+                @Override
+                public void simulatorStateChanged(com.cburch.logisim.circuit.SimulatorEvent ev) {
+                }
+            };
+            sim.addSimulatorListener(l);
+            try {
+                sim.requestPropagate();
+                done.await(5, java.util.concurrent.TimeUnit.SECONDS);
+            } finally {
+                sim.removeSimulatorListener(l);
+            }
             String pc = e.onEngine(() -> {
-                com.cburch.logisim.circuit.CircuitState st = e.engine.files().get(fileId).project().getCircuitState();
+                com.cburch.logisim.circuit.CircuitState st = proj.getCircuitState();
                 while (st.getParentState() != null) {
                     st = st.getParentState();
                 }
                 return kr.ac.hallym.hcs.app.sim.StatusModel.pc(st);
             });
-            if (pc != null) {
-                return;
-            }
-            Thread.sleep(20);
+            settled = pc == null ? 0 : settled + 1;
         }
-        throw new AssertionError("the PC never settled");
     }
 }

@@ -1,0 +1,72 @@
+/* The Cycle View tab (cycleview.ts): its bar, the cycle table, and the
+   Registers | Memory | Instruction side (the panels' own look is
+   ../shared/panels.css, Hallym MIPS's). */
+
+.cycleview { display: flex; flex-direction: column; height: 100%; min-height: 0; min-width: 0; }
+.cbar { display: flex; align-items: center; gap: 6px; height: 34px; padding: 0 10px; border-bottom: 1px solid var(--border); flex: none; min-width: 0; overflow: hidden; }
+.cbar .cpos { margin: 0 6px; color: var(--navy); font-weight: 700; white-space: nowrap; }
+.cbar .hbtn:disabled { color: var(--gray); cursor: default; background: var(--white); }
+.cbar .cpast { color: var(--amber-text); background: var(--amber-tint); box-shadow: inset 3px 0 0 var(--amber-text); border-radius: 4px; padding: 1px 8px;
+  font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.cmain { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) var(--side-w, 420px); }
+.cycleview.compact .cmain { grid-template-columns: minmax(0, 1fr); }
+
+/* The table: the names stick on the left, the head rows on top; a column is a cycle. */
+.ctablebox { overflow: auto; min-height: 0; min-width: 0; position: relative; }
+.ctable { border-collapse: separate; border-spacing: 0; table-layout: fixed; font-size: 12px; }
+.ctable th, .ctable td { height: 22px; padding: 0 6px; border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ctable th.nm { position: sticky; left: 0; z-index: 1; background: var(--window); text-align: left; font-weight: 600; color: var(--navy); }
+.ctable thead th, .ctable thead td { background: var(--window); }
+.ctable thead tr.hcycle th { position: sticky; top: 0; z-index: 2; text-align: center; color: var(--text-2); font-weight: 600; }
+.ctable thead tr.hcycle th.nm { z-index: 3; }
+.ctable thead tr.hins td { color: var(--navy); }
+.ctable thead tr.hpc td { color: var(--text-2); }
+.ctable .ccell { cursor: pointer; }
+.ctable .ccell.on { background: var(--blue-tint); }
+.ctable thead .ccell.on { background: var(--blue-tint2); color: var(--navy); }
+.ctable td.same { color: var(--dim); }
+.ctable .rname { font-weight: 600; }
+.ctable .rw { margin-left: 4px; color: var(--muted); font: 11px var(--code); }
+.ctable tr.bit th.nm { padding-left: 16px; font-weight: 400; }
+/* A message's rows (V-03, D-098): amber, a bar on the left, × to remove; its cycle framed. */
+.ctable tr.temp th.nm { background: var(--amber-tint); box-shadow: inset 3px 0 0 var(--amber-text); color: var(--amber-text); }
+.ctable tr.temp td { background: #fffaf0; }
+.ctable td.pin { box-shadow: inset 0 0 0 2px var(--amber-text); }
+.ctable .unpin { margin-left: 6px; border: 0; background: none; color: var(--amber-text); font-weight: 700; padding: 0 2px; }
+/* A 1-bit row: two halves a cycle, a line up for 1 and down for 0, a band for x, red for E. */
+.ctable td.wavecell { padding: 0; }
+.ctable td.wavecell .w { display: inline-block; width: 50%; height: 14px; vertical-align: middle; box-sizing: border-box; }
+.ctable td.wavecell .w.hi { border-top: 2px solid var(--teal-text); }
+.ctable td.wavecell .w.lo { border-bottom: 2px solid var(--navy); }
+.ctable td.wavecell .w.x { background: repeating-linear-gradient(135deg, var(--window) 0 4px, var(--border) 4px 6px); }
+.ctable td.wavecell .w.err { background: var(--error-tint); border-top: 2px solid var(--error); border-bottom: 2px solid var(--error); }
+.ctable td.wavecell .w.edge { border-left: 2px solid var(--text-2); }
+.ctablebox .cempty { margin: 10px 12px; color: var(--text-2); font-size: 12.5px; }
+
+/* The side: Registers | Memory | Instruction (and Cycles when narrow). */
+.cside { display: flex; flex-direction: column; min-height: 0; min-width: 0; border-left: 1px solid var(--border); }
+.cycleview.compact .cside { border-left: 0; }
+.cside > .phead { height: 30px; }
+.cside-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.cside-body > .regs, .cside-body > .data, .cside-body > .insp, .cside-body > .ctablebox { flex: 1; min-height: 0; }
+.cside-body .notice-host { container-type: normal; }
+.chint { padding: 6px 12px; font-size: 12px; color: var(--amber-text); background: var(--amber-tint); border-bottom: 1px solid var(--border); flex: none; }
+
+/* The dialogs' forms (Run Until, Register File, Register Mapping). */
+.cform { display: flex; flex-direction: column; gap: 8px; }
+.cform > p { margin: 0 0 4px; }
+.cfield { display: grid; grid-template-columns: 110px minmax(0, 1fr); align-items: center; gap: 8px; }
+.cfield > span { color: var(--text-2); font-size: 12.5px; }
+.cselect, .cinput { height: 28px; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--white); color: var(--text); min-width: 0; }
+.cinput:focus, .cselect:focus { outline: 2px solid var(--blue-tint2); border-color: var(--blue); }
+.chelp { margin: 0; color: var(--muted); font-size: 12px; }
+.cwhy { margin: 0; color: var(--error-text); font-size: 12px; min-height: 16px; }
+.cmap { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; max-height: 360px; overflow: auto; }
+.cmap .cfield { grid-template-columns: 96px minmax(0, 1fr); }
+.modal .btn:disabled { opacity: .5; cursor: default; }
+
+/* A small menu at the pointer (menu.ts). */
+.popmenu { position: fixed; z-index: 50; min-width: 160px; padding: 4px; background: var(--white); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,32,91,.18); display: flex; flex-direction: column; }
+.popmenu button { text-align: left; padding: 5px 10px; border: 0; border-radius: 5px; background: none; color: var(--text); white-space: nowrap; }
+.popmenu button:hover:not(:disabled), .popmenu button:focus-visible { background: var(--hover); color: var(--navy); outline: none; }
+.popmenu button:disabled { color: var(--gray); cursor: default; }

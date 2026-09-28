@@ -3,7 +3,8 @@
    the list grouped by kind with a count each, the tab's count, the status
    bar's count (No messages / 1 message / N messages), a message chosen sends
    "show this place" (reveal.ts) and goes to its circuit tab, the list after
-   the clock ran (with the cycle) and after Reset, the chosen message kept,
+   the clock ran (with the cycle; choosing it brings the Cycle View at that
+   cycle with the message's place pinned, N-14) and after Reset, the chosen message kept,
    Reset Simulation for an oscillation, the empty panel's word, no character
    on screen while there are messages. */
 
@@ -107,9 +108,17 @@ test('the clock runs: a message the simulation found joins with its cycle; the c
     const sent = await reveals(page);
     expect((sent.at(-1) as { cycle: number }).cycle).toBe(0);
     expect((sent.at(-1) as { components: string[] }).components).toHaveLength(2);
+    // a message with a cycle: the Cycle View comes forward at that cycle, its place pinned on top (v1 D-05, V-03, D-144)
+    await expect(page.getByRole('tab', { name: 'Cycle View' })).toHaveAttribute('aria-selected', 'true');
+    const temp = page.locator('.ctable tr.crow.temp');
+    await expect(temp).toHaveCount(1);
+    await expect(temp.locator('.rname')).toHaveText('MemWrite');
+    await expect(temp.locator('td.pin')).toHaveAttribute('data-cycle', '0');
+    await expect(page.locator('.ctable tr.crow').first()).toHaveClass(/\btemp\b/);
     await page.getByRole('button', { name: /Reset/ }).first().click();
     await expect(page.locator('.msg')).toHaveCount(2);
     await expect(page.locator('.status .msgcount')).toHaveText('2 messages');
+    await expect(temp).toHaveCount(0); // the message went, and its rows with it (D-114)
   } finally {
     await r.close();
   }

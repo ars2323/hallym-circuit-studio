@@ -59,11 +59,16 @@ export type Ref =
 // A new edit parameter that names parts goes here too.
 export const ID_PARAMS: Readonly<Record<string, 'list' | 'one'>> = { ids: 'list', id: 'one', componentId: 'one', wire: 'one' };
 
-// The methods that change a file's model: edit intents (docs/engine-api.md 5)
-// and loading an executable image (mips.load, N-16: replayed from the same
-// .hmx path; a load that named its memories by id -- target, picks -- is not
-// found again in a new engine, and that file comes back as last saved).
-export const journaled = (method: string): boolean => method.startsWith('edit.') || method === 'mips.load';
+// The methods that change a file's model: edit intents (docs/engine-api.md 5);
+// loading an executable image (mips.load, N-16: replayed from the same .hmx
+// path; a load that named its memories by id -- target, picks -- is not found
+// again in a new engine, and that file comes back as last saved); and the Cycle
+// View's marks, undoable model edits saved in the file's extension block
+// (record.*, N-14, D-144): Mark as PC (its componentId in ID_PARAMS), Mark as
+// Register File (a circuit: found again by its name), Register Mapping (by
+// places, not ids: replayed as it is).
+export const MODEL_EDITS: readonly string[] = ['record.markPc', 'record.markRegisterFile', 'record.setRegisterMapping'];
+export const journaled = (method: string): boolean => method.startsWith('edit.') || method === 'mips.load' || MODEL_EDITS.includes(method);
 
 // The window's calls carry this tag (main.ts); the Supervisor's own, 'recovery'.
 export const WINDOW = 'window';

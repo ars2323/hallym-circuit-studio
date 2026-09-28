@@ -5,8 +5,11 @@
    test harness are taken (D-133 point 5, D-135).  Nothing from SPIM: not
    electron/src/core/op-table.ts (generated from SPIM's CPU/op.h), not
    electron/native/** (links the SPIM core), and no file that leans on SPIM's
-   tables or strings (src/core/*, src/sim/*, the Editor, the Text, Data,
-   Registers, Inspector and Console panels, the tutorial's MIPS steps).
+   tables or strings (src/core/*, src/sim/*, the Editor, the Text and
+   Console panels, the tutorial's MIPS steps).  The Registers, Data and
+   Inspector panels are taken for their screen code only (N-14, D-144):
+   each is derived, its imports of the upstream core (decoder, formats,
+   memory rows, labels) replaced by what this app's engine sends.
    tests/unit/origin.test.ts checks that none of those names turns up here.
 
    Two kinds of file:
@@ -51,9 +54,9 @@ export interface Taken {
 export const TAKEN: Taken[] = [
   // ---- the window's shared parts (src/renderer/shared/)
   { from: 'electron/src/renderer/app/dom.ts', to: 'src/renderer/shared/dom.ts', how: 'derived',
-    note: 'DOM helpers. codeText() splits `code` itself (the upstream imported codeParts from src/core/explain.ts, which is not taken); asset() and character() point at this repository\'s assets/hallym/ originals; monoCh() and userScrolls() left out (no table here yet).' },
+    note: 'DOM helpers. codeText() splits `code` itself (the upstream imported codeParts from src/core/explain.ts, which is not taken); asset() and character() point at this repository\'s assets/hallym/ originals; monoCh() and userScrolls() taken with the Registers and Data panels (N-14).' },
   { from: 'electron/src/renderer/app/ui.ts', to: 'src/renderer/shared/ui.ts', how: 'derived',
-    note: 'Panel heads (panelHead, tabsHead, headButton). columnButton() left out; tabsHead can hide a tab and give it back (narrow windows move panels into tabs).' },
+    note: 'Panel heads (panelHead, tabsHead, headButton, columnButton: taken with the Registers and Data panels, N-14). tabsHead can hide a tab and give it back (narrow windows move panels into tabs).' },
   { from: 'electron/src/renderer/app/notice.ts', to: 'src/renderer/shared/notice.ts', how: 'derived',
     note: 'The empty-state word of a panel. The character is optional (most panels show the words alone; errors never have one).' },
   { from: 'electron/src/renderer/app/panels/ask.ts', to: 'src/renderer/shared/ask.ts', how: 'derived',
@@ -75,6 +78,17 @@ export const TAKEN: Taken[] = [
   { from: 'electron/src/renderer/app/index.html', to: 'src/renderer/app/index.html', how: 'derived',
     note: 'The same Content-Security-Policy; this app\'s title and style sheets.' },
   // ---- the main process
+  // ---- the Cycle View's side panels (N-14, D-144): screen code only, no upstream core
+  { from: 'electron/src/renderer/app/logic/columns.ts', to: 'src/renderer/shared/columns.ts', how: 'copy',
+    note: 'Which columns a table shows at a width (margins, then a pixel of font, then whole columns).' },
+  { from: 'electron/src/renderer/app/panels/registers.ts', to: 'src/renderer/shared/registers.ts', how: 'derived',
+    note: 'The Registers panel: rows made once, Hex/Dec/Bin with the width\'s fit, the changed row\'s yellow, flash and tag, the groups as bands. The rows come from the circuit (a set that can change is rebuilt), the circuit\'s own name beside, right-click for Mark as PC; no CP0 fold; logic/machine.ts (which leans on the upstream core) not taken: app/logic/registers.ts makes the cells.' },
+  { from: 'electron/src/renderer/app/panels/data.ts', to: 'src/renderer/shared/memory.ts', how: 'derived',
+    note: 'The Data tab as the Memory panel: Address | +0..+C | ASCII, sections that fold, zero runs as one row, labels and pointers on a thin row. The lines come made (the engine\'s MemoryTable, app/logic/memory.ts) instead of the upstream memory rows; the stack head says depth and peak; no kernel section, no base switch; the zero run\'s fact in English on purpose (`all 0`, upstream data.ts:137 says 모두 0: facts in tables are English here, D-135).' },
+  { from: 'electron/src/renderer/app/panels/inspector.ts', to: 'src/renderer/shared/inspector.ts', how: 'derived',
+    note: 'The Inspector as the Instruction panel: the 32-bit grid in coloured fields and the field table. The fields and names come from this app\'s engine (the Java disassembler and its field split) instead of the upstream decoder; no explanation, note or destination sum (the upstream core\'s words); follows the Cycle View.' },
+  { from: 'electron/src/renderer/app/app.css', to: 'src/renderer/shared/panels.css', how: 'derived',
+    note: 'The Registers, Data and Inspector panels\' rules and the field colours (.f-*) and format badges: the same colours for the same instruction in both programs. Without the upstream Inspector\'s explanation, note and destination, CP0 fold and Data base switch.' },
   { from: 'electron/src/main/main.ts', to: 'src/main/main.ts', how: 'derived',
     note: 'The window (no system title bar, titleBarOverlay, maximised at every start), the run\'s profile folder in the temp folder removed after quit, the caption buttons\' patch, About. The simulator parts are replaced by the engine client (src/main/engine.ts, new).' },
   { from: 'electron/src/main/paths.ts', to: 'src/main/paths.ts', how: 'derived',
@@ -121,7 +135,7 @@ export const LUCIDE_EXTRA = ['undo-2', 'redo-2', 'mouse-pointer-2', 'pointer', '
 
 // Never taken (D-133 point 5): SPIM's tables and what leans on them.
 export const NEVER = ['src/core/', 'src/sim/', 'native/', 'op-table', 'decoder', 'instruction-text', 'explain',
-  'asm-errors', 'mips-syntax', 'panels/registers', 'panels/text', 'panels/data', 'panels/inspector', 'panels/console', 'editor.ts',
+  'asm-errors', 'mips-syntax', 'panels/text', 'panels/console', 'logic/machine', 'editor.ts',
   'tutorial.ts'];
 
 export const sha256 = (b: Uint8Array | string): string => createHash('sha256').update(b).digest('hex');
