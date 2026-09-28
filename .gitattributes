@@ -6,8 +6,21 @@ docs/DECISIONS.md merge=union
 tests/asm/** text eol=lf
 tests/mips/*.s text eol=lf
 tests/record/*.s text eol=lf
-# 실행 이미지 시험 파일: source-sha256이 원본 .s 바이트와 맞아야 하므로 LF로 둔다(D-126).
-tests/hmx/** text eol=lf
 # 디스어셈블러 골든: SPIM 출력을 글자 단위로 굳혀 둔 것(D-127, D-141).
 tests/disasm/** text eol=lf
 tests/spim-oracle/** text eol=lf
+
+# 시험이 바이트로 비교하는 골든과 명세는 어느 운영체제에서나 저장소 바이트 그대로 꺼낸다(-text: 줄 끝을
+# 바꾸지 않는다, D-154). Windows(core.autocrlf=true)에서 CRLF로 바뀌면 해시·바이트 비교가 깨진다.
+# 실행 이미지 시험 파일과 받아 둔 Hallym MIPS v2.4.0 골든: source-sha256이 원본 .s 바이트와 맞아야 한다(D-126, D-138).
+tests/hmx/** -text
+# 편집 동등성 골든(D-136)과 열고 저장한 .circ 비교(D-149), 트랙 A 시험 회로.
+tests/parity/** -text
+tests/circ/** -text
+tests/mips/*.circ -text
+tests/jarlib/** -text
+# 시험이 읽는 명세 문서(엔진 API 표, 캔버스 렌더러 표, 용어집, .hmx 명세).
+docs/engine-api.md -text
+docs/canvas-renderers.md -text
+docs/GLOSSARY.md -text
+docs/hmx.md -text

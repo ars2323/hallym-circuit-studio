@@ -37,10 +37,6 @@ export function engineFact(s: EngineStatus): { cls: '' | 'err' | 'warn'; text: s
   }
 }
 
-// The engine's own versions, at the status bar's right end.
-export const engineVersion = (s: EngineStatus): string =>
-  (s.hello ? `Logisim ${s.hello.logisim} · Java ${s.hello.java}` : '');
-
 // "1,234": counts in the status bar and the empty states.
 export const count = (n: number): string => n.toLocaleString('en-US');
 // "1 wire", "41 wires".

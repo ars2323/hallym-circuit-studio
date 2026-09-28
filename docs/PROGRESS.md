@@ -247,3 +247,5 @@ Swing판 v1.1.0은 내지 않는다(D-132). 엔진 쪽 항목은 v2의 N-00에�
 | A-02 | .s 불러오기·hcs-asm·native·vendor/spim 제거, SPIM 오라클 굳힘 | #419 | 완료 | #420 | tests/spim-oracle(run 5, dump 11=5825줄, memory-layout), 옛 .s 속성은 읽기만 하고 사실+할 일 표시, D-141 |
 | A-03 | Data Memory와 Stack을 한 부품으로(SPIM 두 영역) | #415 | 완료 | #417 | 데이터 0x10000000~0x100FFFFF·스택 0x7FFC0000~0x7FFFFFFF, 옛 Stack 파일 동작 불변(LegacyStackFileTest), 새 부품 원조 저장 바이트 같음, mips.facts separateStack, MemoryTable, D-140 |
 | A-04 | 부품 모양을 벡터 정의로(화면 Canvas, 내보내기 같은 정의), Canvas·SVG 측정 | #381 | 완료 | #425 | 등록표의 벡터 정의를 Canvas로 그리고 SVG 내보내기가 같은 정의를 씀, ref-mips에서 Canvas·SVG 측정 후 Canvas 결정(D-137) |
+| A-05 | Hallym MIPS 2.5.0 기준 맞추기(시작 화면 배경 영상, 안내형 설치: oneClick false·마침 화면 지금 실행하기·남색 띠·파란 진행 막대, ORIGIN 출처 v2.5.0, .gitattributes, 릴리스 규칙) | #438 | 진행 |  | N-17·N-23과 함께. .gitattributes와 릴리스 규칙은 A-06 PR(D-154) |
+| A-06 | 보기 전용 사전 릴리스 v2.0.0-alpha.0 | #400 | 진행 |  | 이 PR: 상태 표시줄의 엔진·Java 버전 뺌(About에만), 편집 도구(Wire·Text·Pin·Tunnel·Probe) 비활성 e2e, 노트 docs/releases/2.0.0-alpha.0.md, D-154 |

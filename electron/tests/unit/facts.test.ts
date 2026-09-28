@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import type { Component, EngineStatus, Snapshot } from '../../src/main/protocol.ts';
-import { circuitFacts, count, counted, engineFact, engineVersion } from '../../src/renderer/app/logic/facts.ts';
+import { circuitFacts, count, counted, engineFact } from '../../src/renderer/app/logic/facts.ts';
 
 const comp = (name: string, attrs: Record<string, string> = {}): Component =>
   ({ id: 'k', lib: 'Wiring', name, loc: [0, 0], bounds: [0, 0, 0, 0], facing: 'east', attrs, ports: [] });
@@ -28,8 +28,6 @@ test('engineFact: says nothing while it is ready; why, when it is not', () => {
   assert.equal(engineFact(s('starting'))?.text, 'Engine starting');
   assert.equal(engineFact(s('restarting'))?.cls, 'warn');
   assert.deepEqual(engineFact(s('failed', '엔진이 멈췄습니다')), { cls: 'err', text: '엔진이 멈췄습니다' });
-  assert.equal(engineVersion(s('ready')), '');
-  assert.equal(engineVersion({ ...s('ready'), hello: { engine: 'hcs-engine', version: '2', logisim: '2.7.1', java: '21.0.5' } }), 'Logisim 2.7.1 · Java 21.0.5');
   assert.equal(count(12345), '12,345');
   assert.deepEqual([counted(0, 'wire'), counted(1, 'wire'), counted(1234, 'component')], ['0 wires', '1 wire', '1,234 components']);
 });

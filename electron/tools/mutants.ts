@@ -153,6 +153,14 @@ export const MUTANTS: Mutant[] = [
     find: "  const comp = (in_: Circuit | undefined, x: Place) => in_?.comps.find((k) => k.name === x.name && same(k.loc, x.loc))?.id ?? '';",
     replace: "  const comp = (_in: Circuit | undefined, _x: Place) => '';", tests: ['tests/unit/messages.test.ts'] },
   // ---- the window (e2e)
+  // view only until alpha.1 (D-154): the editing tools off, the versions About's only
+  { module: 'window', file: 'src/renderer/app/app.ts', what: 'alpha.0: the editing tools on',
+    find: "const WORKING_TOOLS = new Set<string>(['Edit', 'Poke']);", replace: "const WORKING_TOOLS = new Set<string>(['Edit', 'Poke', 'Wire']);",
+    tests: ['tests/e2e/files.e2e.ts'] },
+  { module: 'window', file: 'src/renderer/app/app.ts', what: 'alpha.0: the engine\'s versions in the status bar again',
+    find: "  // The engine's and Java's versions are About's only, not the student's status bar (D-154).\n",
+    replace: "  if (engine.hello) parts.push(span('engine', `Logisim ${engine.hello.logisim} · Java ${engine.hello.java}`));\n",
+    tests: ['tests/e2e/files.e2e.ts'] },
   { module: 'window', file: 'src/renderer/shared/welcome.ts', what: 'the first step\'s card shorter (no back row)',
     find: "    back.style.visibility = step === spec.first ? 'hidden' : 'visible';", replace: '    back.hidden = step === spec.first;',
     tests: ['tests/e2e/start.e2e.ts'] },

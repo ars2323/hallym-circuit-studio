@@ -116,6 +116,20 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+      # D-154: the goldens and specs the tests compare as bytes come out of the checkout as the repository holds
+      # them on Windows too (core.autocrlf is on there; .gitattributes -text): every file's bytes hash to its blob.
+      - name: Byte-compared goldens and specs checked out byte for byte (.gitattributes -text)
+        shell: bash
+        run: |
+          set -o pipefail
+          paths=(tests/hmx tests/parity tests/circ 'tests/mips/*.circ' tests/jarlib electron/tests/fixtures
+                 docs/engine-api.md docs/canvas-renderers.md docs/GLOSSARY.md docs/hmx.md)
+          git ls-files -s -- "${paths[@]}" | awk '{print $2}' > "$RUNNER_TEMP/blobs"
+          git ls-files -- "${paths[@]}" > "$RUNNER_TEMP/paths"
+          git hash-object --no-filters --stdin-paths < "$RUNNER_TEMP/paths" > "$RUNNER_TEMP/work"
+          echo "$(wc -l < "$RUNNER_TEMP/paths") files"
+          paste "$RUNNER_TEMP/paths" "$RUNNER_TEMP/blobs" "$RUNNER_TEMP/work" \
+            | awk -F'\t' '$2 != $3 { print "not byte for byte: " $1; bad = 1 } END { exit bad }'
       # The OpenJDK release NOTICE names (engine/build.gradle.kts runtimeJdk; another fails the build)
       - uses: actions/setup-java@v4
         with:
