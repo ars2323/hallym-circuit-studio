@@ -458,15 +458,29 @@ public final class Intents {
         }
     }
 
+    /**
+     * 원조 속성 표의 읽기(AttributeSetTableModel.AttrRow.setValue: {@code Attribute.parse}). 읽지 못하면 -32602에
+     * data {@code {reason:"badValue", attr, value}}(화면이 한국어 문장을 짓는다, N-10).
+     */
     static Object parse(Attribute<Object> a, String value) throws RpcError {
+        Object v;
         try {
-            Object v = a.parse(value);
-            if (v == null) {
-                throw RpcError.params("invalid value '" + value + "' for attribute '" + a.getName() + "'");
-            }
-            return v;
+            v = a.parse(value);
         } catch (RuntimeException e) {
-            throw RpcError.params("invalid value '" + value + "' for attribute '" + a.getName() + "': " + e.getMessage());
+            throw badValue(a, value, e.getMessage());
         }
+        if (v == null) {
+            throw badValue(a, value, null);
+        }
+        return v;
+    }
+
+    private static RpcError badValue(Attribute<Object> a, String value, String why) {
+        com.google.gson.JsonObject data = new com.google.gson.JsonObject();
+        data.addProperty("reason", "badValue");
+        data.addProperty("attr", a.getName());
+        data.addProperty("value", value);
+        return new RpcError(RpcError.INVALID_PARAMS, "invalid value '" + value + "' for attribute '" + a.getName() + "'"
+                + (why == null ? "" : ": " + why), data);
     }
 }

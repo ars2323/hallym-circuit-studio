@@ -94,6 +94,7 @@ public final class Engine {
         registerFindAndExt();
         registerFlow();
         registerCircuits();
+        registerMenus();
         server.onShutdown(this::closeAll);
         server.executor().scheduleAtFixedRate(this::frame, SimSession.FRAME_MS, SimSession.FRAME_MS,
                 TimeUnit.MILLISECONDS);
@@ -384,6 +385,8 @@ public final class Engine {
             SimSession s = sims.get(d.id());
             int drops = d.drops();
             Intents.Result r = s == null ? e.apply(d, p) : s.quiet(() -> e.apply(d, p));
+            // 고른 차례(v1 SelectionOrder, N-10): 의도 하나가 한 입력이다
+            d.selectionOrder().update(d.selection().getComponents(), new Object());
             // 다른 회로의 떠 있는 선택을 내려놓았으면(Doc.show) 의도의 답과 상관없이 모델이 바뀌었다
             boolean changed = r.changed || d.drops() != drops;
             // 서브회로 핀을 바꿔 끊긴 인스턴스 연결: 되살리고 알린다(v1 P-02 InstanceBanner, N-11)
@@ -897,6 +900,197 @@ public final class Engine {
 
     private static <T> T quietAll(List<SimSession> ss, int i, SimGate.Body<T, RuntimeException> body) {
         return i == ss.size() ? body.run() : ss.get(i).quiet(() -> quietAll(ss, i + 1, body));
+    }
+
+    // ---- 속성 표·우클릭 메뉴·RAM·ROM 내용(N-10, D-157) ----
+
+    private void registerMenus() {
+        // 속성 표(model.attributes): 든 도구(lib·name), 회로(circuit:true), 아니면 고른 것(ids 또는 엔진의 선택,
+        // 없으면 회로 속성: 원조 AttrTableSelectionModel)
+        server.register("model.attributes", (p, call) -> {
+            Doc d = files.get(p.str("fileId"));
+            if (p.has("name")) {
+                String lib = p.optStr("lib", null);
+                return kr.ac.hallym.hcs.engine.model.AttrTable.tool(d, lib,
+                        SelectionIntents.findTool(d, lib, p.str("name")));
+            }
+            Circuit c = d.circuit(p.str("circuitId"));
+            if (p.optBool("circuit", false)) {
+                return kr.ac.hallym.hcs.engine.model.AttrTable.circuit(d, c);
+            }
+            java.util.Collection<Component> chosen;
+            if (p.has("ids")) {
+                chosen = d.components(c, p.strings("ids"));
+            } else if (d.selectionCircuit() == c) {
+                chosen = d.selection().getComponents();
+            } else {
+                chosen = java.util.Collections.emptyList();
+            }
+            return kr.ac.hallym.hcs.engine.model.AttrTable.selection(d, c, chosen);
+        });
+        // 우클릭 메뉴의 사실(model.menu): 항목은 화면의 메뉴 등록표가 정한다
+        server.register("model.menu", (p, call) -> {
+            Doc d = files.get(p.str("fileId"));
+            Circuit c = d.circuit(p.str("circuitId"));
+            int[] at = p.point("at");
+            Component hit = p.has("id") ? d.component(c, p.str("id")) : null;
+            return kr.ac.hallym.hcs.engine.edit.MenuFacts.at(d, c, Location.create(at[0], at[1]), hit);
+        });
+        edit("edit.labels", true, (d, p) -> {
+            Circuit c = d.circuit(p.str("circuitId"));
+            Map<Component, String> labels = new java.util.LinkedHashMap<>();
+            for (Map.Entry<String, String> e : p.optStringMap("labels").entrySet()) {
+                labels.put(d.component(c, e.getKey()), e.getValue());
+            }
+            return kr.ac.hallym.hcs.engine.edit.MenuIntents.labels(d, c, labels);
+        });
+        edit("edit.attach", true, (d, p) -> {
+            Circuit c = d.circuit(p.str("circuitId"));
+            return kr.ac.hallym.hcs.engine.edit.MenuIntents.attach(d, c, d.component(c, p.str("id")), p.integer("port"),
+                    p.str("what"));
+        });
+        edit("edit.swapGate", true, (d, p) -> {
+            Circuit c = d.circuit(p.str("circuitId"));
+            return kr.ac.hallym.hcs.engine.edit.MenuIntents.swapGate(d, c, d.component(c, p.str("id")), p.str("to"));
+        });
+        edit("edit.deleteNet", true, (d, p) -> {
+            Circuit c = d.circuit(p.str("circuitId"));
+            return kr.ac.hallym.hcs.engine.edit.MenuIntents.deleteNet(d, c, wire(d, c, p.str("wire")));
+        });
+        edit("edit.wireToTunnels", true, (d, p) -> {
+            Circuit c = d.circuit(p.str("circuitId"));
+            return kr.ac.hallym.hcs.engine.edit.MenuIntents.wireToTunnels(d, c, wire(d, c, p.str("wire")),
+                    p.str("label"));
+        });
+        edit("edit.probe", true, (d, p) -> {
+            Circuit c = d.circuit(p.str("circuitId"));
+            int[] at = p.point("at");
+            return kr.ac.hallym.hcs.engine.edit.MenuIntents.probe(d, c, wire(d, c, p.str("wire")),
+                    Location.create(at[0], at[1]), p.optStr("radix", null));
+        });
+        edit("edit.deleteProbes", true, (d, p) -> kr.ac.hallym.hcs.engine.edit.MenuIntents.deleteProbes(d,
+                d.circuit(p.str("circuitId"))));
+        edit("edit.combineBus", true, (d, p) -> {
+            Circuit c = d.circuit(p.str("circuitId"));
+            return kr.ac.hallym.hcs.engine.edit.MenuIntents.combineBus(d, c, d.components(c, p.strings("ids")));
+        });
+        edit("edit.originalItem", true, (d, p) -> {
+            Circuit c = d.circuit(p.str("circuitId"));
+            return kr.ac.hallym.hcs.engine.edit.MenuIntents.originalItem(d, c, d.component(c, p.str("id")),
+                    p.integer("index"));
+        });
+        // ROM 내용(Contents 속성, .circ에 저장): 원조 "Edit ROM Contents" 동작, 되돌리기
+        edit("edit.memContents", true, (d, p) -> {
+            Circuit c = d.circuit(p.str("circuitId"));
+            return kr.ac.hallym.hcs.engine.edit.MenuIntents.memContents(d, c, d.component(c, p.str("id")),
+                    p.has("addr") ? Long.valueOf((long) p.optDouble("addr", 0)) : null,
+                    p.has("values") ? longs(p, "values") : null, p.optBool("clear", false), p.optStr("file", null));
+        });
+        // RAM 내용(시뮬레이션 상태: .circ에 남지 않고 되돌리기에 들지 않는다, 원조 HexFrame)
+        server.register("mem.read", (p, call) -> {
+            Doc d = files.get(p.str("fileId"));
+            Circuit root = d.circuit(p.str("circuitId"));
+            List<Component> path = instancePath(d, root, p);
+            Component x = memory(d, p);
+            SimSession s = sims.get(d.id());
+            long from = (long) p.optDouble("from", 0);
+            int count = p.optInt("count", 256);
+            return s == null ? kr.ac.hallym.hcs.engine.sim.Memories.read(d, root, path, x, from, count)
+                    : s.quiet(() -> kr.ac.hallym.hcs.engine.sim.Memories.read(d, root, path, x, from, count));
+        });
+        server.register("mem.write", (p, call) -> memState(p, (d, root, path, x) -> {
+            kr.ac.hallym.hcs.engine.sim.Memories.writeRam(d, root, path, x, (long) p.optDouble("addr", -1),
+                    longs(p, "values"));
+            return true;
+        }));
+        server.register("mem.clear", (p, call) -> memState(p, (d, root, path, x) ->
+                kr.ac.hallym.hcs.engine.sim.Memories.clearRam(d, root, path, x)));
+        server.register("mem.loadImage", (p, call) -> memState(p, (d, root, path, x) -> {
+            kr.ac.hallym.hcs.engine.sim.Memories.loadRam(d, root, path, x, p.str("file"));
+            return true;
+        }));
+        server.register("mem.saveImage", (p, call) -> {
+            Doc d = files.get(p.str("fileId"));
+            Circuit root = d.circuit(p.str("circuitId"));
+            List<Component> path = instancePath(d, root, p);
+            Component x = memory(d, p);
+            SimSession s = sims.get(d.id());
+            if (s == null) {
+                kr.ac.hallym.hcs.engine.sim.Memories.save(d, root, path, x, p.str("file"));
+            } else {
+                s.quiet(() -> {
+                    kr.ac.hallym.hcs.engine.sim.Memories.save(d, root, path, x, p.str("file"));
+                    return null;
+                });
+            }
+            return new JsonObject();
+        });
+    }
+
+    private interface MemBody {
+        boolean apply(Doc d, Circuit root, List<Component> path, Component x) throws RpcError;
+    }
+
+    /** RAM 상태를 고치는 mem.*: 원조 전파와 겹치지 않게(SimGate), 고친 뒤 다시 전파하고 값을 보낸다. result {changed}. */
+    private JsonObject memState(Params p, MemBody body) throws RpcError {
+        Doc d = files.get(p.str("fileId"));
+        Circuit root = d.circuit(p.str("circuitId"));
+        List<Component> path = instancePath(d, root, p);
+        Component x = memory(d, p);
+        SimSession s = sims.get(d.id());
+        boolean changed = s == null ? body.apply(d, root, path, x) : s.quiet(() -> body.apply(d, root, path, x));
+        if (changed && s != null) {
+            s.stateEdited();
+        }
+        JsonObject o = new JsonObject();
+        o.addProperty("changed", changed);
+        return o;
+    }
+
+    private static Component memory(Doc d, Params p) throws RpcError {
+        Component x = d.ids().component(p.str("componentId"));
+        if (x == null) {
+            throw RpcError.notFound("component", p.str("componentId"));
+        }
+        return x;
+    }
+
+    private static List<Component> instancePath(Doc d, Circuit root, Params p) throws RpcError {
+        List<Component> path = new ArrayList<>();
+        Circuit cur = root;
+        for (String id : p.optStrings("path")) {
+            Component inst = d.ids().component(id);
+            if (inst == null || !cur.contains(inst) || !(inst.getFactory() instanceof SubcircuitFactory)) {
+                throw RpcError.notFound("instance", id);
+            }
+            path.add(inst);
+            cur = ((SubcircuitFactory) inst.getFactory()).getSubcircuit();
+        }
+        return path;
+    }
+
+    private static List<Long> longs(Params p, String name) throws RpcError {
+        List<Long> out = new ArrayList<>();
+        com.google.gson.JsonElement e = p.raw().get(name);
+        if (e == null || !e.isJsonArray()) {
+            throw RpcError.params(name + " must be a list of numbers");
+        }
+        for (com.google.gson.JsonElement x : e.getAsJsonArray()) {
+            try {
+                out.add(x.getAsLong());
+            } catch (RuntimeException ex) {
+                throw RpcError.params(name + " must be a list of numbers");
+            }
+        }
+        return out;
+    }
+
+    private static Wire wire(Doc d, Circuit c, String id) throws RpcError {
+        Component w = d.component(c, id);
+        if (!(w instanceof Wire)) {
+            throw RpcError.params("component " + id + " is not a wire");
+        }
+        return (Wire) w;
     }
 
     // ---- sim ----

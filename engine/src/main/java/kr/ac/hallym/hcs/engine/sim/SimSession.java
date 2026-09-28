@@ -417,6 +417,12 @@ public final class SimSession implements SimulatorListener {
         valuesDirty = true;
     }
 
+    /** RAM 내용을 고친 뒤(mem.*, N-10): 원조 MemListener가 부품을 다시 전파할 곳으로 두었으니 전파하고 값을 다시 보낸다. */
+    public void stateEdited() {
+        sim.requestPropagate();
+        valuesDirty = true;
+    }
+
     /** 보고 있는 회로(없으면 null). */
     public Circuit watchedCircuit() {
         return watchState == null ? null : watchState.getCircuit();
