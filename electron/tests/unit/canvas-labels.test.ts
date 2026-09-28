@@ -14,6 +14,7 @@ import { Scene } from '../../src/renderer/canvas/scene.ts';
 import { boxesMeet } from '../../src/renderer/canvas/shapes.ts';
 import { TUNNEL_PALETTE } from '../../src/renderer/canvas/tokens.ts';
 import { wireMarks } from '../../src/renderer/canvas/wires.ts';
+import { rendererFor } from '../../src/renderer/canvas/registry.ts';
 
 const geometry = (JSON.parse(readFileSync(path.join(import.meta.dirname, '../fixtures/geometry.json'), 'utf8')) as { cases: { case: string; component: Component }[] }).cases;
 const part = (name: string): Component => structuredClone(geometry.find((c) => c.case === name)!.component);
@@ -79,6 +80,45 @@ test('splitter arms: their bit ranges, on the spine\'s far side when free (v1 S-
   // bit0 → arm 0, bit1 → arm 1, bits 2–10 arm 0, 11–21 arm 1, 22–31 arm 2 (the engine's attributes)
   assert.deepEqual(chips.map((c) => c.text), ['[10:2,0]', '[21:11,1]', '[31:22]']);
   for (const c of chips) assert.ok(c.box.x1 <= s32.bounds[0], `${c.text} on the far side`);
+});
+
+test('an arm the student named in the Splitter editor shows its range and its name, once (N-12, S-22: no original "0-7" beside it)', () => {
+  const s32 = { ...place(part('Wiring/Splitter fanout=3 incoming=32 bit0=0 bit1=1'), 'k1', 0, 0), ext: { arms: ['lo', '', 'hi'] } };
+  const chips = layoutChips(scene([s32]), wireMarks(scene([s32])), roughMeasure).filter((c) => c.kind === 'arm');
+  assert.deepEqual(chips.map((c) => c.text), ['[10:2,0] lo', '[21:11,1]', '[31:22] hi']);
+  // the splitter's own drawing writes no bit numbers: the chips are the only ones
+  const drawn = rendererFor(s32).draw(s32, { value: () => undefined, body: undefined, measure: roughMeasure });
+  assert.deepEqual(drawn.filter((sh) => sh.k === 'text'), []);
+});
+
+test('an arm\'s name that would cover a part next to the splitter is left off: the range alone, where it stands free (no chip over a part or a wire)', () => {
+  const s32 = { ...place(part('Wiring/Splitter fanout=3 incoming=32 bit0=0 bit1=1'), 'k1', 0, 0), ext: { arms: ['instruction', 'register', 'immediate'] } };
+  // a part whose right edge is a little left of the spine: room for "[10:2,0]", not for "[10:2,0] instruction"
+  const plain = layoutChips(scene([s32]), wireMarks(scene([s32])), roughMeasure).filter((c) => c.kind === 'arm');
+  const rangeOnly = { ...s32, ext: undefined };
+  const widest = Math.max(...layoutChips(scene([rangeOnly]), wireMarks(scene([rangeOnly])), roughMeasure).filter((c) => c.kind === 'arm').map((c) => c.box.x1 - c.box.x0));
+  const block: Component = { ...place(part('Arithmetic/Adder width=8'), 'k2', 0, 0) };
+  const [bx, by, bw, bh] = block.bounds;
+  const dx = s32.bounds[0] - widest - 16 - (bx + bw), dy = s32.bounds[1] - by;
+  const near = { ...block, loc: [block.loc[0] + dx, block.loc[1] + dy] as [number, number], bounds: [bx + dx, by + dy, bw, bh] as [number, number, number, number], ports: block.ports.map((q) => ({ ...q, loc: [q.loc[0] + dx, q.loc[1] + dy] as [number, number] })) };
+  assert.deepEqual(plain.map((c) => c.text), ['[10:2,0] instruction', '[21:11,1] register', '[31:22] immediate'], 'alone: the names');
+  const crowded = layoutChips(scene([s32, near]), wireMarks(scene([s32, near])), roughMeasure).filter((c) => c.kind === 'arm');
+  assert.deepEqual(crowded.map((c) => c.text), ['[10:2,0]', '[21:11,1]', '[31:22]']);
+  for (const c of crowded) assert.ok(c.box.x1 <= s32.bounds[0] && c.box.x0 > near.bounds[0] + near.bounds[2], `${c.text} between the part and the spine`);
+});
+
+test('tunnel colours: a colour the student picked (ext.color) is every tunnel of that name\'s, and a near name takes another', () => {
+  const a = { ...place(part('Wiring/Tunnel facing=west'), 'k1', 0, 0), attrs: { ...part('Wiring/Tunnel facing=west').attrs, label: 'a' } };
+  // (a's automatic colour is the palette's first, orange: pick another)
+  assert.equal(sceneTunnelColors(scene([a])).get('a'), '#e69f00');
+  const a2 = { ...place(a, 'k2', 100, 0), ext: { color: '#332288' } };
+  const b = { ...place(a, 'k3', 0, 60), attrs: { ...a.attrs, label: 'b' } };
+  const colors = sceneTunnelColors(scene([a, a2, b]));
+  assert.equal(colors.get('a'), '#332288');
+  assert.notEqual(colors.get('b'), '#332288', 'b is near a');
+  const picked = tunnelColors([{ name: 'x', at: [0, 0], color: '#332288' }, { name: 'y', at: [10, 0] }]);
+  assert.equal(picked.get('x'), '#332288');
+  assert.notEqual(picked.get('y'), '#332288');
 });
 
 test('bus widths: beside the longest wire of a bus, left out where neither side is free (v1 E-03)', () => {

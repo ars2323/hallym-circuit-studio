@@ -14,6 +14,7 @@ import java.util.concurrent.TimeUnit;
 
 import com.cburch.logisim.circuit.Circuit;
 import com.cburch.logisim.circuit.SubcircuitFactory;
+import com.cburch.logisim.circuit.Wire;
 import com.cburch.logisim.comp.Component;
 import com.cburch.logisim.data.Location;
 import com.cburch.logisim.tools.AddTool;
@@ -28,7 +29,9 @@ import kr.ac.hallym.hcs.app.model.Kinds;
 import kr.ac.hallym.hcs.engine.diag.DiagService;
 import kr.ac.hallym.hcs.engine.doc.Doc;
 import kr.ac.hallym.hcs.engine.doc.Files;
+import kr.ac.hallym.hcs.engine.edit.ExtEdits;
 import kr.ac.hallym.hcs.engine.edit.Intents;
+import kr.ac.hallym.hcs.engine.find.Find;
 import kr.ac.hallym.hcs.engine.mips.Programs;
 import kr.ac.hallym.hcs.engine.model.Ids;
 import kr.ac.hallym.hcs.engine.record.RecordSession;
@@ -67,6 +70,7 @@ public final class Engine {
         registerEdit();
         registerSim();
         records = new Records(server, files);
+        registerFindAndExt();
         server.onShutdown(this::closeAll);
         server.executor().scheduleAtFixedRate(this::frame, SimSession.FRAME_MS, SimSession.FRAME_MS,
                 TimeUnit.MILLISECONDS);
@@ -369,6 +373,38 @@ public final class Engine {
         });
         edit("edit.undo", false, (d, p) -> Intents.undo(d));
         edit("edit.redo", false, (d, p) -> Intents.redo(d));
+    }
+
+    // ---- find, 터널 색, Splitter 편집기(N-12, D-150) ----
+
+    private void registerFindAndExt() {
+        server.register("find.query", (p, call) -> {
+            Doc d = files.get(p.str("fileId"));
+            int limit = p.optInt("limit", Find.LIMIT);
+            if (limit < 1) {
+                throw RpcError.params("limit must be at least 1");
+            }
+            return Find.query(d, p.str("text"), limit);
+        });
+        edit("edit.tunnelColor", true, (d, p) -> {
+            Circuit c = d.circuit(p.str("circuitId"));
+            return ExtEdits.tunnelColor(d, c, d.component(c, p.str("id")), p.optStr("color", null));
+        });
+        edit("edit.splitterEdit", true, (d, p) -> {
+            Circuit c = d.circuit(p.str("circuitId"));
+            return ExtEdits.splitterEdit(d, c, d.component(c, p.str("id")), p.str("ranges"),
+                    p.has("names") ? p.strings("names") : null, p.optBool("lsbTop", false));
+        });
+        edit("edit.splitterSplit", true, (d, p) -> {
+            Circuit c = d.circuit(p.str("circuitId"));
+            Component w = d.component(c, p.str("wire"));
+            if (!(w instanceof Wire)) {
+                throw RpcError.params("component " + p.str("wire") + " is not a wire");
+            }
+            int[] at = p.point("at");
+            return ExtEdits.splitterSplit(d, c, (Wire) w, Location.create(at[0], at[1]), p.str("ranges"),
+                    p.has("names") ? p.strings("names") : null, p.optBool("lsbTop", false));
+        });
     }
 
     // ---- sim ----

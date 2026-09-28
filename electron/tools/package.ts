@@ -71,6 +71,7 @@ async function stageApp(): Promise<void> {
   if (packagedHtml === html) throw new Error('index.html: the script tag to rewrite was not found');
   writeFileSync(at('renderer/app/index.html'), packagedHtml);
   cpSync(path.join(root, 'src/renderer/app/app.css'), at('renderer/app/app.css'));
+  cpSync(path.join(root, 'src/renderer/app/find.css'), at('renderer/app/find.css'));
   cpSync(path.join(root, 'src/renderer/shared/shared.css'), at('renderer/shared/shared.css'));
   cpSync(path.join(root, 'src/renderer/canvas/canvas.css'), at('renderer/canvas/canvas.css'));
   cpSync(path.join(root, 'src/renderer/shared/panels.css'), at('renderer/shared/panels.css'));

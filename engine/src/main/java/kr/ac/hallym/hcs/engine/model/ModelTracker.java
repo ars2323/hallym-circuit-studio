@@ -124,7 +124,7 @@ public final class ModelTracker {
     private Map<String, JsonObject> state(Circuit c) {
         Map<String, JsonObject> m = new LinkedHashMap<>();
         for (Component x : c.getNonWires()) {
-            JsonObject o = json.component(x);
+            JsonObject o = json.component(c, x);
             m.put(o.get("id").getAsString(), o);
         }
         for (Wire w : c.getWires()) {

@@ -57,7 +57,10 @@ public final class CanvasFixtures {
                 circuit(e, repo.resolve(f[0]).toFile(), out.resolve("circuits/" + f[1] + ".json"));
             }
         }
-        System.out.println("canvas fixtures: " + cases + " geometry cases, 3 circuits -> " + out);
+        // Components·검색 창·Find·Splitter 편집기의 자료(N-12, D-150)
+        FindFixtures.write(out, repo);
+        System.out.println("canvas fixtures: " + cases + " geometry cases, 3 circuits, library, find, splitter ranges -> "
+                + out);
         System.exit(0);
     }
 

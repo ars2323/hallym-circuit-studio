@@ -143,7 +143,7 @@ test('the empty panels say what fills them; only the Canvas has a character', as
     await read('bottom', 'Cycle View');
     await read('bottom', 'Console');
     expect(says).toEqual({
-      canvaspanel: '빈 회로입니다 / 부품과 선을 놓으면 여기 Canvas에 그려집니다.',
+      canvaspanel: '빈 회로입니다 / 부품과 선을 놓으면 여기 Canvas에 그려집니다. 부품은 왼쪽 Components 목록에서 끌어 오거나 Ctrl+K 검색 창에서 찾아 놓습니다.',
       right: '고른 부품이 없습니다 / Canvas에서 부품을 고르면 그 속성(Data Bits, Facing, Label …)이 여기에 나옵니다.',
       Tunnels: '터널이 없습니다 / 이 회로에 Tunnel을 놓으면 이름별로 여기에 모입니다.',
       Minimap: '회로 전체가 작게 나옵니다 / Canvas에 그린 회로의 전체 모습과 지금 보는 곳이 여기에 나옵니다.',

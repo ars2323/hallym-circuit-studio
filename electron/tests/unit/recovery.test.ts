@@ -318,6 +318,41 @@ test('recovery: Mark as PC, Mark as Register File and Register Mapping are repla
   }
 });
 
+test('recovery: Tunnel Color and the Splitter editor (N-12) are journaled with their parts and replayed; the student\'s colours and names come back', async () => {
+  const { dir, datapath } = scratch();
+  const { engine, sup } = fake();
+  try {
+    await engine.start();
+    const a = await win<OpenResult>(engine, 'file.open', { path: datapath });
+    const main = a.circuits.find((c) => c.name === 'main')!.circuitId;
+    const snap = await win<Snapshot>(engine, 'model.circuit', { fileId: a.fileId, circuitId: main });
+    const clk = snap.components.find((c) => c.name === 'Tunnel' && c.attrs.label === 'clk')!;
+    const sp = snap.components.find((c) => c.name === 'Splitter')!;
+    const wire = snap.wires.find((w) => snap.nets.some((n) => n.width === 32 && n.wires.includes(w.id)) && w.a[1] === w.b[1])!;
+    await win(engine, 'edit.tunnelColor', { fileId: a.fileId, circuitId: main, id: clk.id, color: '#e69f00' });
+    await win(engine, 'edit.splitterEdit', { fileId: a.fileId, circuitId: main, id: sp.id, ranges: '31:26, 25:21, 20:16, 15:11, 10:6, 5:0', names: ['op', 'rs', 'rt', 'rd', 'sh', 'fn'] });
+    await win(engine, 'edit.splitterSplit', { fileId: a.fileId, circuitId: main, wire: wire.id, at: [Math.min(wire.a[0], wire.b[0]) + 10, wire.a[1]], ranges: '5' });
+    const ext = (s: Snapshot) => s.components.filter((c) => c.ext).map((c) => `${c.name}@${c.loc}:${JSON.stringify(c.ext)}`).sort();
+    const before = await win<Snapshot>(engine, 'model.circuit', { fileId: a.fileId, circuitId: main });
+    assert.ok(ext(before).some((e) => e.includes('"#E69F00"')));
+    assert.ok(ext(before).some((e) => e.includes('"sh"')));
+    const replayed: string[] = [];
+    engine.on('answer', (x) => { if (x.tag === 'recovery' && x.method.startsWith('edit.')) replayed.push(x.method); });
+    const done = recovered(sup);
+    engine.kill();
+    const r = await done;
+    assert.deepEqual(replayed, ['edit.tunnelColor', 'edit.splitterEdit', 'edit.splitterSplit']);
+    assert.deepEqual(r.restored, [{ fileId: a.fileId, edits: 3, dirty: true }]);
+    const after = await win<Snapshot>(engine, 'model.circuit', { fileId: a.fileId, circuitId: main });
+    assert.deepEqual(ext(after), ext(before));
+    const strip = (s: Snapshot) => s.components.map((c) => refOf(c)).concat(s.wires.map((w) => refOf(w)));
+    assert.deepEqual(strip(after), strip(before));
+  } finally {
+    await engine.shutdown();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('recovery: a file changed on disk since it was opened opens as it is now, its edits not replayed', async () => {
   const { dir, gates } = scratch();
   const { engine, sup } = fake();

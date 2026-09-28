@@ -55,8 +55,8 @@ export class CircuitCanvas {
   private hovered: string | null = null;      // a component id
   private hoveredWire: string | null = null;
   private selected = new Set<string>();
-  // "Show this place" (a message, D-143): the parts, wires and nets marked until the next selection
-  private marked: { components: Set<string>; wires: Set<string>; nets: Set<string> } | null = null;
+  // "Show this place" (a message, D-143; a name found, N-12): the parts, wires and nets marked until the next selection
+  private marked: { components: Set<string>; wires: Set<string>; nets: Set<string>; tone: 'error' | 'find' } | null = null;
   private dirty = true;
   private raf = 0;
   private anim: { from: View; to: View; start: number; ms: number; about?: [number, number] } | null = null;
@@ -301,7 +301,9 @@ export class CircuitCanvas {
       const c = s.components.get(this.hovered);
       if (!c) return null;
       const label = c.attrs.label ? ` "${c.attrs.label}"` : '';
-      return `${c.name}${label}`;
+      // a splitter's arm names (N-12): its chips show them only where they stand free
+      const arms = c.name === 'Splitter' && c.ext?.arms?.some(Boolean) ? ` · ${c.ext.arms.map((n) => n || '–').join(' ')}` : '';
+      return `${c.name}${label}${arms}`;
     }
     if (this.hoveredWire) {
       const n = s.wireNet(this.hoveredWire);
@@ -727,12 +729,14 @@ export class CircuitCanvas {
   wireColorOf(netId: string | null): string { return this.wireColor(netId); }
 
   /* "Show this place" (reveal.ts, D-143): mark the parts, wires and nets (a net: its wires and the
-     ports on it) in the error colour, and bring them into view -- centred at this zoom when they fit,
-     else fitted.  With nothing to mark, centre on `at`.  The next selection clears the marks. */
-  reveal(r: { components: string[]; wires: string[]; nets: string[]; at: [number, number] | null }): void {
+     ports on it) in the error colour -- or, for a part found by its name (tone 'find': Find, Tunnels,
+     the search palette, N-12), in the selection's blue -- and bring them into view: centred at this
+     zoom when they fit, else fitted.  With nothing to mark, centre on `at`.  The next selection
+     clears the marks. */
+  reveal(r: { components: string[]; wires: string[]; nets: string[]; at: [number, number] | null; tone?: 'error' | 'find' }): void {
     const s = this.scene;
     if (!s) return;
-    this.marked = { components: new Set(r.components), wires: new Set(r.wires), nets: new Set(r.nets) };
+    this.marked = { components: new Set(r.components), wires: new Set(r.wires), nets: new Set(r.nets), tone: r.tone ?? 'error' };
     let b: Box | null = null;
     const add = (x0: number, y0: number, x1: number, y1: number) => {
       b = b ? { x0: Math.min(b.x0, x0), y0: Math.min(b.y0, y0), x1: Math.max(b.x1, x1), y1: Math.max(b.y1, y1) } : { x0, y0, x1, y1 };
@@ -756,6 +760,8 @@ export class CircuitCanvas {
   // What a message marked: a tint behind (before the wires), outlines and halos over them (after the parts).
   private drawMarked(behind: boolean): void {
     const m = this.marked!, s = this.scene!, ctx = this.ctx, z = this.view.zoom;
+    const tint = m.tone === 'find' ? this.theme.selectTint : this.theme.errorTint;
+    const line = m.tone === 'find' ? this.theme.select : this.theme.error;
     // A marked part: tinted and outlined INSIDE its own bounds, so the mark never reaches a part next to it
     // (a tunnel on its port; UI review of #425): the red line lies over the part's own outline.
     for (const id of m.components) {
@@ -764,14 +770,14 @@ export class CircuitCanvas {
       const [x, y, w, hh] = c.bounds, i = 1 / z;
       ctx.beginPath();
       ctx.rect(x + i, y + i, Math.max(0, w - 2 * i), Math.max(0, hh - 2 * i));
-      if (behind) { ctx.fillStyle = this.theme.errorTint; ctx.fill(); } else { ctx.strokeStyle = this.theme.error; ctx.lineWidth = 2 / z; ctx.stroke(); }
+      if (behind) { ctx.fillStyle = tint; ctx.fill(); } else { ctx.strokeStyle = line; ctx.lineWidth = 2 / z; ctx.stroke(); }
     }
     if (behind) return;
     const wires = new Set(m.wires);
     for (const id of m.nets) for (const w of s.net(id)?.wires ?? []) wires.add(w);
     ctx.beginPath();
     for (const id of wires) { const w = s.wires.get(id); if (w) { ctx.moveTo(w.a[0], w.a[1]); ctx.lineTo(w.b[0], w.b[1]); } }
-    ctx.strokeStyle = 'rgba(192,57,43,0.35)';
+    ctx.strokeStyle = m.tone === 'find' ? 'rgba(0,85,165,0.3)' : 'rgba(192,57,43,0.35)';
     ctx.lineWidth = (wirePx(z, 2) + 7) / z;
     ctx.lineCap = 'round';
     ctx.stroke();
@@ -781,7 +787,7 @@ export class CircuitCanvas {
         if (!q) continue;
         ctx.beginPath();
         ctx.arc(q.loc[0], q.loc[1], (portPx(z) * 1.25 + 2) / z, 0, Math.PI * 2);   // just round the port's own mark
-        ctx.strokeStyle = this.theme.error;
+        ctx.strokeStyle = line;
         ctx.lineWidth = 2 / z;
         ctx.stroke();
       }
@@ -789,8 +795,17 @@ export class CircuitCanvas {
   }
 
   // What is marked now (tests).
-  markedIds(): { components: string[]; wires: string[]; nets: string[] } | null {
-    return this.marked ? { components: [...this.marked.components], wires: [...this.marked.wires], nets: [...this.marked.nets] } : null;
+  markedIds(): { components: string[]; wires: string[]; nets: string[]; tone: 'error' | 'find' } | null {
+    return this.marked ? { components: [...this.marked.components], wires: [...this.marked.wires], nets: [...this.marked.nets], tone: this.marked.tone } : null;
+  }
+
+  // The Canvas's size on screen, CSS px (the Minimap draws the view's rectangle, N-12).
+  size(): { width: number; height: number } { return { width: this.width, height: this.height }; }
+
+  // Bring the circuit point to the middle of the Canvas, at this zoom (the Minimap, v1 Minimap.centerAt).
+  centerOn(p: [number, number]): void {
+    if (this.width === 0) return;
+    this.setView({ zoom: this.view.zoom, x: p[0] - this.width / 2 / this.view.zoom, y: p[1] - this.height / 2 / this.view.zoom });
   }
 
   percent(): string { return percent(this.view.zoom); }

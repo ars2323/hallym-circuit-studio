@@ -367,3 +367,73 @@ test('the real engine and the Canvas: ref-mips drawn with its values; demo-datap
     await r.close();
   }
 });
+
+// N-12 (D-150): the parts of the Canvas and the scene the tests read.
+type P = { id: string; name: string; lib: string | null; loc: [number, number]; bounds: number[]; attrs: Record<string, string>; ext?: { color?: string; arms?: string[] } };
+const partsNow = (page: import('@playwright/test').Page) => page.evaluate(() => {
+  const c = (window as unknown as { __hcsCanvas: { scene: { components: Map<string, P> } | null } }).__hcsCanvas;
+  return c.scene ? [...c.scene.components.values()].map((x) => ({ id: x.id, name: x.name, lib: x.lib, loc: x.loc, bounds: x.bounds, attrs: x.attrs, ext: x.ext })) : [];
+});
+
+test('the real engine and finding and placing (N-12): a part dragged in and one from the palette, Find into the register file, Tunnel Color and the Splitter editor saved in the .circ', async () => {
+  const r = await launch(undefined, { env: real });
+  const { page } = r;
+  try {
+    // a new file: a Hallym MIPS part dragged onto the empty Canvas puts the library in the file (V-01)
+    await newCircuit(r);
+    await expect(page.locator('.upper .libgroup.pending summary')).toContainText('Hallym MIPS');
+    await page.locator('.upper .libgroup.pending .list li', { hasText: 'Console' }).getByRole('button').dragTo(page.locator('.pbody.canvas'), { targetPosition: { x: 300, y: 200 } });
+    await expect(page.locator('.status')).toContainText('1 component');
+    await expect(page.locator('.upper .libgroup.pending')).toHaveCount(0);
+    expect((await partsNow(page))[0]).toMatchObject({ name: 'Console', loc: [300, 200] });
+    // demo-datapath: the palette places an AND gate of three inputs where the pointer is
+    await openFile(r, sample(r.dir, DATAPATH));
+    await page.waitForFunction(() => { const c = (window as unknown as { __hcsCanvas: C }).__hcsCanvas; return !!c.scene && [...c.scene.components.values()].some((x) => x.name === 'regfile'); });
+    const at = await page.evaluate(() => {
+      const c = (window as unknown as { __hcsCanvas: C }).__hcsCanvas;
+      const rr = c.canvas.getBoundingClientRect();
+      return { x: rr.left + (300 - c.view.x) * c.view.zoom, y: rr.top + (650 - c.view.y) * c.view.zoom };
+    });
+    await page.mouse.move(at.x, at.y);
+    await page.keyboard.press('Control+k');
+    await page.keyboard.type('and 3');
+    await page.keyboard.press('Enter');
+    await expect.poll(async () => (await partsNow(page)).find((c) => c.name === 'AND Gate')?.attrs.inputs).toBe('3');
+    expect((await partsNow(page)).find((c) => c.name === 'AND Gate')!.loc).toEqual([300, 650]);
+    // Find: a pin inside the register file, and the Canvas goes into that instance
+    await page.keyboard.press('Control+f');
+    await page.keyboard.type('RR1');
+    await expect(page.locator('.findrow').first()).toContainText('main › regfile #1 › RR1');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.canvas-crumbs .here')).toHaveText('regfile');
+    await page.keyboard.press('Escape');
+    await page.locator('.canvas-crumbs button').first().click();
+    // Tunnel Color: every MemRead tunnel
+    const memread = page.locator('.lower .list.tunnels li', { hasText: 'MemRead' });
+    await memread.locator('.tswatch').click();
+    await page.getByRole('menu', { name: 'Tunnel Color' }).getByRole('menuitemradio', { name: 'Vermillion' }).click();
+    await expect(memread.locator('.tswatch')).toHaveClass(/chosen/);
+    await expect.poll(async () => (await partsNow(page)).filter((c) => c.name === 'Tunnel' && c.attrs.label === 'MemRead').map((c) => c.ext?.color)).toEqual(['#D55E00', '#D55E00']);
+    // the Splitter editor: an arm renamed
+    const sp = (await partsNow(page)).find((c) => c.name === 'Splitter')!;
+    await page.evaluate((id) => {
+      const c = (window as unknown as { __hcsCanvas: { scene: { fileId: string; circuitId: string } } }).__hcsCanvas;
+      window.dispatchEvent(new CustomEvent('hcs:edit-splitter', { detail: { fileId: c.scene.fileId, circuitId: c.scene.circuitId, componentId: id } }));
+    }, sp.id);
+    const dlg = page.getByRole('dialog', { name: 'Edit Splitter' });
+    await dlg.getByRole('textbox', { name: 'Arm 5 name' }).fill('fn');
+    await dlg.getByRole('button', { name: 'Apply' }).click();
+    await expect.poll(async () => (await partsNow(page)).find((c) => c.name === 'Splitter')?.ext?.arms).toEqual(['op', 'rs', 'rt', 'rd', 'shamt', 'fn']);
+    // saved: the student's colour and names in hcs:ext, the original's attributes as they were
+    const out = path.join(r.dir, 'saved.circ');
+    await answerSave(r.app, out);
+    await page.keyboard.press('Control+Shift+s');
+    await expect.poll(() => existsSync(out)).toBe(true);
+    const saved = readFileSync(out, 'utf8');
+    expect(saved).toContain('<hcs:tunnel label="MemRead" color="#D55E00"/>');
+    expect(saved).toContain('<hcs:splitter x="620" y="200" arm0="op" arm1="rs" arm2="rt" arm3="rd" arm4="shamt" arm5="fn"/>');
+    expect(saved).toContain('<a name="fanout" val="6"/>');
+  } finally {
+    await r.close();
+  }
+});

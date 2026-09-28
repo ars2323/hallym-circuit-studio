@@ -15,16 +15,16 @@ v1(Swing, `swing-final`)의 기능을 v2(Electron 화면 + Java 엔진)로 모�
 | B-02 | 확대·축소(Ctrl+스크롤, Ctrl+±), 화면 맞춤(Ctrl+0), 배율 표시(11.2) | N-05 | #425 | canvas.e2e "zoom and pan" (Ctrl+휠 포인터 기준, Ctrl±, Ctrl+0, 25–400 %, 상태 표시줄 배율) |  |
 | B-03 | 우클릭 메뉴(부품·선·빈 곳·서브회로, 요약 줄) | N-10 |  |  |  |
 | B-04 | Quick Attributes(빠른 속성 창)과 속성 표 | N-10 |  |  |  |
-| B-05 | 검색 팔레트(Ctrl+K), 부품 목록 검색 | N-12 |  |  |  |
+| B-05 | 검색 팔레트(Ctrl+K), 부품 목록 검색 | N-12 | #433 | find.e2e "the search palette: …", "a letter typed on the Canvas…", "Components search: …"; unit search.test; real-engine.e2e "…finding and placing (N-12)" | D-150. 명령·부품·이 파일 회로·보는 회로의 터널, 뒤 숫자(`tool-args.ts`는 엔진 `ToolArgsTest`가 v1 규칙으로 확인), 글자 순서 일치(3글자부터). 즐겨찾기·최근은 이번 실행에만(실습실 규칙) |
 | B-06 | 도구 모음·상태 표시줄·도구 조작(Edit·Poke·Wire·Text…) | N-17·N-08 |  |  |  |
 | B-07 | 라벨 칩, 터널 색 칩, 포트 이름, 마우스 오버 정보 | N-05 | #425 | canvas.e2e "hover, selection…", "the drawing rules"; unit canvas-labels |  |
-| B-08 | 터널 이동(짝 터널로), 찾기(Ctrl+F) | N-12 |  |  |  |
+| B-08 | 터널 이동(짝 터널로), 찾기(Ctrl+F) | N-12 | #433 | find.e2e "Find (Ctrl+F): …", "Tunnels: … each press the next tunnel…"; 엔진 `FindTest` | D-150. 엔진 `find.query`(v1 NameIndex + 핀·부품 이름). 터널 우클릭 "Go to Next" 메뉴 항목은 N-10이 Tunnels 칸과 같은 `revealPart`를 쓴다 |
 | B-09 | 넷 강조(Highlight Net), 넷 정보 | N-15 |  |  |  |
 | B-10 | 정적 진단과 Messages 탭(정상 회로 0건) | N-13 |  | messages.e2e.ts "a broken circuit…", "nothing to say…"; 엔진 `DiagTest.normalCircuitsHaveNoMessagesBeforeAndAfterCycles` | D-143. 정상 회로 0건은 열 때와 6사이클 뒤 모두 |
 | B-11 | 따라오는 선(SafeMove), 선 한 토막 끌기 | N-08 |  |  |  |
 | B-12 | 서브회로 인스턴스 안내와 포트 변경 영향 알림 | N-11 |  |  |  |
 | B-13 | 자동 저장·복구 파일 | N-19 |  |  |  |
-| B-14 | Splitter 편집기(범위 입력, R/I/J 프리셋, 팔 라벨) | N-12 |  |  |  |
+| B-14 | Splitter 편집기(범위 입력, R/I/J 프리셋, 팔 라벨) | N-12 | #433 | find.e2e "the Splitter editor: …", "Split Bits …"; unit splitter-spec.test(엔진 해석과 같음); 엔진 `ExtEditTest.theSplitterEditorsIntentsGiveTheGoldenOfScene14` | D-150. `edit.splitterEdit`·`edit.splitterSplit`(v1 SplitterEdits·WireGuard), 여는 곳은 검색 창의 Edit Splitter…와 `hcs:edit-splitter` 사건(우클릭 메뉴는 N-10) |
 | B-15 | MIPS 부품: Instruction·Data Memory, Stack, Console, Radix Probe | N-05·N-16 | #425 | canvas.e2e "values after ticks"(Instruction Memory 몸체 줄); unit canvas-registry "the MIPS bodies" |  |
 | B-16 | 실행 이미지(.hmx) 불러오기와 요약(.s 불러오기는 D-141에서 없앰: 옛 .s 경로는 사실 `assemblySource`) | N-16 | #428 | `program.e2e.ts` "Load Program…: executable images only…", "a file that cannot be loaded…", "several Instruction Memories…", "PC ≠ entry at cycle 0…", "a memory that points to a .s…" · `real-engine.e2e.ts` "Load Program puts data.hmx into ref-mips…" · 엔진 `ProgramsTest` | D-147. 트랙 A와 같은 `ProgramLoader` 길(`mips.load`), 불러오면 처음으로. 부품 우클릭 메뉴(I-98)는 N-10이 같은 `api.loadProgram`을 부른다 |
 | B-17 | hcs-mips.jar 복사 알림, 새 파일에서 Hallym MIPS 부품 바로 사용 | N-21 |  |  |  |
@@ -44,20 +44,20 @@ v1(Swing, `swing-final`)의 기능을 v2(Electron 화면 + Java 엔진)로 모�
 | S-06 | 포트 이름 덧그림 과밀 | N-05 | #425 | unit canvas-labels "port names"(바깥, 선 비킴, 칩과 안 겹침, 몸체 글자 중복 없음) |  |
 | S-07 | Register 값 표시 겹침 | N-05 | #425 | unit canvas-labels "a 32-bit register's value is a chip" |  |
 | S-08 | 기본 모양 서브회로의 포트 이름 | N-05 | #425 | unit canvas-labels "port names"(기본 모양만) |  |
-| S-09 | 찾기 결과의 내부 포트 이름 | N-12 |  |  |  |
+| S-09 | 찾기 결과의 내부 포트 이름 | N-12 | #433 | 엔진 `FindTest.placesNameTheAttachedPortReadablyNeverAnInternalName`; unit find-panels.test "Find: places are named by the port…" | D-150. v1 `NameIndex.place` 그대로 |
 | S-10 | 화면 맞춤 여백 | N-05 | #425 | canvas.e2e "zoom and pan"(맞춤 가운데·여백); unit canvas-scene "zoom and pan" |  |
 | S-11 | 왼쪽 패널 빈 공간 | N-17 |  |  |  |
 | S-12 | 제어 핀 라벨 중복 | N-05 | #425 | unit canvas-labels "a pin whose port has a tunnel of its own name" |  |
 | S-13 | 400% 굵기 | N-05 | #425 | unit canvas-draw "widths on screen"(25·100·400 %) |  |
 | S-20 | 회귀 확인: 원조 도구 모음·탐색기 아이콘 줄 숨김, 위쪽 네 줄 | N-17 |  |  |  |
 | S-21 | 회귀 확인: 배율 표시 하나와 실제 배율 동기화 | N-05 | #425 | canvas.e2e "zoom and pan"(상태 표시줄 배율 하나) |  |
-| S-22 | 회귀 확인: 스플리터 원조 "0-7" 표시와 팔 라벨 이중 표시 없음 | N-12 |  |  |  |
+| S-22 | 회귀 확인: 스플리터 원조 "0-7" 표시와 팔 라벨 이중 표시 없음 | N-12 | #433 | unit canvas-labels "an arm the student named… (S-22: no original "0-7" beside it)" | D-150. 스플리터 몸체는 비트 번호를 쓰지 않고 팔 칩만 |
 | S-23 | 회귀 확인: MIPS 부품 포트 이름 안쪽 14px, 콘솔 출력 영역 | N-05 | #425 | unit canvas-registry "the MIPS bodies"(포트 이름 안쪽 14); canvas-geometry |  |
 | S-24 | 회귀 확인: 터널 색 12색, 가까운 다른 이름은 다른 색 | N-05 | #425 | unit canvas-labels "tunnel colours"(v1 해시·12색·가까운 이름) |  |
 | S-25 | 회귀 확인: 우클릭 메뉴 순서와 요약 줄 단수·복수 | N-10 |  |  |  |
 | S-26 | 회귀 확인: UI 언어(D-049) | N-20 |  |  |  |
 | S-27 | 회귀 확인: Stack은 used N B (peak)만 | N-14 | #423 | `cycle.e2e.ts` "Registers, Memory and Instruction follow the cycle" (스택 머리 `peak`) · `panels.test.ts` | Memory 패널 스택 머리. 부품 몸체 글은 N-05 |
-| S-28 | 회귀 확인: 찾기 결과 묶음과 위치 표시 | N-12 |  |  |  |
+| S-28 | 회귀 확인: 찾기 결과 묶음과 위치 표시 | N-12 | #433 | find.e2e "Find (Ctrl+F): groups with their places…"; 엔진 `FindTest.sameNamesInOnePlaceAreOneGroupWithTheirPlacesInOrder`, `theOrderIsTheSameInEveryOpening` | D-150. 같은 자리의 부품 차례를 정해 v1의 HashSet 차례 흔들림을 없앰 |
 | S-29 | 회귀 확인: 메시지 클릭 뒤 속성 패널·빠른 속성 창·캔버스 표시 | N-13 |  | messages.e2e.ts "choosing a message…" | D-143. 메시지를 누르면 `hcs:reveal`(회로·인스턴스·부품·선·넷·자리·사이클)과 회로 탭. 캔버스 표시·고르기는 N-05/N-10이 이 사건을 받아 한다(후속) |
 | S-30 | 회귀 확인: gateUndefined=error일 때만 빈 게이트 입력 알림 | N-13 |  | 엔진 `DiagTest.emptyGateInputsOnlyWhenTheProjectSaysError` | D-143. v1 StaticCheck 그대로 |
 | W-01 | 결정적 길 찾기 | N-08 |  |  |  |
@@ -95,19 +95,19 @@ v1(Swing, `swing-final`)의 기능을 v2(Electron 화면 + Java 엔진)로 모�
 | E-05 | Undo History | N-21 |  |  |  |
 | E-06 | Create Submission | N-21 |  |  |  |
 | E-07 | Export Image | N-21 |  |  |  |
-| E-08 | 미니맵과 영역 메모 | N-12·N-15 |  |  |  |
+| E-08 | 미니맵과 영역 메모 | N-12·N-15 | #433 | find.e2e "the Minimap: …"(미니맵) | D-150. 미니맵은 N-12, 영역 메모는 N-15에 남음 |
 | E-09 | 단축키 설정 창 | N-21 |  |  |  |
 | E-10 | 첫 실행 튜토리얼 | N-18 |  |  |  |
 | E-11 | About 창 | N-20 |  |  |  |
 | E-12 | 앱 아이콘과 창 제목 | N-17 |  |  |  |
-| V-01 | 새 파일에서도 Hallym MIPS가 보이고 바로 쓰임 | N-12 |  |  |  |
+| V-01 | 새 파일에서도 Hallym MIPS가 보이고 바로 쓰임 | N-12 | #433 | find.e2e "Components: … Hallym MIPS before the file has it…", "a part dragged … puts the library in the file"; real-engine.e2e "…finding and placing (N-12)" | D-150. 엔진 `model.library`의 `pending`(D-096) |
 | V-02 | 진단 문구 정확성(E 원인 종류, 내부 포트 이름 숨김) | N-13 |  | 엔진 `DiagTest.everyFaultCircuitGivesOneMessageInBothLanguages`, `DiagTextTest` | D-143. 내부 포트 이름 없음, "충돌"은 충돌에만, 한국어 틀에서 이름 뒤 조사 없음 |
 | V-03 | 메시지를 누르면 원인이 사이클 표에 | N-14 | #423 | messages.e2e.ts "the clock runs…"(임시 줄 `MemWrite`, 그 사이클 테두리, Reset이면 걷힘) · 엔진 `RecordTest.resetStartsTheRecordingAgainAndTakesThePinnedRowsAway` (`record.pin`) · `cycle.test.ts` `pinGone` | 원인(`location`)과 E·X가 보인 자리(`appeared`), 메시지가 사라지면 `record.unpin`(D-114) |
 | V-04 | 활성 경로는 가지만 칠함 | N-15 |  |  |  |
 | V-05 | 같은 이름 파일 탭 구분 | N-11 |  |  |  |
 | V-06 | Signal Flow 터널 호가 부품·라벨을 피함 | N-15 |  |  |  |
 | V-07 | 빈 캔버스 안내와 예제 메뉴 | N-17 |  |  |  |
-| V-08 | 상태 표시줄 PC·Mark as PC, Tunnels 외톨이 표시 | N-14·N-12 | #423 | `cycle.e2e.ts` "the table follows the clock…"(상태 표시줄 PC), "Mark as PC…" · 엔진 `RecordTest.theHeadOfTheTableAndTheStatusBarReadTheDatapath` | Tunnels 외톨이는 N-12 |
+| V-08 | 상태 표시줄 PC·Mark as PC, Tunnels 외톨이 표시 | N-14·N-12 | #423, #433 | `cycle.e2e.ts` "the table follows the clock…"(상태 표시줄 PC), "Mark as PC…" · 엔진 `RecordTest.theHeadOfTheTableAndTheStatusBarReadTheDatapath`; find.e2e "Tunnels: … a lone one in amber…"(외톨이 표시) | D-144(상태 표시줄 PC·Mark as PC, N-14), D-150(Tunnels 외톨이 표시, N-12) |
 | V-09 | 스크린샷 실행기 위생과 데모 값 | 과정 |  |  | v1 검토·릴리스 과정이라 옮길 기능이 아님 |
 | V-10 | v1.0.1 공개 릴리스 | 과정 |  |  | v1 검토·릴리스 과정이라 옮길 기능이 아님 |
 | X-01 | 첫 실행 창 크기, 포크 전용 창 설정 | N-19·N-17 |  |  |  |

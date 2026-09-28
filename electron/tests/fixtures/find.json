@@ -1,0 +1,1903 @@
+{
+  "source": "./gradlew :engine:canvasFixtures (FindFixtures, D-150): engine API find.query; places by circuit name and the part's name and loc instead of engine ids",
+  "demo-datapath.circ": {
+    "RegWrite": {
+      "text": "RegWrite",
+      "groups": [
+        {
+          "kind": "pin",
+          "text": "RegWrite",
+          "path": "main › regfile #1 › RegWrite",
+          "places": [
+            {
+              "circuitId": "regfile",
+              "root": "main",
+              "path": [
+                {
+                  "name": "regfile",
+                  "loc": [
+                    860,
+                    240
+                  ]
+                }
+              ],
+              "at": [
+                100,
+                300
+              ],
+              "place": "main › regfile #1 › RegWrite",
+              "near": true,
+              "component": {
+                "name": "Pin",
+                "loc": [
+                  100,
+                  300
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "kind": "tunnel",
+          "text": "RegWrite",
+          "path": "main › regfile #1 › RegWrite",
+          "places": [
+            {
+              "circuitId": "regfile",
+              "root": "main",
+              "path": [
+                {
+                  "name": "regfile",
+                  "loc": [
+                    860,
+                    240
+                  ]
+                }
+              ],
+              "at": [
+                100,
+                300
+              ],
+              "place": "main › regfile #1 › RegWrite",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  100,
+                  300
+                ]
+              }
+            },
+            {
+              "circuitId": "regfile",
+              "root": "main",
+              "path": [
+                {
+                  "name": "regfile",
+                  "loc": [
+                    860,
+                    240
+                  ]
+                }
+              ],
+              "at": [
+                490,
+                570
+              ],
+              "place": "main › regfile #1 › AND Gate #1 (input 2)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  490,
+                  570
+                ]
+              }
+            },
+            {
+              "circuitId": "regfile",
+              "root": "main",
+              "path": [
+                {
+                  "name": "regfile",
+                  "loc": [
+                    860,
+                    240
+                  ]
+                }
+              ],
+              "at": [
+                490,
+                630
+              ],
+              "place": "main › regfile #1 › AND Gate #2 (input 2)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  490,
+                  630
+                ]
+              }
+            },
+            {
+              "circuitId": "regfile",
+              "root": "main",
+              "path": [
+                {
+                  "name": "regfile",
+                  "loc": [
+                    860,
+                    240
+                  ]
+                }
+              ],
+              "at": [
+                490,
+                690
+              ],
+              "place": "main › regfile #1 › AND Gate #3 (input 2)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  490,
+                  690
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "kind": "tunnel",
+          "text": "RegWrite",
+          "path": "main › RegWrite",
+          "places": [
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                715,
+                320
+              ],
+              "place": "main › regfile #1 (RegWrite)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  715,
+                  320
+                ]
+              }
+            },
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                100,
+                420
+              ],
+              "place": "main › RegWrite",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  100,
+                  420
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "kind": "pin",
+          "text": "RegWrite",
+          "path": "main › RegWrite",
+          "places": [
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                100,
+                420
+              ],
+              "place": "main › RegWrite",
+              "near": true,
+              "component": {
+                "name": "Pin",
+                "loc": [
+                  100,
+                  420
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "more": false
+    },
+    "clk": {
+      "text": "clk",
+      "groups": [
+        {
+          "kind": "tunnel",
+          "text": "clk",
+          "path": "main › clk",
+          "places": [
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                280,
+                220
+              ],
+              "place": "main › PC (clk)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  280,
+                  220
+                ]
+              }
+            },
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                745,
+                340
+              ],
+              "place": "main › regfile #1 (clk)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  745,
+                  340
+                ]
+              }
+            },
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                1240,
+                500
+              ],
+              "place": "main › Data Memory #1 (clk)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  1240,
+                  500
+                ]
+              }
+            },
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                100,
+                700
+              ],
+              "place": "main › Clock #1",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  100,
+                  700
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "kind": "pin",
+          "text": "clk",
+          "path": "main › regfile #1 › clk",
+          "places": [
+            {
+              "circuitId": "regfile",
+              "root": "main",
+              "path": [
+                {
+                  "name": "regfile",
+                  "loc": [
+                    860,
+                    240
+                  ]
+                }
+              ],
+              "at": [
+                100,
+                350
+              ],
+              "place": "main › regfile #1 › clk",
+              "near": true,
+              "component": {
+                "name": "Pin",
+                "loc": [
+                  100,
+                  350
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "kind": "tunnel",
+          "text": "clk",
+          "path": "main › regfile #1 › clk",
+          "places": [
+            {
+              "circuitId": "regfile",
+              "root": "main",
+              "path": [
+                {
+                  "name": "regfile",
+                  "loc": [
+                    860,
+                    240
+                  ]
+                }
+              ],
+              "at": [
+                100,
+                350
+              ],
+              "place": "main › regfile #1 › clk",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  100,
+                  350
+                ]
+              }
+            },
+            {
+              "circuitId": "regfile",
+              "root": "main",
+              "path": [
+                {
+                  "name": "regfile",
+                  "loc": [
+                    860,
+                    240
+                  ]
+                }
+              ],
+              "at": [
+                680,
+                390
+              ],
+              "place": "main › regfile #1 › $1 (clk)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  680,
+                  390
+                ]
+              }
+            },
+            {
+              "circuitId": "regfile",
+              "root": "main",
+              "path": [
+                {
+                  "name": "regfile",
+                  "loc": [
+                    860,
+                    240
+                  ]
+                }
+              ],
+              "at": [
+                680,
+                460
+              ],
+              "place": "main › regfile #1 › $2 (clk)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  680,
+                  460
+                ]
+              }
+            },
+            {
+              "circuitId": "regfile",
+              "root": "main",
+              "path": [
+                {
+                  "name": "regfile",
+                  "loc": [
+                    860,
+                    240
+                  ]
+                }
+              ],
+              "at": [
+                680,
+                530
+              ],
+              "place": "main › regfile #1 › $3 (clk)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  680,
+                  530
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "more": false
+    },
+    "pc": {
+      "text": "pc",
+      "groups": [
+        {
+          "kind": "tunnel",
+          "text": "pc",
+          "path": "main › pc",
+          "places": [
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                140,
+                80
+              ],
+              "place": "main › Adder #1 (a)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  140,
+                  80
+                ]
+              }
+            },
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                320,
+                450
+              ],
+              "place": "main › Comparator #1 (a)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  320,
+                  450
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "kind": "label",
+          "text": "PC",
+          "path": "main › PC",
+          "places": [
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                300,
+                200
+              ],
+              "place": "main › Register #1",
+              "near": false,
+              "component": {
+                "name": "Register",
+                "loc": [
+                  300,
+                  200
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "more": false
+    },
+    "PC": {
+      "text": "PC",
+      "groups": [
+        {
+          "kind": "tunnel",
+          "text": "pc",
+          "path": "main › pc",
+          "places": [
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                140,
+                80
+              ],
+              "place": "main › Adder #1 (a)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  140,
+                  80
+                ]
+              }
+            },
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                320,
+                450
+              ],
+              "place": "main › Comparator #1 (a)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  320,
+                  450
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "kind": "label",
+          "text": "PC",
+          "path": "main › PC",
+          "places": [
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                300,
+                200
+              ],
+              "place": "main › Register #1",
+              "near": false,
+              "component": {
+                "name": "Register",
+                "loc": [
+                  300,
+                  200
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "more": false
+    },
+    "Register": {
+      "text": "Register",
+      "groups": [
+        {
+          "kind": "part",
+          "text": "Register",
+          "path": "main",
+          "places": [
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                300,
+                200
+              ],
+              "place": "main › PC",
+              "near": false,
+              "component": {
+                "name": "Register",
+                "loc": [
+                  300,
+                  200
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "kind": "part",
+          "text": "Register",
+          "path": "main › regfile #1",
+          "places": [
+            {
+              "circuitId": "regfile",
+              "root": "main",
+              "path": [
+                {
+                  "name": "regfile",
+                  "loc": [
+                    860,
+                    240
+                  ]
+                }
+              ],
+              "at": [
+                700,
+                370
+              ],
+              "place": "main › regfile #1 › $1",
+              "near": false,
+              "component": {
+                "name": "Register",
+                "loc": [
+                  700,
+                  370
+                ]
+              }
+            },
+            {
+              "circuitId": "regfile",
+              "root": "main",
+              "path": [
+                {
+                  "name": "regfile",
+                  "loc": [
+                    860,
+                    240
+                  ]
+                }
+              ],
+              "at": [
+                700,
+                440
+              ],
+              "place": "main › regfile #1 › $2",
+              "near": false,
+              "component": {
+                "name": "Register",
+                "loc": [
+                  700,
+                  440
+                ]
+              }
+            },
+            {
+              "circuitId": "regfile",
+              "root": "main",
+              "path": [
+                {
+                  "name": "regfile",
+                  "loc": [
+                    860,
+                    240
+                  ]
+                }
+              ],
+              "at": [
+                700,
+                510
+              ],
+              "place": "main › regfile #1 › $3",
+              "near": false,
+              "component": {
+                "name": "Register",
+                "loc": [
+                  700,
+                  510
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "more": false
+    },
+    "regfile": {
+      "text": "regfile",
+      "groups": [
+        {
+          "kind": "subcircuit",
+          "text": "regfile",
+          "path": "main › regfile #1",
+          "places": [
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                860,
+                240
+              ],
+              "place": "main › regfile #1",
+              "near": false,
+              "component": {
+                "name": "regfile",
+                "loc": [
+                  860,
+                  240
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "more": false
+    },
+    "RR1": {
+      "text": "RR1",
+      "groups": [
+        {
+          "kind": "pin",
+          "text": "RR1",
+          "path": "main › regfile #1 › RR1",
+          "places": [
+            {
+              "circuitId": "regfile",
+              "root": "main",
+              "path": [
+                {
+                  "name": "regfile",
+                  "loc": [
+                    860,
+                    240
+                  ]
+                }
+              ],
+              "at": [
+                100,
+                100
+              ],
+              "place": "main › regfile #1 › RR1",
+              "near": true,
+              "component": {
+                "name": "Pin",
+                "loc": [
+                  100,
+                  100
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "kind": "tunnel",
+          "text": "RR1",
+          "path": "main › regfile #1 › RR1",
+          "places": [
+            {
+              "circuitId": "regfile",
+              "root": "main",
+              "path": [
+                {
+                  "name": "regfile",
+                  "loc": [
+                    860,
+                    240
+                  ]
+                }
+              ],
+              "at": [
+                100,
+                100
+              ],
+              "place": "main › regfile #1 › RR1",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  100,
+                  100
+                ]
+              }
+            },
+            {
+              "circuitId": "regfile",
+              "root": "main",
+              "path": [
+                {
+                  "name": "regfile",
+                  "loc": [
+                    860,
+                    240
+                  ]
+                }
+              ],
+              "at": [
+                250,
+                120
+              ],
+              "place": "main › regfile #1 › Splitter #1 (combined end)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  250,
+                  120
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "kind": "tunnel",
+          "text": "RR1lo",
+          "path": "main › regfile #1 › RR1lo",
+          "places": [
+            {
+              "circuitId": "regfile",
+              "root": "main",
+              "path": [
+                {
+                  "name": "regfile",
+                  "loc": [
+                    860,
+                    240
+                  ]
+                }
+              ],
+              "at": [
+                270,
+                100
+              ],
+              "place": "main › regfile #1 › Splitter #1 ([1:0] end)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  270,
+                  100
+                ]
+              }
+            },
+            {
+              "circuitId": "regfile",
+              "root": "main",
+              "path": [
+                {
+                  "name": "regfile",
+                  "loc": [
+                    860,
+                    240
+                  ]
+                }
+              ],
+              "at": [
+                830,
+                520
+              ],
+              "place": "main › regfile #1 › Multiplexer #1 (select)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  830,
+                  520
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "more": false
+    },
+    "ALU": {
+      "text": "ALU",
+      "groups": [
+        {
+          "kind": "subcircuit",
+          "text": "alu",
+          "path": "main › alu #1",
+          "places": [
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                1100,
+                240
+              ],
+              "place": "main › alu #1",
+              "near": false,
+              "component": {
+                "name": "alu",
+                "loc": [
+                  1100,
+                  240
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "kind": "pin",
+          "text": "ALUOp",
+          "path": "main › alu #1 › ALUOp",
+          "places": [
+            {
+              "circuitId": "alu",
+              "root": "main",
+              "path": [
+                {
+                  "name": "alu",
+                  "loc": [
+                    1100,
+                    240
+                  ]
+                }
+              ],
+              "at": [
+                100,
+                200
+              ],
+              "place": "main › alu #1 › ALUOp",
+              "near": true,
+              "component": {
+                "name": "Pin",
+                "loc": [
+                  100,
+                  200
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "kind": "tunnel",
+          "text": "ALUOp",
+          "path": "main › alu #1 › ALUOp",
+          "places": [
+            {
+              "circuitId": "alu",
+              "root": "main",
+              "path": [
+                {
+                  "name": "alu",
+                  "loc": [
+                    1100,
+                    240
+                  ]
+                }
+              ],
+              "at": [
+                100,
+                200
+              ],
+              "place": "main › alu #1 › ALUOp",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  100,
+                  200
+                ]
+              }
+            },
+            {
+              "circuitId": "alu",
+              "root": "main",
+              "path": [
+                {
+                  "name": "alu",
+                  "loc": [
+                    1100,
+                    240
+                  ]
+                }
+              ],
+              "at": [
+                630,
+                470
+              ],
+              "place": "main › alu #1 › Multiplexer #1 (select)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  630,
+                  470
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "kind": "tunnel",
+          "text": "ALUOp",
+          "path": "main › ALUOp",
+          "places": [
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                1000,
+                280
+              ],
+              "place": "main › alu #1 (ALUOp)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  1000,
+                  280
+                ]
+              }
+            },
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                100,
+                620
+              ],
+              "place": "main › ALUOp",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  100,
+                  620
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "kind": "pin",
+          "text": "ALUOp",
+          "path": "main › ALUOp",
+          "places": [
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                100,
+                620
+              ],
+              "place": "main › ALUOp",
+              "near": true,
+              "component": {
+                "name": "Pin",
+                "loc": [
+                  100,
+                  620
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "more": false
+    },
+    "halt": {
+      "text": "halt",
+      "groups": [
+        {
+          "kind": "pin",
+          "text": "halt",
+          "path": "main › halt",
+          "places": [
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                420,
+                460
+              ],
+              "place": "main › Comparator #1 (eq)",
+              "near": true,
+              "component": {
+                "name": "Pin",
+                "loc": [
+                  420,
+                  460
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "more": false
+    },
+    "sel": {
+      "text": "sel",
+      "groups": [
+        {
+          "kind": "tunnel",
+          "text": "sel1",
+          "path": "main › regfile #1 › sel1",
+          "places": [
+            {
+              "circuitId": "regfile",
+              "root": "main",
+              "path": [
+                {
+                  "name": "regfile",
+                  "loc": [
+                    860,
+                    240
+                  ]
+                }
+              ],
+              "at": [
+                490,
+                550
+              ],
+              "place": "main › regfile #1 › AND Gate #1 (input 1)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  490,
+                  550
+                ]
+              }
+            },
+            {
+              "circuitId": "regfile",
+              "root": "main",
+              "path": [
+                {
+                  "name": "regfile",
+                  "loc": [
+                    860,
+                    240
+                  ]
+                }
+              ],
+              "at": [
+                420,
+                570
+              ],
+              "place": "main › regfile #1 › Decoder #1 (output 1)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  420,
+                  570
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "kind": "tunnel",
+          "text": "sel2",
+          "path": "main › regfile #1 › sel2",
+          "places": [
+            {
+              "circuitId": "regfile",
+              "root": "main",
+              "path": [
+                {
+                  "name": "regfile",
+                  "loc": [
+                    860,
+                    240
+                  ]
+                }
+              ],
+              "at": [
+                420,
+                580
+              ],
+              "place": "main › regfile #1 › Decoder #1 (output 2)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  420,
+                  580
+                ]
+              }
+            },
+            {
+              "circuitId": "regfile",
+              "root": "main",
+              "path": [
+                {
+                  "name": "regfile",
+                  "loc": [
+                    860,
+                    240
+                  ]
+                }
+              ],
+              "at": [
+                490,
+                610
+              ],
+              "place": "main › regfile #1 › AND Gate #2 (input 1)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  490,
+                  610
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "kind": "tunnel",
+          "text": "sel3",
+          "path": "main › regfile #1 › sel3",
+          "places": [
+            {
+              "circuitId": "regfile",
+              "root": "main",
+              "path": [
+                {
+                  "name": "regfile",
+                  "loc": [
+                    860,
+                    240
+                  ]
+                }
+              ],
+              "at": [
+                420,
+                590
+              ],
+              "place": "main › regfile #1 › Decoder #1 (output 3)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  420,
+                  590
+                ]
+              }
+            },
+            {
+              "circuitId": "regfile",
+              "root": "main",
+              "path": [
+                {
+                  "name": "regfile",
+                  "loc": [
+                    860,
+                    240
+                  ]
+                }
+              ],
+              "at": [
+                490,
+                670
+              ],
+              "place": "main › regfile #1 › AND Gate #3 (input 1)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  490,
+                  670
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "more": false
+    },
+    "Splitter": {
+      "text": "Splitter",
+      "groups": [
+        {
+          "kind": "part",
+          "text": "Splitter",
+          "path": "main",
+          "places": [
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                620,
+                200
+              ],
+              "place": "main › Splitter #1",
+              "near": false,
+              "component": {
+                "name": "Splitter",
+                "loc": [
+                  620,
+                  200
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "kind": "part",
+          "text": "Splitter",
+          "path": "main › regfile #1",
+          "places": [
+            {
+              "circuitId": "regfile",
+              "root": "main",
+              "path": [
+                {
+                  "name": "regfile",
+                  "loc": [
+                    860,
+                    240
+                  ]
+                }
+              ],
+              "at": [
+                250,
+                120
+              ],
+              "place": "main › regfile #1 › Splitter #1",
+              "near": false,
+              "component": {
+                "name": "Splitter",
+                "loc": [
+                  250,
+                  120
+                ]
+              }
+            },
+            {
+              "circuitId": "regfile",
+              "root": "main",
+              "path": [
+                {
+                  "name": "regfile",
+                  "loc": [
+                    860,
+                    240
+                  ]
+                }
+              ],
+              "at": [
+                250,
+                180
+              ],
+              "place": "main › regfile #1 › Splitter #2",
+              "near": false,
+              "component": {
+                "name": "Splitter",
+                "loc": [
+                  250,
+                  180
+                ]
+              }
+            },
+            {
+              "circuitId": "regfile",
+              "root": "main",
+              "path": [
+                {
+                  "name": "regfile",
+                  "loc": [
+                    860,
+                    240
+                  ]
+                }
+              ],
+              "at": [
+                250,
+                240
+              ],
+              "place": "main › regfile #1 › Splitter #3",
+              "near": false,
+              "component": {
+                "name": "Splitter",
+                "loc": [
+                  250,
+                  240
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "more": false
+    },
+    "zzz": {
+      "text": "zzz",
+      "groups": [],
+      "more": false
+    }
+  },
+  "ref-mips.circ": {
+    "pc": {
+      "text": "pc",
+      "groups": [
+        {
+          "kind": "tunnel",
+          "text": "pc",
+          "path": "main › pc",
+          "places": [
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                5760,
+                390
+              ],
+              "place": "main › Adder #1 (a)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  5760,
+                  390
+                ]
+              }
+            },
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                4000,
+                400
+              ],
+              "place": "main › XOR Gate #1 (output)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  4000,
+                  400
+                ]
+              }
+            },
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                6200,
+                400
+              ],
+              "place": "main › Instruction Memory #1 (Addr)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  6200,
+                  400
+                ]
+              }
+            },
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                4560,
+                8390
+              ],
+              "place": "main › Adder #3 (a)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  4560,
+                  8390
+                ]
+              }
+            },
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                5200,
+                8400
+              ],
+              "place": "main › Splitter #10 (combined end)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  5200,
+                  8400
+                ]
+              }
+            },
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                1600,
+                9200
+              ],
+              "place": "main › pc",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  1600,
+                  9200
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "kind": "pin",
+          "text": "pc",
+          "path": "main › pc",
+          "places": [
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                1600,
+                9200
+              ],
+              "place": "main › pc",
+              "near": true,
+              "component": {
+                "name": "Pin",
+                "loc": [
+                  1600,
+                  9200
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "kind": "tunnel",
+          "text": "pcx",
+          "path": "main › pcx",
+          "places": [
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                3940,
+                380
+              ],
+              "place": "main › XOR Gate #1 (input 1)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  3940,
+                  380
+                ]
+              }
+            },
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                2800,
+                400
+              ],
+              "place": "main › Register #1 (Q)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  2800,
+                  400
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "kind": "tunnel",
+          "text": "npc",
+          "path": "main › npc",
+          "places": [
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                4540,
+                380
+              ],
+              "place": "main › XOR Gate #2 (input 1)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  4540,
+                  380
+                ]
+              }
+            },
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                1000,
+                9200
+              ],
+              "place": "main › Multiplexer #11 (output)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  1000,
+                  9200
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "kind": "tunnel",
+          "text": "npcx",
+          "path": "main › npcx",
+          "places": [
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                2770,
+                400
+              ],
+              "place": "main › Register #1 (D)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  2770,
+                  400
+                ]
+              }
+            },
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                4600,
+                400
+              ],
+              "place": "main › XOR Gate #2 (output)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  4600,
+                  400
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "kind": "tunnel",
+          "text": "pc4",
+          "path": "main › pc4",
+          "places": [
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                5800,
+                400
+              ],
+              "place": "main › Adder #1 (sum)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  5800,
+                  400
+                ]
+              }
+            },
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                5760,
+                2800
+              ],
+              "place": "main › Multiplexer #6 (input 2)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  5760,
+                  2800
+                ]
+              }
+            },
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                6970,
+                8390
+              ],
+              "place": "main › Multiplexer #9 (input 0)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  6970,
+                  8390
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "kind": "tunnel",
+          "text": "pcLo",
+          "path": "main › pcLo",
+          "places": [
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                5220,
+                8380
+              ],
+              "place": "main › Splitter #10 ([27:0] end)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  5220,
+                  8380
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "kind": "tunnel",
+          "text": "pcTop",
+          "path": "main › pcTop",
+          "places": [
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                5220,
+                8390
+              ],
+              "place": "main › Splitter #10 ([31:28] end)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  5220,
+                  8390
+                ]
+              }
+            },
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                6420,
+                8390
+              ],
+              "place": "main › Splitter #11 ([31:28] end)",
+              "near": true,
+              "component": {
+                "name": "Tunnel",
+                "loc": [
+                  6420,
+                  8390
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "more": false
+    },
+    "Instruction Memory": {
+      "text": "Instruction Memory",
+      "groups": [
+        {
+          "kind": "part",
+          "text": "Instruction Memory",
+          "path": "main",
+          "places": [
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                6400,
+                400
+              ],
+              "place": "main › Instruction Memory #1",
+              "near": false,
+              "component": {
+                "name": "Instruction Memory",
+                "loc": [
+                  6400,
+                  400
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "more": false
+    },
+    "Data Memory": {
+      "text": "Data Memory",
+      "groups": [
+        {
+          "kind": "part",
+          "text": "Data Memory",
+          "path": "main",
+          "places": [
+            {
+              "circuitId": "main",
+              "root": "main",
+              "path": [],
+              "at": [
+                4000,
+                7600
+              ],
+              "place": "main › Data Memory #1",
+              "near": false,
+              "component": {
+                "name": "Data Memory",
+                "loc": [
+                  4000,
+                  7600
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "more": false
+    },
+    "regfile": {
+      "text": "regfile",
+      "groups": [],
+      "more": false
+    }
+  }
+}

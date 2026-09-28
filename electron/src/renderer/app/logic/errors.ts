@@ -76,6 +76,11 @@ export function commandError(command: string, e: FailedCall): string {
   }
   if (e.code === ERR_READ_ONLY) {
     if (reason === 'readOnly') return `${command}: 읽기 전용 파일입니다. Save As로 새 이름으로 저장한 뒤 고치세요`;
+    // placing a part (the Components list, the search palette, a drop; N-12): the original's refusals
+    if (reason === 'circular') return `${command}: 회로 안에 그 회로 자신을 놓을 수 없습니다`;
+    if (reason === 'exclusive') return `${command}: 그 자리에는 이미 값을 내는 다른 부품이 있습니다`;
+    if (reason === 'negativeCoord') return `${command}: 부품은 음수 좌표에 놓을 수 없습니다. 조금 오른쪽 아래에 놓으세요`;
+    if (reason === 'cannotModify') return `${command}: 불러온 라이브러리의 회로는 고칠 수 없습니다`;
     return `${command}: 이 회로에서는 할 수 없습니다`;
   }
   return `${command}: 엔진이 하지 못했습니다`;

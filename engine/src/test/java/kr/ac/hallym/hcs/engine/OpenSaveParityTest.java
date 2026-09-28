@@ -39,7 +39,7 @@ import kr.ac.hallym.hcs.regress.CircNormalizer;
 /**
  * 열기만 한 파일은 저장해도 그대로다(규칙 2.3, D-006, D-149): tests/ 아래와 화면 고정 파일의 모든 .circ를 한 엔진으로
  * 차례로 열고 화면이 여는 동안 하는 일(회로마다 model.circuit과 그 안 서브회로 인스턴스의 모양(appearance), model.library,
- * diag.list, mips.facts, sim.watch와 값 스트림의 몸체 상태(bodies), Cycle View의 record.*(D-144: 표·Registers·Memory·
+ * diag.list, mips.facts, 찾기(find.query, N-12), sim.watch와 값 스트림의 몸체 상태(bodies), Cycle View의 record.*(D-144: 표·Registers·Memory·
  * Instruction·필드 경로, 지난 사이클 보기와 돌아오기), 몇 사이클, 캔버스가 서브회로 인스턴스 안으로 들어가 보기(sim.watch
  * path, N-05))을 한 뒤 저장하면 원래 글자와 같다(D-006 정규화). 기록기는 파일을 열 때 붙고(file.open) 사이클마다 적는다.
  * Mark as PC·레지스터 파일 표시는 하지 않는다(학생이 고른 표시는 파일을 바꾸는 편집이다). 더 돌리고 한 번 더 저장해도 같다. 새 부품을 쓰는 파일도
@@ -145,6 +145,115 @@ class OpenSaveParityTest {
         }));
     }
 
+    /**
+     * 학생이 직접 정하는 확장 정보를 바꾸는 의도(N-12: edit.tunnelColor, edit.splitterEdit)를 하고 되돌리면 저장이 원래
+     * 글자와 같다: 터널·스플리터가 있는 모든 파일에서, 이름 있는 터널 하나의 색을 바꾸고 스플리터 하나의 팔 이름을 바꾼 뒤
+     * 둘 다 되돌린다. 다시 실행하고 또 되돌려도 같다.
+     */
+    @TestFactory
+    Stream<DynamicTest> extEditsUndoneSaveTheOriginal() throws Exception {
+        List<File> files = new ArrayList<>();
+        for (File f : allFiles()) {
+            String t = read(f);
+            if (!t.contains("jar#") && (t.contains("name=\"Tunnel\"") || t.contains("name=\"Splitter\""))) {
+                files.add(f);
+            }
+        }
+        assertTrue(files.size() >= 10, "files with tunnels or splitters: " + files.size());
+        return files.stream().map(f -> DynamicTest.dynamicTest(name(f), () -> {
+            File copy = copyWithLibraries(f, Files.createTempDirectory(tmp, "x"));
+            JsonObject opened = e.client.callObject("file.open", params("path", copy.getPath()));
+            String fileId = opened.get("fileId").getAsString();
+            int edits = 0;
+            java.util.Set<String> coloured = new java.util.HashSet<>();
+            for (JsonElement ce : opened.getAsJsonArray("circuits")) {
+                String circuitId = ce.getAsJsonObject().get("circuitId").getAsString();
+                JsonObject snap = e.client.callObject("model.circuit", params("fileId", fileId, "circuitId", circuitId));
+                for (JsonElement c : snap.getAsJsonArray("components")) {
+                    JsonObject o = c.getAsJsonObject();
+                    String id = o.get("id").getAsString();
+                    if (o.get("name").getAsString().equals("Tunnel") && o.getAsJsonObject("attrs").has("label")
+                            && !o.getAsJsonObject("attrs").get("label").getAsString().isBlank() && edits % 2 == 0
+                            && coloured.add(circuitId + " " + o.getAsJsonObject("attrs").get("label").getAsString())) {
+                        String now = o.has("ext") ? o.getAsJsonObject("ext").get("color").getAsString() : "";
+                        String pick = now.equalsIgnoreCase("#E69F00") ? "#56B4E9" : "#E69F00";
+                        JsonObject r = e.client.callObject("edit.tunnelColor",
+                                params("fileId", fileId, "circuitId", circuitId, "id", id, "color", pick));
+                        assertTrue(r.get("changed").getAsBoolean(), r.toString());
+                        edits++;
+                    } else if (o.get("name").getAsString().equals("Splitter") && edits % 2 == 1) {
+                        String ranges = ranges(o.getAsJsonObject("attrs"));
+                        if (ranges == null) {
+                            continue;
+                        }
+                        JsonObject r = e.client.callObject("edit.splitterEdit", params("fileId", fileId, "circuitId",
+                                circuitId, "id", id, "ranges", ranges.substring(1), "lsbTop", ranges.startsWith("L"),
+                                "names", new Object[] {"renamed"}));
+                        assertTrue(r.get("changed").getAsBoolean(), ranges + " " + r);
+                        edits++;
+                    }
+                }
+            }
+            for (int k = 0; k < edits; k++) {
+                e.client.call("edit.undo", params("fileId", fileId));
+            }
+            if (edits > 0) {
+                e.client.call("edit.redo", params("fileId", fileId));
+                e.client.call("edit.undo", params("fileId", fileId));
+            }
+            File saved = new File(copy.getParentFile(), "saved-" + f.getName());
+            e.client.call("file.save", params("fileId", fileId, "path", saved.getPath()));
+            assertSavedLike(f, saved, "after " + edits + " extension edits undone");
+            e.client.call("file.close", params("fileId", fileId));
+        }));
+    }
+
+    /**
+     * 스플리터 속성의 범위 글(편집기에 치는 꼴): 위 팔부터 {@code 7:4, 3:0}. 앞 글자 M은 위 팔이 높은 비트(MSB on top),
+     * L은 낮은 비트. 비트가 없는 팔이 있으면 편집기 글로 쓸 수 없어 null.
+     */
+    static String ranges(JsonObject attrs) {
+        int fanout = Integer.parseInt(attrs.get("fanout").getAsString());
+        int width = Integer.parseInt(attrs.get("incoming").getAsString());
+        List<List<Integer>> arms = new ArrayList<>();
+        for (int i = 0; i < fanout; i++) {
+            arms.add(new ArrayList<>());
+        }
+        for (int b = width - 1; b >= 0; b--) {
+            String v = attrs.has("bit" + b) ? attrs.get("bit" + b).getAsString() : "none";
+            if (!v.equals("none")) {
+                arms.get(Integer.parseInt(v)).add(b);
+            }
+        }
+        StringBuilder sb = new StringBuilder();
+        for (List<Integer> bits : arms) {
+            if (bits.isEmpty()) {
+                return null;
+            }
+            if (sb.length() > 0) {
+                sb.append(", ");
+            }
+            for (int i = 0; i < bits.size(); i++) {
+                int start = bits.get(i);
+                int end = start;
+                while (i + 1 < bits.size() && bits.get(i + 1) == end - 1) {
+                    end = bits.get(++i);
+                }
+                if (sb.length() > 0 && sb.charAt(sb.length() - 1) != ' ') {
+                    sb.append(',');
+                }
+                sb.append(start == end ? Integer.toString(start) : start + ":" + end);
+            }
+        }
+        boolean msbTop = fanout < 2 || arms.get(0).get(0) > arms.get(1).get(0);
+        for (int i = 0; i + 1 < fanout; i++) {
+            if ((arms.get(i).get(0) > arms.get(i + 1).get(0)) != msbTop) {
+                return null; // neither order: the editor would sort the arms
+            }
+        }
+        return (msbTop ? "M" : "L") + sb;
+    }
+
     /** 두 파일을 함께 열어 두어도 저마다 제 도구 기본값({@code <lib>} 아래 {@code <tool>})으로 저장한다. */
     @Test
     void toolDefaultsStayWithTheirFile() throws Exception {
@@ -205,6 +314,9 @@ class OpenSaveParityTest {
         e.client.call("model.library", params("fileId", fileId));
         e.client.callObject("diag.list", params("fileId", fileId));
         e.client.callObject("mips.facts", params("fileId", fileId));
+        // Find와 검색 창(N-12): 이름 색인을 만들고 붙은 포트로 자리 글을 짓는다(읽기만)
+        e.client.callObject("find.query", params("fileId", fileId, "text", "a"));
+        e.client.callObject("find.query", params("fileId", fileId, "text", "Register"));
         if (opened.get("main").isJsonNull()) {
             return;
         }
