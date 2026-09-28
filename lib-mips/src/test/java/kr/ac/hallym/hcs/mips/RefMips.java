@@ -419,9 +419,9 @@ final class RefMips {
         mux("npc", "JR", 1, 32, "n2", "rsVal");
 
         int[] p = next();
-        b.output("pc", 32, p[0], p[1]);
+        b.outputOutward("pc", 32, p[0], p[1]);
         p = next();
-        b.output("halt", 1, p[0], p[1]);
+        b.outputOutward("halt", 1, p[0], p[1]);
         b.commit();
     }
 }

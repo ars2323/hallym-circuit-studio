@@ -89,7 +89,6 @@
       <a name="label" val="fa2"/>
     </comp>
     <comp lib="0" loc="(400,260)" name="Tunnel">
-      <a name="facing" val="north"/>
       <a name="label" val="s1"/>
     </comp>
     <comp lib="0" loc="(300,380)" name="Constant">
@@ -120,7 +119,6 @@
     </comp>
     <comp lib="0" loc="(300,240)" name="Constant"/>
     <comp lib="0" loc="(400,120)" name="Tunnel">
-      <a name="facing" val="north"/>
       <a name="label" val="s0"/>
     </comp>
     <comp lib="0" loc="(380,560)" name="Tunnel">
@@ -138,7 +136,6 @@
       <a name="label" val="s1"/>
     </comp>
     <comp lib="0" loc="(400,400)" name="Tunnel">
-      <a name="facing" val="north"/>
       <a name="label" val="s2"/>
     </comp>
     <comp lib="0" loc="(680,340)" name="Tunnel">
@@ -164,7 +161,6 @@
       <a name="value" val="0x0"/>
     </comp>
     <comp lib="0" loc="(400,540)" name="Tunnel">
-      <a name="facing" val="north"/>
       <a name="label" val="s3"/>
     </comp>
     <comp lib="0" loc="(300,100)" name="Constant"/>

@@ -78,40 +78,41 @@ public final class DemoDatapath {
         b.input("WD", 32, 100, 250);
         b.input("RegWrite", 1, 100, 300);
         b.input("clk", 1, 100, 350);
-        b.output("RD1", 32, 900, 100);
-        b.output("RD2", 32, 900, 150);
+        b.outputOutward("RD1", 32, 900, 100);
+        b.outputOutward("RD2", 32, 900, 200); // 32비트 핀(높이 80)이 RD1과 겹치지 않게(D-156)
         b.constant("r0", 32, 0, 300, 450);
         // 낮은 두 비트로 레지스터를 고른다
         String[] sel = {"RR1", "RR2", "WR"};
         for (int i = 0; i < sel.length; i++) {
             Component s = b.add("Wiring", "Splitter", 250, 120 + 60 * i, "fanout", "2", "incoming", "5", "bit0", "0",
                     "bit1", "0", "bit2", "1", "bit3", "1", "bit4", "1");
-            b.tunnel(s, 0, sel[i]);
-            b.tunnel(s, 1, sel[i] + "lo");
+            b.tunnelOutward(s, 0, sel[i]);
+            b.tunnelOutward(s, 1, sel[i] + "lo");
         }
-        Component dec = b.add("Plexers", "Decoder", 400, 600, "select", "2", "enable", "false");
-        b.tunnel(dec, 4, "WRlo");
+        // 출력 터널(sel1~3)이 AND 게이트 입력 터널(RegWrite)과 겹치지 않게 왼쪽에 둔다(D-156)
+        Component dec = b.add("Plexers", "Decoder", 340, 600, "select", "2", "enable", "false");
+        b.tunnelOutward(dec, 4, "WRlo");
         for (int r = 1; r <= 3; r++) {
             Component and = b.add("Gates", "AND Gate", 520, 500 + 60 * r, "inputs", "2", "size", "30");
-            b.tunnel(dec, r, "sel" + r);
-            b.tunnel(and, 1, "sel" + r);
-            b.tunnel(and, 2, "RegWrite");
-            b.tunnel(and, 0, "we" + r);
+            b.tunnelOutward(dec, r, "sel" + r);
+            b.tunnelOutward(and, 1, "sel" + r);
+            b.tunnelOutward(and, 2, "RegWrite");
+            b.tunnelOutward(and, 0, "we" + r);
             Component reg = b.add("Memory", "Register", 700, 300 + 70 * r, "width", "32", "label", "$" + r);
-            b.tunnel(reg, 1, "WD");
-            b.tunnel(reg, 2, "clk");
-            b.tunnel(reg, 4, "we" + r);
-            b.tunnel(reg, 0, "r" + r);
+            b.tunnelOutward(reg, 1, "WD");
+            b.tunnelOutward(reg, 2, "clk");
+            b.tunnelOutward(reg, 4, "we" + r);
+            b.tunnelOutward(reg, 0, "r" + r);
         }
         String[][] read = {{"RR1lo", "RD1"}, {"RR2lo", "RD2"}};
         for (int i = 0; i < read.length; i++) {
             Component m = b.add("Plexers", "Multiplexer", 850, 100 + 150 * i + 400, "select", "2", "width", "32",
                     "enable", "false");
             for (int r = 0; r < 4; r++) {
-                b.tunnel(m, r, "r" + r);
+                b.tunnelOutward(m, r, "r" + r);
             }
-            b.tunnel(m, 4, read[i][0]);
-            b.tunnel(m, m.getEnds().size() - 1, read[i][1]);
+            b.tunnelOutward(m, 4, read[i][0]);
+            b.tunnelOutward(m, m.getEnds().size() - 1, read[i][1]);
         }
         b.commit();
         return c;
@@ -124,39 +125,39 @@ public final class DemoDatapath {
         file.addCircuit(c);
         CircuitBuilder b = new CircuitBuilder(file, c);
         b.input("A", 32, 100, 100);
-        b.input("B", 32, 100, 150);
-        b.input("ALUOp", 2, 100, 200);
-        b.output("Result", 32, 900, 100);
-        b.output("Zero", 1, 900, 150);
+        b.input("B", 32, 100, 200); // 32비트 핀이 A와 겹치지 않게(D-156)
+        b.input("ALUOp", 2, 100, 250);
+        b.outputOutward("Result", 32, 900, 100);
+        b.outputOutward("Zero", 1, 900, 150);
         Component add = b.add("Arithmetic", "Adder", 400, 300, "width", "32");
         Component sub = b.add("Arithmetic", "Subtractor", 400, 400, "width", "32");
         Component and = b.add("Gates", "AND Gate", 400, 500, "width", "32", "inputs", "2", "size", "30");
         Component or = b.add("Gates", "OR Gate", 400, 600, "width", "32", "inputs", "2", "size", "30");
         for (Component x : new Component[] {add, sub}) {
-            b.tunnel(x, 0, "A");
-            b.tunnel(x, 1, "B");
+            b.tunnelOutward(x, 0, "A");
+            b.tunnelOutward(x, 1, "B");
         }
         for (Component x : new Component[] {and, or}) {
-            b.tunnel(x, 1, "A");
-            b.tunnel(x, 2, "B");
+            b.tunnelOutward(x, 1, "A");
+            b.tunnelOutward(x, 2, "B");
         }
-        b.tunnel(add, 2, "sum");
-        b.tunnel(sub, 2, "diff");
-        b.tunnel(and, 0, "andv");
-        b.tunnel(or, 0, "orv");
+        b.tunnelOutward(add, 2, "sum");
+        b.tunnelOutward(sub, 2, "diff");
+        b.tunnelOutward(and, 0, "andv");
+        b.tunnelOutward(or, 0, "orv");
         Component m = b.add("Plexers", "Multiplexer", 650, 450, "select", "2", "width", "32", "enable", "false");
         String[] in = {"sum", "diff", "andv", "orv"};
         for (int i = 0; i < 4; i++) {
-            b.tunnel(m, i, in[i]);
+            b.tunnelOutward(m, i, in[i]);
         }
-        b.tunnel(m, 4, "ALUOp");
-        b.tunnel(m, m.getEnds().size() - 1, "Result");
+        b.tunnelOutward(m, 4, "ALUOp");
+        b.tunnelOutward(m, m.getEnds().size() - 1, "Result");
         Component zero = b.add("Wiring", "Constant", 700, 620, "width", "32", "value", "0x0");
         Component cmp = b.add("Arithmetic", "Comparator", 800, 610, "width", "32");
-        b.tunnel(cmp, 0, "Result");
+        b.tunnelOutward(cmp, 0, "Result");
         b.wire(zero.getEnds().get(0).getLocation(), cmp.getEnds().get(1).getLocation().translate(-40, 0));
         b.wire(cmp.getEnds().get(1).getLocation().translate(-40, 0), cmp.getEnds().get(1).getLocation());
-        b.tunnel(cmp, 3, "Zero");
+        b.tunnelOutward(cmp, 3, "Zero");
         b.commit();
         return c;
     }
@@ -288,14 +289,14 @@ public final class DemoDatapath {
         for (int i = 0; i < ctl.length; i++) {
             Component pin = b.add("Wiring", "Pin", 100, 420 + 50 * i, "width", ctl[i][1], "tristate", "false",
                     "label", ctl[i][0], "labelloc", "north");
-            b.tunnel(pin, 0, ctl[i][0]); // 원조 핀은 떠 있지 않게(값 0에서 시작)
+            b.tunnelOutward(pin, 0, ctl[i][0]); // 원조 핀은 떠 있지 않게(값 0에서 시작)
         }
         Component clock = b.add("Wiring", "Clock", 100, 700);
-        b.tunnel(clock, 0, "clk");
+        b.tunnelOutward(clock, 0, "clk");
 
         // 테스트용 halt(PC 아래): PC가 0x10이면 1
         Component cmp = b.add("Arithmetic", "Comparator", 360, 460, "width", "32");
-        b.tunnel(cmp, 0, "pc");
+        b.tunnelOutward(cmp, 0, "pc");
         b.add("Wiring", "Constant", 320, 470, "width", "32", "value", "0x10");
         halt = b.add("Wiring", "Pin", 420, 460, "facing", "west", "output", "true", "label", "halt");
         path(b, cmp.getEnds().get(3).getLocation(), halt.getLocation());
