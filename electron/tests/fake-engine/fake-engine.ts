@@ -39,9 +39,19 @@
    FAKE_ENGINE_OPEN_MESSAGE=<text> file.open reports it as a loader message
    A restarted engine (engine.hello with an idFloor), for the tests of recovery:
    FAKE_ENGINE_FAIL_AFTER_RESTART=<method>   answers that call with an error (-32603)
-   FAKE_ENGINE_CRASH_AFTER_RESTART=<method>  exits (code 70) on that call */
+   FAKE_ENGINE_CRASH_AFTER_RESTART=<method>  exits (code 70) on that call
 
-import { readFileSync, writeFileSync } from 'node:fs';
+   A .circ with a fixture of the same name in tests/fixtures/circuits/
+   (ref-mips, demo-datapath: written by the real engine,
+   ./gradlew :engine:canvasFixtures) is answered from it instead: its
+   circuits' snapshots for model.circuit, and on sim.watch, sim.cycles and
+   sim.reset the values the real engine sent for that very view -- the
+   circuit, or a subcircuit instance watched with a path (keyed
+   "circuit/instance"), with bodies --
+   so the Canvas's tests and screenshots draw real circuits, the same
+   pixels every time. */
+
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import * as mips from './fake-mips.ts';
@@ -55,6 +65,8 @@ interface File {
   fileId: string; name: string; path: string | null; bytes: Buffer | null; circuits: Circuit[]; main: string; libs: string[];
   cycle: number; ticking: boolean; hz: number; on: boolean; dirty: boolean; undo: Step[]; redo: Step[]; diag: Diag | null; ran: boolean;
   mips: mips.MipsState;     // mips.* (fake-mips.ts, N-16)
+  // a canvas fixture (tests/fixtures/circuits): its circuits under this file's circuit ids, the watched circuit
+  fixture?: Fixture; fixtureIds?: Map<string, string>; watched?: { circuitId: string; watchKey: string; root: string; path: string[] };
 }
 
 // Messages (diag.*): the real engine's, for a few circuits (tests/fixtures/messages.json).
@@ -67,6 +79,10 @@ interface Diag { static: FixtureMessage[]; afterCycles?: FixtureMessage[]; cycle
 const DIAG: Record<string, Diag> = (() => {
   try { return JSON.parse(readFileSync(path.join(import.meta.dirname, '../fixtures/messages.json'), 'utf8')) as Record<string, Diag>; } catch { return {}; }
 })();
+interface Frame { nets: Record<string, string>; bodies: Record<string, unknown> }
+interface Fixture { main: string; circuits: { circuitId: string; name: string; components: (Comp & { subcircuit?: string })[]; wires: Circuit['wires']; nets: unknown[]; junctions: unknown[] }[]; watch: Record<string, Frame[]> }
+
+const FIXTURES = path.join(import.meta.dirname, '..', 'fixtures', 'circuits');
 
 const modes = new Set((process.env.FAKE_ENGINE_MODE ?? '').split(',').filter(Boolean));
 const crashOn = process.env.FAKE_ENGINE_CRASH_ON ?? '';
@@ -213,7 +229,15 @@ const methods: Record<string, (p: Params) => unknown> = {
     const fileId = fileIdFor(p);
     const r = readCirc(text);
     const f: File = { fileId, name: stem(path.basename(file)), path: file, bytes, circuits: r.circuits, main: r.main, libs: r.libs, cycle: 0, ticking: false, hz: 1, on: true, dirty: false, undo: [], redo: [], diag: DIAG[path.basename(file)] ?? null, ran: false, mips: mips.newState() };
+    const fx = path.join(FIXTURES, `${stem(path.basename(file))}.json`);
+    if (existsSync(fx)) {
+      f.fixture = JSON.parse(readFileSync(fx, 'utf8')) as Fixture;
+      // the fixture's parts, copied: this fake's edits change them (and model.circuit shows the edits)
+      f.circuits = f.fixture.circuits.map((c) => ({ circuitId: c.circuitId, name: c.name, comps: structuredClone(c.components), wires: structuredClone(c.wires) }));
+      f.main = f.fixture.circuits.find((c) => c.circuitId === f.fixture!.main)?.name ?? f.main;
+    }
     adopt(f, p);
+    if (f.fixture) f.fixtureIds = new Map(f.circuits.map((c, i) => [c.circuitId, f.fixture!.circuits[i].circuitId]));
     files.set(f.fileId, f);
     const messages = process.env.FAKE_ENGINE_OPEN_MESSAGE ? [process.env.FAKE_ENGINE_OPEN_MESSAGE] : [];
     return { fileId: f.fileId, name: f.name, circuits: refs(f), main: mainId(f), libraries: libRefs(f), messages };
@@ -234,6 +258,21 @@ const methods: Record<string, (p: Params) => unknown> = {
   'file.close': (p) => { mips.close(fileOf(p)); files.delete(String(p.fileId)); return {}; },
   'file.dirty': (p) => ({ dirty: fileOf(p).dirty }),
   'model.circuit': (p) => {
+    const f = fileOf(p);
+    if (f.fixture) {
+      const snap = f.fixture.circuits.find((x) => x.circuitId === f.fixtureIds!.get(String(p.circuitId)));
+      const c = f.circuits.find((x) => x.circuitId === p.circuitId);
+      if (!snap || !c) throw new Failure(1, `no such circuit id: ${String(p.circuitId)}`, { kind: 'circuit', id: String(p.circuitId) });
+      // the engine's parts as recorded, the fake's own edits on top (the nets only while there are none);
+      // the fixture's circuit ids as this file's (a recovered file keeps the old engine's)
+      const edited = f.undo.length > 0 || f.redo.length > 0;
+      const comps = c.comps.map((k) => {
+        const x = k as Comp & { ports?: unknown; subcircuit?: string };
+        if (x.ports === undefined) return compJson(k);
+        return x.subcircuit ? { ...x, subcircuit: currentId(f, x.subcircuit) } : x;
+      });
+      return { circuitId: c.circuitId, name: c.name, components: comps, wires: c.wires, nets: edited ? [] : snap.nets, junctions: edited ? [] : snap.junctions };
+    }
     const c = circuitOf(p);
     return { circuitId: c.circuitId, name: c.name, components: c.comps.map(compJson), wires: c.wires, nets: [], junctions: [] };
   },
@@ -307,6 +346,7 @@ const methods: Record<string, (p: Params) => unknown> = {
   'sim.reset': (p) => {
     const f = fileOf(p);
     f.cycle = 0; f.ticking = false; f.on = true;
+    sendFrames(f, 0, 0);
     setImmediate(() => notify('sim.state', simState(f)));
     mips.reset(f, notify);
     if (f.ran) { f.ran = false; if (f.diag?.afterCycles) diagChanged(f); }
@@ -315,12 +355,14 @@ const methods: Record<string, (p: Params) => unknown> = {
   'sim.cycles': (p) => {
     const f = fileOf(p);
     if (!f.on) throw new Failure(4, 'the simulation stopped because the circuit oscillates', { reason: 'oscillating' });
+    const from = f.cycle;
     f.cycle += Number(p.n ?? 1);
     if (!f.ran && f.diag?.afterCycles && f.cycle >= (f.diag.cycles ?? 1)) {
       f.ran = true;
       if (f.diag.afterCycles.some((m) => m.code === 'OSCILLATION')) f.on = false; // the real engine turns the simulation off
       diagChanged(f);
     }
+    sendFrames(f, from + 1, f.cycle);
     if (modes.has('oscillate')) {
       f.on = false;
       setImmediate(() => notify('engine.log', { level: 'warn', message: 'cycles stopped: the simulation is off (oscillation)' }));
@@ -338,7 +380,24 @@ const methods: Record<string, (p: Params) => unknown> = {
   },
   'sim.enable': (p) => { const f = fileOf(p); f.on = Boolean(p.on); setImmediate(() => notify('sim.state', simState(f))); return {}; },
   'sim.state': (p) => simState(fileOf(p)),
-  'sim.watch': (p) => { circuitOf(p); return {}; },
+  'sim.watch': (p) => {
+    const f = fileOf(p);
+    if (!f.fixture) { circuitOf(p); return {}; }
+    // the circuit at the end of the instance path; its values are the ones the real engine sent for
+    // that very view (the fixture's watch data is keyed "root" or "root/instance…": an instance's
+    // values are its own, not those of the circuit opened on its own)
+    const root = f.fixtureIds!.get(String(p.circuitId)) ?? '';
+    let circuitId = root;
+    const pathIds = Array.isArray(p.path) ? p.path.map(String) : [];
+    for (const id of pathIds) {
+      const inst = f.fixture.circuits.find((c) => c.circuitId === circuitId)?.components.find((k) => k.id === id);
+      if (!inst?.subcircuit) throw new Failure(1, `no such instance path: ${pathIds.join('/')}`, { kind: 'instance path', id: pathIds.join('/') });
+      circuitId = inst.subcircuit;
+    }
+    f.watched = { circuitId: currentId(f, circuitId), watchKey: [root, ...pathIds].join('/'), root: String(p.circuitId), path: pathIds };
+    sendFrames(f, 0, f.cycle);   // every net as it is now: the frames up to this cycle
+    return {};
+  },
   'diag.list': (p) => { const f = fileOf(p); return { fileId: f.fileId, messages: diagList(f) }; },
   // ---- mips.* (fake-mips.ts, N-16)
   'mips.load': (p) => {
@@ -425,6 +484,32 @@ function undoRedo(f: File, which: 'undo' | 'redo'): unknown {
   const params = { fileId: f.fileId, circuitId: c.circuitId, removed, added: [...c.comps.map(compJson), ...c.wires], nets: [], junctions: [], dirty: true };
   setImmediate(() => notify('model.changed', params));
   return { changed: true };
+}
+
+// A fixture circuit's id as this file's.
+function currentId(f: File, fixtureId: string): string {
+  for (const [cur, fx] of f.fixtureIds ?? []) if (fx === fixtureId) return cur;
+  return fixtureId;
+}
+
+// The fixture's values for frames from … to (merged): frame 0 is every net, then one frame a cycle.
+function sendFrames(f: File, from: number, to: number): void {
+  const w = f.watched;
+  if (!f.fixture || !w) return;
+  const frames = f.fixture.watch[w.watchKey] ?? [];   // a view the fixture did not record: no values
+  const nets: Record<string, string> = {};
+  const bodies: Record<string, unknown> = {};
+  for (let k = from; k <= to; k++) {
+    // past the recorded cycles: the last one again (the circuit keeps its state)
+    const fr = frames[Math.min(k, frames.length - 1)];
+    if (!fr || (k >= frames.length && k > from)) continue;
+    Object.assign(nets, fr.nets);
+    Object.assign(bodies, fr.bodies);
+  }
+  if (!Object.keys(nets).length && !Object.keys(bodies).length) return;
+  const params: Record<string, unknown> = { fileId: f.fileId, circuitId: w.circuitId, nets, bodies };
+  if (w.path.length) { params.root = w.root; params.path = w.path; }
+  setImmediate(() => notify('sim.values', params));
 }
 
 function handle(line: string): void {

@@ -271,3 +271,20 @@ tasks.register<Zip>("runtimeZip") {
     destinationDirectory = layout.buildDirectory.dir("distributions")
     from(runtime) { into("runtime") }
 }
+
+// N-05·N-06(D-137): 화면(electron/)의 캔버스 시험 자료. 엔진 API로 부품 종류 × 대표 속성 조합의 경계·포트(기하
+// 동등성)와 ref-mips·demo-datapath의 스냅숏·값 프레임(가짜 엔진이 그대로 돌려준다)을 electron/tests/fixtures/에 쓴다.
+// CI는 다시 만들어 저장소의 것과 한 글자라도 다르면 실패한다.
+val canvasFixtures by tasks.registering(JavaExec::class) {
+    dependsOn(stage)
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass = "kr.ac.hallym.hcs.engine.CanvasFixtures"
+    args(rootProject.file("electron/tests/fixtures").absolutePath, rootProject.projectDir.absolutePath)
+    systemProperty("java.awt.headless", "true")
+    systemProperty("java.util.prefs.PreferencesFactory", "kr.ac.hallym.hcs.engine.prefs.MemoryPreferencesFactory")
+    systemProperty("hcs.bundledMips", mipsJar.get().archiveFile.get().asFile.absolutePath)
+    systemProperty("hcs.refMips", rootProject.file("tests/mips/ref-mips.circ").absolutePath)
+    systemProperty("hcs.circDir", rootProject.file("tests/circ").absolutePath)
+    systemProperty("user.language", "en")
+    systemProperty("user.country", "US")
+}

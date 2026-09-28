@@ -60,6 +60,7 @@ async function stageApp(): Promise<void> {
   writeFileSync(at('renderer/app/index.html'), packagedHtml);
   cpSync(path.join(root, 'src/renderer/app/app.css'), at('renderer/app/app.css'));
   cpSync(path.join(root, 'src/renderer/shared/shared.css'), at('renderer/shared/shared.css'));
+  cpSync(path.join(root, 'src/renderer/canvas/canvas.css'), at('renderer/canvas/canvas.css'));
   cpSync(path.join(root, 'src/renderer/assets'), at('renderer/assets'), { recursive: true });
   for (const d of ['character', 'logo']) cpSync(path.join(repo, 'assets/hallym', d), at('renderer/hallym', d), { recursive: true });
   cpSync(path.join(root, 'src/main/preload.cjs'), at('preload.cjs'));

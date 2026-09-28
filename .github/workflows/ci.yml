@@ -40,6 +40,17 @@ jobs:
         run: ./gradlew --no-daemon :app:testConstantIdentityHash
       - name: Engine server tests (N-03; again with a constant identity hash, D-129)
         run: ./gradlew --no-daemon :engine:test && ./gradlew --no-daemon :engine:test -Phcs.constantHash=true
+      # N-06(D-137): 부품 종류 × 대표 속성 조합의 경계·포트와 캔버스 시험 회로를 엔진 API로 다시 만들어 저장소의 것과
+      # 한 글자라도 다르면 실패하고, 방금 만든 자료로 렌더러 등록표의 기하 동등성 검사(node)를 돈다
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Canvas fixtures regenerate unchanged, geometry parity (N-06)
+        run: |
+          ./gradlew --no-daemon :engine:canvasFixtures
+          git diff --exit-code -- electron/tests/fixtures
+          test -z "$(git status --porcelain -- electron/tests/fixtures)"
+          node --test electron/tests/unit/canvas-geometry.test.ts
       - name: GUI tests (Xvfb)
         run: xvfb-run -a ./gradlew --no-daemon :app:guiTest
       - name: Test reports

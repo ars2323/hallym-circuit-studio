@@ -12,12 +12,12 @@ v1(Swing, `swing-final`)의 기능을 v2(Electron 화면 + Java 엔진)로 모�
 | 번호 | 기능 | v2 항목 | v2 PR | e2e | 비고 |
 | --- | --- | --- | --- | --- | --- |
 | B-01 | 여러 파일 탭, 탭 간 라이브러리 반영(PLAN 11.1) | N-11 |  |  |  |
-| B-02 | 확대·축소(Ctrl+스크롤, Ctrl+±), 화면 맞춤(Ctrl+0), 배율 표시(11.2) | N-05 |  |  |  |
+| B-02 | 확대·축소(Ctrl+스크롤, Ctrl+±), 화면 맞춤(Ctrl+0), 배율 표시(11.2) | N-05 | #425 | canvas.e2e "zoom and pan" (Ctrl+휠 포인터 기준, Ctrl±, Ctrl+0, 25–400 %, 상태 표시줄 배율) |  |
 | B-03 | 우클릭 메뉴(부품·선·빈 곳·서브회로, 요약 줄) | N-10 |  |  |  |
 | B-04 | Quick Attributes(빠른 속성 창)과 속성 표 | N-10 |  |  |  |
 | B-05 | 검색 팔레트(Ctrl+K), 부품 목록 검색 | N-12 |  |  |  |
 | B-06 | 도구 모음·상태 표시줄·도구 조작(Edit·Poke·Wire·Text…) | N-17·N-08 |  |  |  |
-| B-07 | 라벨 칩, 터널 색 칩, 포트 이름, 마우스 오버 정보 | N-05 |  |  |  |
+| B-07 | 라벨 칩, 터널 색 칩, 포트 이름, 마우스 오버 정보 | N-05 | #425 | canvas.e2e "hover, selection…", "the drawing rules"; unit canvas-labels |  |
 | B-08 | 터널 이동(짝 터널로), 찾기(Ctrl+F) | N-12 |  |  |  |
 | B-09 | 넷 강조(Highlight Net), 넷 정보 | N-15 |  |  |  |
 | B-10 | 정적 진단과 Messages 탭(정상 회로 0건) | N-13 |  | messages.e2e.ts "a broken circuit…", "nothing to say…"; 엔진 `DiagTest.normalCircuitsHaveNoMessagesBeforeAndAfterCycles` | D-143. 정상 회로 0건은 열 때와 6사이클 뒤 모두 |
@@ -25,7 +25,7 @@ v1(Swing, `swing-final`)의 기능을 v2(Electron 화면 + Java 엔진)로 모�
 | B-12 | 서브회로 인스턴스 안내와 포트 변경 영향 알림 | N-11 |  |  |  |
 | B-13 | 자동 저장·복구 파일 | N-19 |  |  |  |
 | B-14 | Splitter 편집기(범위 입력, R/I/J 프리셋, 팔 라벨) | N-12 |  |  |  |
-| B-15 | MIPS 부품: Instruction·Data Memory, Stack, Console, Radix Probe | N-05·N-16 |  |  |  |
+| B-15 | MIPS 부품: Instruction·Data Memory, Stack, Console, Radix Probe | N-05·N-16 | #425 | canvas.e2e "values after ticks"(Instruction Memory 몸체 줄); unit canvas-registry "the MIPS bodies" |  |
 | B-16 | 실행 이미지(.hmx) 불러오기와 요약(.s 불러오기는 D-141에서 없앰: 옛 .s 경로는 사실 `assemblySource`) | N-16 | #428 | `program.e2e.ts` "Load Program…: executable images only…", "a file that cannot be loaded…", "several Instruction Memories…", "PC ≠ entry at cycle 0…", "a memory that points to a .s…" · `real-engine.e2e.ts` "Load Program puts data.hmx into ref-mips…" · 엔진 `ProgramsTest` | D-147. 트랙 A와 같은 `ProgramLoader` 길(`mips.load`), 불러오면 처음으로. 부품 우클릭 메뉴(I-98)는 N-10이 같은 `api.loadProgram`을 부른다 |
 | B-17 | hcs-mips.jar 복사 알림, 새 파일에서 Hallym MIPS 부품 바로 사용 | N-21 |  |  |  |
 | B-18 | Mark as PC, Register Mapping | N-14 |  |  |  |
@@ -36,24 +36,24 @@ v1(Swing, `swing-final`)의 기능을 v2(Electron 화면 + Java 엔진)로 모�
 
 | 번호 | 기능 | v2 항목 | v2 PR | e2e | 비고 |
 | --- | --- | --- | --- | --- | --- |
-| S-01 | 칩이 선을 가림 | N-05 |  |  |  |
-| S-02 | 팔 라벨과 선 겹침 | N-05 |  |  |  |
+| S-01 | 칩이 선을 가림 | N-05 | #425 | canvas.e2e "the drawing rules"(칩이 선·칩 위에 없음); 못 피한 칩 아래 선은 칩 위에 다시 그림(canvas.ts drawChips) |  |
+| S-02 | 팔 라벨과 선 겹침 | N-05 | #425 | unit canvas-labels "splitter arms" |  |
 | S-03 | 따라온 선의 군더더기 | N-08 |  |  |  |
 | S-04 | 끌기 직후 빠른 속성 창이 칩을 가림 | N-10 |  |  |  |
-| S-05 | 출력 핀 라벨 칩이 선 위에 겹침 | N-05 |  |  |  |
-| S-06 | 포트 이름 덧그림 과밀 | N-05 |  |  |  |
-| S-07 | Register 값 표시 겹침 | N-05 |  |  |  |
-| S-08 | 기본 모양 서브회로의 포트 이름 | N-05 |  |  |  |
+| S-05 | 출력 핀 라벨 칩이 선 위에 겹침 | N-05 | #425 | unit canvas-labels "a label chip … moves off a wire"; canvas.e2e "the drawing rules" |  |
+| S-06 | 포트 이름 덧그림 과밀 | N-05 | #425 | unit canvas-labels "port names"(바깥, 선 비킴, 칩과 안 겹침, 몸체 글자 중복 없음) |  |
+| S-07 | Register 값 표시 겹침 | N-05 | #425 | unit canvas-labels "a 32-bit register's value is a chip" |  |
+| S-08 | 기본 모양 서브회로의 포트 이름 | N-05 | #425 | unit canvas-labels "port names"(기본 모양만) |  |
 | S-09 | 찾기 결과의 내부 포트 이름 | N-12 |  |  |  |
-| S-10 | 화면 맞춤 여백 | N-05 |  |  |  |
+| S-10 | 화면 맞춤 여백 | N-05 | #425 | canvas.e2e "zoom and pan"(맞춤 가운데·여백); unit canvas-scene "zoom and pan" |  |
 | S-11 | 왼쪽 패널 빈 공간 | N-17 |  |  |  |
-| S-12 | 제어 핀 라벨 중복 | N-05 |  |  |  |
-| S-13 | 400% 굵기 | N-05 |  |  |  |
+| S-12 | 제어 핀 라벨 중복 | N-05 | #425 | unit canvas-labels "a pin whose port has a tunnel of its own name" |  |
+| S-13 | 400% 굵기 | N-05 | #425 | unit canvas-draw "widths on screen"(25·100·400 %) |  |
 | S-20 | 회귀 확인: 원조 도구 모음·탐색기 아이콘 줄 숨김, 위쪽 네 줄 | N-17 |  |  |  |
-| S-21 | 회귀 확인: 배율 표시 하나와 실제 배율 동기화 | N-05 |  |  |  |
+| S-21 | 회귀 확인: 배율 표시 하나와 실제 배율 동기화 | N-05 | #425 | canvas.e2e "zoom and pan"(상태 표시줄 배율 하나) |  |
 | S-22 | 회귀 확인: 스플리터 원조 "0-7" 표시와 팔 라벨 이중 표시 없음 | N-12 |  |  |  |
-| S-23 | 회귀 확인: MIPS 부품 포트 이름 안쪽 14px, 콘솔 출력 영역 | N-05 |  |  |  |
-| S-24 | 회귀 확인: 터널 색 12색, 가까운 다른 이름은 다른 색 | N-05 |  |  |  |
+| S-23 | 회귀 확인: MIPS 부품 포트 이름 안쪽 14px, 콘솔 출력 영역 | N-05 | #425 | unit canvas-registry "the MIPS bodies"(포트 이름 안쪽 14); canvas-geometry |  |
+| S-24 | 회귀 확인: 터널 색 12색, 가까운 다른 이름은 다른 색 | N-05 | #425 | unit canvas-labels "tunnel colours"(v1 해시·12색·가까운 이름) |  |
 | S-25 | 회귀 확인: 우클릭 메뉴 순서와 요약 줄 단수·복수 | N-10 |  |  |  |
 | S-26 | 회귀 확인: UI 언어(D-049) | N-20 |  |  |  |
 | S-27 | 회귀 확인: Stack은 used N B (peak)만 | N-14 |  |  |  |
@@ -63,7 +63,7 @@ v1(Swing, `swing-final`)의 기능을 v2(Electron 화면 + Java 엔진)로 모�
 | W-01 | 결정적 길 찾기 | N-08 |  |  |  |
 | W-02 | 따라온 선 정리 단계 | N-08 |  |  |  |
 | W-03 | 묶음 재배선 | N-08 |  |  |  |
-| W-04 | 연결점과 넷(#82) | N-05 |  |  |  |
+| W-04 | 연결점과 넷(#82) | N-05 | #425 | unit canvas-scene "wires: the engine's dots and every T, jumps"; unit canvas-draw |  |
 | W-05 | 새 선 A.4 검사기 통일 | N-08 |  |  |  |
 | P-01 | 영향 경로(#83) | N-15 |  |  |  |
 | P-07 | Signal Flow 애니메이션(추가 지시, P-01 다음) | N-15 |  |  |  |
@@ -90,7 +90,7 @@ v1(Swing, `swing-final`)의 기능을 v2(Electron 화면 + Java 엔진)로 모�
 | D-06 | 동적 고장 회로 모음 | N-13 |  | 엔진 `DiagTest.everyFaultCircuitGivesOneMessageInBothLanguages` | D-143. v1 모음 19개 + 가까운 이름 3개(`static-tunnel-near-*`), v2 문구 골든 `messages.v2.*.expected` |
 | E-01 | N개 복제 | N-21 |  |  |  |
 | E-02 | 정렬·같은 간격, 선택 필터 | N-21 |  |  |  |
-| E-03 | 버스 폭 표시와 선 색 범례 | N-05 |  |  |  |
+| E-03 | 버스 폭 표시와 선 색 범례 | N-05 | #425 | canvas.e2e "demo-datapath is drawn"(범례 = 화면 선 색, 버스 폭 끄기); unit canvas-scene·canvas-labels "bus widths" |  |
 | E-04 | 신호 그룹 색 | N-15 |  |  |  |
 | E-05 | Undo History | N-21 |  |  |  |
 | E-06 | Create Submission | N-21 |  |  |  |

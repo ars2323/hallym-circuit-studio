@@ -16,14 +16,20 @@
      status bar  facts only
 
    The engine (a Java process the main process runs, docs/engine-api.md)
-   has the circuits; this page shows what it says.  Drawing the Canvas is
-   item N-05: until then the Canvas says what the circuit holds.  Panels
-   with nothing to show say, in one sentence, what fills them.
+   has the circuits; this page shows what it says.  The Canvas
+   (../canvas/, N-05) draws the circuit from the engine's snapshot, its
+   changes and its values.  Panels with nothing to show say, in one
+   sentence, what fills them.
 
    Nothing is restored from an earlier run and nothing is written but the
    files the student saves (the lab-PC rule; src/main/main.ts). */
 
-import type { CircuitRef, ConsoleUpdate, DiagList, DiagMessage, EngineStatus, LibraryGroup, MipsFacts, NewResult, Recovered, Reloaded, SimState, Snapshot } from '../../main/protocol.ts';
+import type { CircuitRef, ConsoleUpdate, DiagList, DiagMessage, EngineStatus, LibraryGroup, MipsFacts, ModelChanged, NewResult, Recovered, Reloaded, SimState, SimValues, Snapshot } from '../../main/protocol.ts';
+import { CircuitCanvas } from '../canvas/canvas.ts';
+import { legend } from '../canvas/legend.ts';
+import { Scene } from '../canvas/scene.ts';
+import type { View } from '../canvas/view.ts';
+import { zoomControl } from '../canvas/zoom.ts';
 import { aboutDialog } from '../shared/about.ts';
 import { ask } from '../shared/ask.ts';
 import { band } from '../shared/band.ts';
@@ -42,7 +48,7 @@ import { arrange, nothingDragged, PAD, SPLITTER } from './logic/layout.ts';
 import { messageCount } from './logic/messages.ts';
 import { messagesPanel } from './messages.ts';
 import { programs as programController } from './program.ts';
-import { emitReveal, onReveal } from './reveal.ts';
+import { emitReveal, onReveal, type Reveal } from './reveal.ts';
 import { recoveredText } from './logic/recovered.ts';
 import { startScreen } from './start.ts';
 
@@ -53,7 +59,14 @@ const APP_NAME = 'Hallym Circuit Studio';
 
 let engine: EngineStatus = { state: 'starting', generation: 0, hello: null, error: null, detail: null };
 const files = new Files();
-const snapshots = new Map<string, Snapshot>();          // `${fileId} ${circuitId}`
+// The circuits drawn: `${fileId} ${circuitId}`, and inside a subcircuit instance
+// `${fileId} ${circuitId} ${instance ids}` (its values are that instance's).
+const scenes = new Map<string, Scene>();
+const views = new Map<string, View>();                 // each scene's zoom and pan, for this run
+// Inside a subcircuit instance: per circuit tab, the instances gone into and their names.
+const inside = new Map<string, { ids: string[]; names: string[]; circuits: string[] }>();
+const watching = new Map<string, string>();            // fileId → the scene sim.watch was sent for
+let pendingReveal: { k: string; r: Reveal } | null = null; // a message's place, marked once its scene is drawn
 const libraries = new Map<string, LibraryGroup[] | string>(); // by fileId; a string: why there is none
 const diags = new Map<string, DiagMessage[]>();         // Messages by fileId (diag.list, diag.changed; D-143)
 let decided = false;                                    // whether a file was named on the command line is known
@@ -67,6 +80,19 @@ let untitled = 0;
 const FREQUENCIES: [string, number][] = [['1 Hz', 1], ['4 Hz', 4], ['16 Hz', 16], ['64 Hz', 64], ['256 Hz', 256], ['1 kHz', 1024], ['4 kHz', 4096]];
 
 const key = (fileId: string, circuitId: string) => `${fileId} ${circuitId}`;
+const sceneKey = (fileId: string, circuitId: string, path: string[] = []) => (path.length ? `${key(fileId, circuitId)} ${path.join('/')}` : key(fileId, circuitId));
+
+// ---- the Canvas ------------------------------------------------------------------------
+
+const board = new CircuitCanvas({
+  onView: (v) => zoomCtl.update(v.zoom),
+  onEnter: (id) => enterInstance(id),
+});
+const zoomCtl = zoomControl({
+  zoom: () => board.view.zoom, zoomTo: (z) => board.zoomTo(z), fit: () => board.fitView(), step: (d) => board.zoomStep(d),
+});
+const wireLegend = legend({ busWidths: true, onBusWidths: (on) => { board.busWidths = on; board.invalidate(); } });
+let boardKey = '';
 
 // ---- the title bar ------------------------------------------------------------
 
@@ -211,7 +237,7 @@ center.append(canvasPanel, bottomGrip, bottomPanel);
 shell.append(leftCol, leftSplit, center, rightSplit, rightCol);
 const work = h('main', { class: 'work' }, stage, shell);
 
-document.body.append(h('div', { class: 'app' }, bar.root, bar.row, h('div', { class: 'bands' }, notices.root, programBand.root), work, status));
+document.body.append(h('div', { class: 'app' }, bar.root, bar.row, h('div', { class: 'bands' }, notices.root, programBand.root), work, status), zoomCtl.menu, wireLegend.panel);
 
 function toggleBottom(): void {
   bottomCollapsed = !bottomCollapsed;
@@ -352,38 +378,90 @@ async function loadLibrary(fileId: string): Promise<void> {
 }
 
 let wanted = '';
+// The circuit (or the subcircuit instance gone into) the file's tab shows.
+function shown(f: OpenFile): { k: string; root: string; path: string[]; circuit: string; names: string[] } {
+  const inst = inside.get(key(f.fileId, f.circuit));
+  const path = inst?.ids ?? [];
+  return { k: sceneKey(f.fileId, f.circuit, path), root: f.circuit, path, circuit: inst?.circuits.at(-1) ?? f.circuit, names: inst?.names ?? [] };
+}
+
+function shownSnapshot(f: OpenFile): Snapshot | null {
+  return scenes.get(shown(f).k)?.snapshot() ?? null;
+}
+
 function renderCanvas(f: OpenFile): void {
-  const k = key(f.fileId, f.circuit);
-  const s = snapshots.get(k);
+  const w = shown(f);
+  const scene = scenes.get(w.k);
   canvasBody.root.dataset.circuit = files.circuitName(f, f.circuit);
-  if (!s) {
+  if (!scene) {
     canvasBody.fill();
     renderTunnels(null);
-    if (wanted !== k) { wanted = k; void loadSnapshot(f.fileId, f.circuit); }
+    if (wanted !== w.k) { wanted = w.k; void loadScene(f.fileId, w.circuit, w.k); }
     return;
   }
+  const s = scene.snapshot();
   const facts = circuitFacts(s);
-  if (facts.components === 0 && facts.wires === 0) {
+  if (facts.components === 0 && facts.wires === 0 && !w.path.length) {
     canvasBody.empty({ title: '빈 회로입니다', body: '부품과 선을 놓으면 여기 Canvas에 그려집니다.', pose: 'haram-hari-guide' });
   } else {
-    canvasBody.empty({
-      title: `이 회로에는 부품 ${count(facts.components)}개와 선 ${count(facts.wires)}개가 있습니다`,
-      body: '회로 그림은 이 Canvas에 그려집니다.', pose: 'haram-hari-guide',
-    });
+    if (canvasBody.isEmpty() || board.root.parentElement !== canvasBody.root) canvasBody.fill(board.root);
+    if (board.scene !== scene) {
+      if (board.scene && boardKey) views.set(boardKey, { ...board.view });
+      boardKey = w.k;
+      board.setScene(scene, views.get(w.k));
+    }
+    board.setCrumbs(w.path.length ? [files.circuitName(f, f.circuit), ...w.names] : [], (i) => leaveInstance(f, i));
+    if (pendingReveal?.k === w.k) { board.reveal(pendingReveal.r); pendingReveal = null; }
   }
+  void watch(f.fileId, w.root, w.path, w.k);
   renderTunnels(s);
 }
 
-async function loadSnapshot(fileId: string, circuitId: string): Promise<void> {
-  const k = key(fileId, circuitId);
+async function loadScene(fileId: string, circuitId: string, k: string): Promise<void> {
   try {
-    snapshots.set(k, await api.call<Snapshot>('model.circuit', { fileId, circuitId }));
+    scenes.set(k, new Scene(fileId, await api.call<Snapshot>('model.circuit', { fileId, circuitId })));
   } catch (e) {
     note = { cls: 'err', text: commandError('Canvas', e as CallError) };
   }
   if (wanted === k) wanted = '';
   const f = files.active();
-  if (f && key(f.fileId, f.circuit) === k) { renderCanvas(f); renderStatus(); }
+  if (f && shown(f).k === k) { renderCanvas(f); renderStatus(); }
+}
+
+// The values of what the Canvas shows (docs/engine-api.md sim.watch): one circuit a file.
+async function watch(fileId: string, circuitId: string, path: string[], k: string): Promise<void> {
+  if (watching.get(fileId) === k || engine.state !== 'ready') return;
+  watching.set(fileId, k);
+  try {
+    await api.call('sim.watch', path.length ? { fileId, circuitId, path } : { fileId, circuitId });
+  } catch (e) {
+    watching.delete(fileId);
+    note = { cls: 'err', text: commandError('Canvas', e as CallError) };
+    renderStatus();
+  }
+}
+
+// Double click on a subcircuit instance: its circuit, with that instance's values (Logisim's way in).
+function enterInstance(id: string): void {
+  const f = files.active();
+  const scene = board.scene;
+  const c = scene?.components.get(id);
+  if (!f || !c || c.subcircuit === undefined) return;
+  const base = key(f.fileId, f.circuit);
+  const now = inside.get(base) ?? { ids: [], names: [], circuits: [] };
+  const name = c.attrs.label || files.circuitName(f, c.subcircuit) || c.name;
+  inside.set(base, { ids: [...now.ids, id], names: [...now.names, name], circuits: [...now.circuits, c.subcircuit] });
+  render();
+}
+
+// A crumb: back out to that level (0: the tab's own circuit).
+function leaveInstance(f: OpenFile, level: number): void {
+  const base = key(f.fileId, f.circuit);
+  const now = inside.get(base);
+  if (!now) return;
+  if (level === 0) inside.delete(base);
+  else inside.set(base, { ids: now.ids.slice(0, level), names: now.names.slice(0, level), circuits: now.circuits.slice(0, level) });
+  render();
 }
 
 function renderTunnels(s: Snapshot | null): void {
@@ -414,8 +492,8 @@ function renderStatus(): void {
   if (opening) parts.push(span('', 'Opening file'));
   if (!f && engine.state === 'ready' && !opening) parts.push(span('', 'Ready'));
   if (f) {
-    const s = snapshots.get(key(f.fileId, f.circuit));
-    parts.push(span('', code(files.circuitName(f, f.circuit)),
+    const s = shownSnapshot(f);
+    parts.push(span('', code([files.circuitName(f, f.circuit), ...shown(f).names].join(' › ')),
       s ? ` · ${counted(s.components.length, 'component')} · ${counted(s.wires.length, 'wire')}` : ''));
     const list = diags.get(f.fileId);
     if (list) {
@@ -434,6 +512,7 @@ function renderStatus(): void {
   }
   if (note) parts.push(span(note.cls, note.text));
   parts.push(span('grow'));
+  if (f && board.scene && board.root.isConnected) parts.push(wireLegend.button, zoomCtl.button);
   const v = engineVersion(engine);
   if (v) parts.push(span('engine', v));
   status.replaceChildren(...parts);
@@ -539,7 +618,9 @@ async function closeFile(fileId: string): Promise<void> {
   }
   if (engine.state === 'ready') await api.call('file.close', { fileId }).catch(() => {});
   files.close(fileId);
-  for (const k of [...snapshots.keys()]) if (k.startsWith(`${fileId} `)) snapshots.delete(k);
+  for (const m of [scenes, views, inside]) for (const k of [...m.keys()]) if (k.startsWith(`${fileId} `)) m.delete(k);
+  watching.delete(fileId);
+  if (board.scene?.fileId === fileId) { board.setScene(null); boardKey = ''; }
   libraries.delete(fileId);
   diags.delete(fileId);
   programs.drop(fileId);
@@ -624,6 +705,7 @@ function onEngine(s: EngineStatus): void {
   // Restarting lasts until the files are back (the main process says 'ready' after onRecovered).
   if (s.state === 'restarting') notices.show('엔진이 멈춰서 다시 시작하는 중입니다', 'warn');
   if (s.state === 'ready' && before.state !== 'ready' && notices.text()?.startsWith('엔진을 시작하지 못했습니다')) notices.hide();
+
   render();
   if (s.state === 'failed') void engineFailed();
 }
@@ -631,12 +713,37 @@ function onEngine(s: EngineStatus): void {
 // "Show this place" (a message chosen): the file and the circuit tab here; the
 // Canvas (N-05) and the Cycle View (N-14) listen to the same event for the
 // parts, the instance path and the cycle.
-onReveal((r) => {
-  if (!files.get(r.fileId)) return;
+onReveal((r) => void revealPlace(r));
+
+// The place of a message (reveal.ts): its circuit -- inside the subcircuit instances when a message the
+// simulation found is in one -- then the Canvas marks the parts, wires and nets once that scene is drawn.
+async function revealPlace(r: Reveal): Promise<void> {
+  const f = files.get(r.fileId);
+  if (!f) return;
   files.activate(r.fileId);
-  files.openCircuit(r.fileId, r.circuitId);
+  const tab = r.path.length ? r.root : r.circuitId;
+  files.openCircuit(r.fileId, tab);
+  const base = key(r.fileId, tab);
+  if (r.path.length) {
+    // the instances' names and circuits, from the snapshots down the path
+    const names: string[] = [], circuits: string[] = [];
+    let at = r.root;
+    for (const id of r.path) {
+      const snap = scenes.get(key(r.fileId, at))?.snapshot()
+        ?? await api.call<Snapshot>('model.circuit', { fileId: r.fileId, circuitId: at }).catch(() => null);
+      const c = snap?.components.find((x) => x.id === id);
+      at = c?.subcircuit ?? r.circuitId;
+      circuits.push(at);
+      names.push(c?.attrs.label || files.circuitName(f, at) || c?.name || id);
+    }
+    circuits[circuits.length - 1] = r.circuitId;
+    inside.set(base, { ids: [...r.path], names, circuits });
+  } else {
+    inside.delete(base);
+  }
+  pendingReveal = { k: sceneKey(r.fileId, tab, r.path), r };
   render();
-});
+}
 
 // The engine died and started again, and the main process opened every file
 // again with its unsaved edits (src/main/recovery.ts, D-142).  The files keep
@@ -644,7 +751,14 @@ onReveal((r) => {
 // window asks for everything again.  The simulation starts from Reset.
 function onRecovered(r: Recovered): void {
   const text = recoveredText(r, (fileId) => files.get(fileId)?.name ?? fileId);
-  snapshots.clear();
+  // every part has a new id: the Canvas's scenes and the instance paths go, and come again from the engine;
+  // the files' zoom and pan stay (their file and circuit ids are kept)
+  scenes.clear();
+  inside.clear();
+  watching.clear();
+  pendingReveal = null;
+  board.setScene(null);
+  boardKey = '';
   libraries.clear();
   diags.clear();
   wanted = '';
@@ -671,10 +785,13 @@ api.onNotify((method, params) => {
     if (st.fileId === files.active()?.fileId && FREQUENCIES.some(([, hz]) => hz === st.hz)) frequency.value = String(st.hz);
     render();
   } else if (method === 'model.changed') {
-    const fileId = String(p.fileId);
-    snapshots.delete(key(fileId, String(p.circuitId)));
-    libraries.delete(fileId); // the first part of a pending library puts it in the file
-    if (typeof p.dirty === 'boolean') files.setDirty(fileId, p.dirty);
+    const c = p as unknown as ModelChanged;
+    // The engine is the authority: its change goes into every scene of that circuit (and instances of it).
+    for (const sc of scenes.values()) if (sc.fileId === c.fileId && sc.circuitId === c.circuitId) sc.applyChange(c);
+    libraries.delete(c.fileId); // the first part of a pending library puts it in the file
+    watching.delete(c.fileId);  // an edit makes its circuit the simulation's own: watch the shown one again
+    if (typeof c.dirty === 'boolean') files.setDirty(c.fileId, c.dirty);
+    board.invalidate();
     render();
   } else if (method === 'mips.facts') {
     if (files.get(String(p.fileId))) programs.facts(p as unknown as MipsFacts);
@@ -687,6 +804,13 @@ api.onNotify((method, params) => {
     if (!files.get(fileId)) return;
     diags.set(fileId, (p as unknown as DiagList).messages);
     if (files.active()?.fileId === fileId) { renderMessages(); renderStatus(); }
+  } else if (method === 'sim.values') {
+    const v = p as unknown as SimValues;
+    const sc = scenes.get(v.path?.length ? sceneKey(v.fileId, v.root ?? v.circuitId, v.path) : sceneKey(v.fileId, v.circuitId));
+    if (sc && sc.circuitId === v.circuitId) {
+      sc.applyValues(v);
+      if (board.scene === sc) board.invalidate();
+    }
   } else if (method === 'engine.log') {
     // The engine's log is English, for developers: the window says what it means
     // from sim.state (an oscillation) and from the answers; the log goes to the console only.
@@ -738,6 +862,7 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 'F5') { e.preventDefault(); void run(); return; }
   if (e.key === 'F10') { e.preventDefault(); void cycles(1); return; }
   if (!mod) return;
+  if (board.scene && board.root.isConnected && board.zoomKey(e)) { e.preventDefault(); return; }
   const k = e.key.toLowerCase();
   if (k === 'n') { e.preventDefault(); void newCircuit(); }
   else if (k === 'o') { e.preventDefault(); void openFile(); }

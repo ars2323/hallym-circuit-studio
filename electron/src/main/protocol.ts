@@ -63,6 +63,22 @@ export interface Component {
   attrs: Record<string, string>;
   ports: Port[];
   subcircuit?: string;
+  appearance?: Appearance;  // a subcircuit instance: its circuit's appearance (N-05)
+}
+
+// A subcircuit's appearance (docs/engine-api.md): the original's <appear> SVG elements.
+export interface AppearanceShape {
+  tag: 'rect' | 'ellipse' | 'line' | 'polyline' | 'polygon' | 'path' | 'text' | string;
+  attrs: Record<string, string>;
+  text?: string;
+}
+export interface Appearance {
+  default: boolean;
+  anchor: Point;
+  facing: 'east' | 'west' | 'north' | 'south';
+  shapes: AppearanceShape[];
+  ports: { at: Point; pin?: Point; input: boolean }[];
+  label?: { text: string; facing: string; font: string };
 }
 
 export interface Wire {
@@ -146,6 +162,27 @@ export interface TraceOrigin {
   text?: { ko: string; en: string };          // found: false -- why there is nothing to follow
   origin?: DiagLocation & { cause: string; value: 'E' | 'x'; text: { ko: string; en: string } };
   chain: { circuitId: string; path: string[]; netId: string }[];
+}
+
+// The values of the watched circuit's nets that changed, a frame at a time (docs/engine-api.md sim.values).
+export interface SimValues {
+  fileId: string;
+  circuitId: string;
+  root?: string;
+  path?: string[];
+  nets: Record<string, string>;
+  bodies?: Record<string, Record<string, unknown>>;   // what a part's body shows that no net carries (N-05)
+}
+
+// An edit's result (docs/engine-api.md model.changed).
+export interface ModelChanged {
+  fileId: string;
+  circuitId: string;
+  removed: string[];
+  added: (Component | Wire)[];
+  nets: Net[];
+  junctions: Point[];
+  dirty: boolean;
 }
 
 // Error codes (docs/engine-api.md 2).

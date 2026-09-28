@@ -38,8 +38,9 @@ import kr.ac.hallym.hcs.regress.CircNormalizer;
 
 /**
  * 열기만 한 파일은 저장해도 그대로다(규칙 2.3, D-006, D-149): tests/ 아래와 화면 고정 파일의 모든 .circ를 한 엔진으로
- * 차례로 열고 화면이 여는 동안 하는 일(회로마다 model.circuit, model.library, diag.list, mips.facts, sim.watch, 몇
- * 사이클)을 한 뒤 저장하면 원래 글자와 같다(D-006 정규화). 더 돌리고 한 번 더 저장해도 같다. 새 부품을 쓰는 파일도
+ * 차례로 열고 화면이 여는 동안 하는 일(회로마다 model.circuit과 그 안 서브회로 인스턴스의 모양(appearance), model.library,
+ * diag.list, mips.facts, sim.watch와 값 스트림의 몸체 상태(bodies), 몇 사이클, 캔버스가 서브회로 인스턴스 안으로 들어가
+ * 보기(sim.watch path, N-05))을 한 뒤 저장하면 원래 글자와 같다(D-006 정규화). 더 돌리고 한 번 더 저장해도 같다. 새 부품을 쓰는 파일도
  * 열기만으로는 아무것도 늘지 않는다.
  */
 class OpenSaveParityTest {
@@ -182,9 +183,22 @@ class OpenSaveParityTest {
 
     /** 화면(electron app.ts)이 파일을 열 때 부르는 것 전부와 몇 사이클. */
     void screenOpens(String fileId, JsonObject opened) {
+        JsonObject mainSnapshot = null;
+        java.util.Map<String, JsonObject> snapshots = new java.util.HashMap<>();
         for (JsonElement ce : opened.getAsJsonArray("circuits")) {
-            e.client.callObject("model.circuit", params("fileId", fileId, "circuitId",
-                    ce.getAsJsonObject().get("circuitId").getAsString()));
+            String id = ce.getAsJsonObject().get("circuitId").getAsString();
+            JsonObject snap = e.client.callObject("model.circuit", params("fileId", fileId, "circuitId", id));
+            snapshots.put(id, snap);
+            // 캔버스(N-05)가 그리는 서브회로 인스턴스의 모양: 모든 인스턴스에 있다
+            for (JsonElement c : snap.getAsJsonArray("components")) {
+                JsonObject o = c.getAsJsonObject();
+                if (o.has("subcircuit")) {
+                    assertTrue(o.has("appearance") && o.getAsJsonObject("appearance").has("shapes"), o.toString());
+                }
+            }
+            if (!opened.get("main").isJsonNull() && id.equals(opened.get("main").getAsString())) {
+                mainSnapshot = snap;
+            }
         }
         e.client.call("model.library", params("fileId", fileId));
         e.client.callObject("diag.list", params("fileId", fileId));
@@ -193,7 +207,12 @@ class OpenSaveParityTest {
             return;
         }
         String main = opened.get("main").getAsString();
+        int watched = e.client.mark();
         e.client.call("sim.watch", params("fileId", fileId, "circuitId", main));
+        // 값 스트림의 첫 묶음(몸체 상태 bodies를 읽는 길까지)이 온 뒤 돌린다. 빈 회로는 보낼 값이 없다
+        if (mainSnapshot != null && mainSnapshot.getAsJsonArray("nets").size() > 0) {
+            e.client.awaitNotificationAfter(watched, "sim.values", v -> v.get("fileId").getAsString().equals(fileId));
+        }
         long want = e.client.callObject("sim.state", params("fileId", fileId)).get("cycle").getAsLong() + CYCLES;
         int mark = e.client.mark();
         try {
@@ -206,5 +225,23 @@ class OpenSaveParityTest {
         }
         e.client.callObject("diag.list", params("fileId", fileId));
         e.client.callObject("mips.facts", params("fileId", fileId));
+        // 캔버스가 서브회로 인스턴스 안을 보는 길(sim.watch path)과 돌아오기
+        if (mainSnapshot != null) {
+            for (JsonElement c : mainSnapshot.getAsJsonArray("components")) {
+                JsonObject o = c.getAsJsonObject();
+                if (o.has("subcircuit") && o.get("lib").isJsonNull()) {
+                    JsonArray path = new JsonArray();
+                    path.add(o.get("id").getAsString());
+                    int m = e.client.mark();
+                    e.client.call("sim.watch", params("fileId", fileId, "circuitId", main, "path", path));
+                    JsonObject inner = snapshots.get(o.get("subcircuit").getAsString());
+                    if (inner != null && inner.getAsJsonArray("nets").size() > 0) { // 넷이 없으면 보낼 값도 없다
+                        e.client.awaitNotificationAfter(m, "sim.values", v -> v.has("path"));
+                    }
+                    break;
+                }
+            }
+            e.client.call("sim.watch", params("fileId", fileId, "circuitId", main));
+        }
     }
 }
