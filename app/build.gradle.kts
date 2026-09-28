@@ -118,6 +118,8 @@ val constantIdentityHash = listOf("-XX:+UnlockExperimentalVMOptions", "-XX:hashC
 // prefs·config: 환경설정 폴더 이름(build/ 아래). 같은 테스트를 다른 JVM 옵션으로 도는 작업은 따로 둔다.
 fun Test.hcsTestSetup(headless: Boolean, prefs: String = "test-prefs", config: String = "test-config") {
     dependsOn(tasks.jar, mipsJar)
+    // 같은 곳에서 되풀이된 예외에도 스택을 남긴다: 동시성 테스트가 원조 자체의 경합을 스택으로 가려낸다(D-143, LogisimRace)
+    jvmArgs("-XX:-OmitStackTraceInFastThrow")
     // GUI 테스트 등을 상수 identity hash로 한 번 돌려 볼 때: ./gradlew :app:guiTest -Phcs.constantHash=true (D-129)
     if ((findProperty("hcs.constantHash") ?: "false").toString() == "true") {
         jvmArgs(constantIdentityHash)
