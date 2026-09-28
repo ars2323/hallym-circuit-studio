@@ -30,8 +30,11 @@ import kr.ac.hallym.hcs.engine.diag.DiagService;
 import kr.ac.hallym.hcs.engine.doc.Doc;
 import kr.ac.hallym.hcs.engine.doc.Files;
 import kr.ac.hallym.hcs.engine.doc.RecoveryFiles;
+import kr.ac.hallym.hcs.engine.edit.ArrangeIntents;
 import kr.ac.hallym.hcs.engine.edit.ExtEdits;
 import kr.ac.hallym.hcs.engine.edit.Intents;
+import kr.ac.hallym.hcs.engine.edit.SelectionIntents;
+import kr.ac.hallym.hcs.engine.edit.ToolParts;
 import kr.ac.hallym.hcs.engine.find.Find;
 import kr.ac.hallym.hcs.engine.mips.Programs;
 import kr.ac.hallym.hcs.engine.model.Ids;
@@ -239,6 +242,7 @@ public final class Engine {
             diags.detach(d);
             programs.detach(d);
             records.close(d.id());
+            selectionSent.remove(d.id());
             files.close(d, p.optBool("keepRecovery", false));
             return new JsonObject();
         });
@@ -362,21 +366,90 @@ public final class Engine {
             }
             // 원조 전파와 겹치지 않게: 원조 CircuitState 청취자가 전파와 함께 쓰는 집합을 고친다(D-143)
             SimSession s = sims.get(d.id());
+            int drops = d.drops();
             Intents.Result r = s == null ? e.apply(d, p) : s.quiet(() -> e.apply(d, p));
+            // 다른 회로의 떠 있는 선택을 내려놓았으면(Doc.show) 의도의 답과 상관없이 모델이 바뀌었다
+            boolean changed = r.changed || d.drops() != drops;
             JsonObject o = new JsonObject();
-            o.addProperty("changed", r.changed);
+            o.addProperty("changed", changed);
             if (r.outcome != null) {
                 o.addProperty("outcome", r.outcome);
             }
             if (r.added != null) {
                 o.addProperty("id", d.ids().of(r.added));
             }
-            if (r.changed) {
+            if (r.circuit != null) {
+                o.addProperty("circuitId", d.ids().of(r.circuit));
+            }
+            if (changed) {
                 d.project().getSimulator().requestPropagate(); // Canvas.completeAction과 같다
                 call.after(() -> publishChanges(d));
             }
+            // 고른 것이 바뀌었으면 edit.selection(N-08, D-146): 모델 알림 뒤(새로 놓인 부품의 id를 화면이 먼저 안다)
+            // edit.select always tells it (the screen shows its guess at once and takes the engine's word after)
+            boolean always = method.equals("edit.select");
+            call.after(() -> publishSelection(d, always));
             return o;
         });
+    }
+
+    /** 파일마다 마지막으로 알린 선택(edit.selection). */
+    private final Map<String, String> selectionSent = new HashMap<>();
+
+    /**
+     * edit.selection = {fileId, circuitId, ids, floating}: 원조 선택(편집 대상)이 앞에 알린 것과 다르면 보낸다. ids는
+     * 회로에 있는 고른 부품·선(id 차례), floating은 붙여넣거나 복제해 아직 떠 있는 부품·선의 모습(Component·Wire JSON:
+     * 회로에 없어 model.changed에 오지 않는다).
+     */
+    public void publishSelection(Doc d) {
+        publishSelection(d, false);
+    }
+
+    /** always: 같아도 보낸다(edit.select: 화면이 누른 즉시 그린 짐작을 엔진의 선택으로 바로잡는다). */
+    public void publishSelection(Doc d, boolean always) {
+        if (!files.all().contains(d)) {
+            return; // 닫혔다
+        }
+        JsonObject o = selectionJson(d);
+        String text = o.toString();
+        if (!always && text.equals(selectionSent.get(d.id()))) {
+            return;
+        }
+        selectionSent.put(d.id(), text);
+        server.notify("edit.selection", o);
+    }
+
+    private static JsonObject selectionJson(Doc d) {
+        JsonObject o = new JsonObject();
+        o.addProperty("fileId", d.id());
+        Circuit c = d.selectionCircuit(); // 선택이 생긴 회로(시뮬레이션이 다른 회로를 보고 있어도)
+        o.addProperty("circuitId", c == null ? null : d.ids().of(c));
+        List<String> ids = new ArrayList<>();
+        for (Component x : kr.ac.hallym.hcs.engine.edit.SelectionIntents.anchored(d)) {
+            ids.add(d.ids().of(x));
+        }
+        ids.sort(Engine::byNumber);
+        JsonArray a = new JsonArray();
+        ids.forEach(a::add);
+        o.add("ids", a);
+        List<JsonObject> floating = new ArrayList<>();
+        for (Component x : kr.ac.hallym.hcs.engine.edit.SelectionIntents.floating(d)) {
+            floating.add(x instanceof com.cburch.logisim.circuit.Wire ? d.json().wire((com.cburch.logisim.circuit.Wire) x)
+                    : d.json().component(x));
+        }
+        floating.sort((x, y) -> byNumber(x.get("id").getAsString(), y.get("id").getAsString()));
+        JsonArray f = new JsonArray();
+        floating.forEach(f::add);
+        o.add("floating", f);
+        return o;
+    }
+
+    /** "k12" < "k101"(글자가 아니라 번호로), 부품 뒤에 선. */
+    private static int byNumber(String a, String b) {
+        if (a.charAt(0) != b.charAt(0)) {
+            return Character.compare(a.charAt(0), b.charAt(0));
+        }
+        return Long.compare(Long.parseLong(a.substring(1)), Long.parseLong(b.substring(1)));
     }
 
     /** 바뀐 회로마다 model.changed를 보낸다(응답 뒤). */
@@ -404,23 +477,127 @@ public final class Engine {
             for (int[] xy : p.points("points")) {
                 pts.add(Location.create(xy[0], xy[1]));
             }
-            return Intents.addWire(d, c, pts);
+            String tool = p.optStr("tool", "wiring");
+            if (!tool.equals("wiring") && !tool.equals("edit")) {
+                throw RpcError.params("tool must be wiring or edit");
+            }
+            return Intents.addWire(d, c, pts, tool.equals("wiring"));
+        });
+        // 고른 것에 하는 편집(N-08, D-146): ids를 주면 그것을 고른 뒤, 빼면 지금 고른 것에
+        edit("edit.select", true, (d, p) -> {
+            Circuit c = d.circuit(p.str("circuitId"));
+            int[] at = p.optPoint("at");
+            if (at != null) {
+                // Edit 도구로 누름(SelectTool.mousePressed): 답의 outcome이 끌기의 뜻("moving"·"rect")
+                return SelectionIntents.press(d, c, Location.create(at[0], at[1]), p.optBool("toggle", false));
+            }
+            List<Component> ids = p.has("ids") ? d.components(c, p.strings("ids")) : null;
+            int[] rect = null;
+            if (p.has("rect")) {
+                List<String> r = new ArrayList<>();
+                for (com.google.gson.JsonElement e : p.raw().getAsJsonArray("rect")) {
+                    r.add(e.getAsString());
+                }
+                if (r.size() != 4) {
+                    throw RpcError.params("rect must be [x0, y0, x1, y1]");
+                }
+                rect = new int[4];
+                for (int i = 0; i < 4; i++) {
+                    rect[i] = (int) Math.floor(Double.parseDouble(r.get(i)));
+                }
+            }
+            return SelectionIntents.select(d, c, ids, rect, p.optBool("add", false), p.optBool("toggle", false),
+                    p.optStr("filter", null), p.optBool("all", false));
         });
         edit("edit.move", true, (d, p) -> {
             Circuit c = d.circuit(p.str("circuitId"));
-            List<Component> comps = d.components(c, p.strings("ids"));
-            return Intents.move(d, c, comps, p.integer("dx"), p.integer("dy"), p.optBool("connect", true));
+            List<Component> comps = p.has("ids") ? d.components(c, p.strings("ids")) : null;
+            return SelectionIntents.move(d, c, comps, p.integer("dx"), p.integer("dy"), p.optBool("connect", true));
         });
         edit("edit.delete", true, (d, p) -> {
             Circuit c = d.circuit(p.str("circuitId"));
-            return Intents.delete(d, c, d.components(c, p.strings("ids")));
+            return SelectionIntents.delete(d, c, p.has("ids") ? d.components(c, p.strings("ids")) : null);
+        });
+        edit("edit.copy", true, (d, p) -> {
+            Circuit c = d.circuit(p.str("circuitId"));
+            return SelectionIntents.copy(d, c, p.has("ids") ? d.components(c, p.strings("ids")) : null);
+        });
+        edit("edit.cut", true, (d, p) -> {
+            Circuit c = d.circuit(p.str("circuitId"));
+            return SelectionIntents.cut(d, c, p.has("ids") ? d.components(c, p.strings("ids")) : null);
+        });
+        edit("edit.paste", true, (d, p) -> SelectionIntents.paste(d, d.circuit(p.str("circuitId"))));
+        edit("edit.duplicate", true, (d, p) -> {
+            Circuit c = d.circuit(p.str("circuitId"));
+            return SelectionIntents.duplicate(d, c, p.has("ids") ? d.components(c, p.strings("ids")) : null);
         });
         edit("edit.setAttr", true, (d, p) -> {
             Circuit c = d.circuit(p.str("circuitId"));
-            return Intents.setAttr(d, c, d.components(c, p.strings("ids")), p.str("attr"), p.str("value"));
+            return SelectionIntents.setAttr(d, c, p.has("ids") ? d.components(c, p.strings("ids")) : null,
+                    p.str("attr"), p.str("value"));
         });
+        edit("edit.rotate", true, (d, p) -> {
+            Circuit c = d.circuit(p.str("circuitId"));
+            return SelectionIntents.rotate(d, c, p.has("ids") ? d.components(c, p.strings("ids")) : null,
+                    p.optBool("clockwise", true));
+        });
+        edit("edit.keyConfig", true, (d, p) -> {
+            Circuit c = d.circuit(p.str("circuitId"));
+            com.cburch.logisim.tools.Tool tool = p.has("name")
+                    ? SelectionIntents.findTool(d, p.optStr("lib", null), p.str("name")) : null;
+            return SelectionIntents.keyConfig(d, c, tool, p.str("key"), p.optBool("alt", false),
+                    p.optBool("chain", false));
+        });
+        edit("edit.setToolAttr", false, (d, p) -> SelectionIntents.setToolAttr(d, p.optStr("lib", null), p.str("name"),
+                p.str("attr"), p.str("value")));
+        edit("edit.text", true, (d, p) -> {
+            Circuit c = d.circuit(p.str("circuitId"));
+            Component comp = p.has("id") ? d.component(c, p.str("id")) : null;
+            int[] at = p.optPoint("loc");
+            return SelectionIntents.text(d, c, comp, at == null ? null : Location.create(at[0], at[1]),
+                    p.optStr("text", ""));
+        });
+        // 편집 동등성(N-09)이 쓰는 나머지 가벼운 의도: v1 Duplicate N·Align·Distribute, 회로 속성, 회로 더하기, 주 회로
+        edit("edit.duplicateN", true, (d, p) -> {
+            Circuit c = d.circuit(p.str("circuitId"));
+            return ArrangeIntents.duplicateN(d, c, p.has("ids") ? d.components(c, p.strings("ids")) : null,
+                    p.integer("count"), p.optStr("direction", "down"), p.has("spacing") ? p.integer("spacing") : null,
+                    p.has("number") ? p.bool("number") : null);
+        });
+        edit("edit.align", true, (d, p) -> {
+            Circuit c = d.circuit(p.str("circuitId"));
+            return ArrangeIntents.align(d, c, p.has("ids") ? d.components(c, p.strings("ids")) : null, p.str("mode"));
+        });
+        edit("edit.distribute", true, (d, p) -> {
+            Circuit c = d.circuit(p.str("circuitId"));
+            return ArrangeIntents.distribute(d, c, p.has("ids") ? d.components(c, p.strings("ids")) : null,
+                    p.str("axis"));
+        });
+        edit("edit.setCircuitAttr", true, (d, p) -> ArrangeIntents.setCircuitAttr(d, d.circuit(p.str("circuitId")),
+                p.str("attr"), p.str("value")));
+        edit("edit.createCircuit", false, (d, p) -> ArrangeIntents.createCircuit(d, p.str("name")));
+        edit("edit.setMainCircuit", true, (d, p) -> ArrangeIntents.setMainCircuit(d, d.circuit(p.str("circuitId"))));
         edit("edit.undo", false, (d, p) -> Intents.undo(d));
         edit("edit.redo", false, (d, p) -> Intents.redo(d));
+        // 모델을 바꾸지 않는 물음(model.*): 놓을 부품의 모습, 끄는 동안의 연결 유지 선
+        server.register("model.tool", (p, call) -> {
+            Doc d = files.get(p.str("fileId"));
+            int[] at = p.optPoint("loc");
+            return ToolParts.ghost(d, p.optStr("lib", null), p.str("name"), at == null ? Location.create(0, 0)
+                    : Location.create(at[0], at[1]), p.optStringMap("attrs"));
+        });
+        server.register("model.textAt", (p, call) -> {
+            Doc d = files.get(p.str("fileId"));
+            Circuit c = d.circuit(p.str("circuitId"));
+            int[] at = p.point("loc");
+            return ToolParts.textAt(d, c, Location.create(at[0], at[1]));
+        });
+        server.register("model.movePreview", (p, call) -> {
+            Doc d = files.get(p.str("fileId"));
+            Circuit c = d.circuit(p.str("circuitId"));
+            return new com.google.gson.Gson().toJsonTree(SelectionIntents.movePreview(d, c, p.integer("dx"),
+                    p.integer("dy"), p.optBool("connect", true)));
+        });
     }
 
     // ---- find, 터널 색, Splitter 편집기(N-12, D-150) ----
@@ -561,6 +738,19 @@ public final class Engine {
                 cur = ((SubcircuitFactory) inst.getFactory()).getSubcircuit();
             }
             s.watch(root, path);
+            // 보는 회로만 바뀐다: 모델도 선택도 그대로(D-146 V2; 화면이 바꾸기 전에 edit.select로 내려놓는다)
+            return new JsonObject();
+        });
+        server.register("sim.pinValue", (p, call) -> {
+            SimSession s = session(p);
+            Doc d = files.get(p.str("fileId"));
+            Circuit c = d.circuit(p.str("circuitId"));
+            Component pin = d.component(c, p.str("componentId"));
+            // 원조 CircuitState를 고친다: 원조 전파와 겹치지 않게(D-143, sim.poke와 같다)
+            s.quiet(() -> {
+                s.pinValue(c, pin, p.str("value"));
+                return null;
+            });
             return new JsonObject();
         });
         server.register("sim.state", (p, call) -> session(p).state());

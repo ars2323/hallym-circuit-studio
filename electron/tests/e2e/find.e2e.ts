@@ -477,7 +477,8 @@ test('the events: a part a listener takes (N-08\'s placement flow) is not placed
     const sent = await placedEvents(page);
     expect(sent.at(-1)).toMatchObject({ lib: 'Gates', name: 'XOR Gate', at: [300, 640], source: 'palette' });
     await page.waitForTimeout(200);
-    expect((await comps(page)).length).toBe(before);
+    // N-08's placement flow (the editor's listener) took it and placed one at the point; not placed here too
+    expect((await comps(page)).length).toBe(before + 1);
     // selection
     await page.evaluate(() => {
       const w = window as unknown as { selections: unknown[] };

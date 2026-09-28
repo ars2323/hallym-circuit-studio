@@ -203,6 +203,8 @@ async function main(): Promise<void> {
     },
   });
 
+  // No page zoom by a pinch (I-207): the Canvas zooms itself (its Ctrl+wheel is its own, canvas.ts)
+  void win.webContents.setVisualZoomLevelLimits(1, 1);
   const send = (channel: string, ...args: unknown[]) => { if (!win.isDestroyed()) win.webContents.send(channel, ...args); };
   // The engine's status as the window should see it (restarting until its files are back).
   recovery.on('status', (s: EngineStatus) => send('engine:status', s));

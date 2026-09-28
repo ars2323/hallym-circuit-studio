@@ -75,11 +75,13 @@ test('Signal Flow on a click (I-188): the Edit tool\'s click shows the way, Shif
     await click(page, [pc.at[0], pc.at[1] + 400]);
     await page.waitForTimeout(300);
     expect((await shown(page)).flow.running).toBe(false);
-    // a double click is not a flow (it goes into a subcircuit)
+    // going into a subcircuit (the Poke tool's lens, a double click: N-08, I-114) is not a flow
     const alu = await partMiddle(page, 'alu');
     const q = await onPage(page, alu.at);
+    await page.getByRole('radio', { name: 'Poke', exact: true }).click();
     await page.mouse.dblclick(q.x, q.y);
     await page.locator('.canvas-crumbs .here', { hasText: 'alu' }).waitFor();
+    await page.getByRole('radio', { name: 'Edit', exact: true }).click();
     await page.waitForTimeout(300);
     expect((await shown(page)).flow.running).toBe(false);
     await page.locator('.canvas-crumbs button', { hasText: 'main' }).click();

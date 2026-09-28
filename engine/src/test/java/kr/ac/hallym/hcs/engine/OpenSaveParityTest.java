@@ -403,6 +403,33 @@ class OpenSaveParityTest {
         e.client.callObject("diag.list", params("fileId", fileId));
         e.client.callObject("mips.facts", params("fileId", fileId));
         overlays(fileId, main, mainSnapshot);
+        // N-08(D-146): 편집 도구가 모델을 바꾸지 않고 부르는 것 — Edit 도구의 누름(고르기)과 끄는 동안의 선, 복사,
+        // 사각형 고르기와 비우기, 부품 놓기 도구의 모습(값을 준 것도), 글자 도구의 칸
+        if (mainSnapshot != null) {
+            for (JsonElement c : mainSnapshot.getAsJsonArray("components")) {
+                JsonObject o = c.getAsJsonObject();
+                JsonArray b = o.getAsJsonArray("bounds");
+                int[] mid = {b.get(0).getAsInt() + b.get(2).getAsInt() / 2, b.get(1).getAsInt() + b.get(3).getAsInt() / 2};
+                e.client.callObject("edit.select", params("fileId", fileId, "circuitId", main, "at", mid));
+                e.client.callObject("model.movePreview", params("fileId", fileId, "circuitId", main, "dx", 10,
+                        "dy", 0));
+                e.client.callObject("edit.copy", params("fileId", fileId, "circuitId", main));
+                e.client.callObject("model.textAt", params("fileId", fileId, "circuitId", main, "loc", mid));
+                break;
+            }
+            e.client.callObject("edit.select", params("fileId", fileId, "circuitId", main, "rect",
+                    new int[] {0, 0, 4000, 4000}));
+            e.client.callObject("edit.select", params("fileId", fileId, "circuitId", main, "at", new int[] {-50, -50}));
+            e.client.callObject("edit.select", params("fileId", fileId, "circuitId", main, "ids", new JsonArray()));
+            try {
+                e.client.callObject("model.tool", params("fileId", fileId, "lib", "Wiring", "name", "Pin"));
+                e.client.callObject("model.tool", params("fileId", fileId, "lib", "Gates", "name", "AND Gate",
+                        "attrs", params("inputs", "3")));
+            } catch (Client.Failure noLibrary) {
+                assertEquals(1, noLibrary.code, noLibrary.getMessage()); // 그 라이브러리가 없는 파일(JAR 라이브러리만)
+            }
+            e.client.callObject("model.textAt", params("fileId", fileId, "circuitId", main, "loc", new int[] {5, 5}));
+        }
         // 캔버스가 서브회로 인스턴스 안을 보는 길(sim.watch path)과 돌아오기
         if (mainSnapshot != null) {
             for (JsonElement c : mainSnapshot.getAsJsonArray("components")) {

@@ -41,9 +41,9 @@ test('the real engine: hello, a new circuit, a .circ with the MIPS library, the 
     await openFile(r, sample(r.dir, DATAPATH));
     await expect(page.locator('.canvas .canvas-view canvas')).toBeVisible(); // drawn (N-05)
     await expect(page.locator('.status')).toContainText('35 components');
-    // View only until alpha.1 (D-154): the editing tools stay off with the real engine too.
+    // The editing tools (N-08, D-146; alpha.0 was view only, D-154): on with the real engine too.
     for (const name of ['Wire', 'Text', 'Pin', 'Tunnel', 'Probe']) {
-      await expect(page.getByRole('radio', { name, exact: true })).toBeDisabled();
+      await expect(page.getByRole('radio', { name, exact: true })).toBeEnabled();
     }
     await page.getByRole('tab', { name: 'Circuits' }).click();
     await expect(page.locator('.upper .pbody:visible .list > li')).toHaveText(['main', 'regfile', 'alu']);
@@ -491,6 +491,7 @@ test('the real engine and the Canvas: ref-mips drawn with its values; demo-datap
       return { x: rr.left + (k.bounds[0] + k.bounds[2] / 2 - c.view.x) * c.view.zoom, y: rr.top + (k.bounds[1] + k.bounds[3] / 2 - c.view.y) * c.view.zoom };
     });
     const parent = await page.evaluate(PARENT_PORT_VALUES, 'regfile');
+    await page.getByRole('radio', { name: 'Poke', exact: true }).click();   // the lens goes inside (I-75, I-114)
     await page.mouse.dblclick(at.x, at.y);
     await expect(page.locator('.canvas-crumbs .here')).toHaveText('regfile');
     await page.waitForFunction(() => { const c = (window as unknown as { __hcsCanvas: C }).__hcsCanvas; return c.scene?.name === 'regfile' && c.scene.values.size > 0; });

@@ -43,6 +43,16 @@ public final class ModelTracker {
         this.file = file;
     }
 
+    /**
+     * 회로에 없어도 id를 살려 둘 부품(N-08, D-146: 붙여넣거나 복제해 아직 떠 있는 선택). 내려앉으면 같은 id로
+     * {@code added}에 온다.
+     */
+    private java.util.function.Supplier<java.util.Collection<Component>> alsoLive = Collections::emptyList;
+
+    public void alsoLive(java.util.function.Supplier<java.util.Collection<Component>> s) {
+        alsoLive = s;
+    }
+
     public ModelJson json() {
         return json;
     }
@@ -136,6 +146,7 @@ public final class ModelTracker {
             live.addAll(c.getNonWires());
             live.addAll(c.getWires());
         }
+        live.addAll(alsoLive.get());
         json.ids().retain(live);
         return out;
     }

@@ -186,6 +186,29 @@ export interface SimState {
 // sim.poke's answer: whether the part took the press, and whether it keeps a caret for keys (N-07).
 export interface PokeResult { poked: boolean; caret?: boolean }
 
+// ---- editing (docs/engine-api.md "edit", N-08, D-146) ----------------------------
+
+// What an edit answers: whether the model or the undo log changed; outcome says more (edit.select {at}: "moving"
+// or "rect", the drag's meaning); id: a part the edit put in (edit.addComponent, edit.text); circuitId: a new circuit.
+export interface EditResult { changed: boolean; outcome?: string; id?: string; circuitId?: string }
+
+/* edit.selection: what the engine's selection holds (the original Canvas's
+   Selection) after an edit changed it: ids in the circuit, and the parts and
+   wires floating (a paste or a duplicate not yet dropped into the circuit;
+   not in the model, so given whole). */
+export interface EditSelection {
+  fileId: string;
+  circuitId: string | null;
+  ids: string[];
+  floating: (Component | Wire)[];
+}
+
+// model.tool: the part a placing tool would put in at loc (id "ghost"), drawn under the pointer.
+export interface ToolGhost { component: Component }
+
+// model.movePreview: the wires the move would add and take away, the points it could not connect, the offset it would use.
+export interface MovePreview { dx: number; dy: number; added: [Point, Point][]; removed: string[]; unconnected: Point[] }
+
 // ---- Messages and E/X origin (docs/engine-api.md "diag·trace", D-143) ----
 
 /* Where a message points: the circuit the cause is in; for a message found
@@ -458,7 +481,10 @@ export const WINDOW_METHODS = [
   'model.circuit', 'model.library',
   'edit.addComponent', 'edit.addWire', 'edit.move', 'edit.delete', 'edit.setAttr', 'edit.undo', 'edit.redo',
   'edit.tunnelColor', 'edit.splitterEdit', 'edit.splitterSplit', 'find.query',
-  'sim.reset', 'sim.poke', 'sim.pokeKey', 'sim.pokeStop', 'sim.cycles', 'sim.tick', 'sim.step', 'sim.run', 'sim.enable', 'sim.watch', 'sim.state',
+  'edit.select', 'edit.copy', 'edit.cut', 'edit.paste', 'edit.duplicate', 'edit.rotate', 'edit.keyConfig', 'edit.setToolAttr', 'edit.text',
+  'edit.duplicateN', 'edit.align', 'edit.distribute', 'edit.setCircuitAttr', 'edit.createCircuit', 'edit.setMainCircuit',
+  'model.tool', 'model.movePreview', 'model.textAt',
+  'sim.reset', 'sim.poke', 'sim.pinValue', 'sim.pokeKey', 'sim.pokeStop', 'sim.cycles', 'sim.tick', 'sim.step', 'sim.run', 'sim.enable', 'sim.watch', 'sim.state',
   'diag.list', 'trace.origin',
   'mips.facts', 'mips.reload', 'mips.disasm', 'mips.console',
   'record.state', 'record.table', 'record.addRow', 'record.removeRow', 'record.rowBits', 'record.pin', 'record.unpin',

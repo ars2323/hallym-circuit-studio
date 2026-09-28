@@ -299,8 +299,10 @@ export class CircuitCanvas {
       }
       if (this.tool) {
         if (e.button !== 0) return;           // the right button is the context menu's (N-10)
+        if (this.marked) { this.marked = null; this.invalidate(); }   // a new press clears what a message marked
         this.pressed = e.pointerId;
         c.setPointerCapture(e.pointerId);
+        this.hover(null);                     // a gesture going on shows no hover and no tooltip (Logisim's: none while dragging)
         this.tool.down?.(this.pointerOf(e, true));
         this.updateCursor();
         return;
@@ -334,6 +336,13 @@ export class CircuitCanvas {
     };
     c.addEventListener('pointerup', end);
     c.addEventListener('pointercancel', end);
+    // The pointer coming over the Canvas gives it the keys (Logisim's tools: requestFocusInWindow, I-02) -- not while
+    // a field is being typed in (a browser would take them from it at the first pass of the mouse) or a dialog is open
+    c.addEventListener('pointerenter', () => {
+      const a = document.activeElement as HTMLElement | null;
+      const typing = !!a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT' || a.isContentEditable);
+      if (!typing && !document.querySelector('dialog[open]')) c.focus({ preventScroll: true });
+    });
     c.addEventListener('pointerleave', () => {
       if (this.drag || this.pressed >= 0) return;
       this.hover(null);
@@ -377,8 +386,14 @@ export class CircuitCanvas {
     if (!(e.ctrlKey || e.metaKey) || e.altKey) return false;
     if (e.key === '=' || e.key === '+') { this.zoomStep(1); return true; }
     if (e.key === '-' || e.key === '_') { this.zoomStep(-1); return true; }
-    if (e.key === '0') { this.fitView(); return true; }
+    if (e.key === '0' || e.code === 'Numpad0') { this.fitView(); return true; }
+    if (e.code === 'Digit1' || e.code === 'Numpad1') { this.zoomTo(1); return true; }   // 100 % about the middle (v1 D-028, I-123)
     return false;
+  }
+
+  // The view fitted to a box (the selection's bounds, v1 F, I-124): at most 200 %, as the whole circuit's fit.
+  fitBox(b: Box): void {
+    this.setView(fit(b, this.width, this.height), true);
   }
 
   partAt(p: [number, number]): string | null {
@@ -562,6 +577,8 @@ export class CircuitCanvas {
     for (const id of print ? [] : this.selected) {
       const c = s.components.get(id);
       if (c) this.outline(c, this.theme.selectTint, null, 0);
+      const w = c ? undefined : s.wires.get(id);
+      if (w) this.wireHalo([w], this.theme.selectTint, 8);
     }
     if (this.marked && !print) this.drawMarked(true);
     this.drawWires(shown);
@@ -595,6 +612,8 @@ export class CircuitCanvas {
     for (const id of this.selected) {
       const c = s.components.get(id);
       if (c) this.outline(c, null, this.theme.select, 2);
+      const w = c ? undefined : s.wires.get(id);
+      if (w) this.wireEnds(w);
     }
     if (this.hovered && !this.selected.has(this.hovered)) {
       const c = s.components.get(this.hovered);
@@ -607,7 +626,86 @@ export class CircuitCanvas {
 
   // ---- what the tool shows (input.ts Overlay) ------------------------------------------------------------
 
+  // A band along wires (a selected wire's tint), px wide on screen.
+  private wireHalo(wires: { a: [number, number]; b: [number, number] }[], stroke: string, px: number): void {
+    const ctx = this.ctx, z = this.view.zoom;
+    ctx.beginPath();
+    for (const w of wires) { ctx.moveTo(w.a[0], w.a[1]); ctx.lineTo(w.b[0], w.b[1]); }
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = px / z;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+  }
+
+  // A selected wire's ends: small squares, as Logisim marks a selected wire's handles.
+  private wireEnds(w: { a: [number, number]; b: [number, number] }): void {
+    const ctx = this.ctx, z = this.view.zoom, r = 3 / z;
+    ctx.fillStyle = this.theme.select;
+    for (const p of [w.a, w.b]) ctx.fillRect(p[0] - r, p[1] - r, 2 * r, 2 * r);
+  }
+
+  // The editing tools' pictures (N-08): what is dragged or placed, the rectangle, the wire being drawn.
+  private drawGestures(): void {
+    const o = this.overlay, ctx = this.ctx, z = this.view.zoom, t = this.theme;
+    const look: Look = { theme: t, zoom: z, minText: MIN_TEXT_PX };
+    if (o.ghost) {
+      const g = o.ghost;
+      ctx.save();
+      ctx.translate(g.dx, g.dy);
+      ctx.globalAlpha = g.look === 'place' ? 0.5 : g.look === 'move' ? 0.55 : 0.75;
+      this.wireHalo(g.wires, t.ink2, 3);
+      for (const c of g.parts) {
+        let shapes: Shape[];
+        try { shapes = rendererFor(c).draw(c, this.stateOf(c)); } catch { shapes = FALLBACK.draw(c, this.stateOf(c)); }
+        this.paintShapes(c, shapes, look);
+      }
+      ctx.globalAlpha = 1;
+      // a paste or a duplicate not yet dropped into the circuit stays selected; what is dragged, grey (Logisim)
+      if (g.look !== 'place') for (const c of g.parts) this.outline(c, null, g.look === 'float' ? t.select : t.ink2, 1.5);
+      ctx.restore();
+    }
+    if (o.moveWires) {
+      // MoveGesture's wires while dragging (grey, thick) and the points it could not connect (red), I-24
+      this.wireHalo(o.moveWires.added.map(([a, b]) => ({ a, b })), 'rgba(90,100,114,0.7)', 3);
+      ctx.fillStyle = t.error;
+      for (const p of o.moveWires.unconnected) { ctx.beginPath(); ctx.arc(p[0], p[1], 3 / z + 1, 0, Math.PI * 2); ctx.fill(); }
+    }
+    if (o.wire && o.wire.length >= 2) {
+      // the wire being drawn: black, 3 px (WiringTool.draw)
+      ctx.beginPath();
+      o.wire.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+      ctx.strokeStyle = t.ink;
+      ctx.lineWidth = 3 / z;
+      ctx.lineCap = 'square';
+      ctx.stroke();
+    }
+    if (o.rubber) {
+      const b = o.rubber;
+      ctx.fillStyle = 'rgba(0,85,165,0.10)';
+      ctx.fillRect(b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0);
+      ctx.strokeStyle = t.select;
+      ctx.lineWidth = 1 / z;
+      ctx.strokeRect(b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0);
+    }
+    if (o.dot) {
+      // a wiring point under the pointer: the green circle, radius 5 (EditTool.draw, I-44)
+      ctx.beginPath();
+      ctx.arc(o.dot[0], o.dot[1], 5, 0, Math.PI * 2);
+      ctx.strokeStyle = t.vOne;
+      ctx.lineWidth = 2 / z;
+      ctx.stroke();
+    }
+    if (o.cursorDot) {
+      // the Wiring tool's small grey dot at the snapped pointer (WiringTool.draw, I-45)
+      ctx.beginPath();
+      ctx.arc(o.cursorDot[0], o.cursorDot[1], 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = t.ink2;
+      ctx.fill();
+    }
+  }
+
   private drawOverlay(partsShown: Component[]): void {
+    this.drawGestures();
     const o = this.overlay, ctx = this.ctx, z = this.view.zoom, s = this.scene!;
     // The Poke tool's lens on every subcircuit (SubcircuitPoker.paint): a double click in it goes inside.
     if (o.magnifiers) {
@@ -739,7 +837,9 @@ export class CircuitCanvas {
     const m = this.marks!, ctx = this.ctx, z = this.view.zoom;
     const groups = new Map<string, { color: string; width: number; segs: typeof m.segments }>();
     const colorOf = new Map<string, string>();
+    const hidden = this.overlay.hidden;
     for (const seg of m.segments) {
+      if (hidden?.has(seg.id)) continue;         // a wire being shortened: only what is left of it shows (I-50)
       const x0 = Math.min(seg.a[0], seg.b[0]), x1 = Math.max(seg.a[0], seg.b[0]), y0 = Math.min(seg.a[1], seg.b[1]), y1 = Math.max(seg.a[1], seg.b[1]);
       if (x0 > shown.x1 || x1 < shown.x0 || y0 > shown.y1 || y1 < shown.y0) continue;
       let col = seg.net ? colorOf.get(seg.net) : undefined;

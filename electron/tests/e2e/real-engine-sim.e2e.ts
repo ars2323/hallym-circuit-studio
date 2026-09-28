@@ -55,10 +55,13 @@ test('the real engine: a counter -- 1 Cycle, N Cycles 100 exactly, Run and Stop,
     await expect.poll(() => cycleNow(r), { timeout: 5000 }).toBeGreaterThan(101);
     await page.getByRole('button', { name: /^Stop/ }).click();
     await expect(page.locator('.status .run')).toHaveCount(0);
+    // Stop can come between a cycle's two ticks: the clock stays high, the rising edge counted by the counter, the
+    // cycle not yet whole (Cycle N counts whole cycles, as 1 Cycle does) -- the value is N's or N+1's
     const stopped = await cycleNow(r);
-    // Stop may land between a cycle's rising edge and its falling one (the clock left high): the register has
-    // then taken the next value while the cycle is still counted as the last whole one (CI saw 103 × 3 at Cycle 102).
+    expect(stopped).toBeGreaterThan(101);
     await expect.poll(() => portValue(page, q.id)).toMatch(new RegExp(`^(${bits8(3 * stopped)}|${bits8(3 * (stopped + 1))})$`));
+    await page.waitForTimeout(1500);   // stopped: nothing moves any more
+    expect(await cycleNow(r)).toBe(stopped);
     await page.getByRole('button', { name: /Reset/ }).click();
     await expect(page.locator('.status')).toContainText('Cycle 0');
     await expect.poll(() => portValue(page, q.id)).toBe(bits8(0));

@@ -434,6 +434,44 @@ class SimTest {
         }
     }
 
+    /** V1(D-146): Set Pin Value(sim.pinValue)도 원조 CircuitState를 고친다 -- N Cycles가 도는 동안 넣어도 전파가 죽지 않는다. */
+    @Test
+    void pinValuesTypedWhileCyclesRunKeepTheSimulationOn() throws Exception {
+        java.util.List<String> died = new java.util.concurrent.CopyOnWriteArrayList<>();
+        Thread.UncaughtExceptionHandler before = Thread.getDefaultUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler((th, x) -> died.add(th.getName() + ": " + x));
+        try {
+            int[] m = new int[1];
+            openCounterAndWatch(m);
+            String pin = e.client.callObject("edit.addComponent", params("fileId", fileId, "circuitId", main,
+                    "lib", "Wiring", "name", "Pin", "loc", Client.xy(300, 500), "attrs",
+                    // an input pin whatever the fixture's Pin tool says (a CircuitBuilder file can carry <tool name="Pin">)
+                    params("width", "8", "tristate", "false", "output", "false"))).get("id").getAsString();
+            JsonObject placed = null;
+            for (JsonElement k : snapshot().getAsJsonArray("components")) {
+                if (k.getAsJsonObject().get("id").getAsString().equals(pin)) {
+                    placed = k.getAsJsonObject();
+                }
+            }
+            assertEquals("false", placed.getAsJsonObject("attrs").get("output").getAsString(), placed.toString());
+            int m2 = e.client.mark();
+            // small: SimGate.requireHeld makes a pin value outside the gate fail at once (the load is only a check)
+            e.client.call("sim.cycles", params("fileId", fileId, "n", 1000));
+            for (int k = 0; k < 30; k++) {
+                e.client.call("sim.pinValue", params("fileId", fileId, "circuitId", main, "componentId", pin,
+                        "value", String.valueOf(k)));
+            }
+            e.client.call("sim.run", params("fileId", fileId, "on", false));
+            e.client.awaitNotificationAfter(m2, "sim.state", s -> s.get("cyclesLeft").getAsLong() == 0);
+            JsonObject st = e.client.callObject("sim.state", params("fileId", fileId));
+            assertTrue(st.get("running").getAsBoolean(), "the simulation is still on (no propagation error): " + st);
+            assertTrue(st.get("cycle").getAsLong() > 0);
+            assertEquals(java.util.List.of(), died);
+        } finally {
+            Thread.setDefaultUncaughtExceptionHandler(before);
+        }
+    }
+
     @Test
     void stopEndsLongCyclesAfterTheTicksInFlight() throws Exception {
         int[] m = new int[1];

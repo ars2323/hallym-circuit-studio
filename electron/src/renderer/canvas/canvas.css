@@ -66,3 +66,11 @@
 .legend-opt { display: flex; align-items: center; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); color: var(--text-2); }
 /* Settings are for this run only (N-19, app/logic/run-settings.ts RUN_ONLY). */
 .legend-note { margin: 4px 0 0 22px; font-size: 11px; color: var(--muted); word-break: keep-all; }
+
+/* A field over the circuit (N-08): the Text tool's text, a label edited in place (F2, a double click). */
+.canvas-view .inline-field {
+  position: absolute; z-index: 3; height: 24px; padding: 0 6px; border: 1px solid var(--blue); border-radius: 4px;
+  font: 13px/22px var(--code); color: var(--text); background: var(--white); box-shadow: 0 2px 8px rgba(0, 32, 91, .18); outline: none;
+}
+.canvas-view .inline-field:focus { border-color: var(--teal); box-shadow: 0 0 0 2px rgba(0, 169, 165, .25); }
+.canvas-view .inline-field[aria-invalid="true"] { border-color: var(--error); }

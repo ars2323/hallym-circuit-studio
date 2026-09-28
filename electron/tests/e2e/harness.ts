@@ -107,7 +107,14 @@ export const GATES = 'tests/circ/gates.circ';
 export async function openFile(r: Running, file: string): Promise<void> {
   await answerOpen(r.app, file);
   await r.page.keyboard.press('Control+o');
-  await r.page.locator('.filebar .ptab', { hasText: path.basename(file) }).waitFor();
+  try {
+    await r.page.locator('.filebar .ptab', { hasText: path.basename(file) }).waitFor();
+  } catch (e) {
+    // what the window said instead (a notice, an error, the engine's state) -- for a failure seen only on CI
+    const said = await r.page.evaluate(() => [...document.querySelectorAll('.status, .notice, .band, dialog[open], .wcard')]
+      .map((x) => (x as HTMLElement).innerText.replace(/\s+/g, ' ').slice(0, 200)).join(' | ')).catch(() => '?');
+    throw new Error(`${(e as Error).message}\nthe window said: ${said}`);
+  }
 }
 
 // A new circuit from the first screen (바로 시작 → 새 회로).

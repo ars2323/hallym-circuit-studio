@@ -244,7 +244,9 @@ test('hover, selection, a subcircuit\'s inside and back, the tip', async () => {
     await page.mouse.move(im.x, im.y);
     await expect(page.locator('.canvas-tip')).toHaveText('Instruction Memory');
     await page.mouse.click(im.x, im.y);
-    // double click the register file (a subcircuit): its inside, with the crumbs
+    // the Poke tool's lens on the register file (a subcircuit), a double click: its inside, with the crumbs
+    // (the Edit tool's double click edits the label, v1 I-114)
+    await page.getByRole('radio', { name: 'Poke', exact: true }).click();
     const rf = await centre('regfile');
     await page.mouse.dblclick(rf.x, rf.y);
     await expect(page.locator('.canvas-crumbs')).toBeVisible();
@@ -398,6 +400,7 @@ test('inside a subcircuit instance the values are that instance\'s: each pin ins
       const rr = c.canvas.getBoundingClientRect();
       return { x: rr.left + (k.bounds[0] + k.bounds[2] / 2 - c.view.x) * c.view.zoom, y: rr.top + (k.bounds[1] + k.bounds[3] / 2 - c.view.y) * c.view.zoom };
     });
+    await page.getByRole('radio', { name: 'Poke', exact: true }).click();   // the lens (I-75, I-114)
     await page.mouse.dblclick(at.x, at.y);
     await expect(page.locator('.canvas-crumbs .here')).toHaveText('regfile');
     await page.waitForFunction(() => (window as unknown as { __hcsCanvas: { scene: { name: string; values: Map<string, string> } } }).__hcsCanvas.scene.name === 'regfile'

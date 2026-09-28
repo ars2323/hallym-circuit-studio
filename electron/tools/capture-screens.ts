@@ -53,16 +53,17 @@ function written(name: string): void {
 
 // keepFocus: the scene is about a box that has the keys (the search palette closes when it loses them);
 // its caret is hidden so the pixels do not depend on when it blinks.
-async function shot(r: Running, name: string, o: { keepFocus?: boolean } = {}): Promise<void> {
+async function shot(r: Running, name: string, o: { keepFocus?: boolean; keepPointer?: boolean } = {}): Promise<void> {
   const { page } = r;
-  await page.mouse.move(-10, -10); // out of the window: no hover, no tooltip
+  // out of the window: no hover, no tooltip -- but a gesture going on (a drag, a part held) keeps the pointer where it is
+  if (!o.keepPointer) await page.mouse.move(-10, -10);
   if (o.keepFocus) await page.addStyleTag({ content: '* { caret-color: transparent !important; }' });
   else await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await page.evaluate(() => document.fonts.ready);
   await page.waitForFunction(() => [...document.images].every((i) => i.complete));
   await page.waitForTimeout(400);
   const hovered = await page.evaluate(() => document.querySelectorAll(':hover').length);
-  if (hovered) throw new Error(`${name}: ${hovered} elements still hovered`);
+  if (hovered && !o.keepPointer) throw new Error(`${name}: ${hovered} elements still hovered`);
   await page.screenshot({ path: path.join(out, `${name}.png`) });
   written(name);
 }
@@ -179,8 +180,10 @@ async function view(r: Running, v: { x: number; y: number; zoom: number }): Prom
     const rr = c.canvas.getBoundingClientRect();
     return { x: rr.left + (k.bounds[0] + k.bounds[2] / 2 - c.view.x) * c.view.zoom, y: rr.top + (k.bounds[1] + k.bounds[3] / 2 - c.view.y) * c.view.zoom };
   });
+  await page.getByRole('radio', { name: 'Poke', exact: true }).click();   // the lens goes inside (I-75, I-114)
   await page.mouse.dblclick(rf.x, rf.y);
   await page.locator('.canvas-crumbs .here', { hasText: 'regfile' }).waitFor();
+  await page.getByRole('radio', { name: 'Edit', exact: true }).click();
   await drawn(r);
   await shot(r, 'canvas-inside');
   await r.close();
@@ -237,6 +240,74 @@ async function view(r: Running, v: { x: number; y: number; zoom: number }): Prom
   await page.locator('.simband').waitFor();
   await page.locator('.status', { hasText: 'Simulation Off' }).waitFor();
   await shot(r, 'sim-off');
+  await r.close();
+}
+// Editing (N-08, D-146), with the real engine (its gestures' answers are Logisim's): two parts selected and dragged
+// (their picture where they go, the wires the engine says would follow); a wire drawn from an open port (the L
+// bending where the first move went); a part held from the Components list (its ghost on the grid under the pointer).
+{
+  const jar = path.join(repo, 'engine/build/stage/hcs-engine.jar');
+  const r = await launch(FHD, { env: { HCS_ENGINE_CMD: '', HCS_ENGINE_JAR: jar } });
+  const { page } = r;
+  await openFile(r, sample(r.dir, DATAPATH));
+  await drawn(r);
+  await view(r, { x: 60, y: 40, zoom: 1.5 });
+  const onPage = (p: [number, number]) => page.evaluate((q) => {
+    const c = (window as unknown as { __hcsCanvas: { canvas: HTMLCanvasElement; view: { x: number; y: number; zoom: number } } }).__hcsCanvas;
+    const rr = c.canvas.getBoundingClientRect();
+    return { x: rr.left + (q[0] - c.view.x) * c.view.zoom, y: rr.top + (q[1] - c.view.y) * c.view.zoom };
+  }, p);
+  const middleOf = (name: string, label?: string) => page.evaluate(([n, l]) => {
+    const c = (window as unknown as { __hcsCanvas: { scene: { components: Map<string, { name: string; attrs: Record<string, string>; bounds: number[] }> } } }).__hcsCanvas;
+    const k = [...c.scene.components.values()].find((x) => x.name === n && (!l || x.attrs.label === l))!;
+    return [k.bounds[0] + k.bounds[2] / 2, k.bounds[1] + k.bounds[3] / 2] as [number, number];
+  }, [name, label ?? ''] as const);
+  // two parts: the PC register, then Shift+click the adder; a drag of both, held
+  const pc = await onPage(await middleOf('Register', 'PC'));
+  const adder = await onPage(await middleOf('Adder'));
+  await page.mouse.click(pc.x, pc.y);
+  await page.keyboard.down('Shift');
+  await page.mouse.click(adder.x, adder.y);
+  await page.keyboard.up('Shift');
+  await page.waitForFunction(() => (window as unknown as { __hcsCanvas: { selection(): string[] } }).__hcsCanvas.selection().length === 2);
+  await page.mouse.move(pc.x, pc.y);
+  await page.mouse.down();
+  await page.mouse.move(pc.x + 60, pc.y + 45, { steps: 8 });
+  await page.waitForFunction(() => !!(window as unknown as { __hcsCanvas: { overlay: { moveWires?: unknown } } }).__hcsCanvas.overlay.moveWires);
+  await shot(r, 'edit-select', { keepPointer: true });
+  await page.keyboard.down('Escape');
+  await page.mouse.move(pc.x, pc.y, { steps: 4 });   // back where it started: no move
+  await page.mouse.up();
+  await page.keyboard.up('Escape');
+  // a wire from the adder's open carry-out port: first down, then right (vertical first)
+  const cout = await page.evaluate(() => {
+    const c = (window as unknown as { __hcsCanvas: { scene: { components: Map<string, { name: string; ports: { loc: number[]; name?: string }[] }> } } }).__hcsCanvas;
+    const k = [...c.scene.components.values()].find((x) => x.name === 'Adder')!;
+    return k.ports.find((q) => q.name === 'cout')!.loc as [number, number];
+  });
+  const a = await onPage(cout);
+  await page.mouse.click(a.x + 300, a.y + 300);   // nothing selected
+  await page.mouse.move(a.x, a.y);
+  await page.mouse.down();
+  const b1 = await onPage([cout[0], cout[1] + 20]);
+  const b2 = await onPage([cout[0] + 70, cout[1] + 40]);
+  await page.mouse.move(b1.x, b1.y, { steps: 4 });
+  await page.mouse.move(b2.x, b2.y, { steps: 8 });
+  await shot(r, 'edit-wire', { keepPointer: true });
+  await page.keyboard.press('Escape');
+  await page.mouse.move(a.x, a.y, { steps: 6 });   // back to the start: no wire
+  await page.mouse.up();
+  // an AND gate with three inputs held from the Components list, over an empty place
+  const w = await page.evaluate(() => {
+    const c = (window as unknown as { __hcsCanvas: { scene: { fileId: string; circuitId: string } } }).__hcsCanvas;
+    return { fileId: c.scene.fileId, circuitId: c.scene.circuitId };
+  });
+  await page.evaluate((d) => window.dispatchEvent(new CustomEvent('hcs:place-tool', { detail: d, cancelable: true })),
+    { ...w, lib: 'Gates', name: 'AND Gate', attrs: { inputs: '3' }, source: 'components' });
+  const spot = await onPage([400, 360]);
+  await page.mouse.move(spot.x, spot.y, { steps: 4 });
+  await page.waitForFunction(() => !!(window as unknown as { __hcsCanvas: { overlay: { ghost?: unknown } } }).__hcsCanvas.overlay.ghost);
+  await shot(r, 'edit-ghost', { keepPointer: true });
   await r.close();
 }
 {
