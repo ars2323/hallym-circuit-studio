@@ -923,6 +923,32 @@ const methods: Record<string, (p: Params) => unknown> = {
     };
     return extEdit(f, c, (ext) => { const r = flowCall(() => flow.areaMemo(ext, p, around)); return r === 'same' || r === 'noMemo' ? null : r; }, true);
   },
+  // ---- the circuit's and the arranging intents the N-10 menus send (the engine's rules: the engine's tests) ----
+  'edit.setMainCircuit': (p) => {
+    const f = fileOf(p);
+    const c = circuitOf(p);
+    if (f.main === c.circuitId) return { changed: false, outcome: 'same' };
+    f.main = c.circuitId;
+    f.dirty = true;
+    return { changed: true };
+  },
+  'edit.setCircuitAttr': (p) => {
+    const f = fileOf(p);
+    const c = circuitOf(p);
+    if (p.attr === 'circuit') c.name = String(p.value);
+    f.dirty = true;
+    return { changed: true };
+  },
+  'edit.duplicateN': (p) => {
+    const c = circuitOf(p);
+    const ids = targets(fileOf(p), c, p);
+    const n = Number(p.count);
+    if (!Number.isInteger(n) || n < 1 || n > 64) throw new Failure(-32602, 'count must be 1..64');
+    const made = Array.from({ length: n }, (_, i) => copies(c.comps.filter((k) => ids.has(k.id)), [], 10 * (i + 1)) as Comp[]).flat();
+    return edit(p, c, () => { c.comps.push(...made); return { removed: [], added: made }; });
+  },
+  'edit.align': (p) => { circuitOf(p); return { changed: false, outcome: 'nothing' }; },
+  'edit.distribute': (p) => { circuitOf(p); return { changed: false, outcome: 'nothing' }; },
   // ---- N-10: the attribute table, the right-click menu's facts and intents, memories (fake-attrs.ts) ----
   'model.attributes': (p) => {
     const f = fileOf(p);
@@ -954,8 +980,11 @@ const methods: Record<string, (p: Params) => unknown> = {
   },
   'edit.labels': (p) => {
     const c = circuitOf(p);
-    const labels = (p.labels ?? {}) as Record<string, string>;
-    const ids = partsOf(c, Object.keys(labels));
+    const list = Array.isArray(p.ids) ? p.ids as string[] : [];
+    const texts = Array.isArray(p.labels) ? p.labels as string[] : [];
+    if (texts.length !== list.length) throw new Failure(-32602, 'labels must have one text for each of ids');
+    const ids = partsOf(c, list);
+    const labels = Object.fromEntries(list.map((id, i) => [id, String(texts[i])]));
     const parts = c.comps.filter((k) => ids.has(k.id) && (k.attrs.label ?? '') !== labels[k.id].trim());
     if (!parts.length) return { changed: false, outcome: 'same' };
     return edit(p, c, () => {

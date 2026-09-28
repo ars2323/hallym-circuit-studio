@@ -112,7 +112,7 @@ export function installCanvasMenu(d: CanvasMenuDeps): CanvasMenu {
         const name = c ? (c.name + (c.attrs.label ? ` · ${c.attrs.label}` : '')) : id;
         return { id, name, label: labels[i] ?? c?.attrs.label ?? '' };
       });
-      void askLabels(rows, (v) => submit(t, 'edit.labels', { labels: v }));
+      void askLabels(rows, (v) => submit(t, 'edit.labels', { ids: Object.keys(v), labels: Object.values(v) }));
     },
     tunnels: (t, w) => {
       void askText({ title: 'Replace Wire with Tunnels', sentence: '선을 지우고 양 끝에 같은 이름의 Tunnel을 둡니다. 넷은 그대로입니다.', field: 'Tunnel Name', value: '', required: '터널 이름을 적으세요.' },

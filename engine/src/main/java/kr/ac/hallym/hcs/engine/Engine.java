@@ -940,11 +940,17 @@ public final class Engine {
             Component hit = p.has("id") ? d.component(c, p.str("id")) : null;
             return kr.ac.hallym.hcs.engine.edit.MenuFacts.at(d, c, Location.create(at[0], at[1]), hit);
         });
+        // ids와 labels는 같은 차례의 두 목록(되살리기 저널이 ids를 부품으로 바꿔 적는다, D-142)
         edit("edit.labels", true, (d, p) -> {
             Circuit c = d.circuit(p.str("circuitId"));
+            List<Component> comps = d.components(c, p.strings("ids"));
+            List<String> texts = p.strings("labels");
+            if (texts.size() != comps.size()) {
+                throw RpcError.params("labels must have one text for each of ids");
+            }
             Map<Component, String> labels = new java.util.LinkedHashMap<>();
-            for (Map.Entry<String, String> e : p.optStringMap("labels").entrySet()) {
-                labels.put(d.component(c, e.getKey()), e.getValue());
+            for (int i = 0; i < comps.size(); i++) {
+                labels.put(comps.get(i), texts.get(i));
             }
             return kr.ac.hallym.hcs.engine.edit.MenuIntents.labels(d, c, labels);
         });

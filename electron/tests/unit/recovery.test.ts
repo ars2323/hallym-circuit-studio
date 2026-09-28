@@ -448,6 +448,63 @@ test('recovery: signal groups and area memos (N-15) are replayed with the wire a
   }
 });
 
+test('the journal: the right-click menu\'s intents (N-10) name their parts as refs -- ids in order, one id, a wire; RAM contents are the simulation\'s (not journaled)', () => {
+  const s = new Shadow();
+  const j = new Journal();
+  s.answer('file.open', {}, { fileId: 'f1', circuits: [{ circuitId: 'c1', name: 'main' }] });
+  s.answer('model.circuit', { fileId: 'f1', circuitId: 'c1' }, snapshot('c1', { comps: [['k7', and(300, 200)], ['k8', and(300, 300)]], wires: [['w3', [100, 100], [200, 100]], ['w4', [100, 300], [100, 400]]] }));
+  j.opened('f1', { kind: 'path', path: '/a.circ', readOnly: false }, { main: 'c1' }, 'sum');
+  const base = { fileId: 'f1', circuitId: 'c1' };
+  j.record('f1', 'edit.labels', { ...base, ids: ['k8', 'k7'], labels: ['b', 'a'] }, s);
+  j.record('f1', 'edit.attach', { ...base, id: 'k7', port: 1, what: 'pin' }, s);
+  j.record('f1', 'edit.swapGate', { ...base, id: 'k7', to: 'OR Gate' }, s);
+  j.record('f1', 'edit.probe', { ...base, wire: 'w3', at: [150, 100] }, s);
+  j.record('f1', 'edit.combineBus', { ...base, ids: ['w4', 'w3'] }, s);
+  j.record('f1', 'edit.setAttr', { ...base, ids: ['k8'], attr: 'label', value: 'x', keepSelection: true }, s);
+  const e = j.files.get('f1')!.entries;
+  assert.equal(j.files.get('f1')!.broken, null);
+  const k7 = refOf(and(300, 200)), k8 = refOf(and(300, 300));
+  const w3 = refOf({ id: 'w3', a: [100, 100], b: [200, 100] }), w4 = refOf({ id: 'w4', a: [100, 300], b: [100, 400] });
+  assert.deepEqual(e.map((x) => x.refs), [{ ids: [k8, k7] }, { id: k7 }, { id: k7 }, { wire: w3 }, { ids: [w4, w3] }, { ids: [k8] }]);
+  for (const m of ['edit.labels', 'edit.attach', 'edit.swapGate', 'edit.deleteNet', 'edit.wireToTunnels', 'edit.probe', 'edit.deleteProbes', 'edit.combineBus', 'edit.originalItem', 'edit.memContents']) assert.ok(journaled(m), m);
+  for (const m of ['model.attributes', 'model.menu', 'mem.read', 'mem.write', 'mem.clear']) assert.ok(!journaled(m), m);
+});
+
+test('recovery: the right-click menu\'s intents (N-10) are replayed with their parts found again; the same model comes back', async () => {
+  const { dir, datapath } = scratch();
+  const copy = path.join(dir, 'datapath-menu.circ');   // the fake reads it itself: a new engine gives new ids
+  copyFileSync(datapath, copy);
+  const { engine, sup } = fake();
+  try {
+    await engine.start();
+    const a = await win<OpenResult>(engine, 'file.open', { path: copy });
+    const main = a.circuits.find((c) => c.name === 'main')!.circuitId;
+    const snap = await win<Snapshot>(engine, 'model.circuit', { fileId: a.fileId, circuitId: main });
+    const tunnels = snap.components.filter((c) => c.name === 'Tunnel').slice(0, 2);
+    const w = snap.wires[0];
+    const base = { fileId: a.fileId, circuitId: main };
+    await win(engine, 'edit.labels', { ...base, ids: tunnels.map((t) => t.id), labels: ['t1', 't2'] });
+    await win(engine, 'edit.probe', { ...base, wire: w.id, at: w.a, radix: '2' });
+    await win(engine, 'edit.setAttr', { ...base, ids: [tunnels[0].id], attr: 'width', value: '4', keepSelection: true });
+    const before = await win<Snapshot>(engine, 'model.circuit', base);
+    const replayed: [string, Record<string, unknown>][] = [];
+    engine.on('answer', (x) => { if (x.tag === 'recovery' && x.method.startsWith('edit.')) replayed.push([x.method, x.params as Record<string, unknown>]); });
+    const done = recovered(sup);
+    engine.kill();
+    const r = await done;
+    assert.deepEqual(r.restored, [{ fileId: a.fileId, edits: 3, dirty: true }]);
+    assert.deepEqual(replayed.map(([m]) => m), ['edit.labels', 'edit.probe', 'edit.setAttr']);
+    const after = await win<Snapshot>(engine, 'model.circuit', base);
+    const strip = (x: Snapshot) => x.components.map((c) => refOf(c)).concat(x.wires.map((v) => refOf(v))).map((z) => JSON.stringify(z)).sort();
+    assert.deepEqual(strip(after), strip(before));
+    assert.notDeepEqual(replayed[0][1].ids, tunnels.map((t) => t.id), 'the new engine\'s ids');
+    assert.deepEqual(replayed[0][1].labels, ['t1', 't2']);
+  } finally {
+    await engine.shutdown();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('recovery: a file changed on disk since it was opened opens as it is now, its edits not replayed', async () => {
   const { dir, gates } = scratch();
   const { engine, sup } = fake();

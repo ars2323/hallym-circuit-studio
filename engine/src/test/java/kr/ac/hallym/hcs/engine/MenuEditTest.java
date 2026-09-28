@@ -463,9 +463,10 @@ class MenuEditTest {
         open();
         String a = id("Pin", "A");
         String b = id("Pin", "B");
-        assertTrue(call("edit.labels", "labels", params(a, "x0", b, "x1")).get("changed").getAsBoolean());
+        assertTrue(call("edit.labels", "ids", ids(a, b), "labels", ids("x0", "x1")).get("changed").getAsBoolean());
         assertEquals("x0", part("Pin", "x0").getAsJsonObject("attrs").get("label").getAsString());
-        assertEquals("same", call("edit.labels", "labels", params(a, "x0")).get("outcome").getAsString());
+        assertEquals("same", call("edit.labels", "ids", ids(a), "labels", ids("x0")).get("outcome").getAsString());
+        assertEquals(-32602, fail("edit.labels", "ids", ids(a, b), "labels", ids("x0")).code);
         undo();
         assertNotNull(part("Pin", "A"));
         assertNotNull(part("Pin", "B"));

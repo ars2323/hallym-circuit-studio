@@ -49,8 +49,12 @@ export function tidy(entries: MenuEntry[]): MenuEntry[] {
   return out;
 }
 
+// A long list of short choices (Data Bits' 32, Take One Bit's [31]…[0]): in columns, not down the whole screen.
+export const inColumns = (entries: MenuEntry[]): boolean =>
+  entries.length > 12 && entries.every((e) => !e.items && !e.header && e.label !== '-' && e.label.length <= 5);
+
 function build(entries: MenuEntry[], depth: number): HTMLElement {
-  const menu = h('div', { class: 'ovmenu', role: 'menu' });
+  const menu = h('div', { class: `ovmenu${inColumns(entries) ? ' cols' : ''}`, role: 'menu' });
   for (const e of tidy(entries)) {
     if (e === SEPARATOR || e.label === '-') { menu.append(h('hr')); continue; }
     if (e.header) { menu.append(h('div', { class: 'mhead', role: 'presentation' }, e.label)); continue; }
@@ -88,8 +92,12 @@ function build(entries: MenuEntry[], depth: number): HTMLElement {
   menu.addEventListener('keydown', (k) => {
     const items = [...menu.querySelectorAll<HTMLButtonElement>(':scope > button:not([disabled])')];
     const i = items.indexOf(document.activeElement as HTMLButtonElement);
-    if (k.key === 'ArrowDown') { k.preventDefault(); items[(i + 1) % items.length]?.focus(); }
-    else if (k.key === 'ArrowUp') { k.preventDefault(); items[(i - 1 + items.length) % items.length]?.focus(); }
+    const cols = menu.classList.contains('cols');
+    const row = cols ? 4 : 1;                 // in columns: ↑↓ a row, ←→ an item (← at a row's start closes a submenu)
+    if (k.key === 'ArrowDown') { k.preventDefault(); items[cols ? Math.min(items.length - 1, i + row) : (i + 1) % items.length]?.focus(); }
+    else if (k.key === 'ArrowUp') { k.preventDefault(); items[cols ? Math.max(0, i - row) : (i - 1 + items.length) % items.length]?.focus(); }
+    else if (cols && k.key === 'ArrowRight') { k.preventDefault(); items[Math.min(items.length - 1, i + 1)]?.focus(); }
+    else if (cols && k.key === 'ArrowLeft' && (i % 4 !== 0 || depth === 0)) { k.preventDefault(); items[Math.max(0, i - 1)]?.focus(); }
     else if (k.key === 'Home') { k.preventDefault(); items[0]?.focus(); }
     else if (k.key === 'End') { k.preventDefault(); items[items.length - 1]?.focus(); }
     else if (k.key === 'ArrowLeft' && depth > 0) {

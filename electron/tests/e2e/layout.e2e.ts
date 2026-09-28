@@ -59,8 +59,9 @@ for (const { scale, size } of SCREENS) {
       }
       await expect(page.locator('.shell')).not.toHaveClass(/narrow/);
       expect(await clipped(page)).toEqual([]);
-      // Every English name in a sentence on one line; the Attributes panel's (Data Bits) among them.
-      expect(await page.locator('section.right .notice .name').allInnerTexts()).toEqual(['Canvas', 'Data Bits', 'Facing', 'Label']);
+      // Nothing selected: the circuit's attributes (N-10, Y-05), every name whole
+      await expect(page.locator('section.right .aname')).toHaveText('main');
+      await expect(page.locator('section.right .atable tbody th')).toHaveCount(4);
       expect(await brokenNames(page)).toEqual([]);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
       // The title bar: its right end clear of the caption buttons, every toolbar button whole and inside the window.
@@ -92,12 +93,12 @@ test('half a 1920 screen: no right column, Attributes a tab of the left panel; b
     r.app.evaluate(({ BrowserWindow }, s) => BrowserWindow.getAllWindows()[0].setContentSize(s.width, s.height), { width, height });
   try {
     await openFile(r, sample(r.dir, DATAPATH));
-    await expect(page.locator('section[aria-label="Attributes"] h3')).toHaveText('고른 부품이 없습니다');
+    await expect(page.locator('section[aria-label="Attributes"] .aname')).toHaveText('main');
     await resize(960, 1032);
     await expect(page.locator('.shell')).toHaveClass(/narrow/);
     await expect(page.locator('.rightcol')).toBeHidden();
     await page.locator('.upper').getByRole('tab', { name: 'Attributes' }).click();
-    await expect(page.locator('.upper .pbody:visible h3')).toHaveText('고른 부품이 없습니다');
+    await expect(page.locator('.upper .pbody:visible .aname')).toHaveText('main');
     expect(await clipped(page)).toEqual([]);
     expect(await brokenNames(page)).toEqual([]);
     await expect(page.locator('.toolbar button, .toolbar select')).toHaveCount(17);
@@ -105,7 +106,7 @@ test('half a 1920 screen: no right column, Attributes a tab of the left panel; b
     // Wide again: Attributes in its own column, the left panel back on Components.
     await resize(1600, 1000);
     await expect(page.locator('.shell')).not.toHaveClass(/narrow/);
-    await expect(page.locator('section[aria-label="Attributes"] h3')).toHaveText('고른 부품이 없습니다');
+    await expect(page.locator('section[aria-label="Attributes"] .aname')).toHaveText('main');
     await expect(page.locator('.upper').getByRole('tab', { name: 'Attributes' })).toBeHidden();
     await expect(page.locator('.upper .pbody:visible .libgroup').first()).toBeVisible();
   } finally {
@@ -130,13 +131,11 @@ test('the empty panels say what fills them; only the Canvas has a character', as
       says[tab ?? panel] = `${await body.locator('.notice h3').innerText()} / ${await body.locator('.notice p').innerText()}`.replace(/\u2060/g, '');
     };
     await read('canvaspanel');
-    if (await page.locator('.shell.narrow').count()) {
-      await read('upper', 'Attributes');
-      says.right = says.Attributes;
-      delete says.Attributes;
-    } else {
-      await read('right');
-    }
+    // Attributes: never empty with a circuit on show -- the circuit's own attributes (N-10, Y-05)
+    if (await page.locator('.shell.narrow').count()) await page.locator('section.upper').getByRole('tab', { name: 'Attributes' }).click();
+    await expect(page.locator('.pbody.attributes .aname')).toHaveText('main');
+    await expect(page.locator('.pbody.attributes .ahead .badge')).toHaveText('Circuit');
+    expect(await page.locator('.pbody.attributes img.char').count()).toBe(0);
     await read('lower', 'Tunnels');
     await read('lower', 'Minimap');
     await read('bottom', 'Messages');
@@ -144,7 +143,6 @@ test('the empty panels say what fills them; only the Canvas has a character', as
     await read('bottom', 'Console');
     expect(says).toEqual({
       canvaspanel: '빈 회로입니다 / 부품과 선을 놓으면 여기 Canvas에 그려집니다. 부품은 왼쪽 Components 목록에서 끌어 오거나 Ctrl+K 검색 창에서 찾아 놓습니다.',
-      right: '고른 부품이 없습니다 / Canvas에서 부품을 고르면 그 속성(Data Bits, Facing, Label …)이 여기에 나옵니다.',
       Tunnels: '터널이 없습니다 / 이 회로에 Tunnel을 놓으면 이름별로 여기에 모입니다.',
       Minimap: '회로 전체가 작게 나옵니다 / Canvas에 그린 회로의 전체 모습과 지금 보는 곳이 여기에 나옵니다.',
       Messages: '메시지가 없습니다 / 동작할 수 없는 연결(떠 있는 입력, 짝 없는 터널, 폭이 다른 선 …)이 있으면 여기에 나옵니다. 시뮬레이션 중에 생긴 E·X 값과 발진은 그 사이클과 함께 나옵니다.',

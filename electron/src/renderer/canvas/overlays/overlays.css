@@ -15,6 +15,9 @@
 .ovmenu .mark { color: var(--blue); font-size: 11px; text-align: center; }
 .ovmenu .sub { color: var(--muted); }
 /* N-10: the summary line on top (v1 MenuLayout: bold, not an item), key hints on the right, colour swatches */
+/* N-10: a menu taller than the window scrolls; a long list of short choices goes in columns (menu.ts inColumns) */
+.ovmenu { max-height: calc(100vh - 8px); overflow-y: auto; }
+.ovmenu.cols { display: grid; grid-template-columns: repeat(4, minmax(60px, auto)); column-gap: 2px; }
 .ovmenu .mhead { padding: 5px 8px 6px; font-weight: 600; color: var(--navy); white-space: nowrap; max-width: 420px; overflow: hidden; text-overflow: ellipsis; }
 .ovmenu .keys { min-width: 12px; padding-left: 18px; color: var(--muted); font-size: 12px; }
 .ovmenu .swatchmark { display: inline-flex; align-items: center; justify-content: center; position: relative; }

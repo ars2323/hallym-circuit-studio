@@ -31,10 +31,12 @@ export function arrange(summary: string | null, parts: MenuItem[][]): MenuEntry[
     if (mine.length) specific.push(mine);
   }
   const out: MenuEntry[] = [];
+  let items = 0;                                     // a separator goes between groups, never under the header
+  const group = (g: MenuEntry[]) => { if (items) out.push(SEP); out.push(...g); items += g.length; };
   if (summary) out.push({ label: summary, header: true });
-  for (const s of specific) { if (out.length) out.push(SEP); out.push(...s); }
-  if (common.length) { if (out.length) out.push(SEP); out.push(...common); }
-  if (del.length) { if (out.length) out.push(SEP); out.push(...del); }
+  for (const s of specific) group(s);
+  if (common.length) group(common);
+  if (del.length) group(del);
   return out;
 }
 

@@ -160,7 +160,7 @@ test('바로 시작 → 파일 열기: the open dialog, then the engine opens it
     await expect(page.locator('.upper .pbody:visible .list > li').first().getByRole('img', { name: 'Main circuit' })).toBeVisible();
     await expect(page.locator('.upper .pbody:visible .list .mainmark')).toHaveCount(1);
     if (!(await page.locator('.shell.narrow').count())) {
-      await expect(page.locator('section.right h3')).toHaveText('고른 부품이 없습니다'); // Attributes stays in its column
+      await expect(page.locator('section.right .aname')).toHaveText('main'); // Attributes stays in its column (the circuit's, N-10)
     }
     await page.locator('.upper .pbody:visible .list > li', { hasText: 'regfile' }).getByRole('button').click();
     await expect(page.locator('.circuitbar .ptab')).toHaveText(['main', 'regfile']);

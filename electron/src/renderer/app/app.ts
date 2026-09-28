@@ -1285,13 +1285,13 @@ function selectedFacts(): ReturnType<typeof selectionFacts> {
 // show (the circuit's own when nothing is chosen); no file: its empty state.
 function renderAttributes(): void {
   const f = files.active();
-  const s = board.scene;
-  if (!f || !s || engine.state !== 'ready') {
+  if (!f || engine.state !== 'ready') {
     attrsPanel.show(null);
     if (!f) attributesBody.empty(EMPTY_ATTRIBUTES);
     return;
   }
-  attrsPanel.show(requestFor(f.fileId, s.circuitId, editor.tool, editor.tool === 'Place' ? editor.place.held ?? null : null));
+  // the circuit drawn (inside an instance: that subcircuit); an empty circuit too (its own attributes, Y-05)
+  attrsPanel.show(requestFor(f.fileId, shown(f).circuit, editor.tool, editor.tool === 'Place' ? editor.place.held ?? null : null));
 }
 
 function renderStatus(): void {

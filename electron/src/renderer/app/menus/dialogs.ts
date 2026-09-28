@@ -14,7 +14,10 @@ export type Submit<T> = (value: T) => Promise<string | null>;
 
 interface FormField { name: string; el: HTMLElement; focus?: HTMLInputElement }
 
-function form<T>(o: { title: string; sentence: string; fields: FormField[]; ok: string; read(): T | string; submit: Submit<T>; cls?: string; extra?: HTMLElement | null }): Promise<boolean> {
+// read(): the value, or why it cannot be sent (the dialog stays, the sentence under the fields).
+type Read<T> = { value: T } | { error: string };
+
+function form<T>(o: { title: string; sentence: string; fields: FormField[]; ok: string; read(): Read<T>; submit: Submit<T>; cls?: string; extra?: HTMLElement | null }): Promise<boolean> {
   return new Promise((answer) => {
     const why = h('span', { class: 'hint err', role: 'alert' });
     const ok = h('button', { class: 'btn primary', type: 'button' }, o.ok);
@@ -31,9 +34,9 @@ function form<T>(o: { title: string; sentence: string; fields: FormField[]; ok: 
     const go = async () => {
       if (busy) return;
       const v = o.read();
-      if (typeof v === 'string') { why.textContent = v; return; }
+      if ('error' in v) { why.textContent = v.error; return; }
       busy = true;
-      const err = await o.submit(v);
+      const err = await o.submit(v.value);
       busy = false;
       if (err === null) { taken = true; dialog.close(); return; }
       why.textContent = err;
@@ -67,7 +70,7 @@ export function askText(o: { title: string; sentence: string; field: string; val
   return form<string>({
     title: o.title, sentence: o.sentence, ok: o.ok ?? 'OK',
     fields: [{ name: `${o.field}:`, el: input, focus: input }],
-    read: () => (o.required && !input.value.trim() ? o.required : input.value),
+    read: () => (o.required && !input.value.trim() ? { error: o.required } : { value: input.value }),
     submit,
   });
 }
@@ -78,7 +81,7 @@ export function askLabels(rows: { id: string; name: string; label: string }[], s
   return form<Record<string, string>>({
     title: 'Labels', sentence: '부품마다 라벨을 적으세요. OK를 누르면 한 번에 바뀌고, Undo 한 번으로 모두 되돌립니다.', ok: 'OK', cls: 'labels',
     fields: rows.map((r, i) => ({ name: r.name, el: inputs[i], focus: i === 0 ? inputs[i] : undefined })),
-    read: () => Object.fromEntries(rows.map((r, i) => [r.id, inputs[i].value])),
+    read: () => ({ value: Object.fromEntries(rows.map((r, i) => [r.id, inputs[i].value])) }),
     submit,
   });
 }
@@ -105,10 +108,10 @@ export function askDuplicateN(o: { spacing(direction: DuplicateN['direction']): 
     extra,
     read: () => {
       const n = Number(count.value);
-      if (!Number.isInteger(n) || n < 1 || n > 64) return '복제할 수는 1–64 사이의 정수입니다.';
+      if (!Number.isInteger(n) || n < 1 || n > 64) return { error: '복제할 수는 1–64 사이의 정수입니다.' };
       const s = Number(spacing.value);
-      if (!Number.isInteger(s) || s < 10 || s > 2000) return '간격은 10–2000 사이의 정수(px)입니다.';
-      return { count: n, direction: dir.value as DuplicateN['direction'], spacing: Math.round(s / 10) * 10, number: number.checked };
+      if (!Number.isInteger(s) || s < 10 || s > 2000) return { error: '간격은 10–2000 사이의 정수(px)입니다.' };
+      return { value: { count: n, direction: dir.value as DuplicateN['direction'], spacing: Math.round(s / 10) * 10, number: number.checked } };
     },
     submit,
   });
