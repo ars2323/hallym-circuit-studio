@@ -123,6 +123,15 @@ export const statusText = (page: Page) => page.locator('.status').innerText();
 export const visibleCharacters = (page: Page): Promise<number> => page.evaluate(() =>
   [...document.querySelectorAll('img.char')].filter((e) => e.checkVisibility({ visibilityProperty: true })).length);
 
+// The Canvas has drawn what it has (canvas.ts settled()): its scene on the page at its size, its first view
+// chosen, no frame to come, the last frame this scene's model and values at this view.  Wait on this before
+// computing a page point from the view (a double click) or reading a pixel -- never on a guess of how long
+// a frame takes: a scene set while the Canvas was off the page (the next file's, loading) keeps the view it
+// had until its size is known, and a screenshot taken before the frame shows the one before.
+export async function canvasSettled(page: Page): Promise<void> {
+  await page.waitForFunction(() => (window as unknown as { __hcsCanvas?: { settled(): boolean } }).__hcsCanvas?.settled() === true);
+}
+
 // Values at a subcircuit instance's ports, seen from the parent (the net at each port), by port name.
 export const PARENT_PORT_VALUES = (instanceName: string) => {
   type Comp = { id: string; name: string; ports: { i: number; name?: string }[] };

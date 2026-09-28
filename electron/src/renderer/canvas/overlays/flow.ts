@@ -93,7 +93,7 @@ export class FlowOverlay implements CanvasOverlay {
     if (!this.path || this.reduceMotion) return false;
     if (this.smooth) return true;
     clearTimeout(this.timer);
-    this.timer = window.setTimeout(() => this.canvas?.invalidate(), 30);
+    this.timer = window.setTimeout(() => this.canvas?.invalidate(false), 30);   // (the flow only: settled() stays)
     return false;
   }
 

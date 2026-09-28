@@ -15,7 +15,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import type { Snapshot } from '../../src/main/protocol.ts';
-import { answerOpen, answerSave, DATAPATH, INSIDE_PIN_VALUES, launch, newCircuit, openFile, PARENT_PORT_VALUES, repo, sample, type LaunchOptions } from './harness.ts';
+import { answerOpen, answerSave, canvasSettled, DATAPATH, INSIDE_PIN_VALUES, launch, newCircuit, openFile, PARENT_PORT_VALUES, repo, sample, type LaunchOptions } from './harness.ts';
 import { alive, call, circuitsOf, enginePid, fileModel, journalLength, killEngine, killMainAndSeeEngineEnd, openFileIds } from './model.ts';
 import { click, menu, opened, partMiddle, rightClick, shown, wireAtPort } from './overlay-helpers.ts';
 
@@ -351,6 +351,9 @@ test('the real engine and the Canvas: ref-mips drawn with its values; demo-datap
     await openFile(r, sample(r.dir, DATAPATH));
     // (ref-mips's circuit is called main too: wait for demo-datapath's, the one with the register file)
     await page.waitForFunction(() => { const c = (window as unknown as { __hcsCanvas: C }).__hcsCanvas; return !!c.scene && [...c.scene.components.values()].some((x) => x.name === 'regfile') && c.scene.values.size > 0; });
+    // drawn at its own size and first view: the Canvas was off the page while this scene loaded, and until its
+    // size is known it still has ref-mips's view (a point from that view misses the register file)
+    await canvasSettled(page);
     const at = await page.evaluate(() => {
       const c = (window as unknown as { __hcsCanvas: C }).__hcsCanvas;
       const k = [...c.scene!.components.values()].find((x) => x.name === 'regfile')!;
