@@ -71,6 +71,8 @@ test('the first screen: the university video behind the card, from the app\'s ow
       return !!top?.closest('.wcard');
     })).toBe(true);
     await expect(page.locator('.wcard img.char')).toHaveAttribute('src', /haram-hari-greeting\.png$/);
+    // The card's shadow, Hallym MIPS 2.5.0's value (dark navy: on the dark ground it is subtle by design).
+    await expect(page.locator('.wcard')).toHaveCSS('box-shadow', 'rgba(0, 16, 46, 0.45) 0px 18px 60px 0px');
     // The processing: CSS on the video and the still, a navy layer over them.
     for (const sel of ['.wback video', '.wback img.still']) await expect(page.locator(sel)).toHaveCSS('filter', 'blur(3px) saturate(0.85)');
     expect(await page.evaluate(() => getComputedStyle(document.querySelector('.wback')!, '::after').backgroundImage)).toContain('rgba(0, 32, 91, 0.78)');
