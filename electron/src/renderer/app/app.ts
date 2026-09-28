@@ -910,8 +910,13 @@ function appearanceShown(f: OpenFile): boolean {
   return appearanceTabs.has(key(f.fileId, f.circuit)) && !inside.get(key(f.fileId, f.circuit));
 }
 
+// A circuit the engine just made is not in the file's list until its file.changed: shown then.
+let pendingShow: { fileId: string; circuitId: string; appear: boolean } | null = null;
 function showCircuit(fileId: string, circuitId: string, appear: boolean): void {
-  if (!files.get(fileId)) return;
+  const f = files.get(fileId);
+  if (!f) return;
+  if (!f.circuits.some((c) => c.circuitId === circuitId)) { pendingShow = { fileId, circuitId, appear }; return; }
+  pendingShow = null;
   files.activate(fileId);
   files.openCircuit(fileId, circuitId);
   const k = key(fileId, circuitId);
@@ -1735,6 +1740,8 @@ api.onNotify((method, params) => {
     libInfo.clear();
     for (const k of [...instCache.keys()]) if (k.startsWith(`${c.fileId} `)) instCache.delete(k);
     bandShown = '';
+    const ps = pendingShow;
+    if (ps && ps.fileId === c.fileId && c.circuits.some((x) => x.circuitId === ps.circuitId)) showCircuit(ps.fileId, ps.circuitId, ps.appear);
     render();
   } else if (method === 'model.appearance') {
     appearance.show(p as unknown as AppearanceEdit);
