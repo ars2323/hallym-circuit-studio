@@ -182,7 +182,7 @@ Component = {
 | `edit.rotate` | `ids?, clockwise?`(기본 true) | v1 R·Shift+R: 방향이 있는 부품을 90도(되돌리기 한 단계 "Rotate") |
 | `edit.keyConfig` | `key, alt?, chain?` + (`lib, name`: 놓기 도구에) | 숫자·Alt+숫자·Alt+방향 키(원조 KeyConfigurator: 게이트 입력 수, 비트 폭, Select Bits, 핀 라벨 자리…). `lib, name`이 없으면 고른 부품에(`SelectTool.processKeyEvent`, 한 단계), 있으면 그 놓기 도구에(`AddTool.processKeyEvent`, ToolAttributeAction). 도구에 방향 키(`ArrowUp` 등, Alt 없이)는 설정기가 받지 않으면 도구의 방향(`AddTool.setFacing`). `chain`: 앞 키의 설정기를 이어 쓴다(원조처럼 0.8초 안의 숫자를 여러 자리 수로, 시간은 화면이 잰다) |
 | `edit.text` | `id?` 또는 `loc`, `text` | 글자 도구(`TextTool`): `id`면 그 부품의 글 칸(라벨, Label 글)을 원조 `TextEditable.getCommitAction`으로, 아니면 `loc`에 새 Label(글자 도구 속성으로, 빈 글이면 하지 않음). result `id`: 새 Label |
-| `edit.undo`, `edit.redo` | —(`circuitId`는 없어도 된다) | Logisim 되돌리기 기록 그대로(다시 실행은 포크의 RedoStack) |
+| `edit.undo`, `edit.redo` | `circuitId?`: 화면이 보던 회로(화면은 늘 보낸다) | Logisim 되돌리기 기록 그대로(다시 실행은 포크의 RedoStack). `circuitId`를 주면 먼저 그 회로를 편집하는 회로로 둔다(다른 회로의 선택은 원조처럼 그 회로에 내려놓고 비운다): 저널에 적혀 되살리기 재생이 저널에 없는 `sim.watch`·`record.view`와 상관없이 같다(D-146 12항). 없으면(의도 파일) 지금 회로 그대로 |
 | `edit.setToolAttr` | `lib, name, attr, value` | 도구 속성 바꾸기(부품 목록에서 고른 도구의 속성 표, ToolAttributeAction). 도구에 남아 다음 놓기에 쓰이고 `<lib><tool>`에 저장된다. 이미 같은 값이면 `changed:false, outcome:"same"` |
 | `edit.copy`, `edit.cut`, `edit.duplicate` | `ids?` | Edit 메뉴(LayoutEditHandler). 클립보드는 엔진 프로세스 안(열린 파일끼리 붙여넣기 됨, 시스템 클립보드 아님). 복제는 v1 SafeDuplicate: 사본이 옛 포트·선에 닿으면 나선으로 더 옮겨 내려놓는다(W-05) |
 | `edit.paste` | — | Edit › Paste: 사본을 떠 있는 선택으로 둔다(다음 고르기·다른 회로·저장 때 내려놓는다) |

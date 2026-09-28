@@ -577,8 +577,9 @@ public final class Engine {
                 p.str("attr"), p.str("value")));
         edit("edit.createCircuit", false, (d, p) -> ArrangeIntents.createCircuit(d, p.str("name")));
         edit("edit.setMainCircuit", true, (d, p) -> ArrangeIntents.setMainCircuit(d, d.circuit(p.str("circuitId"))));
-        edit("edit.undo", false, (d, p) -> Intents.undo(d));
-        edit("edit.redo", false, (d, p) -> Intents.redo(d));
+        // 화면이 보던 회로(circuitId, 화면은 늘 보낸다)를 먼저 편집하는 회로로 둔다: 저널에 적혀 재생이 같다(D-146)
+        edit("edit.undo", false, (d, p) -> Intents.undo(d, p.has("circuitId") ? d.circuit(p.str("circuitId")) : null));
+        edit("edit.redo", false, (d, p) -> Intents.redo(d, p.has("circuitId") ? d.circuit(p.str("circuitId")) : null));
         // 모델을 바꾸지 않는 물음(model.*): 놓을 부품의 모습, 끄는 동안의 연결 유지 선
         server.register("model.tool", (p, call) -> {
             Doc d = files.get(p.str("fileId"));

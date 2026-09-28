@@ -316,3 +316,57 @@ test('a paste still floating when another circuit is shown: dropped where it was
     await r.close();
   }
 });
+
+test('Undo and Redo on another circuit\'s tab: the circuit on show goes with them (circuitId), an id-less key after; killed, the replayed model is the same (D-146)', async () => {
+  const r = await launch(undefined, { env: real });
+  const { page } = r;
+  try {
+    await openFile(r, sample(r.dir, DATAPATH));
+    await page.locator('.canvas-view canvas').waitFor();
+    await expect.poll(async () => (await parts(page, 'Adder')).length).toBe(1);
+    await recordCalls(r.app);
+    const [fileId] = await openFileIds(r.app);
+    await tool(page, 'Edit').click();
+    const adder = (await parts(page, 'Adder'))[0];
+    await drag(page, mid(adder), [mid(adder)]);
+    await expect.poll(() => selected(page)).toEqual([adder.id]);
+    await page.locator('.canvas-view canvas').focus();
+    await page.keyboard.press('ArrowDown');   // edit.move without ids: the engine's selection
+    await expect.poll(async () => (await parts(page, 'Adder'))[0]?.loc[1]).toBe(adder.loc[1] + 10);
+    const mainId = (await where(page)).circuitId;
+    // the alu tab: Ctrl+Z and Ctrl+Y there send the circuit on show
+    await page.getByRole('tab', { name: 'Circuits' }).click();
+    await page.locator('.upper .pbody:visible .list > li', { hasText: 'alu' }).getByRole('button').click();
+    await expect(page.locator('.circuitbar .ptab.on')).toHaveText('alu');
+    // the Canvas's scene follows the tab a moment later (its snapshot on its way)
+    await expect.poll(async () => (await where(page)).circuitId).not.toBe(mainId);
+    const aluId = (await where(page)).circuitId;
+    await page.keyboard.press('Control+z');
+    await expect.poll(async () => (await sentCalls(r.app, 'edit.undo')).length).toBe(1);
+    await page.keyboard.press('Control+y');
+    await expect.poll(async () => (await sentCalls(r.app, 'edit.redo')).length).toBe(1);
+    expect((await sentCalls(r.app, 'edit.undo'))[0].params).toMatchObject({ fileId, circuitId: aluId });
+    expect((await sentCalls(r.app, 'edit.redo'))[0].params).toMatchObject({ fileId, circuitId: aluId });
+    // back on main: the undo on the alu tab dropped the selection (Logisim clears it when the circuit changes);
+    // the adder chosen again, R turns the engine's selection (no ids)
+    await page.locator('.upper .pbody:visible .list > li', { hasText: 'main' }).getByRole('button').click();
+    await expect(page.locator('.circuitbar .ptab.on')).toHaveText('main');
+    await expect.poll(async () => (await where(page)).circuitId).toBe(mainId);
+    await expect.poll(() => selected(page)).toEqual([]);
+    const now = (await parts(page, 'Adder'))[0];
+    await drag(page, mid(now), [mid(now)]);
+    await expect.poll(() => selected(page)).toEqual([now.id]);
+    await page.locator('.canvas-view canvas').focus();
+    await page.keyboard.press('KeyR');
+    await expect.poll(async () => (await sentCalls(r.app, 'edit.rotate')).length).toBe(1);
+    expect((await sentCalls(r.app, 'edit.rotate'))[0].params).not.toHaveProperty('ids');
+    // killed now: the undo and redo carry their circuit in the journal; the replayed model is the same (D-142)
+    const model = await fileModel(page, fileId);
+    await killEngine(r.app);
+    await expect(page.locator('dialog.ask')).toContainText('다시 적용했습니다');
+    await page.locator('dialog.ask').getByRole('button', { name: 'Close' }).click();
+    expect(await fileModel(page, fileId)).toEqual(model);
+  } finally {
+    await r.close();
+  }
+});
