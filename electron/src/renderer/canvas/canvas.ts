@@ -89,6 +89,9 @@ export class CircuitCanvas {
   private fitted = false;
   lastFrameMs = 0;                           // how long the last frame took to draw (the measurement)
   private readonly overlays: CanvasOverlay[] = [];
+  // what the last frame drew: the tests and tools wait on settled(), never on a guess of how long a frame takes
+  private drawnAt: { scene: Scene; model: number; values: number; view: View; width: number; height: number } | null = null;
+  private changed = true;                    // invalidated for something other than an overlay's animation, not drawn yet
   paused = false;                            // the measurement draws the other way meanwhile (tools/measure-canvas.ts)
 
   private readonly host: CanvasHost;
@@ -141,8 +144,23 @@ export class CircuitCanvas {
     this.host.onSelect?.([...this.selected]);
   }
 
+  /* The Canvas shows what it has (for the tests and tools): the scene on the page at the Canvas's size,
+     its first view chosen (a scene set while the Canvas was off the page -- another file's scene still
+     loading -- is fitted only when its size is known, ResizeObserver), no frame to come, and the last
+     frame drew this scene's model and values at this view and size (an overlay's own animation,
+     N-15, draws on and does not count).  Until then a point computed from
+     `view` may not be where the part will be drawn, and a screenshot may show the frame before. */
+  settled(): boolean {
+    const s = this.scene, d = this.drawnAt, v = this.view;
+    if (!s || !d || !this.root.isConnected || this.width === 0 || !this.fitted || this.changed || this.anim || this.paused) return false;
+    return d.scene === s && d.model === s.modelVersion && d.values === s.valueVersion && d.width === this.width && d.height === this.height
+      && d.view.x === v.x && d.view.y === v.y && d.view.zoom === v.zoom;
+  }
+
   // After the scene changed (model or values): draw again.
-  invalidate(): void {
+  // (content false: only an overlay's animation goes on -- settled() stays true)
+  invalidate(content = true): void {
+    if (content) this.changed = true;
     this.dirty = true;
     if (!this.raf) this.raf = requestAnimationFrame((t) => this.frame(t));
   }
@@ -435,10 +453,14 @@ export class CircuitCanvas {
     }
     if (!this.dirty) return;
     this.dirty = false;
+    this.changed = false;
     const t0 = performance.now();
     this.draw();
     this.lastFrameMs = performance.now() - t0;
-    if (this.anim || this.overlays.some((o) => o.animating?.())) this.invalidate();
+    const s = this.scene;
+    this.drawnAt = s ? { scene: s, model: s.modelVersion, values: s.valueVersion, view: { ...this.view }, width: this.width, height: this.height } : null;
+    if (this.anim) this.invalidate();
+    else if (this.overlays.some((o) => o.animating?.())) this.invalidate(false);
   }
 
   // print: the picture only -- no grid, no hover, no selection, no port names (what exportSvg writes).

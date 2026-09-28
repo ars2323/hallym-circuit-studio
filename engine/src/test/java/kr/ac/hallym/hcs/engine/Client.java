@@ -131,6 +131,22 @@ final class Client implements AutoCloseable {
         return resp.get("result");
     }
 
+    /** 요청을 보내고 응답이 받은 목록에서 몇째인지의 다음 자리를 돌려준다(그 응답 뒤에 온 알림만 보려고). 오류면 {@link Failure}. */
+    int callMark(String method, JsonObject params) {
+        JsonObject resp = request(method, params);
+        if (resp.has("error")) {
+            throw new Failure(resp.getAsJsonObject("error"));
+        }
+        synchronized (this) {
+            for (int i = 0; i < received.size(); i++) {
+                if (received.get(i) == resp) {
+                    return i + 1;
+                }
+            }
+        }
+        throw new IllegalStateException("the response to " + method + " is not in the received list");
+    }
+
     JsonObject callObject(String method, JsonObject params) {
         return call(method, params).getAsJsonObject();
     }

@@ -20,7 +20,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { answerOpen, DATAPATH, launch, openFile, repo, root, sample, type Running } from '../tests/e2e/harness.ts';
+import { answerOpen, canvasSettled, DATAPATH, launch, openFile, repo, root, sample, type Running } from '../tests/e2e/harness.ts';
 import { click, menu, partMiddle, rightClick, wireAtPort } from '../tests/e2e/overlay-helpers.ts';
 
 const out = process.env.SCREENS_OUT ? path.resolve(process.env.SCREENS_OUT) : path.join(root, 'docs/screens');
@@ -75,6 +75,7 @@ async function drawn(r: Running): Promise<void> {
     return !!c?.scene && c.scene.values.size > 0;
   });
   await r.page.evaluate(() => document.fonts.ready);
+  await canvasSettled(r.page);
 }
 
 const kill = (r: Running) => r.app.evaluate(() => (globalThis as unknown as { __hcs: { engine: { kill(): void } } }).__hcs.engine.kill());
@@ -150,7 +151,7 @@ const kill = (r: Running) => r.app.evaluate(() => (globalThis as unknown as { __
 // Data Memory and the Console).
 async function view(r: Running, v: { x: number; y: number; zoom: number }): Promise<void> {
   await r.page.evaluate((w) => (window as unknown as { __hcsCanvas: { setView(v: object): void } }).__hcsCanvas.setView(w), v);
-  await r.page.waitForTimeout(200);
+  await canvasSettled(r.page);
 }
 {
   const r = await launch(FHD);
@@ -166,11 +167,12 @@ async function view(r: Running, v: { x: number; y: number; zoom: number }): Prom
   await view(r, { x: 180, y: 60, zoom: 4 });
   await shot(r, 'canvas-400');
   await page.keyboard.press('Control+0');
-  await page.waitForTimeout(300);
+  await canvasSettled(page);
   await page.getByRole('button', { name: /Wire Colors/ }).click();
   await page.locator('.legend-panel').waitFor();
   await shot(r, 'canvas-legend');
   await page.keyboard.press('Escape');
+  await canvasSettled(page);
   const rf = await page.evaluate(() => {
     const c = (window as unknown as { __hcsCanvas: { canvas: HTMLCanvasElement; view: { x: number; y: number; zoom: number }; scene: { components: Map<string, { name: string; bounds: number[] }> } } }).__hcsCanvas;
     const k = [...c.scene.components.values()].find((x) => x.name === 'regfile')!;

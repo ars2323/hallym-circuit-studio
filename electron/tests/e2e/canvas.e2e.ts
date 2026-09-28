@@ -6,7 +6,7 @@
 
 import { expect, type Page, test } from '@playwright/test';
 
-import { DATAPATH, INSIDE_PIN_VALUES, launch, openFile, PARENT_PORT_VALUES, type Running, sample } from './harness.ts';
+import { canvasSettled, DATAPATH, INSIDE_PIN_VALUES, launch, openFile, PARENT_PORT_VALUES, type Running, sample } from './harness.ts';
 import { decodePng } from './png.ts';
 
 const REF_MIPS = 'tests/mips/ref-mips.circ';
@@ -29,13 +29,14 @@ async function drawn(r: Running): Promise<void> {
     return !!c?.scene && c.scene.values.size > 0;
   });
   await r.page.evaluate(() => document.fonts.ready);
-  await r.page.waitForTimeout(100);
+  await canvasSettled(r.page);
 }
 
 // A wire of the given kind, brought to the middle of the Canvas at 200 % from a whole-unit origin (its
-// middle pixels are then fully covered: no anti-aliasing to blend), in page pixels, and the colour the
-// legend gives that kind.
+// middle pixels are then fully covered: no anti-aliasing to blend), in page pixels once that view is drawn
+// (from the Canvas's place then), and the colour the legend gives that kind.
 async function wireOnScreen(page: Page, want: 'one' | 'zero' | 'bus'): Promise<{ x: number; y: number; css: string } | null> {
+  await canvasSettled(page);   // the first view is chosen: nothing fits over the one set here
   const at = await page.evaluate((kind) => {
     type W = { id: string; a: [number, number]; b: [number, number] };
     const c = (window as unknown as { __hcsCanvas: { canvas: HTMLCanvasElement; setView(v: object): void; scene: { wires: Map<string, W>; wireValue(id: string): string | undefined } } }).__hcsCanvas;
@@ -48,15 +49,21 @@ async function wireOnScreen(page: Page, want: 'one' | 'zero' | 'bus'): Promise<{
       const mx = (w.a[0] + w.b[0]) / 2 + (w.a[1] === w.b[1] ? 3 : 0), my = (w.a[1] + w.b[1]) / 2 + (w.a[1] === w.b[1] ? 0 : 3);
       const x0 = Math.round(mx - r.width / 4), y0 = Math.round(my - r.height / 4);
       c.setView({ x: x0, y: y0, zoom: 2 });
-      return { x: r.left + (mx - x0) * 2, y: r.top + (my - y0) * 2, token: { one: '--v-one', zero: '--v-zero', bus: '--v-bus' }[kind] };
+      return { mx, my, view: { x: x0, y: y0, zoom: 2 }, token: { one: '--v-one', zero: '--v-zero', bus: '--v-bus' }[kind] };
     }
     return null;
   }, want);
   if (!at) return null;
-  await page.waitForTimeout(120);
+  await canvasSettled(page);
+  const p = await page.evaluate((a) => {
+    const c = (window as unknown as { __hcsCanvas: { canvas: HTMLCanvasElement; view: { x: number; y: number; zoom: number } } }).__hcsCanvas;
+    const r = c.canvas.getBoundingClientRect();
+    return { x: r.left + (a.mx - c.view.x) * c.view.zoom, y: r.top + (a.my - c.view.y) * c.view.zoom, view: { ...c.view } };
+  }, at);
+  expect(p.view, 'the view drawn is the one set').toEqual(at.view);
   const css = await page.evaluate((t) => getComputedStyle(document.documentElement).getPropertyValue(t).trim(), at.token);
   // the pixel whose top-left corner is the wire's middle point
-  return { x: at.x, y: at.y, css };
+  return { x: p.x, y: p.y, css };
 }
 
 const hex = (rgba: Uint8Array, i: number) => `#${[0, 1, 2].map((k) => rgba[i + k].toString(16).padStart(2, '0')).join('')}`;
@@ -112,6 +119,14 @@ test('zoom and pan: Ctrl+wheel about the pointer, Ctrl+ + / −, Ctrl+0 fits and
   try {
     await openFile(r, sample(r.dir, DATAPATH));
     await drawn(r);
+    // settled() (what the tests wait on): false from a new view until a frame has drawn it
+    expect(await page.evaluate(() => {
+      const c = (window as unknown as { __hcsCanvas: { view: { x: number; y: number; zoom: number }; setView(v: object): void; settled(): boolean } }).__hcsCanvas;
+      const before = c.settled();
+      c.setView({ ...c.view });
+      return [before, c.settled()];
+    })).toEqual([true, false]);
+    await canvasSettled(page);
     const box = (await page.locator('.canvas-view canvas').boundingBox())!;
     const zoomButton = page.locator('.status .zoom-button');
     const fitted = (await probe(page)).zoom;
@@ -166,7 +181,7 @@ test('zoom and pan: Ctrl+wheel about the pointer, Ctrl+ + / −, Ctrl+0 fits and
     expect(v1.x).toBeCloseTo(v0.x - 40, 3);
     // fit centres the circuit both ways, with its margin (v1 S-10)
     await page.keyboard.press('Control+0');
-    await page.waitForTimeout(300);
+    await canvasSettled(page);   // the fit's animation has ended and is drawn
     const centred = await page.evaluate(() => {
       const c = (window as unknown as { __hcsCanvas: { canvas: HTMLCanvasElement; view: { x: number; y: number; zoom: number }; scene: { extent(): { x0: number; y0: number; x1: number; y1: number } } } }).__hcsCanvas;
       const e = c.scene.extent(), rr = c.canvas.getBoundingClientRect();
@@ -200,7 +215,6 @@ test('values after ticks: 1 Cycle brings the engine\'s values and bodies; the wi
     // four cycles: a one-bit wire changed colour on screen
     for (let i = 0; i < 3; i++) await page.keyboard.press('F10');
     await expect(page.locator('.status')).toContainText('Cycle 4');
-    await page.waitForTimeout(200);
     await page.mouse.move(-10, -10);
     const one = await wireOnScreen(page, 'one');
     expect(one).not.toBeNull();
@@ -353,7 +367,7 @@ test('a message shows its place on the Canvas (D-143 hcs:reveal): its part marke
     await page.locator('.msg').first().click();
     const marked = () => page.evaluate(() => (window as unknown as { __hcsCanvas: { markedIds(): { components: string[] } | null } }).__hcsCanvas.markedIds());
     await expect.poll(async () => (await marked())?.components.length ?? 0).toBe(1);
-    await page.waitForTimeout(300);
+    await canvasSettled(page);   // brought into view (animated) and drawn
     const inView = await page.evaluate(() => {
       const c = (window as unknown as { __hcsCanvas: { canvas: HTMLCanvasElement; view: { x: number; y: number; zoom: number }; markedIds(): { components: string[] }; scene: { components: Map<string, { bounds: number[] }> } } }).__hcsCanvas;
       const k = c.scene.components.get(c.markedIds().components[0])!;
@@ -396,7 +410,7 @@ test('inside a subcircuit instance the values are that instance\'s: each pin ins
     // a cycle later (the next instruction), inside and back outside agree again
     await page.keyboard.press('F10');
     await expect(page.locator('.status')).toContainText('Cycle 1');
-    await page.waitForTimeout(200);
+    await canvasSettled(page);
     const insideAfter = await page.evaluate(INSIDE_PIN_VALUES);
     await page.locator('.canvas-crumbs').getByRole('button', { name: 'main' }).click();
     await page.waitForFunction(() => (window as unknown as { __hcsCanvas: { scene: { name: string } } }).__hcsCanvas.scene.name === 'main');

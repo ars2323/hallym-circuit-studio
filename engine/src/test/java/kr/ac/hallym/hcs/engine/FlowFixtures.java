@@ -163,7 +163,7 @@ final class FlowFixtures {
                     final long want = k;
                     e.client.awaitNotificationAfter(m, "sim.state", st -> st.get("cycle").getAsLong() >= want
                             && !st.get("ticking").getAsBoolean());
-                    Thread.sleep(150);
+                    CanvasFixtures.settle(e, fileId);   // the tick's propagation done (and recorded), not a guess
                 }
                 active.add(GSON.toJson(rename(e.client.callObject("flow.activePath", params("fileId", fileId, "circuitId", main)), canon, netMap)));
                 JsonObject fp = e.client.callObject("record.fieldPaths", params("fileId", fileId, "circuitId", main));
@@ -188,16 +188,16 @@ final class FlowFixtures {
     }
 
     /**
-     * Reset, and the first propagation after it done: its sim.state and a moment more (as CanvasFixtures). Not its
-     * sim.values: the engine sends only values that changed, and a Reset right after the file opened may change
-     * none (the fixture then timed out now and then).
+     * Reset, and the propagation after it done ({@link CanvasFixtures#settle}: the engine's sim.state comes before the
+     * simulator thread has reset). Not its sim.values: the engine sends only values that changed, and a Reset right
+     * after the file opened may change none (the fixture then timed out now and then).
      */
-    private static void reset(InProcess e, String fileId) throws InterruptedException {
+    private static void reset(InProcess e, String fileId) throws Exception {
         int m = e.client.mark();
         e.client.callObject("sim.reset", params("fileId", fileId));
         e.client.awaitNotificationAfter(m, "sim.state", st -> st.get("cycle").getAsLong() == 0
                 && !st.get("ticking").getAsBoolean());
-        Thread.sleep(300);
+        CanvasFixtures.settle(e, fileId);
     }
 
     private static JsonObject inf(InProcess e, String fileId, String circuit, List<String> from, String mode,

@@ -63,6 +63,8 @@ public final class SimSession implements SimulatorListener {
     private final Server server;
     private final Simulator sim;
     private volatile boolean valuesDirty = true;
+    // 시뮬레이터 스레드만 는다(읽기는 아무 스레드)
+    private volatile long propagations;
     private long ticks;
     private Pacer pacer;
     private JsonObject lastState;
@@ -104,6 +106,12 @@ public final class SimSession implements SimulatorListener {
     @Override
     public void propagationCompleted(SimulatorEvent e) {
         valuesDirty = true;
+        propagations++;
+    }
+
+    /** 원조 시뮬레이터가 알린 전파 완료 수(시험 자료가 전파가 끝난 자리를 기다릴 때, CanvasFixtures.settle). */
+    public long propagations() {
+        return propagations;
     }
 
     @Override
