@@ -29,6 +29,7 @@ import { character, code, h, prose } from './dom.ts';
 export interface Question {
   title: string;
   file?: string;      // the file the question is about
+  names?: [string, string][];   // more lines like File's: an English label, a name in the mono font (Recovery file: …)
   body: string | Node;
   detail?: string;    // facts under the sentence (what was tried), in the mono font
   ok: string;
@@ -51,7 +52,9 @@ export function choose(q: Question): Promise<'ok' | 'extra' | 'cancel' | null> {
     const dialog = h('dialog', { class: `modal ask${withCharacter ? '' : ' plain'}`, 'aria-label': q.title },
       h('div', { class: 'askbody' }, withCharacter ? character('haram', 96) : null,
         h('div', { class: 'asktext' }, h('h2', {}, q.title),
-          q.file ? h('p', { class: 'askfile' }, 'File: ', code(q.file)) : null, h('p', {}, prose(q.body)),
+          q.file ? h('p', { class: 'askfile' }, 'File: ', code(q.file)) : null,
+          ...(q.names ?? []).map(([label, name]) => h('p', { class: 'askfile' }, `${label}: `, code(name))),
+          h('p', {}, prose(q.body)),
           q.detail ? h('pre', { class: 'askdetail mono' }, q.detail) : null,
           h('div', { class: 'row end' }, cancel, extra, ok))));
     let result: 'ok' | 'extra' | 'cancel' | null = null;

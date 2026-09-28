@@ -25,7 +25,7 @@ test('the question: unsaved edits and when, the file on its own line, the recove
   assert.equal(q.file, 'lab3.circ');
   assert.match(q.body, /마지막으로 저장한 뒤의 편집이 복구 파일에 남아 있습니다\(2026-09-28 14:05\)\./);
   assert.match(q.body, /불러오면 저장하지 않은 편집으로 열리고, 버리면 복구 파일을 지운 뒤 저장한 파일을 엽니다\./);
-  assert.equal(q.detail, '복구 파일: lab3.circ.hcs-recover');
+  assert.deepEqual(q.names, [['Recovery file', 'lab3.circ.hcs-recover']]);
   assert.deepEqual([q.ok, q.cancel, q.character], [RECOVER, DISCARD, false]);
   assert.deepEqual([RECOVER, DISCARD], ['Recover', 'Discard']);
   assert.equal(recoveredNote('lab3.circ'), '저장하지 않은 편집을 불러왔습니다 · lab3.circ');
@@ -33,7 +33,7 @@ test('the question: unsaved edits and when, the file on its own line, the recove
 
 test('the words keep the window\'s rules', () => {
   const q = recoveryQuestion(ask.ask);
-  for (const text of [q.title, q.body, q.detail, recoveredNote('lab3.circ')]) {
+  for (const text of [q.title, q.body, recoveredNote('lab3.circ')]) {
     assert.doesNotMatch(text, /\.circ[은는이가을를의에로와과도]/);
     assert.doesNotMatch(text, /\.hcs-recover[은는이가을를의에로와과도]/);
     assert.doesNotMatch(text, /(Recover|Discard)[은는이가을를의에와과도](?![가-힣])/);

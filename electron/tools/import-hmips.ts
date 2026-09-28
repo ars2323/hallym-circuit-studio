@@ -60,7 +60,7 @@ export const TAKEN: Taken[] = [
   { from: 'electron/src/renderer/app/notice.ts', to: 'src/renderer/shared/notice.ts', how: 'derived',
     note: 'The empty-state word of a panel. The character is optional (most panels show the words alone; errors never have one).' },
   { from: 'electron/src/renderer/app/panels/ask.ts', to: 'src/renderer/shared/ask.ts', how: 'derived',
-    note: 'The window\'s own question dialog. Adds `character: false` and one-button use for errors (the engine could not start): no character next to an error; `choose()`, where Esc is neither answer (a recovery file: Recover / Discard), with an optional third answer (Save / Discard / Cancel).' },
+    note: 'The window\'s own question dialog. Adds `character: false` and one-button use for errors (the engine could not start): no character next to an error; `choose()`, where Esc is neither answer (a recovery file: Recover / Discard), with an optional third answer (Save / Discard / Cancel); `names`, more label: name lines like the File line.' },
   { from: 'electron/src/renderer/app/panels/welcome.ts', to: 'src/renderer/shared/welcome.ts', how: 'derived',
     note: 'The first screen\'s card and its two steps. The words and the choices come from the caller (src/renderer/app/start.ts); the second step can be one of several.' },
   { from: 'electron/src/renderer/app/panels/about.ts', to: 'src/renderer/shared/about.ts', how: 'derived',

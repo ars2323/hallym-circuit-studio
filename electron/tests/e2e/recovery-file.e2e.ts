@@ -76,7 +76,9 @@ test('the app killed with unsaved edits: the recovery file beside the file, noth
     const stamp = `${modified.getFullYear()}-${two(modified.getMonth() + 1)}-${two(modified.getDate())} ${two(modified.getHours())}:${two(modified.getMinutes())}`;
     // (the window keeps "다(" together: a word joiner, shared/dom.ts codeText)
     await expect(dialog).toContainText(`마지막으로 저장한 뒤의 편집이 복구 파일에 남아 있습니다\u2060(${stamp}).`);
-    await expect(dialog.locator('.askdetail')).toHaveText('복구 파일: gates.circ.hcs-recover');
+    await expect(dialog.locator('.askfile')).toHaveText(['File: gates.circ', 'Recovery file: gates.circ.hcs-recover']);
+    await expect(dialog.locator('.askfile code')).toHaveText(['gates.circ', 'gates.circ.hcs-recover']);   // the names mono, the labels not
+    await expect(dialog.locator('.askdetail')).toHaveCount(0);
     await expect(dialog.getByRole('button')).toHaveText(['Discard', 'Recover']);
     expect(await visibleCharacters(page)).toBe(0);
     await expect(page.locator('.filebar .ptab')).toHaveCount(0);   // nothing opened before the answer

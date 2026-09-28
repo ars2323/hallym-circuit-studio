@@ -31,7 +31,7 @@ export interface RecoveryQuestion {
   title: string;
   file: string;
   body: string;
-  detail: string;
+  names: [string, string][];   // "Recovery file: lab3.circ.hcs-recover" (a label and a name, as File:)
   ok: string;
   cancel: string;
   character: false;
@@ -43,7 +43,7 @@ export function recoveryQuestion(a: RecoveryAsk['ask']): RecoveryQuestion {
     file: a.name,
     body: `마지막으로 저장한 뒤의 편집이 복구 파일에 남아 있습니다(${stamp(a.modified)}). `
       + '불러오면 저장하지 않은 편집으로 열리고, 버리면 복구 파일을 지운 뒤 저장한 파일을 엽니다.',
-    detail: `복구 파일: ${a.recovery}`,
+    names: [['Recovery file', a.recovery]],
     ok: RECOVER,
     cancel: DISCARD,
     character: false,

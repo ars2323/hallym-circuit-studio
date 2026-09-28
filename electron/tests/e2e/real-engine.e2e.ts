@@ -338,7 +338,9 @@ test('the real engine and the app killed (N-19): the recovery file beside the sa
     await next.page.keyboard.press('Control+o');
     const dialog = next.page.locator('dialog.ask');
     await expect(dialog.locator('h2')).toHaveText('저장하지 않은 편집이 있습니다');
-    await expect(dialog.locator('.askdetail')).toHaveText('복구 파일: demo-datapath.circ.hcs-recover');
+    await expect(dialog.locator('.askfile')).toHaveText(['File: demo-datapath.circ', 'Recovery file: demo-datapath.circ.hcs-recover']);
+    await expect(dialog.locator('.askfile code')).toHaveText(['demo-datapath.circ', 'demo-datapath.circ.hcs-recover']);   // the names mono, the labels not
+    await expect(dialog.locator('.askdetail')).toHaveCount(0);
     await dialog.getByRole('button', { name: 'Recover' }).click();
     await expect(next.page.locator('.filebar .ptab')).toHaveText(['demo-datapath.circ•']);
     const [fileId] = await openFileIds(next.app);
