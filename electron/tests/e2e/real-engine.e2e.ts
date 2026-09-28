@@ -561,8 +561,9 @@ test('the real engine and finding and placing (N-12): a part dragged in and one 
     const out = path.join(r.dir, 'saved.circ');
     await answerSave(r.app, out);
     await page.keyboard.press('Control+Shift+s');
-    // the file appears before the engine has written it: wait for its end
-    await expect.poll(() => existsSync(out) && readFileSync(out, 'utf8').includes('</project>')).toBe(true);
+    // wait for the save's answer, not the file: the engine writes Logisim's bytes first (they end in </project>)
+    // and then puts hcs:ext in (CircExtensionIO.writeInto, a second whole-file replace) before it answers
+    await expect(page.locator('.status .ok')).toContainText('저장했습니다 · saved.circ');
     const saved = readFileSync(out, 'utf8');
     expect(saved).toContain('<hcs:tunnel label="MemRead" color="#D55E00"/>');
     expect(saved).toContain('<hcs:splitter x="620" y="200" arm0="op" arm1="rs" arm2="rt" arm3="rd" arm4="shamt" arm5="fn"/>');
