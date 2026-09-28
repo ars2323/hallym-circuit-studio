@@ -139,14 +139,18 @@ export class RecoveryWriter extends EventEmitter<Events> {
     return job;
   }
 
-  private async writeNow(fileId: string): Promise<void> {
+  private async writeNow(fileId: string, again = true): Promise<void> {
     await this.settled();
     try {
       const r = await this.engine.call<WriteResult>('file.recoverWrite', { fileId }, { tag: WRITER });
       this.emit('written', fileId, r);
     } catch (e) {
-      // Closed meanwhile (1), or the engine ended (the journal's recovery takes over; its last write is on disk).
-      if (e instanceof EngineGone || (e instanceof EngineError && e.code === 1)) return;
+      // The engine ended as it was asked: once more when the files are back (the replay has the edits).
+      if (e instanceof EngineGone) {
+        if (again) await this.writeNow(fileId, false);
+        return;
+      }
+      if (e instanceof EngineError && e.code === 1) return;   // closed meanwhile
       this.emit('failed', fileId, (e as Error).message);
     }
   }

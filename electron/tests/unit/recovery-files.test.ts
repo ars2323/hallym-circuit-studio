@@ -22,6 +22,12 @@ import { baseOf, refOf, Supervisor, WINDOW } from '../../src/main/recovery.ts';
 const FAKE = path.join(import.meta.dirname, '../fake-engine/fake-engine.ts');
 const REPO = path.join(import.meta.dirname, '../../..');
 const sleep = (ms: number) => new Promise((done) => setTimeout(done, ms));
+// Waits until pred() holds (a loaded machine runs timers late), then for the writes under way.
+async function eventually(w: RecoveryWriter, pred: () => boolean, ms = 10_000): Promise<void> {
+  const t0 = Date.now();
+  while (!pred() && Date.now() - t0 < ms) await sleep(20);
+  await w.idle();
+}
 
 function scratch(): { dir: string; gates: string } {
   const dir = mkdtempSync(path.join(tmpdir(), 'hcs-recovery-files-'));
@@ -88,8 +94,8 @@ test('the writer: after the window\'s edits settle, the engine writes it beside 
     await not(engine, a.fileId, a.main, 200);
     assert.deepEqual(w.pending(), [a.fileId]);
     assert.equal(existsSync(recoveryPathOf(gates)), false, 'not while edits come');
-    await sleep(400);
-    await w.idle();
+    await eventually(w, () => written.length > 0);
+    await sleep(200);   // and no second write
     assert.deepEqual(written, [`${a.fileId} true ${recoveryPathOf(gates)}`]);
     const text = readFileSync(recoveryPathOf(gates), 'utf8');
     const nots = (t: string) => (t.match(/<comp [^>]*name="NOT Gate"/g) ?? []).length;
@@ -117,8 +123,7 @@ test('the writer: a new file never saved gets none, and nothing is written anywh
     await win(engine, 'file.save', { fileId: b.fileId, path: mine });
     await not(engine, b.fileId, b.main, 200);
     assert.deepEqual(w.pending(), [b.fileId]);
-    await sleep(200);
-    await w.idle();
+    await eventually(w, () => existsSync(recoveryPathOf(mine)));
     assert.ok(existsSync(recoveryPathOf(mine)));
   } finally {
     w.dispose();
@@ -138,24 +143,27 @@ test('the writer: after so many edits at once, and at most so long after the fir
     await sleep(50);
     assert.equal(existsSync(recoveryPathOf(gates)), false);
     await not(engine, a.fileId, a.main, 300);
-    await sleep(100);
-    await w.idle();
-    assert.ok(existsSync(recoveryPathOf(gates)), 'the third edit: written at once');
+    await eventually(w, () => existsSync(recoveryPathOf(gates)), 2_000);
+    assert.ok(existsSync(recoveryPathOf(gates)), 'the third edit: written at once (the idle wait is a minute)');
   } finally {
     w.dispose();
     await engine.shutdown();
   }
-  const second = fake({ idleMs: 250, maxWaitMs: 400 });
+  const second = fake({ idleMs: 1_000, maxWaitMs: 400 });
   try {
     await second.engine.start();
     rmSync(recoveryPathOf(gates), { force: true });
+    const at: number[] = [];
+    second.w.on('written', () => at.push(Date.now()));
     const a = await win<OpenResult>(second.engine, 'file.open', { path: gates });
-    for (let i = 0; i < 8; i += 1) {   // an edit every 100 ms for 800 ms: never 250 ms idle
+    let last = 0;
+    for (let i = 0; i < 12; i += 1) {   // an edit every 100 ms for 1.2 s: never 1 s idle
       await not(second.engine, a.fileId, a.main, 400 + 10 * i);
+      last = Date.now();
       await sleep(100);
     }
-    await second.w.idle();
-    assert.ok(existsSync(recoveryPathOf(gates)), 'written 400 ms after the first, edits still coming');
+    await eventually(second.w, () => at.length > 0, 3_000);
+    assert.ok(at.length > 0 && at[0] < last, `written while the edits kept coming (400 ms after the first): ${at[0] - last} ms before the last`);
   } finally {
     second.w.dispose();
     await second.engine.shutdown();
@@ -200,9 +208,8 @@ test('the writer waits while a crash recovery replays; a quit removes the recove
     const done = recovered(sup);
     engine.kill();
     await done;
-    await sleep(100);
-    await w.idle();
-    // The write asked for before the crash went out only once the files were back.
+    await eventually(w, () => existsSync(recoveryPathOf(gates)));
+    // The write asked for as the engine died (10 ms: before or after its end was seen) went out once the files were back.
     assert.ok(seen.indexOf(`${WRITER} file.recoverWrite`) > seen.lastIndexOf('recovery edit.addComponent'), seen.join('\n'));
     assert.ok(existsSync(recoveryPathOf(gates)));
   } finally {
