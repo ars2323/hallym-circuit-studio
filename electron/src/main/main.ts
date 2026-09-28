@@ -45,6 +45,8 @@ import { Supervisor, WINDOW } from './recovery.ts';
 import { recoveryBeside, RecoveryWriter } from './recovery-files.ts';
 import { LICENSES, paths, version } from './paths.ts';
 import { IMAGE_FILTER, programDialogPath } from './program-path.ts';
+import { registerCircuitFiles } from './circuit-files.ts';
+import { FileWindows, type Handover, halves, offset } from './windows.ts';
 import { WINDOW_METHODS, type EngineStatus, type LoadResult, type OpenResult, type RecoveryAsk, type SaveResult } from './protocol.ts';
 import { circArgument, removeAfterExitScript, removeEarlierRuns, runDirName, RUN_PREFERENCES, runsDirFor } from './run-folder.ts';
 
@@ -120,7 +122,15 @@ if (process.env.HCS_ENGINE_LOG === '1') engine.on('log', (line) => console.log(`
 // The files the engine has open, by id: the same file opened again goes to
 // its tab.  They outlive a restart of the engine (recovery.ts opens them
 // again under the same ids), except those that could not be opened again.
-const openFiles = new Map<string, string | null>();
+// Every open file and where it is saved (null: never), whichever window holds it.  Every window hears of a change
+// (files:changed): files of one name are told apart by their folders in all of them (N-11, v1 V-05).
+class OpenFiles extends Map<string, string | null> {
+  onChange: (() => void) | null = null;
+  override set(fileId: string, path: string | null): this { super.set(fileId, path); this.onChange?.(); return this; }
+  override delete(fileId: string): boolean { const gone = super.delete(fileId); if (gone) this.onChange?.(); return gone; }
+  list(): { fileId: string; path: string | null }[] { return [...this].map(([fileId, path]) => ({ fileId, path })); }
+}
+const openFiles = new OpenFiles();
 recovery.on('recovered', (r) => { for (const c of r.closed) openFiles.delete(c.fileId); });
 
 // A call of the window's: after any recovery under way, tagged so that the journal records it.
@@ -180,8 +190,43 @@ async function main(): Promise<void> {
   // nothing of its size or place is kept.  (The bounds first: a display
   // with no window manager to maximise it still gets the work area.)
   const area = screen.getPrimaryDisplay().workArea;
-  const win = new BrowserWindow({
-    x: area.x, y: area.y, width: area.width, height: area.height,
+  const win = makeWindow(area);
+  mainWindow = win;
+  wireWindow(win);
+
+  // The engine's status as every window should see it (restarting until its files are back).
+  const sendAll = (channel: string, ...args: unknown[]) => { for (const w of windows.all()) w.webContents.send(channel, ...args); };
+  recovery.on('status', (s: EngineStatus) => sendAll('engine:status', s));
+  // While a recovery replays, the engine's changes are of parts the window never had: held back.
+  // A notification goes to the window that holds the file it names (windows.ts).
+  engine.on('notification', (method, params) => {
+    if (recovery.quiet()) return;
+    const w = windows.route(params);
+    if (w && !w.isDestroyed()) w.webContents.send('engine:notify', method, params);
+  });
+  recovery.on('recovered', (r) => sendAll('engine:recovered', r));
+  openFiles.onChange = () => sendAll('files:changed', openFiles.list());
+  // The window a call came from (a dialog's parent).
+  const from = (e: Electron.IpcMainInvokeEvent): BrowserWindow => BrowserWindow.fromWebContents(e.sender) ?? win;
+  WINDOW_OF = from;
+
+  registerHandlers();
+
+  // Maximised before it is shown, every start.  (maximize() shows a hidden
+  // window; show() then gives it focus.)
+  win.once('ready-to-show', () => { win.maximize(); win.show(); });
+  await win.loadFile(paths.page);
+}
+
+// ---- the windows (N-11: a file tab in a window of its own, View Side by Side; windows.ts) ----
+
+let mainWindow: BrowserWindow | null = null;
+const windows = new FileWindows(() => mainWindow);
+let WINDOW_OF: (e: Electron.IpcMainInvokeEvent) => BrowserWindow = () => mainWindow!;
+
+function makeWindow(bounds: { x: number; y: number; width: number; height: number }): BrowserWindow {
+  const w = new BrowserWindow({
+    x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height,
     minWidth: 760,
     minHeight: 480,
     show: false,
@@ -202,15 +247,66 @@ async function main(): Promise<void> {
       spellcheck: false,   // no spell checker: names are not words (and run-folder.ts RUN_PREFERENCES)
     },
   });
+  return w;
+}
 
-  // No page zoom by a pinch (I-207): the Canvas zooms itself (its Ctrl+wheel is its own, canvas.ts)
-  void win.webContents.setVisualZoomLevelLimits(1, 1);
+function wireWindow(w: BrowserWindow): void {
+  // No page zoom by a pinch (I-207): the Canvas zooms itself; Ctrl+wheel is the page's to stop (app.ts)
+  void w.webContents.setVisualZoomLevelLimits(1, 1);
+  // A file dropped where the page does not take it never replaces the page (I-181: .circ files are opened instead)
+  w.webContents.on('will-navigate', (e) => e.preventDefault());
+  w.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+}
+
+// A file tab into a window of its own: 'window' (Detach Tab, a tab dragged out: +60, +60) or 'side' (View Side by Side).
+async function detach(fileId: string, handover: Handover, how: 'window' | 'side'): Promise<boolean> {
+  const main = mainWindow;
+  if (!main || main.isDestroyed() || windows.detached().some((d) => d.fileId === fileId)) return false;
+  const area = screen.getDisplayMatching(main.getBounds()).workArea;
+  let bounds = offset(main.getBounds(), area);
+  if (how === 'side') {
+    const h = halves(area);
+    if (main.isMaximized()) main.unmaximize();
+    main.setBounds(h.left);
+    bounds = h.right;
+  }
+  const w = makeWindow(bounds);
+  const id = w.webContents.id;
+  wireWindow(w);
+  windows.adopt(fileId, w, handover);
+  // Closing a window of its own closes its file: the page asks first (the save question), then says close.
+  let closing = false;
+  w.on('close', (e) => {
+    if (closing || quitting || !windows.fileOf(w)) return;
+    e.preventDefault();
+    w.webContents.send('win:closeRequest');
+  });
+  w.on('closed', () => { windows.release(fileId); dirtyBy.delete(id); reportedDirty(); });
+  (w as BrowserWindow & { hcsClose?: () => void }).hcsClose = () => { closing = true; w.close(); };
+  w.once('ready-to-show', () => w.show());
+  await w.loadFile(paths.page, { query: { detached: fileId } });
+  return true;
+}
+
+// Every window of its own asks about its file; true when all of them closed (the main window may close then).
+const cancelled = new Map<number, () => void>();   // a window of its own's webContents id → its question was cancelled
+async function closeDetached(): Promise<boolean> {
+  for (const d of windows.detached()) {
+    const id = d.window.webContents.id;
+    const closed = await new Promise<boolean>((done) => {
+      d.window.once('closed', () => { cancelled.delete(id); done(true); });
+      cancelled.set(id, () => { cancelled.delete(id); done(false); });
+      d.window.webContents.send('win:closeRequest');
+    });
+    if (!closed) return false;
+  }
+  return true;
+}
+
+function registerHandlers(): void {
+  const win = mainWindow!;
+  const from = WINDOW_OF;
   const send = (channel: string, ...args: unknown[]) => { if (!win.isDestroyed()) win.webContents.send(channel, ...args); };
-  // The engine's status as the window should see it (restarting until its files are back).
-  recovery.on('status', (s: EngineStatus) => send('engine:status', s));
-  // While a recovery replays, the engine's changes are of parts the window never had: held back.
-  engine.on('notification', (method, params) => { if (!recovery.quiet()) send('engine:notify', method, params); });
-  recovery.on('recovered', (r) => send('engine:recovered', r));
 
   const allowed = new Set<string>(WINDOW_METHODS);
   ipcMain.handle('engine:call', (_e, method: string, params: unknown) => answer(async () => {
@@ -221,6 +317,7 @@ async function main(): Promise<void> {
     return result;
   }));
   ipcMain.handle('engine:status', () => recovery.view(engine.status()));
+  ipcMain.handle('files:all', () => openFiles.list());
   ipcMain.handle('engine:retry', () => answer(async () => {
     if (engine.status().state === 'failed') await engine.start().catch(() => {});
     await recovery.settled();
@@ -236,8 +333,8 @@ async function main(): Promise<void> {
     startupTaken = true;
     return openPath(startup);
   }));
-  ipcMain.handle('file:open', () => answer(async () => {
-    const r = await dialog.showOpenDialog(win, { filters: [{ name: 'Logisim circuit', extensions: ['circ'] }, { name: 'All files', extensions: ['*'] }] });
+  ipcMain.handle('file:open', (e) => answer(async () => {
+    const r = await dialog.showOpenDialog(from(e), { filters: [{ name: 'Logisim circuit', extensions: ['circ'] }, { name: 'All files', extensions: ['*'] }] });
     if (r.canceled || r.filePaths.length === 0) return null;
     return openPath(r.filePaths[0]);
   }));
@@ -248,11 +345,11 @@ async function main(): Promise<void> {
     if (p === undefined || (choice !== 'recover' && choice !== 'discard')) return null;
     return openPath(p, choice);
   }));
-  ipcMain.handle('file:save', (_e, fileId: string, file: { name: string; saveAs?: boolean }) => answer(async () => {
+  ipcMain.handle('file:save', (e, fileId: string, file: { name: string; saveAs?: boolean }) => answer(async () => {
     if (!openFiles.has(fileId)) throw new Error(`no open file ${fileId}`);
     let target = openFiles.get(fileId) ?? null;
     if (target === null || file.saveAs) {
-      const r = await dialog.showSaveDialog(win, { defaultPath: file.name, filters: [{ name: 'Logisim circuit', extensions: ['circ'] }] });
+      const r = await dialog.showSaveDialog(from(e), { defaultPath: file.name, filters: [{ name: 'Logisim circuit', extensions: ['circ'] }] });
       if (r.canceled || !r.filePath) return null;
       target = r.filePath;
     }
@@ -265,11 +362,11 @@ async function main(): Promise<void> {
   // mips.load.  `again` loads the file picked last for this circuit (the
   // answer to "which memory?": `picks`); `forSource` opens next to an old .s.
   const programs = new Map<string, string>();
-  ipcMain.handle('program:load', (_e, fileId: string, o: { target?: string; picks?: Record<string, string>; again?: boolean; forSource?: string } = {}) => answer(async () => {
+  ipcMain.handle('program:load', (e, fileId: string, o: { target?: string; picks?: Record<string, string>; again?: boolean; forSource?: string } = {}) => answer(async () => {
     if (!openFiles.has(fileId)) throw new Error(`no open file ${fileId}`);
     let file = o.again ? programs.get(fileId) : undefined;
     if (!file) {
-      const r = await dialog.showOpenDialog(win, {
+      const r = await dialog.showOpenDialog(from(e), {
         title: 'Load Program', defaultPath: programDialogPath(openFiles.get(fileId) ?? null, o.forSource ?? null),
         filters: [IMAGE_FILTER], properties: ['openFile'],
       });
@@ -299,16 +396,21 @@ async function main(): Promise<void> {
   // the colour the page asks for while it is covered (a dialog's backdrop:
   // src/renderer/shared/overlay.ts); null is white again.  Kept on the
   // window for the tests to read (Electron has no getter for it).
-  ipcMain.handle('win:overlay', (_e, color: string | null) => {
+  ipcMain.handle('win:overlay', (e, color: string | null) => {
+    const w = from(e);
     const c = color ?? '#ffffff';
-    (win as BrowserWindow & { overlayColor?: string }).overlayColor = c;
-    try { win.setTitleBarOverlay({ color: c, symbolColor: NAVY, height: TITLE_BAR_HEIGHT }); } catch { /* no title bar overlay on this platform */ }
+    (w as BrowserWindow & { overlayColor?: string }).overlayColor = c;
+    try { w.setTitleBarOverlay({ color: c, symbolColor: NAVY, height: TITLE_BAR_HEIGHT }); } catch { /* no title bar overlay on this platform */ }
   });
 
-  // Maximised before it is shown, every start.  (maximize() shows a hidden
-  // window; show() then gives it focus.)
   // Leaving (N-19, D-152): the window asks about unsaved files first; it closes when the window says so.
+  // The windows of their own first (N-11): each asks about its file and goes; then the main window's files.
   win.on('close', (e) => {
+    if (!quitting && windows.detached().length > 0) {
+      e.preventDefault();
+      void closeDetached().then((ok) => { if (ok && !win.isDestroyed()) win.close(); });
+      return;
+    }
     if (leaveConfirmed || quitting || !windowListens || win.webContents.isCrashed()) return;
     e.preventDefault();
     send('app:leave');
@@ -319,11 +421,58 @@ async function main(): Promise<void> {
     e.preventDefault();
     send('app:leave');
   });
-  ipcMain.handle('app:leave', () => { leaveConfirmed = true; if (!win.isDestroyed()) win.close(); });
-  ipcMain.handle('app:dirty', (_e, dirty: boolean) => { windowListens = true; windowDirty = dirty === true; });
+  // Ctrl+Q in a window of its own: the whole app leaves, as the main window's close button (N-11).
+  ipcMain.handle('app:leave', (e) => {
+    if (!windows.isMain(from(e))) { if (!win.isDestroyed()) win.close(); return; }
+    leaveConfirmed = true;
+    if (!win.isDestroyed()) win.close();
+  });
+  // Every window tells whether its files have unsaved changes; the PC's shutdown asks when any has.
+  ipcMain.handle('app:dirty', (e, dirty: boolean) => {
+    if (windows.isMain(from(e))) windowListens = true;
+    dirtyBy.set(e.sender.id, dirty === true);
+    reportedDirty();
+  });
 
-  win.once('ready-to-show', () => { win.maximize(); win.show(); });
-  await win.loadFile(paths.page);
+  // Circuits from other files, libraries, Edit Original File (N-11): the dialogs here, the paths never in the page.
+  registerCircuitFiles({
+    dialog, windowCall, openFiles, openPath,
+    parent: (e) => from(e),
+    isMain: (e) => windows.isMain(from(e)),
+    handle: (channel, f) => ipcMain.handle(channel, (e, ...args: unknown[]) => answer(() => f(e, ...args))),
+  });
+
+  // The windows (N-11): what a window of its own starts from, Detach / Side by Side / Attach, closing one.
+  ipcMain.handle('win:role', (e) => ({ main: windows.isMain(from(e)), handover: windows.handoverFor(e.sender.id) }));
+  ipcMain.handle('win:detach', (e, fileId: string, handover: Handover, how: 'window' | 'side') => answer(async () => {
+    if (!windows.isMain(from(e)) || !openFiles.has(fileId)) return false;
+    return detach(fileId, { ...handover, fileId, path: openFiles.get(fileId) ?? null }, how === 'side' ? 'side' : 'window');
+  }));
+  ipcMain.handle('win:attach', (e, handover: Handover) => answer(() => {
+    const w = from(e);
+    const fileId = windows.fileOf(w);
+    if (!fileId || !mainWindow || mainWindow.isDestroyed()) return false;
+    windows.release(fileId);
+    mainWindow.webContents.send('win:adopt', { ...handover, fileId, path: openFiles.get(fileId) ?? null });
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    // the last window of its own back: the main window over the whole work area again (v1: back where the group is)
+    if (windows.detached().length === 0 && !mainWindow.isMaximized()) mainWindow.maximize();
+    mainWindow.focus();
+    (w as BrowserWindow & { hcsClose?: () => void }).hcsClose?.();
+    return true;
+  }));
+  // A window of its own whose file was closed: it goes (hcsClose skips the question, it was asked).
+  ipcMain.handle('win:closed', (e) => {
+    const w = from(e);
+    if (windows.isMain(w)) return false;
+    windows.release(windows.fileOf(w) ?? '');
+    (w as BrowserWindow & { hcsClose?: () => void }).hcsClose?.();
+    return true;
+  });
+  // The question before closing a window of its own was cancelled.
+  ipcMain.on('win:closeCancelled', (e) => { cancelled.get(e.sender.id)?.(); });
+  // The windows, for the tests: how many, the files of their own.
+  (globalThis as { __hcsWindows?: unknown }).__hcsWindows = windows;
 }
 
 // Leaving: the window's answer given (app:leave), a quit under way, the window listening, unsaved files in it.
@@ -331,6 +480,8 @@ let leaveConfirmed = false;
 let quitting = false;
 let windowListens = false;
 let windowDirty = false;
+const dirtyBy = new Map<number, boolean>();   // a window's webContents id → it has unsaved files (N-11: every window)
+function reportedDirty(): void { windowDirty = [...dirtyBy.values()].some(Boolean); }
 
 // Quitting ends the engine first (engine.shutdown, then its end).
 let engineDown = false;

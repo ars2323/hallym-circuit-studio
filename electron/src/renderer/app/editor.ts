@@ -184,7 +184,7 @@ export class Editor {
 /* The Poke tool. */
 export class PokeTool implements CanvasTool {
   private readonly host: EditorHost;
-  private pressedOn: { id: string; where: Where } | null = null;
+  private pressedOn: { id: string; where: Where; pressed: Promise<PokeResult | null> } | null = null;
   caretOn: { id: string; where: Where } | null = null;   // a poked part that takes keys
 
   constructor(host: EditorHost) {
@@ -212,9 +212,10 @@ export class PokeTool implements CanvasTool {
       // The engine moves its caret to the new part.  A part that takes keys has them at once: the keys
       // typed next go after this press (the engine answers in order), before its answer is back.
       this.caretOn = KEYED.has(c.name) ? { id: c.id, where: w } : null;
-      this.pressedOn = { id: c.id, where: w };
       this.show({});
-      void this.send(w, c.id, e.at, 'press').then((r) => {
+      const pressed = this.send(w, c.id, e.at, 'press');
+      this.pressedOn = { id: c.id, where: w, pressed };
+      void pressed.then((r) => {
         if (!r?.poked && this.caretOn?.id === c.id) { this.caretOn = null; this.show({}); }
       });
       return;
@@ -234,7 +235,9 @@ export class PokeTool implements CanvasTool {
     const p = this.pressedOn;
     this.pressedOn = null;
     if (!p) return;
-    void this.send(p.where, p.id, e.at, 'release').then((r) => {
+    // after the press's answer: a press the engine refused (an input pin inside an instance, I-64) has no release,
+    // so its refusal is told once
+    void p.pressed.then((pr) => (pr ? this.send(p.where, p.id, e.at, 'release') : null)).then((r) => {
       if (r && !r.caret && this.caretOn?.id === p.id) { this.caretOn = null; this.show({}); }
     });
   }

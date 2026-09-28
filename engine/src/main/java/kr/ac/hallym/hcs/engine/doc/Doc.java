@@ -256,6 +256,8 @@ public final class Doc {
     public Map<Component, com.cburch.logisim.tools.key.KeyConfigurator> keyHandlers;
     /** 부품 놓기 도구의 키 설정기(원조 AddTool.keyHandler, 도구마다). */
     public final Map<Tool, com.cburch.logisim.tools.key.KeyConfigurator> toolKeyHandlers = new java.util.IdentityHashMap<>();
+    /** 모양 편집(N-11, D-153): 회로마다 화면 없는 원조 모양 편집 화면. 이 문서와 함께 사라진다. */
+    public final Map<Circuit, Object> appearanceSessions = new java.util.IdentityHashMap<>();
 
     /** 화면에 붙지 않은 Canvas(선택·Poke 사건용, 그리기 스레드 멈춤). 처음 부를 때 만든다. */
     public Canvas canvas() {

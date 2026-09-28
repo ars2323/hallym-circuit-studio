@@ -150,7 +150,10 @@ export const TAKEN: Taken[] = [
 // Lucide icons Hallym MIPS does not have, from lucide-static (the npm package).
 export const LUCIDE_VERSION = '1.48.0';
 export const LUCIDE_EXTRA = ['undo-2', 'redo-2', 'mouse-pointer-2', 'pointer', 'workflow', 'type', 'square-dot', 'tag',
-  'crosshair', 'activity', 'fast-forward', 'gauge', 'file-code', 'info', 'x', 'cpu', 'circuit-board', 'house'];
+  'crosshair', 'activity', 'fast-forward', 'gauge', 'file-code', 'info', 'x', 'cpu', 'circuit-board', 'house',
+  // N-11: the appearance editor's drawing tools, the Circuits panel
+  'slash', 'spline', 'waypoints', 'rectangle-horizontal', 'square-round-corner', 'circle', 'pentagon', 'plus', 'import',
+  'library', 'arrow-up', 'arrow-down'];
 
 // Never taken (D-133 point 5): SPIM's tables and what leans on them.
 export const NEVER = ['src/core/', 'src/sim/', 'native/', 'op-table', 'decoder', 'instruction-text', 'explain',

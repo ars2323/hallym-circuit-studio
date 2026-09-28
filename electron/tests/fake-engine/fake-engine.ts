@@ -52,8 +52,11 @@
    real engine's answers for demo-datapath (tests/fixtures/flow/, written by
    the engine's canvasFixtures task), found by the same fixture ids;
    edit.signalGroup and edit.areaMemo keep the groups and memos per circuit
-   (one undo step each, model.changed with groups and memos).  Anything
-   else: -32601.
+   (one undo step each, model.changed with groups and memos).  Circuits,
+   appearances, libraries, other files (N-11): tests/fake-engine/fake-circuits.ts
+   -- file.info, file.changed, edit.createCircuit … edit.appearance,
+   model.appearance*, Load/Unload Library, Import Subcircuits (one undo step
+   of the file's state each).  Anything else: -32601.
 
    FAKE_ENGINE_MODE (comma-separated) for the tests of the client:
      silent-hello   never answers engine.hello
@@ -87,12 +90,13 @@ import * as find from './fake-find.ts';
 import * as mips from './fake-mips.ts';
 import * as rec from './fake-record.ts';
 import * as flow from './fake-flow.ts';
+import * as circuitsFake from './fake-circuits.ts';
 
 type Params = Record<string, unknown>;
 interface Comp { id: string; lib: string; name: string; loc: [number, number]; attrs: Record<string, string>; ext?: { color?: string; arms?: string[] } }
 interface Wire { id: string; a: [number, number]; b: [number, number] }
 interface Circuit { circuitId: string; name: string; comps: Comp[]; wires: Wire[] }
-interface Step { circuitId: string; comps: Comp[]; wires: Wire[]; ext?: flow.Ext }   // a circuit's parts before an edit (ext: a group or memo edit)
+interface Step { circuitId: string; comps: Comp[]; wires: Wire[]; ext?: flow.Ext; file?: circuitsFake.FileState }   // a circuit's parts before an edit (ext: a group or memo edit; file: the file's circuits, N-11)
 interface File {
   fileId: string; name: string; path: string | null; bytes: Buffer | null; circuits: Circuit[]; main: string; libs: string[];
   cycle: number; ticking: boolean; hz: number; on: boolean; dirty: boolean; undo: Step[]; redo: Step[]; diag: Diag | null; ran: boolean;
@@ -383,6 +387,7 @@ const methods: Record<string, (p: Params) => unknown> = {
     f.name = stem(path.basename(target));
     f.dirty = false;
     f.recovered = false;
+    circuitsFake.saved(circuitsCtx, f as unknown as circuitsFake.CFile);
     return { path: target, bytes: bytes.length, needsMipsJar: modes.has('needs-mips') };
   },
   'file.close': (p) => {
@@ -523,6 +528,7 @@ const methods: Record<string, (p: Params) => unknown> = {
     if (f.sel?.circuitId === c.circuitId && f.sel.floating.length) f.sel.floating = [];   // a paste not dropped just goes
     select(f, c, []);
     if (!ids.size) { f.undo.push(copyParts(c)); f.redo = []; f.dirty = true; return { changed: true, outcome: 'empty' }; }   // Logisim's empty Delete is an undo step too
+    circuitsFake.pinsRemoved(circuitsCtx, f as unknown as circuitsFake.CFile, c as unknown as circuitsFake.CCircuit, c.comps.filter((k) => ids.has(k.id)) as unknown as circuitsFake.CComp[]);
     return edit(p, c, () => {
       c.comps = c.comps.filter((k) => !ids.has(k.id));
       c.wires = c.wires.filter((w) => !ids.has(w.id));
@@ -949,6 +955,21 @@ const methods: Record<string, (p: Params) => unknown> = {
 // ---- ids and edits -----------------------------------------------------------------
 
 // A restarted engine's ids start above the window's (engine.hello idFloor).
+// N-11 (fake-circuits.ts): what its methods need of this fake.
+const circuitsCtx: circuitsFake.Ctx = {
+  files: files as unknown as Map<string, circuitsFake.CFile>,
+  fileOf: (p) => fileOf(p) as unknown as circuitsFake.CFile,
+  circuitOf: (p) => circuitOf(p) as unknown as circuitsFake.CCircuit,
+  notify,
+  fail: (code, message, data) => { throw new Failure(code, message, data); },
+  nextCircuit: () => `c${nextCircuit++}`,
+  nextComp: () => `k${nextComp++}`,
+  readCirc: (text) => readCirc(text) as unknown as { circuits: circuitsFake.CCircuit[]; main: string; libs: string[] },
+  libRefs: (f) => libRefs(f as unknown as File),
+  builtins: BUILTIN,
+};
+Object.assign(methods, circuitsFake.methods(circuitsCtx));
+
 function floor(n: number): void {
   nextFile = Math.max(nextFile, n + 1);
   nextCircuit = Math.max(nextCircuit, n + 1);
@@ -971,9 +992,15 @@ function adopt(f: File, p: Params): void {
 }
 
 const compJson = (k: Comp) => ({
-  id: k.id, lib: k.lib, name: k.name, loc: k.loc, bounds: [k.loc[0] - 30, k.loc[1] - 15, 30, 30],
+  id: k.id, lib: k.lib === 'circuit' ? null : k.lib, name: k.name, loc: k.loc, bounds: [k.loc[0] - 30, k.loc[1] - 15, 30, 30],
   facing: (k.attrs.facing as 'east' | undefined) ?? 'east', attrs: k.attrs, ports: [], ...(k.ext ? { ext: k.ext } : {}),
+  ...(k.lib === 'circuit' ? { subcircuit: subcircuitOf(k) } : {}),
 });
+// A circuit instance's circuit: the one of that name in the file that has the part (N-11).
+function subcircuitOf(k: Comp): string | undefined {
+  for (const f of files.values()) if (f.circuits.some((c) => c.comps.includes(k))) return f.circuits.find((c) => c.name === k.name)?.circuitId;
+  return undefined;
+}
 // A canvas fixture's part is the engine's whole JSON already (bounds, ports): as it is.
 const partJson = (x: Comp | Wire) => ('a' in x ? x : (x as Comp & { ports?: unknown }).ports !== undefined ? x : compJson(x));
 
@@ -1013,6 +1040,15 @@ function undoRedo(f: File, which: 'undo' | 'redo'): unknown {
   const to = which === 'undo' ? f.redo : f.undo;
   const step = from.pop();
   if (!step) return { changed: false };
+  if (step.file) {
+    // a circuit, appearance or library edit (N-11): the file's state back
+    to.push({ circuitId: '', comps: [], wires: [], file: circuitsFake.snapshot(f as unknown as circuitsFake.CFile) });
+    circuitsFake.restore(f as unknown as circuitsFake.CFile, step.file);
+    f.dirty = true;
+    circuitsFake.told(circuitsCtx, f as unknown as circuitsFake.CFile);
+    for (const c of f.circuits) setImmediate(() => notify('model.changed', { fileId: f.fileId, circuitId: c.circuitId, removed: [], added: [...c.comps.map(partJson), ...c.wires], nets: netsOf(f, c), junctions: [], dirty: true }));
+    return { changed: true };
+  }
   const c = f.circuits.find((x) => x.circuitId === step.circuitId)!;
   if (step.ext) {
     // a group or memo edit: its hcs:ext back, the parts (and their ids) as they are
@@ -1267,6 +1303,8 @@ function poke(f: File, c: Circuit, p: Params): unknown {
   const now = (width: number) => (net ? f.values.get(net.id) : undefined) ?? '0'.repeat(width);
   const flip = (v: string, bit: number) => { const i = v.length - 1 - bit; return v.slice(0, i) + (v[i] === '1' ? '0' : '1') + v.slice(i + 1); };
   if (k.name === 'Pin' && k.attrs.output !== 'true') {
+    // inside an instance its value is the parent's (the engine's frozenPin, I-64)
+    if (f.watched?.path.length && f.watched.circuitId === c.circuitId) throw new Failure(4, 'the pin is tied to the supercircuit state', { reason: 'frozenPin' });
     const width = Number(k.attrs.width ?? '1');
     let bit = 0;
     if (width > 1 && at && k.bounds) {

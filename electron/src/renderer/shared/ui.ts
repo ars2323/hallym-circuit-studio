@@ -17,7 +17,10 @@
                  opened in one): the same look as tabsHead's, each with its
                  name in the mono font, a dot while it has unsaved changes,
                  and a close button if it can be closed.  (New here: Hallym
-                 MIPS has one file at a time.) */
+                 MIPS has one file at a time.)  N-11: a quiet note after the
+                 name (the folder that tells two files of one name apart,
+                 " · Updated", " · Window"), a right click menu, and a tab
+                 dragged (onto the Canvas, out of the window). */
 
 import { h, icon } from './dom.ts';
 
@@ -96,6 +99,7 @@ export interface StripItem {
   label: string;
   title?: string;       // the tooltip: the whole name, a path
   dirty?: boolean;
+  note?: string;        // a quiet word after the name (N-11)
 }
 
 export interface TabStrip {
@@ -104,7 +108,8 @@ export interface TabStrip {
 }
 
 export function tabStrip(o: { label: string; closable: boolean; onSelect(id: string): void; onClose?(id: string): void;
-                           canClose?(items: StripItem[]): boolean }): TabStrip {
+                           canClose?(items: StripItem[]): boolean; onMenu?(id: string, x: number, y: number): void;
+                           drag?: { mime: string; data(id: string): string; end?(id: string, e: DragEvent): void } }): TabStrip {
   const root = h('div', { class: `ptabs strip${o.closable ? ' closable' : ''}`, role: 'tablist', 'aria-label': o.label });
   return {
     root,
@@ -112,9 +117,20 @@ export function tabStrip(o: { label: string; closable: boolean; onSelect(id: str
       const closable = o.closable && (o.canClose?.(items) ?? true);
       root.replaceChildren(...items.map((it) => {
         const on = it.id === active;
-        const tab = h('button', { class: `ptab${on ? ' on' : ''}`, type: 'button', role: 'tab', 'aria-selected': String(on), title: it.title ?? it.label, 'data-id': it.id },
-          h('span', { class: 'mono' }, it.label), it.dirty ? h('span', { class: 'dirty', title: 'Unsaved changes' }, '•') : null);
+        const tab = h('button', { class: `ptab${on ? ' on' : ''}`, type: 'button', role: 'tab', 'aria-selected': String(on), title: it.title ?? it.label, 'data-id': it.id, draggable: o.drag ? 'true' : undefined },
+          h('span', { class: 'mono' }, it.label), it.note ? h('span', { class: 'tabnote' }, it.note) : null,
+          it.dirty ? h('span', { class: 'dirty', title: 'Unsaved changes' }, '•') : null);
         tab.addEventListener('click', () => o.onSelect(it.id));
+        // the right click does not choose the tab (v1 FileTabBar.tabMenu, I-179)
+        if (o.onMenu) tab.addEventListener('contextmenu', (e) => { e.preventDefault(); o.onMenu!(it.id, e.clientX, e.clientY); });
+        if (o.drag) {
+          const d = o.drag;
+          tab.addEventListener('dragstart', (e) => {
+            e.dataTransfer?.setData(d.mime, d.data(it.id));
+            if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copyMove';
+          });
+          tab.addEventListener('dragend', (e) => d.end?.(it.id, e));
+        }
         if (!closable) return tab;
         const close = h('button', { class: 'tabclose', type: 'button', title: 'Close', 'aria-label': `Close ${it.label}` }, icon('x'));
         close.addEventListener('click', (e) => { e.stopPropagation(); o.onClose?.(it.id); });

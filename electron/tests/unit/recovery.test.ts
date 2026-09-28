@@ -604,3 +604,35 @@ test('recovery with nothing open: the window is told all the same (no files)', a
     await engine.shutdown();
   }
 });
+
+test('recovery: a library saved in another file (file.libraryUpdated) is journaled in the file that uses it as edit.reloadLibrary, and replayed in its place (N-11, D-153)', async () => {
+  const { dir, datapath, gates } = scratch();
+  const { engine, sup } = fake();
+  try {
+    await engine.start();
+    const host = await win<OpenResult>(engine, 'file.open', { path: gates });
+    const lib = await win<OpenResult>(engine, 'file.open', { path: datapath });
+    await win(engine, 'edit.loadLibrary', { fileId: host.fileId, kind: 'circ', path: datapath });
+    const updated = new Promise<unknown>((done) => engine.once('notification', function on(m, p) {
+      if (m === 'file.libraryUpdated') done(p); else engine.once('notification', on);
+    }));
+    // saved by the main process for the window (not journaled itself)
+    await engine.call('file.save', { fileId: lib.fileId, path: datapath }, { tag: WINDOW });
+    assert.deepEqual(await updated, { fileId: host.fileId, library: 'demo-datapath.circ', lib: 'demo-datapath' });
+    await win(engine, 'edit.addComponent', { fileId: host.fileId, circuitId: host.main, lib: 'Gates', name: 'OR Gate', loc: [5, 5] });
+    const entries = sup.journal.files.get(host.fileId)!.entries.map((e) => [e.method, e.params]);
+    assert.deepEqual(entries.map((e) => e[0]), ['edit.loadLibrary', 'edit.reloadLibrary', 'edit.addComponent']);
+    assert.deepEqual(entries[1][1], { fileId: host.fileId, lib: 'demo-datapath' });
+
+    const replayed: string[] = [];
+    engine.on('answer', (x) => { if (x.tag === 'recovery' && x.method.startsWith('edit.')) replayed.push(`${x.method} ${(x.params as { fileId: string }).fileId}`); });
+    const done = recovered(sup);
+    engine.kill();
+    const r = await done;
+    assert.deepEqual(replayed, [`edit.loadLibrary ${host.fileId}`, `edit.reloadLibrary ${host.fileId}`, `edit.addComponent ${host.fileId}`]);
+    assert.deepEqual(r.lost, []);
+  } finally {
+    await engine.shutdown();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

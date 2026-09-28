@@ -65,8 +65,10 @@ public final class CanvasFixtures {
         // 캔버스 덧그림(N-15, D-151): 같은 id로 영향 경로·Signal Flow·활성 경로·넷 정보·필드 경로
         File demo = repo.resolve("tests/circ/demo-datapath.circ").toFile();
         FlowFixtures.write(demo, FlowFixtures.target(out, demo));
+        // 모양 편집·Port Order·인스턴스 안내(N-11, D-153): 같은 id로 회로마다 모양·포트·인스턴스 경로
+        AppearanceFixtures.write(demo, AppearanceFixtures.target(out, demo));
         System.out.println("canvas fixtures: " + cases + " geometry cases, 3 circuits, library, find, splitter ranges, "
-                + "overlays -> " + out);
+                + "overlays, appearances -> " + out);
         System.exit(0);
     }
 

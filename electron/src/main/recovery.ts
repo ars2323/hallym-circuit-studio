@@ -155,7 +155,7 @@ export class Shadow {
     this.scan(result);
     const p = isObject(params) ? params : {};
     const r = isObject(result) ? result : {};
-    if ((method === 'file.new' || method === 'file.open') && typeof r.fileId === 'string' && Array.isArray(r.circuits)) {
+    if ((method === 'file.new' || method === 'file.open' || method === 'file.info') && typeof r.fileId === 'string' && Array.isArray(r.circuits)) {
       this.circuits(r.fileId, r.circuits as CircuitRef[]);
     } else if (method === 'model.circuit' && typeof p.fileId === 'string' && typeof p.circuitId === 'string') {
       const s = result as Snapshot;
@@ -176,6 +176,16 @@ export class Shadow {
   }
 
   notification(method: string, params: unknown): void {
+    // N-11: a circuit added, removed, renamed (file.changed): the names an edit is written with follow
+    if (method === 'file.changed' && isObject(params) && typeof params.fileId === 'string' && Array.isArray(params.circuits)) {
+      const refs = params.circuits as CircuitRef[];
+      this.scan(refs);
+      const f = this.files.get(params.fileId);
+      const now = new Set(refs.map((c) => c.circuitId));
+      for (const id of [...(f?.keys() ?? [])]) if (!now.has(id)) f!.delete(id);
+      this.circuits(params.fileId, refs);
+      return;
+    }
     if (method !== 'model.changed' || !isObject(params)) return;
     this.scan(params.added);
     if (typeof params.fileId !== 'string' || typeof params.circuitId !== 'string') return;
@@ -343,7 +353,14 @@ export class Supervisor extends EventEmitter<Events> {
     this.engine = engine;
     this.fingerprint = options.fingerprint ?? fingerprintOf;
     engine.on('answer', (a) => this.answered(a));
-    engine.on('notification', (method, params) => this.shadow.notification(method, params));
+    engine.on('notification', (method, params) => {
+      this.shadow.notification(method, params);
+      // A library saved in another file came into this one (N-11, D-153): not the window's call, but a change of
+      // this file's model -- journaled as the intent a replay does again (the library read again from disk).
+      if (method === 'file.libraryUpdated' && !this.recovering && isObject(params) && typeof params.fileId === 'string' && typeof params.lib === 'string') {
+        this.journal.record(params.fileId, 'edit.reloadLibrary', { fileId: params.fileId, lib: params.lib }, this.shadow);
+      }
+    });
     engine.on('status', (s) => this.status(s));
   }
 

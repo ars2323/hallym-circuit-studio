@@ -8,6 +8,7 @@ package kr.ac.hallym.hcs.engine;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -16,7 +17,9 @@ import com.cburch.logisim.circuit.Circuit;
 import com.cburch.logisim.circuit.SubcircuitFactory;
 import com.cburch.logisim.circuit.Wire;
 import com.cburch.logisim.comp.Component;
+import com.cburch.logisim.comp.ComponentFactory;
 import com.cburch.logisim.data.Location;
+import com.cburch.logisim.file.LoadedLibrary;
 import com.cburch.logisim.tools.AddTool;
 import com.cburch.logisim.tools.Library;
 import com.cburch.logisim.tools.Tool;
@@ -43,6 +46,7 @@ import kr.ac.hallym.hcs.engine.record.Records;
 import kr.ac.hallym.hcs.engine.rpc.Params;
 import kr.ac.hallym.hcs.engine.rpc.RpcError;
 import kr.ac.hallym.hcs.engine.rpc.Server;
+import kr.ac.hallym.hcs.engine.sim.SimGate;
 import kr.ac.hallym.hcs.engine.sim.SimSession;
 
 /**
@@ -63,6 +67,8 @@ public final class Engine {
     private Programs programs;
     /** record.*(N-14): 사이클 기록, Run Until, Registers·Memory·Instruction. */
     private final Records records;
+    /** 파일·회로 단위의 알림과 파일 사이의 일(N-11, D-153): file.changed, model.appearance, model.portImpact, 저장 반영. */
+    private final kr.ac.hallym.hcs.engine.edit.CircuitService circuits = new kr.ac.hallym.hcs.engine.edit.CircuitService();
 
     public Engine(Server server) {
         this.server = server;
@@ -87,6 +93,7 @@ public final class Engine {
         records = new Records(server, files);
         registerFindAndExt();
         registerFlow();
+        registerCircuits();
         server.onShutdown(this::closeAll);
         server.executor().scheduleAtFixedRate(this::frame, SimSession.FRAME_MS, SimSession.FRAME_MS,
                 TimeUnit.MILLISECONDS);
@@ -227,6 +234,13 @@ public final class Engine {
             Doc d = files.get(p.str("fileId"));
             String path = p.optStr("path", null);
             File saved = files.save(d, path == null ? null : new File(path).getAbsoluteFile());
+            // 이 파일을 라이브러리로 쓰는 다른 열린 파일에 새 버전(v1 P-03 저장 반영, D-065·D-153): 파일마다 그
+            // 시뮬레이터를 세운 채 바꾸고, 알림(file.libraryUpdated)으로 창의 되살리기 저널에 edit.reloadLibrary를 남긴다
+            Map<Doc, LoadedLibrary> users = kr.ac.hallym.hcs.engine.edit.CircuitService.libraryUsers(files.all(), d);
+            if (!users.isEmpty()) {
+                reloadLibraries(users);
+                call.after(() -> libraryUpdated(users, saved));
+            }
             JsonObject o = new JsonObject();
             o.addProperty("path", saved.getPath());
             o.addProperty("bytes", saved.length());
@@ -243,6 +257,7 @@ public final class Engine {
             programs.detach(d);
             records.close(d.id());
             selectionSent.remove(d.id());
+            circuits.detach(d);
             files.close(d, p.optBool("keepRecovery", false));
             return new JsonObject();
         });
@@ -291,6 +306,7 @@ public final class Engine {
         records.bind(r, s);
         diags.attach(d);
         programs.attach(d);
+        circuits.attach(d);
         records.ready(r); // 진단도 붙은 뒤 스텝 0(진단이 스텝 0을 본다, D-143)
     }
 
@@ -370,6 +386,8 @@ public final class Engine {
             Intents.Result r = s == null ? e.apply(d, p) : s.quiet(() -> e.apply(d, p));
             // 다른 회로의 떠 있는 선택을 내려놓았으면(Doc.show) 의도의 답과 상관없이 모델이 바뀌었다
             boolean changed = r.changed || d.drops() != drops;
+            // 서브회로 핀을 바꿔 끊긴 인스턴스 연결: 되살리고 알린다(v1 P-02 InstanceBanner, N-11)
+            List<JsonObject> impacts = s == null ? circuits.settle(d) : s.quiet(() -> circuits.settle(d));
             JsonObject o = new JsonObject();
             o.addProperty("changed", changed);
             if (r.outcome != null) {
@@ -381,9 +399,17 @@ public final class Engine {
             if (r.circuit != null) {
                 o.addProperty("circuitId", d.ids().of(r.circuit));
             }
-            if (changed) {
+            if (r.extra != null) {
+                for (Map.Entry<String, com.google.gson.JsonElement> x : r.extra.entrySet()) {
+                    o.add(x.getKey(), x.getValue());
+                }
+            }
+            if (changed || !impacts.isEmpty()) {
                 d.project().getSimulator().requestPropagate(); // Canvas.completeAction과 같다
                 call.after(() -> publishChanges(d));
+            }
+            for (JsonObject impact : impacts) {
+                call.after(() -> server.notify("model.portImpact", impact));
             }
             // 고른 것이 바뀌었으면 edit.selection(N-08, D-146): 모델 알림 뒤(새로 놓인 부품의 id를 화면이 먼저 안다)
             // edit.select always tells it (the screen shows its guess at once and takes the engine's word after)
@@ -456,6 +482,10 @@ public final class Engine {
     public void publishChanges(Doc d) {
         for (JsonObject change : d.tracker().changes(d.id(), d.isDirty())) {
             server.notify("model.changed", change);
+        }
+        // 회로 목록·주 회로·라이브러리, 열어 둔 모양(N-11)
+        for (Object[] n : circuits.changes(d)) {
+            server.notify((String) n[0], (JsonObject) n[1]);
         }
         SimSession s = sims.get(d.id());
         if (s != null) {
@@ -660,6 +690,213 @@ public final class Engine {
             m.delete = p.optBool("delete", false);
             return kr.ac.hallym.hcs.engine.edit.ExtIntents.areaMemo(d, c, m);
         });
+    }
+
+    // ---- 회로·모양·라이브러리·다른 파일(N-11, D-153) ----
+
+    private void registerCircuits() {
+        edit("edit.deleteCircuit", true, (d, p) -> kr.ac.hallym.hcs.engine.edit.CircuitIntents.deleteCircuit(d,
+                d.circuit(p.str("circuitId"))));
+        edit("edit.moveCircuit", true, (d, p) -> kr.ac.hallym.hcs.engine.edit.CircuitIntents.moveCircuit(d,
+                d.circuit(p.str("circuitId")), p.integer("to")));
+        edit("edit.portOrder", true, (d, p) -> {
+            if (!p.has("order") || !p.raw().get("order").isJsonObject()) {
+                throw RpcError.params("param 'order' must be an object of sides");
+            }
+            return kr.ac.hallym.hcs.engine.edit.CircuitIntents.portOrder(d, d.circuit(p.str("circuitId")),
+                    p.raw().getAsJsonObject("order"), p.optBool("confirm", true));
+        });
+        edit("edit.autoAppearance", true, (d, p) -> kr.ac.hallym.hcs.engine.edit.CircuitIntents.autoAppearance(d,
+                d.circuit(p.str("circuitId")), p.optBool("confirm", true)));
+        edit("edit.appearance", true, (d, p) -> kr.ac.hallym.hcs.engine.edit.AppearanceIntents.apply(d,
+                d.circuit(p.str("circuitId")), p));
+        edit("edit.importCircuits", false, (d, p) -> kr.ac.hallym.hcs.engine.edit.LibraryIntents.importCircuits(d,
+                kr.ac.hallym.hcs.engine.edit.LibraryIntents.resolve(d, p.str("path")), p.strings("circuits")));
+        edit("edit.loadLibrary", false, (d, p) -> kr.ac.hallym.hcs.engine.edit.LibraryIntents.loadLibrary(d,
+                p.str("kind"), p.optStr("name", null),
+                p.has("path") ? kr.ac.hallym.hcs.engine.edit.LibraryIntents.resolve(d, p.str("path")) : null,
+                p.optStr("className", null), files.all()));
+        // 다른 파일에서 저장한 라이브러리의 새 버전(file.save가 한 일): 창의 되살리기 저널이 file.libraryUpdated를 이
+        // 의도로 적어 재생한다(D-153). 이 라이브러리를 쓰는 열린 파일 모두가 새 버전을 받고, 이 파일의 답이 편집이다
+        edit("edit.reloadLibrary", false, (d, p) -> {
+            LoadedLibrary lib = kr.ac.hallym.hcs.engine.edit.CircuitService.circLibrary(d, p.str("lib"));
+            if (lib == null) {
+                throw RpcError.notFound("library", p.str("lib"));
+            }
+            Map<Doc, LoadedLibrary> users = new java.util.LinkedHashMap<>();
+            users.put(d, lib);
+            for (Doc o : files.all()) {
+                if (o != d && kr.ac.hallym.hcs.engine.edit.CircuitService.circLibrary(o, lib.getName()) == lib) {
+                    users.put(o, lib);
+                }
+            }
+            List<Doc> changed = reloadLibraries(users);
+            for (Doc o : changed) {
+                if (o != d) {
+                    publishChanges(o);
+                }
+            }
+            SimSession s = sims.get(d.id());
+            if (s != null && changed.contains(d) && s.reset()) {
+                s.sendState(true);
+            }
+            return kr.ac.hallym.hcs.engine.edit.CircuitService.reloaded(changed.contains(d));
+        });
+        edit("edit.unloadLibrary", false, (d, p) -> kr.ac.hallym.hcs.engine.edit.LibraryIntents.unloadLibrary(d,
+                p.str("name")));
+        // 물음(모델을 바꾸지 않는다)
+        server.register("model.ports", (p, call) -> {
+            Doc d = files.get(p.str("fileId"));
+            return kr.ac.hallym.hcs.engine.edit.CircuitIntents.ports(d, d.circuit(p.str("circuitId")));
+        });
+        server.register("model.instances", (p, call) -> {
+            Doc d = files.get(p.str("fileId"));
+            return kr.ac.hallym.hcs.engine.edit.CircuitIntents.instances(d, d.circuit(p.str("circuitId")));
+        });
+        server.register("model.pinImpact", (p, call) -> {
+            Doc d = files.get(p.str("fileId"));
+            Circuit c = d.circuit(p.str("circuitId"));
+            return kr.ac.hallym.hcs.engine.edit.CircuitIntents.pinImpact(d, c, d.components(c, p.strings("ids")));
+        });
+        server.register("model.appearance", (p, call) -> {
+            Doc d = files.get(p.str("fileId"));
+            return circuits.watchAppearance(d, d.circuit(p.str("circuitId")));
+        });
+        server.register("model.appearanceHit", (p, call) -> {
+            Doc d = files.get(p.str("fileId"));
+            Circuit c = d.circuit(p.str("circuitId"));
+            List<Integer> sel = kr.ac.hallym.hcs.engine.edit.AppearanceIntents.indices(p, "selected");
+            int[] rect = p.has("rect") ? p.ints("rect") : null;
+            if (rect != null && rect.length != 4) {
+                throw RpcError.params("rect must be [x0, y0, x1, y1]");
+            }
+            return kr.ac.hallym.hcs.engine.edit.AppearanceIntents.hit(d, c, p.optPoint("at"), sel,
+                    p.optDouble("zoom", 1), rect);
+        });
+        server.register("model.appearanceMenu", (p, call) -> {
+            Doc d = files.get(p.str("fileId"));
+            List<Integer> sel = kr.ac.hallym.hcs.engine.edit.AppearanceIntents.indices(p, "shapes");
+            return kr.ac.hallym.hcs.engine.edit.AppearanceIntents.menu(d, d.circuit(p.str("circuitId")), sel,
+                    p.has("vertexShape") ? p.integer("vertexShape") : null, p.optPoint("vertexAt"));
+        });
+        server.register("model.appearanceHandles", (p, call) -> {
+            Doc d = files.get(p.str("fileId"));
+            return kr.ac.hallym.hcs.engine.edit.AppearanceIntents.preview(d, d.circuit(p.str("circuitId")),
+                    p.integer("shape"), p.point("at"), p.integer("dx"), p.integer("dy"), p.optBool("shift", false),
+                    p.optBool("ctrl", false), p.optBool("alt", false));
+        });
+        server.register("model.libraries", (p, call) -> kr.ac.hallym.hcs.engine.edit.LibraryIntents.libraries(
+                files.get(p.str("fileId")), files.all()));
+        server.register("model.importPlan", (p, call) -> {
+            Doc d = files.get(p.str("fileId"));
+            return kr.ac.hallym.hcs.engine.edit.LibraryIntents.plan(d,
+                    kr.ac.hallym.hcs.engine.edit.LibraryIntents.resolve(d, p.str("path")), p.strings("circuits"));
+        });
+        server.register("file.peek", (p, call) -> {
+            Doc d = files.get(p.str("fileId"));
+            return kr.ac.hallym.hcs.engine.edit.LibraryIntents.peek(d,
+                    kr.ac.hallym.hcs.engine.edit.LibraryIntents.resolve(d, p.str("path")));
+        });
+        server.register("file.info", (p, call) -> {
+            Doc d = files.get(p.str("fileId"));
+            JsonObject o = kr.ac.hallym.hcs.engine.edit.CircuitService.fileJson(d);
+            o.addProperty("dirty", d.isDirty());
+            File main = d.loader().getMainFile();
+            o.addProperty("saved", main != null);
+            o.addProperty("readOnly", d.isReadOnly());
+            return o;
+        });
+        server.register("file.saveImpact", (p, call) -> {
+            JsonObject o = new JsonObject();
+            o.add("cuts", kr.ac.hallym.hcs.engine.edit.CircuitService.saveImpact(files.all(),
+                    files.get(p.str("fileId"))));
+            return o;
+        });
+        server.register("file.originOf", (p, call) -> {
+            Doc d = files.get(p.str("fileId"));
+            Circuit c = d.circuit(p.str("circuitId"));
+            File f = kr.ac.hallym.hcs.engine.edit.CircuitService.originOf(d, c);
+            JsonObject o = new JsonObject();
+            o.addProperty("path", f == null ? null : f.getPath());
+            o.addProperty("circuit", c.getName());
+            return o;
+        });
+        server.register("file.copyMipsJar", (p, call) -> {
+            Doc d = files.get(p.str("fileId"));
+            File main = d.loader().getMainFile();
+            if (main == null) {
+                throw RpcError.params("the file was never saved");
+            }
+            try {
+                File dest = MipsShadow.copyJarBeside(main);
+                JsonObject o = new JsonObject();
+                o.addProperty("name", dest.getName());
+                return o;
+            } catch (java.io.IOException e) {
+                throw RpcError.file(MipsShadow.siblingJar(main).getPath(), "writeFailed", e.getMessage());
+            }
+        });
+    }
+
+    /**
+     * 저장한 파일을 라이브러리로 쓰던 파일들이 새 버전을 받은 뒤(v1 LibrarySync.afterSave): 모델 알림, 시뮬레이션을
+     * 처음으로(v1 Recorder.requestReset), {@code file.libraryUpdated {fileId, library}}(화면의 " · Updated").
+     */
+    private void libraryUpdated(Map<Doc, LoadedLibrary> users, File saved) {
+        for (Map.Entry<Doc, LoadedLibrary> u : users.entrySet()) {
+            Doc t = u.getKey();
+            if (!files.all().contains(t)) {
+                continue;
+            }
+            publishChanges(t);
+            SimSession s = sims.get(t.id());
+            if (s != null && s.reset()) {
+                s.sendState(true);
+            }
+            JsonObject o = new JsonObject();
+            o.addProperty("fileId", t.id());
+            o.addProperty("library", saved.getName());
+            o.addProperty("lib", u.getValue().getName()); // 이 파일에서의 라이브러리 이름: 저널의 edit.reloadLibrary
+            server.notify("file.libraryUpdated", o);
+        }
+    }
+
+    /**
+     * 라이브러리 새 버전을 쓰는 파일들에 넣는다(D-153): 라이브러리마다 한 번 디스크에서 다시 읽고(그 라이브러리를 쓰는
+     * 모든 파일의 시뮬레이터를 세운 채: 나눠 쓰는 LoadedLibrary라 모두의 부품 팩토리가 바뀐다), 파일마다 그 파일의
+     * 시뮬레이터를 세운 채 옛 버전 부품을 바꾼다. 바뀐 파일들.
+     */
+    private List<Doc> reloadLibraries(Map<Doc, LoadedLibrary> users) {
+        Map<LoadedLibrary, Map<ComponentFactory, ComponentFactory>> known = new IdentityHashMap<>();
+        for (Map.Entry<Doc, LoadedLibrary> u : users.entrySet()) {
+            LoadedLibrary lib = u.getValue();
+            if (known.containsKey(lib)) {
+                continue;
+            }
+            List<SimSession> quiet = new ArrayList<>();
+            for (Map.Entry<Doc, LoadedLibrary> v : users.entrySet()) {
+                SimSession s = sims.get(v.getKey().id());
+                if (v.getValue() == lib && s != null) {
+                    quiet.add(s);
+                }
+            }
+            known.put(lib, quietAll(quiet, 0, () -> kr.ac.hallym.hcs.engine.edit.CircuitService.reload(u.getKey(), lib)));
+        }
+        List<Doc> changed = new ArrayList<>();
+        for (Map.Entry<Doc, LoadedLibrary> u : users.entrySet()) {
+            Doc t = u.getKey();
+            SimSession s = sims.get(t.id());
+            SimGate.Body<Boolean, RuntimeException> body =
+                    () -> kr.ac.hallym.hcs.engine.edit.CircuitService.refresh(t, u.getValue(), known.get(u.getValue()));
+            if (s == null ? body.run() : s.quiet(body)) {
+                changed.add(t);
+            }
+        }
+        return changed;
+    }
+
+    private static <T> T quietAll(List<SimSession> ss, int i, SimGate.Body<T, RuntimeException> body) {
+        return i == ss.size() ? body.run() : ss.get(i).quiet(() -> quietAll(ss, i + 1, body));
     }
 
     // ---- sim ----

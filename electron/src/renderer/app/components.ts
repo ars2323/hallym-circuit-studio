@@ -16,13 +16,19 @@
                              a number after the name is picked with the part
                              ("and 3": an AND gate of three inputs)
 
-   What is picked stays marked until another is. */
+   What is picked stays marked until another is.
+
+   N-11 (v1 P-03 탭 간 라이브러리, I-109): the other open files' circuits
+   under "Open Files · name" -- picking one loads that file as a library
+   first (Project › Load Library › Logisim Library, one undo step); a file
+   never saved, or one that already uses this file, shows why not -- and a
+   library's right click offers Unload Library. */
 
 import type { LibraryGroup } from '../../main/protocol.ts';
 import { code, h } from '../shared/dom.ts';
 import type { NoticeHost } from '../shared/notice.ts';
 import { count } from './logic/facts.ts';
-import { search, type SearchItem } from './logic/search.ts';
+import { search, searchHint, SEARCH_HINTS, type SearchItem } from './logic/search.ts';
 
 export const TOOL_MIME = 'application/x-hcs-tool';
 
@@ -37,7 +43,11 @@ export interface ComponentsState {
   fileName: string;
   circuit: string;                        // the circuit on show (circuitId)
   libraries: LibraryGroup[] | string | undefined;   // a string: why there is none; undefined: on its way
+  openFiles?: OpenFileGroup[];           // the other open files (N-11)
 }
+
+// Another open file's circuits (model.libraries openFiles, the tab's name).
+export interface OpenFileGroup { fileId: string; name: string; state: 'ok' | 'loaded' | 'unsaved' | 'self' | 'circular'; circuits: string[] }
 
 export interface ComponentsPanel {
   set(state: ComponentsState | null): void;
@@ -51,17 +61,28 @@ export function componentsPanel(o: {
   host: NoticeHost;
   onPick(p: Pick): void;
   onOpenCircuit(circuitId: string): void;
+  onOpenFileCircuit?(fileId: string, circuit: string): void;          // N-11: load that file as a library, then pick it
+  onLibraryMenu?(lib: string, display: string, x: number, y: number): void;   // N-11: Unload Library
   recent(): readonly string[];
   favorites(): readonly string[];
 }): ComponentsPanel {
   let state: ComponentsState | null = null;
   let held: string | null = null;
   let shownFile: string | null = null;
-  const input = h('input', { type: 'search', class: 'compsearch-input', placeholder: 'Search (and 3, mux 32, 레지스터)', 'aria-label': 'Search parts', spellcheck: 'false', autocomplete: 'off' });
+  const input = h('input', { type: 'search', class: 'compsearch-input', placeholder: SEARCH_HINTS[0], 'aria-label': 'Search parts', spellcheck: 'false', autocomplete: 'off' });
   const tree = h('div', { class: 'comptree' });
   const results = h('ul', { class: 'list compresults', role: 'listbox', 'aria-label': 'Matching parts', hidden: true });
   const empty = h('p', { class: 'compnone', hidden: true });
   const root = h('div', { class: 'comps' }, h('div', { class: 'compsearch' }, input), tree, results, empty);
+  // the example text as long as the box has room for, whole
+  const ruler = document.createElement('canvas').getContext('2d');
+  new ResizeObserver(() => {
+    const cs = getComputedStyle(input);
+    const room = input.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 2;
+    if (!ruler || room <= 0) return;
+    ruler.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+    input.placeholder = searchHint(room, (t) => ruler.measureText(t).width);
+  }).observe(input);
   let items: SearchItem[] = [];
 
   function pick(p: Pick): void {
@@ -91,13 +112,32 @@ export function componentsPanel(o: {
 
   function renderTree(libs: LibraryGroup[]): void {
     const st = state!;
-    tree.replaceChildren(...libs.map((g, i) => h('details', { class: `libgroup${g.pending ? ' pending' : ''}`, open: i < 2 || g.pending },
-      h('summary', {}, g.lib === null ? st.fileName : g.display ?? g.lib,
+    tree.replaceChildren(...libs.map((g, i) => {
+      const summary = h('summary', {}, g.lib === null ? st.fileName : g.display ?? g.lib,
         g.pending ? h('span', { class: 'dim', title: '처음 놓으면 이 파일에 들어갑니다' }, 'not in the file yet') : null,
-        h('span', { class: 'count' }, count(g.tools.length))),
-      h('ul', { class: 'list' }, ...g.tools.map((t) => h('li', {},
-        toolButton(g.lib, t.name, t.circuitId ? code(t.display) : t.display, t.circuitId ? `${t.name} (double click: open)` : t.name, t.circuitId)))))));
+        h('span', { class: 'count' }, count(g.tools.length)));
+      // a library's right click: Unload Library (not the file's own circuits, not the pending Hallym MIPS, V-01)
+      const lib = g.lib;
+      if (lib !== null && !g.pending && o.onLibraryMenu) summary.addEventListener('contextmenu', (e) => { e.preventDefault(); o.onLibraryMenu!(lib, g.display ?? lib, e.clientX, e.clientY); });
+      return h('details', { class: `libgroup${g.pending ? ' pending' : ''}`, open: i < 2 || g.pending }, summary,
+        h('ul', { class: 'list' }, ...g.tools.map((t) => h('li', {},
+          toolButton(g.lib, t.name, t.circuitId ? code(t.display) : t.display, t.circuitId ? `${t.name} (double click: open)` : t.name, t.circuitId)))));
+    }), ...openFileGroups(st.openFiles ?? []));
     mark();
+  }
+
+  // The other open files' circuits (P-03): picking one loads its file as a library first.
+  function openFileGroups(groups: OpenFileGroup[]): HTMLElement[] {
+    return groups.filter((g) => g.state !== 'loaded' && g.state !== 'self').map((g) => {
+      const why = g.state === 'unsaved' ? '라이브러리로 쓰려면 그 파일을 먼저 저장하세요' : g.state === 'circular' ? '그 파일이 이미 이 파일을 쓰고 있어 넣을 수 없습니다(순환 참조)' : null;
+      return h('details', { class: `libgroup openfile${why ? ' off' : ''}`, open: false },
+        h('summary', { title: why ?? `${g.name}: 고르면 이 파일에 라이브러리로 넣습니다` }, 'Open Files · ', code(g.name), h('span', { class: 'count' }, count(g.circuits.length))),
+        h('ul', { class: 'list' }, ...g.circuits.map((c) => {
+          const b = h('button', { type: 'button', class: 'tool', title: why ?? `${c} (${g.name})`, disabled: why !== null, 'data-openfile': `${g.fileId}/${c}` }, code(c));
+          b.addEventListener('click', () => o.onOpenFileCircuit?.(g.fileId, c));
+          return h('li', {}, b);
+        })));
+    });
   }
 
   function renderResults(): void {

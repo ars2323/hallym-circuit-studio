@@ -8,7 +8,7 @@
    The page never names a path: opening and saving go through the main
    process's dialogs, and the engine's methods it may call are a fixed list
    (src/main/protocol.ts WINDOW_METHODS). */
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 const unwrap = (r) => {
   if (r && r.ok === false) return Promise.reject({ ...r.error });
@@ -35,4 +35,27 @@ contextBridge.exposeInMainWorld('app', {
   license: (i) => ipcRenderer.invoke('about:license', i).then(unwrap),
   openCredits: () => ipcRenderer.invoke('about:openCredits').then(unwrap),
   setOverlay: (color) => ipcRenderer.invoke('win:overlay', color),
+  // N-11: circuits from other files and libraries (the dialogs in the main process: src/main/circuit-files.ts)
+  importChoose: (fileId) => ipcRenderer.invoke('circuits:importChoose', fileId).then(unwrap),
+  importPlan: (fileId, circuits) => ipcRenderer.invoke('circuits:importPlan', fileId, circuits).then(unwrap),
+  importApply: (fileId, circuits) => ipcRenderer.invoke('circuits:importApply', fileId, circuits).then(unwrap),
+  loadLibrary: (fileId, kind, name) => ipcRenderer.invoke('library:load', fileId, kind, name).then(unwrap),
+  useOpenFile: (fileId, otherFileId) => ipcRenderer.invoke('library:useOpenFile', fileId, otherFileId).then(unwrap),
+  // every open file and its place, in any window (N-11: names told apart by their folders everywhere)
+  openFilesAll: () => ipcRenderer.invoke('files:all'),
+  onFilesChanged: (listener) => ipcRenderer.on('files:changed', (_e, list) => listener(list)),
+  editOriginal: (fileId, circuitId) => ipcRenderer.invoke('file:editOriginal', fileId, circuitId).then(unwrap),
+  // .circ files dropped from the desktop (I-181): their paths are found here, never handed to the page
+  openDropped: (files) => {
+    const paths = Array.from(files ?? []).map((f) => { try { return webUtils.getPathForFile(f); } catch { return ''; } }).filter((p) => p);
+    return ipcRenderer.invoke('file:openDropped', paths).then(unwrap);
+  },
+  // N-11: a file tab in a window of its own (src/main/windows.ts)
+  windowRole: () => ipcRenderer.invoke('win:role'),
+  detach: (fileId, handover, how) => ipcRenderer.invoke('win:detach', fileId, handover, how).then(unwrap),
+  attach: (handover) => ipcRenderer.invoke('win:attach', handover).then(unwrap),
+  windowClosed: () => ipcRenderer.invoke('win:closed'),
+  closeCancelled: () => ipcRenderer.send('win:closeCancelled'),
+  onCloseRequest: (listener) => ipcRenderer.on('win:closeRequest', () => listener()),
+  onAdopt: (listener) => ipcRenderer.on('win:adopt', (_e, handover) => listener(handover)),
 });
