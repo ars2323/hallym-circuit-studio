@@ -924,6 +924,7 @@ class RecordTest {
                 });
                 JsonArray ours = call("record.registers", "cycle", c).getAsJsonArray("rows");
                 int matched = 0;
+                int valued = 0;
                 for (kr.ac.hallym.hcs.app.cycle.MachineState.Reg g : v1) {
                     JsonObject row = null;
                     for (JsonElement x : ours) {
@@ -939,10 +940,49 @@ class RecordTest {
                     assertEquals(want, row.get("value").isJsonNull() ? null : row.get("value").getAsString(), g.name);
                     assertEquals(g.changed, row.get("changed").getAsBoolean(), g.name + " changed");
                     matched++;
+                    if (want != null) {
+                        valued++;
+                    }
                 }
                 assertTrue(matched >= 3, "pass " + pass + ": " + matched);
+                // 같은 null끼리 맞는 것이 아니다: 지난 사이클의 값이 남아 있다(표시해도 기록을 새로 시작하지 않는다)
+                assertTrue(valued >= 3, "pass " + pass + " cycle " + c + ": " + valued + " rows with a value");
             }
         }
+    }
+
+    /**
+     * Mark as Register File·Mark as PC(파일의 첫 동작이면 고침 표시가 켜진다)와 저장(꺼진다)은 넷을 바꾸지 않는다: 지난
+     * 사이클이 그대로 남는다. 전에는 원조 라이브러리 사건 DIRTY_STATE를 편집으로 보아 다음 전파에서 기록을 새로 시작해,
+     * theRegisterRowsAgreeWithV1MachineState가 CI에서 가끔 {@code $at} null로 실패했다(D-144).
+     */
+    @Test
+    void markingAndSavingKeepThePastCycles() throws Exception {
+        File f = tmp.resolve("demo.circ").toFile();
+        Files.copy(DATAPATH.toPath(), f.toPath());
+        open(f);
+        cycles(3);
+        JsonObject before = awaitRecorded(3);
+        assertEquals(0, before.get("first").getAsInt());
+        String rf = call("record.registers").getAsJsonArray("candidates").get(0).getAsJsonObject()
+                .get("circuitId").getAsString();
+        assertTrue(call("record.markRegisterFile", "circuitId", rf, "on", true).get("dirty").getAsBoolean());
+        cycles(1); // 표시 뒤 첫 전파·틱: 옛 코드는 여기서 스텝 7부터 새로 적었다
+        awaitRecorded(4);
+        e.client.call("file.save", params("fileId", fileId, "path", f.getPath()));
+        assertFalse(call("file.dirty").get("dirty").getAsBoolean(), "saved");
+        cycles(1);
+        JsonObject after = awaitRecorded(5);
+        assertEquals(0, after.get("first").getAsInt(), "the past cycles are kept: " + after);
+        assertEquals(before.get("generation").getAsInt(), after.get("generation").getAsInt(), "not started again");
+        JsonArray rows = call("record.registers", "cycle", 1).getAsJsonArray("rows");
+        int valued = 0;
+        for (JsonElement x : rows) {
+            if (!x.getAsJsonObject().get("value").isJsonNull()) {
+                valued++;
+            }
+        }
+        assertTrue(valued >= 3, "cycle 1 still has its values: " + rows);
     }
 
     @Test

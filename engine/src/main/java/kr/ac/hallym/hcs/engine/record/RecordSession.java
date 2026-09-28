@@ -126,6 +126,8 @@ public final class RecordSession {
      * 한 번 더 전파를 요청하고 스텝 0이 적힐 때까지 기다린다. 그 뒤에 오는 첫 틱은 스텝 1이 된다.
      */
     void ready() {
+        // 스텝 0을 모든 청취자가 붙은 지금 다시 적는다: 첫 전파가 진단이 붙기 전에 끝났으면 진단은 스텝 0을 못 봤다
+        recorder.restartAtNextPropagation();
         doc.project().getSimulator().requestPropagate();
         settle();
     }
