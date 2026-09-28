@@ -171,7 +171,7 @@ try {
     Control 'clean' 30 'before'
     $s0 = State 'before'
     Check ($s0.entries.Count -eq 0 -and $s0.folders.Count -eq 0 -and $s0.shortcuts.Count -eq 0) 'nothing of ours installed to begin with'
-    # The installer asks for no administrator (per user; a one-click NSIS installer's own manifest).
+    # The installer asks for no administrator (per user, never elevated: the NSIS installer's own manifest).
     $fs = [IO.File]::OpenRead((Resolve-Path $Setup).Path); $buf = New-Object byte[] (4MB); $n = $fs.Read($buf, 0, $buf.Length); $fs.Close()
     $m = [regex]::Match([Text.Encoding]::ASCII.GetString($buf, 0, $n), 'requestedExecutionLevel\s+level="([a-zA-Z]+)"')
     Check ($m.Success -and $m.Groups[1].Value -eq 'asInvoker') "the installer's manifest: requestedExecutionLevel $($m.Groups[1].Value)"

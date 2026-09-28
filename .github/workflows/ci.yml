@@ -356,7 +356,8 @@ jobs:
           $env:HCS_E2E_REPORT = Join-Path (Get-Location) 'report'
           node node_modules/@playwright/test/cli.js test windows-start
           $code = $LASTEXITCODE
-          $entry = Get-ChildItem 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall' | ForEach-Object { Get-ItemProperty $_.PSPath } | Where-Object { $_.DisplayName -like 'Hallym Circuit Studio *' }
+          Get-Process HallymCircuitStudio, java -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$env:LOCALAPPDATA\Programs\Hallym Circuit Studio\*" } | Stop-Process -Force
+          $entry =Get-ChildItem 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall' | ForEach-Object { Get-ItemProperty $_.PSPath } | Where-Object { $_.DisplayName -like 'Hallym Circuit Studio *' }
           foreach ($e in @($entry)) {
             $exe = [regex]::Match($e.QuietUninstallString, '"([^"]+)"').Groups[1].Value
             $uargs = ($e.QuietUninstallString -replace '"[^"]+"', '').Trim()

@@ -221,6 +221,8 @@ if ($finish) {
     Get-Process HallymCircuitStudio -ErrorAction SilentlyContinue | ForEach-Object { $null = $_.CloseMainWindow() }
     Start-Sleep -Seconds 5
     Get-Process HallymCircuitStudio -ErrorAction SilentlyContinue | Stop-Process -Force
+    # Its engine (the bundled runtime's java) ends with it; if not, it would hold the folder the uninstaller removes.
+    Get-Process java -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$env:LOCALAPPDATA\Programs\Hallym Circuit Studio\*" } | Stop-Process -Force
   }
 }
 if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }

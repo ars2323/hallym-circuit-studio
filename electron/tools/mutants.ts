@@ -206,7 +206,7 @@ export const MUTANTS: Mutant[] = [
   { module: 'origin', file: 'src/renderer/shared/ui.ts', what: 'a taken file that names the simulator core\'s op table',
     find: "import { h, icon } from './dom.ts';", replace: "import { h, icon } from './dom.ts'; // OP" + '_TABLE', tests: ['tests/unit/origin.test.ts'] },
   { module: 'window', file: 'src/renderer/app/app.ts', what: '한림 on screen',
-    find: "'Hallym University의 논리설계와 컴퓨터구조 실습을 위한 회로 편집·시뮬레이션 도구입니다.'",
+    find: "'Hallym University 논리설계와 컴퓨터구조 실습을 위한 회로 편집·시뮬레이션 도구입니다.'",
     replace: "'한림대학교 논리설계와 컴퓨터구조 실습을 위한 회로 편집·시뮬레이션 도구입니다.'", tests: ['tests/unit/origin.test.ts'] },
   // ---- the program: Load Program, the summary, the band, the Console (N-16, D-147)
   { module: 'program', file: 'src/renderer/app/logic/program.ts', what: 'no band while a reload has failed',
