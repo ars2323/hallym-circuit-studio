@@ -72,11 +72,7 @@ class EngineParityReplayTest {
 
     /** 엔진에 아직 없는 의도를 쓰는 장면 → 그 의도(docs/engine-api.md의 제안 의도, 맡는 항목). */
     static final Map<String, String> LATER = new LinkedHashMap<>();
-    static {
-        LATER.put("08-subcircuit", "edit.portOrder, edit.autoAppearance (N-11)");
-        LATER.put("09-import-subcircuits", "edit.importCircuits (N-11)");
-        LATER.put("11-load-libraries", "edit.loadLibrary, edit.unloadLibrary (N-11)");
-    }
+    // 08·09·11(Port Order·Auto Appearance, Import, Load/Unload Library)은 N-11(D-153)에서 엔진에 들어왔다: 남은 장면 없음
 
     @TempDir
     Path tmp;

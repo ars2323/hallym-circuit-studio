@@ -61,6 +61,8 @@ public final class Intents {
         public final Component added;
         /** 새로 생긴 회로(edit.createCircuit). */
         public final Circuit circuit;
+        /** 응답에 더 싣는 것(N-11, D-153: 끊어질 연결, 가져오기 계획, 모양 도형 번호 등). 없으면 null. */
+        public com.google.gson.JsonObject extra;
 
         Result(boolean changed, String outcome, Component added) {
             this(changed, outcome, added, null);
@@ -75,6 +77,15 @@ public final class Intents {
 
         static Result unchanged(String outcome) {
             return new Result(false, outcome, null);
+        }
+
+        /** 응답에 key를 더한다(N-11). */
+        Result with(String key, com.google.gson.JsonElement value) {
+            if (extra == null) {
+                extra = new com.google.gson.JsonObject();
+            }
+            extra.add(key, value);
+            return this;
         }
     }
 
