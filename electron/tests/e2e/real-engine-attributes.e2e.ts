@@ -81,6 +81,9 @@ test('Data Bits of a register from the Attributes panel: model.changed, Undo; th
     await page.mouse.up();
     await expect.poll(async () => (await parts(page, 'Constant')).length).toBe(1);
     await expect(panel.locator('.aname')).toHaveText('Constant');
+    // the placed part's table, not the held tool's of the same name (it comes after the part is selected: a slow
+    // runner typed into the tool's, and the selection's table then came and put the refusal away)
+    await expect(panel.locator('.ahead .badge')).toHaveText('Selection');
     await panel.getByLabel('Value', { exact: true }).fill('0xZZ');
     await panel.getByLabel('Value', { exact: true }).press('Enter');
     await expect(panel.locator('.aerr')).toHaveText('이 값은 Value 속성에 넣을 수 없습니다. 16진수(0x1F), 10진수(31)로 적습니다.');
