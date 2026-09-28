@@ -12,7 +12,7 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } 
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { answerSave, DATAPATH, launch, openFile, sample } from './harness.ts';
+import { answerSave, canvasSettled, DATAPATH, launch, openFile, sample } from './harness.ts';
 import { call, circuitsOf, openFileIds } from './model.ts';
 import { RUN_DEFAULTS } from '../../src/renderer/app/logic/run-settings.ts';
 import { changeEverySetting, settingsNow } from './settings.ts';
@@ -118,6 +118,7 @@ test('every setting is for this run only: changed, quit, started again -- each i
   let defaults;
   try {
     await openFile(r, file);
+    await canvasSettled(r.page);   // the zoom is the first view's (fitted once the Canvas knows its size)
     defaults = await settingsNow(r.page);
     // the defaults (logic/run-settings.ts): 1 Hz, bus widths shown, the panels' first tabs, the main circuit only
     expect(defaults).toMatchObject({ hz: String(RUN_DEFAULTS.hz), busWidths: RUN_DEFAULTS.busWidths, bottomCollapsed: false,
@@ -138,7 +139,7 @@ test('every setting is for this run only: changed, quit, started again -- each i
   const next = await launch(undefined, { userData: runs });
   try {
     await openFile(next, file);
-    await expect(next.page.locator('.zoom-button')).toBeVisible();
+    await canvasSettled(next.page);
     expect(await settingsNow(next.page)).toEqual(defaults);
   } finally {
     await next.close();
