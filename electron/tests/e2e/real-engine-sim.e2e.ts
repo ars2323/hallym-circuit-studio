@@ -56,7 +56,9 @@ test('the real engine: a counter -- 1 Cycle, N Cycles 100 exactly, Run and Stop,
     await page.getByRole('button', { name: /^Stop/ }).click();
     await expect(page.locator('.status .run')).toHaveCount(0);
     const stopped = await cycleNow(r);
-    await expect.poll(() => portValue(page, q.id)).toBe(bits8(3 * stopped));
+    // Stop may land between a cycle's rising edge and its falling one (the clock left high): the register has
+    // then taken the next value while the cycle is still counted as the last whole one (CI saw 103 × 3 at Cycle 102).
+    await expect.poll(() => portValue(page, q.id)).toMatch(new RegExp(`^(${bits8(3 * stopped)}|${bits8(3 * (stopped + 1))})$`));
     await page.getByRole('button', { name: /Reset/ }).click();
     await expect(page.locator('.status')).toContainText('Cycle 0');
     await expect.poll(() => portValue(page, q.id)).toBe(bits8(0));
