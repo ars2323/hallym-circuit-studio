@@ -83,7 +83,7 @@ export function summaryRows(s: LoadSummary): SummaryRow[] {
     const base = s.stackBase[0];
     rows.push({
       name: 'reg', value: s.regs.map((r) => `${r.name} ${r.value}`).join(' · '),
-      note: `파일에 적힌 시작 값입니다. 도구는 레지스터에 넣지 않습니다.${base ? ` 스택 깊이 기준: ${base.target}` : ''}`,
+      note: `파일에 적힌 시작 값입니다. 도구는 레지스터에 넣지 않습니다.${base ? ` 스택 깊이 기준: \`stack ${base.stack}\` (\`${base.part}\`)` : ''}`,
     });
   }
   if (s.source) rows.push({ name: 'Source', value: s.source.text.ko, warn: s.source.warn });

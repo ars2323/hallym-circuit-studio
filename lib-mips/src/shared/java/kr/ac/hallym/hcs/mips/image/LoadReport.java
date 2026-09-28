@@ -93,9 +93,14 @@ public final class LoadReport {
     public Object emptiedCircuit;
     public Object emptied;
     public String emptiedName;
-    /** {@code reg $sp}를 깊이 기준으로 기억한 부품들과 그 이름. */
+    /**
+     * {@code reg $sp}를 깊이 기준으로 기억한 부품들, 그 이름(트랙 A 목록과 같은 이름: 합친 Data Memory는 데이터 영역을
+     * 적는다), 영역 없는 이름({@code main › Data Memory}), 스택 영역({@code 7ffc0000-7fffffff}).
+     */
     public final List<Object> stackBase = new ArrayList<Object>();
     public final List<String> stackBaseNames = new ArrayList<String>();
+    public final List<String> stackBaseParts = new ArrayList<String>();
+    public final List<String> stackBaseRanges = new ArrayList<String>();
     /** 이미지 {@code .text}가 쓰는 명령어 이름(알파벳 순). */
     public final List<String> instructions = new ArrayList<String>();
     /** 트랙 A 요약 창과 같은 요약 줄(이름·숫자뿐이라 두 언어가 같다, D-049). */

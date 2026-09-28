@@ -267,7 +267,7 @@ export interface LoadSummary {
   regs: { name: string; value: string }[];
   segments: LoadSegment[];
   emptied?: { componentId: string; circuitId: string; target: string } | null;
-  stackBase: { componentId: string; target: string; sp: string | null }[];
+  stackBase: { componentId: string; target: string; part: string; stack: string; sp: string | null }[];   // part: "main › Data Memory", stack: its stack region
   instructions: string[];
   source?: { status: 'same' | 'changed' | 'notFound' | 'noHash'; name?: string | null; text: Bilingual; warn: boolean };
   facts: { id: 'noHandler' | 'jrRa' | string; text: Bilingual }[];

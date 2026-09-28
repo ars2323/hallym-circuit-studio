@@ -57,6 +57,9 @@ class ProgramLoadingTest {
         assertEquals(ExecutableImage.Kind.DATA, r.placements.get(1).kind);
         assertSame(dm, r.placements.get(1).component);
         assertEquals(List.of(dm), r.stackBase, "reg $sp: the merged Data Memory's depth base");
+        assertEquals(List.of("main › Data Memory (10000000-100fffff)"), r.stackBaseNames, "the track A name: its data region");
+        assertEquals(List.of("main › Data Memory"), r.stackBaseParts);
+        assertEquals(List.of("7ffc0000-7fffffff"), r.stackBaseRanges, "the region the depth base is in");
         assertNull(r.emptied);
         assertNotNull(r.check);
         assertTrue(r.instructions.contains("syscall"));

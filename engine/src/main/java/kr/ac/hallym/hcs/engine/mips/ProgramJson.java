@@ -155,6 +155,8 @@ final class ProgramJson {
             JsonObject x = new JsonObject();
             x.addProperty("componentId", ids.of((Component) r.stackBase.get(i)));
             x.addProperty("target", r.stackBaseNames.get(i));
+            x.addProperty("part", r.stackBaseParts.get(i));
+            x.addProperty("stack", r.stackBaseRanges.get(i));
             x.addProperty("sp", sp == null ? null : ExecutableImage.hex(sp));
             stack.add(x);
         }

@@ -95,6 +95,8 @@ public final class ProgramLoading {
         for (ProgramLoader.Target t : plan.stackBase) {
             out.stackBase.add(t.component);
             out.stackBaseNames.add(t.describe());
+            out.stackBaseParts.add(t.part());
+            out.stackBaseRanges.add(MemoryFactory.range(MemoryFactory.stackRegion(t.component.getAttributeSet())));
         }
         out.instructions.addAll(plan.instructions);
         out.notes.addAll(plan.notes);

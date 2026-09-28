@@ -28,7 +28,7 @@ test('summaryRows: entry, each segment and where it went, reg start values, the 
   assert.deepEqual([rows[1].value, rows[1].note], ['27 words (0x00400000–0x00400068)', 'main › Instruction Memory (00400000-004fffff)']);
   assert.equal(rows[2].value, '28 bytes = 7 words (0x10010000–0x1001001b)');
   assert.equal(rows[3].value, '$sp 0x7fffffe4 · $gp 0x10008000');
-  assert.match(rows[3].note!, /^파일에 적힌 시작 값입니다\. 도구는 레지스터에 넣지 않습니다\. 스택 깊이 기준: main › Data Memory/);
+  assert.equal(rows[3].note!, '파일에 적힌 시작 값입니다. 도구는 레지스터에 넣지 않습니다. 스택 깊이 기준: `stack 7ffc0000-7fffffff` (`main › Data Memory`)');
   assert.deepEqual([rows[4].value, rows[4].warn], ['원본 파일 data.s: 내보낸 때와 같음.', false]);
   assert.equal(rows[5].value, 'Hallym MIPS 2.4.0 · 2026-09-27T19:05+09:00');
   assert.match(rows[6].value, /^add, addi, .*syscall$/);

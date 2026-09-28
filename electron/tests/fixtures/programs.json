@@ -54,6 +54,8 @@
             {
               "componentId": "@Data Memory",
               "target": "main › Data Memory (10000000-100fffff)",
+              "part": "main › Data Memory",
+              "stack": "7ffc0000-7fffffff",
               "sp": "0x7fffffe4"
             }
           ],
@@ -327,6 +329,8 @@
             {
               "componentId": "@Data Memory",
               "target": "main › Data Memory (10000000-100fffff)",
+              "part": "main › Data Memory",
+              "stack": "7ffc0000-7fffffff",
               "sp": "0x7fffffe4"
             }
           ],
@@ -553,6 +557,8 @@
             {
               "componentId": "@Data Memory",
               "target": "main › Data Memory (10000000-100fffff)",
+              "part": "main › Data Memory",
+              "stack": "7ffc0000-7fffffff",
               "sp": "0x7fffffe4"
             }
           ],
@@ -860,6 +866,8 @@
             {
               "componentId": "@Data Memory",
               "target": "main › Data Memory (10000000-100fffff)",
+              "part": "main › Data Memory",
+              "stack": "7ffc0000-7fffffff",
               "sp": "0x7fffffe4"
             }
           ],
@@ -1034,6 +1042,8 @@
             {
               "componentId": "@Data Memory",
               "target": "main › Data Memory (10000000-100fffff)",
+              "part": "main › Data Memory",
+              "stack": "7ffc0000-7fffffff",
               "sp": "0x7ffff000"
             }
           ],
