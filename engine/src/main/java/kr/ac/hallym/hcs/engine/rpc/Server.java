@@ -66,6 +66,9 @@ public final class Server {
     private volatile boolean closing;
     private volatile Thread engineThread;
     private String shutdownReason;
+    /** 화면이 사라진 뒤 끝나야 하는 시한(ms). 0이면 없다(같은 JVM의 테스트). {@link #haltAfter}. */
+    private volatile long endDeadlineMs;
+    private final java.util.concurrent.atomic.AtomicBoolean deadlineStarted = new java.util.concurrent.atomic.AtomicBoolean();
 
     public Server(InputStream in, OutputStream out, PrintStream log) {
         this.in = in;
@@ -140,6 +143,36 @@ public final class Server {
         return shutdownReason;
     }
 
+    /**
+     * 화면이 사라져 끝날 때(stdin 닫힘·부모 끝남)의 시한(N-19, D-152). 끝내기는 엔진 스레드에 줄을 서므로, 엔진 스레드가
+     * 바쁘거나 멈춰 있으면 끝나지 않는다: 그 뒤 ms 안에 정리가 끝나지 않으면 프로세스를 멈춘다({@code Runtime.halt}).
+     * Windows에서 엔진은 부모와 함께 죽는 작업 개체 밖에 있으므로(detached) 이것이 떠도는 java를 막는다. Main만 켠다.
+     */
+    public void haltAfter(long ms) {
+        endDeadlineMs = ms;
+    }
+
+    /** 화면(클라이언트)이 사라졌다: 끝내기를 요청하고, 시한이 있으면 그 시계를 건다. */
+    public void clientGone(String reason) {
+        long ms = endDeadlineMs;
+        if (ms > 0 && deadlineStarted.compareAndSet(false, true)) {
+            Thread t = new Thread(() -> {
+                try {
+                    if (!done.await(ms, TimeUnit.MILLISECONDS)) {
+                        log("error", "not ended " + ms + " ms after " + reason + ": halting", false);
+                        log.flush();
+                        Runtime.getRuntime().halt(1);
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }, "hcs-end-deadline");
+            t.setDaemon(true);
+            t.start();
+        }
+        requestShutdown(reason);
+    }
+
     /** 끝내기를 요청한다(엔진 스레드에서 정리한 뒤 {@link #serve}가 돌아온다). */
     public void requestShutdown(String reason) {
         submit(() -> shutdown(reason));
@@ -175,7 +208,7 @@ public final class Server {
         } catch (IOException e) {
             log("warn", "stdin: " + e, false);
         }
-        requestShutdown("stdin closed");
+        clientGone("stdin closed");
     }
 
     /** 한 줄을 처리한다(엔진 스레드). */
@@ -302,7 +335,7 @@ public final class Server {
         } catch (IOException e) {
             if (!closing) {
                 log.println("[hcs-engine] error: stdout: " + e);
-                requestShutdown("stdout closed");
+                clientGone("stdout closed");
             }
         }
     }

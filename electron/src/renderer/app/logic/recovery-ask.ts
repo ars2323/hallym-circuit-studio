@@ -56,7 +56,7 @@ export const recoveredNote = (name: string): string => `저장하지 않은 편�
 // An open's answer: a file, or first the question (then the chosen open; Esc: nothing).
 export async function answerRecovery(
   r: Opened | RecoveryAsk | null,
-  choose: (q: RecoveryQuestion) => Promise<'ok' | 'cancel' | null>,
+  choose: (q: RecoveryQuestion) => Promise<'ok' | 'extra' | 'cancel' | null>,
   openRecovery: (id: string, choice: 'recover' | 'discard' | null) => Promise<Opened | null>,
 ): Promise<Opened | null> {
   if (!r || !('ask' in r)) return r;

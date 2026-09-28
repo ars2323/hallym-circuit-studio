@@ -126,6 +126,7 @@ test('every setting is for this run only: changed, quit, started again -- each i
     const changed = await settingsNow(r.page);
     for (const k of Object.keys(defaults) as (keyof typeof defaults)[]) expect(changed[k], `${k} changed`).not.toEqual(defaults[k]);
     for (const k of Object.keys(defaults.sizes)) expect(changed.sizes[k], `${k} changed`).not.toEqual(defaults.sizes[k]);
+    for (const k of Object.keys(defaults.flow)) expect(changed.flow[k], `flow ${k} changed`).not.toEqual(defaults.flow[k]);
   } finally {
     await r.app.close();
   }

@@ -88,7 +88,7 @@ Hallym Circuit Studio 2의 화면(Electron)과 Java 엔진(headless Logisim 2.7.
 - `file.open`: `messages`는 원조 로더가 대화상자로 보이던 경고(예: 알 수 없는 부품)다. 이미 열린 파일(같은 경로)을 다시 열면 그 `fileId`를 `alreadyOpen:true`와 함께 돌려준다. `readOnly`면 편집과 경로 없는 저장이 오류 3(`readOnly`)이다.
 - `file.open`의 `recovery`(N-19, 7절 "복구 파일"): `"recover"`면 `path` 옆 `<이름>.circ.hcs-recover`의 내용을 `path` 자리에서 연다(원조 Loader의 바꿔 읽기, 명령줄 `-sub`와 같은 길): 파일 경로·이름·상대 경로 라이브러리는 `path`의 것이고 저장하지 않은 편집이다(`dirty`, 되돌리기를 모두 되돌려도, 저장할 때까지). 복구 파일이 없으면 오류 2(`notFound`, `data.path`는 복구 파일). `"discard"`면 `path`를 보통으로 연 뒤 복구 파일을 지운다(열지 못하면 남긴다). 그 밖의 값은 -32602. 이미 열린 파일이면 무시한다.
 - `file.close`의 `keepRecovery`: 참이면 엔진이 복구 파일을 맡고 있어도(`recoveryFiles`) 지우지 않는다. main의 되살리기가 재생에 실패한 파일을 닫고 다시 열 때 쓴다(7절).
-- `file.recoverWrite`: 저장하지 않은 편집이 있으면 연 파일 옆 `<이름>.circ.hcs-recover`에 쓰고 `{path, written:true, bytes}`, 없으면 있던 것을 지우고 `{path, written:false}`. 둘 곳이 없는 파일(한 번도 저장하지 않은 새 파일, 읽기 전용)은 아무것도 쓰지 않고 `{path:null, written:false}`. 쓰지 못하면 오류 2(`writeFailed`). 창은 부를 수 없다(main만).
+- `file.recoverWrite`: 둘 곳은 디스크 경로가 있고 읽기 전용으로 열지 않은 파일, 그 폴더에 쓸 수 있을 때뿐이다(쓸 수 없는 폴더는 조용히 건너뛰어 `written:false`). 저장하지 않은 편집이 있으면 연 파일 옆 `<이름>.circ.hcs-recover`에 쓰고 `{path, written:true, bytes}`, 없으면 있던 것을 지우고 `{path, written:false}`. 둘 곳이 없는 파일(한 번도 저장하지 않은 새 파일, 읽기 전용)은 아무것도 쓰지 않고 `{path:null, written:false}`. 쓰지 못하면 오류 2(`writeFailed`). 창은 부를 수 없다(main만).
 - `file.save`: `path`가 없으면 연 파일(또는 마지막으로 저장한 경로)에 쓴다. 한 번도 저장하지 않은 새 파일은 `path`가 있어야 한다(-32602). 다른 경로에 저장하면 그 경로가 이 파일의 경로가 되고(Save As) 읽기 전용이 풀린다. 포크의 .circ 확장 정보(D-024)도 원조 방식으로 저장한 뒤 붙인다. `needsMipsJar`: MIPS 부품을 쓰는데 저장한 .circ 옆에 `hcs-mips.jar`가 없다(원조 2.7.1이 열려면 필요, 화면이 알린다).
 
 ### model
@@ -431,6 +431,7 @@ FlowPath = {circuitId, backward, total, click?:[x,y],
 ### 끝
 
 - 앱을 끝낼 때: `engine.shutdown` → 엔진이 답하고 열린 파일을 닫은 뒤 코드 0으로 끝난다. 3초 안에 끝나지 않으면 main이 강제로 끝낸다.
+- 화면이 사라져 끝날 때(stdin 닫힘·부모 끝남·stdout 닫힘)는 시한이 있다: 정리가 `-Dhcs.exitDeadlineMs`(기본 10000) 안에 끝나지 않으면(엔진 스레드가 바쁘거나 멈춤) 프로세스를 멈춘다(`Runtime.halt`). 그 안의 복구 파일 쓰기는 `-Dhcs.recoveryWriteMs`(기본 5000)까지. `-Dhcs.testHooks=true`면 시험용 `test.block {ms}`(엔진 스레드를 붙잡음)가 생긴다(배포본은 켜지 않는다).
 - main 프로세스가 죽으면(작업 관리자, 충돌): 엔진의 stdin이 닫히고 엔진이 스스로 끝난다. Windows에서 main은 엔진을 `detached`로 띄운다: Node가 자식을 넣는 "부모와 함께 죽는" 작업 개체 밖이라, 엔진이 끝나기 전에 복구 파일을 쓸 수 있다(N-19). stdin이 닫히지 않아도 엔진은 시작할 때의 부모 프로세스가 끝나는 것을 지켜보다 끝난다(`Main.watchParent`, Windows CI에서 stdin만으로는 끝나지 않은 것을 보고 더했다. `-Dhcs.watchParent=false`로 끈다). 떠도는 java 프로세스가 남지 않는다.
 - 엔진의 stderr(로그)는 main의 메모리에 마지막 40줄만 둔다. 파일로 쓰지 않는다. JVM 충돌 보고서(`hs_err`)는 실행 폴더에 떨어지고 실행 폴더와 함께 지워진다.
 

@@ -72,6 +72,7 @@ import { programs as programController } from './program.ts';
 import { emitReveal, onReveal, type Reveal } from './reveal.ts';
 import { recoveredText } from './logic/recovered.ts';
 import { answerRecovery, recoveredNote } from './logic/recovery-ask.ts';
+import { settleUnsaved, type Leaving } from './logic/unsaved.ts';
 import { RUN_DEFAULTS } from './logic/run-settings.ts';
 import { startScreen } from './start.ts';
 
@@ -591,6 +592,7 @@ function renderToolbarState(): void {
 }
 
 function render(): void {
+  reportDirty();
   const f = files.active();
   document.title = f ? `${f.name}${f.dirty ? ' •' : ''} — ${APP_NAME}` : APP_NAME;
   bar.setFile(f ? f.name : null, f?.dirty ?? false);
@@ -932,30 +934,62 @@ async function openFile(): Promise<void> {
 async function save(saveAs: boolean): Promise<void> {
   const f = files.active();
   if (!f || engine.state !== 'ready') return;
+  await saveOf(f, saveAs);
+}
+
+// Saves a file (the save dialog for one never saved); whether it was saved.
+async function saveOf(f: OpenFile, saveAs: boolean): Promise<boolean> {
+  let ok = false;
   try {
     const r = await api.saveFile(f.fileId, { name: f.name, saveAs });
-    if (!r) return;
-    files.saved(f.fileId, r.name, r.path);
-    note = { cls: 'ok', text: `저장했습니다 · ${r.name}${r.needsMipsJar ? ' · 원조 Logisim 2.7.1에서 열려면 옆에 hcs-mips.jar가 있어야 합니다' : ''}` };
+    if (r) {
+      files.saved(f.fileId, r.name, r.path);
+      note = { cls: 'ok', text: `저장했습니다 · ${r.name}${r.needsMipsJar ? ' · 원조 Logisim 2.7.1에서 열려면 옆에 hcs-mips.jar가 있어야 합니다' : ''}` };
+      ok = true;
+    }
   } catch (e) {
     note = null;
     fileErrorDialog('save', e, f.name);
   }
   render();
+  return ok;
+}
+
+// Before unsaved changes would be lost (N-19, logic/unsaved.ts): Save / Discard / Cancel for each file that has
+// them; whether to go on.  With no engine to save through, there is nothing to keep: go on.
+async function unsavedSettled(list: readonly OpenFile[], leaving: Leaving): Promise<boolean> {
+  if (engine.state !== 'ready') return true;
+  return settleUnsaved(list, leaving, {
+    dirty: async (f) => (await api.call<{ dirty: boolean }>('file.dirty', { fileId: f.fileId }).catch(() => ({ dirty: f.dirty }))).dirty,
+    show: (f) => { files.activate(f.fileId); render(); },
+    choose: (q) => choose(q),
+    save: (f) => saveOf(f, false),
+  });
+}
+
+// Leaving the app (the close button, Alt+F4, Ctrl+Q, the PC shutting down): each unsaved file asked about, then
+// the window closes (main.ts app:leave).
+let leaving = false;
+async function leave(): Promise<void> {
+  if (leaving || document.querySelector('dialog[open]')) return;
+  leaving = true;
+  try {
+    if (await unsavedSettled([...files.list()], 'quit')) await api.leave();
+  } finally {
+    leaving = false;
+  }
+}
+api.onLeave(() => void leave());
+let reportedDirty: boolean | null = null;
+function reportDirty(): void {
+  const d = files.list().some((f) => f.dirty);
+  if (d !== reportedDirty) { reportedDirty = d; void api.reportDirty(d); }
 }
 
 async function closeFile(fileId: string): Promise<void> {
   const f = files.get(fileId);
   if (!f) return;
-  let dirty = f.dirty;
-  if (engine.state === 'ready') dirty = (await api.call<{ dirty: boolean }>('file.dirty', { fileId }).catch(() => ({ dirty: f.dirty }))).dirty;
-  if (dirty) {
-    const go = await ask({
-      title: '저장하지 않은 변경이 있습니다', file: f.name,
-      body: '닫으면 저장하지 않은 내용은 사라집니다. 남기려면 Cancel을 누르고 저장하세요(Ctrl+S).', ok: 'Discard', cancel: 'Cancel', danger: true,
-    });
-    if (!go) return;
-  }
+  if (!(await unsavedSettled([f], 'close'))) return;
   if (engine.state === 'ready') await api.call('file.close', { fileId }).catch(() => {});
   files.close(fileId);
   for (const m of [scenes, views, inside]) for (const k of [...m.keys()]) if (k.startsWith(`${fileId} `)) m.delete(k);
@@ -1221,6 +1255,7 @@ window.addEventListener('keydown', (e) => {
   if ((k === 'f' || e.code === 'KeyF') && !e.shiftKey && !e.altKey) { e.preventDefault(); if (files.active()) finder.open(); return; }
   if (k === 'n') { e.preventDefault(); void newCircuit(); }
   else if (k === 'o') { e.preventDefault(); void openFile(); }
+  else if (k === 'q') { e.preventDefault(); void leave(); }
   else if (k === 's') { e.preventDefault(); void save(e.shiftKey); }
   else if (k === 'z' && !e.shiftKey) { e.preventDefault(); void edit('edit.undo', 'Undo'); }
   else if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); void edit('edit.redo', 'Redo'); }

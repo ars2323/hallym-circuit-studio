@@ -116,11 +116,12 @@ public final class RecoveryFiles {
     }
 
     /**
-     * 복구 파일을 쓴다(없으면 만들고 있으면 바꾼다). 둘 곳이 없는 파일(새 파일, 읽기 전용)이면 아무것도 하지 않고 null.
+     * 복구 파일을 쓴다(없으면 만들고 있으면 바꾼다). 둘 곳이 없는 파일(새 파일, 읽기 전용으로 연 파일)이나 쓸 수 없는
+     * 폴더(읽기 전용 매체, 권한 없음)면 아무것도 하지 않고 null(조용히 건너뛴다).
      */
     public static File write(Doc d) throws IOException {
         File circ = target(d);
-        if (circ == null) {
+        if (circ == null || !writableFolder(circ)) {
             return null;
         }
         byte[] b = bytes(d);
@@ -138,6 +139,12 @@ public final class RecoveryFiles {
             java.nio.file.Files.deleteIfExists(part.toPath());
         }
         return dest;
+    }
+
+    /** circ가 든 폴더에 파일을 만들 수 있는가. */
+    static boolean writableFolder(File circ) {
+        File dir = circ.getAbsoluteFile().getParentFile();
+        return dir != null && java.nio.file.Files.isDirectory(dir.toPath()) && java.nio.file.Files.isWritable(dir.toPath());
     }
 
     /** circ 옆의 복구 파일(과 남은 조각)을 지운다. 지운 것이 있으면 true. */

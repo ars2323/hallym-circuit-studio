@@ -300,11 +300,15 @@ public final class Files {
      */
     public void closeAll(boolean normal) {
         if (recoveryFiles) {
+            // 화면이 사라진 뒤의 쓰기는 이 시간 안에서만 한다(그 뒤의 파일은 앞서 쓴 복구 파일이 남는다). 엔진은 어차피
+            // Server.haltAfter의 시한에 끝난다
+            long budget = Long.getLong("hcs.recoveryWriteMs", 5_000L) * 1_000_000L;
+            long start = System.nanoTime();
             for (Doc d : docs.values()) {
                 try {
                     if (normal) {
                         RecoveryFiles.delete(RecoveryFiles.target(d));
-                    } else if (d.isDirty()) {
+                    } else if (d.isDirty() && System.nanoTime() - start < budget) {
                         RecoveryFiles.write(d);
                     }
                 } catch (IOException | RuntimeException e) {

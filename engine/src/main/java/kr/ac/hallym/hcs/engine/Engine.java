@@ -65,6 +65,17 @@ public final class Engine {
         this.server = server;
         this.diags = new DiagService(server, files);
         registerEngine();
+        if (Boolean.getBoolean("hcs.testHooks")) {
+            // 시험용(N-19): 엔진 스레드를 ms 동안 붙잡는다(멈춘 엔진도 화면이 사라지면 시한 안에 끝나는지 본다). 배포본은 켜지 않는다
+            server.register("test.block", (p, call) -> {
+                try {
+                    Thread.sleep((long) p.optDouble("ms", 60_000));
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                return new JsonObject();
+            });
+        }
         registerFile();
         registerModel();
         registerMips();

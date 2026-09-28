@@ -12,7 +12,12 @@
      panel sizes        the four splitters, the bottom panel collapsed (app.ts
                         dragged, bottomCollapsed; logic/layout.ts)
      panel tabs         the tab on show in each panel
-     Show Bus Widths    the Wire Colors legend (canvas/legend.ts)
+     Show Bus Widths    the Wire Colors legend (canvas/legend.ts), with the
+                        overlays' Colors (Values / Groups), Bus Values and
+                        Active Path under it (N-15, canvas/overlays/)
+     Signal Flow        its right-click menu's Signal Flow on Click, Flow
+                        Speed, Through Registers, Active Path Only, Reduce
+                        Motion, Smooth (overlays controller.ts settings)
      clock speed        the toolbar's select (sim.run hz)
      circuit tabs       each file's open circuits (logic/files.ts)
      Load Program…      the .hmx picked last for a file (main.ts programs)

@@ -32,8 +32,8 @@ test('security: context isolation, no Node in the page; the page may call only t
     expect(await page.evaluate(() => ['require', 'process', 'module', 'ipcRenderer', 'contextBridge']
       .map((n) => typeof (globalThis as Record<string, unknown>)[n]))).toEqual(['undefined', 'undefined', 'undefined', 'undefined', 'undefined']);
     expect(await page.evaluate(() => Object.isFrozen(window.app) || Object.getOwnPropertyDescriptor(window, 'app')?.writable === false)).toBe(true);
-    expect(await page.evaluate(() => Object.keys(window.app).sort())).toEqual(['about', 'call', 'engineStatus', 'license', 'loadProgram', 'onEngineRecovered', 'onEngineStatus', 'onNotify',
-      'openCredits', 'openFile', 'openRecovery', 'openStartupFile', 'retryEngine', 'saveFile', 'setOverlay', 'startupFile']);
+    expect(await page.evaluate(() => Object.keys(window.app).sort())).toEqual(['about', 'call', 'engineStatus', 'leave', 'license', 'loadProgram', 'onEngineRecovered', 'onEngineStatus', 'onLeave', 'onNotify',
+      'openCredits', 'openFile', 'openRecovery', 'openStartupFile', 'reportDirty', 'retryEngine', 'saveFile', 'setOverlay', 'startupFile']);
     for (const method of ['file.open', 'file.save', 'engine.shutdown', 'engine.hello', 'mips.load', 'file.recoverWrite']) {
       const answer = await page.evaluate((m) => window.app.call(m as never, { path: '/etc/passwd' }).then(() => 'answered', (e: { message: string }) => e.message), method);
       expect(answer, method).toBe(`not a method the window may call: ${method}`);

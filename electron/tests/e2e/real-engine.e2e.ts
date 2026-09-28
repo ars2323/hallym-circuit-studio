@@ -379,6 +379,45 @@ test('the real engine and the settings (N-19): every setting changed, quit, star
   }
 });
 
+test('the real engine and leaving (N-19): the close button asks about the unsaved file, Save writes the edit through the engine, then the app quits and the recovery file is gone', async () => {
+  const work = mkdtempSync(path.join(tmpdir(), 'hcs-work-'));
+  const file = sample(work, 'tests/circ/gates.circ');
+  const r = await launch(undefined, { env: { ...real, HCS_RECOVERY_IDLE_MS: '200' } });
+  const { page, app } = r;
+  const quit = app.waitForEvent('close', { timeout: 60_000 });
+  try {
+    await openFile(r, file);
+    const [fileId] = await openFileIds(app);
+    await call(page, 'edit.addComponent', { fileId, circuitId: (await circuitsOf(page, fileId)).main, lib: 'Gates', name: 'XOR Gate', loc: [700, 700] });
+    await expect.poll(() => readdirSync(work).sort(), { timeout: 20_000 }).toEqual(['gates.circ', 'gates.circ.hcs-recover']);
+    await app.evaluate(({ BrowserWindow }) => { BrowserWindow.getAllWindows()[0].close(); });
+    const dialog = page.locator('dialog.ask');
+    await expect(dialog.locator('.askfile')).toHaveText('File: gates.circ');
+    await dialog.getByRole('button', { name: 'Save' }).click();
+    await quit;
+    expect(readdirSync(work).sort()).toEqual(['gates.circ']);
+    expect(readFileSync(file, 'utf8')).toContain('name="XOR Gate"');
+  } finally {
+    try { rmSync(r.dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 }); } catch { /* scratch */ }
+    rmSync(work, { recursive: true, force: true });
+  }
+});
+
+test('the real engine blocked (N-19): its engine thread held, the window\'s process killed -- java still ends within its deadline', async () => {
+  const java = process.env.HCS_JAVA ?? 'java';
+  // the engine with its test hook (test.block) and a short deadline, started as the app starts it otherwise
+  const cmd = JSON.stringify([java, '-Djava.awt.headless=true', '-Dhcs.testHooks=true', '-Dhcs.exitDeadlineMs=3000', '-jar', JAR]);
+  const r = await launch(undefined, { env: { HCS_ENGINE_CMD: cmd } });
+  const pid = (await enginePid(r.app))!;
+  await expect(r.page.locator('.status .engine')).toContainText('Logisim 2.7.1');
+  // the engine thread held for ten minutes (the call never answers)
+  await r.app.evaluate(() => { void (globalThis as unknown as { __hcs: { engine: { call(m: string, p: unknown): Promise<unknown> } } }).__hcs.engine.call('test.block', { ms: 600000 }).catch(() => {}); });
+  await new Promise((done) => setTimeout(done, 500));
+  expect(await killMainAndSeeEngineEnd(r.app, pid, 20_000)).toBe('both ended');
+  await Promise.race([r.app.close().catch(() => {}), new Promise((done) => setTimeout(done, 5_000))]);
+  try { rmSync(r.dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 }); } catch { /* scratch */ }
+});
+
 test('the real engine and no orphan java: killing the window\'s process ends the engine (its stdin closes, or it sees its parent end)', async () => {
   const r = await launch(undefined, { env: real });
   const pid = (await enginePid(r.app))!;

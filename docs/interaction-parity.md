@@ -227,7 +227,7 @@ v1의 배율 키는 창 루트(WHEN_IN_FOCUSED_WINDOW)에 달려 창 안 어디�
 | I-132 | File › Save | Ctrl+S | 덮어 저장, 처음이면 Save As(`ProjectActions.doSave`) | 같음. 예제(읽기 전용)·복구한 창이면 Save As를 묻는다(D-102, #70) | 원조대로(`file.save`) |  |
 | I-133 | File › Save As… | Ctrl+Shift+S | 다른 이름으로 저장 | 같음 | 원조대로 |  |
 | I-134 | File › Print… | Ctrl+P | 회로 고르기·머리글(%n %p %P %%)·돌려 맞추기·인쇄 보기 대화상자 뒤 페이지 설정(`MenuFile`, `Print.doPrint`, `guide/menu/file.html`) | 같음 | 원조대로(정함: 브라우저 인쇄로 같은 선택지를 준다, N-21) |  |
-| I-135 | File › Exit | Ctrl+Q | 모든 프로젝트를 닫고 끝낸다(`ProjectActions.doQuit`) | 같음 | 원조대로 |  |
+| I-135 | File › Exit | Ctrl+Q | 모든 프로젝트를 닫고 끝낸다(`ProjectActions.doQuit`) | 같음 | 원조대로 | quit.e2e (Ctrl+Q·창 닫기·PC 종료 → 저장하지 않은 파일마다 Save / Discard / Cancel, N-19 D-152) |
 | I-136 | File › Export Image…, Preferences…, (v1) Create Submission…, Import Subcircuits… | (키 없음) | Export Image(PNG·GIF·JPEG, 배율, 인쇄 보기), Preferences 창(`guide/menu/file.html`) | **[차이]** Export Image는 PNG·SVG·PDF 창(`ImageExport.show`, E-07). **[추가]** Save As 다음에 Create Submission…(E-06), Import Subcircuits…(P-05)(`MenuFile` `// HCS:`) | v1대로 |  |
 | I-137 | Edit › Undo %s | Ctrl+Z | I-36 | 같음. **[추가]** 바로 아래 "Redo {0}"·"Can't Redo"(Ctrl+Y, I-37), Undo History…(키 없음, E-05) | v1대로 |  |
 | I-138 | Edit › Cut | Ctrl+X | I-34 | 같음 | 원조대로 |  |
@@ -248,7 +248,7 @@ v1의 배율 키는 창 루트(WHEN_IN_FOCUSED_WINDOW)에 달려 창 안 어디�
 | I-153 | Simulate › Ticks Enabled | Ctrl+K | 클럭 자동 틱 켜기·끄기(시뮬레이션이 켜져 있을 때만 켜짐)(`MenuSimulate` ticksEnabled, `computeEnabled`) | **[차이]** Ctrl+K는 검색창(창 루트 키가 메뉴보다 먼저). 메뉴에는 "Ctrl+K" 표시가 남지만 키로는 켜지지 않고 클릭으로만. 도구 모음 Run은 Simulation Enabled라 v1에서 자동 틱을 켜는 곳은 이 메뉴와 Simulation Tree 도구 줄뿐 | v1대로(Ctrl+K = 검색창). 정함: Ticks Enabled 메뉴에서 Ctrl+K 표시를 떼고(키 없음), 검색창 명령에 "Ticks Enabled"를 더한다 | find.e2e "the search palette: …"(Ctrl+K = 검색창); unit search.test "…commands"(Ticks Enabled 명령, N-12) |
 | I-154 | Simulate › Tick Frequency ›, Logging… | (키 없음) | 4096 Hz ~ 0.25 Hz 15단계, Logging 창(`MenuSimulate`) | 같음(도구 모음 속도 칸은 따로, I-159) | 원조대로 |  |
 | I-155 | Window › Minimize | Ctrl+M | 창 최소화(`WindowMenu`) | 같음 | 원조대로 |  |
-| I-156 | Window › Close | Ctrl+W | 지금 창 닫기(`WindowMenu`) | 같음(파일 탭 닫기는 Ctrl+Shift+W). 단축키 설정에서 Ctrl+W는 고정 키 | 정함: 원조에서 창 하나는 파일 하나이므로 v2의 Ctrl+W는 **포커스가 있는 창의 지금 파일 탭**을 닫는다(바뀐 파일이면 그 탭만 저장 질문). 분리한 창(I-179·I-180)의 마지막 탭이면 그 창도 닫고, 앱 창의 마지막 탭이면 시작 화면으로 간다. v1의 Ctrl+Shift+W도 같은 동작으로 둔다 |  |
+| I-156 | Window › Close | Ctrl+W | 지금 창 닫기(`WindowMenu`) | 같음(파일 탭 닫기는 Ctrl+Shift+W). 단축키 설정에서 Ctrl+W는 고정 키 | 정함: 원조에서 창 하나는 파일 하나이므로 v2의 Ctrl+W는 **포커스가 있는 창의 지금 파일 탭**을 닫는다(바뀐 파일이면 그 탭만 저장 질문). 분리한 창(I-179·I-180)의 마지막 탭이면 그 창도 닫고, 앱 창의 마지막 탭이면 시작 화면으로 간다. v1의 Ctrl+Shift+W도 같은 동작으로 둔다 | quit.e2e (파일 탭 × → Save / Discard / Cancel, N-19 D-152) |
 | I-157 | Window › Maximize, Combinational Analysis, Preferences, 창 목록 | (키 없음) | 창 크기, 조합 분석 창, 환경설정 창, 열린 창으로 가기(`WindowMenu`, `guide/menu/winhelp.html`) | 같음. 창 목록에서 고르면 그 파일 탭이 앞으로(`FileTabs.watch`), 같은 이름 파일은 폴더로 구분(V-05) | 원조대로 |  |
 | I-158 | Help 메뉴(키 없음) | 클릭 | Tutorial(JavaHelp 튜토리얼), User's Guide, Library Reference, About…(`MenuHelp`) | **[차이]** 차례: Getting Started, Examples ›(demo-datapath·console-demo·stack-demo, 읽기 전용으로 엶), Keyboard Shortcuts, Tutorial = 창 둘러보기(E-10), User's Guide, Library Reference, About = v1 창(E-11)(`MenuHelp` `// HCS:`) | v1대로(N-17·N-18·N-20) |  |
 

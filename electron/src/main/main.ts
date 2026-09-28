@@ -22,6 +22,13 @@
    gone; removed on save, close and quit).  Opening that file again asks
    first (Recover / Discard): openPath below, file:openRecovery.
 
+   Leaving with unsaved changes -- the window's close button, Alt+F4, the PC
+   shutting down, Ctrl+Q in the window -- asks first, a file at a time (Save
+   / Discard / Cancel: the window's logic/unsaved.ts), and the window closes
+   only when it says so ('app:leave'); the quit then ends the engine, which
+   removes the recovery files.  A quit the program asks for itself
+   (app.quit(), also how the test tools end it) does not ask.
+
    Nothing is kept from one run to the next -- lab PCs are shared, and every
    student starts from the same screen: the window's size, the panels, the
    files opened.  Chromium's profile is this run's folder in the temp folder
@@ -298,13 +305,35 @@ async function main(): Promise<void> {
 
   // Maximised before it is shown, every start.  (maximize() shows a hidden
   // window; show() then gives it focus.)
+  // Leaving (N-19, D-152): the window asks about unsaved files first; it closes when the window says so.
+  win.on('close', (e) => {
+    if (leaveConfirmed || quitting || !windowListens || win.webContents.isCrashed()) return;
+    e.preventDefault();
+    send('app:leave');
+  });
+  // The PC shutting down (Windows): held back while there are unsaved files, and the window asks.
+  win.on('query-session-end', (e) => {
+    if (!windowDirty || leaveConfirmed || !windowListens) return;
+    e.preventDefault();
+    send('app:leave');
+  });
+  ipcMain.handle('app:leave', () => { leaveConfirmed = true; if (!win.isDestroyed()) win.close(); });
+  ipcMain.handle('app:dirty', (_e, dirty: boolean) => { windowListens = true; windowDirty = dirty === true; });
+
   win.once('ready-to-show', () => { win.maximize(); win.show(); });
   await win.loadFile(paths.page);
 }
 
+// Leaving: the window's answer given (app:leave), a quit under way, the window listening, unsaved files in it.
+let leaveConfirmed = false;
+let quitting = false;
+let windowListens = false;
+let windowDirty = false;
+
 // Quitting ends the engine first (engine.shutdown, then its end).
 let engineDown = false;
 app.on('before-quit', (e) => {
+  quitting = true;
   if (engineDown) return;
   e.preventDefault();
   void engine.shutdown().finally(() => { engineDown = true; app.quit(); });

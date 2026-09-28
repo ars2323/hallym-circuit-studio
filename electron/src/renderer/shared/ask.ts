@@ -21,7 +21,8 @@
 
    choose() is the same dialog when both buttons do something and Esc is
    neither (N-19: Recover / Discard of a recovery file, where Esc must not
-   discard): it answers 'ok', 'cancel' or null (Esc). */
+   discard): it answers 'ok', 'cancel' or null (Esc); with `extra`, a third
+   button between them answers 'extra' (Save / Discard / Cancel). */
 
 import { character, code, h, prose } from './dom.ts';
 
@@ -32,6 +33,7 @@ export interface Question {
   detail?: string;    // facts under the sentence (what was tried), in the mono font
   ok: string;
   cancel?: string | null;   // null: no cancel button (Esc still closes, as cancel)
+  extra?: string;           // a third answer, between cancel and ok (choose() only)
   danger?: boolean;   // the ok button discards something
   character?: boolean;      // default true; false for errors
 }
@@ -40,20 +42,22 @@ export function ask(q: Question): Promise<boolean> {
   return choose(q).then((r) => r === 'ok');
 }
 
-export function choose(q: Question): Promise<'ok' | 'cancel' | null> {
+export function choose(q: Question): Promise<'ok' | 'extra' | 'cancel' | null> {
   return new Promise((answer) => {
     const ok = h('button', { class: `btn ${q.danger ? 'danger' : 'primary'}`, type: 'button' }, q.ok);
     const cancel = q.cancel === null ? null : h('button', { class: 'btn', type: 'button' }, q.cancel ?? 'Cancel');
+    const extra = q.extra ? h('button', { class: 'btn', type: 'button' }, q.extra) : null;
     const withCharacter = q.character !== false;
     const dialog = h('dialog', { class: `modal ask${withCharacter ? '' : ' plain'}`, 'aria-label': q.title },
       h('div', { class: 'askbody' }, withCharacter ? character('haram', 96) : null,
         h('div', { class: 'asktext' }, h('h2', {}, q.title),
           q.file ? h('p', { class: 'askfile' }, 'File: ', code(q.file)) : null, h('p', {}, prose(q.body)),
           q.detail ? h('pre', { class: 'askdetail mono' }, q.detail) : null,
-          h('div', { class: 'row end' }, cancel, ok))));
-    let result: 'ok' | 'cancel' | null = null;
+          h('div', { class: 'row end' }, cancel, extra, ok))));
+    let result: 'ok' | 'extra' | 'cancel' | null = null;
     ok.addEventListener('click', () => { result = 'ok'; dialog.close(); });
     cancel?.addEventListener('click', () => { result = 'cancel'; dialog.close(); });
+    extra?.addEventListener('click', () => { result = 'extra'; dialog.close(); });
     dialog.addEventListener('close', () => {
       dialog.remove();
       document.body.classList.remove('dialog-open', 'error-dialog');

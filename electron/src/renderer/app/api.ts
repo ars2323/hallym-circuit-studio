@@ -38,6 +38,10 @@ export interface AppApi {
   openStartupFile(): Promise<Opened | RecoveryAsk | null>;
   openFile(): Promise<Opened | RecoveryAsk | null>;     // the open dialog, then the engine
   openRecovery(id: string, choice: 'recover' | 'discard' | null): Promise<Opened | null>;
+  // Leaving (N-19): asked to (the close button, Alt+F4, the PC shutting down); leave() closes the window.
+  onLeave(listener: () => void): void;
+  leave(): Promise<void>;
+  reportDirty(dirty: boolean): Promise<void>;   // whether any file has unsaved changes (the PC's shutdown asks then)
   saveFile(fileId: string, file: { name: string; saveAs?: boolean }): Promise<{ path: string; name: string; bytes: number; needsMipsJar: boolean } | null>;
   // Load Program (N-16): the .hmx dialog in the main process, then mips.load; null: the dialog was cancelled.
   loadProgram(fileId: string, options?: LoadProgramOptions): Promise<LoadResult | null>;

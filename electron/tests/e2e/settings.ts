@@ -14,12 +14,18 @@ export interface Settings {
   bottomCollapsed: boolean;
   tabs: string[];               // the tab on show in each panel
   circuitTabs: string[];        // the circuits opened as tabs
+  // the overlays' (N-15): Wire Colors › Colors, Bus Values, Active Path; the Signal Flow menu's settings
+  colors: string;
+  busValues: string;
+  activePath: boolean;
+  flow: Record<string, unknown>;
 }
 
 export function settingsNow(page: Page): Promise<Settings> {
   return page.evaluate(() => {
     const shell = document.querySelector<HTMLElement>('.shell')!;
-    const box = document.querySelector<HTMLInputElement>('.legend-panel input[type=checkbox]')!;
+    const box = document.querySelector<HTMLInputElement>('.legend-panel > label.legend-opt:not(.ovrow) input')!;
+    const ov = (window as unknown as { __hcsOverlays: { settings: Record<string, unknown> } }).__hcsOverlays;
     const on = (sel: string) => document.querySelector(`${sel} .ptab.on`)?.textContent ?? '';
     return {
       zoom: document.querySelector('.zoom-button')?.textContent ?? '',
@@ -29,6 +35,10 @@ export function settingsNow(page: Page): Promise<Settings> {
       bottomCollapsed: document.querySelector('.panel.bottom')!.classList.contains('collapsed'),
       tabs: [on('.panel.upper'), on('.panel.lower'), on('.panel.bottom')],
       circuitTabs: [...document.querySelectorAll('.circuitbar .ptab')].map((t) => t.textContent ?? ''),
+      colors: document.querySelector('.legend-panel .ovseg [aria-pressed="true"]')?.textContent ?? '',
+      busValues: document.querySelector<HTMLSelectElement>('.legend-panel select[aria-label="Bus Values"]')?.value ?? '',
+      activePath: document.querySelector<HTMLInputElement>('.legend-panel .ovlegend label.ovrow.legend-opt input')?.checked ?? false,
+      flow: { ...ov.settings },
     };
   });
 }
@@ -54,7 +64,11 @@ export async function changeEverySetting(page: Page, other: string): Promise<voi
   const panel = page.locator('.legend-panel');
   await expect(panel).toBeVisible();
   await expect(panel.locator('.legend-note')).toHaveText('이번 실행에만 적용됩니다');
-  await panel.locator('input[type=checkbox]').uncheck();
+  await panel.locator('> label.legend-opt:not(.ovrow) input').uncheck();
+  await panel.getByRole('button', { name: 'Groups' }).click();
+  await panel.locator('select[aria-label="Bus Values"]').selectOption({ index: 1 });
+  const active = panel.locator('.ovlegend label.ovrow.legend-opt input');
+  await active.setChecked(!(await active.isChecked()));
   await page.keyboard.press('Escape');
   await expect(panel).toBeHidden();
   await drag(page, '.splitter >> nth=0', 80, 0);     // left | center
@@ -65,4 +79,11 @@ export async function changeEverySetting(page: Page, other: string): Promise<voi
   await page.getByRole('tab', { name: 'Minimap' }).click();
   await page.getByRole('tab', { name: 'Console' }).click();
   await page.getByRole('button', { name: 'Collapse' }).click();
+  // The Signal Flow menu's settings (N-15; its menu is tested in overlays.e2e.ts): each the other way
+  await page.evaluate(() => {
+    const o = (window as unknown as { __hcsOverlays: { settings: Record<string, unknown>; toggleOnClick(): void; setFlow(k: string, v: unknown): void } }).__hcsOverlays;
+    o.toggleOnClick();
+    o.setFlow('speed', 'fast');
+    for (const k of ['throughRegisters', 'activePathOnly', 'reduceMotion', 'smooth']) o.setFlow(k, !o.settings[k]);
+  });
 }

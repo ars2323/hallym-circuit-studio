@@ -123,6 +123,9 @@ class LabPcRuleTest {
         c.must("sim.reset", params("fileId", fileId));
         c.must("diag.list", params("fileId", fileId));
         c.must("find.query", params("fileId", fileId, "text", "PC"));
+        c.must("flow.activePath", params("fileId", fileId, "circuitId", main));
+        c.any("flow.path", params("fileId", fileId, "circuitId", main, "componentId",
+                snap.getAsJsonArray("components").get(0).getAsJsonObject().get("id").getAsString()));
         JsonArray nets = snap.getAsJsonArray("nets");
         c.any("trace.origin", params("fileId", fileId, "circuitId", main, "netId",
                 nets.size() > 0 ? nets.get(0).getAsJsonObject().get("id").getAsString() : "n0"));
@@ -153,7 +156,7 @@ class LabPcRuleTest {
     /** {@link #studentSession}이 부르는 메서드(묶음 검사용, 같은 차례). */
     static final String[] PURPOSEFUL = {"engine.hello", "file.new", "sim.state", "file.open", "model.circuit",
         "model.library", "edit.addComponent", "edit.setAttr", "edit.addWire", "edit.move", "edit.undo", "edit.redo",
-        "edit.delete", "file.dirty", "sim.watch", "sim.run", "sim.enable", "sim.cycles", "sim.reset", "diag.list", "find.query",
+        "edit.delete", "file.dirty", "sim.watch", "sim.run", "sim.enable", "sim.cycles", "sim.reset", "diag.list", "find.query", "flow.activePath", "flow.path",
         "trace.origin", "mips.facts", "mips.load", "mips.console", "mips.disasm", "mips.reload", "record.state",
         "record.table", "record.registers", "record.memory", "record.instruction", "record.fieldPaths",
         "file.recoverWrite", "file.save", "file.close"};

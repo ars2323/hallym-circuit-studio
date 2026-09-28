@@ -243,6 +243,27 @@ class RecoveryFileTest {
         assertFalse(recoveryOf(copy).exists());
     }
 
+    /** 쓸 수 없는 폴더(읽기 전용 매체, 권한 없음)에는 복구 파일을 만들지 않고 조용히 건너뛴다(오류 아님). */
+    @Test
+    void anUnwritableFolderGetsNoneSilently() throws Exception {
+        Path dir = Files.createDirectory(tmp.resolve("ro"));
+        File copy = Fixtures.copyWithSiblings(new File(Fixtures.CIRC_DIR, "gates.circ"), dir);
+        JsonObject opened = open(copy);
+        String fileId = opened.get("fileId").getAsString();
+        e.client.call("edit.addComponent", params("fileId", fileId, "circuitId", opened.get("main").getAsString(),
+                "lib", "Gates", "name", "NOT Gate", "loc", xy(900, 900)));
+        List<String> before = names(dir);
+        assertTrue(dir.toFile().setWritable(false, false));
+        try {
+            org.junit.jupiter.api.Assumptions.assumeFalse(Files.isWritable(dir), "root can write anywhere");
+            JsonObject w = e.client.callObject("file.recoverWrite", params("fileId", fileId));
+            assertFalse(w.get("written").getAsBoolean(), w.toString());
+            assertEquals(before, names(dir));
+        } finally {
+            dir.toFile().setWritable(true, false);
+        }
+    }
+
     @Test
     void undoneBackToTheSavedFileTheRecoveryFileGoes() throws Exception {
         File copy = Fixtures.copyWithSiblings(new File(Fixtures.CIRC_DIR, "gates.circ"), tmp);
