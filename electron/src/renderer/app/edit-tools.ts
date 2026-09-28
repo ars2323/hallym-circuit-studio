@@ -405,7 +405,8 @@ export class PlaceTool implements CanvasTool {
     if (!w || !held || !this.host.ready()) return;
     const loc = snapPoint(logical(e.at));
     void this.host.edit('edit.addComponent', { fileId: w.fileId, circuitId: w.circuitId, lib: held.lib, name: held.name, loc, ...(held.attrs ? { attrs: held.attrs } : {}) }, held.name)
-      .then((r) => { if (r?.changed) this.host.placed(); });
+      // the Edit tool again -- unless another part was taken up while this one was on its way (D-153)
+      .then((r) => { if (r?.changed && this.held === held) this.host.placed(); });
   }
 
   key(e: KeyboardEvent): boolean {
