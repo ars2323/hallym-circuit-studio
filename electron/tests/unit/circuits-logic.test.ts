@@ -8,8 +8,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  createRefusal, distinguishers, IMPACT_PLACES, impactPlaces, impactSentence, importedText, libraryUpdatedText, loadRefusal, moved,
-  nameProblem, pinAddText, pinPreviewText, planLines, portImpactText, removeRefusal, saveCutLines, saveCutSentence, simTree, standaloneText, unloadRefusal,
+  createRefusal, distinguishers, frozenPinText, IMPACT_PLACES, impactPlaces, impactSentence, importedText, libraryUpdatedText, loadRefusal, moved,
+  nameProblem, newStateNote, newStateQuestion, pinAddText, pinPreviewText, planLines, portImpactText, removeRefusal, saveCutLines, saveCutSentence, simTree, standaloneText, unloadRefusal,
 } from '../../src/renderer/app/logic/circuits.ts';
 import {
   closes, curveControl, dragged, handleDelta, handleSize, lineEnd, moveDelta, onCurve, poly, pressCount, rectFromDrag, snap, snap8, toolAttributes, toolAttrs,
@@ -218,4 +218,14 @@ test('the Simulation Tree: main, then each instance under its parent -- its labe
   assert.deepEqual([t[1].names], [['ALU0']]);
   // a circuit not asked yet: no children under it
   assert.deepEqual(simTree('c1', (id) => names[id], () => undefined).map((n) => n.text), ['main']);
+});
+
+test('an input pin inside an instance (I-64): the question and the note name the circuit, no character, no particle after a name', () => {
+  const q = newStateQuestion('alu');
+  assert.equal(q.ok, 'Open New State');
+  assert.equal(q.character, false);
+  assert.match(q.body, /alu 회로 안의 이 입력 핀은 바깥 회로에서 값을 받습니다/);
+  for (const s of [q.title, q.body, newStateNote('alu'), frozenPinText('alu')]) clean(s);
+  assert.equal(newStateNote('alu'), 'alu 회로를 따로 열었습니다(바깥과 떨어진 상태) · 핀을 다시 누르면 값이 바뀝니다');
+  assert.equal(frozenPinText('half_adder'), 'Poke: half_adder 회로 안의 입력 핀은 바깥 회로가 정합니다');
 });

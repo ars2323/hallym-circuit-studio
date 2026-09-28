@@ -206,3 +206,15 @@ export function simTree(main: string, nameOf: (circuitId: string) => string, par
   visit(main, out[0], [main]);
   return out;
 }
+
+// ---- an input pin inside an instance (I-64, Pin.PinPoker) ----
+
+export function newStateQuestion(sub: string): { title: string; body: string; ok: string; cancel: string; character: false } {
+  return {
+    title: '바깥 회로가 정하는 핀입니다',
+    body: `${sub} 회로 안의 이 입력 핀은 바깥 회로에서 값을 받습니다. 바깥과 떨어진 새 상태로 ${sub} 회로를 따로 열면 그곳에서 핀을 바꿀 수 있습니다.`,
+    ok: 'Open New State', cancel: 'Cancel', character: false,
+  };
+}
+export const newStateNote = (sub: string): string => `${sub} 회로를 따로 열었습니다(바깥과 떨어진 상태) · 핀을 다시 누르면 값이 바뀝니다`;
+export const frozenPinText = (sub: string): string => `Poke: ${sub} 회로 안의 입력 핀은 바깥 회로가 정합니다`;

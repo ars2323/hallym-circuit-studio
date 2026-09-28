@@ -49,7 +49,7 @@ import { type MenuEntry, SEPARATOR, showMenu } from '../canvas/overlays/menu.ts'
 import { AppearanceEditor } from './appearance-editor.ts';
 import { CircuitControl } from './circuit-control.ts';
 import { circuitsPanel } from './circuits.ts';
-import { distinguishers, libraryUpdatedText, pinAddText, pinPreviewText, portImpactText, type SimNode, type SimPart, simTree, standaloneText } from './logic/circuits.ts';
+import { distinguishers, libraryUpdatedText, pinAddText, pinPreviewText, portImpactText, frozenPinText, newStateNote, newStateQuestion, type SimNode, type SimPart, simTree, standaloneText } from './logic/circuits.ts';
 import { CircuitCanvas } from '../canvas/canvas.ts';
 import { emitTool } from '../canvas/events.ts';
 import { legend } from '../canvas/legend.ts';
@@ -186,7 +186,12 @@ const editor = new Editor({
   },
   ready: () => engine.state === 'ready',
   enter: (id) => enterInstance(id),
-  failed: (command, e) => { note = { cls: 'err', text: commandError(command, e as CallError) }; renderStatus(); },
+  failed: (command, e) => {
+    // an input pin inside an instance (I-64): the original's "Create a new circuit state?"
+    if (command === 'Poke' && ((e as CallError).data as { reason?: string } | undefined)?.reason === 'frozenPin') { void newStateFor(); return; }
+    note = { cls: 'err', text: commandError(command, e as CallError) };
+    renderStatus();
+  },
   // the tool in hand: the toolbar shows it, the others hear it (hcs:tool, canvas/events.ts)
   toolChanged: (t) => {
     showTool(t);
@@ -937,6 +942,24 @@ async function askSimParts(fileId: string, circuitId: string): Promise<void> {
   const f = files.active();
   if (f?.fileId === fileId) renderCircuits(f);
 }
+// An input pin poked inside an instance (I-64; Pin.PinPoker: "The pin is tied to the supercircuit state. Create a new
+// circuit state?"): the answer opens that circuit on its own tab -- its own state, apart from the one in main (the
+// band says so) -- where the pin can be set.  The original pokes at once; here the student presses it again there.
+let askingNewState = false;   // the press and the release are both refused: one question
+async function newStateFor(): Promise<void> {
+  const f = files.active();
+  if (!f || askingNewState) return;
+  const w = shown(f);
+  const sub = files.circuitName(f, w.circuit);
+  if (!w.path.length) { note = { cls: 'err', text: frozenPinText(sub) }; renderStatus(); return; }
+  askingNewState = true;
+  const go = await ask(newStateQuestion(sub)).finally(() => { askingNewState = false; });
+  if (!go || files.active() !== f) return;
+  files.openCircuit(f.fileId, w.circuit);
+  note = { cls: '', text: newStateNote(sub) };
+  render();
+}
+
 // Into an instance from main (the Simulation Tree, Go to Instance): main's tab, down the path.
 function enterPath(fileId: string, ids: string[], names: string[], circuits: string[]): void {
   const f = files.get(fileId);

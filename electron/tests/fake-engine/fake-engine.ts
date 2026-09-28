@@ -1303,6 +1303,8 @@ function poke(f: File, c: Circuit, p: Params): unknown {
   const now = (width: number) => (net ? f.values.get(net.id) : undefined) ?? '0'.repeat(width);
   const flip = (v: string, bit: number) => { const i = v.length - 1 - bit; return v.slice(0, i) + (v[i] === '1' ? '0' : '1') + v.slice(i + 1); };
   if (k.name === 'Pin' && k.attrs.output !== 'true') {
+    // inside an instance its value is the parent's (the engine's frozenPin, I-64)
+    if (f.watched?.path.length && f.watched.circuitId === c.circuitId) throw new Failure(4, 'the pin is tied to the supercircuit state', { reason: 'frozenPin' });
     const width = Number(k.attrs.width ?? '1');
     let bit = 0;
     if (width > 1 && at && k.bounds) {

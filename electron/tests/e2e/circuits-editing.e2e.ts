@@ -23,7 +23,7 @@ import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { answerOpen, DATAPATH, launch, openFile, recordCalls, sample, type SentCall, sentCalls } from './harness.ts';
-import { menu, rightClick } from './overlay-helpers.ts';
+import { click, menu, rightClick } from './overlay-helpers.ts';
 
 const SUB = 'tests/circ/subcircuit.circ';
 const GATES = 'tests/circ/gates.circ';
@@ -387,6 +387,36 @@ test('.circ files dropped from the desktop onto the window: each opened in a tab
     await expect(page.locator('.filebar .ptab').first()).toContainText('drop-a.circ');
     await expect(page.locator('.filebar .ptab.on')).toContainText('drop-b.circ');
     expect(page.url()).toMatch(/index\.html/);   // the page stays (no navigation to a dropped file)
+  } finally {
+    await r.close();
+  }
+});
+
+test('an input pin poked inside an instance: the original\'s question; Open New State shows that circuit on its own, apart from main', async () => {
+  const r = await launch();
+  const { page } = r;
+  try {
+    await openFile(r, sample(r.dir, DATAPATH));
+    await circuitsTab(page);
+    await page.locator('.simtree li', { hasText: /^alu/ }).locator('button').click();
+    await expect(page.locator('.canvas-crumbs')).toContainText('alu');
+    await page.getByRole('radiogroup', { name: 'Tools' }).getByRole('radio', { name: 'Poke' }).click();
+    const pin = await page.evaluate(() => {
+      const c = (window as unknown as { __hcsCanvas: { scene: { components: Map<string, { name: string; attrs: Record<string, string>; bounds: number[] }> } } }).__hcsCanvas;
+      const k = [...c.scene.components.values()].find((x) => x.name === 'Pin' && x.attrs.output !== 'true')!;
+      return [k.bounds[0] + k.bounds[2] / 2, k.bounds[1] + k.bounds[3] / 2] as [number, number];
+    });
+    await click(page, pin);
+    const q = page.locator('dialog.ask', { hasText: '바깥 회로가 정하는 핀입니다' });
+    await expect(q).toBeVisible();
+    await expect(q.locator('.askbody img')).toHaveCount(0);   // no character: not a greeting
+    await q.getByRole('button', { name: 'Cancel' }).click();
+    await expect(page.locator('.canvas-crumbs')).toContainText('alu');
+    await click(page, pin);
+    await page.locator('dialog.ask').getByRole('button', { name: 'Open New State' }).click();
+    await expect(page.locator('.circuitbar .ptab.on')).toContainText('alu');
+    await expect(page.locator('.canvas-crumbs')).toBeHidden();
+    await expect(page.locator('.status')).toContainText('alu 회로를 따로 열었습니다(바깥과 떨어진 상태)');
   } finally {
     await r.close();
   }
