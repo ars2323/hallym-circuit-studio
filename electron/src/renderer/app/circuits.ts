@@ -56,7 +56,7 @@ export function circuitsPanel(o: {
   let state: CircuitsState | null = null;
   const add = h('button', { type: 'button', class: 'hbtn', title: 'Add Circuit… (Project › Add Circuit)' }, icon('plus'), 'Add Circuit');
   const imp = h('button', { type: 'button', class: 'hbtn', title: 'Import Subcircuits… (다른 .circ 파일의 회로를 이 파일에 복사합니다)' }, icon('import'), 'Import');
-  const libs = h('button', { type: 'button', class: 'hbtn', title: 'Load Library, Unload Libraries', 'aria-haspopup': 'menu' }, icon('library'), 'Libraries');
+  const libs = h('button', { type: 'button', class: 'hbtn', title: 'Load Library, Unload Libraries', 'aria-haspopup': 'menu' }, icon('library'), 'Libraries', h('span', { class: 'caret', 'aria-hidden': 'true' }, '▾'));
   add.addEventListener('click', () => o.file('add'));
   imp.addEventListener('click', () => o.file('import'));
   libs.addEventListener('click', () => {
@@ -76,6 +76,14 @@ export function circuitsPanel(o: {
   const treeHead = h('h3', { class: 'simhead' }, 'Simulation Tree');
   const root = h('div', { class: 'circpanel' }, bar, list, treeHead, tree);
 
+  // The row a menu was opened on stays marked while the menu is up (which circuit it is about).
+  function marked(row: HTMLElement | null, menu: HTMLElement): void {
+    if (!row) return;
+    row.classList.add('menuon');
+    const gone = new MutationObserver(() => { if (!menu.isConnected) { row.classList.remove('menuon'); gone.disconnect(); } });
+    gone.observe(document.body, { childList: true });
+  }
+
   function menuFor(c: CircuitRef, x: number, y: number): void {
     const st = state!;
     const i = st.circuits.findIndex((k) => k.circuitId === c.circuitId);
@@ -94,7 +102,7 @@ export function circuitsPanel(o: {
       { label: 'Move Circuit Down', disabled: !ed || i >= st.circuits.length - 1, run: () => o.circuit('down', c.circuitId) },
       { label: 'Remove Circuit', disabled: !ed || st.circuits.length <= 1, run: () => o.circuit('remove', c.circuitId) },
     ];
-    showMenu(entries, x, y);
+    marked(list.querySelector<HTMLElement>(`li:has(> button[data-circuit="${c.circuitId}"])`), showMenu(entries, x, y));
   }
 
   function render(): void {

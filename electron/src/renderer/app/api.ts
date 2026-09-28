@@ -58,6 +58,8 @@ export interface AppApi {
   importApply(fileId: string, circuits: string[]): Promise<EditResult & { plan?: ImportPlan }>;
   loadLibrary(fileId: string, kind: 'builtin' | 'circ' | 'jar', name?: string): Promise<(EditResult & { lib?: string }) | null>;
   useOpenFile(fileId: string, otherFileId: string): Promise<EditResult & { lib?: string }>;
+  openFilesAll(): Promise<{ fileId: string; path: string | null }[]>;        // every open file, in any window
+  onFilesChanged(listener: (list: { fileId: string; path: string | null }[]) => void): void;
   openDropped(files: File[]): Promise<(Opened | RecoveryAsk)[]>;   // .circ files dropped on the window (I-181)
   editOriginal(fileId: string, circuitId: string): Promise<((Opened | RecoveryAsk) & { circuit: string }) | null>;
   // N-11 (src/main/windows.ts): this window (the main one, or a file's own and what it starts from), Detach Tab /

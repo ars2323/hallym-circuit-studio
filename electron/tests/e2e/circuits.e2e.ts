@@ -52,6 +52,12 @@ test('the Circuits panel: Add Circuit checks the name, Rename, Set As Main, Move
     await expect(dlg).toHaveCount(0);
     await expect.poll(() => circuitNames(page)).toEqual(['main', 'alu']);
     await expect(page.locator('.circuitbar .ptab.on')).toContainText('alu');   // the new circuit on show (original)
+    // the row a menu is open on stays marked until the menu goes
+    await page.locator('.circlist li button', { hasText: 'alu' }).click({ button: 'right' });
+    await expect(page.locator('.circlist li.menuon')).toHaveText(/alu/);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.circlist li.menuon')).toHaveCount(0);
+    await expect(page.locator('.circbar button', { hasText: 'Libraries' })).toHaveText(/Libraries\s*▾/);
     // Rename: the list and the tab follow
     await circuitMenu(page, 'alu', 'Rename…');
     await page.locator('dialog.namedialog input').fill('alu32');
@@ -238,8 +244,14 @@ test('file tabs: two files of one name show their folders; Detach Tab makes a wi
     const own = app.windows().find((w) => w !== page)!;
     await own.locator('.filebar .ptab', { hasText: 'lab.circ' }).waitFor();
     await expect(own.locator('.filebar .ptab .tabnote')).toContainText('Window');
-    // the main window's Components: that file under Open Files by its name, not its id
-    await expect(page.locator('.upper .libgroup summary', { hasText: 'Open Files' })).toHaveText([/Open Files · lab\.circ/]);
+    // the two lab.circ stay told apart in both windows: the tabs, the titles, Open Files, the close question
+    await expect(own.locator('.filebar .ptab .tabnote')).toContainText('— hw2');
+    await expect(page.locator('.filebar .ptab .tabnote')).toHaveText(['— hw1']);
+    await expect.poll(() => own.title()).toContain('lab.circ — hw2');
+    await expect.poll(() => page.title()).toContain('lab.circ — hw1');
+    await expect(page.locator('.upper .libgroup summary', { hasText: 'Open Files' })).toHaveText([/Open Files · lab\.circ — hw2/]);
+    await own.locator('.panel.upper .ptab', { hasText: 'Components' }).click();
+    await expect(own.locator('.upper .libgroup summary', { hasText: 'Open Files' })).toHaveText([/Open Files · lab\.circ — hw1/]);
     // Attach Tab: back to the main window, the window closes
     await own.locator('.filebar .ptab').click({ button: 'right' });
     await own.locator('.ovmenu button', { hasText: 'Attach Tab' }).click();

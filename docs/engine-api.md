@@ -197,6 +197,7 @@ Component = {
 | `edit.importCircuits` | `path, circuits:[이름]` | 다른 .circ의 회로 가져오기(v1 P-05, 쓰는 회로 함께). **N-11 확정** |
 | `edit.loadLibrary` | `kind:"builtin"\|"circ"\|"jar", name?, path?, className?` | Project › Load Library. **N-11 확정** |
 | `edit.unloadLibrary` | `name` | Unload Library. **N-11 확정** |
+| `edit.reloadLibrary` | `lib` | 저장된 라이브러리 새 버전 다시 읽기(되살리기 재생: 저널이 `file.libraryUpdated`를 이 의도로 적는다, 창은 부르지 못함). **N-11, D-153** |
 | `edit.deleteCircuit` | — | Project › Remove Circuit(`circuitId`). **N-11** |
 | `edit.moveCircuit` | `to` | 회로 차례(Move Circuit Up/Down, 부품 목록 끌기). **N-11** |
 | `edit.appearance` | `op, …` | 모양 편집(Edit Circuit Appearance의 도구·Edit 메뉴, `circuitId`의 모양). **N-11** |
@@ -296,7 +297,8 @@ AppearanceEdit = {fileId, circuitId, name, default, editable,
 
 - `file.changed = {fileId, name, circuits:[CircuitRef], main, libraries:[LibRef], dirty}`: 편집·되돌리기 뒤 회로 목록(차례·이름), 주 회로, 라이브러리가 바뀌었을 때만.
 - `model.portImpact = {fileId, circuitId, name, broken, kept}`: 주 회로가 아닌 회로를 보며 한 편집이 그 인스턴스의 이어진 포트를 끊었다(v1 P-02, D-064: 핀을 지움, 포트가 떨어지거나 옆 선에 붙음). 옛 자리에 선 끝이 남고 새 자리가 비었으면 v1처럼 선을 이어 되살린다(`kept`, 부모 회로마다 따로 되돌리는 한 단계 "Keep Instance Connections", 검사기 WireGuard). 되돌리기·다시 실행에는 하지 않는다(v1과 같다).
-- `file.libraryUpdated = {fileId, library}`: 이 파일이 라이브러리로 쓰는 `library`(파일 이름)가 다른 탭에서 저장되어, 원조 `Loader.reload`로 새 버전을 받고 그 인스턴스를 새 부품으로 바꿨다(원조 `LoadedLibrary`가 창의 프로젝트에 하는 것과 같은 CircuitMutation, 되돌리기 기록 밖). 시뮬레이션은 처음으로 돌아간다(v1 D-065). 앞에 그 파일의 `model.changed`가 온다.
+- `file.libraryUpdated = {fileId, library, lib}`: 이 파일이 라이브러리로 쓰는 `library`(파일 이름, 이 파일에서의 라이브러리 이름 `lib`)가 다른 탭에서 저장되어, 원조 `Loader.reload`로 새 버전을 받고 그 인스턴스를 새 부품으로 바꿨다(원조 `LoadedLibrary`가 창의 프로젝트에 하는 것과 같은 CircuitMutation, 되돌리기 기록 밖). 파일마다 그 파일의 시뮬레이터를 세운 채 한다(`SimSession.quiet`). 시뮬레이션은 처음으로 돌아간다(v1 D-065). 앞에 그 파일의 `model.changed`가 온다. main의 되살리기 저널은 이 알림을 그 파일의 `edit.reloadLibrary {fileId, lib}`로 적는다(D-153).
+- `edit.reloadLibrary {lib}`(되살리기 재생용, 창은 부르지 못함): 이 파일의 Logisim 라이브러리 `lib`을 디스크에서 다시 읽고, 그 라이브러리를 쓰는 열린 파일 모두의 옛 버전 부품을 바꾼다(`file.save`의 저장 반영과 같은 일). 없는 라이브러리는 오류 1. 이 파일이 바뀌었으면 `changed`, 아니면 `outcome:"same"`.
 
 `model.changed = {fileId, circuitId, removed:[id], added:[Component|Wire], nets, junctions, groups, memos, dirty}`
 

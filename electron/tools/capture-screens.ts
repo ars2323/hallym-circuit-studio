@@ -696,20 +696,43 @@ function sideBySide(name: string, left: Buffer, right: Buffer): void {
   await page.locator('.filebar .ptab').nth(1).click({ button: 'right' });
   await page.locator('.ovmenu').waitFor();
   await shot(r, 'file-tabs');
+  await page.keyboard.press('Escape');
+  await r.close();
+}
+
+// View Side by Side on a lab PC (1920×1080, a 48 px taskbar): demo-datapath in the main window's left half, the
+// reference single-cycle MIPS in a window of its own on the right half -- each 960×1032, nothing cut at that width.
+{
+  const r = await launch(FHD);
+  const { page, app } = r;
+  await openFile(r, sample(r.dir, DATAPATH));
+  await openFile(r, sample(r.dir, 'tests/mips/ref-mips.circ'));
+  await drawn(r);
+  await page.locator('.filebar .ptab', { hasText: 'ref-mips.circ' }).click({ button: 'right' });
   await page.locator('.ovmenu button', { hasText: 'View Side by Side' }).click();
-  await page.waitForFunction(() => document.querySelectorAll('.filebar .ptab').length === 2);
+  await page.waitForFunction(() => document.querySelectorAll('.filebar .ptab').length === 1);
   const own = await (async () => {
     for (let i = 0; i < 100 && app.windows().length < 2; i += 1) await page.waitForTimeout(50);
     return app.windows().find((w) => w !== page)!;
   })();
   await own.locator('.filebar .ptab').waitFor();
+  // the halves of a 1920×1080 screen's work area (the capture display is larger)
+  await app.evaluate(({ BrowserWindow }) => {
+    const g = globalThis as unknown as { __hcsWindows: { isMain(w: unknown): boolean } };
+    for (const w of BrowserWindow.getAllWindows()) {
+      if (w.isMaximized()) w.unmaximize();
+      w.setContentBounds({ x: g.__hcsWindows.isMain(w) ? 0 : 960, y: 0, width: 960, height: 1032 });
+    }
+  });
+  for (const p of [page, own]) await p.waitForFunction(() => window.innerWidth === 960 && window.innerHeight === 1032);
   await own.locator('.canvas-view canvas').waitFor();
   for (const p of [page, own]) {
+    await p.evaluate(() => (window as unknown as { __hcsCanvas?: { fitView(): void } }).__hcsCanvas?.fitView());
     await p.mouse.move(-10, -10);
     await p.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     await p.evaluate(() => document.fonts.ready);
   }
-  await page.waitForTimeout(600);
+  await page.waitForTimeout(800);
   sideBySide('side-by-side', await page.screenshot(), await own.screenshot());
   await r.close();
 }

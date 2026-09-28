@@ -23,6 +23,7 @@ export interface CircuitHost {
   show(fileId: string, circuitId: string, appearance: boolean): void;
   // a file the engine opened (Edit Original File), after its recovery file's question if it has one (N-19)
   opened(r: Opened | RecoveryAsk): Promise<Opened | null>;
+  label(fileId: string, name: string): string;       // a file's name as its tab shows it (same names: the folder)
   librariesChanged(fileId: string): void;           // the Components list asks again
 }
 
@@ -266,7 +267,7 @@ export class CircuitControl {
     let cuts: SaveCut[] = [];
     try { cuts = (await this.host.api.call<{ cuts: SaveCut[] }>('file.saveImpact', { fileId: f.fileId })).cuts; } catch { return true; }
     if (!cuts.length) return true;
-    return confirmSaveCuts(f.name, cuts);
+    return confirmSaveCuts(this.host.label(f.fileId, f.name), cuts.map((c) => ({ ...c, file: this.host.label(c.fileId, c.file) })));
   }
 
   async copyMipsJar(fileId: string): Promise<void> {

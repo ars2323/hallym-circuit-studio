@@ -41,6 +41,9 @@ contextBridge.exposeInMainWorld('app', {
   importApply: (fileId, circuits) => ipcRenderer.invoke('circuits:importApply', fileId, circuits).then(unwrap),
   loadLibrary: (fileId, kind, name) => ipcRenderer.invoke('library:load', fileId, kind, name).then(unwrap),
   useOpenFile: (fileId, otherFileId) => ipcRenderer.invoke('library:useOpenFile', fileId, otherFileId).then(unwrap),
+  // every open file and its place, in any window (N-11: names told apart by their folders everywhere)
+  openFilesAll: () => ipcRenderer.invoke('files:all'),
+  onFilesChanged: (listener) => ipcRenderer.on('files:changed', (_e, list) => listener(list)),
   editOriginal: (fileId, circuitId) => ipcRenderer.invoke('file:editOriginal', fileId, circuitId).then(unwrap),
   // .circ files dropped from the desktop (I-181): their paths are found here, never handed to the page
   openDropped: (files) => {

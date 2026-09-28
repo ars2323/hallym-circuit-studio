@@ -403,6 +403,7 @@ const circuitCtl = new CircuitControl({
   note: (cls, text) => { note = text ? { cls, text } : null; renderStatus(); },
   show: (fileId, circuitId, appear) => showCircuit(fileId, circuitId, appear),
   opened: async (r) => { const o = await recoveryAnswered(r); openedOrError(o); return o; },
+  label: (fileId, name) => fileLabel(fileId, name),
   librariesChanged: (fileId) => { libraries.delete(fileId); libInfo.delete(fileId); if (files.active()?.fileId === fileId) renderComponents(files.active()!); },
 });
 const circuitsList = circuitsPanel({
@@ -448,7 +449,7 @@ const pal = palette({
     const lib = libraries.get(f.fileId);
     const s = shownSnapshot(f);
     return {
-      libraries: Array.isArray(lib) ? lib : null, fileName: f.name, current: shown(f).circuit,
+      libraries: Array.isArray(lib) ? lib : null, fileName: fileLabel(f.fileId, f.name), current: shown(f).circuit,
       tunnels: tunnels.entries().map((e) => ({ name: e.name, count: e.ids.length })),
       commands: commandsNow(s),
     };
@@ -546,6 +547,8 @@ function commandsNow(s: Snapshot | null): CommandId[] {
   const out: CommandId[] = ['reset', 'cycle', 'run', 'enable', 'load', 'find'];
   if (board.root.isConnected && board.scene) out.push('fit');
   if (selectedSplitter(s)) out.push('editSplitter');
+  const f = files.active();
+  if (f && appearanceShown(f)) out.push('revertAppearance');
   return out;
 }
 function selectedSplitter(s: Snapshot | null): string | null {
@@ -578,6 +581,7 @@ function runCommand(id: CommandId): void {
     case 'enable': void simCall('sim.enable', { on: !(f.sim?.running ?? true) }, 'Simulation Enabled'); break;
     case 'load': void programs.load(f.fileId); break;
     case 'fit': board.fitView(); break;
+    case 'revertAppearance': void appearance.revertToDefault(); break;
     case 'find': finder.open(); break;
     case 'editSplitter': {
       const id2 = selectedSplitter(shownSnapshot(f));
@@ -793,11 +797,27 @@ function renderToolbarState(): void {
   bCycles.disabled = off || until;
 }
 
+// Every open file in any window (main.ts files:changed): files of one name are told apart by their folders
+// (v1 V-05, D-100) wherever a file's name shows -- its tab in every window, the title, Open Files, the questions.
+let everyFile: { fileId: string; path: string | null }[] = [];
+api.onFilesChanged((list) => { everyFile = list; render(); });
+function folderMap(): Map<string, string> {
+  const byId = new Map<string, { id: string; name: string; path: string | null }>();
+  for (const x of everyFile) if (x.path) byId.set(x.fileId, { id: x.fileId, name: x.path.split(/[\\/]/).pop() ?? x.path, path: x.path });
+  for (const x of files.list()) byId.set(x.fileId, { id: x.fileId, name: x.name, path: x.path });
+  return distinguishers([...byId.values()]);
+}
+function fileLabel(fileId: string, name: string): string {
+  const d = folderMap().get(fileId);
+  return d ? `${name} — ${d}` : name;
+}
+
 function render(): void {
   reportDirty();
   const f = files.active();
-  document.title = f ? `${f.name}${f.dirty ? ' •' : ''} — ${APP_NAME}` : APP_NAME;
-  bar.setFile(f ? f.name : null, f?.dirty ?? false);
+  const title = f ? fileLabel(f.fileId, f.name) : null;
+  document.title = f ? `${title}${f.dirty ? ' •' : ''} — ${APP_NAME}` : APP_NAME;
+  bar.setFile(title, f?.dirty ?? false);
   bar.showToolbar(f !== null);
   const ready = engine.state === 'ready';
   for (const b of [bSave, bUndo, bRedo, bRun, bCycle, bCycles, bReset]) b.disabled = !f || !ready;
@@ -817,7 +837,7 @@ function render(): void {
   bRun.classList.toggle('primary', label === 'Stop');
   if (f) {
     // files of one name show the folder that tells them apart (v1 V-05); a library that came in new, " · Updated"
-    const folders = distinguishers(files.list().map((x) => ({ id: x.fileId, name: x.name, path: x.path })));
+    const folders = folderMap();
     fileStrip.set(files.list().map((x) => {
       const bits = [folders.get(x.fileId) ? `— ${folders.get(x.fileId)}` : '', updatedFiles.has(x.fileId) ? '· Updated' : '', role.handover ? '· Window' : ''].filter(Boolean);
       return { id: x.fileId, label: x.name, title: x.path ?? 'Not saved yet', dirty: x.dirty, ...(bits.length ? { note: bits.join(' ') } : {}) };
@@ -1000,8 +1020,8 @@ function renderComponents(f: OpenFile): void {
   const lib = libraries.get(f.fileId);
   // The first group is this file's circuits (lib null); the bundled Hallym MIPS is listed before it is in the file (pending).
   const info = libInfo.get(f.fileId);
-  const openFiles = info?.openFiles.map((o) => ({ fileId: o.fileId, name: files.get(o.fileId)?.name ?? o.name, state: o.state, circuits: o.circuits })) ?? [];
-  components.set({ fileId: f.fileId, fileName: f.name, circuit: shown(f).circuit, libraries: lib, openFiles });
+  const openFiles = info?.openFiles.map((o) => ({ fileId: o.fileId, name: fileLabel(o.fileId, files.get(o.fileId)?.name ?? o.name), state: o.state, circuits: o.circuits })) ?? [];
+  components.set({ fileId: f.fileId, fileName: fileLabel(f.fileId, f.name), circuit: shown(f).circuit, libraries: lib, openFiles });
   if (lib === undefined) void loadLibrary(f.fileId);
   // the other open files may be in windows of their own (N-11): asked whatever this window holds
   if (!info && engine.state === 'ready') void loadLibInfo(f.fileId);
@@ -1394,10 +1414,12 @@ async function saveOf(f: OpenFile, saveAs: boolean): Promise<boolean> {
 // them; whether to go on.  With no engine to save through, there is nothing to keep: go on.
 async function unsavedSettled(list: readonly OpenFile[], leaving: Leaving): Promise<boolean> {
   if (engine.state !== 'ready') return true;
+  let asking: OpenFile | null = null;
   return settleUnsaved(list, leaving, {
     dirty: async (f) => (await api.call<{ dirty: boolean }>('file.dirty', { fileId: f.fileId }).catch(() => ({ dirty: f.dirty }))).dirty,
-    show: (f) => { files.activate(f.fileId); render(); },
-    choose: (q) => choose(q),
+    show: (f) => { asking = f; files.activate(f.fileId); render(); },
+    // the file as its tab names it (two lab.circ: their folders)
+    choose: (q) => choose(asking ? { ...q, file: fileLabel(asking.fileId, asking.name) } : q),
     save: (f) => saveOf(f, false),
   });
 }
@@ -1978,6 +2000,7 @@ function typing(target: EventTarget | null): boolean {
 async function begin(): Promise<void> {
   // a window of its own (N-11): its file, as the tab stood; no first screen, no New or Open
   role = await api.windowRole().catch(() => ({ main: true, handover: null }));
+  everyFile = await api.openFilesAll().catch(() => []);
   if (role.handover) document.body.classList.add('ownwindow');
   new ResizeObserver(() => layout()).observe(document.body);
   (navigator as unknown as { windowControlsOverlay?: EventTarget }).windowControlsOverlay

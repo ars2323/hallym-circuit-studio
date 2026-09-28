@@ -133,7 +133,7 @@ export function portOrder(ports: PortsInfo): Promise<Partial<Record<Side, number
   }
   return modal<Partial<Record<Side, number[]>> | null>({
     title: 'Port Order', cls: 'portorder', label: `Port Order — ${ports.name}`,
-    content: [h('p', {}, prose(`\`${ports.name}\` 회로의 포트 차례를 변마다 바꿉니다. 포트를 끌거나 위·아래 단추로 옮기고 Apply하면 그 차례로 Auto Appearance 모양을 만듭니다.`)), cols],
+    content: [h('p', {}, prose(`\`${ports.name}\` 회로의 포트 차례를 쪽마다(West, East …) 바꿉니다. 포트를 끌거나 위·아래 단추로 옮기고 Apply하면 그 차례로 Auto Appearance 모양을 만듭니다.`)), cols],
     buttons: [{ label: 'Cancel', value: null }, { label: 'Apply', primary: true, value: 'apply' }],
     cancel: null, focus: 'last',
   }).then((v) => (v === null ? null : Object.fromEntries([...order.entries()])));

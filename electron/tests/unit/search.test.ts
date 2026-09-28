@@ -8,7 +8,7 @@ import path from 'node:path';
 import { test } from 'node:test';
 
 import type { LibraryGroup } from '../../src/main/protocol.ts';
-import { ALIASES, argAttrs, attrText, COMMANDS, fuzzy, match, search, split, toggleFavorite, touch } from '../../src/renderer/app/logic/search.ts';
+import { ALIASES, argAttrs, attrText, COMMANDS, fuzzy, match, search, SEARCH_HINTS, searchHint, split, toggleFavorite, touch } from '../../src/renderer/app/logic/search.ts';
 import { TOOL_ARGS } from '../../src/renderer/app/logic/tool-args.ts';
 
 // The real engine's library (tests/fixtures/library.json, written by the engine).
@@ -124,4 +124,12 @@ test('ties go by name, then key: the same list every time', () => {
     const x = search('or', src())[i - 1], y = search('or', src())[i];
     assert.ok(x.score > y.score || (x.score === y.score && x.name.localeCompare(y.name, 'en') <= 0));
   }
+});
+
+test('the search box\'s example text: the longest that fits whole, down to "Search"', () => {
+  const w = (t: string) => t.length * 7;
+  assert.equal(searchHint(1000, w), SEARCH_HINTS[0]);
+  assert.equal(searchHint(w(SEARCH_HINTS[0]) - 1, w), 'Search (and 3, mux 32)');
+  assert.equal(searchHint(w('Search (and 3, mux 32)') - 1, w), 'Search');
+  assert.equal(searchHint(10, w), 'Search');
 });

@@ -122,7 +122,15 @@ if (process.env.HCS_ENGINE_LOG === '1') engine.on('log', (line) => console.log(`
 // The files the engine has open, by id: the same file opened again goes to
 // its tab.  They outlive a restart of the engine (recovery.ts opens them
 // again under the same ids), except those that could not be opened again.
-const openFiles = new Map<string, string | null>();
+// Every open file and where it is saved (null: never), whichever window holds it.  Every window hears of a change
+// (files:changed): files of one name are told apart by their folders in all of them (N-11, v1 V-05).
+class OpenFiles extends Map<string, string | null> {
+  onChange: (() => void) | null = null;
+  override set(fileId: string, path: string | null): this { super.set(fileId, path); this.onChange?.(); return this; }
+  override delete(fileId: string): boolean { const gone = super.delete(fileId); if (gone) this.onChange?.(); return gone; }
+  list(): { fileId: string; path: string | null }[] { return [...this].map(([fileId, path]) => ({ fileId, path })); }
+}
+const openFiles = new OpenFiles();
 recovery.on('recovered', (r) => { for (const c of r.closed) openFiles.delete(c.fileId); });
 
 // A call of the window's: after any recovery under way, tagged so that the journal records it.
@@ -197,6 +205,7 @@ async function main(): Promise<void> {
     if (w && !w.isDestroyed()) w.webContents.send('engine:notify', method, params);
   });
   recovery.on('recovered', (r) => sendAll('engine:recovered', r));
+  openFiles.onChange = () => sendAll('files:changed', openFiles.list());
   // The window a call came from (a dialog's parent).
   const from = (e: Electron.IpcMainInvokeEvent): BrowserWindow => BrowserWindow.fromWebContents(e.sender) ?? win;
   WINDOW_OF = from;
@@ -308,6 +317,7 @@ function registerHandlers(): void {
     return result;
   }));
   ipcMain.handle('engine:status', () => recovery.view(engine.status()));
+  ipcMain.handle('files:all', () => openFiles.list());
   ipcMain.handle('engine:retry', () => answer(async () => {
     if (engine.status().state === 'failed') await engine.start().catch(() => {});
     await recovery.settled();

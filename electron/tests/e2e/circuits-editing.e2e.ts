@@ -424,7 +424,7 @@ test('an input pin poked inside an instance: the original\'s question; Open New 
   }
 });
 
-test('the appearance editor: a port chosen shows the circuit with its pin (the thumbnail); Revert to Default goes back to the default box', async () => {
+test('the appearance editor: a port chosen shows the circuit with its pin (the thumbnail); Revert To Default Appearance goes back to the default box', async () => {
   const r = await launch();
   const { page, app } = r;
   try {
@@ -436,7 +436,12 @@ test('the appearance editor: a port chosen shows the circuit with its pin (the t
     await page.mouse.click(port.x + port.width / 2, port.y + port.height / 2);
     await expect(page.locator('.appthumb')).toBeVisible();
     await recordCalls(app);
-    await page.getByRole('button', { name: 'Revert to Default' }).click();
+    // the original's name, in the right click too
+    const sb = (await page.locator('.appsvg').boundingBox())!;
+    await page.mouse.click(sb.x + sb.width - 30, sb.y + 30, { button: 'right' });
+    await expect(page.locator('.ovmenu button', { hasText: 'Revert To Default Appearance' })).toBeEnabled();
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Revert To Default Appearance' }).click();
     await expect.poll(async () => (await ops(app, 'revert')).length).toBe(1);
     await expect(page.locator('.appfacts')).toContainText('Default appearance');
   } finally {

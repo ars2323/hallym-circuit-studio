@@ -28,7 +28,7 @@ import type { LibraryGroup } from '../../main/protocol.ts';
 import { code, h } from '../shared/dom.ts';
 import type { NoticeHost } from '../shared/notice.ts';
 import { count } from './logic/facts.ts';
-import { search, type SearchItem } from './logic/search.ts';
+import { search, searchHint, SEARCH_HINTS, type SearchItem } from './logic/search.ts';
 
 export const TOOL_MIME = 'application/x-hcs-tool';
 
@@ -69,11 +69,20 @@ export function componentsPanel(o: {
   let state: ComponentsState | null = null;
   let held: string | null = null;
   let shownFile: string | null = null;
-  const input = h('input', { type: 'search', class: 'compsearch-input', placeholder: 'Search (and 3, mux 32, 레지스터)', 'aria-label': 'Search parts', spellcheck: 'false', autocomplete: 'off' });
+  const input = h('input', { type: 'search', class: 'compsearch-input', placeholder: SEARCH_HINTS[0], 'aria-label': 'Search parts', spellcheck: 'false', autocomplete: 'off' });
   const tree = h('div', { class: 'comptree' });
   const results = h('ul', { class: 'list compresults', role: 'listbox', 'aria-label': 'Matching parts', hidden: true });
   const empty = h('p', { class: 'compnone', hidden: true });
   const root = h('div', { class: 'comps' }, h('div', { class: 'compsearch' }, input), tree, results, empty);
+  // the example text as long as the box has room for, whole
+  const ruler = document.createElement('canvas').getContext('2d');
+  new ResizeObserver(() => {
+    const cs = getComputedStyle(input);
+    const room = input.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 2;
+    if (!ruler || room <= 0) return;
+    ruler.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+    input.placeholder = searchHint(room, (t) => ruler.measureText(t).width);
+  }).observe(input);
   let items: SearchItem[] = [];
 
   function pick(p: Pick): void {

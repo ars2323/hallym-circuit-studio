@@ -49,6 +49,8 @@ export interface AppearanceHost {
   layout(fileId: string, circuitId: string): Promise<Snapshot | null>;   // the circuit, for the port thumbnail
 }
 
+export const REVERT = 'Revert To Default Appearance';
+
 const TOOL_ICONS: Record<DrawTool, string> = {
   Select: 'mouse-pointer-2', Text: 'type', Line: 'slash', Curve: 'spline', Polyline: 'waypoints', Rectangle: 'rectangle-horizontal',
   'Rounded Rectangle': 'square-round-corner', Oval: 'circle', Polygon: 'pentagon',
@@ -124,8 +126,8 @@ export class AppearanceEditor {
       this.toolButtons.set(t, b);
       bar.append(b);
     }
-    this.revert = h('button', { type: 'button', class: 'btn small', title: '원조 기본 모양(핀으로 만드는 상자)으로 되돌립니다' }, 'Revert to Default');
-    this.revert.addEventListener('click', () => void this.op('revert', {}, 'Revert To Default Appearance'));
+    this.revert = h('button', { type: 'button', class: 'btn small', title: '원조 기본 모양(핀으로 만드는 상자)으로 되돌립니다' }, REVERT);
+    this.revert.addEventListener('click', () => void this.revertToDefault());
     this.facts = h('span', { class: 'appfacts' });
     bar.append(h('span', { class: 'grow' }), this.facts, this.revert);
     this.svg = el('svg', { class: 'appsvg', tabindex: '0', 'aria-label': 'Appearance' });
@@ -441,6 +443,11 @@ export class AppearanceEditor {
     } catch { return null; }
   }
 
+  // Project › Revert To Default Appearance (the original's name, GLOSSARY): the button, the right click, the palette.
+  async revertToDefault(): Promise<void> {
+    if (this.model && !this.model.default) await this.op('revert', {}, REVERT);
+  }
+
   // The Edit menu (keys, the right click): the original's AppearanceEditHandler.
   async command(cmd: 'cut' | 'copy' | 'paste' | 'delete' | 'duplicate' | 'selectAll' | 'raise' | 'lower' | 'raiseTop' | 'lowerBottom' | 'addVertex' | 'removeVertex'): Promise<void> {
     const m = this.model;
@@ -473,6 +480,8 @@ export class AppearanceEditor {
       item('Raise Selection', 'raise', 'raise'), item('Lower Selection', 'lower', 'lower'), item('Raise to Top', 'raiseTop', 'raiseTop'), item('Lower to Bottom', 'lowerBottom', 'lowerBottom'),
       SEPARATOR,
       item('Add Vertex', 'addVertex', 'addVertex'), item('Remove Vertex', 'removeVertex', 'removeVertex'),
+      SEPARATOR,
+      { label: REVERT, disabled: !this.model?.editable || this.model.default, run: () => void this.revertToDefault() },
     ];
     showMenu(entries, x, y);
   }

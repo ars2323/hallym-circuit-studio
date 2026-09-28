@@ -13,6 +13,8 @@
 .circbar .hbtn:disabled img { opacity: .35; }
 .circlist { overflow: auto; flex: 1; min-height: 0; }
 .circlist li > button.dropat { box-shadow: inset 0 2px 0 var(--blue); }
+.circlist li.menuon:not(.on) > button { background: var(--hover); box-shadow: inset 3px 0 0 var(--border-strong, var(--muted)); }
+.circbar .hbtn .caret { font-size: 10px; color: var(--muted); margin-left: 1px; }
 .circlist .tag { font-size: 11px; color: var(--teal-text); background: var(--teal-tint); border-radius: 4px; padding: 0 5px; }
 .circlist li.on > button .tag { margin-left: auto; }
 .circlist .mainmark + .tag { margin-left: 4px; }

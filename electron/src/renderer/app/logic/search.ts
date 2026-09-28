@@ -20,7 +20,7 @@ import { TOOL_ARGS } from './tool-args.ts';
 
 export type ItemKind = 'component' | 'subcircuit' | 'tunnel' | 'command';
 
-export type CommandId = 'reset' | 'cycle' | 'run' | 'enable' | 'load' | 'fit' | 'find' | 'editSplitter';
+export type CommandId = 'reset' | 'cycle' | 'run' | 'enable' | 'load' | 'fit' | 'find' | 'editSplitter' | 'revertAppearance';
 
 export interface Command { id: CommandId; name: string; aliases: string[] }
 
@@ -34,6 +34,7 @@ export const COMMANDS: readonly Command[] = [
   { id: 'fit', name: 'Fit to Window', aliases: ['fit', '화면 맞춤', '맞춤'] },
   { id: 'find', name: 'Find', aliases: ['find', '찾기'] },
   { id: 'editSplitter', name: 'Edit Splitter…', aliases: ['edit splitter', 'splitter', '스플리터 편집', '스플리터'] },
+  { id: 'revertAppearance', name: 'Revert To Default Appearance', aliases: ['revert', 'default appearance', '기본 모양'] },
 ];
 
 // A part's saved name → what else a student may call it (v1 Palette.ALIASES).
@@ -213,4 +214,11 @@ export function touch(recent: readonly string[], key: string): string[] {
 // Favourites: in, or out again.
 export function toggleFavorite(favorites: readonly string[], key: string): string[] {
   return favorites.includes(key) ? favorites.filter((k) => k !== key) : [...favorites, key];
+}
+
+// The Components search box's example text: the longest that fits the box whole (a narrow panel gets a shorter one,
+// never a cut one). measure: the text's width in the box's font.
+export const SEARCH_HINTS = ['Search (and 3, mux 32, 레지스터)', 'Search (and 3, mux 32)', 'Search'] as const;
+export function searchHint(room: number, measure: (text: string) => number): string {
+  return SEARCH_HINTS.find((t) => measure(t) <= room) ?? SEARCH_HINTS[SEARCH_HINTS.length - 1];
 }
