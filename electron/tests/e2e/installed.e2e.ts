@@ -15,7 +15,7 @@
 
 import { _electron, expect, test, type ElectronApplication, type Page } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -68,6 +68,36 @@ function imagePath(pid: number): string {
   return /ExecutablePath=(.*)/.exec(out)?.[1]?.trim() ?? '';
 }
 
+/* Windows Search re-indexes the Start menu's programs for a while after an
+   install (seen on the runner: its folder under %LOCALAPPDATA%\Packages
+   changing during the first run).  The first snapshot waits for it to be
+   quiet -- nothing written there for 10 s, at most 2 minutes -- so that a
+   run is compared with no exception for it (state.ts KNOWN has none for a run). */
+async function windowsSearchQuiet(): Promise<string> {
+  const dir = path.join(process.env.LOCALAPPDATA ?? '', 'Packages', 'Microsoft.Windows.Search_cw5n1h2txyewy');
+  const latest = (): number => {
+    let t = 0;
+    const stack = [dir];
+    while (stack.length) {
+      const d = stack.pop()!;
+      let names: import('node:fs').Dirent[];
+      try { names = readdirSync(d, { withFileTypes: true }); } catch { continue; }
+      for (const e of names) {
+        const f = path.join(d, e.name);
+        try { t = Math.max(t, statSync(f).mtimeMs); } catch { /* gone meanwhile */ }
+        if (e.isDirectory() && !e.isSymbolicLink()) stack.push(f);
+      }
+    }
+    return t;
+  };
+  const t0 = Date.now();
+  while (Date.now() - t0 < 120_000) {
+    if (Date.now() - latest() > 10_000) return `quiet after ${Date.now() - t0} ms`;
+    await new Promise((done) => setTimeout(done, 1000));
+  }
+  return 'still writing after 120 s';
+}
+
 function nothingLeft(before: State, what: string): void {
   const after = snapshot();
   const changes = diffStates(before, after);
@@ -86,11 +116,12 @@ test.afterAll(() => {
 });
 
 test('installed: the first screen, the engine on the bundled runtime, a circuit with the MIPS library; after quit nothing is left', async () => {
-  test.setTimeout(180_000);
+  test.setTimeout(330_000);
   const work = path.join(root, 'test-results', 'installed');
   mkdirSync(work, { recursive: true });
   const file = path.join(work, 'demo-datapath.circ');
   copyFileSync(path.join(root, '..', 'tests/circ/demo-datapath.circ'), file);
+  console.log(`Windows Search: ${await windowsSearchQuiet()}`);
   const before = snapshot();
 
   const { app, page, times } = await start();

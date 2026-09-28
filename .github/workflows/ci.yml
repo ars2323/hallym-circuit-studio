@@ -274,13 +274,15 @@ jobs:
         run: |
           $v = (Get-Content package.json | ConvertFrom-Json).version
           tools/windows/check-install.ps1 -Phase clean -Setup (Get-Item setup/*-setup.exe).FullName -Version $v -Report report
+      # cmd, not PowerShell: nothing of the job's own writes into %LOCALAPPDATA% while the program runs
+      # (PowerShell saves its startup cache there a while after it starts).
       - name: The installed program (first screen, engine, start time; nothing left after quit)
-        timeout-minutes: 10
+        timeout-minutes: 15
+        shell: cmd
         run: |
-          $env:HCS_E2E_EXE = (Get-Content report/installed.txt).Trim()
-          $env:HCS_E2E_REPORT = "$PWD/report"
-          node node_modules/@playwright/test/cli.js test installed
-          if ($LASTEXITCODE -ne 0) { throw 'installed e2e' }
+          set /p HCS_E2E_EXE=<report\installed.txt
+          set HCS_E2E_REPORT=%CD%\report
+          node node_modules\@playwright\test\cli.js test installed
       - name: Install again, over itself
         run: |
           $v = (Get-Content package.json | ConvertFrom-Json).version
@@ -355,12 +357,12 @@ jobs:
           $v = (Get-Content package.json | ConvertFrom-Json).version
           tools/windows/check-install.ps1 -Phase msi -Msi (Get-Item v1msi/*.msi).FullName -Setup (Get-Item setup/*-setup.exe).FullName -Version $v -Report report
       - name: The program runs after the upgrade (first screen, engine; nothing left after quit)
-        timeout-minutes: 10
+        timeout-minutes: 15
+        shell: cmd
         run: |
-          $env:HCS_E2E_EXE = (Get-Content report/installed.txt).Trim()
-          $env:HCS_E2E_REPORT = "$PWD/report"
-          node node_modules/@playwright/test/cli.js test installed -g "first screen"
-          if ($LASTEXITCODE -ne 0) { throw 'installed e2e' }
+          set /p HCS_E2E_EXE=<report\installed.txt
+          set HCS_E2E_REPORT=%CD%\report
+          node node_modules\@playwright\test\cli.js test installed -g "first screen"
       - name: Uninstall (silent), nothing left -- of the MSI either
         run: tools/windows/check-install.ps1 -Phase uninstall -Report report
       - uses: actions/upload-artifact@v4

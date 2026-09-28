@@ -116,6 +116,20 @@ test('the v1.0.x MSI is found by its UpgradeCode and removed silently, after the
   assert.ok(section.indexOf('!insertmacro installApplicationFiles') < section.indexOf('!insertmacro customInstall'));
 });
 
+test('the uninstaller\'s own copy in %TEMP% is removed once it has ended -- only that folder, never the install folder, no shell', () => {
+  const m = /!macro hcsRemoveUninstallerCopy\n([\s\S]*?)!macroend/.exec(nsh)?.[1] ?? '';
+  assert.match(m, /\$\{GetFileName\} "\$EXEDIR" \$R0/);
+  // Only a copy NSIS made (%TEMP%\~nsu<X>.tmp); an install over an earlier version runs the uninstaller in place.
+  assert.match(m, /\$\{If\} \$R1 == "~nsu"\n\s+\$\{AndIf\} \$R2 == "\.tmp"\n\s+\$\{AndIf\} "\$EXEDIR" != "\$INSTDIR"\n/);
+  assert.match(m, /StrCpy \$R1 \$R0 4\n\s+StrCpy \$R2 \$R0 "" -4\n/);
+  // Waits for the copy to end (its exe is in use until then), then the folder goes.
+  assert.match(m, /for \/l %i in \(1,1,120\) do @if exist "\$EXEDIR\\" \(rd \/s \/q "\$EXEDIR" 2>nul & ping -n 2 127\.0\.0\.1 >nul\)/);
+  // CreateProcess with CREATE_NO_WINDOW: no console window, no ShellExecute (no jump list entry).
+  assert.match(m, /kernel32::CreateProcessW\(p 0, w R3, p 0, p 0, i 0, i 0x08000000, p 0, p 0, p R4, p R5\) i \.R6/);
+  assert.doesNotMatch(m, /ExecShell|\bExec\b|ExecWait|nsExec/);
+  assert.match(nsh, /!macro customUnInstall\n\s+!insertmacro hcsRemoveUninstallerCopy\n!macroend/);
+});
+
 test('the installer\'s words: Korean, no particle right after a name, no "하면 됩니다", no "한림" (N-20)', () => {
   const words = [...nsh.matchAll(/LangString (\w+) 1042 "([^"]*)"/g)].map((m) => [m[1], m[2]] as const);
   const box = [...nsh.matchAll(/MessageBox [^"]*"([^"]*)"/g)].map((m) => ['notice', m[1]] as const);

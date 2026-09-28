@@ -12,6 +12,7 @@
 ; in %APPDATA%, no file association, no desktop shortcut, no auto-update.
 
 !include LogicLib.nsh
+!include FileFunc.nsh
 
 ; The per-user install folder: %LOCALAPPDATA%\Programs\Hallym Circuit Studio.
 ; A one-click installer names it after the package's npm name
@@ -103,4 +104,52 @@
   Delete "$LOCALAPPDATA\${APP_INSTALLER_STORE_FILE}"
   RMDir "$LOCALAPPDATA\hallym-circuit-studio-updater"
   !insertmacro hcsRemoveV1Msi
+!macroend
+
+; The uninstaller, started from the uninstall entry, copies itself to
+; %TEMP%\~nsu<X>.tmp\Un_<X>.exe and runs from there so that it can remove the
+; install folder; NSIS asks Windows to delete that copy at the next restart,
+; which only an administrator's request does.  So when the uninstaller runs
+; from such a copy (not in the install folder: an install over an earlier
+; version runs it in place), a hidden cmd waits for the copy to end and then
+; removes its folder -- nothing of the program is left in %TEMP% either.
+; CreateProcess with CREATE_NO_WINDOW: no console window, and no shell launch
+; (ShellExecute would record the launch in the user's jump lists).
+!macro hcsRemoveUninstallerCopy
+  Push $R0
+  Push $R1
+  Push $R2
+  Push $R3
+  Push $R4
+  Push $R5
+  Push $R6
+  ${GetFileName} "$EXEDIR" $R0
+  StrCpy $R1 $R0 4
+  StrCpy $R2 $R0 "" -4
+  ${If} $R1 == "~nsu"
+  ${AndIf} $R2 == ".tmp"
+  ${AndIf} "$EXEDIR" != "$INSTDIR"
+    StrCpy $R3 '"$SYSDIR\cmd.exe" /d /q /c for /l %i in (1,1,120) do @if exist "$EXEDIR\" (rd /s /q "$EXEDIR" 2>nul & ping -n 2 127.0.0.1 >nul)'
+    System::Call '*(i 68, &w32) p .R4'
+    System::Call '*(p, p, i, i) p .R5'
+    System::Call 'kernel32::CreateProcessW(p 0, w R3, p 0, p 0, i 0, i 0x08000000, p 0, p 0, p R4, p R5) i .R6'
+    ${If} $R6 != 0
+      System::Call '*$R5(p .R1, p .R2)'
+      System::Call 'kernel32::CloseHandle(p R1)'
+      System::Call 'kernel32::CloseHandle(p R2)'
+    ${EndIf}
+    System::Free $R4
+    System::Free $R5
+  ${EndIf}
+  Pop $R6
+  Pop $R5
+  Pop $R4
+  Pop $R3
+  Pop $R2
+  Pop $R1
+  Pop $R0
+!macroend
+
+!macro customUnInstall
+  !insertmacro hcsRemoveUninstallerCopy
 !macroend

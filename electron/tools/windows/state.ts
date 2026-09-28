@@ -6,33 +6,28 @@
    %LOCALAPPDATA%).
 
      node tools/windows/state.ts snapshot <out.json>
-     node tools/windows/state.ts diff <before.json> <after.json> [--expect install|none] [--report <file>]
+     node tools/windows/state.ts diff <before.json> <after.json> [--expect none|install|uninstalled] [--report <file>]
 
    The places:
-     files     %APPDATA%, %LOCALAPPDATA% (not the install folder, not Temp),
-               the desktop (the user's and the public one), the all-users
-               Start menu; each file with its size and time, each folder
-     temp      %TEMP%'s own entries (top level) and this program's run
-               folders (%TEMP%\HallymCircuitStudio): the test tools write
-               there too, so only this program's names count
-     registry  HKCU\Software\JavaSoft and HKLM\Software\JavaSoft (Java's
-               preferences: the engine keeps its own in memory), every key of
-               HKCU\Software but Microsoft and Classes, the uninstall entries
-               and Run keys, Windows Installer's per-user products, and under
-               HKCU\Software\Classes .circ and any key named after this program
+     files     %APPDATA%, %LOCALAPPDATA% (not the install folder; Temp is
+               its own place), the desktop (the user's and the public one),
+               the all-users Start menu: each file with its size and time,
+               each folder, each link (not followed)
+     temp      all of %TEMP%, the same way
+     registry  all of HKCU\Software (Microsoft's, Classes and Policies
+               included) and HKLM\Software\JavaSoft (Java's preferences for
+               all users): each key, each value with its data
 
-   --expect none      nothing may differ (a run of the program)
-   --expect install   only what the installer writes: the Start menu
-                      shortcut, the uninstall entry and its install record
-                      (HKCU\Software\<guid>)
-   --expect uninstalled  nothing left
-   Everywhere Windows' own is not counted (notOurs(), reported as "info"):
-   the empty containers Windows makes (%LOCALAPPDATA%\Programs, the per-user
-   Uninstall key, Windows Installer's and the crypto API's keys without
-   values) and what Windows and the test tools write whatever runs
-   (WINDOWS_OWN: the registry hive's files, PowerShell's startup cache, Store
-   apps' data, the shell's caches; while installing also the shell's jump
-   lists).  Links are recorded as links, not followed. */
+   --expect none         a run of the program: nothing may differ
+   --expect install      only what the installer writes: the Start menu
+                         shortcut, the uninstall entry and electron-builder's
+                         install record beside it (HKCU\Software\<guid>); the
+                         install folder itself is not looked into
+   --expect uninstalled  nothing left (compared with before the install)
+   What Windows and the test tools themselves change is not counted only
+   where it was seen on the runner: KNOWN below, each with its place, its
+   kind of change, the checks it may appear in and why (reported as "info").
+   Anything else counts. */
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
@@ -55,9 +50,6 @@ export interface Change {
   after?: string;
 }
 
-// This program's names in %TEMP%: its run folders, Java's per-process files if it ever wrote them.
-export const OUR_TEMP = /^(HallymCircuitStudio|hsperfdata_.*|hs_err_pid.*|hcs-.*|jna.*|\.java.*)$/i;
-
 // ---- the difference ---------------------------------------------------------------------
 
 export function diffStates(a: State, b: State): Change[] {
@@ -74,66 +66,82 @@ export function diffStates(a: State, b: State): Change[] {
   return out;
 }
 
-// Windows' own containers, which appear empty once anything is installed per user and stay:
-// the per-user programs folder, the per-user uninstall key, Windows Installer's per-user keys
-// (an MSI install and uninstall leaves their parents; a product's own keys have values), and the
-// crypto API's per-user policy stores (created empty when Windows checks a file's signature).
-const PER_USER_PROGRAMS = /^LOCALAPPDATA\\Programs$/i;
-export const windowsContainer = (c: Change): boolean => c.what === 'added' && (
-  (c.where === 'files' && PER_USER_PROGRAMS.test(c.path) && c.after === 'dir') ||
-  (c.where === 'registry' && c.after === 'key' &&
-    /^HKCU\\Software\\(Microsoft\\(Windows\\CurrentVersion\\Uninstall|Installer(\\[^\\]+)*)|Policies\\Microsoft\\SystemCertificates(\\[^\\]+)*)$/i.test(c.path)));
-
-/* What Windows and the test tools write whatever runs, seen on the CI runner
-   (D-148): not the program's, and not a place a desktop program writes.
-     the registry hive's own files     UsrClass.dat* (the registry is compared key by key)
-     PowerShell's startup cache        the check script is PowerShell, and electron-builder's
-                                       installer asks PowerShell whether the program is running
-     Store apps' data (Packages)       Windows Search re-indexes the Start menu's programs
-     the shell's caches                icons, the desktop wallpaper at a new screen size
-     the notification platform         its database notes the Start menu's programs
-     the rest of LOCALAPPDATA\Microsoft\Windows   Windows' components (the web cache database
-                                       changed during an install), never a program's data
-     Windows' spelling word lists      %APPDATA%\Microsoft\Spelling\<language>\default.*: the
-                                       system spell checker's per-user lists, shared by every
-                                       program that checks spelling; Chromium opens it at its
-                                       start whatever the program sets (tried: the window's and
-                                       the session's spell checker off, a profile with it off),
-                                       and they stay empty (the program adds no word) */
-export const WINDOWS_OWN: [RegExp, string][] = [
-  [/^LOCALAPPDATA\\Microsoft\\Windows\\UsrClass\.dat/i, 'the registry hive\'s own files'],
-  [/^LOCALAPPDATA\\Microsoft\\(Windows\\)?PowerShell\\/i, 'PowerShell\'s startup cache'],
-  [/^LOCALAPPDATA\\Packages\\/i, 'Store apps\' data (Windows Search)'],
-  [/^LOCALAPPDATA\\Microsoft\\Windows\\Caches\\/i, 'the shell\'s caches'],
-  [/^LOCALAPPDATA\\Microsoft\\Windows\\Notifications\\/i, 'the notification platform\'s database'],
-  [/^APPDATA\\Microsoft\\Windows\\Themes\\/i, 'the desktop wallpaper\'s cache'],
-  [/^APPDATA\\Microsoft\\Spelling(\\|$)/i, 'Windows\' spelling word lists'],
-  // The rest of %LOCALAPPDATA%\Microsoft\Windows is Windows' too (its web cache database, seen
-  // changing during an install; history, thumbnails): no program keeps its own data there.
-  [/^LOCALAPPDATA\\Microsoft\\Windows(\\|$)/i, 'Windows\' own components (%LOCALAPPDATA%\\Microsoft\\Windows)'],
-];
-// And while installing: the shell's jump lists record the installers it saw start (msiexec, the setup exe).
-const JUMP_LISTS = /^APPDATA\\Microsoft\\Windows\\Recent\\(Automatic|Custom)Destinations\\/i;
-export const INSTALLING_OWN: [RegExp, string][] = [
-  [JUMP_LISTS, 'the shell\'s jump lists (the installers started)'],
-];
-
+/* What Windows and the test tools themselves change, each seen on the CI
+   runner (D-148 12), by exact place, by kind of change, and only in the
+   checks it was seen in: anything else in these places, or these changes
+   in another check, count.  A check is a run of the program ('none'), an
+   install ('install'), or an uninstall ('uninstalled': compared with before
+   the install, so the install's and the run's are in it too). */
 export type Expect = 'none' | 'install' | 'uninstalled';
 
-// Why a change is not the program's, or null when it counts.
+export interface Known {
+  where: Change['where'];
+  what: Change['what'][];
+  path: RegExp;
+  in: Expect[];
+  maxBytes?: number;     // files: no bigger than this (an empty list, not a written one)
+  keyOnly?: boolean;     // registry: a key without values
+  dirOnly?: boolean;     // files: a folder (and nothing in it)
+  why: string;
+}
+
+const ALL: Expect[] = ['none', 'install', 'uninstalled'];
+const INSTALLING: Expect[] = ['install', 'uninstalled'];
+const G = '\\{[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\\}';
+const SEARCH = 'LOCALAPPDATA\\\\Packages\\\\Microsoft\\.Windows\\.Search_cw5n1h2txyewy\\\\';
+
+export const KNOWN: Known[] = [
+  // ---- a run of the program, on Windows itself
+  { where: 'files', what: ['added', 'changed'], in: ALL, maxBytes: 2,
+    path: /^APPDATA\\Microsoft\\Spelling(\\[A-Za-z]{2,3}(-[A-Za-z0-9]+)*(\\default\.(dic|exc|acl))?)?$/,
+    why: 'Windows\' spelling word lists for the OS language, empty (2 bytes): Chromium opens the Windows spell checker at its start (D-148 13)' },
+  // ---- the test tools
+  { where: 'temp', what: ['added'], in: ALL, path: /^TEMP\\playwright-artifacts-[A-Za-z0-9]+(\\.*)?$/,
+    why: 'Playwright (the test tool): a folder per launch, until the test run ends' },
+  { where: 'temp', what: ['added'], in: INSTALLING, path: /^TEMP\\playwright-transform-cache(\\.*)?$/,
+    why: 'Playwright (the test tool): its compiled test files' },
+  { where: 'files', what: ['changed'], in: INSTALLING, path: /^LOCALAPPDATA\\Microsoft\\(Windows\\)?PowerShell\\StartupProfileData-NonInteractive$/,
+    why: 'PowerShell\'s startup cache (the check script is PowerShell)' },
+  // ---- Windows reacting to an install or an uninstall (the Start menu changed, a program ran from a download)
+  { where: 'files', what: ['added', 'removed', 'changed'], in: INSTALLING,
+    path: new RegExp(`^${SEARCH}(LocalState\\\\(AppIconCache(\\\\100(\\\\[^\\\\]+)?)?|ConstraintIndex\\\\Apps_${G}(\\\\[^\\\\]+)?|DeviceSearchCache\\\\AppCache\\d+\\.txt)|Settings\\\\settings\\.dat\\.LOG[12])$`),
+    why: 'Windows Search re-indexing the Start menu\'s programs' },
+  { where: 'files', what: ['added', 'removed'], in: INSTALLING, path: new RegExp(`^LOCALAPPDATA\\\\Microsoft\\\\Windows\\\\Caches\\\\${G}\\.\\d+\\.ver0x[0-9a-f]+\\.db$`),
+    why: 'the shell\'s cache of the Start menu' },
+  { where: 'files', what: ['changed'], in: INSTALLING, path: /^LOCALAPPDATA\\Microsoft\\Windows\\WebCache\\(V01\.log|WebCacheV01\.dat|WebCacheV01\.jfm)$/,
+    why: 'WinINet\'s cache database (Windows checking a downloaded program)' },
+  { where: 'files', what: ['changed'], in: INSTALLING, path: /^LOCALAPPDATA\\Microsoft\\Windows\\Notifications\\wpndatabase\.db-wal$/,
+    why: 'the notification platform\'s database (a Start menu entry went)' },
+  { where: 'files', what: ['changed'], in: ALL, path: /^LOCALAPPDATA\\Microsoft\\Windows\\UsrClass\.dat\.LOG[12]$/,
+    why: 'the HKCU\\Software\\Classes hive\'s own log (the registry is compared key by key)' },
+  { where: 'files', what: ['added'], in: INSTALLING, dirOnly: true, path: /^LOCALAPPDATA\\Programs$/,
+    why: 'Windows\' folder for per-user programs, left empty' },
+  { where: 'registry', what: ['added'], in: INSTALLING, keyOnly: true, path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall$/,
+    why: 'Windows\' per-user uninstall key, left empty' },
+  { where: 'registry', what: ['added'], in: INSTALLING, keyOnly: true,
+    path: /^HKCU\\Software\\Policies\\Microsoft\\SystemCertificates\\TrustedPublisher(\\(CRLs|CTLs|Certificates))?$/,
+    why: 'the crypto API\'s per-user policy store, made empty when Windows checks a program\'s signature' },
+  { where: 'registry', what: ['added'], in: INSTALLING, keyOnly: true, path: /^HKCU\\Software\\Microsoft\\Installer(\\[^\\]+)*$/,
+    why: 'Windows Installer\'s per-user keys, left empty by the 1.0.x MSI\'s install and removal' },
+  // ---- the job itself: the screen was set to 1920x1080 before
+  { where: 'files', what: ['added'], in: ALL, path: /^APPDATA\\Microsoft\\Windows\\Themes\\CachedFiles\\CachedImage_\d+_\d+_POS\d+\.jpg$/,
+    why: 'the desktop wallpaper for the new screen size (the job set it before)' },
+];
+
+const size = (v?: string): number => Number(v?.split(' ')[0] ?? NaN);
+
+// Why a change is Windows' or the test tools', or null when it counts.
 export function notOurs(c: Change, expect: Expect = 'none'): string | null {
-  if (c.where === 'temp' && !OUR_TEMP.test(c.path.split(/[\\/]/)[1] ?? '')) return 'the temp folder (the test tools\' and Windows\')';
-  if (windowsContainer(c)) return 'Windows\' own empty container';
-  if (c.where === 'files') {
-    for (const [re, why] of expect === 'none' ? WINDOWS_OWN : [...WINDOWS_OWN, ...INSTALLING_OWN]) if (re.test(c.path)) return why;
-    // While a program runs the shell rewrites the jump lists it already has (Explorer's own,
-    // seen on the runner); a new list or a recent item is new -- that counts.
-    if (c.what === 'changed' && JUMP_LISTS.test(c.path)) return 'the shell rewriting a jump list it had';
+  for (const k of KNOWN) {
+    if (k.where !== c.where || !k.what.includes(c.what) || !k.in.includes(expect) || !k.path.test(c.path)) continue;
+    if (k.keyOnly && c.after !== 'key') continue;
+    if (k.dirOnly && c.after !== 'dir') continue;
+    if (k.maxBytes !== undefined && c.after !== 'dir' && c.after !== undefined && !(size(c.after) <= k.maxBytes)) continue;
+    return k.why;
   }
   return null;
 }
 
-// What counts: in %TEMP% only this program's names; nowhere Windows' own.
 export const counts = (c: Change, expect: Expect = 'none'): boolean => notOurs(c, expect) === null;
 
 const exactly = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -141,7 +149,8 @@ const START_MENU_SHORTCUT = new RegExp(`^APPDATA\\\\Microsoft\\\\Windows\\\\Star
 const UNINSTALL_ENTRY = new RegExp(`^HKCU\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Uninstall\\\\${APP_GUID}( :: .*)?$`, 'i');
 const INSTALL_RECORD = new RegExp(`^HKCU\\\\Software\\\\${APP_GUID}( :: .*)?$`, 'i');
 
-// What an install may add (--expect install): the rest must not differ.
+// What an install adds (--expect install): its Start menu shortcut, its uninstall entry and
+// electron-builder's install record beside it (all three removed by the uninstaller).
 export function allowedByInstall(c: Change): boolean {
   if (c.what !== 'added') return false;
   if (c.where === 'files') return START_MENU_SHORTCUT.test(c.path);
@@ -193,20 +202,7 @@ function reg(args: string[]): string {
 
 function registry(): Record<string, string> {
   const r: Record<string, string> = {};
-  for (const k of ['HKCU\\Software\\JavaSoft', 'HKLM\\Software\\JavaSoft', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall',
-    'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce',
-    'HKCU\\Software\\Microsoft\\Installer', 'HKCU\\Software\\Classes\\.circ']) {
-    parseRegQuery(reg([k, '/s']), r);
-  }
-  // Every key of HKCU\Software itself but Microsoft's and Classes (the program and the installer must not add one).
-  const top = Object.keys(parseRegQuery(reg(['HKCU\\Software']))).filter((k) => /^HKCU\\Software\\[^\\]+$/.test(k) && !k.includes(' :: '));
-  for (const k of top) {
-    if (/^HKCU\\Software\\(Microsoft|Classes)$/i.test(k)) { r[k] = 'key'; continue; }
-    parseRegQuery(reg([k, '/s']), r);
-  }
-  // Under Classes: any key named after this program (a file type, a ProgID).
-  const classes = parseRegQuery(reg(['HKCU\\Software\\Classes', '/s', '/k', '/f', 'hallym']));
-  for (const k of Object.keys(classes)) if (!k.includes(' :: ') && k !== 'HKCU\\Software\\Classes') parseRegQuery(reg([k, '/s']), r);
+  for (const k of ['HKCU\\Software', 'HKLM\\Software\\JavaSoft']) parseRegQuery(reg([k, '/s']), r);
   return r;
 }
 
@@ -252,12 +248,8 @@ export function snapshot(env: NodeJS.ProcessEnv = process.env): State {
   walk(path.join(env.USERPROFILE ?? '', 'Desktop'), 'DESKTOP', files, skip);
   if (env.PUBLIC) walk(path.join(env.PUBLIC, 'Desktop'), 'PUBLIC_DESKTOP', files, skip);
   if (env.ProgramData) walk(path.join(env.ProgramData, 'Microsoft\\Windows\\Start Menu'), 'COMMON_START_MENU', files, skip);
-  // %TEMP%: its own entries, and inside this program's folder everything.
   const tempState: Record<string, string> = {};
-  for (const e of (() => { try { return readdirSync(temp, { withFileTypes: true }); } catch { return []; } })()) {
-    tempState[`TEMP\\${e.name}`] = e.isDirectory() ? 'dir' : 'file';
-    if (e.isDirectory() && OUR_TEMP.test(e.name)) walk(path.join(temp, e.name), `TEMP\\${e.name}`, tempState, () => false);
-  }
+  walk(temp, 'TEMP', tempState, () => false);
   return { files, temp: tempState, registry: registry(), taken: new Date().toISOString() };
 }
 

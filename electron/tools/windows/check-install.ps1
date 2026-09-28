@@ -60,6 +60,7 @@ function Entries { @(Get-ChildItem $uninstallRoot -ErrorAction SilentlyContinue 
 function Ours { @(Entries | Where-Object { $_.PSChildName -eq $guid }) }
 function Folders { @(Get-ChildItem (Join-Path $env:LOCALAPPDATA 'Programs'), $env:LOCALAPPDATA -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -like '*allym*' } | ForEach-Object { $_.FullName }) }
 function Shortcuts { @(@($startMenu) + $desktops + @(Join-Path $env:ProgramData 'Microsoft\Windows\Start Menu\Programs') | ForEach-Object { Get-ChildItem $_ -Recurse -Filter '*.lnk' -ErrorAction SilentlyContinue } | Where-Object { $_.FullName -like '*allym*' } | ForEach-Object { $_.FullName }) }
+function UninstallerCopies { @(Get-ChildItem $env:TEMP -Directory -Filter '~nsu*.tmp' -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName }) }
 function V1Products { $i = New-Object -ComObject WindowsInstaller.Installer; @($i.RelatedProducts($v1UpgradeCode)) }
 # Windows Installer's own entries for Settings > Apps (per-user products: under the user's SID).
 function V1Entries {
@@ -73,9 +74,18 @@ function StateDiff([string]$a, [string]$b, [string]$expect, [string]$what) {
   & node tools/windows/state.ts diff (Join-Path $Report "state-$a.json") (Join-Path $Report "state-$b.json") --expect $expect --report (Join-Path $Report "diff-$b.txt") | Out-Host
   Check ($LASTEXITCODE -eq 0) "$what (state $a -> $b, expect ${expect}: $Report\diff-$b.txt)"
 }
+# Starts a program and waits for it, without the shell (Start-Process goes through ShellExecute,
+# which records the launch in the user's jump lists: Windows' trace, not the installer's).
+function Run([string]$exe, [string]$arguments) {
+  $si = New-Object Diagnostics.ProcessStartInfo
+  $si.FileName = $exe; $si.Arguments = $arguments; $si.UseShellExecute = $false
+  $p = [Diagnostics.Process]::Start($si)
+  $p.WaitForExit()
+  return $p
+}
 function Install([string]$setupExe, [string]$what) {
   $sw = [Diagnostics.Stopwatch]::StartNew()
-  $p = Start-Process (Resolve-Path $setupExe).Path -ArgumentList '/S' -Wait -PassThru
+  $p = Run (Resolve-Path $setupExe).Path '/S'
   $sw.Stop()
   Check ($p.ExitCode -eq 0) "$what`: $(Split-Path -Leaf $setupExe) /S exit $($p.ExitCode) ($($sw.ElapsedMilliseconds) ms)"
   return $sw.ElapsedMilliseconds
@@ -104,12 +114,17 @@ function Uninstall([string]$when) {
   Note "quiet uninstall: $un"
   if ($un -match '^"([^"]+)"\s*(.*)$') { $unExe = $Matches[1]; $unArgs = $Matches[2] } else { $unExe = $un; $unArgs = '/S' }
   $sw = [Diagnostics.Stopwatch]::StartNew()
-  $p = Start-Process $unExe -ArgumentList $unArgs -Wait -PassThru
-  # The NSIS uninstaller copies itself to %TEMP% and returns at once: wait for its work.
+  $p = Run $unExe $unArgs
+  # The NSIS uninstaller copies itself to %TEMP%\~nsu<X>.tmp and returns at once: wait for its work,
+  # then for that copy to be gone (installer.nsh has a hidden cmd remove it once it has ended).
   $deadline = (Get-Date).AddSeconds(90)
   while (((Ours).Count -gt 0 -or (Test-Path $dir)) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 250 }
-  Start-Sleep -Seconds 2
   $sw.Stop()
+  $copyDeadline = (Get-Date).AddSeconds(120)
+  while (@(UninstallerCopies).Count -gt 0 -and (Get-Date) -lt $copyDeadline) { Start-Sleep -Milliseconds 500 }
+  $left = @(UninstallerCopies)
+  Check ($left.Count -eq 0) "$when`: the uninstaller's copy in %TEMP% is gone ($(if ($left.Count) { $left -join ', ' } else { 'none left' }))"
+  Start-Sleep -Seconds 2
   Check ($p.ExitCode -eq 0) "$when`: uninstaller exit $($p.ExitCode) (done in $($sw.ElapsedMilliseconds) ms)"
   Check ((Ours).Count -eq 0) "$when`: the uninstall entry is gone"
   Check (-not (Test-Path $dir)) "$when`: the install folder is gone"
@@ -204,7 +219,7 @@ try {
     Snap 'before'
     $s0 = State 'before'
     Check ($s0.entries.Count -eq 0 -and (V1Products).Count -eq 0) 'nothing of ours installed to begin with'
-    $p = Start-Process msiexec.exe -ArgumentList "/i `"$((Resolve-Path $Msi).Path)`" /qn /norestart" -Wait -PassThru
+    $p = Run (Join-Path $env:SystemRoot 'System32\msiexec.exe') "/i `"$((Resolve-Path $Msi).Path)`" /qn /norestart"
     Check ($p.ExitCode -eq 0) "the v1.0.x MSI installed quietly (msiexec exit $($p.ExitCode))"
     $s1 = State 'msi'
     # A per-user MSI's entry in Settings > Apps is Windows Installer's own (not under HKCU\...\Uninstall).
