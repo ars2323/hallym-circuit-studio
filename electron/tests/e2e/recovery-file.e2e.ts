@@ -44,7 +44,7 @@ async function killedWithEdits(r: Running, file: string): Promise<Record<string,
   await Promise.race([r.app.close().catch(() => {}), new Promise((done) => setTimeout(done, 5_000))]);
   const written = readdirSync(r.home, { recursive: true }).map(String).filter((f) => !homeBefore.includes(f) && !/^\.cache(\/|$)/.test(f));
   expect(written, 'nothing in HOME').toEqual([]);
-  rmSync(r.dir, { recursive: true, force: true });
+  rmSync(r.dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });
   return before;
 }
 
@@ -163,7 +163,7 @@ test('a new file never saved: killed with edits, nothing is written anywhere -- 
     await next.app.close();
   }
   await expect.poll(() => (existsSync(runs) ? readdirSync(runs) : []), { timeout: 20_000 }).toEqual([]);
-  rmSync(r.dir, { recursive: true, force: true });
+  rmSync(r.dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });
   rmSync(next.dir, { recursive: true, force: true });
   rmSync(work, { recursive: true, force: true });
   rmSync(runs, { recursive: true, force: true });

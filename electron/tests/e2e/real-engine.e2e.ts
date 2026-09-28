@@ -321,12 +321,13 @@ test('the real engine and the app killed (N-19): the recovery file beside the sa
     await call(page, 'edit.undo', { fileId: datapath, circuitId: dc.main });
     await call(page, 'edit.redo', { fileId: datapath, circuitId: dc.main });
     await call(page, 'edit.addComponent', { fileId: untitled, circuitId: (await circuitsOf(page, untitled)).main, lib: 'Wiring', name: 'Pin', loc: [100, 100] });
-    before = await fileModel(page, datapath);
+    before = await fileModel(page, datapath, true);   // subcircuits by name: the next start's engine has its own ids
     expect(JSON.stringify(before)).toContain('[\\"inputs\\",\\"3\\"]');
     expect(await killMainAndSeeEngineEnd(r.app, (await enginePid(r.app))!, 20_000)).toBe('both ended');
     await Promise.race([r.app.close().catch(() => {}), new Promise((done) => setTimeout(done, 5_000))]);
   } finally {
-    rmSync(r.dir, { recursive: true, force: true });
+    // (Windows: the killed app's Chromium children may still hold its run folder a moment)
+    try { rmSync(r.dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 }); } catch { /* a scratch folder */ }
   }
   expect(readdirSync(work).sort()).toEqual(['demo-datapath.circ', 'demo-datapath.circ.hcs-recover']);
   expect(readFileSync(file)).toEqual(saved);
@@ -341,7 +342,7 @@ test('the real engine and the app killed (N-19): the recovery file beside the sa
     await dialog.getByRole('button', { name: 'Recover' }).click();
     await expect(next.page.locator('.filebar .ptab')).toHaveText(['demo-datapath.circ•']);
     const [fileId] = await openFileIds(next.app);
-    expect(await fileModel(next.page, fileId)).toEqual(before);
+    expect(await fileModel(next.page, fileId, true)).toEqual(before);
     expect((await call<{ dirty: boolean }>(next.page, 'file.dirty', { fileId })).dirty).toBe(true);
     await next.page.keyboard.press('Control+s');
     await expect(next.page.locator('.status .ok')).toContainText('저장했습니다 · demo-datapath.circ');
