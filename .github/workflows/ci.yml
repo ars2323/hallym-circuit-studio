@@ -259,18 +259,21 @@ jobs:
       # The runner's other programs write into %APPDATA%, %LOCALAPPDATA% and HKCU at any time: Firefox's
       # default browser agent (a scheduled task) and the Microsoft account service (wlidsvc: a device
       # credential and HKCU\Software\Microsoft\AuthCookies) were seen doing so mid-check.  So do Windows' own
-      # scheduled tasks that run in the user's session, each once at a time of its own after the runner
-      # starts (seen: the startup-app scan's RunNotification and toast settings, the device census's Census
-      # key) -- what happens once, a control period cannot measure.  Off for the checks, rather than widening
-      # what the checks let through (D-148 12); the tasks that still ran are listed at the end.
-      - name: Quiet the runner's other programs (their scheduled tasks, Windows' tasks in the user's session, the Microsoft account service)
+      # scheduled tasks that run in the user's session, each at a time of its own (seen: the device census's
+      # Census key) -- what happens once, a control period cannot measure.  Off for the checks, rather than
+      # widening what the checks let through (D-148 12); the tasks that still ran are listed at the end.
+      # Windows' first-logon work is once too, at fixed times after the runner's user logs on: Explorer's
+      # startup-app check (RunNotification, the StartupApp notification settings, WinTrust reset, open-with
+      # lists) at logon + 5:02 in each of eight runs, Windows Search's first index of Settings at about
+      # logon + 3 min.  The checks start after it: logon + 6.5 min.
+      - name: Quiet the runner's other programs (their scheduled tasks, Windows' tasks in the user's session, the Microsoft account service, Windows' first-logon work)
         run: |
           "HCS_CHECKS_FROM=$((Get-Date).ToUniversalTime().ToString('o'))" >> $env:GITHUB_ENV
           $tasks = @(Get-ScheduledTask | Where-Object { $_.TaskPath -like '\Mozilla\*' -or $_.TaskName -match 'Firefox|GoogleUpdate|MicrosoftEdgeUpdate|OneDrive' })
           $tasks | ForEach-Object { "disabled: $($_.TaskPath)$($_.TaskName)" }
           $tasks | Disable-ScheduledTask | Out-Null
           $service = '^(SYSTEM|LOCAL SERVICE|NETWORK SERVICE|NT AUTHORITY\\(SYSTEM|LOCAL SERVICE|NETWORK SERVICE)|S-1-5-(18|19|20))$'
-          $session = @(Get-ScheduledTask | Where-Object { $_.State -ne 'Disabled' -and $_.Principal.UserId -notmatch $service -and ($_.Principal.UserId -or $_.Principal.GroupId -or $_.Principal.LogonType -eq 'Interactive') })
+          $session = @(Get-ScheduledTask -TaskPath '\Microsoft\Windows\*' | Where-Object { $_.State -ne 'Disabled' -and $_.Principal.UserId -notmatch $service -and ($_.Principal.UserId -or $_.Principal.GroupId -or $_.Principal.LogonType -eq 'Interactive') })
           foreach ($t in $session) {
             try { $t | Disable-ScheduledTask -ErrorAction Stop | Out-Null; "disabled: $($t.TaskPath)$($t.TaskName) (runs as $($t.Principal.UserId)$($t.Principal.GroupId))" }
             catch { "not disabled: $($t.TaskPath)$($t.TaskName) ($($_.Exception.Message.Trim()))" }
@@ -280,6 +283,15 @@ jobs:
           Set-Service -Name wlidsvc -StartupType Disabled -ErrorAction SilentlyContinue
           Stop-Service -Name wlidsvc -Force -ErrorAction SilentlyContinue
           "wlidsvc: $((Get-Service -Name wlidsvc -ErrorAction SilentlyContinue).Status)"
+          $explorer = (Get-Process explorer -ErrorAction SilentlyContinue | Sort-Object StartTime | Select-Object -First 1).StartTime
+          $credhist = (Get-Item (Join-Path $env:APPDATA 'Microsoft\Protect\CREDHIST') -Force -ErrorAction SilentlyContinue).LastWriteTime
+          $logon = @($explorer, $credhist | Where-Object { $_ }) | Sort-Object | Select-Object -First 1
+          "logon: explorer started $explorer, the profile's CREDHIST $credhist; now $(Get-Date)"
+          if ($logon) {
+            $wait = [int][Math]::Ceiling(($logon.AddSeconds(390) - (Get-Date)).TotalSeconds)
+            if ($wait -gt 0) { "Windows' first-logon work: waiting $wait s (until logon + 6.5 min)"; Start-Sleep -Seconds $wait }
+          }
+          "Explorer's startup-app check done: $(Test-Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\RunNotification')"
           exit 0
       # The students' screen; the start is measured there. Reported either way (report/screen.txt).
       - name: Screen 1920x1080 (tools/windows/screen-1920.ps1)
@@ -372,18 +384,21 @@ jobs:
       # The runner's other programs write into %APPDATA%, %LOCALAPPDATA% and HKCU at any time: Firefox's
       # default browser agent (a scheduled task) and the Microsoft account service (wlidsvc: a device
       # credential and HKCU\Software\Microsoft\AuthCookies) were seen doing so mid-check.  So do Windows' own
-      # scheduled tasks that run in the user's session, each once at a time of its own after the runner
-      # starts (seen: the startup-app scan's RunNotification and toast settings, the device census's Census
-      # key) -- what happens once, a control period cannot measure.  Off for the checks, rather than widening
-      # what the checks let through (D-148 12); the tasks that still ran are listed at the end.
-      - name: Quiet the runner's other programs (their scheduled tasks, Windows' tasks in the user's session, the Microsoft account service)
+      # scheduled tasks that run in the user's session, each at a time of its own (seen: the device census's
+      # Census key) -- what happens once, a control period cannot measure.  Off for the checks, rather than
+      # widening what the checks let through (D-148 12); the tasks that still ran are listed at the end.
+      # Windows' first-logon work is once too, at fixed times after the runner's user logs on: Explorer's
+      # startup-app check (RunNotification, the StartupApp notification settings, WinTrust reset, open-with
+      # lists) at logon + 5:02 in each of eight runs, Windows Search's first index of Settings at about
+      # logon + 3 min.  The checks start after it: logon + 6.5 min.
+      - name: Quiet the runner's other programs (their scheduled tasks, Windows' tasks in the user's session, the Microsoft account service, Windows' first-logon work)
         run: |
           "HCS_CHECKS_FROM=$((Get-Date).ToUniversalTime().ToString('o'))" >> $env:GITHUB_ENV
           $tasks = @(Get-ScheduledTask | Where-Object { $_.TaskPath -like '\Mozilla\*' -or $_.TaskName -match 'Firefox|GoogleUpdate|MicrosoftEdgeUpdate|OneDrive' })
           $tasks | ForEach-Object { "disabled: $($_.TaskPath)$($_.TaskName)" }
           $tasks | Disable-ScheduledTask | Out-Null
           $service = '^(SYSTEM|LOCAL SERVICE|NETWORK SERVICE|NT AUTHORITY\\(SYSTEM|LOCAL SERVICE|NETWORK SERVICE)|S-1-5-(18|19|20))$'
-          $session = @(Get-ScheduledTask | Where-Object { $_.State -ne 'Disabled' -and $_.Principal.UserId -notmatch $service -and ($_.Principal.UserId -or $_.Principal.GroupId -or $_.Principal.LogonType -eq 'Interactive') })
+          $session = @(Get-ScheduledTask -TaskPath '\Microsoft\Windows\*' | Where-Object { $_.State -ne 'Disabled' -and $_.Principal.UserId -notmatch $service -and ($_.Principal.UserId -or $_.Principal.GroupId -or $_.Principal.LogonType -eq 'Interactive') })
           foreach ($t in $session) {
             try { $t | Disable-ScheduledTask -ErrorAction Stop | Out-Null; "disabled: $($t.TaskPath)$($t.TaskName) (runs as $($t.Principal.UserId)$($t.Principal.GroupId))" }
             catch { "not disabled: $($t.TaskPath)$($t.TaskName) ($($_.Exception.Message.Trim()))" }
@@ -393,6 +408,15 @@ jobs:
           Set-Service -Name wlidsvc -StartupType Disabled -ErrorAction SilentlyContinue
           Stop-Service -Name wlidsvc -Force -ErrorAction SilentlyContinue
           "wlidsvc: $((Get-Service -Name wlidsvc -ErrorAction SilentlyContinue).Status)"
+          $explorer = (Get-Process explorer -ErrorAction SilentlyContinue | Sort-Object StartTime | Select-Object -First 1).StartTime
+          $credhist = (Get-Item (Join-Path $env:APPDATA 'Microsoft\Protect\CREDHIST') -Force -ErrorAction SilentlyContinue).LastWriteTime
+          $logon = @($explorer, $credhist | Where-Object { $_ }) | Sort-Object | Select-Object -First 1
+          "logon: explorer started $explorer, the profile's CREDHIST $credhist; now $(Get-Date)"
+          if ($logon) {
+            $wait = [int][Math]::Ceiling(($logon.AddSeconds(390) - (Get-Date)).TotalSeconds)
+            if ($wait -gt 0) { "Windows' first-logon work: waiting $wait s (until logon + 6.5 min)"; Start-Sleep -Seconds $wait }
+          }
+          "Explorer's startup-app check done: $(Test-Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\RunNotification')"
           exit 0
       - name: The v1.0.2 MSI, then the setup exe over it
         run: |
