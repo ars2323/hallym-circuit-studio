@@ -429,11 +429,17 @@ test('the real engine and finding and placing (N-12): a part dragged in and one 
     const out = path.join(r.dir, 'saved.circ');
     await answerSave(r.app, out);
     await page.keyboard.press('Control+Shift+s');
-    await expect.poll(() => existsSync(out)).toBe(true);
+    // the file appears before the engine has written it: wait for its end
+    await expect.poll(() => existsSync(out) && readFileSync(out, 'utf8').includes('</project>')).toBe(true);
     const saved = readFileSync(out, 'utf8');
     expect(saved).toContain('<hcs:tunnel label="MemRead" color="#D55E00"/>');
     expect(saved).toContain('<hcs:splitter x="620" y="200" arm0="op" arm1="rs" arm2="rt" arm3="rd" arm4="shamt" arm5="fn"/>');
     expect(saved).toContain('<a name="fanout" val="6"/>');
+  } finally {
+    await r.close();
+  }
+});
+
 test('the real engine and the overlays (N-15): the PC\'s Signal Flow is v1\'s, I shows the influence, the Cycle View\'s active path and fields; a group and a memo saved in hcs:ext and undone', async () => {
   const r = await launch(undefined, { env: real });
   const { page } = r;

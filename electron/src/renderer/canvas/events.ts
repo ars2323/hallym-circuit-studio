@@ -3,10 +3,12 @@
    and the editing tools of N-08 -- meet in one shape without calling into
    each other:
 
-     hcs:selection  {fileId, circuitId, ids}  what is chosen on the Canvas
-                    now (component and wire ids of the circuit on show; []
-                    when nothing is), sent whenever that changes -- also
-                    when another circuit is shown.
+     hcs:selection  {fileId, circuitId, path, ids}  what is chosen on the
+                    Canvas now (component and wire ids of the circuit on
+                    show; [] when nothing is), sent whenever that changes --
+                    also when another circuit is shown.  One sender: the
+                    window (app/tool-events.ts, N-12's shape with the
+                    instance path), fed by the Canvas's onSelect.
 
      hcs:tool       {tool}  the Canvas tool in use (Edit, Poke, Wire …, the
                     toolbar's names), sent when it changes.
@@ -15,13 +17,9 @@
    today, the Edit tool's gestures and the toolbar later); whoever needs it
    listens. */
 
-export interface SelectionDetail { fileId: string; circuitId: string; ids: string[] }
+export interface SelectionDetail { fileId: string; circuitId: string; path?: string[]; ids: string[] }
 
 export const SELECTION = 'hcs:selection';
-
-export function emitSelection(d: SelectionDetail): void {
-  window.dispatchEvent(new CustomEvent<SelectionDetail>(SELECTION, { detail: { ...d, ids: [...d.ids] } }));
-}
 
 export function onSelection(listener: (d: SelectionDetail) => void): () => void {
   const f = (e: Event) => listener((e as CustomEvent<SelectionDetail>).detail);

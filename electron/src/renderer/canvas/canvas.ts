@@ -23,7 +23,6 @@ import { shapesToSvg, svgDocument, svgElement, wireSvg } from './svg.ts';
 import { type Theme, THEME, themeFrom, valueColor, valueKind } from './tokens.ts';
 import { between, clampZoom, fit, percent, step, toCircuit, type View, visible, wheelZoom, zoomAt } from './view.ts';
 import { dotUnits, jumpUnits, type WireMarks, wireMarks } from './wires.ts';
-import { emitSelection } from './events.ts';
 
 /* An overlay on the circuit (N-15, D-151: overlays/ -- influence, Signal Flow, active path, field colours,
    bus values, signal groups, area memos, a net's highlight).  It draws at three points of a frame, in
@@ -137,9 +136,9 @@ export class CircuitCanvas {
   // The parts selected now (the overlays' commands start from them).
   selectedIds(): string[] { return [...this.selected]; }
 
+  // The host sends it on as hcs:selection (app.ts, tool-events.ts: one sender, with the instance path).
   private selectionChanged(): void {
-    const s = this.scene;
-    emitSelection({ fileId: s?.fileId ?? '', circuitId: s?.circuitId ?? '', ids: [...this.selected] });
+    this.host.onSelect?.([...this.selected]);
   }
 
   // After the scene changed (model or values): draw again.
@@ -275,7 +274,7 @@ export class CircuitCanvas {
         e.preventDefault();
         this.setView({ ...this.view, x: this.view.x + move[e.key][0], y: this.view.y + move[e.key][1] });
       }
-      if (e.key === 'Escape' && this.selected.size) { this.selected.clear(); this.host.onSelect?.([]); this.selectionChanged(); this.invalidate(); }
+      if (e.key === 'Escape' && this.selected.size) { this.selected.clear(); this.selectionChanged(); this.invalidate(); }
     });
     c.addEventListener('keyup', (e) => { if (e.key === ' ') { this.spaceDown = false; c.classList.remove('grab'); } });
   }
@@ -316,7 +315,6 @@ export class CircuitCanvas {
     const id = this.partAt(toCircuit(this.view, at));
     if (!add) this.selected.clear();
     if (id) { if (add && this.selected.has(id)) this.selected.delete(id); else this.selected.add(id); }
-    this.host.onSelect?.([...this.selected]);
     this.selectionChanged();
     this.invalidate();
   }

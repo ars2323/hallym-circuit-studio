@@ -347,6 +347,12 @@ test('recovery: Tunnel Color and the Splitter editor (N-12) are journaled with t
     assert.deepEqual(ext(after), ext(before));
     const strip = (s: Snapshot) => s.components.map((c) => refOf(c)).concat(s.wires.map((w) => refOf(w)));
     assert.deepEqual(strip(after), strip(before));
+  } finally {
+    await engine.shutdown();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('the journal: a signal group names its wire, an area memo the parts it goes around, as parts (N-15)', () => {
   const s = new Shadow();
   const j = new Journal();
