@@ -700,15 +700,16 @@ function sideBySide(name: string, left: Buffer, right: Buffer): void {
   await r.close();
 }
 
-// View Side by Side on a lab PC (1920×1080, a 48 px taskbar): demo-datapath in the main window's left half, the
-// reference single-cycle MIPS in a window of its own on the right half -- each 960×1032, nothing cut at that width.
+// View Side by Side on a lab PC (1920×1080, a 48 px taskbar): demo-datapath in the main window's left half, a
+// variant of it that does not work yet (broken-datapath) in a window of its own on the right half, its Messages
+// its own -- each 960×1032, nothing cut at that width.
 {
   const r = await launch(FHD);
   const { page, app } = r;
   await openFile(r, sample(r.dir, DATAPATH));
-  await openFile(r, sample(r.dir, 'tests/mips/ref-mips.circ'));
+  await openFile(r, sample(r.dir, 'electron/tests/fixtures/broken-datapath.circ'));
   await drawn(r);
-  await page.locator('.filebar .ptab', { hasText: 'ref-mips.circ' }).click({ button: 'right' });
+  await page.locator('.filebar .ptab', { hasText: 'broken-datapath.circ' }).click({ button: 'right' });
   await page.locator('.ovmenu button', { hasText: 'View Side by Side' }).click();
   await page.waitForFunction(() => document.querySelectorAll('.filebar .ptab').length === 1);
   const own = await (async () => {
@@ -726,8 +727,10 @@ function sideBySide(name: string, left: Buffer, right: Buffer): void {
   });
   for (const p of [page, own]) await p.waitForFunction(() => window.innerWidth === 960 && window.innerHeight === 1032);
   await own.locator('.canvas-view canvas').waitFor();
+  await page.evaluate(() => (window as unknown as { __hcsCanvas: { fitView(a: boolean): void } }).__hcsCanvas.fitView(false));
+  await own.evaluate(() => (window as unknown as { __hcsCanvas: { fitView(a: boolean): void } }).__hcsCanvas.fitView(false));
+  await own.locator('.msg').first().waitFor();
   for (const p of [page, own]) {
-    await p.evaluate(() => (window as unknown as { __hcsCanvas?: { fitView(): void } }).__hcsCanvas?.fitView());
     await p.mouse.move(-10, -10);
     await p.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     await p.evaluate(() => document.fonts.ready);
