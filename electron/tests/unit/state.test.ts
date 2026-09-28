@@ -158,13 +158,14 @@ test('any check: only the records Windows keeps of any program that starts, at t
     ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\WinTrust\\Trust Providers\\Software Publishing :: State', 'REG_DWORD 0x23c00'),
     ch('temp', 'added', 'TEMP\\playwright-artifacts-Zpo2Y7', 'dir'),
     ch('files', 'changed', `${SEARCH}\\LocalState\\AppIconCache\\100\\kr_ac_hallym_circuit-studio`),
+    ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings :: QuietHoursTelemetryLastRun', 'REG_BINARY 7736BA6A00000000'),
+    ch('registry', 'changed', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings :: QuietHoursTelemetryLastRun', 'REG_BINARY E035BA6A00000000'),
   ];
   for (const c of kept) for (const e of CHECKS) assert.equal(counts(c, e), false, `${c.what} ${c.path} (${e})`);
   // Windows' own, but not only when a program starts: counted unless a control period measured it (not listed).
   for (const c of [
     ch('files', 'changed', 'LOCALAPPDATA\\Microsoft\\Windows\\Notifications\\wpndatabase.db-wal'),
     ch('files', 'added', 'APPDATA\\Microsoft\\Windows\\Themes\\CachedFiles\\CachedImage_1920_1080_POS4.jpg'),
-    ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings :: QuietHoursTelemetryLastRun', 'REG_BINARY 00'),
     ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\RunNotification :: SecurityHealth', 'REG_DWORD 0x0'),
     ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings\\Windows.SystemToast.StartupApp', 'key'),
     ch('registry', 'removed', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\WinTrust'),
@@ -181,6 +182,8 @@ test('any check: only the records Windows keeps of any program that starts, at t
     ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\WinTrust\\Trust Providers\\Software Publishing :: State', 'REG_DWORD 0x0'),
     ch('registry', 'changed', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Search :: InstalledWin32AppsRevision', 'REG_SZ {x}'),
     ch('registry', 'added', 'HKCU\\Software\\Microsoft\\RestartManager', 'key'),
+    ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings :: QuietHoursTelemetryLastRun', 'REG_SZ C:\\\\x'),                                  // not a time
+    ch('registry', 'added', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings :: x', 'REG_BINARY 7736BA6A00000000'),
     ch('files', 'added', 'APPDATA\\Microsoft\\Windows\\Recent\\AutomaticDestinations\\13d33cf42d4c3237.automaticDestinations-ms'),
     ch('files', 'added', `${SEARCH}\\LocalState\\AppIconCache\\100\\Chrome`),
     ch('files', 'removed', `${SEARCH}\\LocalState\\AppIconCache\\100\\kr_ac_hallym_circuit-studio`),

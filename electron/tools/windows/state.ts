@@ -158,6 +158,9 @@ export const ALLOWED: Allowed[] = [
     why: 'Explorer\'s launch counter for this program\'s app id (ROT13 of kr.ac.hallym.circuit-studio), kept by Windows for every program that starts' },
   { where: 'files', what: ['added', 'changed'], in: ALL, mayName: true, path: new RegExp(`^${SEARCH}LocalState\\\\AppIconCache\\\\100\\\\kr_ac_hallym_circuit-studio$`),
     why: 'Windows Search\'s icon for this program\'s Start menu entry, by its app id, kept by Windows Search for every program' },
+  { where: 'registry', what: ['added', 'changed'], in: ALL, data: /^REG_BINARY [0-9A-F]{16}$/,
+    path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings :: QuietHoursTelemetryLastRun$/,
+    why: 'the notification platform\'s quiet-hours telemetry time (a time only), written once a session 1 to 8 s after an app\'s window first comes up (seen after the program\'s first start in both setup-upgrade runs of 2026-09-28)' },
   { where: 'files', what: ['changed'], in: ALL, path: /^LOCALAPPDATA\\Microsoft\\Windows\\UsrClass\.dat(\.LOG[12])?$/,
     why: 'the files of the HKCU\\Software\\Classes hive (the registry itself is compared key by key)' },
   // ---- an install or an uninstall: Windows' own stores, which Windows changes when any program is installed or
