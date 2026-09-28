@@ -68,10 +68,18 @@ test('NOTICE and the marks\' notes: the first screen\'s video, whose it is and w
     'The video is "[Official Video] 한림대학교 홍보영상｜The New Hallym 대학의 내일을 열다", from Hallym University\'s official YouTube channel, @HALLYMNEWS.',
     'Commercial use is prohibited',
     'electron/src/renderer/assets/hallym/start/',
+    // "unmodified" is said of the marks and characters only; the video is said to be a clip, shown processed.
+    'The marks and the characters are used unmodified',
+    'The video is a short clip of the promotional video (the 2.5 s above, slowed to a third, its sound left out)',
+    'shows it blurred and desaturated under a translucent navy layer',
   ]) assert.ok(text.includes(s), s);
+  assert.doesNotMatch(text, /and are used unmodified/);
+  assert.doesNotMatch(text, /taken from Hallym MIPS v2\.5\.0 unmodified/);
   const notes = flat(readFileSync(path.join(root, 'hallym-assets.md'), 'utf8'));
   assert.ok(notes.includes('"[Official Video] 한림대학교 홍보영상｜The New Hallym 대학의 내일을 열다" (official YouTube channel @HALLYMNEWS)'));
   assert.ok(notes.includes('the character stands on the card\'s opaque white, never on the video'));
+  assert.ok(notes.includes('the first screen\'s video is not the university\'s file as received: it is a short clip of the promotional video'));
+  assert.ok(notes.includes('blurred and desaturated under a translucent navy layer'));
   assert.ok(LICENSES.some((l) => l.name === 'hallym-assets.md' && /video/.test(l.title)));
 });
 

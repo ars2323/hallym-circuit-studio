@@ -20,7 +20,24 @@
       Studio, the Start menu's Hallym Circuit Studio, the uninstall entry
       "Hallym Circuit Studio <version>"
   then uninstalls it with the uninstaller's pages (the progress, then "제거가
-  끝났습니다", the same band), as Settings > Apps does.  Pictures, in <Report>:
+  끝났습니다", the same band), as Settings > Apps does.
+
+  What the PC keeps (D-155, as the /S checks of tools/windows/check-install.ps1
+  and D-148 11-12 measure it -- the guided path is the students' default):
+    - before the install, a control period (45 s: snapshot, the helpers, a
+      wait, snapshot "ui-before") measures what Windows changes by itself;
+    - after the guided install and the program 마침 started (closed, its
+      engine and run folder gone): only the installer's four writes (the
+      folder, the Start menu shortcut, the uninstall entry and its install
+      record) differ from ui-before, but for that control period's noise and
+      state.ts ALLOWED (report: diff-ui-installed.txt);
+    - before the uninstall, another control period (20 s), then after the
+      guided uninstall (and its %TEMP% copy gone): nothing differs from
+      ui-before (diff-ui-uninstalled.txt) -- whatever the pages wrote
+      (NSIS's language or page records included) would count.
+  Each comparison lets through only its own control period's noise.
+
+  Pictures, in <Report>:
     installer-progress.png  the progress page
     installer-finish.png    the finish page
     installer-started.jpg   the program 마침 started (its first screen; JPEG: a photo)
@@ -44,6 +61,8 @@ function Check([bool]$ok, [string]$m) { if ($ok) { Pass $m } else { Bad $m } }
 function Note([string]$m) { Write-Host "      $m"; Add-Content $log "      $m" }
 
 Add-Type -AssemblyName System.Drawing
+# (Compiled here, before any control period: Add-Type writes its build files in %TEMP%.)
+Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class Spi { [DllImport("user32.dll")] public static extern bool SystemParametersInfo(uint a, uint b, ref bool c, uint d); }'
 Add-Type -TypeDefinition @'
 using System;
 using System.Collections.Generic;
@@ -146,8 +165,60 @@ function Ours() {
 Check ($null -eq (Ours)) 'nothing of ours installed before'
 Get-Process HallymCircuitStudio -ErrorAction SilentlyContinue | Stop-Process -Force
 
+# ---- what the PC keeps (D-155): the snapshots and comparisons of tools/windows/state.ts, as check-install.ps1
+$ReportFull = (Resolve-Path $Report).Path
+$installDir = Join-Path $env:LOCALAPPDATA 'Programs\Hallym Circuit Studio'
+function Snap([string]$name) { & node tools/windows/state.ts snapshot (Join-Path $ReportFull "state-$name.json") | Out-Host }
+function StateDiff([string]$a, [string]$b, [string]$expect, [string]$control, [string]$what) {
+  & node tools/windows/state.ts diff (Join-Path $ReportFull "state-$a.json") (Join-Path $ReportFull "state-$b.json") --expect $expect --noise (Join-Path $ReportFull "noise-$control.json") --report (Join-Path $ReportFull "diff-$b.txt") | Out-Host
+  Check ($LASTEXITCODE -eq 0) "$what (state $a -> $b, expect ${expect}: $ReportFull\diff-$b.txt)"
+}
+# A program started without the shell (ShellExecute would record the launch in the user's jump lists: the
+# check's trace, not the installer's); not waited for.
+function Launch([string]$file, [string]$arguments) {
+  $si = New-Object Diagnostics.ProcessStartInfo
+  $si.FileName = $file; $si.Arguments = $arguments; $si.UseShellExecute = $false
+  return [Diagnostics.Process]::Start($si)
+}
+function OursRunning {
+  @(Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -and ($_.Path -like "$installDir\*" -or $_.Path -like '*\~nsu*.tmp\*' -or $_.Path -like '*\HallymCircuitStudio*') } |
+    ForEach-Object { "$($_.Id) $($_.Path)" })
+}
+# Windows' own noise before a phase (D-148 12): snapshot, the helpers this phase uses (a program started and
+# ended without the shell, the uninstall entries read), a wait as long as the phase, snapshot $as; nothing of
+# ours running all along.  The phase's comparison lets through only these places.
+function Control([string]$name, [int]$seconds, [string]$as) {
+  # (An uninstall just before -- the previous CI step's -- ends with its copy in %TEMP% still closing.)
+  $wait = (Get-Date).AddSeconds(60)
+  while (@(OursRunning).Count -gt 0 -and (Get-Date) -lt $wait) { Start-Sleep -Milliseconds 500 }
+  $o = @(OursRunning)
+  Check ($o.Count -eq 0) "before the control period for $name`: nothing of ours running ($(if ($o.Count) { $o -join '; ' } else { 'none' }))"
+  Snap "control-$name"
+  $sw = [Diagnostics.Stopwatch]::StartNew()
+  $h = Launch (Join-Path $env:SystemRoot 'System32\hostname.exe') ''; $h.WaitForExit()
+  $null = @(Ours)
+  $left = $seconds * 1000 - $sw.ElapsedMilliseconds
+  if ($left -gt 0) { Start-Sleep -Milliseconds $left }
+  $o = @(OursRunning)
+  Check ($o.Count -eq 0) "the control period for $name ($seconds s): nothing of ours running ($(if ($o.Count) { $o -join '; ' } else { 'none' }))"
+  Snap $as
+  & node tools/windows/state.ts noise (Join-Path $ReportFull "state-control-$name.json") (Join-Path $ReportFull "state-$as.json") (Join-Path $ReportFull "noise-$name.json") | Out-Host
+}
+# The program 마침 started, closed as a student closes it, and everything of it gone: its processes (the
+# engine too) and its run folder in %TEMP% (removed by its own detached cleanup after it ends).
+function ProgramGone([string]$what) {
+  $deadline = (Get-Date).AddSeconds(60)
+  while (((@(OursRunning).Count -gt 0) -or (Test-Path (Join-Path $env:TEMP 'HallymCircuitStudio'))) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 500 }
+  $o = @(OursRunning)
+  Check ($o.Count -eq 0) "$what`: nothing of ours running ($(if ($o.Count) { $o -join '; ' } else { 'none' }))"
+  Check (-not (Test-Path (Join-Path $env:TEMP 'HallymCircuitStudio'))) "$what`: its run folder in %TEMP% is gone"
+}
+
+Write-Host '== the control period before the guided install'
+Control 'ui-install' 45 'ui-before'
+
 Write-Host '== the installer, with its pages'
-$p = Start-Process (Resolve-Path $Setup).Path -PassThru
+$p = Launch (Resolve-Path $Setup).Path ''
 $pages = New-Object System.Collections.Generic.List[string]
 $shotProgress = $false
 $finish = $null
@@ -211,7 +282,6 @@ if ($finish) {
     # What this launch shows behind the card -- the video, or the still:
     # Windows' "animation effects" (SPI_GETCLIENTAREAANIMATION) is what
     # prefers-reduced-motion follows; and whether the picture moves.
-    Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class Spi { [DllImport("user32.dll")] public static extern bool SystemParametersInfo(uint a, uint b, ref bool c, uint d); }'
     $anim = $false; [void][Spi]::SystemParametersInfo(0x1042, 0, [ref]$anim, 0)
     Note "Windows animation effects (SPI_GETCLIENTAREAANIMATION): $anim -- off means prefers-reduced-motion, the still only"
     $ar = New-Object Ui+RECT; [void][Ui]::GetWindowRect($app.MainWindowHandle, [ref]$ar)
@@ -219,14 +289,19 @@ if ($finish) {
     $a1 = & $grab; Start-Sleep -Seconds 2; $a2 = & $grab
     $diff = 0; for ($y = 0; $y -lt 120; $y += 4) { for ($x = 0; $x -lt 400; $x += 4) { $c1 = $a1.GetPixel($x, $y); $c2 = $a2.GetPixel($x, $y); $diff += [Math]::Abs($c1.R - $c2.R) + [Math]::Abs($c1.G - $c2.G) + [Math]::Abs($c1.B - $c2.B) } }
     Note ("the start screen's background over 2 s: mean change {0:N1} per pixel ({1})" -f ($diff / 3000), $(if ($diff / 3000 -gt 2) { 'moving: the video' } else { 'still: no video' }))
+    # Closed as a student closes it (the window's close button: no file open, nothing asked).
     Get-Process HallymCircuitStudio -ErrorAction SilentlyContinue | ForEach-Object { $null = $_.CloseMainWindow() }
-    Start-Sleep -Seconds 5
+    ProgramGone 'the program closed'
+    # If it did not end, end it (and its engine), so that the checks below still run; the check above failed.
     Get-Process HallymCircuitStudio -ErrorAction SilentlyContinue | Stop-Process -Force
-    # Its engine (the bundled runtime's java) ends with it; if not, it would hold the folder the uninstaller removes.
-    Get-Process java -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$env:LOCALAPPDATA\Programs\Hallym Circuit Studio\*" } | Stop-Process -Force
+    Get-Process java -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$installDir\*" } | Stop-Process -Force
   }
 }
 if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
+
+Write-Host '== what the guided install left on the PC'
+Snap 'ui-installed'
+StateDiff 'ui-before' 'ui-installed' 'install' 'ui-install' 'the guided install (and the program 마침 started, then closed) wrote only the Start menu shortcut, the uninstall entry and its install record (and the install folder)'
 
 Write-Host '== where it went: as /S installs'
 $entry = Ours
@@ -246,7 +321,8 @@ if ($entry) {
   $un = $entry.UninstallString
   $exe = [regex]::Match($un, '"([^"]+)"').Groups[1].Value
   $uargs = ($un -replace '"[^"]+"', '').Trim()
-  $u = Start-Process $exe -ArgumentList $uargs -PassThru
+  Control 'ui-uninstall' 20 'ui-pre-uninstall'
+  $u = Launch $exe $uargs
   $upages = New-Object System.Collections.Generic.List[string]
   $ufinish = $null
   $deadline = (Get-Date).AddMinutes(3)
@@ -275,9 +351,16 @@ if ($entry) {
   Start-Sleep -Seconds 5
   Check ($null -eq (Ours)) 'uninstalled: the entry gone'
   Check (-not (Test-Path (Join-Path $dir 'HallymCircuitStudio.exe'))) 'uninstalled: the program gone'
+  # The uninstaller runs as a copy of itself in %TEMP%\~nsu<X>.tmp; installer.nsh has that folder removed once it ends.
+  $copyDeadline = (Get-Date).AddSeconds(120)
+  while (@(Get-ChildItem $env:TEMP -Directory -Filter '~nsu*.tmp' -ErrorAction SilentlyContinue).Count -gt 0 -and (Get-Date) -lt $copyDeadline) { Start-Sleep -Milliseconds 500 }
+  Check (@(Get-ChildItem $env:TEMP -Directory -Filter '~nsu*.tmp' -ErrorAction SilentlyContinue).Count -eq 0) "uninstalled: the uninstaller's copy in %TEMP% is gone"
+  Start-Sleep -Seconds 2
+  Snap 'ui-uninstalled'
+  StateDiff 'ui-before' 'ui-uninstalled' 'uninstalled' 'ui-uninstall' 'nothing left after the guided uninstall (whatever its pages wrote would count)'
   if (Ours) {
     # Leave the runner clean whatever happened above.
-    $q = Start-Process $exe -ArgumentList "$uargs /S" -Wait -PassThru
+    $q = Launch $exe "$uargs /S"; $q.WaitForExit()
   }
 }
 

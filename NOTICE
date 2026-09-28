@@ -179,8 +179,12 @@ Haram & Hari, the start screen's video)
   v2.5.0: the video and its still are that program's files, byte for byte.)
   Owned by Hallym University (Hallym University 소유). Commercial use is
   prohibited (상업적 사용 금지). They appear in this software only to identify
-  it as a teaching tool for Hallym University's courses, and are used
-  unmodified under the university's identity and character guidelines.
+  it as a teaching tool for Hallym University's courses. The marks and the
+  characters are used unmodified under the university's identity and
+  character guidelines. The video is a short clip of the promotional video
+  (the 2.5 s above, slowed to a third, its sound left out); the first screen
+  shows it blurred and desaturated under a translucent navy layer (the
+  screen's CSS; the file itself is not recoloured).
   These assets are NOT covered by the GPL license of this product or by any
   license in this file, and they may not be taken from this repository or
   from the program and used separately. Anyone who forks or redistributes
@@ -188,5 +192,5 @@ Haram & Hari, the start screen's video)
   permission. This software is not an official product of Hallym University.
   Location: assets/hallym/ (the Electron edition shows these same files,
             unmodified; electron/hallym-assets.md);
-            electron/src/renderer/assets/hallym/start/ (the video and its
-            still, taken from Hallym MIPS v2.5.0 unmodified)
+            electron/src/renderer/assets/hallym/start/ (the clip and its
+            still, Hallym MIPS v2.5.0's files byte for byte)

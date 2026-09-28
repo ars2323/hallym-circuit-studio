@@ -29,10 +29,14 @@ software is not an official product of Hallym University.
 - Characters appear only where there is nothing else to show: the first
   screen, the empty Canvas, the window's own questions. Never next to an
   error, never on the toolbar, panel heads, status bar or menus.
-- The first screen's video and its still are Hallym MIPS Simulator's files
-  (v2.5.0), byte for byte (`electron/tools/import-hmips.ts` checks them):
-  `electron/src/renderer/assets/hallym/start/`. The blur and the navy over
-  them are the screen's CSS, not the file's.
+- Unlike the marks and characters, the first screen's video is not the
+  university's file as received: it is a short clip of the promotional
+  video (2.5 s of it, slowed to a third, the sound left out), made by
+  Hallym MIPS Simulator; this program uses that clip and its still
+  byte for byte (v2.5.0; `electron/tools/import-hmips.ts` checks them):
+  `electron/src/renderer/assets/hallym/start/`. The screen shows them
+  blurred and desaturated under a translucent navy layer (CSS; the files
+  are not recoloured).
 
 ## Files
 

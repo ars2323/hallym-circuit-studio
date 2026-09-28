@@ -213,3 +213,26 @@ test('the installer\'s words: Korean, no particle right after a name, no "하면
   // They replace electron-builder's after its own messages: customHeader, with only warning 6030 (set twice) allowed there.
   assert.match(nsh, /!macro customHeader\n\s+!pragma warning push\n\s+!pragma warning disable 6030\n/);
 });
+
+test('the guided install and uninstall (the students\' default) are compared as the /S ones are: a control period each, the four writes, then nothing (D-155)', () => {
+  const ui = readFileSync(path.join(root, 'tools/windows/check-installer-ui.ps1'), 'utf8');
+  const at = (s: string) => { const i = ui.indexOf(s); assert.ok(i >= 0, s); return i; };
+  // The order: control before the install, the install, its comparison; control before the uninstall, the uninstall, its comparison.
+  const order = [
+    "Control 'ui-install' 45 'ui-before'",
+    '$p = Launch (Resolve-Path $Setup).Path',
+    "ProgramGone 'the program closed'",
+    "StateDiff 'ui-before' 'ui-installed' 'install' 'ui-install'",
+    "Control 'ui-uninstall' 20 'ui-pre-uninstall'",
+    '$u = Launch $exe $uargs',
+    "StateDiff 'ui-before' 'ui-uninstalled' 'uninstalled' 'ui-uninstall'",
+  ].map(at);
+  assert.deepEqual([...order].sort((a, b) => a - b), order);
+  // The same comparison as check-install.ps1 (state.ts diff with that phase's noise only), programs started without the shell.
+  assert.match(ui, /node tools\/windows\/state\.ts diff .* --expect \$expect --noise \(Join-Path \$ReportFull "noise-\$control\.json"\)/);
+  assert.match(ui, /\$si\.UseShellExecute = \$false/);
+  assert.doesNotMatch(ui, /Start-Process/);
+  // Add-Type (which writes build files in %TEMP%) only before the first control period.
+  const lastAddType = ui.lastIndexOf('Add-Type');
+  assert.ok(lastAddType < order[0], 'Add-Type after a control period');
+});

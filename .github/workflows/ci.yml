@@ -379,7 +379,7 @@ jobs:
       # symbol's plate measured on the screen), 마침 starting the program, then the uninstaller's pages; pictured.
       - name: The installer with its pages (tools/windows/check-installer-ui.ps1)
         if: ${{ !cancelled() }}
-        timeout-minutes: 8
+        timeout-minutes: 12
         run: tools/windows/check-installer-ui.ps1 -Setup (Get-Item setup/*-setup.exe).FullName -Report report/installer
       # Pictures (every run, so a tag run's and a workflow_dispatch run's are the release's): the installer's progress,
       # finish and uninstaller's pages and the program 마침 started; the installed program with its real engine.
