@@ -86,7 +86,10 @@ public final class DemoDatapath {
         for (int i = 0; i < sel.length; i++) {
             Component s = b.add("Wiring", "Splitter", 250, 120 + 60 * i, "fanout", "2", "incoming", "5", "bit0", "0",
                     "bit1", "0", "bit2", "1", "bit3", "1", "bit4", "1");
-            b.tunnelOutward(s, 0, sel[i]);
+            // 합친 끝(왼쪽 아래 모서리)의 터널은 아래로 늘어뜨린다: 왼쪽으로 뻗으면 스플리터 등 너머의 팔 범위
+            // 글자([1:0])가 설 자리를 막아 글자가 팔 끝 터널 위로 온다(D-156)
+            Location whole = s.getEnds().get(0).getLocation();
+            b.add("Wiring", "Tunnel", whole.getX(), whole.getY(), "width", "5", "label", sel[i], "facing", "north");
             b.tunnelOutward(s, 1, sel[i] + "lo");
         }
         // 출력 터널(sel1~3)이 AND 게이트 입력 터널(RegWrite)과 겹치지 않게 왼쪽에 둔다(D-156)

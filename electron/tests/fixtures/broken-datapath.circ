@@ -314,7 +314,7 @@
       <a name="label" val="r2"/>
     </comp>
     <comp lib="0" loc="(250,120)" name="Tunnel">
-      <a name="facing" val="east"/>
+      <a name="facing" val="north"/>
       <a name="width" val="5"/>
       <a name="label" val="RR1"/>
     </comp>
@@ -503,7 +503,7 @@
       <a name="label" val="WRlo"/>
     </comp>
     <comp lib="0" loc="(250,180)" name="Tunnel">
-      <a name="facing" val="east"/>
+      <a name="facing" val="north"/>
       <a name="width" val="5"/>
       <a name="label" val="RR2"/>
     </comp>
@@ -517,7 +517,7 @@
       <a name="label" val="RD2"/>
     </comp>
     <comp lib="0" loc="(250,240)" name="Tunnel">
-      <a name="facing" val="east"/>
+      <a name="facing" val="north"/>
       <a name="width" val="5"/>
       <a name="label" val="WR"/>
     </comp>
