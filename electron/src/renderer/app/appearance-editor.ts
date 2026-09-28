@@ -37,7 +37,7 @@ import { closeMenus, type MenuEntry, SEPARATOR, showMenu } from '../canvas/overl
 import { h, icon } from '../shared/dom.ts';
 import {
   ALIGN_NAMES, ATTR_NAMES, closes, curveControl, DRAG_TOLERANCE, DRAW_DEFAULTS, type DrawTool, dragged, handleDelta, handleSize,
-  lineEnd, type Mods, moveDelta, onCurve, type P, PAINT_NAMES, poly, rectFromDrag, snap, toolAttributes, toolAttrs,
+  lineEnd, type Mods, moveDelta, onCurve, type P, PAINT_NAMES, poly, type Press, pressCount, rectFromDrag, snap, toolAttributes, toolAttrs,
 } from './logic/appearance.ts';
 
 export interface AppearanceHost {
@@ -479,6 +479,8 @@ export class AppearanceEditor {
 
   // ---- pointer and keys ------------------------------------------------------------------------
 
+  private presses: Press | null = null;
+
   private listen(): void {
     const svg = this.svg;
     svg.addEventListener('contextmenu', (e) => { e.preventDefault(); void this.menuAt(e.clientX, e.clientY); });
@@ -496,7 +498,8 @@ export class AppearanceEditor {
       if (e.button !== 0 || !this.model?.editable && this.tool !== 'Select') return;
       svg.setPointerCapture(e.pointerId);
       this.mods = { shift: e.shiftKey, ctrl: e.ctrlKey || e.metaKey, alt: e.altKey };
-      void this.press(this.at(e), e.detail);
+      this.presses = pressCount(this.presses, e.timeStamp, e.clientX, e.clientY);
+      void this.press(this.at(e), Math.max(this.presses.n, e.detail));
     });
     svg.addEventListener('pointermove', (e) => {
       if (this.pan) {
@@ -636,6 +639,7 @@ export class AppearanceEditor {
       case 'curveEnds': if (g.down) g.end = lineEnd(g.start, at, this.mods); break;
       case 'curveControl': if (g.down) g.control = curveControl(g.e0, g.e1, at, this.mods); break;
       case 'poly': {
+        if (!down) return;   // PolyTool: mouseDragged only (no mouseMoved) -- the last corner follows a drag, not a hover
         const pts = [...g.points];
         const prev = pts.length > 1 ? pts[pts.length - 2] : pts[0];
         pts[pts.length - 1] = lineEnd(prev, at, this.mods);
@@ -785,6 +789,8 @@ export class AppearanceEditor {
     (field as HTMLInputElement & { origin?: typeof origin }).origin = origin;
     this.render();
     field.focus();
+    // the press's own mousedown focuses the drawing after this (its default action): the field takes it back
+    setTimeout(() => { if (this.textField === field) field.focus(); }, 0);
   }
 
   private dropText(): void {

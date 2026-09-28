@@ -111,6 +111,17 @@ export function closes(points: readonly P[]): boolean {
   return Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) <= CLOSE_TOLERANCE;
 }
 
+// The presses in a row (the original's MouseEvent.getClickCount: a polyline ends on the second): a press within
+// DOUBLE_CLICK_MS of the last and DOUBLE_CLICK_PX of it counts on.  The page's own count, since a pointerdown's
+// detail is 0 and the pointer capture can keep dblclick from coming.
+export const DOUBLE_CLICK_MS = 500;
+export const DOUBLE_CLICK_PX = 4;
+export interface Press { t: number; x: number; y: number; n: number }
+export function pressCount(last: Press | null, t: number, x: number, y: number): Press {
+  const on = last !== null && t - last.t <= DOUBLE_CLICK_MS && Math.abs(x - last.x) <= DOUBLE_CLICK_PX && Math.abs(y - last.y) <= DOUBLE_CLICK_PX;
+  return { t, x, y, n: on ? last.n + 1 : 1 };
+}
+
 // PolyTool.commit: the same point twice in a row is one.
 export function poly(points: readonly P[]): P[] {
   const out: P[] = [];

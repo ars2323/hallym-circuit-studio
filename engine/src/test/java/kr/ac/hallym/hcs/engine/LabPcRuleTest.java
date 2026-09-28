@@ -216,6 +216,8 @@ class LabPcRuleTest {
             s.forEach(f -> left.add(f.getFileName().toString()));
         }
         left.sort(null);
+        // Copy hcs-mips.jar Here(N-11, D-153)는 학생이 누른 단추로만 파일 옆에 jar를 둔다: 위 고리가 file.copyMipsJar를 불렀다
+        assertTrue(left.remove("hcs-mips.jar"), "file.copyMipsJar put the bundled jar beside the file it was asked for");
         assertEquals(List.of("mine.circ", "ref-mips.circ"), left,
                 "the student's own files only (the recovery file goes at a normal end)");
     }

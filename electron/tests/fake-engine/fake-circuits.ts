@@ -484,7 +484,18 @@ export function methods(ctx: Ctx): Record<string, (p: Params) => unknown> {
         }
       }, { plan });
     },
-    'file.saveImpact': () => ({ cuts: [] }),
+    // other open files that use this one as a library (by its name) and have its parts: 2 connections a part
+    'file.saveImpact': (p) => {
+      const f = ctx.fileOf(p);
+      const lib = f.path ? path.basename(f.path, '.circ') : null;
+      const cuts = [];
+      for (const o of lib ? ctx.files.values() : []) {
+        if (o === f || !o.libs.includes(lib!)) continue;
+        const parts = o.circuits.flatMap((c) => c.comps.filter((k) => k.lib === lib).map((k) => k.attrs.label || k.name));
+        if (parts.length) cuts.push({ fileId: o.fileId, file: o.path ? path.basename(o.path) : o.name, instances: parts, connections: parts.length * 2 });
+      }
+      return { cuts };
+    },
     'file.originOf': (p) => ({ path: null, circuit: ctx.circuitOf(p).name }),
     'file.copyMipsJar': (p) => {
       const f = ctx.fileOf(p);
@@ -492,6 +503,24 @@ export function methods(ctx: Ctx): Record<string, (p: Params) => unknown> {
       return { name: 'hcs-mips.jar' };
     },
   };
+}
+
+// A file saved: the open files that use it as a library take the new version (file.libraryUpdated).
+export function saved(ctx: Ctx, f: CFile): void {
+  if (!f.path) return;
+  const lib = path.basename(f.path, '.circ');
+  for (const o of ctx.files.values()) {
+    if (o !== f && o.libs.includes(lib)) setImmediate(() => ctx.notify('file.libraryUpdated', { fileId: o.fileId, library: lib }));
+  }
+}
+
+// Pins deleted from a circuit other circuits use: their instances lose a connection each (model.portImpact).
+export function pinsRemoved(ctx: Ctx, f: CFile, c: CCircuit, removed: readonly CComp[]): void {
+  const n = removed.filter((k) => k.name === 'Pin').length;
+  if (!n) return;
+  const users = f.circuits.flatMap((k) => k.comps.filter((x) => (x.lib === 'circuit' && x.name === c.name) || x.subcircuit === c.circuitId));
+  if (!users.length) return;
+  setImmediate(() => ctx.notify('model.portImpact', { fileId: f.fileId, circuitId: c.circuitId, name: c.name, broken: n * users.length, kept: 0 }));
 }
 
 function importPlan(ctx: Ctx, f: CFile, file: string, names: string[]): { order: { name: string; as: string }[]; skipped: string[] } {

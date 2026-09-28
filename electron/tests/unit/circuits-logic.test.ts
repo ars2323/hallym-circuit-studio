@@ -12,7 +12,7 @@ import {
   nameProblem, pinAddText, pinPreviewText, planLines, portImpactText, removeRefusal, saveCutLines, saveCutSentence, standaloneText, unloadRefusal,
 } from '../../src/renderer/app/logic/circuits.ts';
 import {
-  closes, curveControl, dragged, handleDelta, handleSize, lineEnd, moveDelta, onCurve, poly, rectFromDrag, snap, snap8, toolAttributes, toolAttrs,
+  closes, curveControl, dragged, handleDelta, handleSize, lineEnd, moveDelta, onCurve, poly, pressCount, rectFromDrag, snap, snap8, toolAttributes, toolAttrs,
 } from '../../src/renderer/app/logic/appearance.ts';
 
 // A Latin name, a closing quote or bracket right before a Korean particle reads wrong (D-135 14).
@@ -189,4 +189,15 @@ test('the drawing tools\' attributes (DrawAttr lists, the fill list by paint typ
   const v = { font: 'SansSerif plain 12', align: 'center', paintType: 'fill', 'stroke-width': '1', stroke: '#000000', fill: '#ffffff', rx: '10' };
   assert.deepEqual(toolAttrs('Rectangle', v), { paintType: 'fill', fill: '#ffffff' });
   assert.deepEqual(toolAttrs('Text', v), { font: 'SansSerif plain 12', align: 'center', fill: '#ffffff' });
+});
+
+test('presses in a row (PolyTool\'s click count): within 500 ms and 4 px counts on, else one again', () => {
+  const a = pressCount(null, 1000, 100, 100);
+  assert.equal(a.n, 1);
+  const b = pressCount(a, 1300, 103, 96);
+  assert.equal(b.n, 2);
+  assert.equal(pressCount(b, 1700, 103, 96).n, 3);
+  assert.equal(pressCount(b, 1801, 103, 96).n, 1);   // too late
+  assert.equal(pressCount(b, 1400, 108, 96).n, 1);   // too far
+  assert.equal(pressCount(b, 1400, 103, 91).n, 1);
 });

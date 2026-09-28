@@ -387,6 +387,7 @@ const methods: Record<string, (p: Params) => unknown> = {
     f.name = stem(path.basename(target));
     f.dirty = false;
     f.recovered = false;
+    circuitsFake.saved(circuitsCtx, f as unknown as circuitsFake.CFile);
     return { path: target, bytes: bytes.length, needsMipsJar: modes.has('needs-mips') };
   },
   'file.close': (p) => {
@@ -527,6 +528,7 @@ const methods: Record<string, (p: Params) => unknown> = {
     if (f.sel?.circuitId === c.circuitId && f.sel.floating.length) f.sel.floating = [];   // a paste not dropped just goes
     select(f, c, []);
     if (!ids.size) { f.undo.push(copyParts(c)); f.redo = []; f.dirty = true; return { changed: true, outcome: 'empty' }; }   // Logisim's empty Delete is an undo step too
+    circuitsFake.pinsRemoved(circuitsCtx, f as unknown as circuitsFake.CFile, c as unknown as circuitsFake.CCircuit, c.comps.filter((k) => ids.has(k.id)) as unknown as circuitsFake.CComp[]);
     return edit(p, c, () => {
       c.comps = c.comps.filter((k) => !ids.has(k.id));
       c.wires = c.wires.filter((w) => !ids.has(w.id));
