@@ -80,6 +80,13 @@ public final class SimGate implements SimulatorListener {
         }
     }
 
+    /** 원조 CircuitState를 고치는 일이 세운 채(hold 안에서) 도는지: 아니면 전파와 겹칠 수 있다(D-143, D-146). */
+    void requireHeld(String what) {
+        if (holder != Thread.currentThread()) {
+            throw new IllegalStateException(what + " must run with the simulator held (SimSession.quiet)");
+        }
+    }
+
     /** 세운 동안 할 일. */
     public interface Body<T, X extends Exception> {
         T run() throws X;

@@ -121,10 +121,17 @@ table.summary tr.warn td { background: var(--amber-tint); color: var(--amber-tex
    The band while the simulation is off: the shared band's look (shared.css .band), its own class. */
 .simband { margin: 8px 8px 0; padding: 3px 10px; border-radius: 6px; font-size: 12px; line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   background: var(--error-tint); color: var(--error-text); box-shadow: inset 3px 0 0 var(--error); }
-/* The N Cycles dialog: one field under the sentence; the reason under it when the count is out of range. */
-.modal.ask.cycles .cyclesfield { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
-.modal.ask.cycles .fieldname { font-weight: 600; color: var(--navy); }
-.modal.ask.cycles .field { width: 120px; height: 30px; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; color: var(--text); background: var(--white); }
-.modal.ask.cycles .field:focus { outline: 2px solid var(--teal); outline-offset: -1px; border-color: var(--teal); }
-.modal.ask.cycles .field[aria-invalid="true"] { border-color: var(--error); }
-.modal.ask.cycles .hint.err { min-height: 18px; color: var(--error-text); }
+/* The N Cycles dialog and Set Pin Value (value-dialog.ts, N-08): one field under the sentence; the reason under it. */
+.modal.ask:is(.cycles, .pinvalue) .cyclesfield { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.modal.ask:is(.cycles, .pinvalue) .fieldname { font-weight: 600; color: var(--navy); }
+.modal.ask:is(.cycles, .pinvalue) .field { width: 120px; height: 30px; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; color: var(--text); background: var(--white); }
+.modal.ask.pinvalue .field { width: 200px; }
+.modal.ask:is(.cycles, .pinvalue) .field:focus { outline: 2px solid var(--teal); outline-offset: -1px; border-color: var(--teal); }
+.modal.ask:is(.cycles, .pinvalue) .field[aria-invalid="true"] { border-color: var(--error); }
+.modal.ask:is(.cycles, .pinvalue) .hint.err { min-height: 18px; color: var(--error-text); }
+
+/* The Attributes panel's facts about the selection until the attribute table (N-10, D-146) */
+.sel-facts { padding: 16px 20px; }
+.sel-facts h3 { margin: 0 0 6px; font-size: 14px; font-weight: 600; color: var(--navy); overflow-wrap: anywhere; }
+.sel-facts ul { margin: 0; padding: 0; list-style: none; font-size: 12.5px; line-height: 1.6; color: var(--text-2); }
+.sel-facts li { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

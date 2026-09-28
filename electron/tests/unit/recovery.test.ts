@@ -282,6 +282,48 @@ test('recovery: files opened again under their ids, every edit replayed in the o
   }
 });
 
+test('recovery: the selection\'s intents (N-08) -- select by ids, a press, a rectangle, copy and a floating paste moved, rotate, keys, a tool\'s attribute, a text -- replayed to the same model', async () => {
+  const { dir } = scratch();
+  const { engine, sup } = fake();
+  try {
+    await engine.start();
+    const b = await win<NewResult>(engine, 'file.new');
+    const at = { fileId: b.fileId, circuitId: b.main };
+    await win(engine, 'model.circuit', at);
+    await win(engine, 'edit.setToolAttr', { fileId: b.fileId, lib: 'Gates', name: 'AND Gate', attr: 'inputs', value: '4' });
+    const and = await win<{ id: string }>(engine, 'edit.addComponent', { ...at, lib: 'Gates', name: 'AND Gate', loc: [200, 100] });
+    await win(engine, 'edit.addComponent', { ...at, lib: 'Gates', name: 'OR Gate', loc: [200, 300] });
+    await win(engine, 'edit.select', { ...at, ids: [and.id] });
+    await win(engine, 'edit.copy', at);
+    await win(engine, 'edit.paste', at);
+    await win(engine, 'edit.move', { ...at, dx: 0, dy: 60 });
+    await win(engine, 'edit.select', { ...at, at: [185, 290] });
+    await win(engine, 'edit.rotate', { ...at, clockwise: true });
+    await win(engine, 'edit.select', { ...at, rect: [0, 0, 400, 400] });
+    await win(engine, 'edit.keyConfig', { ...at, key: '3', alt: false, chain: false });
+    await win(engine, 'edit.text', { ...at, loc: [50, 50], text: 'hi' });
+    // the journal: every one of them, the ids as parts, the ones without a circuit too
+    const entries = sup.journal.files.get(b.fileId)!.entries;
+    assert.deepEqual(entries.map((e) => e.method), ['edit.setToolAttr', 'edit.addComponent', 'edit.addComponent', 'edit.select', 'edit.copy', 'edit.paste',
+      'edit.move', 'edit.select', 'edit.rotate', 'edit.select', 'edit.keyConfig', 'edit.text']);
+    assert.equal(entries[0].circuit, null);
+    assert.equal((entries[3].refs.ids as Ref[])[0].kind, 'component');
+    assert.equal(sup.journal.files.get(b.fileId)!.broken, null);
+    const before = await win<Snapshot>(engine, 'model.circuit', at);
+    const done = recovered(sup);
+    engine.kill();
+    const r = await done;
+    assert.deepEqual(r.restored, [{ fileId: b.fileId, edits: 12, dirty: true }]);
+    const after = await win<Snapshot>(engine, 'model.circuit', at);
+    const strip = (s: Snapshot) => s.components.map((c) => refOf(c)).concat(s.wires.map((w) => refOf(w)));
+    assert.deepEqual(strip(after), strip(before));
+    assert.equal(before.components.length, 4, 'two gates, the pasted copy, the text');
+  } finally {
+    await engine.shutdown();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('recovery: Mark as PC, Mark as Register File and Register Mapping are replayed; the PC register found again by what it is', async () => {
   const { dir, datapath } = scratch();
   // under another name: the fake reads the .circ itself (not the canvas fixture's fixed ids), so a new engine gives new ids

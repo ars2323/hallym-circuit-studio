@@ -192,18 +192,85 @@ public final class Doc {
         return ret;
     }
 
-    /** 편집 전: 원조처럼 편집하는 회로를 지금 회로로 둔다(Swing에서 그 회로를 보고 있어야 편집할 수 있는 것과 같다). */
+    /**
+     * 편집 전(편집 의도에서만, Engine.edit: SimGate 안, 알림·되살리기 저널이 따른다): 원조처럼 편집하는 회로를 지금
+     * 회로로 둔다(Swing에서 그 회로를 보고 있어야 편집할 수 있는 것과 같다). 선택이 다른 회로의 것이면 원조
+     * {@code Project.setCircuitState}가 창의 선택에 하는 것처럼 떠 있는 것을 그 회로(선택이 생긴 회로)에 내려놓고
+     * 선택을 비운다(N-08, D-146: 창이 없는 엔진에서는 원조가 이 일을 하지 않는다). 시뮬레이션이 보는 회로를 바꾼
+     * 뒤({@link #view})라도 붙여 넣은 부품은 붙여 넣은 회로에 내려앉는다.
+     */
     public void show(Circuit c) {
+        Circuit cur = proj.getCurrentCircuit();
+        boolean holding = canvas != null && !canvas.getSelection().isEmpty();
+        Circuit home = holding && selectionHome != null ? selectionHome : cur;
+        if (home != c && holding) {
+            boolean floating = !canvas.getSelection().getFloatingComponents().isEmpty();
+            if (cur != home) {
+                proj.setCurrentCircuit(home); // 원조 Drop은 지금 회로에 내려놓는다
+            }
+            proj.doAction(com.cburch.logisim.gui.main.SelectionActions.dropAll(canvas.getSelection()));
+            if (floating) {
+                drops++;
+            }
+        }
         if (proj.getCurrentCircuit() != c) {
             proj.setCurrentCircuit(c);
         }
     }
+
+    /**
+     * 시뮬레이션이 보는 회로(sim.watch·sim.poke·sim.pinValue): 지금 회로만 바꾸고 모델은 바꾸지 않는다. 떠 있는
+     * 선택은 그대로 두고, 다음 편집({@link #show})이 선택이 생긴 회로에 내려놓는다(화면은 회로를 바꾸기 전에
+     * {@code edit.select}로 비워 내려놓는다: 편집 의도라 알림·저널이 따른다).
+     */
+    public void view(Circuit c) {
+        if (proj.getCurrentCircuit() != c) {
+            proj.setCurrentCircuit(c);
+        }
+    }
+
+    /** 선택이 속한 회로: 고른 것이 있으면 그것이 생긴 회로, 없으면 지금 회로(edit.selection의 circuitId). */
+    public Circuit selectionCircuit() {
+        boolean holding = canvas != null && !canvas.getSelection().isEmpty();
+        return holding && selectionHome != null ? selectionHome : proj.getCurrentCircuit();
+    }
+
+    /** 떠 있는 것을 내려놓은 수({@link #show}): 편집 의도가 바뀐 것이 없다고 답해도 모델이 바뀌었음을 안다. */
+    public int drops() {
+        return drops;
+    }
+
+    private int drops;
+    /** 선택이 생긴 회로(비면 null): 원조 창의 선택은 그 창이 보던 회로의 것이다. */
+    private Circuit selectionHome;
+
+    /**
+     * 편집 대상(N-08, D-146): 원조 창의 Canvas 선택과 같은 객체다. 고른 것(회로에 있음)과 떠 있는 것(붙여넣거나 복제해
+     * 아직 내려앉지 않음)을 들고, 원조 Selection의 청취자가 옮기기·되돌리기의 바꿔치기를 따라간다.
+     */
+    public com.cburch.logisim.gui.main.Selection selection() {
+        return canvas().getSelection();
+    }
+
+    /** 선택이 바뀌면 비우는 부품별 키 설정기(원조 SelectTool.keyHandlers, 여러 자리 숫자의 상태를 든다). */
+    public Map<Component, com.cburch.logisim.tools.key.KeyConfigurator> keyHandlers;
+    /** 부품 놓기 도구의 키 설정기(원조 AddTool.keyHandler, 도구마다). */
+    public final Map<Tool, com.cburch.logisim.tools.key.KeyConfigurator> toolKeyHandlers = new java.util.IdentityHashMap<>();
 
     /** 화면에 붙지 않은 Canvas(선택·Poke 사건용, 그리기 스레드 멈춤). 처음 부를 때 만든다. */
     public Canvas canvas() {
         if (canvas == null) {
             canvas = new HiddenCanvas(proj);
             canvas.closeCanvas();
+            canvas.getSelection().addListener(e -> {
+                keyHandlers = null;
+                if (canvas.getSelection().isEmpty()) {
+                    selectionHome = null;
+                } else if (selectionHome == null) {
+                    selectionHome = proj.getCurrentCircuit();
+                }
+            });
+            tracker.alsoLive(() -> new ArrayList<>(canvas.getSelection().getFloatingComponents()));
         }
         return canvas;
     }
@@ -222,6 +289,12 @@ public final class Doc {
         @Override
         public void computeSize(boolean immediate) {
             // 창이 없다: 잴 크기도, 알릴 스크롤 창도 없다
+        }
+
+        /** 글자 칸(TextEditable.getTextCaret)이 글꼴을 재는 그림판: 화면에 붙지 않은 Canvas는 null을 준다. */
+        @Override
+        public java.awt.Graphics getGraphics() {
+            return new java.awt.image.BufferedImage(8, 8, java.awt.image.BufferedImage.TYPE_INT_ARGB).createGraphics();
         }
     }
 

@@ -19,7 +19,13 @@
    with cyclesLeft, and Run or Stop ends them, D-145), sim.tick/step,
    sim.poke/pokeKey/pokeStop (N-07: an input pin flips the bit under the
    pointer, a clock flips, a button is 1 while pressed, a register takes
-   hex digits -- on a canvas fixture's nets), diag.list and
+   hex digits -- on a canvas fixture's nets), editing with a selection
+   (N-08: edit.select at/rect/ids/all/filter, the selection moved, deleted,
+   copied, cut, pasted and duplicated -- a paste floats until the next
+   selection -- edit.rotate, edit.keyConfig, edit.setToolAttr, edit.text,
+   model.tool, model.movePreview, model.textAt, sim.pinValue; edit.selection
+   after the answer: the part boxes' hits, nothing like Logisim's rules --
+   the real engine's are in tests/e2e/real-engine-edit.e2e.ts), diag.list and
    diag.changed (D-143: the real engine's words for the circuits in
    tests/fixtures/messages.json -- written by tools/diag-fixture.ts --
    matched by file name; the list after cycles once the file has run the
@@ -103,6 +109,8 @@ interface File {
   rec: rec.RecordFile;
   // the overlays (fake-flow.ts, N-15): the real engine's answers for a fixture circuit; groups and memos per circuit
   flow?: flow.FlowFixture; ext: Map<string, flow.Ext>;
+  // N-08: the selection (the circuit it is in, its parts and wires, a paste or duplicate not yet dropped) and the last one told
+  sel?: { circuitId: string; ids: string[]; floating: (Comp | Wire)[] }; selSent?: string;
 }
 
 // Messages (diag.*): the real engine's, for a few circuits (tests/fixtures/messages.json).
@@ -445,9 +453,15 @@ const methods: Record<string, (p: Params) => unknown> = {
     const c = circuitOf(p);
     const loc = p.loc as [number, number];
     if (!Array.isArray(loc) || typeof p.name !== 'string') throw new Failure(-32602, 'loc and name are required');
-    const k: Comp = { id: `k${nextComp++}`, lib: (p.lib as string | null | undefined) ?? 'circuit', name: p.name, loc: [loc[0], loc[1]], attrs: { ...(p.attrs as Record<string, string> ?? {}) } };
-    if (k.lib === find.MIPS_LIB) fileOf(p).mipsIn = true;   // the bundled library goes into the file (V-01)
-    return edit(p, c, () => { c.comps.push(k); return { removed: [], added: [k] }; }, { id: k.id });
+    const f = fileOf(p);
+    dropFloating(f, c);
+    const lib = (p.lib as string | null | undefined) ?? 'circuit';
+    const labelled: Record<string, string> = p.name !== 'Text' && p.name !== 'Splitter' ? { label: '' } : {};   // the parts with a label attribute (most)
+    const k: Comp = { id: `k${nextComp++}`, lib, name: p.name, loc: [loc[0], loc[1]], attrs: { ...labelled, ...(toolAttrs.get(`${lib}/${p.name}`) ?? {}), ...(p.attrs as Record<string, string> ?? {}) } };
+    if (k.lib === find.MIPS_LIB) f.mipsIn = true;   // the bundled library goes into the file (V-01)
+    const r = edit(p, c, () => { c.comps.push(k); return { removed: [], added: [k] }; }, { id: k.id });
+    select(f, c, [k.id]);
+    return r;
   },
   'edit.addWire': (p) => {
     const c = circuitOf(p);
@@ -458,33 +472,57 @@ const methods: Record<string, (p: Params) => unknown> = {
       added.push({ id: `w${nextWire++}`, a: [...pts[i - 1]] as [number, number], b: [...pts[i]] as [number, number] });
     }
     if (added.length === 0) return { changed: false, outcome: 'empty' };
+    if (p.tool !== 'edit') select(fileOf(p), c, []);      // taking the Wiring tool drops the selection
     return edit(p, c, () => { c.wires.push(...added); return { removed: [], added }; });
   },
   'edit.move': (p) => {
     const c = circuitOf(p);
-    const ids = partsOf(c, p.ids);
+    const f = fileOf(p);
+    const ids = targets(f, c, p);
     const dx = Number(p.dx);
     const dy = Number(p.dy);
-    return edit(p, c, () => {
+    const floating = f.sel?.circuitId === c.circuitId ? f.sel.floating : [];
+    if (floating.length) {
+      // a paste moved: dropped where it is moved to (one step with the paste in Logisim)
+      const moved = floating.map((x) => ('a' in x ? { ...x, a: [x.a[0] + dx, x.a[1] + dy] as [number, number], b: [x.b[0] + dx, x.b[1] + dy] as [number, number] } : { ...x, loc: [x.loc[0] + dx, x.loc[1] + dy] as [number, number] }));
+      f.sel!.floating = [];
+      const r = edit(p, c, () => {
+        for (const x of moved) if ('a' in x) c.wires.push(x); else c.comps.push(x);
+        return { removed: [], added: moved };
+      }, { outcome: 'moved' });
+      select(f, c, moved.map((x) => x.id));
+      return r;
+    }
+    if (!ids.size) return { changed: false, outcome: 'empty' };
+    const newIds: string[] = [];
+    const r = edit(p, c, () => {
       const added: (Comp | Wire)[] = [];
       c.comps = c.comps.map((k) => {
         if (!ids.has(k.id)) return k;
         const moved = { ...k, id: `k${nextComp++}`, loc: [k.loc[0] + dx, k.loc[1] + dy] as [number, number] };
         added.push(moved);
+        newIds.push(moved.id);
         return moved;
       });
       c.wires = c.wires.map((w) => {
         if (!ids.has(w.id)) return w;
         const moved = { id: `w${nextWire++}`, a: [w.a[0] + dx, w.a[1] + dy] as [number, number], b: [w.b[0] + dx, w.b[1] + dy] as [number, number] };
         added.push(moved);
+        newIds.push(moved.id);
         return moved;
       });
       return { removed: [...ids], added };
     }, { outcome: 'moved' });
+    select(f, c, newIds);
+    return r;
   },
   'edit.delete': (p) => {
     const c = circuitOf(p);
-    const ids = partsOf(c, p.ids);
+    const f = fileOf(p);
+    const ids = targets(f, c, p);
+    if (f.sel?.circuitId === c.circuitId && f.sel.floating.length) f.sel.floating = [];   // a paste not dropped just goes
+    select(f, c, []);
+    if (!ids.size) { f.undo.push(copyParts(c)); f.redo = []; f.dirty = true; return { changed: true, outcome: 'empty' }; }   // Logisim's empty Delete is an undo step too
     return edit(p, c, () => {
       c.comps = c.comps.filter((k) => !ids.has(k.id));
       c.wires = c.wires.filter((w) => !ids.has(w.id));
@@ -493,7 +531,7 @@ const methods: Record<string, (p: Params) => unknown> = {
   },
   'edit.setAttr': (p) => {
     const c = circuitOf(p);
-    const ids = partsOf(c, p.ids);
+    const ids = targets(fileOf(p), c, p);
     return edit(p, c, () => {
       const added = c.comps.filter((k) => ids.has(k.id));
       for (const k of added) k.attrs = { ...k.attrs, [String(p.attr)]: String(p.value) };
@@ -502,6 +540,118 @@ const methods: Record<string, (p: Params) => unknown> = {
   },
   'edit.undo': (p) => undoRedo(fileOf(p), 'undo'),
   'edit.redo': (p) => undoRedo(fileOf(p), 'redo'),
+  // ---- N-08: the selection's edits
+  // (the engine always tells the selection after edit.select: the window's guess is set right)
+  'edit.select': (p) => { const r = selectIntent(p); const f = fileOf(p); if (f.sel) { f.selSent = undefined; publishSel(f); } return r; },
+  'edit.copy': (p) => {
+    const c = circuitOf(p);
+    const ids = targets(fileOf(p), c, p);
+    clipboard = { comps: structuredClone(c.comps.filter((k) => ids.has(k.id))), wires: structuredClone(c.wires.filter((w) => ids.has(w.id))) };
+    return { changed: true };
+  },
+  'edit.cut': (p) => {
+    methods['edit.copy'](p);
+    return methods['edit.delete']({ ...p, ids: undefined });
+  },
+  'edit.paste': (p) => {
+    const c = circuitOf(p);
+    const f = fileOf(p);
+    if (!clipboard || (!clipboard.comps.length && !clipboard.wires.length)) return { changed: false, outcome: 'empty' };
+    dropFloating(f, c);
+    f.sel = { circuitId: c.circuitId, ids: [], floating: copies(clipboard.comps, clipboard.wires, 10) };
+    publishSel(f);
+    return { changed: true };
+  },
+  'edit.duplicate': (p) => {
+    const c = circuitOf(p);
+    const f = fileOf(p);
+    const ids = targets(f, c, p);
+    if (!ids.size) return { changed: false, outcome: 'empty' };
+    dropFloating(f, c);
+    f.sel = { circuitId: c.circuitId, ids: [], floating: copies(c.comps.filter((k) => ids.has(k.id)), c.wires.filter((w) => ids.has(w.id)), 10) };
+    publishSel(f);
+    return { changed: true };
+  },
+  'edit.rotate': (p) => {
+    const c = circuitOf(p);
+    const ids = targets(fileOf(p), c, p);
+    const turn = p.clockwise === false ? { east: 'north', north: 'west', west: 'south', south: 'east' } : { east: 'south', south: 'west', west: 'north', north: 'east' };
+    const faced = c.comps.filter((k) => ids.has(k.id));
+    if (!faced.length) return { changed: false };
+    return edit(p, c, () => {
+      for (const k of faced) k.attrs = { ...k.attrs, facing: turn[(k.attrs.facing ?? 'east') as keyof typeof turn] };
+      return { removed: [], added: faced };
+    });
+  },
+  'edit.keyConfig': (p) => {
+    const key = String(p.key ?? '');
+    const digit = /^[0-9]$/.test(key) ? key : null;
+    if (typeof p.name === 'string') {
+      const k = `${(p.lib as string | null | undefined) ?? 'circuit'}/${p.name}`;
+      const a = { ...(toolAttrs.get(k) ?? {}) };
+      if (digit !== null) a[p.alt ? 'width' : 'inputs'] = digit;
+      else if (key.startsWith('Arrow') && !p.alt) a.facing = { ArrowUp: 'north', ArrowDown: 'south', ArrowLeft: 'west', ArrowRight: 'east' }[key] ?? 'east';
+      toolAttrs.set(k, a);
+      return { changed: true };
+    }
+    const c = circuitOf(p);
+    const ids = targets(fileOf(p), c, p);
+    const parts = c.comps.filter((k) => ids.has(k.id) && digit !== null);
+    if (!parts.length) return { changed: false };
+    return edit(p, c, () => {
+      for (const k of parts) k.attrs = { ...k.attrs, [p.alt ? 'width' : 'inputs']: digit! };
+      return { removed: [], added: parts };
+    });
+  },
+  'edit.setToolAttr': (p) => {
+    const k = `${(p.lib as string | null | undefined) ?? 'circuit'}/${String(p.name)}`;
+    const a = { ...(toolAttrs.get(k) ?? {}) };
+    if (a[String(p.attr)] === String(p.value)) return { changed: false, outcome: 'same' };
+    a[String(p.attr)] = String(p.value);
+    toolAttrs.set(k, a);
+    return { changed: true };
+  },
+  'edit.text': (p) => {
+    const c = circuitOf(p);
+    const text = String(p.text ?? '');
+    if (typeof p.id === 'string') {
+      const k = c.comps.find((x) => x.id === p.id);
+      if (!k) throw new Failure(1, `no such component id: ${p.id}`, { kind: 'component', id: p.id });
+      return edit(p, c, () => { k.attrs = { ...k.attrs, [k.name === 'Text' ? 'text' : 'label']: text }; return { removed: [], added: [k] }; });
+    }
+    if (!text) return { changed: false, outcome: 'empty' };
+    const loc = p.loc as [number, number];
+    return methods['edit.addComponent']({ ...p, lib: 'Base', name: 'Text', loc, attrs: { text } });
+  },
+  'model.tool': (p) => {
+    const lib = (p.lib as string | null | undefined) ?? null;
+    if (typeof p.name !== 'string' || (lib !== null && !LIBRARY.some((g) => g.lib === lib && g.tools.includes(String(p.name))))) throw new Failure(1, `no tool ${String(lib)}/${String(p.name)}`, { kind: 'tool', id: String(p.name) });
+    const loc = (Array.isArray(p.loc) ? p.loc : [0, 0]) as [number, number];
+    return { component: { ...compJson({ id: 'ghost', lib: lib ?? 'circuit', name: p.name, loc, attrs: { ...(toolAttrs.get(`${lib ?? 'circuit'}/${p.name}`) ?? {}), ...(p.attrs as Record<string, string> ?? {}) } }) } };
+  },
+  'model.movePreview': (p) => { circuitOf(p); return { dx: Number(p.dx), dy: Number(p.dy), added: [], removed: [], unconnected: [] }; },
+  'model.textAt': (p) => {
+    const c = circuitOf(p);
+    const at = p.loc as [number, number];
+    for (const id of hitsAt(c, at)) {
+      const k = c.comps.find((x) => x.id === id);
+      if (k && ('label' in k.attrs || k.name === 'Text')) return { id: k.id, text: k.name === 'Text' ? k.attrs.text ?? '' : k.attrs.label ?? '', box: boxOf(k) };
+    }
+    if (at[0] < 0 || at[1] < 0) return { id: null, none: true };
+    return { id: null, text: '', box: [at[0], at[1] - 8, 40, 16] };
+  },
+  'sim.pinValue': (p) => {
+    const f = fileOf(p);
+    const c = circuitOf(p);
+    const k = c.comps.find((x) => x.id === p.componentId);
+    if (!k || k.name !== 'Pin' || k.attrs.output === 'true') throw new Failure(-32602, 'component is not an input pin');
+    const width = Number(k.attrs.width ?? '1');
+    const v = parseValue(String(p.value ?? ''), width);
+    if (v === null) throw new Failure(-32602, `cannot read '${String(p.value)}' as a ${width}-bit value`, { reason: 'badValue' });
+    const net = netAt(f, c.circuitId, k.id, 0);
+    if (net) setNet(f, net.id, v.toString(2).padStart(width, '0'));
+    return {};
+  },
   'sim.reset': (p) => {
     const f = fileOf(p);
     stopRun(f);
@@ -880,6 +1030,7 @@ function undoRedo(f: File, which: 'undo' | 'redo'): unknown {
   f.dirty = true;
   const params = { fileId: f.fileId, circuitId: c.circuitId, removed, added: [...c.comps.map(partJson), ...c.wires], nets: netsOf(f, c), junctions: [], dirty: true };
   setImmediate(() => notify('model.changed', params));
+  if (f.sel?.circuitId === c.circuitId) select(f, c, []);   // the parts came back under new ids
   return { changed: true };
 }
 
@@ -940,6 +1091,134 @@ function extChanged(f: File, c: Circuit): void {
   const snap = f.fixture?.circuits.find((x) => x.circuitId === f.fixtureIds?.get(c.circuitId));
   const params = { fileId: f.fileId, circuitId: c.circuitId, removed: [], added: [], nets: !snap ? [] : edited ? netsOf(f, c) : snap.nets, junctions: edited || !snap ? [] : snap.junctions, ...extJson(f, c.circuitId, false), dirty: true };
   setImmediate(() => notify('model.changed', params));
+}
+
+// ---- N-08: the selection ---------------------------------------------------------------------
+
+// edit.select: a press, all, a rectangle, a filter, ids (+add, +toggle), or nothing.
+function selectIntent(p: Params): unknown {
+    const c = circuitOf(p);
+    const f = fileOf(p);
+    const now = f.sel?.circuitId === c.circuitId ? f.sel.ids : [];
+    if (Array.isArray(p.at)) {
+      // SelectTool.mousePressed: into the selection (Shift: out of it), onto a part, or onto nothing (a rectangle)
+      const at = p.at as [number, number];
+      const hits = hitsAt(c, at);
+      const inSel = hits.filter((id) => now.includes(id));
+      if (inSel.length && !p.toggle) return { changed: false, outcome: 'moving' };
+      let ids = p.toggle ? now.filter((id) => !inSel.includes(id)) : now;
+      if (hits.length) {
+        if (!p.toggle && !inSel.length) { dropFloating(f, c); ids = []; }
+        select(f, c, [...ids, ...hits.filter((id) => !inSel.includes(id) && !ids.includes(id))]);
+        return { changed: false, outcome: 'moving' };
+      }
+      if (!p.toggle) { dropFloating(f, c); select(f, c, []); } else select(f, c, ids);
+      return { changed: false, outcome: 'rect' };
+    }
+    if (p.all) { select(f, c, [...c.comps.map((k) => k.id), ...c.wires.map((w) => w.id)]); return { changed: false }; }
+    if (Array.isArray(p.rect)) {
+      const [x0, y0, x1, y1] = (p.rect as number[]).map(Number);
+      const inside = [...c.comps.filter((k) => { const [x, y, w, h] = boxOf(k); return x >= Math.min(x0, x1) && y >= Math.min(y0, y1) && x + w <= Math.max(x0, x1) && y + h <= Math.max(y0, y1); }).map((k) => k.id),
+        ...c.wires.filter((w) => Math.min(w.a[0], w.b[0]) >= Math.min(x0, x1) && Math.max(w.a[0], w.b[0]) <= Math.max(x0, x1) && Math.min(w.a[1], w.b[1]) >= Math.min(y0, y1) && Math.max(w.a[1], w.b[1]) <= Math.max(y0, y1)).map((w) => w.id)];
+      if (!p.add) { dropFloating(f, c); select(f, c, inside); } else select(f, c, [...now.filter((id) => !inside.includes(id)), ...inside.filter((id) => !now.includes(id))]);
+      return { changed: false };
+    }
+    if (typeof p.filter === 'string') {
+      if (p.filter !== 'components' && p.filter !== 'wires') throw new Failure(-32602, 'filter must be components or wires');
+      select(f, c, now.filter((id) => id.startsWith(p.filter === 'wires' ? 'w' : 'k')));
+      return { changed: false };
+    }
+    const ids = Array.isArray(p.ids) ? [...partsOf(c, p.ids)] : [];
+    if (p.toggle) select(f, c, [...now.filter((id) => !ids.includes(id)), ...ids.filter((id) => !now.includes(id))]);
+    else if (p.add) select(f, c, [...now, ...ids.filter((id) => !now.includes(id))]);
+    else { dropFloating(f, c); select(f, c, ids); }
+    return { changed: false };
+  }
+
+
+
+// The tools' attributes (Logisim's, shared by every file of the process) and the clipboard.
+const toolAttrs = new Map<string, Record<string, string>>();
+let clipboard: { comps: Comp[]; wires: Wire[] } | null = null;
+
+// A part's box: the fixture's (the engine's), else the fake's own (compJson).
+const boxOf = (k: Comp): [number, number, number, number] => (k as Comp & { bounds?: [number, number, number, number] }).bounds ?? compJson(k).bounds as [number, number, number, number];
+
+// The parts and wires at a point (a part's box, a wire within 2 units).
+function hitsAt(c: Circuit, at: [number, number]): string[] {
+  const out: string[] = [];
+  for (const k of c.comps) { const [x, y, w, h] = boxOf(k); if (at[0] >= x && at[0] <= x + w && at[1] >= y && at[1] <= y + h) out.push(k.id); }
+  for (const w of c.wires) {
+    const x0 = Math.min(w.a[0], w.b[0]) - 2, x1 = Math.max(w.a[0], w.b[0]) + 2, y0 = Math.min(w.a[1], w.b[1]) - 2, y1 = Math.max(w.a[1], w.b[1]) + 2;
+    if (at[0] >= x0 && at[0] <= x1 && at[1] >= y0 && at[1] <= y1) out.push(w.id);
+  }
+  return out;
+}
+
+function select(f: File, c: Circuit, ids: string[]): void {
+  const floating = f.sel?.circuitId === c.circuitId ? f.sel.floating : [];
+  f.sel = { circuitId: c.circuitId, ids: [...new Set(ids)], floating };
+  publishSel(f);
+}
+
+// The parts an edit is for: the ids given (selected first, as the engine does), else the selection.
+function targets(f: File, c: Circuit, p: Params): Set<string> {
+  if (Array.isArray(p.ids)) {
+    const ids = partsOf(c, p.ids);
+    dropFloating(f, c);
+    select(f, c, [...ids]);
+    return ids;
+  }
+  return new Set(f.sel?.circuitId === c.circuitId ? f.sel.ids.filter((id) => c.comps.some((k) => k.id === id) || c.wires.some((w) => w.id === id)) : []);
+}
+
+// A paste or duplicate not yet dropped goes into the circuit (Logisim's dropAll), selected no more.
+function dropFloating(f: File, c: Circuit): void {
+  const fl = f.sel?.circuitId === c.circuitId ? f.sel.floating : [];
+  if (!fl.length) return;
+  f.sel!.floating = [];
+  f.sel!.ids = [];
+  edit({ fileId: f.fileId }, c, () => {
+    for (const x of fl) if ('a' in x) c.wires.push(x); else c.comps.push(x);
+    return { removed: [], added: fl };
+  });
+  publishSel(f);
+}
+
+function copies(comps: Comp[], wires: Wire[], d: number): (Comp | Wire)[] {
+  return [
+    ...comps.map((k) => {
+      const b = (k as Comp & { bounds?: [number, number, number, number] }).bounds;
+      return { ...structuredClone(k), id: `k${nextComp++}`, loc: [k.loc[0] + d, k.loc[1] + d] as [number, number], ...(b ? { bounds: [b[0] + d, b[1] + d, b[2], b[3]] } : {}) };
+    }),
+    ...wires.map((w) => ({ id: `w${nextWire++}`, a: [w.a[0] + d, w.a[1] + d] as [number, number], b: [w.b[0] + d, w.b[1] + d] as [number, number] })),
+  ];
+}
+
+// edit.selection after the answer, when it changed (the engine's rule).
+function publishSel(f: File): void {
+  const s = f.sel;
+  if (!s) return;
+  const params = { fileId: f.fileId, circuitId: s.circuitId, ids: [...s.ids].sort(), floating: s.floating.map(partJson) };
+  const text = JSON.stringify(params);
+  if (text === f.selSent) return;
+  f.selSent = text;
+  setImmediate(() => setImmediate(() => notify('edit.selection', params)));
+}
+
+// v1's parseValue: 0x…, 0b…, decimal, -n (two's complement); _ and spaces ignored; null when it does not fit.
+function parseValue(text: string, width: number): bigint | null {
+  const s = text.replace(/[_\s]/g, '').toLowerCase();
+  let v: bigint;
+  try {
+    if (/^0x[0-9a-f]+$/.test(s)) v = BigInt(s);
+    else if (/^0b[01]+$/.test(s)) v = BigInt(s);
+    else if (/^-?[0-9]+$/.test(s)) v = BigInt(s);
+    else return null;
+  } catch { return null; }
+  const size = 1n << BigInt(width);
+  if (v < 0n) { if (-v > size / 2n) return null; v += size; }
+  return v < size ? v : null;
 }
 
 // ---- N-07: long N Cycles, Poke ----------------------------------------------------------

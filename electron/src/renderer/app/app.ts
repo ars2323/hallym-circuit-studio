@@ -32,7 +32,7 @@
    (logic/recovery-ask.ts, N-19).  Every setting is for this run only
    (logic/run-settings.ts). */
 
-import type { CircuitRef, ConsoleUpdate, DiagList, DiagMessage, EngineStatus, FindResult, LibraryGroup, MipsFacts, ModelChanged, NewResult, Point, RecordState, Recovered, RecoveryAsk, Reloaded, RunUntilDone, SimState, SimValues, Snapshot } from '../../main/protocol.ts';
+import type { CircuitRef, Component, ConsoleUpdate, DiagList, DiagMessage, EditSelection, EngineStatus, FindResult, LibraryGroup, MipsFacts, ModelChanged, NewResult, Point, RecordState, Recovered, RecoveryAsk, Reloaded, RunUntilDone, SimState, SimValues, Snapshot, Wire } from '../../main/protocol.ts';
 import { CircuitCanvas } from '../canvas/canvas.ts';
 import { emitTool } from '../canvas/events.ts';
 import { legend } from '../canvas/legend.ts';
@@ -53,9 +53,12 @@ import type { CallError, Opened } from './api.ts';
 import { componentsPanel, type Pick, TOOL_MIME } from './components.ts';
 import { consolePanel } from './console.ts';
 import { CycleView, type PinSpot } from './cycleview.ts';
+import { StatusKeeper } from './logic/engine-status.ts';
+import { selectionFacts } from './logic/selection-facts.ts';
 import { cycleFacts } from './logic/cycle.ts';
 import { askCycles } from './cycles-dialog.ts';
-import { Editor, type ToolName } from './editor.ts';
+import { Editor, type MenuCommand, type ToolName } from './editor.ts';
+import { TOOLBAR_PARTS } from './logic/editing.ts';
 import { findWindow } from './find.ts';
 import { revealOfPlace } from './logic/find.ts';
 import type { CommandId, SearchItem } from './logic/search.ts';
@@ -63,8 +66,9 @@ import { fromAttrs, initialSplit } from './logic/splitter.ts';
 import { minimapPanel } from './minimap.ts';
 import { palette } from './palette.ts';
 import { splitterEditor } from './splitter-editor.ts';
-import { type EditSplitter, emitPlaceTool, emitSelection, onEditSplitter, type PlaceTool, snap } from './tool-events.ts';
+import { type EditSplitter, emitPlaceTool, emitSelection, onEditSplitter, onPlaceTool, type PlaceTool, snap } from './tool-events.ts';
 import { tunnelsPanel } from './tunnels.ts';
+import { askPinValue, valueText } from './value-dialog.ts';
 import { commandError, fileError } from './logic/errors.ts';
 import { FREQUENCIES, going, resetTurnsOn, runLabel, simBand, simFacts } from './logic/sim.ts';
 import { circuitFacts, count, counted, engineFact } from './logic/facts.ts';
@@ -86,6 +90,8 @@ const APP_NAME = 'Hallym Circuit Studio';
 // ---- state ------------------------------------------------------------------
 
 let engine: EngineStatus = { state: 'starting', generation: 0, hello: null, error: null, detail: null };
+// the first status asked at the start must not undo a newer one pushed meanwhile (logic/engine-status.ts)
+const statusKeeper = new StatusKeeper(engine);
 const files = new Files();
 // The circuits drawn: `${fileId} ${circuitId}`, and inside a subcircuit instance
 // `${fileId} ${circuitId} ${instance ids}` (its values are that instance's).
@@ -117,7 +123,8 @@ const board = new CircuitCanvas({
   onEnter: (id) => enterInstance(id),
   onSelect: (ids) => selected(ids),
 });
-// What is selected on the Canvas (tool-events.ts hcs:selection; N-08's selection model sends it too).
+// What is selected on the Canvas, for the panels that follow it (tool-events.ts hcs:selection): the engine's
+// selection (edit.selection, N-08) in the circuit on show.
 let selection: { fileId: string; circuitId: string; ids: string[] } | null = null;
 function selected(ids: string[]): void {
   const f = files.active();
@@ -125,6 +132,7 @@ function selected(ids: string[]): void {
   const w = shown(f);
   selection = { fileId: f.fileId, circuitId: w.circuit, ids };
   emitSelection({ fileId: f.fileId, circuitId: w.circuit, path: w.path, ids });
+  renderAttributes();
 }
 const zoomCtl = zoomControl({
   zoom: () => board.view.zoom, zoomTo: (z) => board.zoomTo(z), fit: () => board.fitView(), step: (d) => board.zoomStep(d),
@@ -153,8 +161,57 @@ const editor = new Editor({
   ready: () => engine.state === 'ready',
   enter: (id) => enterInstance(id),
   failed: (command, e) => { note = { cls: 'err', text: commandError(command, e as CallError) }; renderStatus(); },
-  // the tool in hand: the toolbar shows it, the others hear it (hcs:tool, N-15's canvas/events.ts)
-  toolChanged: (t) => { showTool(t); emitTool(t); },
+  // the tool in hand: the toolbar shows it, the others hear it (hcs:tool, canvas/events.ts)
+  toolChanged: (t) => {
+    showTool(t);
+    emitTool(t);
+    const f = files.active();
+    if (f) renderCanvas(f);   // an empty circuit shows the Canvas while a part, a wire or a text is being put in
+  },
+  selectionChanged: (ids) => selected(ids),
+  pinValue: (c) => void pinValue(c),
+});
+
+// Set Pin Value (I-78): the engine reads the value (sim.pinValue); the dialog shows why it refused one.
+async function pinValue(c: Component): Promise<void> {
+  const f = files.active();
+  const w = editorWhere();
+  if (!f || !w || engine.state !== 'ready') return;
+  const now = board.scene?.portValue(c.id, 0);
+  await askPinValue(c, valueText(now, Number(c.attrs.width ?? '1') || 1), async (text) => {
+    try {
+      await api.call('sim.pinValue', { fileId: w.fileId, circuitId: w.circuitId, componentId: c.id, value: text });
+      return null;
+    } catch (e) {
+      const err = e as CallError;
+      if ((err.data as { reason?: string } | undefined)?.reason === 'badValue') return `그 값은 이 핀(${c.attrs.width ?? '1'} bits)에 넣을 수 없습니다.`;
+      return commandError('Set Pin Value', err);
+    }
+  });
+}
+function editorWhere(): { fileId: string; circuitId: string } | null {
+  const f = files.active();
+  return f && board.scene ? { fileId: f.fileId, circuitId: board.scene.circuitId } : null;
+}
+
+// A part to place (hcs:place-tool, from the Components list, the palette, a drop): the placing tool takes it
+// (the Canvas's gesture places it) or, with a point, it is placed there now; the Edit tool again after.
+onPlaceTool((p: PlaceTool, e) => {
+  const f = files.active();
+  if (!f || p.fileId !== f.fileId || e.defaultPrevented) return;
+  e.preventDefault();
+  if (!p.at) { editor.hold({ lib: p.lib, name: p.name, ...(p.attrs ? { attrs: p.attrs } : {}) }); return; }
+  void (async () => {
+    if (engine.state !== 'ready') return;
+    try {
+      await api.call('edit.addComponent', { fileId: p.fileId, circuitId: p.circuitId, lib: p.lib, name: p.name, loc: p.at, ...(p.attrs && Object.keys(p.attrs).length ? { attrs: p.attrs } : {}) });
+      note = null;
+      editor.setTool('Edit');
+    } catch (err) {
+      note = { cls: 'err', text: commandError(p.name, err as CallError) };
+    }
+    renderStatus();
+  })();
 });
 
 // ---- the title bar ------------------------------------------------------------
@@ -175,16 +232,22 @@ flowToggle.removeAttribute('aria-checked');
 flowToggle.classList.add('flowtoggle');
 flowToggle.title = 'Signal Flow on Click (Ctrl+Shift+F)';
 flowToggle.addEventListener('click', () => overlays.toggleOnClick());
-// The tools in hand so far (editor.ts): Edit and Poke (N-07); the others come with N-08 and N-15.
-const WORKING_TOOLS = new Set<string>(['Edit', 'Poke']);
+// The tools in hand (editor.ts, edit-tools.ts): Edit, Poke, Wire, Text, and Pin, Tunnel, Probe (a Wiring part held,
+// as the Components list holds one); Signal Flow is N-15's.
+const WORKING_TOOLS = new Set<string>(['Edit', 'Poke', 'Wire', 'Text', 'Pin', 'Tunnel', 'Probe']);
 toolButtons.forEach((b, i) => {
   const name = TOOLS[i][0];
-  if (WORKING_TOOLS.has(name)) b.addEventListener('click', () => editor.setTool(name as ToolName));
+  if (!WORKING_TOOLS.has(name)) return;
+  const part = TOOLBAR_PARTS[name];
+  b.addEventListener('click', () => (part ? editor.hold({ lib: part.lib, name: part.name }) : editor.setTool(name as ToolName)));
 });
-function showTool(t: ToolName): void {
+function showTool(t: string): void {
+  const held = editor.tool === 'Place' ? editor.place.held : null;
   toolButtons.forEach((b, i) => {
     if (b === flowToggle) return;   // a switch, not a tool (N-15)
-    const on = TOOLS[i][0] === t;
+    const name = TOOLS[i][0];
+    const part = TOOLBAR_PARTS[name];
+    const on = part ? !!held && held.lib === part.lib && held.name === part.name : name === t;
     b.classList.toggle('on', on);
     b.setAttribute('aria-checked', String(on));
   });
@@ -237,7 +300,7 @@ const stage = h('div', { class: 'stage-welcome' }, start.root);
 // Left, upper: Components | Circuits (| Attributes, narrow)
 const componentsBody = noticeHost('side');
 const circuitsBody = noticeHost('side');
-const attributesBody = noticeHost('side');
+const attributesBody = noticeHost('side attributes');
 const upperBodies = [componentsBody.root, circuitsBody.root, attributesBody.root];
 const upperHead = tabsHead(['Components', 'Circuits', 'Attributes'], (i) => showUpper(i));
 const upperPanel = h('section', { class: 'panel upper', 'aria-label': 'Components' }, upperHead.root, ...upperBodies);
@@ -779,7 +842,12 @@ function renderCanvas(f: OpenFile): void {
   }
   const s = scene.snapshot();
   const facts = circuitFacts(s);
-  if (facts.components === 0 && facts.wires === 0 && !w.path.length) {
+  // An empty circuit says what fills it; with a tool that puts something in (a part, a wire, a text), the Canvas
+  // itself (N-08): its origin at the top-left, where Logisim's is
+  // (and while that Canvas is up: the first part placed takes the Edit tool before its model.changed comes)
+  const drawing = editor.tool === 'Place' || editor.tool === 'Wire' || editor.tool === 'Text'
+    || (board.scene === scene && board.root.parentElement === canvasBody.root && !canvasBody.isEmpty());
+  if (facts.components === 0 && facts.wires === 0 && !w.path.length && !drawing) {
     canvasBody.empty({ title: '빈 회로입니다', body: '부품과 선을 놓으면 여기 Canvas에 그려집니다. 부품은 왼쪽 Components 목록에서 끌어 오거나 Ctrl+K 검색 창에서 찾아 놓습니다.', pose: 'haram-hari-guide' });
     minimap.set(null);
   } else {
@@ -787,7 +855,7 @@ function renderCanvas(f: OpenFile): void {
     if (board.scene !== scene) {
       if (board.scene && boardKey) views.set(boardKey, { ...board.view });
       boardKey = w.k;
-      board.setScene(scene, views.get(w.k));
+      board.setScene(scene, views.get(w.k) ?? (facts.components === 0 && facts.wires === 0 ? { x: 0, y: 0, zoom: 1 } : undefined));
       editor.sceneChanged();
     }
     board.setCrumbs(w.path.length ? [files.circuitName(f, f.circuit), ...w.names] : [], (i) => leaveInstance(f, i));
@@ -814,6 +882,8 @@ async function watch(fileId: string, circuitId: string, path: string[], k: strin
   if (watching.get(fileId) === k || engine.state !== 'ready') return;
   watching.set(fileId, k);
   try {
+    const left = editor.floatingLeft(fileId, circuitId, path);
+    if (left) await api.call('edit.select', { fileId, circuitId: left.circuitId });   // dropped where it was pasted
     await api.call('sim.watch', path.length ? { fileId, circuitId, path } : { fileId, circuitId });
   } catch (e) {
     watching.delete(fileId);
@@ -851,9 +921,32 @@ function renderTunnels(s: Snapshot | null, loading = false, k = '', fileId = '')
 }
 
 function renderEmptyPanels(): void {
-  attributesBody.empty({ title: '고른 부품이 없습니다', body: codeText('Canvas에서 부품을 고르면 그 속성(`Data Bits`, `Facing`, `Label` …)이 여기에 나옵니다.') });
+  renderAttributes();
   if (!files.active()) minimap.set(null);
   renderCycleBody();
+}
+
+// The Attributes panel: until the attribute table (N-10), the facts of what is selected on the Canvas -- the
+// parts and wires in the circuit on show, and those pasted and not yet placed (D-146); nothing selected: its empty state.
+function renderAttributes(): void {
+  const f = files.active();
+  const s = board.scene;
+  const chosen: (Component | Wire)[] = [];
+  if (f && s && selection && selection.fileId === f.fileId && selection.circuitId === s.circuitId) {
+    for (const id of selection.ids) {
+      const x = s.components.get(id) ?? s.wires.get(id);
+      if (x) chosen.push(x);
+    }
+  }
+  if (f && s) chosen.push(...(editor.selection()?.floating ?? []));
+  const facts = selectionFacts(chosen);
+  if (!facts) {
+    attributesBody.empty({ title: '고른 부품이 없습니다', body: codeText('Canvas에서 부품을 고르면 그 속성(`Data Bits`, `Facing`, `Label` …)이 여기에 나옵니다.') });
+    return;
+  }
+  attributesBody.fill(h('div', { class: 'sel-facts' },
+    h('h3', {}, facts.title),
+    facts.lines.length ? h('ul', {}, ...facts.lines.map((l) => h('li', {}, l))) : null));
 }
 
 function renderStatus(): void {
@@ -1087,6 +1180,7 @@ async function closeFile(fileId: string): Promise<void> {
 async function edit(method: 'edit.undo' | 'edit.redo', name: string): Promise<void> {
   const f = files.active();
   if (!f || engine.state !== 'ready') return;
+  editor.forgetWire();
   try {
     await api.call(method, { fileId: f.fileId, circuitId: f.circuit });
     note = null;
@@ -1171,6 +1265,7 @@ async function engineFailed(): Promise<void> {
 
 function onEngine(s: EngineStatus): void {
   const before = engine;
+  statusKeeper.pushed(s);
   engine = s;
   // Restarting lasts until the files are back (the main process says 'ready' after onRecovered).
   if (s.state === 'restarting') notices.show('엔진이 멈춰서 다시 시작하는 중입니다', 'warn');
@@ -1256,6 +1351,9 @@ api.onNotify((method, params) => {
     if (st.fileId === files.active()?.fileId && FREQUENCIES.some(([, hz]) => hz === st.hz)) frequency.value = String(st.hz);
     render();
     overlays.cycleChanged(st.fileId);
+  } else if (method === 'edit.selection') {
+    editor.onSelection(p as unknown as EditSelection);
+    renderAttributes();   // pasted parts (floating) change it without changing the ids
   } else if (method === 'model.changed') {
     const c = p as unknown as ModelChanged;
     // The engine is the authority: its change goes into every scene of that circuit (and instances of it).
@@ -1356,6 +1454,13 @@ window.addEventListener('keydown', (e) => {
     if (code === 'KeyI') { e.preventDefault(); void stepSimulation(); return; }
   }
   if (e.code === 'KeyR') { e.preventDefault(); return; }   // never the page's reload (I-206)
+  // Edit's keys (I-137..I-143): on the Canvas's selection; a field being typed in keeps its own
+  const menuKeys: Record<string, MenuCommand> = { KeyC: 'copy', KeyX: 'cut', KeyV: 'paste', KeyD: 'duplicate', KeyA: 'selectAll' };
+  if (!e.shiftKey && !e.altKey && menuKeys[e.code] && files.active() && !typing(e.target)) {
+    e.preventDefault();
+    editor.menu(menuKeys[e.code]);
+    return;
+  }
   if (k === 'n') { e.preventDefault(); void newCircuit(); }
   else if (k === 'o') { e.preventDefault(); void openFile(); }
   else if (k === 'q') { e.preventDefault(); void leave(); }
@@ -1374,6 +1479,12 @@ window.addEventListener('keydown', (e) => {
   setTimeout(() => { if (!e.defaultPrevented && !pal.isOpen()) pal.open(key); });
 });
 
+// A text field, a list box or anything typed into has the keys (not the Canvas's edit).
+function typing(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable);
+}
+
 // ---- start ----------------------------------------------------------------------------------
 
 async function begin(): Promise<void> {
@@ -1381,7 +1492,7 @@ async function begin(): Promise<void> {
   (navigator as unknown as { windowControlsOverlay?: EventTarget }).windowControlsOverlay
     ?.addEventListener('geometrychange', () => layout());
   void document.fonts.ready.then(() => layout());
-  engine = await api.engineStatus();
+  engine = await statusKeeper.ask(() => api.engineStatus());
   // A file named on the command line opens instead of the first screen.
   const startup = await api.startupFile();
   opening = startup !== null;

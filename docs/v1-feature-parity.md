@@ -16,12 +16,12 @@ v1(Swing, `swing-final`)의 기능을 v2(Electron 화면 + Java 엔진)로 모�
 | B-03 | 우클릭 메뉴(부품·선·빈 곳·서브회로, 요약 줄) | N-10 |  |  |  |
 | B-04 | Quick Attributes(빠른 속성 창)과 속성 표 | N-10 |  |  |  |
 | B-05 | 검색 팔레트(Ctrl+K), 부품 목록 검색 | N-12 | #433 | find.e2e "the search palette: …", "a letter typed on the Canvas…", "Components search: …"; unit search.test; real-engine.e2e "…finding and placing (N-12)" | D-150. 명령·부품·이 파일 회로·보는 회로의 터널, 뒤 숫자(`tool-args.ts`는 엔진 `ToolArgsTest`가 v1 규칙으로 확인), 글자 순서 일치(3글자부터). 즐겨찾기·최근은 이번 실행에만(실습실 규칙) |
-| B-06 | 도구 모음·상태 표시줄·도구 조작(Edit·Poke·Wire·Text…) | N-17·N-08 |  |  |  |
+| B-06 | 도구 모음·상태 표시줄·도구 조작(Edit·Poke·Wire·Text…) | N-17·N-08 | #439 | `edit.e2e.ts` "placing…", "the Edit tool selects…", "wires…", "the Text tool…", "an input pin…" · `tool-events.e2e.ts` hcs:tool · `real-engine-edit.e2e.ts` "the Edit tool's gestures and keys…" | D-146. 도구 조작(Edit·Poke·Wire·Text·부품 놓기)은 원조 도구 코드가 엔진에서 판정. 도구 모음·상태 표시줄 모양은 N-17 |
 | B-07 | 라벨 칩, 터널 색 칩, 포트 이름, 마우스 오버 정보 | N-05 | #425 | canvas.e2e "hover, selection…", "the drawing rules"; unit canvas-labels |  |
 | B-08 | 터널 이동(짝 터널로), 찾기(Ctrl+F) | N-12 | #433 | find.e2e "Find (Ctrl+F): …", "Tunnels: … each press the next tunnel…"; 엔진 `FindTest` | D-150. 엔진 `find.query`(v1 NameIndex + 핀·부품 이름). 터널 우클릭 "Go to Next" 메뉴 항목은 N-10이 Tunnels 칸과 같은 `revealPart`를 쓴다 |
 | B-09 | 넷 강조(Highlight Net), 넷 정보 | N-15 | #432 | overlays.e2e "a wire's right click: Net Information…"(v1 글, Highlight Net·Clear Net Highlight, 읽기만) · 엔진 `FlowTest` 넷 정보 | D-151. `trace.net`. Select Whole Net 등 나머지 선 우클릭 항목은 N-10 |
 | B-10 | 정적 진단과 Messages 탭(정상 회로 0건) | N-13 |  | messages.e2e.ts "a broken circuit…", "nothing to say…"; 엔진 `DiagTest.normalCircuitsHaveNoMessagesBeforeAndAfterCycles` | D-143. 정상 회로 0건은 열 때와 6사이클 뒤 모두 |
-| B-11 | 따라오는 선(SafeMove), 선 한 토막 끌기 | N-08 |  |  |  |
+| B-11 | 따라오는 선(SafeMove), 선 한 토막 끌기 | N-08 | #439 | `edit.e2e.ts` "the Edit tool moves…" · 엔진 `SelectionEditTest.draggingOneWiresMiddleStretchesItsLegsAsV1Did`, `theEnginesMoveIsV1sSafeMoveOnTheDemo` · `real-engine-edit.e2e.ts` "the core flows…" | D-146. `edit.move` = 원조 MoveGesture + v1 SafeMove(SegmentDrag 포함) 그대로 |
 | B-12 | 서브회로 인스턴스 안내와 포트 변경 영향 알림 | N-11 |  |  |  |
 | B-13 | 자동 저장·복구 파일 | N-19 | #434 | `recovery-file.e2e.ts` 전부(Electron main kill -9 → 다시 켜서 열기 → "저장하지 않은 편집이 있습니다" → Recover가 죽기 전 모델·저장 안 됨 → Ctrl+S가 지움; Discard; Esc; 새 파일은 어디에도 안 씀; 닫기·끝내기에 지움; 명령줄 파일) · `real-engine.e2e.ts` "the app killed (N-19)…" · `installed.e2e.ts` "unsaved edits of a saved file…"(Windows: 복구 파일은 학생 폴더에만, 끝낸 뒤 이 프로그램의 흔적 없음) · 엔진 `RecoveryFileTest`, `ParentWatchTest`, `OpenSaveParityTest` | D-152. v1의 앱 설정 폴더 자동 저장(D-029) 대신 학생 파일 옆 `<이름>.circ.hcs-recover`(실습실 규칙). 한 번도 저장하지 않은 새 파일은 복구하지 않는다 |
 | B-14 | Splitter 편집기(범위 입력, R/I/J 프리셋, 팔 라벨) | N-12 | #433 | find.e2e "the Splitter editor: …", "Split Bits …"; unit splitter-spec.test(엔진 해석과 같음); 엔진 `ExtEditTest.theSplitterEditorsIntentsGiveTheGoldenOfScene14` | D-150. `edit.splitterEdit`·`edit.splitterSplit`(v1 SplitterEdits·WireGuard), 여는 곳은 검색 창의 Edit Splitter…와 `hcs:edit-splitter` 사건(우클릭 메뉴는 N-10) |
@@ -38,7 +38,7 @@ v1(Swing, `swing-final`)의 기능을 v2(Electron 화면 + Java 엔진)로 모�
 | --- | --- | --- | --- | --- | --- |
 | S-01 | 칩이 선을 가림 | N-05 | #425 | canvas.e2e "the drawing rules"(칩이 선·칩 위에 없음); 못 피한 칩 아래 선은 칩 위에 다시 그림(canvas.ts drawChips) |  |
 | S-02 | 팔 라벨과 선 겹침 | N-05 | #425 | unit canvas-labels "splitter arms" |  |
-| S-03 | 따라온 선의 군더더기 | N-08 |  |  |  |
+| S-03 | 따라온 선의 군더더기 | N-08 | #439 | 엔진 `SelectionEditTest.theEnginesMoveIsV1sSafeMoveOnTheDemo`(demo-datapath 15가지 옮기기에서 새 고리·막다른 끝·쪼개진 일직선 0) | D-146. v1 SafeMove 정리 단계 그대로 |
 | S-04 | 끌기 직후 빠른 속성 창이 칩을 가림 | N-10 |  |  |  |
 | S-05 | 출력 핀 라벨 칩이 선 위에 겹침 | N-05 | #425 | unit canvas-labels "a label chip … moves off a wire"; canvas.e2e "the drawing rules" |  |
 | S-06 | 포트 이름 덧그림 과밀 | N-05 | #425 | unit canvas-labels "port names"(바깥, 선 비킴, 칩과 안 겹침, 몸체 글자 중복 없음) |  |
@@ -60,11 +60,11 @@ v1(Swing, `swing-final`)의 기능을 v2(Electron 화면 + Java 엔진)로 모�
 | S-28 | 회귀 확인: 찾기 결과 묶음과 위치 표시 | N-12 | #433 | find.e2e "Find (Ctrl+F): groups with their places…"; 엔진 `FindTest.sameNamesInOnePlaceAreOneGroupWithTheirPlacesInOrder`, `theOrderIsTheSameInEveryOpening` | D-150. 같은 자리의 부품 차례를 정해 v1의 HashSet 차례 흔들림을 없앰 |
 | S-29 | 회귀 확인: 메시지 클릭 뒤 속성 패널·빠른 속성 창·캔버스 표시 | N-13 |  | messages.e2e.ts "choosing a message…" | D-143. 메시지를 누르면 `hcs:reveal`(회로·인스턴스·부품·선·넷·자리·사이클)과 회로 탭. 캔버스 표시·고르기는 N-05/N-10이 이 사건을 받아 한다(후속) |
 | S-30 | 회귀 확인: gateUndefined=error일 때만 빈 게이트 입력 알림 | N-13 |  | 엔진 `DiagTest.emptyGateInputsOnlyWhenTheProjectSaysError` | D-143. v1 StaticCheck 그대로 |
-| W-01 | 결정적 길 찾기 | N-08 |  |  |  |
-| W-02 | 따라온 선 정리 단계 | N-08 |  |  |  |
-| W-03 | 묶음 재배선 | N-08 |  |  |  |
+| W-01 | 결정적 길 찾기 | N-08 | #439 | 엔진 `SelectionEditTest.theEnginesMoveIsV1sSafeMoveOnTheDemo`(엔진 의도와 v1 길의 모양이 같음) · `real-engine-edit.e2e.ts` "the core flows…"(저장한 .circ = 엔진 자신의 저장) | D-146. v1 SafeMove 코드를 엔진이 그대로 부름 |
+| W-02 | 따라온 선 정리 단계 | N-08 | #439 | 엔진 `SelectionEditTest.theEnginesMoveIsV1sSafeMoveOnTheDemo` | D-146. v1 SafeMove 정리 단계 |
+| W-03 | 묶음 재배선 | N-08 | #439 | 엔진 `SelectionEditTest.theEnginesMoveIsV1sSafeMoveOnTheDemo` | D-146. v1 SafeMove 고무줄 후보 |
 | W-04 | 연결점과 넷(#82) | N-05 | #425 | unit canvas-scene "wires: the engine's dots and every T, jumps"; unit canvas-draw |  |
-| W-05 | 새 선 A.4 검사기 통일 | N-08 |  |  |  |
+| W-05 | 새 선 A.4 검사기 통일 | N-08 | #439 | 엔진 `SelectionEditTest.cutAndPasteAndDuplicate`(SafeDuplicate) · `ExtEditTest`(WireGuard를 거치는 붙이기) | D-146. 복제는 v1 SafeDuplicate, 새 선·부품을 두는 편집은 v1 WireGuard 그대로 |
 | P-01 | 영향 경로(#83) | N-15 | #432 | overlays.e2e "the influence (I-187)…" · real-engine.e2e "the real engine and the overlays (N-15)…" · 엔진 `FlowTest` 영향 | D-151. `trace.influence`(v1 `Influence`). "서브회로 안에서 보기"는 옮기지 않음(개수 칩만, D-151) |
 | P-07 | Signal Flow 애니메이션(추가 지시, P-01 다음) | N-15 | #432 | overlays.e2e "Signal Flow on a click (I-188)…" · real-engine.e2e "the real engine and the overlays (N-15)…"(PC 끝점 = v1 `demo-pc.flow`) · 엔진 `FlowTest` 흐름 · unit overlays "the flow's front…", "an end's label…" | D-151. `flow.path`(v1 `SignalFlowPath`) |
 | P-02 | 서브회로 인스턴스 안내(#84) | N-11 |  |  |  |

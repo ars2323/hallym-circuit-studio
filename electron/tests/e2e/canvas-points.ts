@@ -67,3 +67,31 @@ export async function clickAt(page: Page, p: [number, number], options: { modifi
   await page.mouse.click(q.x, q.y, { clickCount: options.count ?? 1 });
   for (const m of options.modifiers ?? []) await page.keyboard.up(m);
 }
+
+// A grid point near `near` with nothing on it (no part's box, no wire within 10), searched outwards.
+export async function emptyPoint(page: Page, near: [number, number]): Promise<[number, number]> {
+  return page.evaluate((n) => {
+    const c = (window as unknown as { __hcsCanvas: C }).__hcsCanvas;
+    const s = c.scene!;
+    const free = (x: number, y: number) => {
+      for (const k of s.components.values()) {
+        const [bx, by, bw, bh] = k.bounds;
+        if (x >= bx - 10 && x <= bx + bw + 10 && y >= by - 10 && y <= by + bh + 10) return false;
+      }
+      for (const w of s.wires.values()) {
+        if (x >= Math.min(w.a[0], w.b[0]) - 10 && x <= Math.max(w.a[0], w.b[0]) + 10 && y >= Math.min(w.a[1], w.b[1]) - 10 && y <= Math.max(w.a[1], w.b[1]) + 10) return false;
+      }
+      return true;
+    };
+    const x0 = Math.round(n[0] / 10) * 10, y0 = Math.round(n[1] / 10) * 10;
+    for (let r = 0; r < 60; r++) {
+      for (let dx = -r; dx <= r; dx++) {
+        for (const dy of [-r, r]) {
+          if (free(x0 + dx * 10, y0 + dy * 10) && x0 + dx * 10 > 0 && y0 + dy * 10 > 0) return [x0 + dx * 10, y0 + dy * 10] as [number, number];
+          if (free(x0 + dy * 10, y0 + dx * 10) && x0 + dy * 10 > 0 && y0 + dx * 10 > 0) return [x0 + dy * 10, y0 + dx * 10] as [number, number];
+        }
+      }
+    }
+    throw new Error('no empty point');
+  }, near);
+}

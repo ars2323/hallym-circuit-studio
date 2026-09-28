@@ -168,9 +168,9 @@ test('splitters: drag to resize, double-click for the default; the bottom panel 
     await page.mouse.down();
     await page.mouse.move(split.x + 64, split.y + 200, { steps: 4 });
     await page.mouse.up();
-    expect(Math.round((await upper.boundingBox())!.width - w0)).toBe(60);
+    await expect.poll(async () => Math.round((await upper.boundingBox())!.width - w0)).toBe(60);
     await page.mouse.dblclick(split.x + 64, split.y + 200);
-    expect((await upper.boundingBox())!.width).toBe(w0);
+    await expect.poll(async () => (await upper.boundingBox())!.width).toBe(w0);
     // The bottom panel: its head only, then back.
     const bottom = page.locator('section.bottom');
     const h0 = (await bottom.boundingBox())!.height;

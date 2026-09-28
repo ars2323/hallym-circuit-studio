@@ -91,6 +91,11 @@ public final class Server {
         return new java.util.TreeSet<>(handlers.keySet());
     }
 
+    /** 이 메서드를 받는가(테스트: 아직 없는 의도를 쓰는 편집 동등성 장면). */
+    public boolean handles(String method) {
+        return handlers.containsKey(method);
+    }
+
     /** 끝낼 때(엔진 스레드에서) 부를 일. */
     public void onShutdown(Runnable r) {
         shutdownHooks.add(r);

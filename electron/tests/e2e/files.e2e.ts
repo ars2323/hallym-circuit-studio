@@ -57,11 +57,8 @@ test('Undo and Redo go to the engine (a new circuit has nothing to undo: nothing
     await page.keyboard.press('Control+y');
     await page.keyboard.press('Control+z');
     await expect(page.locator('.status .err')).toHaveCount(0);
-    // The Canvas tools wait for their items: Edit and Poke are on (N-07), the others off.  N Cycles (N-07) and Load Program (N-16) are on.
-    for (const name of ['Edit', 'Poke']) await expect(page.getByRole('radio', { name, exact: true })).toBeEnabled();
-    for (const name of ['Wire', 'Text', 'Pin', 'Tunnel', 'Probe']) {
-      await expect(page.getByRole('radio', { name, exact: true })).toBeDisabled();
-    }
+    // The Canvas tools: Edit and Poke (N-07), Wire, Text, Pin, Tunnel, Probe (N-08) are on
+    for (const name of ['Edit', 'Poke', 'Wire', 'Text', 'Pin', 'Tunnel', 'Probe']) await expect(page.getByRole('radio', { name, exact: true })).toBeEnabled();
     // Signal Flow is a switch (Signal Flow on Click, N-15), on with a Canvas and pressed (v1's default)
     await expect(page.getByRole('button', { name: 'Signal Flow', exact: true })).toBeEnabled();
     await expect(page.getByRole('button', { name: 'Signal Flow', exact: true })).toHaveAttribute('aria-pressed', 'true');
@@ -73,19 +70,17 @@ test('Undo and Redo go to the engine (a new circuit has nothing to undo: nothing
   }
 });
 
-test('view only until alpha.1 (D-154): a file open and drawn, the editing tools off, what works on; no engine or Java version in the status bar', async () => {
+test('a file open and drawn (D-154 alpha.0 was view only; N-08 turns the editing tools on): every tool on, what works on; no engine or Java version in the status bar', async () => {
   const r = await launch();
   const { page } = r;
   try {
     await openFile(r, sample(r.dir, DATAPATH));
     await expect(page.locator('.canvas .canvas-view canvas')).toBeVisible();
     await expect(page.locator('.status')).toContainText('35 components');
-    // The editing tools wait for N-08: shown, and off, even with a Canvas drawn.  Edit (choosing, into a
-    // subcircuit) and Poke (N-07) are on.
-    for (const name of ['Wire', 'Text', 'Pin', 'Tunnel', 'Probe']) {
-      await expect(page.getByRole('radio', { name, exact: true })).toBeDisabled();
+    // The editing tools (N-08, D-146): all on with a Canvas drawn.
+    for (const name of ['Edit', 'Poke', 'Wire', 'Text', 'Pin', 'Tunnel', 'Probe']) {
+      await expect(page.getByRole('radio', { name, exact: true })).toBeEnabled();
     }
-    for (const name of ['Edit', 'Poke']) await expect(page.getByRole('radio', { name, exact: true })).toBeEnabled();
     // What alpha.0 offers: the clock, Load Program, the Messages and the Cycle View.
     for (const name of [/^Run/, /^1 Cycle/, /^N Cycles/, /^Reset/, /^Load Program/]) await expect(page.getByRole('button', { name })).toBeEnabled();
     await expect(page.getByRole('combobox', { name: 'Clock speed' })).toBeEnabled();

@@ -97,6 +97,8 @@ tasks.test {
         useJUnitPlatform()
     }
     dependsOn(stage, smokeJar)
+    // Gradle의 테스트 JVM 기본 힙(512MB)은 엔진을 수십 개 띄우는 이 모음에 모자란다(N Cycles·키·핀 값 부하 테스트 뒤 OOM, D-146)
+    maxHeapSize = "1g"
     systemProperty("java.awt.headless", "true")
     // 같은 JVM 안의 테스트도 엔진과 같이 메모리 전용 환경설정으로 돈다(Main이 하는 일과 같다)
     systemProperty("java.util.prefs.PreferencesFactory", "kr.ac.hallym.hcs.engine.prefs.MemoryPreferencesFactory")

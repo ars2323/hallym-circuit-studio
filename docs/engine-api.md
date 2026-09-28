@@ -167,53 +167,61 @@ Component = {
 
 ### edit(의도)
 
-모두 `{fileId, circuitId, …}`를 받고 `{changed, outcome?, id?}`를 돌려준 뒤 `model.changed`를 보낸다. 하나의 의도가 되돌리기 한 단계다. 바뀐 것이 없으면 `changed:false`이고 `model.changed`를 보내지 않는다.
+모두 `{fileId, circuitId, …}`를 받고 `{changed, outcome?, id?, circuitId?}`를 돌려준 뒤 `model.changed`를 보낸다. 의도 하나는 원조 `Project.doAction`이고 되돌리기 기록도 원조 그대로다(N-08, D-146): 대개 의도 하나가 한 단계지만, 붙여넣은(또는 복제한) 떠 있는 사본을 옮기거나 내려놓는 것은 붙여넣기 단계에 합쳐지고(원조 `shouldAppendTo`), 고른 것이 없을 때의 `edit.delete`도 빈 단계 하나를 남기며(`changed:true`), `edit.copy`도 기록에 한 단계로 든다(모델은 그대로). `changed`는 "모델이나 되돌리기 기록이 바뀌었다"이고, 모델이 바뀌었으면 `model.changed`가 온다. 바뀐 것이 없으면 `changed:false`.
+
+**고른 것(편집 대상, N-08, D-146).** 엔진이 원조 창의 선택(`Canvas.getSelection()`, 떠 있는 사본까지)을 파일마다 들고 있다. `ids`를 받는 의도는 `ids`를 주면 원조 선택 도구처럼 떠 있는 것을 내려놓고(dropAll) 그것들을 고른 뒤 하고, 빼면 지금 고른 것에 한다. 다른 회로를 편집하면(`circuitId`가 지금 회로가 아니면) 원조 `Project.setCircuitState`처럼 떠 있는 것을 내려놓고 선택을 비운다.
 
 | 메서드 | 더 받는 것 | 하는 일(Logisim 코드) |
 | --- | --- | --- |
-| `edit.addComponent` | `lib, name, loc, attrs?` | 부품 놓기(AddTool과 같은 동작). result `id`: 놓은 부품 |
-| `edit.addWire` | `points:[[x,y],…]`(2~3점, ㄱ자는 3점) | 선 긋기(WiringTool과 같은 합치기·나누기·줄이기·포트 잇기) |
-| `edit.move` | `ids, dx, dy, connect?` | 옮기기와 따라오는 선(v1의 따라오는 선 규칙) |
-| `edit.delete` | `ids` | 지우기 |
-| `edit.setAttr` | `ids, attr, value` | 속성 바꾸기(글자는 .circ에 저장되는 글자) |
+| `edit.addComponent` | `lib, name, loc, attrs?` | 부품 놓기(AddTool과 같은 동작). 떠 있는 것을 내려놓고, 놓은 부품을 고른다(원조: 놓은 뒤 Edit Tool, 그 부품 선택). result `id`: 놓은 부품 |
+| `edit.addWire` | `points:[[x,y],…]`(2~3점, ㄱ자는 3점), `tool?:"wiring"\|"edit"` | 선 긋기(WiringTool과 같은 합치기·나누기·줄이기·포트 잇기). `wiring`(기본)은 Wiring 도구라 원조처럼 선택을 비우고, `edit`은 Edit 도구가 선 잇는 점에서 긋는 것이라 선택을 그대로 둔다 |
+| `edit.select` | `at?:[x,y], toggle?` 또는 `ids?, rect?:[x0,y0,x1,y1], add?, toggle?, filter?:"components"\|"wires", all?` | 고르기. `at`: Edit 도구의 누름(원조 `SelectTool.mousePressed` 그대로), result `outcome`이 끌기의 뜻(`"moving"`·`"rect"`). `ids`(+`add` 더하기, +`toggle` Shift 뒤집기, `[]`는 비우기), `rect`(빈 곳에서 끈 사각형, `add`면 뒤집기), `filter`(Only Components / Only Wires), `all`(Ctrl+A). 아무것도 없으면 비우기. 모델은 바꾸지 않는다(`changed`는 떠 있는 것을 내려놓았을 때만) |
+| `edit.move` | `ids?, dx, dy, connect?` | 고른 것을 옮기기와 따라오는 선(v1의 따라오는 선 규칙). 떠 있는 사본은 옮긴 자리에 내려앉는다(원조 translate). 옮긴 것은 고른 채로 남는다 |
+| `edit.delete` | `ids?` | 지우기(떠 있는 사본은 그냥 사라진다). 고른 것이 없으면 빈 단계 |
+| `edit.setAttr` | `ids?, attr, value` | 속성 바꾸기(선택 속성 표, 글자는 .circ에 저장되는 글자) |
+| `edit.rotate` | `ids?, clockwise?`(기본 true) | v1 R·Shift+R: 방향이 있는 부품을 90도(되돌리기 한 단계 "Rotate") |
+| `edit.keyConfig` | `key, alt?, chain?` + (`lib, name`: 놓기 도구에) | 숫자·Alt+숫자·Alt+방향 키(원조 KeyConfigurator: 게이트 입력 수, 비트 폭, Select Bits, 핀 라벨 자리…). `lib, name`이 없으면 고른 부품에(`SelectTool.processKeyEvent`, 한 단계), 있으면 그 놓기 도구에(`AddTool.processKeyEvent`, ToolAttributeAction). 도구에 방향 키(`ArrowUp` 등, Alt 없이)는 설정기가 받지 않으면 도구의 방향(`AddTool.setFacing`). `chain`: 앞 키의 설정기를 이어 쓴다(원조처럼 0.8초 안의 숫자를 여러 자리 수로, 시간은 화면이 잰다) |
+| `edit.text` | `id?` 또는 `loc`, `text` | 글자 도구(`TextTool`): `id`면 그 부품의 글 칸(라벨, Label 글)을 원조 `TextEditable.getCommitAction`으로, 아니면 `loc`에 새 Label(글자 도구 속성으로, 빈 글이면 하지 않음). result `id`: 새 Label |
 | `edit.undo`, `edit.redo` | —(`circuitId`는 없어도 된다) | Logisim 되돌리기 기록 그대로(다시 실행은 포크의 RedoStack) |
-| `edit.setToolAttr` | `lib, name, attr, value` | 도구 속성 바꾸기(부품 목록에서 고른 도구의 속성 표, ToolAttributeAction). 도구에 남아 다음 놓기에 쓰이고 `<lib><tool>`에 저장된다 |
-| `edit.select` | `ids?, rect?:[x0,y0,x1,y1], add?, filter?:"components"\|"wires"` | 고르기(편집 대상). 떠 있는 붙여넣기·복제 사본을 내려놓는 원조 dropAll이 따른다. `ids:[]`는 비우기 |
-| `edit.copy`, `edit.cut`, `edit.duplicate` | `ids?` | Edit 메뉴(복제는 v1 SafeDuplicate). `ids`가 없으면 지금 고른 것 |
-| `edit.paste` | — | Edit › Paste: 사본을 떠 있는 선택으로 둔다(다음 고르기·저장 때 내려놓는다) |
+| `edit.setToolAttr` | `lib, name, attr, value` | 도구 속성 바꾸기(부품 목록에서 고른 도구의 속성 표, ToolAttributeAction). 도구에 남아 다음 놓기에 쓰이고 `<lib><tool>`에 저장된다. 이미 같은 값이면 `changed:false, outcome:"same"` |
+| `edit.copy`, `edit.cut`, `edit.duplicate` | `ids?` | Edit 메뉴(LayoutEditHandler). 클립보드는 엔진 프로세스 안(열린 파일끼리 붙여넣기 됨, 시스템 클립보드 아님). 복제는 v1 SafeDuplicate: 사본이 옛 포트·선에 닿으면 나선으로 더 옮겨 내려놓는다(W-05) |
+| `edit.paste` | — | Edit › Paste: 사본을 떠 있는 선택으로 둔다(다음 고르기·다른 회로·저장 때 내려놓는다) |
 | `edit.duplicateN` | `ids?, count, direction:"right"\|"down"\|"left"\|"up", spacing?, number?` | N개 복제(v1 E-01) |
 | `edit.align` | `ids, mode:"left"\|"centerX"\|"right"\|"top"\|"centerY"\|"bottom"` | 정렬(v1 E-01, 이어진 부품은 옮기지 않음) |
 | `edit.distribute` | `ids, axis:"h"\|"v"` | 같은 간격(v1 E-01) |
 | `edit.setCircuitAttr` | `attr, value` | 회로 속성(이름 `circuit`, 라벨 `clabel` 등). `circuitId`가 대상 회로 |
-| `edit.createCircuit` | `name` | Project › Add Circuit(새 회로가 지금 회로가 된다) |
+| `edit.createCircuit` | `name` | Project › Add Circuit(새 회로가 지금 회로가 된다). result `circuitId` |
 | `edit.setMainCircuit` | — | `circuitId`를 주 회로로 |
-| `edit.portOrder` | `order:{west\|east\|north\|south:[포트 이름]}, confirm?` | 서브회로 포트 순서로 모양 만들기(v1 P-04). `circuitId`가 대상 서브회로 |
-| `edit.autoAppearance` | `confirm?` | Auto Appearance(v1 S-08). `circuitId`가 대상 서브회로 |
-| `edit.importCircuits` | `path, circuits:[이름]` | 다른 .circ의 회로 가져오기(v1 P-05, 쓰는 회로 함께) |
-| `edit.loadLibrary` | `kind:"builtin"\|"circ"\|"jar", name?, path?` | Project › Load Library |
-| `edit.unloadLibrary` | `name` | Unload Library |
+| `edit.portOrder` | `order:{west\|east\|north\|south:[포트 이름]}, confirm?` | **제안(N-11):** 서브회로 포트 순서로 모양 만들기(v1 P-04). `circuitId`가 대상 서브회로 |
+| `edit.autoAppearance` | `confirm?` | **제안(N-11):** Auto Appearance(v1 S-08). `circuitId`가 대상 서브회로 |
+| `edit.importCircuits` | `path, circuits:[이름]` | **제안(N-11):** 다른 .circ의 회로 가져오기(v1 P-05, 쓰는 회로 함께) |
+| `edit.loadLibrary` | `kind:"builtin"\|"circ"\|"jar", name?, path?` | **제안(N-11):** Project › Load Library |
+| `edit.unloadLibrary` | `name` | **제안(N-11):** Unload Library |
 | `edit.tunnelColor` | `id, color?:"#rrggbb"` | 터널 색(v1 팔레트 12색, 없으면 Automatic). 그 회로의 같은 이름 터널 모두. hcs:ext(N-12, 아래) |
-| `edit.signalGroup` | `wire, group?:"control"\|"data"\|"address"` | 신호 그룹(없으면 없음). hcs:ext. **N-15에서 엔진에 들어감**(아래) |
-| `edit.areaMemo` | `at, ids?, text?, color?, bounds?:[x,y,w,h], delete?` | 영역 메모 더하기(고른 것을 감싼 상자에서 시작)·고치기·맞추기·지우기. hcs:ext. **N-15에서 엔진에 들어감**(아래) |
+| `edit.signalGroup` | `wire, group?:"control"\|"data"\|"address"` | 신호 그룹(없으면 없음). hcs:ext(N-15, 아래) |
+| `edit.areaMemo` | `at, ids?, text?, color?, bounds?:[x,y,w,h], delete?` | 영역 메모 더하기(고른 것을 감싼 상자에서 시작)·고치기·맞추기·지우기. hcs:ext(N-15, 아래) |
 | `edit.splitterEdit` | `id, ranges, names?, lsbTop?` | Splitter 편집기 적용(원조 fanout·incoming·bitN + 팔 이름 hcs:ext, N-12, 아래) |
 | `edit.splitterSplit` | `wire, at, ranges, names?, lsbTop?` | 여러 비트 선에 새 스플리터(Split Bits…, Take One Bit, N-12, 아래). result `id`: 새 스플리터 |
 
 - `edit.addComponent`: `lib:null`(또는 빼면)이면 이 파일의 회로를 이름(`name`)으로 놓는다. `attrs`는 놓는 부품에만 쓴다(도구의 기본값은 바꾸지 않는다). `loc`은 그대로 쓴다(격자 맞추기는 화면 몫). 오류: 없는 도구 1, `circular`·`exclusive`·`negativeCoord` 3, 모르는 속성·틀린 값 -32602.
-- `edit.addWire`: 2점은 가로·세로 곧은 선(3점이면 가운데 점이 그 선 위), ㄱ자는 `[시작, 꺾는 점, 끝]`이고 꺾는 점이 `[끝x, 시작y]`(가로 먼저) 또는 `[시작x, 끝y]`(세로 먼저)여야 한다. 원조처럼 한쪽 끝이 있는 선을 따라 되돌아 끌면 그 선을 줄이거나 지운다(`outcome:"shortened"|"removed"`). 시작과 끝이 같으면 `changed:false, outcome:"empty"`.
-- `edit.move`: `connect`(기본 true)면 원조 연결 유지 계산 뒤 v1 SafeMove(D-055)의 기준으로 남긴다. `outcome`: `"moved"`, `"movedWithoutWires"`(선을 잇지 못하고 옮김), `"refused"`(`changed:false`, 다른 넷이 바뀌므로 옮기지 않음). 다른 출력과 한 점에 겹치면 오류 3 `exclusive`.
+- `edit.addWire`: 2점은 가로·세로 곧은 선(3점이면 가운데 점이 그 선 위), ㄱ자는 `[시작, 꺾는 점, 끝]`이고 꺾는 점이 `[끝x, 시작y]`(가로 먼저) 또는 `[시작x, 끝y]`(세로 먼저)여야 한다. 원조처럼 한쪽 끝이 있는 선을 따라 되돌아 끌면 그 선을 줄이거나 지운다(`outcome:"shortened"|"removed"`; 따로 `edit.shortenWire`를 두지 않는다: 원조 WiringTool도 떼는 순간 같은 두 점으로 판단한다). 시작과 끝이 같으면 `changed:false, outcome:"empty"`.
+- `edit.move`: `connect`(기본 true)면 원조 연결 유지 계산 뒤 v1 SafeMove(D-055)의 기준으로 남긴다. `outcome`: `"moved"`, `"movedWithoutWires"`(선을 잇지 못하고 옮김), `"refused"`(`changed:false`, 다른 넷이 바뀌므로 옮기지 않음), `"empty"`(고른 것이 없음). 원조처럼 선택 경계가 0 밑으로 가지 않게 자르고, 격자에 붙는 부품이 있으면 10에 맞춘다. 다른 출력과 한 점에 겹치면 오류 3 `exclusive`. 선 하나만 옮기면 v1 선분 끌기(양쪽 다리가 늘고 준다)다.
 - `edit.setAttr`: 선은 건너뛴다. 모든 부품에 그 속성이 있어야 한다(없으면 -32602). 속성은 부품 객체 안에서 바뀌므로 같은 id가 `added`로 온다.
 - 편집하면 그 회로가 시뮬레이션의 지금 회로가 된다(Swing에서 보고 있는 회로를 편집하는 것과 같다). 다른 회로를 보고 있었다면 화면이 `sim.watch`를 다시 보낸다.
 
-`edit.setToolAttr`부터 아래 줄은 편집 동등성 골든(N-01, D-136)을 적으려고 **제안한** 의도다. `edit.signalGroup`·`edit.areaMemo`는 N-15(D-151)에서 엔진에 들어갔고 뜻은 아래 "신호 그룹·영역 메모"와 같다. 지금 엔진에는 아직 없고, N-08·N-09에서 엔진에 더하면서 이 표를 확정한다. 다만 `edit.tunnelColor`·`edit.splitterEdit`·`edit.splitterSplit`은 N-12(D-150)가 확정했다(아래). 그때까지 위 다섯 줄(`addComponent`~`setAttr`)과 `undo`·`redo`의 계약이 기준이다(`ids`는 반드시 준다, `path`는 절대 경로).
+`edit.selection = {fileId, circuitId, ids, floating}`(N-08, D-146): 편집 의도 뒤, 선택이 앞에 알린 것과 다르면 보낸다(`edit.select` 뒤에는 늘 보낸다: 화면이 누른 즉시 그린 짐작을 바로잡는다). `circuitId`는 선택이 생긴 회로다(시뮬레이션이 다른 회로를 보고 있어도). `ids`는 회로에 있는 고른 부품·선(번호 차례), `floating`은 떠 있는 붙여넣기·복제 사본의 모습(Component·Wire JSON: 회로에 없어 `model.changed`에 오지 않는다; id는 엔진 id라 내려앉으면 같은 id로 `added`에 온다). `model.changed` 뒤에 온다(새로 놓인 부품의 id를 화면이 먼저 안다).
 
-편집 동등성(N-01, D-136, `tests/parity/`)에서 본 것 — **N-09에서 맞출 차이(아직 계약이 아님)**:
+모델을 바꾸지 않는 물음(화면의 도구가 끄는 동안 그리는 것, 되살리기 저널에 적지 않는다):
 
-- **고른 것.** 의도 파일은 `edit.move`·`edit.delete`·`edit.copy` 등에서 `ids`를 빼고 "앞 `edit.select`로 고른 것"을 대상으로 적는다(원조는 고른 것에 대해 편집한다). 재생기가 고른 것을 따라가 `ids`를 채울지, 엔진이 고르기 상태(`edit.select`, 떠 있는 붙여넣기 사본의 dropAll까지)를 가질지는 N-09에서 정한다. 붙여넣기 사본이 언제 내려앉는지가 결과 .circ에 영향을 주므로 원조와 같게 한다.
-- **재생기가 채우는 것.** 회로 이름 → `circuitId`, `fileId`, 의도 파일의 상대 경로(`tests/parity` 기준) → 절대 경로, 기호·`label:`·`at:`·`wire:` → 엔진 id.
+| 메서드 | 받는 것 | 답 |
+| --- | --- | --- |
+| `model.tool` | `fileId, lib, name, loc?, attrs?` | `{component}`: 그 놓기 도구가 지금 속성(과 `attrs`)으로 `loc`에 놓을 부품의 모습(id `"ghost"`). 원조 AddTool이 끄는 동안 그리는 유령 |
+| `model.movePreview` | `fileId, circuitId, dx, dy, connect?` | `{dx, dy, added:[[a,b]], removed:[id], unconnected:[[x,y]]}`: 고른 것을 그만큼 끌 때 원조 `MoveGesture`가 더할 선·뺄 선·잇지 못한 점(`SelectTool.handleMoveDrag`), `dx`·`dy`는 `edit.move`와 같이 자르고 맞춘 값 |
+| `model.textAt` | `fileId, circuitId, loc` | 글자 도구가 `loc`을 누르면 원조 `TextTool.mousePressed`가 여는 칸: 고른 것 먼저, 그다음 회로 전체에서 그 점을 포함하고 칸을 주는 부품(라벨이 비었으면 몸체 어디든, 있으면 라벨 위) → `{id, text, box:[x,y,w,h]}`; 없으면 새 Label → `{id:null, text:"", box}`; 음수 자리면 `{id:null, none:true}` |
 
-- 의도 파일은 `edit.addComponent`에 `attrs`를 쓰지 않는다. Swing에서 값을 바꿔 놓는 길은 부품 목록에서 도구를 고르고 속성 표에서 **도구 속성**을 바꾼 뒤(`edit.setToolAttr`, 원조 ToolAttributeAction: 되돌리기 한 단계, 도구에 남아 다음 놓기에도 쓰이고 `<lib><tool>`에 저장된다) 누르는 것이다. 놓는 부품에만 속성을 주는 한 번의 동작(위 `attrs`)은 Swing에 없다. `edit.setToolAttr`로 이미 같은 값을 넣으면 `changed:false`다.
-- **되돌리기 단계.** 원조 되돌리기 기록에서는 붙여넣은 뒤 옮기기·내려놓기가 붙여넣기 단계에 합쳐지고(원조 `shouldAppendTo`), 고른 것이 없을 때의 Delete도 빈 단계 하나를 남긴다. 지금 계약("하나의 의도가 되돌리기 한 단계", 바뀐 것이 없으면 단계 없음)과 다르다. 뒤따르는 `edit.undo`의 결과가 달라지므로, N-09에서 엔진을 원조 기록과 같게 맞추고 위 일반 규칙과 엔진 테스트를 함께 고친다.
-- `edit.move`로 선 하나만 옮기면 v1 선분 끌기(양쪽 다리가 늘고 준다)다. 부품을 옮기면 v1 따라오는 선이다.
+**편집 동등성(N-01, D-136, `tests/parity/`)과 N-09(D-146에서 풂).** 의도 파일은 `edit.move`·`edit.delete`·`edit.copy` 등에서 `ids`를 빼고 "앞 `edit.select`로 고른 것"을 대상으로 적는다. 엔진이 원조 선택을 들고 있으므로(위) 그대로 보내면 된다. 재생기(`EngineParityReplayTest`)가 채우는 것은 회로 이름 → `circuitId`(`circuit`은 그 의도의 회로, `target`은 회로 전체에 하는 의도의 대상), `fileId`, 기호·`label:`·`at:`·`wire:` → 엔진 id(`ids`·`id`·`wire`; 기호는 원조 `ReplacementMap`을 따라간다), 라이브러리의 보이는 이름(`Hallym MIPS`) → 엔진 이름이다. 상대 경로(`tests/parity` 기준, `file.open`·`edit.importCircuits`·`edit.loadLibrary`)는 재생기가 작업 폴더의 절대 경로로 바꾼다(`file.open`은 지금 재생기가 쓴다; 나머지 둘은 N-11 의도와 함께). 18장면 가운데 N-11 의도(Port Order, Auto Appearance, Import, 라이브러리 싣기)를 쓰는 08·09·11을 뺀 15장면을 엔진이 재생해 Swing 골든과 같은 .circ를 저장한다(D-006 정규화).
+
+- 의도 파일은 `edit.addComponent`에 `attrs`를 쓰지 않는다. Swing에서 값을 바꿔 놓는 길은 부품 목록에서 도구를 고르고 속성 표에서 **도구 속성**을 바꾼 뒤(`edit.setToolAttr`, 원조 ToolAttributeAction: 되돌리기 한 단계, 도구에 남아 다음 놓기에도 쓰이고 `<lib><tool>`에 저장된다) 누르는 것이다. 놓는 부품에만 속성을 주는 한 번의 동작(위 `attrs`)은 Swing에 없고, 검색 창의 "and 3"(N-12)이 쓴다.
 
 **터널 색과 Splitter 편집기(N-12, D-150, 확정).** 셋 다 v1의 동작 객체를 그대로 쓰고(`TunnelColorStore.action`, `SplitterEdits.change·create·withNames`, 검사기 `WireGuard`), `Project.doAction` 한 번 = 되돌리기 한 단계다. 원조 부품 속성은 스플리터의 fanout·incoming·bitN만 바뀌고, 학생이 정한 것은 hcs:ext에만 간다(D-024). 되돌리면 그 회로의 hcs:ext 항목이 **차례까지** 전과 같다(v1은 지우고 끝에 다시 넣어 차례가 바뀌었다: 편집하고 되돌린 파일도 저장 결과가 원래와 같게, `OpenSaveParityTest.extEditsUndoneSaveTheOriginal`).
 - `edit.tunnelColor {id, color?}`: `id`는 라벨이 있는 터널(아니면 -32602). `color`는 v1 팔레트 12색 가운데 하나(`#e69f00` 꼴, 대소문자 무관; 다른 색은 -32602), 없으면 Automatic(항목을 지운다). 그 회로에서 그 이름을 가진 모든 터널의 색이다(`model.changed`에 그 터널들이 `ext.color`와 함께 온다, 저장은 `#E69F00` 대문자). 이미 그 색이면 `changed:false, outcome:"same"`.
@@ -243,6 +251,7 @@ Component = {
 | `sim.poke` | `{fileId, circuitId, componentId, at?:[x,y], action?}` | `{poked, caret}`(Poke 도구와 같은 동작: 핀 값 바꾸기 등) |
 | `sim.pokeKey` | `{fileId, key}` | `{poked}`(Poke로 누른 부품의 캐럿에 키 하나, N-07) |
 | `sim.pokeStop` | `{fileId}` | `{}`(Poke 캐럿을 닫는다: 원조 PokeTool.removeCaret, N-07) |
+| `sim.pinValue` | `{fileId, circuitId, componentId, value}` | `{}`(입력 핀에 값 넣기: v1 Set Pin Value, N-08) |
 | `sim.cycles` | `{fileId, n}` | `{}` 곧바로. 틱은 엔진이 따라오는 만큼만 요청한다(D-123). 끝나면 `sim.state` |
 | `sim.tick` | `{fileId}` | `{}` 곧바로(원조 Simulate › Tick Once: 틱 한 번 = 반 사이클, N-07) |
 | `sim.step` | `{fileId}` | `{}`(원조 Simulate › Step Simulation: 꺼져 있을 때만 전파 한 단계, N-07) |
@@ -252,11 +261,12 @@ Component = {
 | `sim.state` | `{fileId}` | 아래 `sim.state`와 같은 객체(요청으로도 물을 수 있다) |
 
 - `sim.poke`: `action`은 `"click"`(기본, 누르고 뗌), `"press"`, `"release"`(버튼처럼 누르는 동안만 켜지는 부품은 화면이 누를 때와 뗄 때 따로 보낸다). `at`은 회로 좌표(여러 비트 핀에서 어느 비트인지), 없으면 부품 가운데. 여러 비트 입력 핀은 원조 `PinPoker.getBit`가 `at`으로 비트를 고른다(오른쪽 아래가 비트 0, 한 줄 8비트, 칸은 가로 10·세로 20): 화면은 누른 점을 정수로 내려 보낸다. 누를 것이 없는 부품·선은 `poked:false`. `caret`: 누른 뒤 그 부품에 원조 캐럿이 남았다(키를 줄 수 있다: `sim.pokeKey`). 보고 있지 않은 회로의 부품을 누르면 그 회로가 시뮬레이션의 지금 회로가 된다. 서브회로를 보며 그 안의 입력 핀을 누르면 오류 4 `frozenPin`(원조는 상태를 복제할지 묻는다).
+- `sim.pinValue`(N-08, D-146): 입력 핀 더블클릭의 값 넣기(v1 `Shortcuts.askValue`·`parseValue`·`setPinValue`). `value`는 `0x1F`, `0b1011`, `31`, `-3`(2의 보수)이고 `_`·빈칸은 무시한다. 핀 폭을 넘거나 읽을 수 없으면 -32602 `{reason:"badValue"}`, 출력 핀·핀이 아닌 것은 -32602, 서브회로 인스턴스 안을 보며 그 안의 입력 핀이면 오류 4 `frozenPin`. 시뮬레이션 상태만 바뀐다(파일은 그대로, 되살리기 저널에도 적지 않는다).
 - `sim.pokeKey`(N-07, D-145): `key`는 화면 `KeyboardEvent.key`의 글자 하나 또는 `Backspace`·`Enter`·`Tab`·`Delete`·`Escape`·`ArrowLeft`·`ArrowRight`·`ArrowUp`·`ArrowDown`·`Home`·`End`(그 밖은 -32602). 원조 PokeTool처럼 캐럿에 keyPressed, 글자가 있으면 keyTyped, keyReleased를 준다: Register·Counter는 16진 글자를 오른쪽에서 밀어 넣고(`RegisterPoker`), RAM·ROM은 값·주소(`MemPoker`), Shift Register(`ShiftRegisterPoker`), Keyboard(`Keyboard.Poker`)가 받는다. 캐럿이 없으면 `poked:false`. 누르던 부품이 모델에서 사라지면 캐럿도 닫힌다.
 - `sim.cycles`: `n` ≥ 1, 한 사이클 = 원조 틱 2번. 도는 클럭(Ticks Enabled)은 먼저 끈다: 요청한 수만큼만 돈다(N-07, D-145). 처리 중인 틱이 8개를 넘지 않게 요청하고 틱 완료로 센다(틱이 빠지지 않는다). 도는 동안 원조 틱 스레드가 틱마다 학생의 틱 주파수만큼(1 Hz면 최대 100ms) 자지 않게 원조 틱 주파수를 1024 Hz(한 주기 1ms)로 두고 끝나면 되돌린다(`sim.state.hz`는 늘 학생의 값). ref-mips 1000 사이클 약 1.4초(v1 25초, D-145). 돌고 있으면 `n`을 더한다. 시뮬레이션이 꺼져 있으면 오류 4(`off`·`oscillating`), 도중에 꺼지면 `engine.log`와 `sim.state`로 알리고 멈춘다. 끝나면 그 순간의 값(`sim.values`)을 먼저, `sim.state`를 뒤에 보낸다. `sim.tick`은 같은 실행기로 틱 한 번이다.
 - `sim.step`: 시뮬레이션이 켜져 있으면 오류 4 `running`(원조 메뉴 항목이 꺼져 있는 것과 같다). 원조가 그리던 전파 지점(파란 원)은 보내지 않는다(docs/interaction-parity.md I-150).
-- `sim.run`: `on`이면 원조 틱(Ticks Enabled)을 켜고, `hz`는 원조 틱 주파수(초당 틱, Swing 속도 메뉴와 같은 값: 1·4·16·64·256·1024·4096)다. 켤 때 시뮬레이션이 꺼져 있으면 오류 4. 돌고 있는 N Cycles(`sim.cycles`·`sim.tick`)는 켜든 끄든 멈춘다: 남은 틱을 더 요청하지 않고 처리 중인 틱(8개 이하)만 끝내며, 사이클 가운데면 한 틱을 더해 사이클을 채운다(화면의 Stop, D-145).
-- `sim.watch`: `circuitId`는 시작 회로, `path`는 거기서 내려가는 서브회로 인스턴스 id들이다. 보는 회로는 시뮬레이션의 지금 상태가 된다(Swing에서 그 회로·인스턴스를 여는 것과 같다). 파일마다 하나만 본다(다시 보내면 바꾼다). 처음에는 모든 넷을 한 번 보낸다. 없는 경로는 오류 1.
+- `sim.run`: `on`이면 원조 틱(Ticks Enabled)을 켜고, `hz`는 원조 틱 주파수(초당 틱, Swing 속도 메뉴와 같은 값: 1·4·16·64·256·1024·4096)다. 켤 때 시뮬레이션이 꺼져 있으면 오류 4. 돌고 있는 N Cycles(`sim.cycles`·`sim.tick`)는 켜든 끄든 멈춘다: 남은 틱을 더 요청하지 않고 처리 중인 틱(8개 이하)만 끝내며, 사이클 가운데면 한 틱을 더해 사이클을 채운다(화면의 Stop, D-145). N Cycles 없이 도는 클럭을 끄는 것(`on:false`)은 원조 Simulate › Ticks Enabled 끄기 그대로라 사이클을 채우지 않는다: 반 사이클(클럭 1)에서 멈출 수 있고, 그때 `cycle`은 다 끝난 사이클 수이며 오름 끝에 움직이는 부품(카운터·레지스터)은 다음 사이클의 끝을 이미 받았다(D-145 2항, D-146).
+- `sim.watch`: `circuitId`는 시작 회로, `path`는 거기서 내려가는 서브회로 인스턴스 id들이다. 보는 회로는 시뮬레이션의 지금 상태가 된다(Swing에서 그 회로·인스턴스를 여는 것과 같다). 파일마다 하나만 본다(다시 보내면 바꾼다). 처음에는 모든 넷을 한 번 보낸다. 없는 경로는 오류 1. 모델과 편집 선택은 바꾸지 않는다: 떠 있는 붙여넣기·복제 사본은 그대로 남아 다음 편집 의도가 그것이 생긴 회로에 내려놓는다. 화면은 떠 있는 사본이 있는 채 다른 회로·인스턴스를 보이기 전에 `edit.select {circuitId: 사본이 생긴 회로}`(비우기)를 보내 거기 내려놓는다(편집 의도: `model.changed`와 되살리기 저널이 따른다, D-146).
 
 `sim.values = {fileId, circuitId, root?, path?, nets:{netId: value}, bodies?:{componentId: Body}}` — 보고 있는 회로의 바뀐 넷만, 화면 프레임(약 16ms)마다 묶어서. `circuitId`는 값이 속한 회로(경로의 끝), `root`·`path`는 `path`로 볼 때만 온다. 모델이 바뀌면(넷 번호가 새로 매겨지면) 다음 묶음에 모든 넷을 다시 보낸다.
 

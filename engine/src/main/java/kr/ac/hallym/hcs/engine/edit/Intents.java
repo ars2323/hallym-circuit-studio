@@ -49,7 +49,7 @@ import kr.ac.hallym.hcs.engine.rpc.RpcError;
 public final class Intents {
     /** 원조 도구·편집 창의 동작 이름(되돌리기 기록에 남는 글자). */
     private static final LocaleManager TOOLS = new LocaleManager("resources/logisim", "tools");
-    private static final LocaleManager GUI = new LocaleManager("resources/logisim", "gui");
+    static final LocaleManager GUI = new LocaleManager("resources/logisim", "gui");
 
     private Intents() {
     }
@@ -59,11 +59,18 @@ public final class Intents {
         public final boolean changed;
         public final String outcome;
         public final Component added;
+        /** 새로 생긴 회로(edit.createCircuit). */
+        public final Circuit circuit;
 
         Result(boolean changed, String outcome, Component added) {
+            this(changed, outcome, added, null);
+        }
+
+        Result(boolean changed, String outcome, Component added, Circuit circuit) {
             this.changed = changed;
             this.outcome = outcome;
             this.added = added;
+            this.circuit = circuit;
         }
 
         static Result unchanged(String outcome) {
@@ -99,9 +106,14 @@ public final class Intents {
             throw RpcError.notEditable("negativeCoord", "a component cannot be placed at negative coordinates");
         }
         d.show(c);
+        // 부품 도구를 들면 원조 Project.setTool이 떠 있는 것을 내려놓고 선택을 비운다(N-08, D-146)
+        Selection sel = d.selection();
+        d.project().doAction(SelectionActions.dropAll(sel));
         CircuitMutation m = new CircuitMutation(c);
         m.add(comp);
         d.project().doAction(m.toAction(TOOLS.getter("addComponentAction", factory.getDisplayGetter())));
+        // 놓은 뒤 Edit Tool로 돌아가 놓은 부품을 고른다(AddTool.mouseReleased, "After adding component" 기본값)
+        sel.add(comp);
         return new Result(true, null, comp);
     }
 
@@ -130,6 +142,14 @@ public final class Intents {
 
     /** 선 긋기. points는 [시작, 끝] 또는 [시작, 꺾는 점, 끝](ㄱ자). */
     public static Result addWire(Doc d, Circuit c, List<Location> points) throws RpcError {
+        return addWire(d, c, points, true);
+    }
+
+    /**
+     * wiringTool: Wiring Tool로 긋는다(그 도구를 들 때 원조 Project.setTool이 선택을 내려놓고 비운다). 아니면 Edit
+     * Tool이 선 잇는 점에서 긋는 것이라 선택을 그대로 둔다(EditTool.mousePressed, N-08 D-146).
+     */
+    public static Result addWire(Doc d, Circuit c, List<Location> points, boolean wiringTool) throws RpcError {
         editable(d, c);
         if (points.size() < 2 || points.size() > 3) {
             throw RpcError.params("points must have 2 or 3 points");
@@ -160,6 +180,9 @@ public final class Intents {
             return Result.unchanged("empty");
         }
         d.show(c);
+        if (wiringTool) {
+            d.project().doAction(SelectionActions.dropAll(d.selection()));
+        }
         List<Wire> ws = new ArrayList<>(2);
         if (straight) {
             // WiringTool.mouseDragged: 끝에서 시작해 선 위로 되돌아가면 그 선을 줄인다

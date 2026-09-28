@@ -377,7 +377,7 @@ public final class SimSession implements SimulatorListener {
     public void watch(Circuit root, List<Component> path) throws RpcError {
         Project proj = doc.project();
         if (path.isEmpty()) {
-            doc.show(root);
+            doc.view(root);
             watchState = proj.getCircuitState();
         } else {
             CircuitState rootState = proj.getCircuitState(root);
@@ -448,7 +448,7 @@ public final class SimSession implements SimulatorListener {
                 proj.setCircuitState(watchState);
             }
         } else {
-            doc.show(c);
+            doc.view(c);
         }
         if (comp.getFactory() instanceof Pin && proj.getCircuitState().isSubstate()
                 && !Boolean.TRUE.equals(comp.getAttributeSet().getValue(Pin.ATTR_TYPE))) {
@@ -501,6 +501,42 @@ public final class SimSession implements SimulatorListener {
 
     private static MouseEvent mouse(Canvas canvas, int id, Location at) {
         return new MouseEvent(canvas, id, System.currentTimeMillis(), 0, at.getX(), at.getY(), 1, false);
+    }
+
+    /**
+     * sim.pinValue(N-08, v1 I-78): 입력 핀에 값 넣기(v1 Edit Tool 더블클릭의 값 창). 글은 v1 {@code Shortcuts.parseValue}
+     * (0x·0b 접두사, 10진, 음수는 2의 보수, 폭을 넘으면 거절)로 읽고, 원조 Poke와 같은 길({@code Pin.setValue})로 넣는다:
+     * 시뮬레이션 상태만 바뀌고 .circ에는 남지 않는다. 읽지 못하면 -32602(data.reason {@code badValue}).
+     */
+    public void pinValue(Circuit c, Component comp, String text) throws RpcError {
+        if (!(comp.getFactory() instanceof Pin)
+                || Boolean.TRUE.equals(comp.getAttributeSet().getValue(Pin.ATTR_TYPE))) {
+            throw RpcError.params("component is not an input pin");
+        }
+        gate.requireHeld("sim.pinValue"); // Engine: s.quiet(() -> s.pinValue(...))
+        Project proj = doc.project();
+        if (watchState != null && watchState.getCircuit() == c) {
+            if (proj.getCircuitState() != watchState) {
+                proj.setCircuitState(watchState);
+            }
+        } else {
+            doc.view(c);
+        }
+        if (proj.getCircuitState().isSubstate()) {
+            throw RpcError.simState("frozenPin", "an input pin inside a subcircuit follows the parent circuit");
+        }
+        int width = comp.getEnds().get(0).getWidth().getWidth();
+        Long v = kr.ac.hallym.hcs.app.keys.Shortcuts.parseValue(text == null ? "" : text, width);
+        if (v == null) {
+            JsonObject data = new JsonObject();
+            data.addProperty("reason", "badValue");
+            throw new RpcError(RpcError.INVALID_PARAMS, "cannot read '" + text + "' as a " + width + "-bit value", data);
+        }
+        kr.ac.hallym.hcs.app.keys.Shortcuts.setPinValue(proj.getCircuitState(), comp, v);
+        // 원조 PinPoker가 값을 바꾼 뒤 하는 것처럼 핀을 다시 전파할 곳으로 둔다(값만 바꾸면 전파가 핀을 보지 않는다)
+        proj.getCircuitState().getInstanceState(comp).fireInvalidated();
+        sim.requestPropagate();
+        valuesDirty = true;
     }
 
     /** 부품에 Poke 캐럿이 남아 있다(키를 받을 수 있다: 레지스터·카운터 16진 글자, RAM·ROM 값, Keyboard 글자). */
