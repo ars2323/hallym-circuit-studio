@@ -15,6 +15,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.cburch.logisim.circuit.Circuit;
+import com.cburch.logisim.circuit.SubcircuitFactory;
 import com.cburch.logisim.circuit.Wire;
 import com.cburch.logisim.comp.Component;
 import com.cburch.logisim.data.Location;
@@ -149,6 +150,9 @@ public final class DiagSession {
         Map<String, String> keep = new HashMap<>();
         Map<String, Integer> repeats = new HashMap<>();
         for (Diagnostic d : list) {
+            if (gone(d)) {
+                continue;
+            }
             JsonObject m = message(d);
             String key = m.remove("key").getAsString();
             int k = repeats.merge(key, 1, Integer::sum);
@@ -223,6 +227,51 @@ public final class DiagSession {
         key.append(cs).append('|').append(ws).append('|').append(d.location);
         m.addProperty("key", key.toString());
         return m;
+    }
+
+    /**
+     * 진단이 가리키는 부품·선·서브회로 인스턴스 가운데 이제 모델에 없는 것이 있다: 편집한 뒤 아직 다시 보지 않은
+     * 진단이다(정적 진단은 {@link #STATIC_DELAY_MS} 뒤에, 동적 진단은 기록이 새로 시작한 뒤에 다시 본다). 그 사이
+     * 프레임에 보내면 사라진 부품에 새 id를 주어 화면이 모르는 id를 받고 id 표가 늘어난다. 그런 진단은 보내지 않는다.
+     */
+    private boolean gone(Diagnostic d) {
+        for (Component c : d.components) {
+            if (!inModel(d.circuit, c)) {
+                return true;
+            }
+        }
+        for (Wire w : d.wires) {
+            if (!inModel(d.circuit, w)) {
+                return true;
+            }
+        }
+        Diagnostic.Spot spot = d.appeared();
+        return !onPath(d.instances) || spot != null && !onPath(spot.instances);
+    }
+
+    /** c가 회로 circuit(진단의 회로, 라이브러리 회로일 수 있다)이나 이 파일의 회로 안에 있다. */
+    private boolean inModel(Circuit circuit, Component c) {
+        if (circuit.contains(c)) {
+            return true;
+        }
+        for (Circuit x : doc.file().getCircuits()) {
+            if (x.contains(c)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 서브회로 인스턴스 경로의 인스턴스마다 앞 인스턴스의 회로(맨 앞은 이 파일의 회로) 안에 있다. */
+    private boolean onPath(List<Component> path) {
+        Circuit cur = path.isEmpty() ? null : parentOf(path.get(0));
+        for (Component inst : path) {
+            if (cur == null || !cur.contains(inst) || !(inst.getFactory() instanceof SubcircuitFactory)) {
+                return false;
+            }
+            cur = ((SubcircuitFactory) inst.getFactory()).getSubcircuit();
+        }
+        return true;
     }
 
     /** 부품 inst를 가진 회로(이 파일과 그 라이브러리의 회로 가운데). 없으면 null. */

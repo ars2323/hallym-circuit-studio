@@ -33,6 +33,8 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
+import kr.ac.hallym.hcs.engine.doc.Doc;
+import kr.ac.hallym.hcs.engine.edit.Intents;
 import kr.ac.hallym.hcs.regress.CircuitBuilder;
 
 /**
@@ -119,6 +121,42 @@ class DiagTest {
 
     static String text(JsonObject m, String lang) {
         return m.getAsJsonObject("text").get(lang).getAsString();
+    }
+
+    /** 메시지 가운데 부품 componentId를 가리키는 것이 있다. */
+    static boolean mentions(JsonArray messages, String componentId) {
+        for (JsonElement m : messages) {
+            for (JsonElement c : m.getAsJsonObject().getAsJsonObject("location").getAsJsonArray("components")) {
+                if (c.getAsString().equals(componentId)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 편집한 뒤 아직 다시 보지 않은 진단이 사라진 부품을 가리키면 목록에 넣지 않는다(D-143). 동적 진단은 기록이 편집 뒤
+     * 새로 시작해야(시뮬레이터 스레드) 다시 보므로, 그 사이에 적는 목록(프레임의 알림, diag.list)에 옛 진단이 남는다.
+     * 그대로 적으면 사라진 부품에 새 id를 주어 화면이 모르는 id를 받고 id 표가 는다(EditTest.idsAreForgotten…이 CI에서
+     * 가끔 실패).
+     */
+    @Test
+    void aMessageAboutARemovedComponentIsLeftOutUntilTheChecksRunAgain() throws Exception {
+        JsonObject r = e.client.callObject("file.new", params());
+        fileId = r.get("fileId").getAsString();
+        main = r.get("main").getAsString();
+        // 입력이 떠 있는 AND: 동적 진단 E_APPEARED가 이 게이트를 가리킨다
+        String and = e.client.callObject("edit.addComponent", params("fileId", fileId, "circuitId", main, "lib",
+                "Gates", "name", "AND Gate", "loc", new int[] {300, 300})).get("id").getAsString();
+        assertTrue(mentions(listUntil(l -> mentions(l, and)), and), "the floating AND gate has a message");
+        // 되돌리기(전파를 요청하지 않는다)와 목록을 엔진 스레드의 한 일로: 기록이 아직 새로 시작하지 않은 때
+        JsonArray stale = e.onEngine(() -> {
+            Doc d = e.engine.files().get(fileId);
+            Intents.undo(d);
+            return e.engine.diags().session(d).list().getAsJsonArray("messages");
+        });
+        assertFalse(mentions(stale, and), "a message about the removed gate: " + stale);
     }
 
     // ---- 정상 회로 0건 ----
