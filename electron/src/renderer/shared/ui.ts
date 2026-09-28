@@ -74,6 +74,16 @@ export function tabsHead(titles: string[], onSelect: (index: number) => void): T
   return { ...hd, tabs, selected: () => current, select, show };
 }
 
+// A column the width took away, to turn back on ("+ Bin"), or turned on ("Bin").
+// (Taken with the Registers and Data panels, N-14.)
+export function columnButton(name: string, on: boolean, onClick: () => void): HTMLButtonElement {
+  const b = headButton(on ? name : `+ ${name}`, on ? '폭에 맞춰 다시 숨깁니다' : '좁아서 숨긴 열입니다. 누르면 보입니다', onClick);
+  b.classList.add('colbtn');
+  b.classList.toggle('on', on);
+  b.setAttribute('aria-pressed', String(on));
+  return b;
+}
+
 // A small button for a head's right-hand slot.
 export function headButton(label: string, title: string, onClick: () => void): HTMLButtonElement {
   const b = h('button', { class: 'hbtn', type: 'button', title }, label);

@@ -185,6 +185,141 @@ export interface ModelChanged {
   dirty: boolean;
 }
 
+// ---- record.* (docs/engine-api.md "record", N-14, D-144) ----------------------
+// A value is the protocol's letters, high bit first ('0' '1' 'x' 'E'); null: not recorded.
+
+export type RunUntilKind = 'pc' | 'instruction' | 'row' | 'errorOrX' | 'halt';
+
+export interface RecordState {
+  fileId: string;
+  empty: boolean;           // nothing recorded yet
+  first: number;            // the oldest cycle kept
+  last: number;             // the latest cycle
+  cycle: number;            // the cycle on show (last unless a past one is)
+  past: boolean;            // a past cycle is on show (the circuit shows its values)
+  generation: number;       // one more at every new recording (Reset, reopening)
+  pc: string | null;        // "0x00400024": the status bar's PC in the cycle on show
+  cpu: boolean;             // the circuit has an Instruction Memory (the table's PC and Instruction rows)
+  rows: number;             // rows the student added
+  pinned: number;           // temporary rows (a message's cause)
+  runUntil: { kind: RunUntilKind; value?: string; from: number } | null;
+}
+
+export interface RunUntilDone {
+  fileId: string;
+  result: 'met' | 'limit' | 'stopped' | 'off';
+  cycle: number;
+  from: number;
+  kind: RunUntilKind;
+  value?: string;
+}
+
+export interface CycleColumn {
+  cycle: number;
+  pc: string | null;        // "0x00400024"
+  word: string | null;      // "0x8e090000"
+  text: string;             // the Java disassembler's text ("" when PC or the word is not defined)
+}
+
+export interface CycleRow {
+  id: string;
+  name: string;             // "ALUResult", "regfile › RD1"
+  width: number;
+  bits: boolean;            // shown bit by bit
+  temp: boolean;            // pinned from a message (not saved)
+  values?: (string | null)[];   // one per column: the value at the cycle's end
+  halves?: (string | null)[];   // 1-bit rows: the first half (after the rising edge)
+}
+
+export interface CycleTable {
+  fileId: string;
+  empty: boolean;
+  first?: number;
+  last?: number;
+  cycle?: number;
+  from?: number;
+  to?: number;
+  cpu?: boolean;            // an Instruction Memory gives PC and the instruction
+  pinnedCycle?: number;     // the pinned rows' cycle, -1 if none
+  columns: CycleColumn[];
+  rows: CycleRow[];
+}
+
+export interface RegisterRow {
+  key: string;              // "PC", "$t0", "reg3"
+  name: string;             // "$t0"; a register with no number: its label or path
+  number: number;           // 0..31, or -1
+  group: string;            // Hallym MIPS's groups (Special, Constant, Return values, ...), then Other registers
+  value: string | null;
+  changed: boolean;         // not the same as in the cycle before
+  alias?: string;           // the circuit's own name when it is not the shown one ("$29", "Register #1")
+  componentId?: string;
+  markable?: boolean;       // a top-level Register or Counter: Mark as PC
+  markedPc?: boolean;
+}
+
+export interface RegisterData {
+  fileId: string;
+  cycle?: number;
+  circuitId?: string;       // the recorded top circuit (the rows' componentId are in it: Mark as PC)
+  mode: 'file' | 'all' | 'none';
+  registerFile?: { circuitId: string; name: string };
+  unmapped?: boolean;       // no register has a $n or Rn name (no register file marked)
+  candidates?: { circuitId: string; name: string; registers: number }[];
+  rows: RegisterRow[];
+}
+
+export interface MemoryRow {
+  kind: 'section' | 'words' | 'zeros';
+  section: 'data' | 'stack';
+  part: string;
+  addr: string;             // "0x10010000"
+  end: string;              // the last byte's address
+  words?: (string | null)[];    // four cells (+0 +4 +8 +C): "0000002a", "xxxxxxxx", null outside
+  count?: number;           // zeros: how many words
+  labels?: { addr: string; names: string[] }[];
+  pointers?: Record<string, string>;
+  base?: string;            // stack section: the depth's base
+  depth?: number;           // stack section: base − $sp in bytes, -1 unknown
+  peak?: number;            // stack section: the deepest access in bytes
+}
+
+export interface MemoryData {
+  fileId: string;
+  cycle?: number;
+  parts: number;
+  rows: MemoryRow[];
+}
+
+export interface InstructionField {
+  name: string;             // Hallym MIPS's: opcode rs rt rd shamt funct immediate target fmt ft fs fd cc nd tf CO code sel
+  hi: number;
+  lo: number;
+  bits: string;
+  value: string;
+  meaning: string;
+}
+
+export interface InstructionData {
+  fileId: string;
+  cycle?: number;
+  none?: 'empty' | 'noCpu' | 'undefined';
+  pc?: string | null;
+  word?: string;
+  text?: string;
+  mnemonic?: string | null;
+  format?: string;          // R I J CP0 FR FI
+  fields?: InstructionField[];
+}
+
+export interface RegisterMapping {
+  circuitId: string;
+  name: string;
+  registers: { id: string; name: string; loc: Point }[];
+  map: Record<string, Point | null>;      // "0".."31" -> the Register's place (v1's regmap speaks of places)
+  guess: Record<string, Point | null>;
+}
+
 // Error codes (docs/engine-api.md 2).
 export const ERR_NOT_FOUND = 1;
 export const ERR_FILE = 2;
@@ -202,6 +337,9 @@ export const WINDOW_METHODS = [
   'sim.reset', 'sim.poke', 'sim.cycles', 'sim.run', 'sim.enable', 'sim.watch', 'sim.state',
   'diag.list', 'trace.origin',
   'mips.facts', 'mips.reload', 'mips.disasm', 'mips.console',
+  'record.state', 'record.table', 'record.addRow', 'record.removeRow', 'record.rowBits', 'record.pin', 'record.unpin',
+  'record.view', 'record.values', 'record.runUntil', 'record.stop', 'record.registers', 'record.memory',
+  'record.instruction', 'record.fieldPaths', 'record.markPc', 'record.markRegisterFile', 'record.registerMapping', 'record.setRegisterMapping',
 ] as const;
 export type WindowMethod = typeof WINDOW_METHODS[number];
 

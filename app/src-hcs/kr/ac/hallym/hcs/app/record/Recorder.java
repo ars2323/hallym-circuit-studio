@@ -181,6 +181,15 @@ public final class Recorder {
         maxSteps = steps;
     }
 
+    /**
+     * 새로 적기를 기다리는 중인가(붙인 뒤 첫 전파 전, 또는 {@link #requestReset} 뒤 재설정 전파 전). v2 엔진(N-14)이 첫
+     * 스텝·Reset이 기록된 뒤에 틱을 요청하려고 본다: 그 전파와 첫 틱이 원조 시뮬레이터의 한 번에 겹치면 틱 뒤 상태가
+     * 스텝 0으로 적힌다.
+     */
+    public boolean resetPending() {
+        return resetPending;
+    }
+
     /** 지금 시뮬레이터가 도는 최상위 회로의 기록. 없으면 null. */
     public synchronized Recording current() {
         CircuitState root = root();
@@ -329,10 +338,12 @@ public final class Recorder {
                 target = (CircuitState) d;
             }
         }
-        proj.setCircuitState(target);
         // 바꿔 끼운 상태의 부품이 실제 시뮬레이션 쪽에 다시 등록되게(MIPS 메모리) 한 번 다시 전파한다. 값은 그대로라
-        // 기록은 바뀌지 않는다(onPropagation이 걸러낸다)
+        // 기록은 바뀌지 않는다(onPropagation이 걸러낸다). 더러운 부품 표시는 바꿔 끼우기 **전에** 한다: 끼운 뒤에는
+        // 시뮬레이터 스레드가 남은 전파 요청으로 이 상태를 바로 돌 수 있고, 원조 SmallSet은 두 스레드가 함께 고치면
+        // 깨진다(엔진 CI, 상수 identity hash에서 NullPointerException, D-144)
         Recording.prime(newRoot);
+        proj.setCircuitState(target);
         proj.getSimulator().requestPropagate();
         proj.repaintCanvas();
     }

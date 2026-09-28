@@ -26,7 +26,10 @@
    the real engine's (docs/engine-api.md, engine/ D-134): Logisim's project
    name (Untitled, a file's name without .circ), alreadyOpen, messages,
    needsMipsJar; and a restarted engine's engine.hello idFloor and
-   file.new/open restore (docs/engine-api.md 7, D-142).  Anything else: -32601.
+   file.new/open restore (docs/engine-api.md 7, D-142).  record.* (N-14):
+   tests/fake-engine/fake-record.ts -- a file with an Instruction Memory
+   runs the recursive factorial on a tiny machine there, one instruction a
+   cycle.  Anything else: -32601.
 
    FAKE_ENGINE_MODE (comma-separated) for the tests of the client:
      silent-hello   never answers engine.hello
@@ -35,6 +38,8 @@
      split          writes every message in small pieces (a Hangul name cut inside a character)
      oscillate      sim.cycles turns the simulation off (oscillation), with an engine.log warning
      needs-mips     file.save says the saved .circ needs hcs-mips.jar beside it
+     slow-until     record.runUntil takes 1.5 s (record.stop ends it sooner)
+     wide-registers the factorial machine starts with $s6 = -1 and $s7 = -2147483648 (the widest decimals)
    FAKE_ENGINE_CRASH_ON=<method>  exits (code 70) on that call, unanswered
    FAKE_ENGINE_OPEN_MESSAGE=<text> file.open reports it as a loader message
    A restarted engine (engine.hello with an idFloor), for the tests of recovery:
@@ -55,6 +60,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import * as mips from './fake-mips.ts';
+import * as rec from './fake-record.ts';
 
 type Params = Record<string, unknown>;
 interface Comp { id: string; lib: string; name: string; loc: [number, number]; attrs: Record<string, string> }
@@ -67,6 +73,7 @@ interface File {
   mips: mips.MipsState;     // mips.* (fake-mips.ts, N-16)
   // a canvas fixture (tests/fixtures/circuits): its circuits under this file's circuit ids, the watched circuit
   fixture?: Fixture; fixtureIds?: Map<string, string>; watched?: { circuitId: string; watchKey: string; root: string; path: string[] };
+  rec: rec.RecordFile;
 }
 
 // Messages (diag.*): the real engine's, for a few circuits (tests/fixtures/messages.json).
@@ -190,6 +197,25 @@ const diagChanged = (f: File) => setImmediate(() => notify('diag.changed', { fil
 
 const refs = (f: File) => f.circuits.map((c) => ({ circuitId: c.circuitId, name: c.name }));
 const mainId = (f: File) => f.circuits.find((c) => c.name === f.main)?.circuitId ?? f.circuits[0]?.circuitId ?? '';
+// A file's register places now (fake-record.ts Places).
+function places(f: File): rec.Places {
+  const main = f.circuits.find((c) => c.name === f.main) ?? f.circuits[0];
+  const pc = main?.comps.find((k) => k.name === 'Register' && (k.attrs.label ?? '').toLowerCase() === 'pc');
+  return { main: main?.circuitId ?? '', pc: pc?.id ?? null, regfile: f.circuits.find((c) => c.name === 'regfile')?.circuitId ?? null };
+}
+
+// Run Until in progress, by file.
+const untils = new Map<string, { until: { kind: string; value?: string; from: number }; stop: () => void }>();
+// record.state after anything that changes the recording (the engine sends it once a frame at most).
+// Reset (sim.reset, a program loaded): the recording starts over from cycle 0 and its pinned rows go.
+function restartRecording(f: File): void {
+  f.rec.cycle = 0; f.rec.view = null; f.rec.generation += 1; f.rec.pinnedCycle = -1;
+  f.rec.rows = f.rec.rows.filter((r) => !r.temp);
+  setImmediate(() => recordChanged(f));
+}
+function recordChanged(f: File): void {
+  if (files.has(f.fileId)) notify('record.state', rec.recordState(f.rec, untils.get(f.fileId)?.until ?? null));
+}
 const simState = (f: File) => ({ fileId: f.fileId, running: f.on, ticking: f.ticking, cycle: f.cycle, oscillating: !f.on, hz: f.hz });
 const libRefs = (f: File) => (f.libs.length ? f.libs : BUILTIN).map((lib) => ({ lib, display: lib === 'I/O' ? 'Input/Output' : lib, kind: 'builtin' }));
 const BUILTIN = ['Wiring', 'Gates', 'Plexers', 'Arithmetic', 'Memory', 'I/O', 'Base'];
@@ -209,9 +235,11 @@ const methods: Record<string, (p: Params) => unknown> = {
   'engine.shutdown': () => { setImmediate(() => process.exit(0)); return {}; },
   'file.new': (p) => {
     const c: Circuit = { circuitId: `c${nextCircuit++}`, name: 'main', comps: [], wires: [] };
-    const f: File = { fileId: fileIdFor(p), name: 'Untitled', path: null, bytes: null, circuits: [c], main: 'main', libs: [], cycle: 0, ticking: false, hz: 1, on: true, dirty: false, undo: [], redo: [], diag: null, ran: false, mips: mips.newState() };
+    const fileIdFor0 = fileIdFor(p);
+    const f: File = { fileId: fileIdFor0, name: 'Untitled', path: null, bytes: null, circuits: [c], main: 'main', libs: [], cycle: 0, ticking: false, hz: 1, on: true, dirty: false, undo: [], redo: [], diag: null, ran: false, mips: mips.newState(), rec: rec.newRecordFile(fileIdFor0, false, new Map()) };
     adopt(f, p);
     files.set(f.fileId, f);
+    setImmediate(() => recordChanged(f));
     return { fileId: f.fileId, name: f.name, circuits: refs(f), main: mainId(f), libraries: libRefs(f) };
   },
   'file.open': (p) => {
@@ -228,7 +256,7 @@ const methods: Record<string, (p: Params) => unknown> = {
     if (!text.includes('<project')) throw new Failure(2, `The file does not appear to be a Logisim project file: ${file}`, { path: file, reason: 'loadFailed' });
     const fileId = fileIdFor(p);
     const r = readCirc(text);
-    const f: File = { fileId, name: stem(path.basename(file)), path: file, bytes, circuits: r.circuits, main: r.main, libs: r.libs, cycle: 0, ticking: false, hz: 1, on: true, dirty: false, undo: [], redo: [], diag: DIAG[path.basename(file)] ?? null, ran: false, mips: mips.newState() };
+    const f: File = { fileId, name: stem(path.basename(file)), path: file, bytes, circuits: r.circuits, main: r.main, libs: r.libs, cycle: 0, ticking: false, hz: 1, on: true, dirty: false, undo: [], redo: [], diag: DIAG[path.basename(file)] ?? null, ran: false, mips: mips.newState(), rec: rec.newRecordFile(fileId, false, new Map()) };
     const fx = path.join(FIXTURES, `${stem(path.basename(file))}.json`);
     if (existsSync(fx)) {
       f.fixture = JSON.parse(readFileSync(fx, 'utf8')) as Fixture;
@@ -236,9 +264,15 @@ const methods: Record<string, (p: Params) => unknown> = {
       f.circuits = f.fixture.circuits.map((c) => ({ circuitId: c.circuitId, name: c.name, comps: structuredClone(c.components), wires: structuredClone(c.wires) }));
       f.main = f.fixture.circuits.find((c) => c.circuitId === f.fixture!.main)?.name ?? f.main;
     }
+    // the Cycle View's recording (fake-record.ts): the labels of the main circuit's parts, an Instruction Memory anywhere
+    const mainCircuit = f.circuits.find((c) => c.name === f.main) ?? f.circuits[0];
+    const names = new Map((mainCircuit?.comps ?? []).filter((k) => k.attrs.label).map((k) => [`${k.loc[0]},${k.loc[1]}`, k.attrs.label]));
+    const cpu = f.circuits.some((c) => c.comps.some((k) => k.name === 'Instruction Memory'));
+    f.rec = rec.newRecordFile(fileId, cpu, names, modes.has('wide-registers'));
     adopt(f, p);
     if (f.fixture) f.fixtureIds = new Map(f.circuits.map((c, i) => [c.circuitId, f.fixture!.circuits[i].circuitId]));
     files.set(f.fileId, f);
+    setImmediate(() => recordChanged(f));
     const messages = process.env.FAKE_ENGINE_OPEN_MESSAGE ? [process.env.FAKE_ENGINE_OPEN_MESSAGE] : [];
     return { fileId: f.fileId, name: f.name, circuits: refs(f), main: mainId(f), libraries: libRefs(f), messages };
   },
@@ -350,13 +384,18 @@ const methods: Record<string, (p: Params) => unknown> = {
     setImmediate(() => notify('sim.state', simState(f)));
     mips.reset(f, notify);
     if (f.ran) { f.ran = false; if (f.diag?.afterCycles) diagChanged(f); }
+    restartRecording(f);
     return {};
   },
   'sim.cycles': (p) => {
     const f = fileOf(p);
     if (!f.on) throw new Failure(4, 'the simulation stopped because the circuit oscillates', { reason: 'oscillating' });
     const from = f.cycle;
-    f.cycle += Number(p.n ?? 1);
+    // From a past cycle on show the later ones are dropped and the run goes on from there (as the engine's recording).
+    f.rec.cycle = (f.rec.view ?? f.rec.cycle) + Number(p.n ?? 1);
+    f.rec.view = null;
+    f.cycle = f.rec.cycle;
+    setImmediate(() => recordChanged(f));
     if (!f.ran && f.diag?.afterCycles && f.cycle >= (f.diag.cycles ?? 1)) {
       f.ran = true;
       if (f.diag.afterCycles.some((m) => m.code === 'OSCILLATION')) f.on = false; // the real engine turns the simulation off
@@ -402,8 +441,15 @@ const methods: Record<string, (p: Params) => unknown> = {
   // ---- mips.* (fake-mips.ts, N-16)
   'mips.load': (p) => {
     const f = fileOf(p);
-    const r = mips.load(f, p, notify);
-    if ((r as { loaded?: boolean }).loaded) setImmediate(() => notify('sim.state', simState(f)));
+    // a reload the fake's watch makes starts the simulation over, the recording with it (as the engine's sim.reset)
+    const r = mips.load(f, p, (m, x) => {
+      notify(m, x);
+      if (m === 'mips.reloaded' && (x as { ok?: boolean }).ok) restartRecording(f);
+    });
+    if ((r as { loaded?: boolean }).loaded) {
+      setImmediate(() => notify('sim.state', simState(f)));
+      restartRecording(f); // the load starts the simulation over (sim.reset), the recording with it
+    }
     return r;
   },
   'mips.facts': (p) => mips.facts(fileOf(p)),
@@ -413,6 +459,103 @@ const methods: Record<string, (p: Params) => unknown> = {
   'trace.origin': (p) => {
     circuitOf(p);
     return { found: false, text: { ko: '이 선의 값은 정해져 있어 따라갈 E·X 값이 없습니다.', en: "This wire's value is defined, so there is no E/X to trace." }, chain: [] };
+  },
+  // ---- record.* (fake-record.ts)
+  'record.state': (p) => rec.recordState(fileOf(p).rec, untils.get(String(p.fileId))?.until ?? null),
+  'record.table': (p) => rec.recordTable(fileOf(p).rec, p),
+  'record.addRow': (p) => { circuitOf(p); const f = fileOf(p); const r = rec.addRow(f.rec, p); setImmediate(() => recordChanged(f)); return r; },
+  'record.removeRow': (p) => {
+    const f = fileOf(p);
+    const before = f.rec.rows.length;
+    f.rec.rows = f.rec.rows.filter((r) => r.id !== p.id);
+    setImmediate(() => recordChanged(f));
+    return { removed: f.rec.rows.length < before };
+  },
+  'record.rowBits': (p) => { const r = fileOf(p).rec.rows.find((x) => x.id === p.id); if (r) r.bits = Boolean(p.bits); return { changed: r !== undefined }; },
+  'record.pin': (p) => {
+    const f = fileOf(p);
+    f.rec.rows = f.rec.rows.filter((r) => !r.temp);
+    const ids: string[] = [];
+    for (const [i, spot] of (Array.isArray(p.rows) ? p.rows : []).entries()) {
+      const at = (spot as { at?: [number, number] }).at ?? [0, 0];
+      const id = `p${i + 1}`;
+      f.rec.rows.push({ id, name: f.rec.names.get(`${at[0]},${at[1]}`) ?? `(${at[0]},${at[1]})`, width: 1, bits: false, temp: true });
+      ids.push(id);
+    }
+    f.rec.pinnedCycle = typeof p.cycle === 'number' ? p.cycle : -1;
+    if (f.rec.pinnedCycle >= 0) f.rec.view = Math.min(f.rec.pinnedCycle, f.rec.cycle);
+    setImmediate(() => recordChanged(f));
+    return { ids, ...(f.rec.pinnedCycle >= 0 ? { view: { cycle: f.rec.view, past: (f.rec.view ?? 0) < f.rec.cycle } } : {}) };
+  },
+  'record.unpin': (p) => { const f = fileOf(p); f.rec.rows = f.rec.rows.filter((r) => !r.temp); f.rec.pinnedCycle = -1; setImmediate(() => recordChanged(f)); return {}; },
+  'record.view': (p) => {
+    const f = fileOf(p);
+    if (untils.has(f.fileId)) throw new Failure(4, 'the clock is running (N Cycles or Run Until)', { reason: 'busy' });
+    const c = p.latest === true ? f.rec.cycle : Math.max(0, Math.min(f.rec.cycle, Number(p.cycle ?? 0)));
+    f.rec.view = c < f.rec.cycle ? c : null;
+    f.cycle = c;
+    setImmediate(() => { notify('sim.state', simState(f)); recordChanged(f); });
+    return { cycle: c, past: f.rec.view !== null };
+  },
+  'record.values': (p) => { circuitOf(p); return { fileId: p.fileId, circuitId: p.circuitId, cycle: p.cycle, nets: {} }; },
+  'record.runUntil': (p) => {
+    const f = fileOf(p);
+    if (untils.has(f.fileId)) throw new Failure(4, 'Run Until is already running', { reason: 'busy' });
+    const kind = String(p.kind);
+    if (kind === 'pc' && !/^(0x)?[0-9a-f]{1,8}$/i.test(String(p.value ?? ''))) throw new Failure(-32602, `cannot read the PC value: ${String(p.value)}`, { reason: 'badPc' });
+    const r = rec.runUntil(f.rec, p);
+    const until = { kind, ...(typeof p.value === 'string' ? { value: p.value } : {}), from: r.from };
+    const finish = (result: string, cycle: number) => {
+      untils.delete(f.fileId);
+      f.rec.cycle = cycle; f.rec.view = null; f.cycle = cycle;
+      notify('record.runUntil', { fileId: f.fileId, result, cycle, from: r.from, kind, ...(until.value ? { value: until.value } : {}) });
+      notify('sim.state', simState(f));
+      recordChanged(f);
+    };
+    const timer = setTimeout(() => finish(r.result, r.cycle), modes.has('slow-until') ? 1500 : 30);
+    untils.set(f.fileId, { until, stop: () => { clearTimeout(timer); finish('stopped', r.from + 1); } });
+    setImmediate(() => recordChanged(f));
+    return {};
+  },
+  'record.stop': (p) => { const u = untils.get(String(fileOf(p).fileId)); if (u) u.stop(); return { stopped: u !== undefined }; },
+  'record.registers': (p) => { const f = fileOf(p); return rec.registers(f.rec, typeof p.cycle === 'number' ? p.cycle : undefined, places(f)); },
+  'record.memory': (p) => rec.memory(fileOf(p).rec),
+  'record.instruction': (p) => rec.instruction(fileOf(p).rec, typeof p.cycle === 'number' ? p.cycle : undefined),
+  'record.fieldPaths': (p) => { circuitOf(p); return { fileId: p.fileId, circuitId: p.circuitId, fields: {} }; },
+  // The marks are undoable model edits in the engine (hcs:ext): the file is unsaved after them.
+  'record.markPc': (p) => {
+    const c = circuitOf(p);
+    const f = fileOf(p);
+    if (!c.comps.some((k) => k.id === p.componentId)) throw new Failure(1, `no such component id: ${String(p.componentId)}`, { kind: 'component', id: String(p.componentId) });
+    f.rec.markedPc = p.on !== false;
+    f.dirty = true;
+    setImmediate(() => recordChanged(f));
+    return { changed: true, dirty: true };
+  },
+  'record.markRegisterFile': (p) => {
+    circuitOf(p);
+    const f = fileOf(p);
+    f.rec.regfile = p.on !== false;
+    f.dirty = true;
+    setImmediate(() => recordChanged(f));
+    return { changed: true, dirty: true };
+  },
+  'record.registerMapping': (p) => {
+    const f = fileOf(p);
+    if (!f.rec.regfile) throw new Failure(1, 'no such registerFile: (none marked)', { kind: 'registerFile', id: '(none marked)' });
+    const registers = Array.from({ length: 32 }, (_, n) => ({ id: `kr${n}`, name: `$${n}`, loc: [700, 100 + 20 * n] }));
+    const map = Object.fromEntries(registers.map((r, n) => [String(n), r.loc]));
+    return { circuitId: places(f).regfile ?? 'c-regfile', name: 'regfile', registers, map, guess: map };
+  },
+  'record.setRegisterMapping': (p) => {
+    const f = fileOf(p);
+    if (!f.rec.regfile || p.circuitId !== places(f).regfile) throw new Failure(-32602, 'circuitId is not the marked register file');
+    const map = p.map as Record<string, unknown>;
+    for (const v of Object.values(map ?? {})) {
+      if (v !== null && !(Array.isArray(v) && v.length === 2)) throw new Failure(-32602, 'map values are [x, y] or null');
+    }
+    f.dirty = true;
+    return { changed: true, dirty: true };
   },
 };
 

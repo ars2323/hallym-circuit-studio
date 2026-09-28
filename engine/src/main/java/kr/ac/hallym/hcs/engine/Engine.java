@@ -31,6 +31,8 @@ import kr.ac.hallym.hcs.engine.doc.Files;
 import kr.ac.hallym.hcs.engine.edit.Intents;
 import kr.ac.hallym.hcs.engine.mips.Programs;
 import kr.ac.hallym.hcs.engine.model.Ids;
+import kr.ac.hallym.hcs.engine.record.RecordSession;
+import kr.ac.hallym.hcs.engine.record.Records;
 import kr.ac.hallym.hcs.engine.rpc.Params;
 import kr.ac.hallym.hcs.engine.rpc.RpcError;
 import kr.ac.hallym.hcs.engine.rpc.Server;
@@ -52,6 +54,8 @@ public final class Engine {
     private final DiagService diags;
     /** MIPS 프로그램(mips.*, N-16, D-147): 불러오기, 다시 불러오기, 디스어셈블, Console, 사실. */
     private Programs programs;
+    /** record.*(N-14): 사이클 기록, Run Until, Registers·Memory·Instruction. */
+    private final Records records;
 
     public Engine(Server server) {
         this.server = server;
@@ -62,6 +66,7 @@ public final class Engine {
         registerMips();
         registerEdit();
         registerSim();
+        records = new Records(server, files);
         server.onShutdown(this::closeAll);
         server.executor().scheduleAtFixedRate(this::frame, SimSession.FRAME_MS, SimSession.FRAME_MS,
                 TimeUnit.MILLISECONDS);
@@ -103,7 +108,13 @@ public final class Engine {
         return programs;
     }
 
+    /** 파일의 기록(테스트). */
+    public RecordSession record(String fileId) {
+        return records.get(fileId);
+    }
+
     private void closeAll() {
+        records.closeAll();
         for (SimSession s : sims.values()) {
             s.close();
         }
@@ -194,6 +205,7 @@ public final class Engine {
             }
             diags.detach(d);
             programs.detach(d);
+            records.close(d.id());
             files.close(d);
             return new JsonObject();
         });
@@ -218,9 +230,14 @@ public final class Engine {
     }
 
     private void attach(Doc d) {
-        sims.put(d.id(), new SimSession(d, server));
+        // 기록기가 먼저 붙어 틱을 먼저 적는다(N-14): 세션이 사이클을 세거나 N Cycles를 끝낼 때 그 틱이 기록에 있다
+        RecordSession r = records.attach(d);
+        SimSession s = new SimSession(d, server);
+        sims.put(d.id(), s);
+        records.bind(r, s);
         diags.attach(d);
         programs.attach(d);
+        records.ready(r); // 진단도 붙은 뒤 스텝 0(진단이 스텝 0을 본다, D-143)
     }
 
     // ---- model ----

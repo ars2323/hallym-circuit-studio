@@ -10,7 +10,7 @@
    CI's runtime job runs it with the bundled runtime (its AppCDS archive too). */
 
 import { expect, test } from '@playwright/test';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -75,8 +75,94 @@ test('the real engine: a broken circuit\'s Messages (N-13), the same words as th
     await expect(page.locator('.msg[data-kind="dynamic"] .where')).toHaveText('main · Cycle 0');
     await page.locator('.msg').first().click();
     await expect(page.locator('.msg.on')).toHaveCount(1);
+    // the one the clock found: the Cycle View at cycle 0 with the cause pinned (N-14, V-03)
+    await page.locator('.msg[data-kind="dynamic"]').click();
+    await expect(page.getByRole('tab', { name: 'Cycle View' })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('.cbar .cpos')).toHaveText('Cycle 0 / 1');
+    const temp = page.locator('.ctable tr.crow.temp');
+    await expect(temp.first().locator('.rname')).toHaveText('MemWrite');
+    await expect(temp.first().locator('td.pin')).toHaveAttribute('data-cycle', '0');
     await page.getByRole('button', { name: /Reset/ }).first().click();
     await expect(page.locator('.msg')).toHaveCount(2);
+    await expect(temp).toHaveCount(0);
+  } finally {
+    await r.close();
+  }
+});
+
+// A Hallym MIPS v2.4.0 golden (tests/hmx/hallym-mips-v2.4.0/data.hmx) in the reference CPU, the way Load
+// Program puts it (N-16 is the command): .text into the Instruction Memory, .data (bytes, little-endian) into the
+// Data Memory, the image's name in both parts' source (the labels).
+function hcsWords(text: string, section: '.text' | '.data'): string {
+  const out = ['hcs-words 1'];
+  const lines = text.split(/\r?\n/);
+  const at = lines.findIndex((l) => l.startsWith(section));
+  let addr = parseInt(lines[at].split(/\s+/)[1], 16);
+  const bytes: number[] = [];
+  for (const l of lines.slice(at + 1)) {
+    if (l.startsWith('.') || l.trim() === '') break;
+    if (section === '.text') { out.push(`${addr.toString(16).padStart(8, '0')} ${l.trim()}`); addr += 4; } else bytes.push(...l.trim().split(/\s+/).map((b) => parseInt(b, 16)));
+  }
+  for (let i = 0; i < bytes.length; i += 4) {
+    const w = (bytes[i] | (bytes[i + 1] ?? 0) << 8 | (bytes[i + 2] ?? 0) << 16 | (bytes[i + 3] ?? 0) << 24) >>> 0;
+    out.push(`${(addr + i).toString(16).padStart(8, '0')} ${w.toString(16).padStart(8, '0')}`);
+  }
+  return `${out.join('\n')}\n`;
+}
+
+test('the real engine: ref-mips with data.hmx, run to exit -- the Registers and Memory panels show the oracle\'s values', async () => {
+  const r = await launch(undefined, { env: real });
+  const { page } = r;
+  try {
+    const golden = path.join(repo, 'tests/hmx/hallym-mips-v2.4.0');
+    const circ = path.join(r.dir, 'ref-mips.circ');
+    copyFileSync(path.join(repo, 'tests/mips/ref-mips.circ'), circ);
+    copyFileSync(path.join(golden, 'data.hmx'), path.join(r.dir, 'data.hmx'));
+    await openFile(r, circ);
+    const hmx = readFileSync(path.join(golden, 'data.hmx'), 'utf8');
+    await page.evaluate(async ({ text, data }) => {
+      const app = (window as unknown as { app: { call(m: string, p: unknown): Promise<unknown> } }).app;
+      const s = await app.call('model.circuit', { fileId: 'f1', circuitId: 'c1' }) as { components: { id: string; name: string }[] };
+      const id = (n: string) => s.components.find((c) => c.name === n)!.id;
+      const set = (n: string, attr: string, value: string) => app.call('edit.setAttr', { fileId: 'f1', circuitId: 'c1', ids: [id(n)], attr, value });
+      await set('Instruction Memory', 'contents', text);
+      await set('Data Memory', 'contents', data);
+      await set('Instruction Memory', 'source', 'data.hmx');
+      await set('Data Memory', 'source', 'data.hmx');
+      await app.call('sim.reset', { fileId: 'f1' });
+    }, { text: hcsWords(hmx, '.text'), data: hcsWords(hmx, '.data') });
+    await page.locator('section.bottom').getByRole('tab', { name: 'Cycle View' }).click();
+    // Run Until: Halt or Exit (the Console's exit, cycle 33 -- the engine's RecordTest has the same)
+    await page.getByRole('button', { name: 'Run Until…' }).click();
+    await page.locator('dialog.ask').getByLabel('Condition').selectOption({ label: 'Halt or Exit' });
+    await page.locator('dialog.ask').getByRole('button', { name: 'Run' }).click();
+    await expect(page.locator('.status .ok')).toHaveText('사이클 33에서 멈췄습니다: halt 또는 exit', { timeout: 30_000 });
+    await expect(page.locator('.cbar .cpos')).toHaveText('Cycle 33');
+    // Registers = tests/hmx/hallym-mips-v2.4.0/data.regs for what the program writes
+    await page.locator('.cside').getByRole('tab', { name: 'Registers' }).click();
+    const reg = (name: string) => page.locator(`.cside .rrow[data-reg="${name}"] .hex`);
+    await expect(reg('$t0')).toHaveText('0x0000000e');
+    await expect(reg('$t1')).toHaveText('0xffffffff');
+    await expect(reg('$s0')).toHaveText('0x10010018');
+    await expect(reg('$a0')).toHaveText('0x0000000e');
+    await expect(reg('$v0')).toHaveText('0x0000000a');
+    await expect(reg('$at')).toHaveText('0x10010000');
+    await expect(page.locator('.cside .rrow[data-reg="$t1"] .dec')).toHaveText('-1');
+    // Memory: .data from 0x10010000 with the image's labels; the rest of the region as one row
+    await page.locator('.cside').getByRole('tab', { name: 'Memory' }).click();
+    const first = page.locator('.cside .data .drow').first();
+    await expect(first.locator('.daddr')).toHaveText('0x10010000');
+    await expect(first.locator('.dval')).toHaveText(['206d7573', '0000203d', '00000003', '00000005']);
+    await expect(first.locator('.dascii')).toContainText('sum =');
+    await expect(page.locator('.cside .data .dtags').first()).toContainText('msg');
+    await expect(page.locator('.cside .data .dtags').first()).toContainText('nums');
+    await expect(page.locator('.cside .data .dzero').first()).toContainText('all 0');
+    // Instruction: cycle 32 was the exit's syscall
+    await page.locator('.cbar').getByRole('button', { name: 'Previous Cycle' }).click();
+    await page.locator('.cside').getByRole('tab', { name: 'Instruction' }).click();
+    await expect(page.locator('.cside .insp .ihead .dis')).toHaveText('syscall');
+    await expect(page.locator('.cside .insp .fbox .fname')).toHaveText(['opcode', 'rs', 'rt', 'rd', 'shamt', 'funct']);
+    await expect(page.locator('.status')).toContainText('Cycle 32 / 33');
   } finally {
     await r.close();
   }

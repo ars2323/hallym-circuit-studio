@@ -115,7 +115,8 @@ const kill = (r: Running) => r.app.evaluate(() => (globalThis as unknown as { __
   await r.close();
 }
 
-// Messages (N-13): a broken circuit after one cycle, a message chosen; a circuit with nothing to say.
+// Messages (N-13): a broken circuit after one cycle, a message chosen, then the one with a cycle (the Cycle View
+// comes forward, N-14); a circuit with nothing to say.
 {
   const r = await launch(FHD);
   const { page } = r;
@@ -126,6 +127,13 @@ const kill = (r: Running) => r.app.evaluate(() => (globalThis as unknown as { __
   await page.locator('.msg').nth(1).click();
   await page.locator('.msg.on').waitFor();
   await shot(r, 'messages-list');
+  // the message found at cycle 0 chosen: the Cycle View at that cycle, the message's place pinned on top (N-14, V-03)
+  // chosen from the keyboard: a mouse click would leave the (then hidden) Messages body hovered in Chromium
+  await page.locator('.msggroup[data-code="X_WRITE_CONTROL"] .msg').focus();
+  await page.keyboard.press('Enter');
+  await page.locator('.ctable tr.crow.temp td.pin').waitFor();
+  await shot(r, 'cycle-pinned');
+  await page.locator('section.bottom').getByRole('tab', { name: 'Messages' }).click();
   await openFile(r, sample(r.dir, DATAPATH));
   await page.locator('.status .msgcount', { hasText: 'No messages' }).waitFor();
   await page.locator('.pbody.bottom .notice h3', { hasText: '메시지가 없습니다' }).waitFor();
@@ -204,6 +212,65 @@ async function view(r: Running, v: { x: number; y: number; zoom: number }): Prom
   writeFileSync(hmx, readFileSync(path.join(repo, 'tests/hmx/truncated.hmx')));
   await page.locator('.progband:not([hidden])').waitFor();
   await shot(r, 'reload-kept');
+  await r.close();
+}
+
+// The Cycle View (N-14): the fake engine runs the recursive factorial, one instruction a cycle, in a file with an
+// Instruction Memory (tests/fake-engine/fake-record.ts).  The bottom panel dragged taller; rows added with the
+// engine call the Canvas's right-click (Add to Cycle View, N-05/N-10) will make.
+{
+  const r = await launch(FHD);
+  const { page } = r;
+  await openFile(r, sample(r.dir, DATAPATH));
+  await drawn(r);
+  const grip = (await page.locator('[role="separator"][aria-label="Messages"]').boundingBox())!;
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(grip.x + grip.width / 2, grip.y - 250, { steps: 5 });
+  await page.mouse.up();
+  await page.locator('section.bottom').getByRole('tab', { name: 'Cycle View' }).click();
+  await page.evaluate(async () => {
+    const app = (window as unknown as { app: { call(m: string, p: unknown): Promise<unknown> } }).app;
+    for (const at of [[300, 200], [1240, 500], [100, 420], [1300, 500]]) await app.call('record.addRow', { fileId: 'f1', circuitId: 'c1', at });
+  });
+  for (let i = 0; i < 9; i += 1) await page.getByRole('button', { name: /1 Cycle/ }).click();
+  await page.locator('.cbar .cpos', { hasText: 'Cycle 9' }).waitFor();
+  await page.locator('.cside .rrow.chg').waitFor();
+  await shot(r, 'registers');
+  await page.locator('.ctable tr.hcycle th[data-cycle="7"]').click();
+  await page.locator('.cbar .cpos', { hasText: 'Cycle 7 / 9' }).waitFor();
+  await shot(r, 'cycle-view');
+  await page.getByRole('button', { name: 'Latest Cycle' }).click();
+  await page.locator('.cside').getByRole('tab', { name: 'Memory' }).click();
+  await page.locator('.cside .data .dsec-stack').first().waitFor();
+  await shot(r, 'memory');
+  await page.locator('.cside').getByRole('tab', { name: 'Instruction' }).click();
+  await page.locator('.cside .insp .bitgrid').waitFor();
+  await shot(r, 'instruction');
+  await page.getByRole('button', { name: 'Run Until…' }).click();
+  await page.locator('dialog.ask').getByLabel('Value').fill('fact');
+  await shot(r, 'run-until');
+  await r.close();
+}
+
+// Registers with ten-digit and negative values (the fake's wide-registers: $s6 = -1, $s7 = 0x80000000; $sp, $fp, $ra
+// as a program leaves them): the Saved, Pointers and Return address bands whole in Hex, Dec and Bin.
+{
+  const r = await launch(FHD, { env: { FAKE_ENGINE_MODE: 'wide-registers' } });
+  const { page } = r;
+  await openFile(r, sample(r.dir, DATAPATH));
+  await drawn(r);
+  const grip = (await page.locator('[role="separator"][aria-label="Messages"]').boundingBox())!;
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(grip.x + grip.width / 2, grip.y - 250, { steps: 5 });
+  await page.mouse.up();
+  await page.locator('section.bottom').getByRole('tab', { name: 'Cycle View' }).click();
+  for (let i = 0; i < 12; i += 1) await page.getByRole('button', { name: /1 Cycle/ }).click();
+  await page.locator('.cbar .cpos', { hasText: 'Cycle 12' }).waitFor();
+  await page.locator('.cside .rrow[data-reg="$s6"] .dec', { hasText: '-1' }).waitFor();
+  await page.locator('.cside .rrow[data-reg="$s4"]').evaluate((e) => e.scrollIntoView({ block: 'start' }));
+  await shot(r, 'registers-pointers');
   await r.close();
 }
 

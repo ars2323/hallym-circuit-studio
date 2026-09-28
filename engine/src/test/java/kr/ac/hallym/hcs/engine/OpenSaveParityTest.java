@@ -39,8 +39,10 @@ import kr.ac.hallym.hcs.regress.CircNormalizer;
 /**
  * 열기만 한 파일은 저장해도 그대로다(규칙 2.3, D-006, D-149): tests/ 아래와 화면 고정 파일의 모든 .circ를 한 엔진으로
  * 차례로 열고 화면이 여는 동안 하는 일(회로마다 model.circuit과 그 안 서브회로 인스턴스의 모양(appearance), model.library,
- * diag.list, mips.facts, sim.watch와 값 스트림의 몸체 상태(bodies), 몇 사이클, 캔버스가 서브회로 인스턴스 안으로 들어가
- * 보기(sim.watch path, N-05))을 한 뒤 저장하면 원래 글자와 같다(D-006 정규화). 더 돌리고 한 번 더 저장해도 같다. 새 부품을 쓰는 파일도
+ * diag.list, mips.facts, sim.watch와 값 스트림의 몸체 상태(bodies), Cycle View의 record.*(D-144: 표·Registers·Memory·
+ * Instruction·필드 경로, 지난 사이클 보기와 돌아오기), 몇 사이클, 캔버스가 서브회로 인스턴스 안으로 들어가 보기(sim.watch
+ * path, N-05))을 한 뒤 저장하면 원래 글자와 같다(D-006 정규화). 기록기는 파일을 열 때 붙고(file.open) 사이클마다 적는다.
+ * Mark as PC·레지스터 파일 표시는 하지 않는다(학생이 고른 표시는 파일을 바꾸는 편집이다). 더 돌리고 한 번 더 저장해도 같다. 새 부품을 쓰는 파일도
  * 열기만으로는 아무것도 늘지 않는다.
  */
 class OpenSaveParityTest {
@@ -213,6 +215,7 @@ class OpenSaveParityTest {
         if (mainSnapshot != null && mainSnapshot.getAsJsonArray("nets").size() > 0) {
             e.client.awaitNotificationAfter(watched, "sim.values", v -> v.get("fileId").getAsString().equals(fileId));
         }
+        cycleViewAsks(fileId, main);
         long want = e.client.callObject("sim.state", params("fileId", fileId)).get("cycle").getAsLong() + CYCLES;
         int mark = e.client.mark();
         try {
@@ -243,5 +246,27 @@ class OpenSaveParityTest {
             }
             e.client.call("sim.watch", params("fileId", fileId, "circuitId", main));
         }
+        cycleViewAsks(fileId, main);
+        // 지난 사이클을 보고(체크포인트에서 다시 만든 상태를 바꿔 끼움) 마지막으로 돌아온다
+        JsonObject st = e.client.callObject("record.state", params("fileId", fileId));
+        if (!st.get("empty").getAsBoolean() && st.get("last").getAsInt() > st.get("first").getAsInt()) {
+            try {
+                e.client.callObject("record.view", params("fileId", fileId, "cycle", st.get("first").getAsInt()));
+                cycleViewAsks(fileId, main);
+                e.client.callObject("record.view", params("fileId", fileId, "latest", true));
+            } catch (Client.Failure stopped) {
+                assertEquals(4, stopped.code, stopped.getMessage()); // 진동으로 꺼진 시뮬레이션
+            }
+        }
+    }
+
+    /** Cycle View(electron cycleview.ts)가 보일 때 묻는 것: 상태, 표, Registers, Memory, Instruction, 필드 경로. */
+    void cycleViewAsks(String fileId, String main) {
+        e.client.callObject("record.state", params("fileId", fileId));
+        e.client.callObject("record.table", params("fileId", fileId));
+        e.client.callObject("record.registers", params("fileId", fileId));
+        e.client.callObject("record.memory", params("fileId", fileId));
+        e.client.callObject("record.instruction", params("fileId", fileId));
+        e.client.callObject("record.fieldPaths", params("fileId", fileId, "circuitId", main));
     }
 }
