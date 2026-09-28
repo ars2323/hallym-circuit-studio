@@ -95,7 +95,7 @@ import { type EditSplitter, emitPlaceTool, emitSelection, onEditSplitter, onPlac
 import { tunnelsPanel } from './tunnels.ts';
 import { askPinValue, valueText } from './value-dialog.ts';
 import { commandError, fileError } from './logic/errors.ts';
-import { FREQUENCIES, going, resetTurnsOn, runLabel, simBand, simFacts } from './logic/sim.ts';
+import { countOnly, FREQUENCIES, going, resetTurnsOn, runLabel, simBand, simFacts } from './logic/sim.ts';
 import { circuitFacts, count, counted, engineFact } from './logic/facts.ts';
 import { Files, type OpenFile } from './logic/files.ts';
 import { arrange, nothingDragged, PAD, SPLITTER } from './logic/layout.ts';
@@ -1900,9 +1900,11 @@ api.onNotify((method, params) => {
   const p = params as Record<string, unknown>;
   if (method === 'sim.state') {
     const st = p as unknown as SimState;
+    const before = files.get(st.fileId)?.sim;
     files.setSim(st);
     if (st.fileId === files.active()?.fileId && FREQUENCIES.some(([, hz]) => hz === st.hz)) frequency.value = String(st.hz);
-    render();
+    // only the count went on (up to once a frame while the clock runs): the status bar, not every panel (N-22, D-160)
+    if (countOnly(before, st)) renderStatus(); else render();
     overlays.cycleChanged(st.fileId);
   } else if (method === 'edit.selection') {
     editor.onSelection(p as unknown as EditSelection);

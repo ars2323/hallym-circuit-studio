@@ -2205,3 +2205,62 @@
 - **N-09 화면 동등성과 맞춤(#448 뒤):** `real-engine-parity.e2e.ts`에서 다리(`window.app.call`)로 가던 의도(도구 속성 22개, 부품 속성 7개, 회로 속성 3개, Duplicate N 2개)를 이제 Attributes 패널(든 도구·고른 것·회로의 표)과 우클릭 Duplicate N… 창으로 한다. 일곱 장면 모두 다리 0이고 골든과 같다. `NO_CONTROL_YET`에는 화면 층 밖 `06`의 Align·Distribute·Only Components/Wires만 남았다(메뉴 항목은 있으나 그 장면은 화면 층에서 돌리지 않는다). 테스트의 고르기는 여럿을 고른 채 그중 하나를 누르면 모두 남으므로(원조) 먼저 비운다.
 - **남은 것:** I-22의 v1 마우스 오버 여러 줄(포트 툴팁·전체 경로·"포트 = 넷"·선 색의 뜻, 부품 옆 자리)은 옮기지 않았다(엔진이 v1 `HoverInfo`를 부르는 물음 하나로 후속). Menu Tool을 드는 길(I-84)은 도구 목록(N-12·N-17). 원조의 Reload Library 우클릭 항목은 없다: N-11은 라이브러리 파일이 저장되면 스스로 다시 읽는다(D-153). 손으로 부르는 항목이 필요하면 후속.
 - **테스트:** 엔진 `MenuEditTest` 9(원조 표·제목·편집기·빠른 속성, badValue, Data Bits 저장 = 원조 SetAttributeAction의 저장과 같은 글, 메뉴 사실·고른 차례, 라벨·붙이기·게이트 바꾸기, 선 항목, 버스 합치기, Splitter Distribute, RAM·ROM), `OpenSaveParityTest.screenOpens`에 `model.attributes`·`model.menu`·`mem.read`(열고 저장만 한 파일이 늘지 않음), `CanvasFixtures`의 `AttrFixtures`. 화면 단위 `attributes.test.ts` 9, `menus.test.ts` 13(배치·등록표·모든 캔버스 항목·대화상자·16진 편집기), `recovery.test.ts` +2(메뉴 의도의 ref, 죽인 뒤 같은 모델). e2e(가짜 엔진) `attributes.e2e.ts` 5, 진짜 엔진 `real-engine-attributes.e2e.ts` 2. 변이 24개 모두 죽음(`tools/mutants.ts attributes`). 기존 e2e의 Attributes 기대(빈 칸 → 회로 속성)를 고쳤다(edit·layout·start·window).
+
+## D-160 성능 목표 측정과 달성(N-22): 도구 하나(tools/perf.ts), CI 한도는 여유를 두고, Run의 끊김은 사이클 수만 바뀐 상태에서 상태 표시줄만 다시 그려 고침
+
+- **날짜:** 2026-09-29
+- **결정:**
+  1. **측정 도구 하나(`electron/tools/perf.ts`, 판정 `tools/perf-goals.ts`).** 학생이 여는 길 그대로 진짜 창과 진짜 엔진을 Playwright로 띄워 v2 지시 3-5의 목표를 잰다. 소스 트리(엔진 `engine/build/stage`, java는 `HCS_JAVA` 또는 번들 런타임)와 설치본(`--exe <설치 폴더>\HallymCircuitStudio.exe`, 학생 환경 변수 그대로) 둘 다 같은 코드다.
+     - 시작: 실행 → 창(`firstWindow`) → 첫 화면(`.wcard`) → 엔진 준비(main 프로세스가 `engine.hello` 답을 받음). 100 %에서 `--runs`번(기본 3), 첫 번째가 차가운 시작이다. Windows 설치본은 설치 검사(`installed.e2e.ts`)가 잰 **설치 직후 첫 시작**(report/launch.json)으로 판정한다.
+     - ref-mips 열기: Ctrl+O(고르기 창은 답을 미리 줌)부터 Canvas가 그 회로를 다 그린 첫 프레임(`settled()`, 부품 500개 넘음)까지. 매 실행마다, 중앙값으로 판정.
+     - 이동·확대: 캔버스에 프레임마다 휠 사건 하나를 보낸다(앱의 입력 처리 `canvas.ts listen` 그대로). 맞춤 보기에서 이동, 100 %에서 이동, Ctrl+휠로 25→200→25 % 확대, 각 120프레임. 화면 배율 100 %(1920×1032)와 150 %(1280×688, `--force-device-scale-factor=1.5`). 프레임 간격(requestAnimationFrame 사이)의 평균·p95·가장 긴 것·늦은 비율과 Canvas 그리기 시간.
+     - N Cycles 1000: ref-mips에 `tests/hmx/mips/factorial.hmx`를 Load Program…으로 올린 뒤(요약 창 OK, 시뮬레이션이 처음으로) N Cycles 대화상자에 1000, Enter부터 상태 표시줄 `Cycle 1,000`까지. 그동안 프레임도 잰다.
+     - Run: 도구 모음 속도 목록의 가장 빠른 것(4 kHz)으로 F5, 3초 동안의 프레임(가장 긴 것, 놓친 프레임 = 간격/16.7 반올림 − 1의 합)과 사이클 수.
+     - 크기: setup exe와 설치 폴더(설치 검사의 report/install.json, 없으면 설치 폴더를 직접 셈), 번들 런타임(소스 트리).
+     - 표(마크다운)를 로그와 작업 요약에 쓰고 JSON(`--json`)에 결과와 판정을 남긴다. 잴 수 없는 것(엔진 없음, 이 러너에 setup exe 없음)은 이유와 함께 `skipped`이고 결코 `met`이 아니다.
+  2. **v1 비교값은 같은 회로로 한 번 잼: 10,165 ms.** ref-mips에 factorial.hmx를 엔진으로 올려 저장한 .circ(`mips.load` → `file.save`, 트랙 A와 같은 속성)를 v1(지금 `app/`의 Swing v1 코드: 원조 `Project` + v1 `CyclePacer` + 기록기 `Recorder`, 화면 없이 — 실제 v1보다 빠른 쪽)로 1000사이클 돌렸다(Linux 개발 PC, D-145와 같은 방법, 세 번 중 가장 빠름).
+
+     | v1, ref-mips + factorial.hmx, 1000사이클 | 시간 |
+     | --- | --- |
+     | 4 kHz(v1이 가장 빠름; 5 ms 타이머가 한도) | 10,165 ms (10,171 / 10,165 / 10,168) |
+     | 1 kHz | 10,175 ms |
+     | 1 Hz(처음 값) | 25,036 ms |
+     | (비교) 프로그램 없는 ref-mips 4 kHz | 10,175 ms |
+
+     `perf-goals.ts V1_NCYCLES_1000_MS = 10165`. N-27이 `app/`의 Swing 코드를 지운 뒤에는 이 값이 기준으로 남는다.
+  3. **목표와 CI 한도(`GOALS`).** 목표 안이면 met, 목표를 넘었지만 한도 안이면 missed(표에 남고 CI는 계속), 한도를 넘으면 failed(작업 실패).
+
+     | 목표(지시 3-5) | 목표 | CI 한도 |
+     | --- | --- | --- |
+     | 첫 시작(엔진 포함) | ≤ 4,000 ms | 8,000 ms (Windows 설치 직후 첫 시작이 1.27–4.58 s로 흔들렸다, D-148/D-155) |
+     | ref-mips 열기 | ≤ 2,000 ms | 5,000 ms |
+     | 이동·확대 60 fps(100·150 %) | 프레임 평균 ≤ 17.5 ms 그리고 p95 ≤ 17.5 ms | 평균 25 ms(40 fps) |
+     | N Cycles 1000이 v1보다 느리지 않음 | ≤ 10,165 ms | 같음(여유는 이미 3배 넘음) |
+     | Run 중 끊기지 않음 | 가장 긴 프레임 ≤ 50 ms 그리고 놓친 프레임 ≤ 5 % | 가장 긴 프레임 250 ms |
+     | 설치 파일 크기 | 보고 | setup exe 160 MB(늘어남 감시) |
+
+     **보고만(`REPORT_ONLY`):** Windows CI(windows-2022)의 프레임과 Run. GPU가 없어 Chromium이 WARP(소프트웨어)로 그리고, 공유 VM의 다른 프로그램이 아무 때나 돈다: 프레임 간격으로 작업을 실패시키면 흔들린다(첫 측정은 0 % 늦음으로 고르게 나왔지만, 한 번으로 판정 기준을 세우지 않는다; 표에는 늘 남는다). 시작·열기·N Cycles·크기는 Windows에서도 판정한다. Linux CI(Xvfb, 역시 소프트웨어)는 로컬과 CI 모두 16.7 ms에 붙어 있어 판정한다.
+  4. **CI:** `runtime (ubuntu-24.04)`의 진짜 엔진 e2e 다음 `Performance goals (Linux, tools/perf.ts)`(번들 런타임, Xvfb 2400×1400, 결과 `engine-runtime-Linux` 산출물의 `perf-linux.json`). `setup-e2e`(windows-2022)에서 설치 검사와 첫 화면 검사 다음 `Performance goals on the installed program`: 조용히 설치 → `perf.ts --exe … --install-json report/install.json --launch-json report/launch.json` → 조용히 제거(`setup-e2e-report`의 `report/perf.json`). 설치 흔적 검사(Install/Uninstall 단계)가 끝난 뒤라 그 검사에 끼지 않는다.
+  5. **고친 것 — Run이 끊겼다.** 처음 잰 값에서 ref-mips + factorial을 Run 4 kHz로 돌리면 창이 초당 9프레임이었다(3초 동안 223프레임 중 190 놓침, 가장 긴 프레임 133 ms; N Cycles 도중 가장 긴 프레임 150 ms). 렌더러 프로파일: 엔진은 도는 동안 `sim.state`를 프레임마다 많아야 한 번 보내는데(D-145), 창은 그때마다 `render()`로 창 전체 — 파일·회로 탭, 부품 목록, 터널 목록(ref-mips 터널 580개), 상태 표시줄과 그 폭 맞추기(`fitStatus`의 `scrollWidth`가 전체 레이아웃을 강제) — 를 다시 만들었다. 고침: 앞 상태와 비교해 **사이클 수(`cycle`)와 남은 사이클(`cyclesLeft`)만 바뀐 상태**(`logic/sim.ts countOnly`: 같은 파일, running·ticking·oscillating·hz 같음, Run/Stop(`going`) 같음)면 상태 표시줄만 다시 그린다. 켜기·끄기, Run↔Stop, 발진, 속도가 바뀌면 전처럼 창 전체. 도는 중 사이클 표·Registers는 `record.state`가, 값은 `sim.values`가 따로 그린다(그대로). 고친 뒤 Run 4 kHz 놓친 프레임 0 %, 가장 긴 프레임 16.8 ms, N Cycles 도중 가장 긴 프레임 33 ms.
+  6. **잰 값:**
+
+     | | Linux 개발 PC(12코어, Xvfb) | Linux CI(ubuntu-24.04, Xvfb) | Windows CI 설치본(windows-2022) | 목표 |
+     | --- | --- | --- | --- | --- |
+     | 첫 시작: 창 / 첫 화면 / 엔진 준비 | 479 / 782 / 792 ms | 400 / 835 / 844 ms | 설치 직후 1,218 / 1,290 / 1,304 ms | ≤ 4 s, met |
+     | 다시 시작(중앙값): 엔진 준비 | 743 ms | 812 ms | 559 ms | met |
+     | ref-mips 열기 → 첫 프레임(중앙값) | 659 ms | 1,300 ms | 1,289 ms | ≤ 2 s, met |
+     | 이동 맞춤 / 100 % / 확대 25–200 %, 화면 100 %: 프레임 평균·p95 | 16.67·16.7 / 16.67·16.7 / 16.67·16.7 ms | 16.67·16.8 / 16.67·16.8 / 16.67·16.8 ms | 15.62·15.7 / 15.63·15.7 / 15.63·15.7 ms (64 Hz 화면) | 60 fps, met |
+     | 같은 것, 화면 150 % | 16.67·16.7 / 16.67·16.7 / 16.67·16.8 ms | 16.67·16.8 / 16.67·16.7 / 16.67·16.7 ms | 15.62·15.7 / 15.62·15.7 / 15.63·15.7 ms | 60 fps, met |
+     | Canvas 그리기(프레임당 평균, 100 %: 맞춤 이동 / 확대) | 1.18 / 3.17 ms | 1.12 / 4.24 ms | 1.37 / 3.17 ms | |
+     | N Cycles 1000, ref-mips + factorial.hmx | 2,724 ms (그동안 가장 긴 프레임 33 ms) | 4,203 ms (33 ms) | 4,266 ms (31 ms) | ≤ v1 10,165 ms, met |
+     | Run 4 kHz 3초: 가장 긴 프레임, 놓친 프레임 | 16.8 ms, 0 / 180 (627 사이클/s) | 16.8 ms, 0 / 179 (390 사이클/s) | 15.7 ms, 0 / 191 (404 사이클/s) | ≤ 50 ms·≤ 5 %, met |
+     | (고치기 전) Run 4 kHz | 133 ms, 190 / 223 (85 %) | — | — | missed였음 |
+     | setup exe / 설치 폴더 | — | — | 118.2 MB / 434.6 MB (179 파일) | 보고 |
+     | 번들 런타임(디스크) | 116.2 MB | 116.7 MB | (설치본 안 103 MB) | 보고 |
+
+     Windows CI 값은 PR #451의 첫 CI(run 36493020628, setup-e2e)이고 Linux CI 값은 16.8 ms, 0 / 179 (390 사이클/s)ID다. 모든 목표를 세 곳 모두에서 지켰다.
+
+     N Cycles 1000이 D-145의 프로그램 없는 ref-mips(창에서 1.9–2.3 s)보다 긴 것은 프로그램이 돌기 때문이다(엔진만 따로: 프로그램 없음 0.8 s, factorial 1.7 s, 첫 번은 JIT 전이라 2.5 s). 도구가 재는 N Cycles는 파일을 연 뒤 처음이다(학생이 보는 것).
+- **이유:** 지시 3-5는 "측정해 보고"다. 한 도구가 두 곳(개발 트리, 설치본)에서 같은 길로 재야 숫자를 비교할 수 있고, CI가 매번 재야 느려짐을 PR에서 잡는다. 한도에 여유를 둔 것은 공유 러너의 흔들림 때문이고(목표를 넘은 값도 표에 missed로 남는다), 판정할 수 없는 곳은 이유와 함께 보고만 한다. Run 끊김은 재서 처음 드러났고, 원인이 창의 그리기 범위라 엔진을 건드리지 않고 고칠 수 있었다.
+- **대안(버림):** 프레임을 `setView`로 직접 움직여 재기(measure-canvas.ts, D-137: Canvas만 재고 앱의 입력·덧그림을 거치지 않는다). `sim.state`를 창에서 프레임 단위로 모아 한 번만 `render()`(프레임마다 창 전체는 그대로 무겁다). `render()` 안의 각 패널을 바뀐 것만 다시 그리게 고치기(N-10·N-17이 같은 파일을 고치는 중이라 이번 범위 밖; 상태 표시줄만으로 목표를 넘었다). Windows 프레임도 판정(GPU 없는 공유 VM에서 흔들림). v1 비교값을 프로그램 없는 ref-mips 값(D-145의 10,139 ms)으로 두기(지시는 factorial을 올린 같은 회로).
+- **테스트:** 단위 `tests/unit/perf-goals.test.ts`(10: 프레임 통계·met/missed/failed/report/skipped·Windows 보고만·설치 직후 시작·표·보고 파일 읽기), `sim.test.ts` countOnly. e2e(가짜 엔진) `sim.e2e.ts` "Run: the engine's count each frame redraws the status bar only; Stop redraws the window (N-22)": 도는 중 사이클만 바뀐 `sim.state` 60개 뒤 도구 모음은 그대로이고 상태 표시줄만 새로, Run이 멈추면 창 전체가 새로. 돌연변이 10개(`node tools/mutants.ts perf`) 모두 잡힘. CI의 두 측정 단계가 실제 창·엔진으로 돈다. 함께 고친 흔들림: `real-engine-attributes.e2e.ts`(N-10)가 놓은 Constant의 표를 기다릴 때 이름(`Constant`)만 보아, 느린 러너에서 든 도구의 같은 이름 표에 값을 적고 곧 온 선택의 표가 거절 문장을 치웠다(부하 12코어 16개에서 이 가지 전 12번 중 1번, 창 전체 그리기가 줄어든 뒤 3번). 이제 머리 배지 `Selection`까지 기다린다(같은 부하 24번 모두 통과).

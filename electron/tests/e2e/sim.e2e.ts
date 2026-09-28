@@ -8,7 +8,7 @@ import { expect, test } from '@playwright/test';
 
 import { centerOn, clickAt, overlayOf, pagePoint, partBy, portValue } from './canvas-points.ts';
 import { DATAPATH, launch, newCircuit, openFile, recordCalls, type Running, sample, sentCalls, visibleCharacters } from './harness.ts';
-import { call } from './model.ts';
+import { call, openFileIds } from './model.ts';
 
 async function drawn(r: Running): Promise<void> {
   await r.page.locator('.canvas-view canvas').waitFor();
@@ -98,6 +98,42 @@ test('Run and Stop, 1 Cycle, Reset, the Tick Frequency\'s seven speeds: facts in
     await expect(status(r)).toContainText('Cycle 2');
     await page.getByRole('button', { name: /Reset/ }).click();
     await expect(status(r)).toContainText('Cycle 0');
+  } finally {
+    await r.close();
+  }
+});
+
+// N-22, D-160: while the clock runs the engine says the count up to once a frame; only the status bar is drawn again
+// (every panel each frame made Run at 4 kHz stutter on ref-mips).  A whole-window render makes the Run button's
+// contents anew; the status bar is made anew by either.  Marks on both tell which ran.
+test('Run: the engine\'s count each frame redraws the status bar only; Stop redraws the window (N-22)', async () => {
+  const r = await launch();
+  const { page } = r;
+  try {
+    await newCircuit(r);
+    await page.keyboard.press('F5');
+    await expect(page.locator('.status .run')).toHaveText('Running (1 Hz)');
+    const [fileId] = await openFileIds(r.app);
+    type Marked = HTMLElement & { __kept?: boolean };
+    const mark = () => page.evaluate(() => {
+      (document.querySelector('.toolbar .btn .label.swap') as Marked).__kept = true;
+      (document.querySelector('.status .run') as Marked).__kept = true;
+    });
+    const kept = () => page.evaluate(() => ({
+      toolbar: (document.querySelector('.toolbar .btn .label.swap') as Marked).__kept === true,
+      status: (document.querySelector('.status .sim') as Marked | null)?.__kept === true || (document.querySelector('.status .run') as Marked | null)?.__kept === true,
+    }));
+    const tell = (st: Record<string, unknown>) => r.app.evaluate(({ BrowserWindow }, x) => {
+      BrowserWindow.getAllWindows()[0].webContents.send('engine:notify', 'sim.state', x);
+    }, { fileId, running: true, ticking: true, oscillating: false, hz: 1, cyclesLeft: 0, ...st });
+    await mark();
+    for (let c = 1; c <= 60; c += 1) await tell({ cycle: c });
+    await expect.poll(kept, { message: 'count-only states: the status bar made anew, the toolbar kept' }).toEqual({ toolbar: true, status: false });
+    await expect(page.locator('.status .run')).toHaveText('Running (1 Hz)');
+    await mark();
+    await tell({ cycle: 61, ticking: false });
+    await expect(page.getByRole('button', { name: /^Run\s*F5$/ })).toBeVisible();
+    expect(await kept(), 'Run is Stop again: the window drawn again').toEqual({ toolbar: false, status: false });
   } finally {
     await r.close();
   }
