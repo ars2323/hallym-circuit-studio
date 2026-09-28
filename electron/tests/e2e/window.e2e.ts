@@ -4,6 +4,7 @@
    darkens with their backdrop; About with its two tabs and every notice. */
 
 import { expect, test } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { answerOpen, launch, newCircuit, type Running } from './harness.ts';
@@ -112,7 +113,8 @@ test('About: the version, Logisim 2.7.1 by Carl Burch, the marks\' owner, not of
     await expect(about).toBeVisible();
     await expect(about.getByRole('tab')).toHaveText(['About', 'Licenses']);
     const text = await about.innerText();
-    for (const s of ['Hallym Circuit Studio', '2.0.0-alpha.0', 'Based on Logisim 2.7.1 by Carl Burch (GNU GPL, version 2 or later)',
+    const version = (JSON.parse(readFileSync(path.join(import.meta.dirname, '../../package.json'), 'utf8')) as { version: string }).version;
+    for (const s of ['Hallym Circuit Studio', version, 'Based on Logisim 2.7.1 by Carl Burch (GNU GPL, version 2 or later)',
       'Hallym MIPS Simulator', 'Hallym University 소유', '상업적 사용을 금지합니다', 'Hallym University 공식 제품이 아닙니다', '시작 화면의 영상', '@HALLYMNEWS', '로고와 캐릭터는 원형 그대로 씁니다', '홍보 영상의 첫 장면 2.5초를 소리 없이 느리게 자른 것이고, 흐리게 하고 남색 층을 덮어 보입니다', 'fake-engine']) {
       expect(text).toContain(s);
     }
