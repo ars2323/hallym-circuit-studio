@@ -423,7 +423,7 @@ function registerHandlers(): void {
 
   // Circuits from other files, libraries, Edit Original File (N-11): the dialogs here, the paths never in the page.
   registerCircuitFiles({
-    windowCall, openFiles, openPath,
+    dialog, windowCall, openFiles, openPath,
     parent: (e) => from(e),
     handle: (channel, f) => ipcMain.handle(channel, (e, ...args: unknown[]) => answer(() => f(e, ...args))),
   });
@@ -441,6 +441,8 @@ function registerHandlers(): void {
     windows.release(fileId);
     mainWindow.webContents.send('win:adopt', { ...handover, fileId, path: openFiles.get(fileId) ?? null });
     if (mainWindow.isMinimized()) mainWindow.restore();
+    // the last window of its own back: the main window over the whole work area again (v1: back where the group is)
+    if (windows.detached().length === 0 && !mainWindow.isMaximized()) mainWindow.maximize();
     mainWindow.focus();
     (w as BrowserWindow & { hcsClose?: () => void }).hcsClose?.();
     return true;

@@ -23,9 +23,11 @@
 
 import { copyFileSync, existsSync, mkdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { crc32, deflateSync } from 'node:zlib';
 
 import { answerOpen, canvasSettled, DATAPATH, launch, openFile, repo, root, sample, type Running } from '../tests/e2e/harness.ts';
 import { click, menu, partMiddle, rightClick, wireAtPort } from '../tests/e2e/overlay-helpers.ts';
+import { decodePng } from '../tests/e2e/png.ts';
 
 const out = process.env.SCREENS_OUT ? path.resolve(process.env.SCREENS_OUT) : path.join(root, 'docs/screens');
 mkdirSync(out, { recursive: true });
@@ -618,6 +620,98 @@ for (const [name, size, scale] of [
   await shot(r, 'leave-dialog');
   await page.locator('dialog.ask').getByRole('button', { name: 'Discard' }).click();
   await r.app.waitForEvent('close').catch(() => {});
+}
+
+// ---- circuits, appearances, libraries, windows (N-11, D-153) ----
+
+// Two windows side by side as one picture (View Side by Side: each page is its own capture).
+function sideBySide(name: string, left: Buffer, right: Buffer): void {
+  const a = decodePng(left), b = decodePng(right);
+  const width = a.width + b.width, height = Math.max(a.height, b.height);
+  const raw = Buffer.alloc((width * 3 + 1) * height, 0xff);
+  for (let y = 0; y < height; y += 1) {
+    raw[y * (width * 3 + 1)] = 0;
+    for (const [img, x0] of [[a, 0], [b, a.width]] as const) {
+      if (y >= img.height) continue;
+      for (let x = 0; x < img.width; x += 1) {
+        const at = y * (width * 3 + 1) + 1 + (x0 + x) * 3;
+        const from = (y * img.width + x) * 4;
+        raw[at] = img.rgba[from]; raw[at + 1] = img.rgba[from + 1]; raw[at + 2] = img.rgba[from + 2];
+      }
+    }
+  }
+  const chunk = (type: string, body: Buffer) => {
+    const len = Buffer.alloc(4); len.writeUInt32BE(body.length);
+    const tb = Buffer.concat([Buffer.from(type, 'latin1'), body]);
+    const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(tb) >>> 0);
+    return Buffer.concat([len, tb, crc]);
+  };
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0); ihdr.writeUInt32BE(height, 4); ihdr[8] = 8; ihdr[9] = 2;
+  writeFileSync(path.join(out, `${name}.png`), Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw, { level: 9 })), chunk('IEND', Buffer.alloc(0))]));
+  written(name);
+}
+
+{
+  const r = await launch(FHD);
+  const { page } = r;
+  await openFile(r, sample(r.dir, DATAPATH));
+  await drawn(r);
+  await page.getByRole('tab', { name: 'Circuits' }).click();
+  // the Circuits panel: Add Circuit, Import, Libraries; a circuit's right click
+  await page.locator('.circlist li button', { hasText: 'regfile' }).click({ button: 'right' });
+  await page.locator('.ovmenu').waitFor();
+  await shot(r, 'circuits-panel');
+  await page.keyboard.press('Escape');
+  // Port Order…: alu's ports a column a side, A moved down one
+  await page.locator('.circlist li button', { hasText: 'alu' }).click({ button: 'right' });
+  await page.locator('.ovmenu button', { hasText: 'Port Order…' }).click();
+  await page.locator('dialog.portorder .portrow').first().getByRole('button', { name: /down/ }).click();
+  await shot(r, 'port-order');
+  await page.keyboard.press('Escape');
+  // the appearance editor: alu's own drawing, its box chosen, its attributes
+  await page.locator('.circlist li button', { hasText: 'alu' }).click({ button: 'right' });
+  await page.locator('.ovmenu button', { hasText: 'Edit Circuit Appearance' }).click();
+  await page.locator('.appshapes .appshape').first().waitFor();
+  const rect = page.locator('.appshapes .kind-rect').first();
+  const rb = (await rect.boundingBox())!;
+  await page.mouse.click(rb.x + 2, rb.y + rb.height / 2);
+  await page.locator('.appover .apphandle').first().waitFor();
+  await shot(r, 'appearance-editor');
+  await r.close();
+}
+
+{
+  const r = await launch(FHD);
+  const { page, app } = r;
+  mkdirSync(path.join(r.dir, 'hw1'));
+  mkdirSync(path.join(r.dir, 'hw2'));
+  await openFile(r, sample(r.dir, 'tests/circ/subcircuit.circ', 'hw1/lab.circ'));
+  await answerOpen(app, sample(r.dir, 'tests/circ/subcircuit.circ', 'hw2/lab.circ'));
+  await page.keyboard.press('Control+o');
+  await page.locator('.filebar .ptab').nth(1).waitFor();
+  await openFile(r, sample(r.dir, DATAPATH));
+  await drawn(r);
+  // file tabs: two lab.circ told apart by their folders; a tab's right click
+  await page.locator('.filebar .ptab').nth(1).click({ button: 'right' });
+  await page.locator('.ovmenu').waitFor();
+  await shot(r, 'file-tabs');
+  await page.locator('.ovmenu button', { hasText: 'View Side by Side' }).click();
+  await page.waitForFunction(() => document.querySelectorAll('.filebar .ptab').length === 2);
+  const own = await (async () => {
+    for (let i = 0; i < 100 && app.windows().length < 2; i += 1) await page.waitForTimeout(50);
+    return app.windows().find((w) => w !== page)!;
+  })();
+  await own.locator('.filebar .ptab').waitFor();
+  await own.locator('.canvas-view canvas').waitFor();
+  for (const p of [page, own]) {
+    await p.mouse.move(-10, -10);
+    await p.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await p.evaluate(() => document.fonts.ready);
+  }
+  await page.waitForTimeout(600);
+  sideBySide('side-by-side', await page.screenshot(), await own.screenshot());
+  await r.close();
 }
 
 // No engine: the dialog (no character: an error) over the first screen and its band.

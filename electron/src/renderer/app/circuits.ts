@@ -65,7 +65,7 @@ export function circuitsPanel(o: {
     ], r.left, r.bottom + 2);
   });
   const bar = h('div', { class: 'circbar' }, add, imp, libs);
-  const list = h('ul', { class: 'list circlist', role: 'listbox', 'aria-label': 'Circuits' });
+  const list = h('ul', { class: 'list circlist', 'aria-label': 'Circuits' });
   const root = h('div', { class: 'circpanel' }, bar, list);
 
   function menuFor(c: CircuitRef, x: number, y: number): void {
@@ -96,7 +96,7 @@ export function circuitsPanel(o: {
     for (const b of [add, imp, libs]) b.disabled = !st.editable;
     list.replaceChildren(...st.circuits.map((c, i) => {
       const isMain = c.circuitId === st.main;
-      const b = h('button', { type: 'button', role: 'option', 'aria-selected': String(c.circuitId === st.shown), title: `${c.name}${isMain ? ' (main circuit)' : ''} — right click: Rename, Port Order, Appearance…`, draggable: String(st.editable), 'data-circuit': c.circuitId },
+      const b = h('button', { type: 'button', 'aria-current': c.circuitId === st.shown ? 'true' : undefined, title: `${c.name}${isMain ? ' (main circuit)' : ''} — right click: Rename, Port Order, Appearance…`, draggable: String(st.editable), 'data-circuit': c.circuitId },
         h('span', { class: 'mono' }, c.name),
         isMain ? h('span', { class: 'mainmark', role: 'img', 'aria-label': 'Main circuit', title: 'Main circuit' }, icon('house')) : null,
         c.circuitId === st.shown && st.appearance ? h('span', { class: 'tag' }, 'Appearance') : null);

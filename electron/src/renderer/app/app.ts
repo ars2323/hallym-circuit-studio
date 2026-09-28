@@ -1394,7 +1394,7 @@ function renderInstanceBand(f: OpenFile): void {
     instanceBand.replaceChildren(...parts);
     layout();
   };
-  if (w.path.length || f.circuit === f.main || engine.state !== 'ready') { show(null); return; }
+  if (w.path.length || f.circuit === f.main || engine.state !== 'ready' || appearanceShown(f)) { show(null); return; }
   const sub = files.circuitName(f, f.circuit);
   const info = instCache.get(key(f.fileId, f.circuit));
   if (info === undefined) { void instancesOf(f.fileId, f.circuit).then(() => { if (files.active() === f) renderInstanceBand(f); }); show(null); return; }

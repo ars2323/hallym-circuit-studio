@@ -12,7 +12,12 @@
      model.instances, model.pinImpact  main's direct instances
      model.appearance, edit.appearance, model.appearanceHit / Handles / Menu
                                     shapes as records (a default box, its ports,
-                                    the anchor on top); hits by bounds
+                                    the anchor on top); hits by bounds.  A file
+                                    with an appearance fixture (demo-datapath:
+                                    tests/fixtures/appearance/, the real engine's
+                                    answers, ./gradlew :engine:canvasFixtures)
+                                    starts from the engine's shapes, ports and
+                                    instance paths
      model.libraries, edit.loadLibrary, edit.unloadLibrary, file.peek,
      model.importPlan, edit.importCircuits, file.saveImpact, file.originOf,
      file.copyMipsJar
@@ -26,9 +31,25 @@ import path from 'node:path';
 
 type Params = Record<string, unknown>;
 type P = [number, number];
-export interface CComp { id: string; lib: string; name: string; loc: P; attrs: Record<string, string> }
+export interface CComp { id: string; lib: string | null; name: string; loc: P; attrs: Record<string, string>; subcircuit?: string }
 export interface CCircuit { circuitId: string; name: string; comps: CComp[]; wires: { id: string; a: P; b: P }[] }
-export interface Shape { kind: string; attrs: Record<string, string>; bounds: [number, number, number, number]; points?: P[]; text?: string; at?: P; pin?: P; input?: boolean; name?: string; facing?: string }
+export interface Shape { kind: string; attrs: Record<string, string>; bounds: [number, number, number, number]; points?: P[]; text?: string; at?: P; pin?: P; input?: boolean; name?: string; facing?: string; svg?: unknown }
+
+// The real engine's answers for a file (tests/fixtures/appearance/<name>.json), by circuit name.
+interface FixtureCircuit { appearance: { default: boolean; shapes: FixtureShape[] }; ports: unknown; instances: unknown }
+interface FixtureShape { kind: string; svg?: unknown; attrs: Record<string, string>; bounds: [number, number, number, number]; points?: P[]; text?: string; at?: P; port?: { input: boolean; pin?: P; name?: string; at: P }; facing?: string }
+const FIXTURES = path.join(import.meta.dirname, '..', 'fixtures', 'appearance');
+function fixtureOf(f: CFile): Record<string, FixtureCircuit> | null {
+  if (!f.path) return null;
+  try { return (JSON.parse(readFileSync(path.join(FIXTURES, path.basename(f.path).replace(/\.circ$/i, '.json')), 'utf8')) as { circuits: Record<string, FixtureCircuit> }).circuits; } catch { return null; }
+}
+function fromFixture(x: FixtureShape): Shape {
+  return {
+    kind: x.kind, attrs: { ...x.attrs }, bounds: x.bounds, ...(x.points ? { points: x.points } : {}), ...(x.text !== undefined ? { text: x.text } : {}),
+    ...(x.at ? { at: x.at } : x.port ? { at: x.port.at } : {}), ...(x.port ? { pin: x.port.pin, input: x.port.input, name: x.port.name } : {}),
+    ...(x.facing ? { facing: x.facing } : {}), ...(x.svg ? { svg: x.svg } : {}),
+  };
+}
 export interface Appear { default: boolean; shapes: Shape[] }
 export interface CFile {
   fileId: string; name: string; path: string | null; circuits: CCircuit[]; main: string; libs: string[]; dirty: boolean;
@@ -118,7 +139,9 @@ function defaultAppear(c: CCircuit): Appear {
 function appearOf(f: CFile, c: CCircuit): Appear {
   f.appear ??= new Map();
   let a = f.appear.get(c.name);
-  if (!a || a.default) { a = defaultAppear(c); f.appear.set(c.name, a); }
+  const fx = fixtureOf(f)?.[c.name];
+  if (!a && fx) { a = { default: fx.appearance.default, shapes: fx.appearance.shapes.map(fromFixture) }; f.appear.set(c.name, a); }
+  if (!a || (a.default && !fx)) { a = defaultAppear(c); f.appear.set(c.name, a); }
   return a;
 }
 
@@ -130,6 +153,7 @@ function handlesOf(s: Shape): P[] {
 }
 
 function svgOf(s: Shape): unknown {
+  if (s.svg) return s.svg;   // the engine's own, until the shape changes here
   const a = s.attrs;
   const stroke = { stroke: a.stroke ?? '#000000', 'stroke-width': a['stroke-width'] ?? '1', fill: a.paintType === 'fill' || a.paintType === 'both' ? a.fill ?? '#ffffff' : 'none' };
   const [x, y, w, h] = s.bounds;
@@ -169,6 +193,7 @@ function firstElement(a: Appear): number {
 }
 
 function translate(s: Shape, dx: number, dy: number): void {
+  delete s.svg;
   s.bounds = [s.bounds[0] + dx, s.bounds[1] + dy, s.bounds[2], s.bounds[3]];
   if (s.points) s.points = s.points.map((p) => [p[0] + dx, p[1] + dy]);
   if (s.at) s.at = [s.at[0] + dx, s.at[1] + dy];
@@ -209,6 +234,7 @@ function appearanceOp(ctx: Ctx, f: CFile, c: CCircuit, p: Params): Record<string
     case 'handle': return edit((a) => {
       const s = a.shapes[Number(p.shape)];
       const at = p.at as P;
+      delete s.svg;
       if (s.points) s.points = s.points.map((q) => (q[0] === at[0] && q[1] === at[1] ? [q[0] + Number(p.dx), q[1] + Number(p.dy)] : q));
       else { const [x, y, w, h] = s.bounds; s.bounds = [x, y, Math.max(1, w + Number(p.dx)), Math.max(1, h + Number(p.dy))]; }
       return [Number(p.shape)];
@@ -247,7 +273,7 @@ function appearanceOp(ctx: Ctx, f: CFile, c: CCircuit, p: Params): Record<string
       else s.points = s.points.filter((q) => q[0] !== at[0] || q[1] !== at[1]);
       return [Number(p.shape)];
     });
-    case 'setAttr': return edit((a) => { for (const i of shapesParam) a.shapes[i].attrs = { ...a.shapes[i].attrs, [String(p.attr)]: String(p.value) }; });
+    case 'setAttr': return edit((a) => { for (const i of shapesParam) { delete a.shapes[i].svg; a.shapes[i].attrs = { ...a.shapes[i].attrs, [String(p.attr)]: String(p.value) }; } });
     case 'text': return edit((a) => {
       const i = Number(p.shape);
       if (String(p.text) === '') { a.shapes.splice(i, 1); return []; }
@@ -266,7 +292,7 @@ function appearanceOp(ctx: Ctx, f: CFile, c: CCircuit, p: Params): Record<string
 
 export function methods(ctx: Ctx): Record<string, (p: Params) => unknown> {
   const circuitNamed = (f: CFile, name: string) => f.circuits.find((c) => c.name === name);
-  const usersOf = (f: CFile, c: CCircuit) => f.circuits.flatMap((k) => k.comps.filter((x) => x.lib === 'circuit' && x.name === c.name).map((x) => ({ parent: k, comp: x })));
+  const usersOf = (f: CFile, c: CCircuit) => f.circuits.flatMap((k) => k.comps.filter((x) => (x.lib === 'circuit' && x.name === c.name) || x.subcircuit === c.circuitId).map((x) => ({ parent: k, comp: x })));
   return {
     'file.info': (p) => ({ ...fileInfo(ctx, ctx.fileOf(p)), saved: ctx.fileOf(p).path !== null, readOnly: false }),
     'edit.createCircuit': (p) => {
@@ -318,6 +344,8 @@ export function methods(ctx: Ctx): Record<string, (p: Params) => unknown> {
     'model.ports': (p) => {
       const f = ctx.fileOf(p);
       const c = ctx.circuitOf(p);
+      const fx = fixtureOf(f)?.[c.name];
+      if (fx) return { ...(fx.ports as object), circuitId: c.circuitId, default: appearOf(f, c).default };
       const sides: Record<string, unknown[]> = { west: [], east: [], north: [], south: [] };
       for (const k of pins(c).sort((a, b) => a.loc[1] - b.loc[1] || a.loc[0] - b.loc[0])) sides[sideOf(k)].push({ name: k.attrs.label ?? '', width: Number(k.attrs.width ?? 1), input: !isOutput(k) });
       return { circuitId: c.circuitId, name: c.name, default: appearOf(f, c).default, sides, instances: usersOf(f, c).length };
@@ -345,6 +373,8 @@ export function methods(ctx: Ctx): Record<string, (p: Params) => unknown> {
     'model.instances': (p) => {
       const f = ctx.fileOf(p);
       const c = ctx.circuitOf(p);
+      const fx = fixtureOf(f)?.[c.name];
+      if (fx) return { ...(fx.instances as object), circuitId: c.circuitId, default: appearOf(f, c).default };
       const main = mainOf(f);
       const users = usersOf(f, c);
       const direct = main && main !== c ? main.comps.filter((x) => x.lib === 'circuit' && x.name === c.name) : [];

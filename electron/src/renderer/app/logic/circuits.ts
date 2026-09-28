@@ -88,10 +88,10 @@ export function loadRefusal(reason: string | undefined): string | null {
   switch (reason) {
     case 'self': return 'Load Library: 이 파일 자신은 라이브러리로 넣을 수 없습니다';
     case 'circular': return 'Load Library: 그 파일이 이미 이 파일을 쓰고 있어 넣을 수 없습니다(순환 참조)';
-    case 'noLibraryClass': return 'Load Library: 이 JAR 파일은 Logisim 라이브러리가 아닙니다(manifest에 Library-Class가 없습니다)';
+    case 'noLibraryClass': return 'Load Library: 이 JAR 파일에는 Logisim 라이브러리를 가리키는 Library-Class 항목이 없습니다';
     case 'notFound': return 'Load Library: 그 자리에 파일이 없습니다';
     case 'loadFailed': return 'Load Library: 그 파일을 라이브러리로 읽지 못했습니다';
-    case 'readOnly': return 'Load Library: 읽기 전용 파일입니다. Save As로 저장한 뒤 넣으세요';
+    case 'readOnly': return 'Load Library: 읽기 전용 파일입니다. 다른 이름으로 저장(Save As)한 뒤 넣으세요';
     default: return null;
   }
 }

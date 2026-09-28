@@ -17,13 +17,13 @@
      file:editOriginal      a library circuit's file, opened (or its tab) --
                             v1 Edit Original File */
 
-import type { BrowserWindow, IpcMainInvokeEvent } from 'electron';
-import { dialog } from 'electron';
+import type { BrowserWindow, Dialog, IpcMainInvokeEvent } from 'electron';
 import path from 'node:path';
 
 import type { EditResult, ImportPeek, ImportPlan, OpenResult, RecoveryAsk } from './protocol.ts';
 
 export interface CircuitFilesHost {
+  dialog: Pick<Dialog, 'showOpenDialog'>;
   windowCall<T>(method: string, params: unknown): Promise<T>;
   openFiles: Map<string, string | null>;
   // the file, or first the question of its recovery file (N-19): the page answers it as for File › Open
@@ -54,7 +54,7 @@ export function registerCircuitFiles(h: CircuitFilesHost): void {
 
   h.handle('circuits:importChoose', async (e, fileId) => {
     const id = known(fileId);
-    const r = await dialog.showOpenDialog(h.parent(e), {
+    const r = await h.dialog.showOpenDialog(h.parent(e), {
       title: 'Import Subcircuits', defaultPath: dialogFolder(h.openFiles.get(id)), filters: [CIRC], properties: ['openFile'],
     });
     if (r.canceled || r.filePaths.length === 0) return null;
@@ -83,7 +83,7 @@ export function registerCircuitFiles(h: CircuitFilesHost): void {
       return h.windowCall<EditResult>('edit.loadLibrary', { fileId: id, kind: 'builtin', name });
     }
     if (kind !== 'circ' && kind !== 'jar') throw new Error(`no kind of library ${String(kind)}`);
-    const r = await dialog.showOpenDialog(h.parent(e), {
+    const r = await h.dialog.showOpenDialog(h.parent(e), {
       title: kind === 'circ' ? 'Load Logisim Library' : 'Load JAR Library',
       defaultPath: dialogFolder(h.openFiles.get(id)), filters: [kind === 'circ' ? CIRC : JAR], properties: ['openFile'],
     });
