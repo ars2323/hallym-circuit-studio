@@ -81,7 +81,7 @@ test('the real engine: a broken circuit\'s Messages (N-13), the same words as th
   }
 });
 
-test('the real engine: Load Program puts data.hmx into ref-mips; N Cycles to the exit; the Console says what SPIM said (N-16)', async () => {
+test('the real engine: Load Program puts data.hmx into ref-mips; N Cycles to the exit; the Console says what SPIM said; after a crash the program is back (N-16)', async () => {
   const r = await launch(undefined, { env: real });
   const { page } = r;
   try {
@@ -105,6 +105,14 @@ test('the real engine: Load Program puts data.hmx into ref-mips; N Cycles to the
     // The oracle: SPIM's console for the same program (tests/hmx/hallym-mips-v2.4.0/data.regs)
     const oracle = /^console "(.*)"$/m.exec(readFileSync(path.join(repo, golden, 'data.regs'), 'utf8'))![1];
     await expect(page.locator('pre.consoletext')).toHaveText(`${oracle}\n-- exit --\n`);
+    // The engine ends: the file comes back with the program (the journal replays mips.load, D-142), from Reset
+    await r.app.evaluate(() => (globalThis as unknown as { __hcs: { engine: { kill(): void } } }).__hcs.engine.kill());
+    await page.locator('dialog.ask').getByRole('button', { name: 'Close' }).click();
+    await expect(page.locator('.status .progfact').first()).toHaveText('Program data.hmx');
+    const facts = await r.app.evaluate(() => (globalThis as unknown as { __hcs: { engine: { call(m: string, p: unknown): Promise<unknown> } } })
+      .__hcs.engine.call('mips.facts', { fileId: 'f1' })) as { program: { memories: { kind: string; text: string }[] } };
+    expect(facts.program.memories.find((m) => m.kind === 'text')?.text).toBe('27 words (0x00400000–0x00400068), entry 0x00400024');
+    await expect(page.locator('.pbody.bottom:visible .notice h3')).toHaveText('아직 출력이 없습니다');
   } finally {
     await r.close();
   }

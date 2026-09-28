@@ -171,6 +171,27 @@ test('the Console tab: the program\'s whole output, -- exit --; Reset empties it
   }
 });
 
+test('an engine crash after Load Program: the file comes back with its program (the journal replays mips.load), the Console empty', async () => {
+  const r = await launch();
+  const { page } = r;
+  try {
+    const w = workspace(r);
+    await openFile(r, w.circ);
+    await loadProgram(r, w.hmx);
+    await page.locator('dialog.loadsummary').getByRole('button', { name: 'OK' }).click();
+    await page.getByRole('tab', { name: 'Console' }).click();
+    await page.keyboard.press('F10');
+    await expect(page.locator('pre.consoletext')).toHaveText('sum = 14\n-- exit --\n');
+    await r.app.evaluate(() => (globalThis as unknown as { __hcs: { engine: { kill(): void } } }).__hcs.engine.kill());
+    await expect(page.locator('dialog.ask h2')).toHaveText('엔진이 멈췄다가 다시 시작했습니다');
+    await page.locator('dialog.ask').getByRole('button', { name: 'Close' }).click();
+    await expect(page.locator('.status .progfact').first()).toHaveText('Program data.hmx');
+    await expect(page.locator('.pbody.bottom:visible .notice h3')).toHaveText('아직 출력이 없습니다');
+  } finally {
+    await r.close();
+  }
+});
+
 test('PC ≠ entry at cycle 0 is a fact in the status bar, not a message', async () => {
   const r = await launch();
   const { page } = r;

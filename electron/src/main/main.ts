@@ -225,7 +225,8 @@ async function main(): Promise<void> {
       file = r.filePaths[0];
       programs.set(fileId, file);
     }
-    return engine.call<LoadResult>('mips.load', {
+    // The window's call (after any recovery under way; the journal keeps it: recovery.ts journaled)
+    return windowCall<LoadResult>('mips.load', {
       fileId, path: path.resolve(file), ...(o.target ? { target: o.target } : {}), ...(o.picks ? { picks: o.picks } : {}),
     });
   }));

@@ -59,8 +59,11 @@ export type Ref =
 // A new edit parameter that names parts goes here too.
 export const ID_PARAMS: Readonly<Record<string, 'list' | 'one'>> = { ids: 'list', id: 'one', componentId: 'one', wire: 'one' };
 
-// The methods that change a file's model: edit intents (docs/engine-api.md 5).
-export const journaled = (method: string): boolean => method.startsWith('edit.');
+// The methods that change a file's model: edit intents (docs/engine-api.md 5)
+// and loading an executable image (mips.load, N-16: replayed from the same
+// .hmx path; a load that named its memories by id -- target, picks -- is not
+// found again in a new engine, and that file comes back as last saved).
+export const journaled = (method: string): boolean => method.startsWith('edit.') || method === 'mips.load';
 
 // The window's calls carry this tag (main.ts); the Supervisor's own, 'recovery'.
 export const WINDOW = 'window';

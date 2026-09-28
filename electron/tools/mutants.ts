@@ -220,6 +220,8 @@ export const MUTANTS: Mutant[] = [
   { module: 'program', file: 'src/renderer/app/program.ts', what: 'the answer to "which memory?" not sent',
     find: 'o = { ...o, again: true, picks: { ...(o.picks ?? {}), [r.choose.kind]: id } };', replace: 'o = { ...o, again: true };',
     tests: ['tests/e2e/program.e2e.ts'] },
+  { module: 'program', file: 'src/main/recovery.ts', what: 'a program load not replayed after an engine crash',
+    find: " || method === 'mips.load'", replace: '', tests: ['tests/e2e/program.e2e.ts'] },
   { module: 'program', file: 'src/renderer/app/app.ts', what: 'the Console\'s stream not shown',
     find: 'if (files.get(String(p.fileId))) consoleView.update(p as unknown as ConsoleUpdate);', replace: 'void 0;', tests: ['tests/e2e/program.e2e.ts'] },
 ];
