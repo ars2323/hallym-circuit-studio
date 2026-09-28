@@ -83,6 +83,7 @@ export interface Known {
   path: RegExp;
   in: Expect[];
   mayName?: boolean;     // may name this program (otherwise a change that does counts)
+  data?: RegExp;         // registry: the value's data, exactly
   keyOnly?: boolean;     // registry: a key without values
   dirOnly?: boolean;     // files: a folder (and nothing in it)
   why: string;
@@ -93,77 +94,60 @@ const INSTALLING: Expect[] = ['install', 'uninstalled'];
 const G = '\\{[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\\}';
 const SEARCH = 'LOCALAPPDATA\\\\Packages\\\\Microsoft\\.Windows\\.Search_cw5n1h2txyewy\\\\';
 
+/* Where an installer puts what it installs under HKCU\Software\Microsoft and Classes: uninstall
+   entries, programs run at logon, App Paths, the .circ file type and its open-with list, Windows
+   Installer's products.  The install checks count every change there; the rest of those two
+   keys is Windows' own (WINDOWS_STORES). */
+export const INSTALLER_PLACES = /^HKCU\\Software\\(Microsoft\\Windows\\CurrentVersion\\(Uninstall|Run|RunOnce|App Paths|Installer)|Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts\\\.circ|Classes\\\.circ|Microsoft\\Installer)(\\| ::|$)/i;
+const WINDOWS_STORES = /^HKCU\\Software\\(Microsoft|Classes)\\/;
+
 export const KNOWN: Known[] = [
-  // ---- the test tools
+  // ---- a run of the program: only these, each seen on the runner (and in the other checks too)
   { where: 'temp', what: ['added'], in: ALL, path: /^TEMP\\playwright-artifacts-[A-Za-z0-9]+(\\.*)?$/,
     why: 'Playwright (the test tool): a folder per launch, until the test run ends' },
-  { where: 'temp', what: ['added'], in: INSTALLING, path: /^TEMP\\playwright-transform-cache(\\.*)?$/,
-    why: 'Playwright (the test tool): its compiled test files' },
-  { where: 'files', what: ['changed'], in: INSTALLING, path: /^LOCALAPPDATA\\Microsoft\\(Windows\\)?PowerShell\\StartupProfileData-NonInteractive$/,
-    why: 'PowerShell\'s startup cache (the check script is PowerShell)' },
-  // ---- Windows reacting to an install or an uninstall (the Start menu changed, a program ran from a download)
-  { where: 'files', what: ['added', 'removed', 'changed'], in: INSTALLING,
-    path: new RegExp(`^${SEARCH}(LocalState\\\\(AppIconCache(\\\\100(\\\\[^\\\\]+)?)?|ConstraintIndex\\\\Apps_${G}(\\\\[^\\\\]+)?|DeviceSearchCache\\\\AppCache\\d+\\.txt)|Settings\\\\settings\\.dat\\.LOG[12])$`),
-    why: 'Windows Search re-indexing the Start menu\'s programs' },
-  { where: 'files', what: ['added', 'removed'], in: INSTALLING, path: new RegExp(`^LOCALAPPDATA\\\\Microsoft\\\\Windows\\\\Caches\\\\${G}\\.\\d+\\.ver0x[0-9a-f]+\\.db$`),
-    why: 'the shell\'s cache of the Start menu' },
-  { where: 'files', what: ['changed'], in: INSTALLING, path: /^LOCALAPPDATA\\Microsoft\\Windows\\WebCache\\(V01\.log|WebCacheV01\.dat|WebCacheV01\.jfm)$/,
-    why: 'WinINet\'s cache database (Windows checking a downloaded program)' },
-  { where: 'files', what: ['changed'], in: INSTALLING, path: /^LOCALAPPDATA\\Microsoft\\Windows\\Notifications\\wpndatabase\.db-wal$/,
-    why: 'the notification platform\'s database (a Start menu entry went)' },
+  { where: 'registry', what: ['added'], in: ALL, keyOnly: true, path: /^HKCU\\Software\\Microsoft\\Spelling$/,
+    why: 'Windows\' spell checking, its per-user key made empty when Chromium asks at its start which languages there are; no language is opened, no word list made (D-148 13)' },
+  { where: 'registry', what: ['added'], in: ALL, keyOnly: true, path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\WinTrust(\\Trust Providers(\\Software Publishing)?)?$/,
+    why: 'WinTrust\'s per-user settings, made with their default the first time a program in the session checks a signature' },
+  { where: 'registry', what: ['added'], in: ALL, data: /^REG_DWORD 0x23c00$/,
+    path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\WinTrust\\Trust Providers\\Software Publishing :: State$/,
+    why: 'WinTrust\'s default state (0x23c00), written with that key' },
+  { where: 'files', what: ['changed'], in: ALL, path: /^LOCALAPPDATA\\Microsoft\\Windows\\Notifications\\wpndatabase\.db-wal$/,
+    why: 'the notification platform\'s database log (it writes on its own; the program shows no notification)' },
   { where: 'files', what: ['changed'], in: ALL, path: /^LOCALAPPDATA\\Microsoft\\Windows\\UsrClass\.dat\.LOG[12]$/,
     why: 'the HKCU\\Software\\Classes hive\'s own log (the registry is compared key by key)' },
+  { where: 'registry', what: ['added', 'changed'], in: ALL, path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings :: QuietHoursTelemetryLastRun$/,
+    why: 'the notification platform\'s own telemetry time' },
+  { where: 'files', what: ['added'], in: ALL, path: /^APPDATA\\Microsoft\\Windows\\Themes\\CachedFiles\\CachedImage_\d+_\d+_POS\d+\.jpg$/,
+    why: 'the desktop wallpaper for the new screen size (the job set it before)' },
+  { where: 'registry', what: ['added', 'changed'], in: ALL, mayName: true,
+    path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\UserAssist\\\{[0-9A-F-]{36}\}\\Count :: xe\.np\.unyylz\.pvephvg-fghqvb$/,
+    why: 'Explorer\'s launch counter for this program\'s app id (ROT13 of kr.ac.hallym.circuit-studio), kept by Windows as for every program' },
+  // ---- an install or an uninstall: Windows' own stores, which change on their own while installers
+  // run; there the checks count the installer's places (INSTALLER_PLACES) and anything naming this program
+  { where: 'registry', what: ['added', 'removed', 'changed'], in: INSTALLING, path: WINDOWS_STORES,
+    why: 'Windows\' own stores under HKCU\\Software\\Microsoft and Classes (Explorer, the Start menu, Search, notifications, security, crypto) change on their own while an installer runs; the install checks count there only the installer\'s places and anything naming this program' },
+  { where: 'files', what: ['added', 'removed', 'changed'], in: INSTALLING,
+    path: /^(LOCALAPPDATA\\Packages\\Microsoft\.Windows\.Search_cw5n1h2txyewy\\.+|LOCALAPPDATA\\Microsoft\\Windows\\(Caches|WebCache|Notifications)\\[^\\]+|APPDATA\\Microsoft\\Windows\\Recent\\(Automatic|Custom)Destinations\\[0-9a-f]{16}\.(automatic|custom)Destinations-ms)$/,
+    why: 'Windows\' own stores: Windows Search re-indexing the Start menu, the shell\'s caches and jump lists, WinINet\'s and the notification platform\'s databases' },
+  { where: 'files', what: ['changed'], in: INSTALLING, path: /^LOCALAPPDATA\\Microsoft\\(Windows\\)?PowerShell\\StartupProfileData-NonInteractive$/,
+    why: 'PowerShell\'s startup cache (the check script is PowerShell)' },
+  { where: 'temp', what: ['added'], in: INSTALLING, path: /^TEMP\\playwright-transform-cache(\\.*)?$/,
+    why: 'Playwright (the test tool): its compiled test files' },
   { where: 'files', what: ['added'], in: INSTALLING, dirOnly: true, path: /^LOCALAPPDATA\\Programs$/,
     why: 'Windows\' folder for per-user programs, left empty' },
   { where: 'registry', what: ['added'], in: INSTALLING, keyOnly: true, path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall$/,
     why: 'Windows\' per-user uninstall key, left empty' },
-  { where: 'registry', what: ['added'], in: INSTALLING, keyOnly: true,
-    path: /^HKCU\\Software\\Policies\\Microsoft\\SystemCertificates\\TrustedPublisher(\\(CRLs|CTLs|Certificates))?$/,
-    why: 'the crypto API\'s per-user policy store, made empty when Windows checks a program\'s signature' },
   { where: 'registry', what: ['added'], in: INSTALLING, keyOnly: true, path: /^HKCU\\Software\\Microsoft\\Installer(\\[^\\]+)*$/,
     why: 'Windows Installer\'s per-user keys, left empty by the 1.0.x MSI\'s install and removal' },
   { where: 'registry', what: ['added'], in: INSTALLING, keyOnly: true,
-    path: /^HKCU\\Software\\Microsoft\\SystemCertificates\\TrustedPublisher(\\(CRLs|CTLs|Certificates))?$/,
-    why: 'the crypto API\'s per-user store, made empty when Windows checks a program\'s signature' },
-  { where: 'registry', what: ['added'], in: INSTALLING, keyOnly: true, path: /^HKCU\\Software\\Microsoft\\RestartManager$/,
-    why: 'the Restart Manager\'s per-user key, left empty (Windows Installer asks it which programs use the files)' },
-  // ---- Explorer and the Start menu keeping up with a program coming or going (their own stores)
-  { where: 'files', what: ['added', 'changed'], in: INSTALLING,
-    path: /^APPDATA\\Microsoft\\Windows\\Recent\\AutomaticDestinations\\(13d33cf42d4c3237|93b890b537dcc3c5|73d6a8f0346f297b)\.automaticDestinations-ms$/,
-    why: 'the shell\'s jump lists made while Windows Installer and the uninstaller ran (these three names on every runner)' },
-  { where: 'registry', what: ['added', 'removed', 'changed'], in: INSTALLING,
-    path: /^HKCU\\Software\\Classes\\Local Settings\\MuiCache\\\d+\\[0-9A-F]{8}( :: .*)?$/,
-    why: 'the shell\'s cache of Windows\' own display names (Explorer rebuilds it)' },
-  { where: 'registry', what: ['added'], in: INSTALLING,
-    path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts\\(?!\.circ(\\| ::|$))\.[^\\:]+(\\OpenWithProgids)?( :: .*)?$/,
-    why: 'Explorer\'s per-user open-with lists (Windows Media Player\'s file types, filled in the background; never .circ)' },
-  { where: 'registry', what: ['added', 'changed'], in: INSTALLING,
-    path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\(Taskband|UserAssist\\\{[0-9A-F-]{36}\}(\\Count)?)( :: .*)?$/,
-    why: 'Explorer\'s taskbar layout and program-launch counters' },
-  { where: 'registry', what: ['added', 'changed'], in: INSTALLING,
-    path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\CloudStore\\Store\\Cache\\DefaultAccount\\[^\\]+(\\Current)?( :: Data)?$/,
-    why: 'the Start menu\'s layout store' },
-  { where: 'registry', what: ['changed'], in: INSTALLING,
-    path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Search( :: InstalledWin32AppsRevision|\\Microsoft\.Windows\.Search_cw5n1h2txyewy\\AppsConstraintIndex :: LatestConstraintIndexFolder)$/,
-    why: 'Windows Search\'s revision of the installed programs' },
-  { where: 'registry', what: ['added', 'changed'], in: INSTALLING,
-    path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings\\Windows\.SystemToast\.[A-Za-z]+( :: .*)?$/,
-    why: 'Windows\' own notifications\' settings (its startup-app notice)' },
-  { where: 'registry', what: ['added'], in: INSTALLING, path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\RunNotification( :: .*)?$/,
-    why: 'Windows\' startup-app notice, naming the runner\'s own startup programs' },
+    path: /^HKCU\\Software\\Policies\\Microsoft\\SystemCertificates\\TrustedPublisher(\\(CRLs|CTLs|Certificates))?$/,
+    why: 'the crypto API\'s per-user policy store, made empty when Windows checks a program\'s signature' },
   { where: 'files', what: ['added'], in: INSTALLING, mayName: true,
     path: new RegExp(`^${SEARCH}LocalState\\\\AppIconCache\\\\100\\\\(kr_ac_hallym_circuit-studio|C__Users_[^\\\\]+_AppData_Local_HallymCircuitStudio_HallymCircuitStudio_exe)$`),
     why: 'Windows Search\'s icon for a Start menu entry of this program (its app id; the 1.0.x MSI\'s program), kept by Windows Search as for any program' },
-  { where: 'registry', what: ['added', 'changed'], in: ALL, mayName: true,
-    path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\UserAssist\\\{[0-9A-F-]{36}\}\\Count :: xe\.np\.unyylz\.pvephvg-fghqvb$/,
-    why: 'Explorer\'s launch counter for this program\'s app id (ROT13 of kr.ac.hallym.circuit-studio), kept by Windows as for every program' },
-  { where: 'registry', what: ['added', 'changed'], in: ALL, path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings :: QuietHoursTelemetryLastRun$/,
-    why: 'the notification platform\'s own telemetry time' },
   { where: 'registry', what: ['added'], in: INSTALLING, mayName: true, path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\UFH\\SHC :: \d+$/,
     why: 'the shell\'s history of the shortcuts Windows Installer made (the 1.0.x MSI\'s, which it names; seen only where that MSI was installed)' },
-  // ---- the job itself: the screen was set to 1920x1080 before
-  { where: 'files', what: ['added'], in: ALL, path: /^APPDATA\\Microsoft\\Windows\\Themes\\CachedFiles\\CachedImage_\d+_\d+_POS\d+\.jpg$/,
-    why: 'the desktop wallpaper for the new screen size (the job set it before)' },
 ];
 
 // A change that names this program -- in its place, its value's name or its data -- is never
@@ -178,6 +162,8 @@ export function notOurs(c: Change, expect: Expect = 'none'): string | null {
     if (k.keyOnly && c.after !== 'key') continue;
     if (k.dirOnly && c.after !== 'dir') continue;
     if (!k.mayName && namesUs(c)) continue;
+    if (k.data && !k.data.test(c.after ?? '')) continue;
+    if (k.path === WINDOWS_STORES && INSTALLER_PLACES.test(c.path)) continue;
     return k.why;
   }
   return null;
