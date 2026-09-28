@@ -23,6 +23,8 @@ import com.cburch.logisim.file.LibraryEvent;
 import com.cburch.logisim.file.LibraryListener;
 import com.cburch.logisim.proj.Project;
 
+import kr.ac.hallym.hcs.app.model.ModelRead;
+
 /**
  * 프로젝트의 시뮬레이터에 붙어 {@link Recording}을 채운다(C-01). 원조 엔진은 고치지 않고 청취자로만 얹는다.
  * <ul>
@@ -37,7 +39,8 @@ import com.cburch.logisim.proj.Project;
  * <li><b>회로 편집:</b> 넷 구조가 바뀌면 옛 기록과 체크포인트를 이어 쓸 수 없다. 편집 뒤 첫 전파에서 지금 스텝부터
  * 새로 기록한다(사이클 번호는 이어진다).</li>
  * </ul>
- * 최상위 회로마다 기록이 따로 있다. 시뮬레이터 스레드에서 캡처한다.
+ * 최상위 회로마다 기록이 따로 있다. 시뮬레이터 스레드에서 캡처한다. 캡처는 회로 모델(부품·넷)을 읽으므로 원조의
+ * 회로 읽기 잠금을 쥐고 한다({@link #readModel}, D-143): 모델 스레드의 편집과 겹치지 않는다.
  */
 public final class Recorder {
     private static final Map<Project, Recorder> ALL = new WeakHashMap<>();
@@ -46,6 +49,8 @@ public final class Recorder {
     private final java.lang.ref.WeakReference<Project> projRef;
     private final Map<Circuit, Recording> recordings = new HashMap<>();
     private final List<Listener> listeners = new ArrayList<>();
+    /** 파일의 회로 목록(모델 스레드가 적는 바뀌지 않는 목록). 다른 스레드는 이것으로 읽기 잠금을 쥔다. */
+    private volatile List<Circuit> circuits = java.util.Collections.emptyList();
     private volatile boolean resetPending = true;
     private volatile boolean edited;
     private boolean ticked;
@@ -140,15 +145,27 @@ public final class Recorder {
         listenToCircuits();
     }
 
+    /** 파일의 회로마다 듣고, 회로 목록을 적어 둔다(모델 스레드: 기록기를 만들 때와 라이브러리 사건). */
     private void listenToCircuits() {
         Project proj = projRef.get();
         if (proj == null || proj.getLogisimFile() == null) {
             return;
         }
-        for (Circuit c : proj.getLogisimFile().getCircuits()) {
+        List<Circuit> list = proj.getLogisimFile().getCircuits();
+        for (Circuit c : list) {
             c.removeCircuitListener(circuitListener);
             c.addCircuitListener(circuitListener);
         }
+        circuits = java.util.Collections.unmodifiableList(new ArrayList<>(list));
+    }
+
+    /**
+     * body를 이 파일의 회로 모델이 바뀌지 않는 동안 돈다(D-143): 원조 회로 읽기 잠금({@link ModelRead}). 모델
+     * 스레드가 아닌 곳(시뮬레이터 스레드의 청취자)에서 부품·선·넷을 읽을 때 쓴다. 회로 목록은 모델 스레드가 적어 둔
+     * 것이다(파일의 회로 목록 자체도 모델 스레드가 바꾼다). .circ 라이브러리의 회로는 이 파일에서 바뀌지 않는다.
+     */
+    public <T> T readModel(java.util.function.Supplier<T> body) {
+        return ModelRead.call(circuits, body);
     }
 
     public synchronized void addListener(Listener l) {
@@ -192,62 +209,69 @@ public final class Recorder {
     }
 
     void onTick() {
-        Recording changed;
-        synchronized (this) {
-            CircuitState root = root();
-            if (root == null) {
-                return;
-            }
-            ticked = true;
-            Recording r = recordingFor(root);
-            if (r.isEmpty() || resetPending || edited) {
-                // 기록 없이 틱이 왔다: 지금 상태부터 시작한다
-                int step = r.isEmpty() || resetPending ? 0 : r.cursor() + 1;
-                resetPending = false;
-                edited = false;
-                r.restart(root, step);
-            } else {
-                if (r.isViewingPast()) {
-                    r.truncateAfter(r.cursor()); // 지난 사이클에서 다시 진행: 뒤 기록을 버린다
-                }
-                r.capture(root, r.cursor() + 1, false);
-            }
-            changed = r;
+        // 캡처는 회로 모델을 읽는다(새로 시작하면 넷 목록을 다시 만든다): 원조 읽기 잠금을 먼저, 이 객체는 그 안에서
+        Recording changed = readModel(this::tickLocked);
+        if (changed != null) {
+            fire(changed);
         }
-        fire(changed);
+    }
+
+    private synchronized Recording tickLocked() {
+        CircuitState root = root();
+        if (root == null) {
+            return null;
+        }
+        ticked = true;
+        Recording r = recordingFor(root);
+        if (r.isEmpty() || resetPending || edited) {
+            // 기록 없이 틱이 왔다: 지금 상태부터 시작한다
+            int step = r.isEmpty() || resetPending ? 0 : r.cursor() + 1;
+            resetPending = false;
+            edited = false;
+            r.restart(root, step);
+        } else {
+            if (r.isViewingPast()) {
+                r.truncateAfter(r.cursor()); // 지난 사이클에서 다시 진행: 뒤 기록을 버린다
+            }
+            r.capture(root, r.cursor() + 1, false);
+        }
+        return r;
     }
 
     void onPropagation() {
-        Recording changed;
-        synchronized (this) {
-            if (ticked) {
-                ticked = false; // 틱 뒤의 전파 완료 알림: 이미 캡처했다
-                return;
-            }
-            CircuitState root = root();
-            if (root == null) {
-                return;
-            }
-            Recording r = recordingFor(root);
-            if (r.isEmpty() || resetPending) {
-                resetPending = false;
-                edited = false;
-                r.restart(root, 0);
-            } else if (edited) {
-                edited = false;
-                r.restart(root, r.cursor());
-            } else if (r.differs(root, r.cursor())) {
-                // 입력을 바꿨다: 보던 스텝을 다시 적고 체크포인트를 둔다(지난 스텝이면 그 뒤를 버린다)
-                if (r.isViewingPast()) {
-                    r.truncateAfter(r.cursor());
-                }
-                r.capture(root, r.cursor(), true);
-            } else {
-                return; // 값이 그대로인 전파 알림
-            }
-            changed = r;
+        Recording changed = readModel(this::propagationLocked);
+        if (changed != null) {
+            fire(changed);
         }
-        fire(changed);
+    }
+
+    private synchronized Recording propagationLocked() {
+        if (ticked) {
+            ticked = false; // 틱 뒤의 전파 완료 알림: 이미 캡처했다
+            return null;
+        }
+        CircuitState root = root();
+        if (root == null) {
+            return null;
+        }
+        Recording r = recordingFor(root);
+        if (r.isEmpty() || resetPending) {
+            resetPending = false;
+            edited = false;
+            r.restart(root, 0);
+        } else if (edited) {
+            edited = false;
+            r.restart(root, r.cursor());
+        } else if (r.differs(root, r.cursor())) {
+            // 입력을 바꿨다: 보던 스텝을 다시 적고 체크포인트를 둔다(지난 스텝이면 그 뒤를 버린다)
+            if (r.isViewingPast()) {
+                r.truncateAfter(r.cursor());
+            }
+            r.capture(root, r.cursor(), true);
+        } else {
+            return null; // 값이 그대로인 전파 알림
+        }
+        return r;
     }
 
     /**
