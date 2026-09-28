@@ -46,7 +46,7 @@ test('nothing taken is SPIM\'s or leans on it', () => {
 // drawings; the copies among them are checked byte for byte above.
 const SPIM_IMPORT = /(?:from|import)\s*\(?\s*['"][^'"]*\/(?:core|sim|native)\//;
 const SPIM_WORDS = /op-table|OP_TABLE|R3_TYPE_INST|I2_TYPE_INST|spim\.node|\bspim\b|SPIM|QtSpim|\bCPU\/|syscall|explain\.ts|decoder\.ts|instruction-text|asm-errors|mips-syntax/;
-for (const t of TAKEN.filter((x) => /\.(ts|cjs|css|html|json|md|nsh)$/.test(x.to) || x.to === '.gitignore' || x.to === '.gitattributes')) {
+for (const t of TAKEN.filter((x) => /\.(ts|cjs|css|html|json|md|nsh|ps1)$/.test(x.to) || x.to === '.gitignore' || x.to === '.gitattributes')) {
   test(`taken, not from SPIM: ${t.to}`, () => {
     const lines = readFileSync(path.join(root, t.to), 'utf8').split('\n');
     const bad = lines.map((line, i) => [i + 1, line] as const)

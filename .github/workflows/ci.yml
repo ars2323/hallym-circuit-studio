@@ -170,6 +170,220 @@ jobs:
           name: runtime-e2e-${{ runner.os }}
           path: electron/test-results/
 
+  # N-23(D-148): Windows 배포물은 setup exe 하나(electron-builder NSIS, 사용자별 원클릭). PR마다 만들어 산출물로 올린다.
+  # 엔진 jar 둘과 번들 런타임(N-04)이 들어간다. 설치 검사(setup-e2e, setup-upgrade)와 release가 이 파일을 쓴다.
+  # "earlier"는 같은 코드를 1.99.0으로 만든 설치 파일이다(예전 버전 위에 덮어 설치하는 검사용, 배포하지 않음).
+  setup-exe:
+    runs-on: windows-2022
+    timeout-minutes: 45
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'   # 코드 서명 없음(D-148)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21.0.12'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build the engine and its runtime (jlink, AppCDS)
+        shell: bash
+        run: ./gradlew --no-daemon :engine:stage :engine:runtime
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: electron/package-lock.json
+      - name: Window dependencies
+        working-directory: electron
+        run: npm ci
+      - name: Package (the NSIS setup exe)
+        working-directory: electron
+        run: node tools/package.ts
+      - name: The package is one file, the setup exe (no zip, no MSI, no block map)
+        working-directory: electron
+        shell: pwsh
+        run: |
+          $v = (Get-Content package.json | ConvertFrom-Json).version
+          $files = @(Get-ChildItem dist -File | Where-Object { $_.Extension -in '.exe', '.zip', '.msi', '.7z', '.blockmap', '.appx', '.nupkg' })
+          $files | ForEach-Object { '{0}  {1:N1} MB  ({2} bytes)' -f $_.Name, ($_.Length / 1MB), $_.Length }
+          if ($files.Count -ne 1 -or $files[0].Name -ne "HallymCircuitStudio-$v-win-x64-setup.exe") {
+            throw "expected one file, HallymCircuitStudio-$v-win-x64-setup.exe; got: $($files.Name -join ', ')"
+          }
+          node tools/release-assets.ts check --version $v $files[0].Name
+          if ($LASTEXITCODE -ne 0) { throw 'release-assets' }
+          "| setup exe | size |`n|---|---|`n| $($files[0].Name) | $('{0:N1} MB ({1} bytes)' -f ($files[0].Length / 1MB), $files[0].Length) |" >> $env:GITHUB_STEP_SUMMARY
+      - name: An earlier version's setup exe (1.99.0, to install over; not released)
+        working-directory: electron
+        run: node tools/package.ts --version 1.99.0 --out dist-earlier
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HallymCircuitStudio-setup
+          path: electron/dist/*-setup.exe
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HallymCircuitStudio-setup-earlier
+          path: electron/dist-earlier/*-setup.exe
+          if-no-files-found: error
+          retention-days: 3
+
+  # N-23(D-148): 설치 파일을 학생 PC처럼. 조용히 설치 → 설치한 것만 바뀜(설치 폴더, 시작 메뉴 바로 가기, 제거 항목) →
+  # 설치한 프로그램을 Playwright로 시작(첫 화면, 번들 런타임의 엔진, MIPS 라이브러리를 쓰는 .circ, 시작 시간) → 끝낸 뒤
+  # 레지스트리(HKCU\Software\JavaSoft\Prefs, 프로그램 키)·%APPDATA%·%LOCALAPPDATA%(설치 폴더 밖) 변화 0 → 다시 설치 →
+  # 제거하면 아무것도 남지 않음 → 1.99.0 위에 덮어 설치. electron/tools/windows/check-install.ps1, tests/e2e/installed.e2e.ts.
+  setup-e2e:
+    needs: setup-exe
+    runs-on: windows-2022
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: electron
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: electron/package-lock.json
+      - name: Test tools (Playwright; Electron itself is the installed one)
+        run: npm ci --ignore-scripts
+      - uses: actions/download-artifact@v4
+        with:
+          name: HallymCircuitStudio-setup
+          path: electron/setup
+      - uses: actions/download-artifact@v4
+        with:
+          name: HallymCircuitStudio-setup-earlier
+          path: electron/setup-earlier
+      # The runner's other programs write into %APPDATA%, %LOCALAPPDATA% and HKCU at any time: Firefox's
+      # default browser agent (a scheduled task) and the Microsoft account service (wlidsvc: a device
+      # credential and HKCU\Software\Microsoft\AuthCookies) were seen doing so mid-check.  Off for the
+      # checks, rather than widening what the checks let through (D-148 12).
+      - name: Quiet the runner's other programs (their scheduled tasks, the Microsoft account service)
+        run: |
+          $tasks = @(Get-ScheduledTask | Where-Object { $_.TaskPath -like '\Mozilla\*' -or $_.TaskName -match 'Firefox|GoogleUpdate|MicrosoftEdgeUpdate|OneDrive' })
+          $tasks | ForEach-Object { "disabled: $($_.TaskPath)$($_.TaskName)" }
+          $tasks | Disable-ScheduledTask | Out-Null
+          Get-Process -Name 'firefox', 'default-browser-agent', 'GoogleUpdate', 'MicrosoftEdgeUpdate' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+          Set-Service -Name wlidsvc -StartupType Disabled -ErrorAction SilentlyContinue
+          Stop-Service -Name wlidsvc -Force -ErrorAction SilentlyContinue
+          "wlidsvc: $((Get-Service -Name wlidsvc -ErrorAction SilentlyContinue).Status)"
+          exit 0
+      # The students' screen; the start is measured there. Reported either way (report/screen.txt).
+      - name: Screen 1920x1080 (tools/windows/screen-1920.ps1)
+        continue-on-error: true
+        shell: powershell
+        run: tools/windows/screen-1920.ps1 -Report report
+      - name: Install from nothing (silent, per user)
+        run: |
+          $v = (Get-Content package.json | ConvertFrom-Json).version
+          tools/windows/check-install.ps1 -Phase clean -Setup (Get-Item setup/*-setup.exe).FullName -Version $v -Report report
+      # cmd, not PowerShell: nothing of the job's own writes into %LOCALAPPDATA% while the program runs
+      # (PowerShell saves its startup cache there a while after it starts).
+      - name: The installed program (first screen, engine, start time; nothing left after quit)
+        timeout-minutes: 15
+        shell: cmd
+        run: |
+          set /p HCS_E2E_EXE=<report\installed.txt
+          set HCS_E2E_REPORT=%CD%\report
+          node node_modules\@playwright\test\cli.js test installed
+      - name: Install again, over itself
+        run: |
+          $v = (Get-Content package.json | ConvertFrom-Json).version
+          tools/windows/check-install.ps1 -Phase again -Setup (Get-Item setup/*-setup.exe).FullName -Version $v -Report report
+      - name: Uninstall (silent), nothing left
+        run: tools/windows/check-install.ps1 -Phase uninstall -Report report
+      - name: Over an earlier version (1.99.0), then uninstall
+        run: |
+          $v = (Get-Content package.json | ConvertFrom-Json).version
+          tools/windows/check-install.ps1 -Phase over -Older (Get-Item setup-earlier/*-setup.exe).FullName -OlderVersion 1.99.0 -Setup (Get-Item setup/*-setup.exe).FullName -Version $v -Report report
+      - name: Sizes and times (the job summary)
+        if: always()
+        run: |
+          if ((Test-Path report/install.json) -and (Test-Path report/launch.json)) {
+            $i = Get-Content report/install.json | ConvertFrom-Json; $l = Get-Content report/launch.json | ConvertFrom-Json
+            $screen = if (Test-Path report/screen.txt) { (Select-String -Path report/screen.txt -Pattern 'RESULT' | Select-Object -Last 1).Line } else { '' }
+            $mb = { param($b) '{0:N1} MB' -f ($b / 1MB) }
+            @("### Windows setup exe (windows-2022) $screen", '', '| | |', '|---|---|',
+              "| setup exe | $(& $mb $i.setupExeBytes) ($($i.setupExeBytes) bytes) |",
+              "| installed | $(& $mb $i.installedBytes) in $($i.installedFiles) files (runtime $(& $mb $i.resources.runtime), engine $(& $mb $i.resources.engine), app.asar $(& $mb $i.resources.'app.asar')) |",
+              "| silent install | $($i.installMs) ms |",
+              "| first start after install: window / first screen / engine ready | $($l.first.windowMs) / $($l.first.startScreenMs) / $($l.first.engineReadyMs) ms |",
+              "| second start: window / first screen / engine ready | $($l.second.windowMs) / $($l.second.startScreenMs) / $($l.second.engineReadyMs) ms |") -join "`n" >> $env:GITHUB_STEP_SUMMARY
+          }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: setup-e2e-report
+          path: |
+            electron/report/
+            electron/test-results/
+          if-no-files-found: ignore
+
+  # N-23(D-148): 공개 릴리스 v1.0.2의 MSI(1.0.x 사용자별 설치) 위에 setup exe를 조용히 설치하면 MSI가 조용히 지워지고
+  # 새 프로그램 하나만 남는다(제거 항목·제품·폴더·바로 가기). 그 프로그램이 돌고, 제거하면 MSI의 흔적까지 남지 않는다.
+  setup-upgrade:
+    needs: setup-exe
+    runs-on: windows-2022
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: electron
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: electron/package-lock.json
+      - name: Test tools (Playwright; Electron itself is the installed one)
+        run: npm ci --ignore-scripts
+      - uses: actions/download-artifact@v4
+        with:
+          name: HallymCircuitStudio-setup
+          path: electron/setup
+      - name: The v1.0.2 MSI (the public release)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download v1.0.2 --repo $env:GITHUB_REPOSITORY --pattern '*.msi' --dir v1msi
+      # The runner's other programs write into %APPDATA%, %LOCALAPPDATA% and HKCU at any time: Firefox's
+      # default browser agent (a scheduled task) and the Microsoft account service (wlidsvc: a device
+      # credential and HKCU\Software\Microsoft\AuthCookies) were seen doing so mid-check.  Off for the
+      # checks, rather than widening what the checks let through (D-148 12).
+      - name: Quiet the runner's other programs (their scheduled tasks, the Microsoft account service)
+        run: |
+          $tasks = @(Get-ScheduledTask | Where-Object { $_.TaskPath -like '\Mozilla\*' -or $_.TaskName -match 'Firefox|GoogleUpdate|MicrosoftEdgeUpdate|OneDrive' })
+          $tasks | ForEach-Object { "disabled: $($_.TaskPath)$($_.TaskName)" }
+          $tasks | Disable-ScheduledTask | Out-Null
+          Get-Process -Name 'firefox', 'default-browser-agent', 'GoogleUpdate', 'MicrosoftEdgeUpdate' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+          Set-Service -Name wlidsvc -StartupType Disabled -ErrorAction SilentlyContinue
+          Stop-Service -Name wlidsvc -Force -ErrorAction SilentlyContinue
+          "wlidsvc: $((Get-Service -Name wlidsvc -ErrorAction SilentlyContinue).Status)"
+          exit 0
+      - name: The v1.0.2 MSI, then the setup exe over it
+        run: |
+          $v = (Get-Content package.json | ConvertFrom-Json).version
+          tools/windows/check-install.ps1 -Phase msi -Msi (Get-Item v1msi/*.msi).FullName -Setup (Get-Item setup/*-setup.exe).FullName -Version $v -Report report
+      - name: The program runs after the upgrade (first screen, engine; nothing left after quit)
+        timeout-minutes: 15
+        shell: cmd
+        run: |
+          set /p HCS_E2E_EXE=<report\installed.txt
+          set HCS_E2E_REPORT=%CD%\report
+          node node_modules\@playwright\test\cli.js test installed -g "first screen"
+      - name: Uninstall (silent), nothing left -- of the MSI either
+        run: tools/windows/check-install.ps1 -Phase uninstall -Report report
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: setup-upgrade-report
+          path: |
+            electron/report/
+            electron/test-results/
+          if-no-files-found: ignore
+
   # Windows: 포장(jpackage zip)과 포장한 런타임으로 실제 실행. hcs-asm.exe 빌드는 D-141에서 없어졌다.
   windows:
     runs-on: windows-2022
@@ -279,27 +493,64 @@ jobs:
           # 원조 -tty table은 머리글 없이 출력 핀 값 줄만 찍는다(halt 핀 → 0/1). 값 줄이 있으면 jar가 불려 회로가 돈 것이다
           grep -qE '^[01xE]+[[:space:]]*$' j8/tty.txt
 
-  # v* 태그: 트랙 A 배포 zip을 만들어 draft Release에 올린다. 학생 배포는 사용자 결정이라 draft로 둔다.
+  # N-23(D-148): 릴리스. Windows 배포물은 setup exe 하나이고, 함께 올리는 것은 트랙 A(hcs-mips.jar, 트랙 A zip)와
+  # 안내 PDF(손으로 올림)뿐이다. 앱 zip(트랙 A 말고)이나 MSI가 끼면 실패한다(electron/tools/release-assets.ts).
+  # v* 태그: 태그 = electron/package.json의 버전, 노트 docs/releases/<버전>.md + SHA-256으로 draft를 만든다(-가 든 버전은
+  # 사전 릴리스). 게시는 사람이 확인한 뒤 한다(docs/release.md). 태그가 아니면 같은 파일을 모아 규칙만 확인한다.
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: [linux, windows, track-a-java8]
+    needs: [linux, track-a-java8, setup-exe, setup-e2e, setup-upgrade]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - uses: actions/download-artifact@v4
         with:
-          path: dist-in
-      - name: Package track A
-        run: tools/package-track-a.sh "${GITHUB_REF_NAME#v}" dist-in dist
-      - name: Draft release
+          name: linux-build
+          path: dist-in/linux-build
+      - uses: actions/download-artifact@v4
+        with:
+          name: HallymCircuitStudio-setup
+          path: dist-in/setup
+      - name: The version (a tag's must be electron/package.json's)
+        run: |
+          pkg=$(node -p "require('./electron/package.json').version")
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            version=$(node electron/tools/release-assets.ts version "$GITHUB_REF_NAME")
+            [ "$version" = "$pkg" ] || { echo "::error::the tag is $GITHUB_REF_NAME but electron/package.json says $pkg"; exit 1; }
+          else
+            version="$pkg"
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "version: $version"
+      - name: The release's files
+        run: |
+          tools/package-track-a.sh "$VERSION" dist-in dist-track-a
+          mkdir -p release
+          cp dist-in/setup/HallymCircuitStudio-*-win-x64-setup.exe release/
+          cp dist-track-a/hcs-mips.jar dist-track-a/hcs-mips-*-windows.zip dist-track-a/hcs-mips-*-linux.zip release/
+          (cd release && sha256sum -- * | tee ../SHA256SUMS)
+      - name: Only the setup exe, track A and guides -- no other zip, no MSI (D-148)
+        run: node electron/tools/release-assets.ts check --version "$VERSION" release/*
+      - name: Draft release (a v* tag)
+        if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # 노트는 docs/RELEASE-NOTES.md(v1.0.0부터). 트랙 A만의 짧은 노트(dist/RELEASE_NOTES.md)는 zip 안 사용안내로 남는다.
-          gh release create "$GITHUB_REF_NAME" --draft --verify-tag \
-            --title "Hallym Circuit Studio $GITHUB_REF_NAME" \
-            --notes-file docs/RELEASE-NOTES.md \
-            dist/*.zip dist/hcs-mips.jar dist/hcs-mips-guide-ko.md \
-            dist-in/windows-package/*.zip
+          notes="docs/releases/$VERSION.md"
+          [ -f "$notes" ] || { echo "::error::no release notes for $VERSION: $notes (from docs/releases/TEMPLATE.md)"; exit 1; }
+          {
+            cat "$notes"
+            printf '\n## SHA-256\n\nCI가 태그 `%s`(커밋 %s)에서 만든 파일입니다. Windows에서 확인: `certutil -hashfile <파일> SHA256`\n\n```\n' "$GITHUB_REF_NAME" "${GITHUB_SHA::7}"
+            cat SHA256SUMS
+            printf '```\n'
+          } > release-notes.md
+          pre=()
+          case "$VERSION" in *-*) pre=(--prerelease) ;; esac
+          gh release create "$GITHUB_REF_NAME" --draft "${pre[@]}" --verify-tag \
+            --title "Hallym Circuit Studio $VERSION" --notes-file release-notes.md release/*
+          # What the release carries now, by the same rule.
+          gh release view "$GITHUB_REF_NAME" --json assets -q '.assets[].name' | node electron/tools/release-assets.ts check --version "$VERSION" -

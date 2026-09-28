@@ -1,11 +1,16 @@
 /* Packages the app with electron-builder (derived from Hallym MIPS v2.3.0
-   electron/tools/package.ts).  A skeleton: the real installer, its checks
-   against earlier installs and its CI job are item N-23.  The engine and
-   its bundled Java runtime (N-04) go in, built first on the OS packaged
-   for:  ./gradlew :engine:stage :engine:runtime
+   electron/tools/package.ts).  The engine and its bundled Java runtime
+   (N-04) go in, built first on the OS packaged for:
+   ./gradlew :engine:stage :engine:runtime
 
-     node tools/package.ts            Windows: the NSIS installer, one file
+     node tools/package.ts            Windows: the setup exe, one file (N-23, D-148)
      node tools/package.ts --dir      this platform, unpacked only (a check)
+       --version <v>                  another version than package.json's (CI: an
+                                      "earlier" installer to install over)
+       --out <dir>                    the installer somewhere else than dist/
+       --win                          on Linux: the Windows installer, to check the
+                                      NSIS script (the .exe keeps Electron's icon and
+                                      version: editing them needs Windows)
 
    1. Stages build/package/app/: the main process bundled by esbuild
       (HCS_BUNDLE defined: src/main/paths.ts then looks next to the bundle),
@@ -16,23 +21,23 @@
       build/package/engine/ (hcs-engine.jar, hcs-mips.jar from
       ../engine/build/stage) and build/package/runtime/ (the jlink runtime
       with its AppCDS archive, ../engine/build/runtime).
-   3. Runs electron-builder on it: those two go into resources/engine and
-      resources/runtime (extraResources), where src/main/engine-locate.ts
-      looks for them -- packaged, the app runs the engine on that runtime
-      only.
+   3. Runs electron-builder on it with tools/package-config.ts: those two go
+      into resources/engine and resources/runtime (extraResources), where
+      src/main/engine-locate.ts looks for them -- packaged, the app runs the
+      engine on that runtime only.  On Windows the result is the one-click,
+      per-user NSIS installer HallymCircuitStudio-<version>-win-x64-setup.exe
+      (packaging/installer.nsh: its folder, the v1.0.x MSI removed, its
+      words). */
 
-   Like Hallym MIPS: per user, one click, no elevation, no desktop shortcut,
-   no file association yet (.circ is N-23's to decide), nothing kept in
-   %APPDATA% (the lab-PC rule: src/main/run-folder.ts). */
-
-import { build as electronBuild, type Configuration } from 'electron-builder';
+import { Arch, build as electronBuild, Platform } from 'electron-builder';
 import * as esbuild from 'esbuild';
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { LICENSE_SOURCES } from '../src/main/paths.ts';
 import { nodeOptions, rendererOptions, writeThirdParty } from './build-ui.ts';
-import { DEFAULT_STAGE_PATHS, extraResources, stageEngine } from './stage-engine.ts';
+import { APP_ID, packageConfig } from './package-config.ts';
+import { DEFAULT_STAGE_PATHS, stageEngine } from './stage-engine.ts';
 
 const root = path.join(import.meta.dirname, '..');
 const repo = path.join(root, '..');
@@ -41,15 +46,22 @@ const electronVersion = JSON.parse(readFileSync(path.join(root, 'node_modules/el
 const stage = path.join(root, 'build/package/app');
 const at = (...p: string[]) => path.join(stage, ...p);
 const dirOnly = process.argv.includes('--dir');
+const option = (name: string): string | null => {
+  const i = process.argv.indexOf(name);
+  return i >= 0 && i + 1 < process.argv.length ? process.argv[i + 1] : null;
+};
+const version: string = option('--version') ?? pkg.version;
+const output = path.resolve(root, option('--out') ?? 'dist');
+const crossWindows = process.argv.includes('--win') && process.platform !== 'win32';
 
-export const APP_ID = 'kr.ac.hallym.circuit-studio';
+export { APP_ID };
 // The marks and characters the window shows, from the page (renderer/app/): renderer/hallym/.
 export const PACKAGED_HALLYM = '../hallym';
 
 async function stageApp(): Promise<void> {
   rmSync(stage, { recursive: true, force: true });
   mkdirSync(stage, { recursive: true });
-  const define = { 'process.env.HCS_BUNDLE': '"1"', 'process.env.HCS_VERSION': JSON.stringify(pkg.version) };
+  const define = { 'process.env.HCS_BUNDLE': '"1"', 'process.env.HCS_VERSION': JSON.stringify(version) };
   const main = await esbuild.build({ ...nodeOptions('src/main/main.ts', at('main.js')), define });
   const ui = await esbuild.build({ ...rendererOptions(PACKAGED_HALLYM), outfile: at('renderer/app/app.js'), sourcemap: false });
   await writeThirdParty([ui.metafile!, main.metafile!]);
@@ -69,51 +81,20 @@ async function stageApp(): Promise<void> {
   for (const [name, source] of Object.entries(LICENSE_SOURCES)) cpSync(path.join(root, source), at('licenses', name));
 
   writeFileSync(at('package.json'), JSON.stringify({
-    name: 'hallym-circuit-studio', productName: 'Hallym Circuit Studio', version: pkg.version,
+    name: 'hallym-circuit-studio', productName: 'Hallym Circuit Studio', version,
     description: 'Circuit editor and simulator for Hallym University (based on Logisim 2.7.1)',
     author: 'AIAC Lab, Hallym University', license: 'GPL-2.0-or-later', type: 'module', main: 'main.js',
   }, null, 1));
 }
 
-export const config: Configuration = {
-  appId: APP_ID,
-  productName: 'Hallym Circuit Studio',
-  executableName: 'HallymCircuitStudio',
-  electronVersion,
-  directories: { app: stage, output: path.join(root, 'dist'), buildResources: path.join(root, 'packaging') },
-  files: ['**/*', '!node_modules/**'],
-  publish: null,
-  asar: true,
-  electronLanguages: ['ko', 'en-US'],
-  npmRebuild: false,
-  nodeGypRebuild: false,
-  // The engine and its runtime (N-03, N-04; tools/stage-engine.ts).
-  extraResources: extraResources(DEFAULT_STAGE_PATHS.out),
-  // The notices next to the executable as well as in About.
-  extraFiles: [{ from: path.join(repo, 'LICENSE'), to: 'LICENSE.txt' }, { from: path.join(repo, 'NOTICE'), to: 'NOTICE.txt' }],
-  win: {
-    target: ['nsis'],
-    icon: path.join(repo, 'assets/hallym/logo/app.ico'),
-    signAndEditExecutable: true,
-  },
-  nsis: {
-    oneClick: true,
-    perMachine: false,
-    allowElevation: false,
-    shortcutName: 'Hallym Circuit Studio',
-    createDesktopShortcut: false,
-    createStartMenuShortcut: true,
-    deleteAppDataOnUninstall: false,
-    runAfterFinish: false,
-    include: path.join(root, 'packaging/installer.nsh'),
-    artifactName: 'HallymCircuitStudio-${version}-win-x64-setup.${ext}',
-    uninstallDisplayName: 'Hallym Circuit Studio ${version}',
-  },
-  linux: { target: ['dir'], icon: path.join(repo, 'assets/hallym/logo/app-256.png'), category: 'Education' },
-};
+export const config = packageConfig({ root, repo, stage, engineOut: DEFAULT_STAGE_PATHS.out, output, electronVersion });
 
 if (import.meta.main) {
-  stageEngine();
+  stageEngine(crossWindows ? { ...DEFAULT_STAGE_PATHS, platform: 'win32' } : DEFAULT_STAGE_PATHS);
   await stageApp();
-  await electronBuild({ config, dir: dirOnly, publish: 'never' });
+  if (crossWindows) {
+    await electronBuild({ config: { ...config, win: { ...config.win, signAndEditExecutable: false } }, targets: Platform.WINDOWS.createTarget('nsis', Arch.x64), publish: 'never' });
+  } else {
+    await electronBuild({ config, dir: dirOnly, publish: 'never' });
+  }
 }

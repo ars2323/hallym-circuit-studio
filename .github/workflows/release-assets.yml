@@ -1,0 +1,35 @@
+# N-23(D-148): 게시한 릴리스의 파일을 다시 본다. 안내 PDF는 draft에 손으로 올리므로, 게시하거나 고칠 때마다
+# CI release 작업과 같은 규칙(electron/tools/release-assets.ts)으로 확인한다: Windows 배포물은 setup exe 하나이고
+# 트랙 A(hcs-mips.jar, 트랙 A zip)와 안내 PDF 말고는 없어야 한다. 앱 zip이나 MSI가 있으면 실패한다.
+# 2.0.0 이전(1.0.x: zip과 MSI를 올렸던 릴리스)은 게시한 그대로 두고 보지 않는다.
+name: Release files
+
+on:
+  release:
+    types: [published, prereleased, released, edited]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (v2.x.y[-pre])'
+        required: true
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    env:
+      TAG: ${{ inputs.tag || github.event.release.tag_name }}
+    steps:
+      # The rule as main has it (a v1.0.x tag has no checker).
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: The release's files (D-148)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(node electron/tools/release-assets.ts version "$TAG")
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' | tee assets.txt
+          node electron/tools/release-assets.ts check --version "$version" - < assets.txt
