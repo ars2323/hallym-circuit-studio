@@ -382,6 +382,17 @@ public final class Intents {
 
     /** 원조 되돌리기(Project.undoAction). */
     public static Result undo(Doc d) {
+        return undo(d, null);
+    }
+
+    /**
+     * Edit › Undo를 화면이 보던 회로 c에서(원조: 보던 회로의 창에서 Ctrl+Z). 먼저 c를 편집하는 회로로 둔다
+     * ({@link Doc#show}: 다른 회로의 떠 있는 선택은 그 회로에 내려놓는다, 원조가 탭을 바꿀 때처럼). 그래서 되살리기
+     * 재생이 저널에 없는 sim.watch·record.view와 상관없이 같은 지금 회로에서 되돌린다. 원조 {@code undoAction}은 그
+     * 동작을 한 때의 회로 상태로 돌아가 되돌린다(ActionData). c가 null이면(의도 파일·옛 저널) 지금 회로 그대로.
+     */
+    public static Result undo(Doc d, Circuit c) {
+        showIfOwn(d, c);
         if (d.project().getLastAction() == null) {
             return Result.unchanged("nothing");
         }
@@ -391,6 +402,12 @@ public final class Intents {
 
     /** 포크의 다시 실행(RedoStack, 원조 doAction으로 다시 적용). */
     public static Result redo(Doc d) {
+        return redo(d, null);
+    }
+
+    /** Edit › Redo를 화면이 보던 회로 c에서({@link #undo(Doc, Circuit)}와 같다). */
+    public static Result redo(Doc d, Circuit c) {
+        showIfOwn(d, c);
         RedoStack r = RedoStack.of(d.project());
         if (!r.canRedo()) {
             return Result.unchanged("nothing");
@@ -400,6 +417,13 @@ public final class Intents {
     }
 
     // ---- 공통 ----
+
+    /** c가 이 파일의 회로면 편집하는 회로로 둔다(라이브러리 회로는 편집하지 않으므로 그대로). */
+    private static void showIfOwn(Doc d, Circuit c) {
+        if (c != null && d.file().contains(c)) {
+            d.show(c);
+        }
+    }
 
     static void editable(Doc d, Circuit c) throws RpcError {
         if (d.isReadOnly()) {

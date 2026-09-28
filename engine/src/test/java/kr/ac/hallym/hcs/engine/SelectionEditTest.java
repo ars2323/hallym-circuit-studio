@@ -664,4 +664,77 @@ class SelectionEditTest {
             main = keep;
         }
     }
+
+    /**
+     * 선택해 옮기고, 다른 회로 탭을 보며(sim.watch: 저널에 없다) Undo·Redo, 이어 ids 없는 의도. Undo·Redo는 화면이 보던
+     * 회로(circuitId)를 편집하는 회로로 삼으므로(원조: 보던 회로에서 Ctrl+Z) 시뮬레이션이 무엇을 보든 같은 선택·모델이
+     * 된다. 편집 의도만 새 엔진에 같은 차례로 다시 하면(되살리기 재생) 같은 모델이다.
+     */
+    String[] undoRedoWhileAnotherTabIsShown(boolean watch) {
+        String and = add("Gates", "AND Gate", 300, 200);
+        add("Gates", "OR Gate", 300, 400);
+        String sub = e.client.callObject("edit.createCircuit", params("fileId", fileId, "name", "sub"))
+                .get("circuitId").getAsString();
+        e.client.callObject("edit.addComponent", params("fileId", fileId, "circuitId", sub, "lib", "Wiring",
+                "name", "Pin", "loc", xy(100, 100)));
+        edit("edit.select", "ids", new Object[] {and});
+        edit("edit.move", "dx", 20, "dy", 0);  // ids 없음: 고른 것
+        edit("edit.copy");
+        edit("edit.paste");                    // 선택이 떠 있는 사본으로 바뀐다
+        if (watch) {
+            e.client.call("sim.watch", params("fileId", fileId, "circuitId", sub)); // 저널에 없다
+        }
+        // sub 탭에서 Ctrl+Z, Ctrl+Y, Ctrl+Z: 원조 Selection은 되돌린 뒤 앞 선택을 지금 회로 기준으로 되살린다(지금
+        // 회로에 없는 부품은 떠 있는 것으로 둔다)
+        e.client.callObject("edit.undo", params("fileId", fileId, "circuitId", sub));
+        e.client.callObject("edit.redo", params("fileId", fileId, "circuitId", sub));
+        e.client.callObject("edit.undo", params("fileId", fileId, "circuitId", sub));
+        String sel = lastSelection(sub);
+        if (watch) {
+            e.client.call("sim.watch", params("fileId", fileId, "circuitId", main));
+        }
+        edit("edit.move", "dx", 0, "dy", 30);  // ids 없음: 엔진의 선택
+        edit("edit.select");
+        return new String[] {sub, sel};
+    }
+
+    /** 엔진이 마지막으로 알린 선택(바뀔 때만 알리므로 지금 선택)을 id 없이: 회로 이름, 고른 것과 떠 있는 것의 이름·자리. */
+    String lastSelection(String sub) {
+        e.client.call("file.dirty", params("fileId", fileId));
+        List<JsonObject> all = e.client.notificationsAfter(0, "edit.selection");
+        JsonObject s = all.get(all.size() - 1);
+        String circuit = s.get("circuitId").getAsString().equals(main) ? "main" : s.get("circuitId").getAsString()
+                .equals(sub) ? "sub" : "?";
+        List<String> chosen = new ArrayList<>();
+        for (String c : List.of(main, sub)) {
+            JsonObject snap = e.client.callObject("model.circuit", params("fileId", fileId, "circuitId", c));
+            for (JsonElement k : snap.getAsJsonArray("components")) {
+                JsonObject o = k.getAsJsonObject();
+                if (ids(s).contains(o.get("id").getAsString())) {
+                    chosen.add(o.get("name").getAsString() + o.get("loc"));
+                }
+            }
+        }
+        List<String> floating = new ArrayList<>();
+        for (JsonElement x : s.getAsJsonArray("floating")) {
+            floating.add(x.getAsJsonObject().get("name").getAsString() + x.getAsJsonObject().get("loc"));
+        }
+        return circuit + " " + chosen + " floating " + floating;
+    }
+
+    @Test
+    void undoAndRedoTakeTheCircuitOnShowSoTheReplayIsTheSame() throws Exception {
+        String[] watched = undoRedoWhileAnotherTabIsShown(true);
+        Set<String> here = geometry();
+        Set<String> hereSub = geometryOf(watched[0]);
+        e.close();
+        e = new InProcess();
+        JsonObject n = e.client.callObject("file.new", params());
+        fileId = n.get("fileId").getAsString();
+        main = n.get("main").getAsString();
+        String[] again = undoRedoWhileAnotherTabIsShown(false);
+        assertEquals(watched[1], again[1], "the same selection after the undo on the sub tab");
+        assertEquals(here, geometry(), "the replay (edit intents only) gives the same main");
+        assertEquals(hereSub, geometryOf(again[0]));
+    }
 }
