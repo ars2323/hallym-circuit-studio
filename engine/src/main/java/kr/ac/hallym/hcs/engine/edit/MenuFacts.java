@@ -94,7 +94,11 @@ public final class MenuFacts {
         }
         if (hit == null) { // 빈 곳(여러 개를 고른 채여도): v1 ProbeMenu의 Select/Delete All Probes
             JsonArray probes = new JsonArray();
-            for (Component p : QuickProbe.probes(c)) {
+            List<Component> all = new ArrayList<>(QuickProbe.probes(c));
+            // 위→아래, 왼쪽→오른쪽(회로의 부품 집합은 차례가 없다: 같은 파일이면 같은 답)
+            all.sort((a, b) -> a.getLocation().getY() != b.getLocation().getY()
+                    ? a.getLocation().getY() - b.getLocation().getY() : a.getLocation().getX() - b.getLocation().getX());
+            for (Component p : all) {
                 probes.add(d.ids().of(p));
             }
             o.add("probes", probes);

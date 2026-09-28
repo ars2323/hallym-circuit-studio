@@ -129,6 +129,12 @@ public final class AttrTable {
                 ret.add(x);
             }
         }
+        // 원조는 선택(해시 집합)의 차례로 첫 부품을 정해 그 속성 차례를 쓴다: 같은 선택이면 같은 표가 되게 위→아래,
+        // 왼쪽→오른쪽 차례로 정한다(정함, D-157)
+        ret.sort((a, b) -> a.getLocation().getY() != b.getLocation().getY()
+                ? a.getLocation().getY() - b.getLocation().getY()
+                : a.getLocation().getX() != b.getLocation().getX() ? a.getLocation().getX() - b.getLocation().getX()
+                : a.getFactory().getName().compareTo(b.getFactory().getName()));
         return ret;
     }
 
@@ -364,6 +370,60 @@ public final class AttrTable {
     }
 
     /**
+     * 원조 숨은 키(v1 QuickAttrs.hints): 부품의 원조 KeyConfigurator에 숫자 키(수정 키 없음, Alt)를 넣어 보고 바뀌는
+     * 속성을 알아낸다. 한 키가 둘 이상을 바꾸면(Splitter의 Alt+숫자: 들어오는 폭과 팔 수) 모두를 속성 집합의 차례로
+     * 적는다(v1은 해시 차례의 하나만 적어 실행마다 달랐다). display는 그 이름들을 ", "로 이은 것.
+     */
+    static JsonArray hints(Component c) {
+        JsonArray out = new JsonArray();
+        AttributeSet as = c.getAttributeSet();
+        Object feature = c.getFactory().getFeature(com.cburch.logisim.tools.key.KeyConfigurator.class, as);
+        if (!(feature instanceof com.cburch.logisim.tools.key.KeyConfigurator)) {
+            return out;
+        }
+        com.cburch.logisim.tools.key.KeyConfigurator base = (com.cburch.logisim.tools.key.KeyConfigurator) feature;
+        int[] mods = {0, java.awt.event.InputEvent.ALT_DOWN_MASK};
+        String[] labels = {"0–9", "Alt+0–9"};
+        javax.swing.JPanel source = new javax.swing.JPanel();
+        for (int m = 0; m < mods.length; m++) {
+            for (char digit = '1'; digit <= '9'; digit++) {
+                com.cburch.logisim.tools.key.KeyConfigurator k = base.clone();
+                java.awt.event.KeyEvent key = new java.awt.event.KeyEvent(source, java.awt.event.KeyEvent.KEY_TYPED, 0L,
+                        mods[m], java.awt.event.KeyEvent.VK_UNDEFINED, digit);
+                com.cburch.logisim.tools.key.KeyConfigurationResult r = k.keyEventReceived(
+                        new com.cburch.logisim.tools.key.KeyConfigurationEvent(
+                                com.cburch.logisim.tools.key.KeyConfigurationEvent.KEY_TYPED, as, key, c));
+                if (r == null || r.getAttributeValues().isEmpty()) {
+                    continue;
+                }
+                List<String> names = new ArrayList<>();
+                List<String> displays = new ArrayList<>();
+                for (Attribute<?> a : as.getAttributes()) {
+                    if (r.getAttributeValues().containsKey(a)) {
+                        names.add(a.getName());
+                        displays.add(a.getDisplayName());
+                    }
+                }
+                if (names.isEmpty()) {
+                    continue;
+                }
+                JsonObject ho = new JsonObject();
+                ho.addProperty("keys", labels[m]);
+                ho.addProperty("attr", names.get(0));
+                if (names.size() > 1) {
+                    JsonArray all = new JsonArray();
+                    names.forEach(all::add);
+                    ho.add("attrs", all);
+                }
+                ho.addProperty("display", String.join(", ", displays));
+                out.add(ho);
+                break;
+            }
+        }
+        return out;
+    }
+
+    /**
      * 빠른 속성 창(v1 QuickBar, I-103·I-104): 고른 선 아닌 부품이 모두 같은 종류일 때 그 종류의 자주 바꾸는 속성
      * (부품 종류 등록표, 최대 5), 원조 숨은 키, R·F2, 기본 모양 서브회로의 Auto Appearance. 아니면 null.
      */
@@ -381,13 +441,7 @@ public final class AttrTable {
         q.add("attrs", attrs);
         JsonArray hints = new JsonArray();
         try {
-            for (QuickAttrs.Hint h : QuickAttrs.hints(first)) {
-                JsonObject ho = new JsonObject();
-                ho.addProperty("keys", h.keys);
-                ho.addProperty("attr", h.attr.getName());
-                ho.addProperty("display", h.attr.getDisplayName());
-                hints.add(ho);
-            }
+            hints = hints(first);
         } catch (RuntimeException e) {
             // 키 설정기가 창을 원하면 숨은 키 줄만 없다
         }

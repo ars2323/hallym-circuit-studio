@@ -115,6 +115,16 @@ class LabPcRuleTest {
         c.must("edit.redo", params("fileId", fileId));
         c.any("edit.delete", params("fileId", fileId, "circuitId", main, "ids", List.of(and)));
         c.must("file.dirty", params("fileId", fileId));
+        // N-10: the attribute table, the right-click menu's facts, a ROM's words (the hex editor)
+        c.must("model.attributes", params("fileId", fileId, "circuitId", main));
+        c.must("model.menu", params("fileId", fileId, "circuitId", main, "at", xy(10, 10)));
+        String rom = null;
+        for (JsonElement x : snap.getAsJsonArray("components")) {
+            if (x.getAsJsonObject().get("name").getAsString().equals("ROM")) {
+                rom = x.getAsJsonObject().get("id").getAsString();
+            }
+        }
+        c.any("mem.read", params("fileId", fileId, "circuitId", main, "componentId", rom == null ? "k0" : rom));
         c.must("sim.watch", params("fileId", fileId, "circuitId", main));
         c.must("sim.run", params("fileId", fileId, "on", true, "hz", 64));
         c.must("sim.run", params("fileId", fileId, "on", false));
@@ -156,7 +166,7 @@ class LabPcRuleTest {
     /** {@link #studentSession}이 부르는 메서드(묶음 검사용, 같은 차례). */
     static final String[] PURPOSEFUL = {"engine.hello", "file.new", "sim.state", "file.open", "model.circuit",
         "model.library", "edit.addComponent", "edit.setAttr", "edit.addWire", "edit.move", "edit.undo", "edit.redo",
-        "edit.delete", "file.dirty", "sim.watch", "sim.run", "sim.enable", "sim.cycles", "sim.reset", "diag.list", "find.query", "flow.activePath", "flow.path",
+        "edit.delete", "file.dirty", "model.attributes", "model.menu", "mem.read", "sim.watch", "sim.run", "sim.enable", "sim.cycles", "sim.reset", "diag.list", "find.query", "flow.activePath", "flow.path",
         "trace.origin", "mips.facts", "mips.load", "mips.console", "mips.disasm", "mips.reload", "record.state",
         "record.table", "record.registers", "record.memory", "record.instruction", "record.fieldPaths",
         "file.recoverWrite", "file.save", "file.close"};
