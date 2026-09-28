@@ -372,6 +372,13 @@ test('a change that names this program is never Windows\' own -- but for Windows
     assert.equal(counts(ch('registry', 'added', `${UA} :: xe.np.unyylz.pvephvg-fghqvb`, 'REG_BINARY 00'), e), false, e);
   }
   assert.equal(counts(ch('registry', 'added', `${UA} :: P:\\Hfref\\h\\NccQngn\\Ybpny\\Cebtenzf\\Unyylz Pvephvg Fghqvb\\UnyylzPvephvgFghqvb.rkr`, 'REG_BINARY 00'), 'uninstalled'), true);
+  // The guided installer's own counter (D-155): its setup exe, wherever the student saved it, in the install checks only.
+  const SETUP_UA = `${UA} :: Q:\\n\\unyylz-pvephvg-fghqvb\\ryrpgeba\\frghc\\UnyylzPvephvgFghqvb-2.0.0-nycun.0-jva-k64-frghc.rkr`;
+  for (const e of ['install', 'uninstalled'] as const) assert.equal(counts(ch('registry', 'added', SETUP_UA, 'REG_BINARY 00'), e), false, e);
+  assert.equal(counts(ch('registry', 'added', `${UA} :: P:\\Hfref\\h\\Qbjaybnqf\\UnyylzPvephvgFghqvb-2.1.0-jva-k64-frghc.rkr`, 'REG_BINARY 00'), 'install'), false);
+  assert.equal(counts(ch('registry', 'added', SETUP_UA, 'REG_BINARY 00'), 'none'), true);  // a run of the program: counts
+  assert.equal(counts(ch('registry', 'added', `${UA} :: P:\\Hfref\\h\\Qbjaybnqf\\UnyylzPvephvgFghqvb-2.1.0-jva-k64-frghc.rkr.ync`, 'REG_BINARY 00'), 'install'), true);
+  assert.equal(counts(ch('files', 'added', 'APPDATA\\HallymCircuitStudio-2.0.0-win-x64-setup.exe'), 'install'), true);
   const ICON = 'LOCALAPPDATA\\Packages\\Microsoft.Windows.Search_cw5n1h2txyewy\\LocalState\\AppIconCache\\100\\kr_ac_hallym_circuit-studio';
   for (const e of CHECKS) assert.equal(counts(ch('files', 'added', ICON), e), false, e);
   const V1_ICON = 'LOCALAPPDATA\\Packages\\Microsoft.Windows.Search_cw5n1h2txyewy\\LocalState\\AppIconCache\\100\\C__Users_u_AppData_Local_HallymCircuitStudio_HallymCircuitStudio_exe';

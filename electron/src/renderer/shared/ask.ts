@@ -1,4 +1,4 @@
-/* A question in the window's own dialog (derived from Hallym MIPS v2.3.0
+/* A question in the window's own dialog (derived from Hallym MIPS v2.5.0
    electron/src/renderer/app/panels/ask.ts), not the operating system's
    message box, which looks like another program.  Haram on the left, the
    question and the buttons on the right, the same place and size every

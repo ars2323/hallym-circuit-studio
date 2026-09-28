@@ -1,5 +1,5 @@
 /* The Instruction panel: one instruction taken apart, as Hallym MIPS's
-   Inspector draws it (derived from Hallym MIPS v2.3.0
+   Inspector draws it (derived from Hallym MIPS v2.5.0
    electron/src/renderer/app/panels/inspector.ts): the word as thirty-two
    bits, MSB on the left, grouped into its fields; under it one line per
    field.  The same field names and the same colours as Hallym MIPS

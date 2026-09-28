@@ -1,7 +1,8 @@
-/* The Windows installer (N-23, D-148): tools/package-config.ts gives
-   electron-builder the one-click, per-user NSIS installer the user decided
-   on, and packaging/installer.nsh finds the v1.0.x MSI by the UpgradeCode
-   jpackage gave it.  Read without electron-builder or a build; the
+/* The Windows installer (N-23, D-148; D-155): tools/package-config.ts gives
+   electron-builder the assisted, per-user NSIS installer the user decided
+   on (Hallym MIPS 2.5.0's: the progress, then the finish page with 지금
+   실행하기), packaging/installer.nsh gives it its pages, words and colours,
+   and finds the v1.0.x MSI by the UpgradeCode jpackage gave it.  Read without electron-builder or a build; the
    installer itself is checked on Windows (CI setup-exe, setup-e2e,
    setup-upgrade). */
 
@@ -41,15 +42,22 @@ test('one file: the NSIS installer for x64, named HallymCircuitStudio-<version>-
   assert.equal(config.nsis!.packElevateHelper, false);
 });
 
-test('one click, per user, never elevated; a Start menu shortcut and no desktop shortcut; nothing run after', () => {
+test('assisted, per user, never elevated, no folder to choose; a Start menu shortcut and no desktop shortcut; 지금 실행하기 on the finish page', () => {
   const n = config.nsis!;
-  assert.equal(n.oneClick, true);
+  assert.equal(n.oneClick, false);
   assert.equal(n.perMachine, false);
   assert.equal(n.allowElevation, false);
+  assert.equal(n.allowToChangeInstallationDirectory, false);
   assert.equal(n.createDesktopShortcut, false);
   assert.equal(n.createStartMenuShortcut, true);
   assert.equal(n.shortcutName, 'Hallym Circuit Studio');
-  assert.equal(n.runAfterFinish, false);
+  assert.equal(n.runAfterFinish, true);
+  // The finish pages' band: the committed pictures (tests/unit/installer-art.test.ts reads them).
+  assert.equal(n.installerSidebar, path.join(root, 'packaging/installerSidebar.bmp'));
+  assert.equal(n.uninstallerSidebar, path.join(root, 'packaging/uninstallerSidebar.bmp'));
+  for (const f of [n.installerSidebar, n.uninstallerSidebar]) assert.ok(existsSync(f as string));
+  assert.equal(n.license, undefined); // no licence page
+  assert.equal(n.multiLanguageInstaller, undefined); // one language: no language dialog
   assert.equal(n.deleteAppDataOnUninstall, false);
   assert.equal(n.uninstallDisplayName, 'Hallym Circuit Studio ${version}');
   assert.equal(uninstallDisplayName('2.0.0'), 'Hallym Circuit Studio 2.0.0');
@@ -131,9 +139,63 @@ test('the uninstaller\'s own copy in %TEMP% is removed once it has ended -- only
   assert.match(nsh, /!macro customUnInstall\n\s+!insertmacro hcsRemoveUninstallerCopy\n!macroend/);
 });
 
+test('the pages (as Hallym MIPS 2.5.0): only this user, the progress, then the finish page with 지금 실행하기 ticked; the uninstaller the same', () => {
+  const macro = (name: string) => new RegExp(`!macro ${name}\n([\\s\\S]*?)!macroend`).exec(nsh)?.[1] ?? '';
+  // "For all users or only me" answered before it shows: this user (no administrator).
+  assert.match(macro('customInstallMode'), /^\s+StrCpy \$isForceCurrentInstall "1"\n$/);
+  // The finish page: its title and words, 지금 실행하기 (MUI ticks it), which opens the Start menu shortcut as the user.
+  const finish = macro('customFinishPage');
+  assert.match(finish, /!define MUI_FINISHPAGE_TITLE "설치가 완료되었습니다"/);
+  assert.match(finish, /!define MUI_FINISHPAGE_TEXT "Hallym Circuit Studio 설치를 마쳤습니다\./);
+  assert.match(finish, /!define MUI_FINISHPAGE_RUN\n/);
+  assert.match(finish, /!define MUI_FINISHPAGE_RUN_TEXT "지금 실행하기"/);
+  assert.doesNotMatch(finish, /MUI_FINISHPAGE_RUN_NOTCHECKED/);
+  assert.match(finish, /\$\{StdUtils\.ExecShellAsUser\} \$0 "\$launchLink" "open" ""/);
+  assert.match(finish, /!insertmacro MUI_PAGE_FINISH\n$/);
+  // The progress page's head, and the uninstaller's pages: the progress, then its finish page.
+  assert.match(macro('customPageAfterChangeDir'), /MUI_PAGE_HEADER_TEXT "설치하는 중"/);
+  assert.match(macro('customUnWelcomePage'), /MUI_PAGE_HEADER_TEXT "제거하는 중"/);
+  assert.doesNotMatch(macro('customUnWelcomePage'), /MUI_UNPAGE_WELCOME/);
+  assert.match(macro('customUninstallPage'), /MUI_FINISHPAGE_TITLE "제거가 끝났습니다"/);
+  // electron-builder's assisted template: no welcome or licence page of its own, the install-mode page, then these.
+  const assisted = readFileSync(path.join(root, 'node_modules/app-builder-lib/templates/nsis/assistedInstaller.nsh'), 'utf8');
+  const pages = assisted.slice(0, assisted.indexOf('!else'));
+  assert.ok(pages.indexOf('customPageAfterChangeDir') < pages.indexOf('MUI_PAGE_INSTFILES'));
+  assert.ok(pages.indexOf('MUI_PAGE_INSTFILES') < pages.indexOf('customFinishPage'));
+  assert.match(pages, /!ifmacrodef customWelcomePage/); // no welcome page unless one is given (none is)
+  assert.doesNotMatch(nsh, /!macro (customWelcomePage|licensePage)\b/);
+});
+
+test('the progress bar in the app\'s blue (#0055A5, shared.css --blue) on a pale track, set on both progress pages', () => {
+  const css = readFileSync(path.join(root, 'src/renderer/shared/shared.css'), 'utf8');
+  const blue = /--blue: #([0-9a-f]{6})/i.exec(css)![1].toLowerCase();
+  assert.equal(blue, '0055a5');
+  // COLORREF is 0x00BBGGRR.
+  const colorref = `0x${blue.slice(4, 6)}${blue.slice(2, 4)}${blue.slice(0, 2)}`.toUpperCase().replace('0X', '0x');
+  assert.match(nsh, new RegExp(`^!define HCS_BAR_COLOUR ${colorref}$`, 'm'));
+  const bar = /!macro HcsProgressBar\n([\s\S]*?)!macroend/.exec(nsh)?.[1] ?? '';
+  assert.match(bar, /GetDlgItem \$0 \$0 1004\n/);                      // the instfiles page's progress bar
+  assert.match(bar, /uxtheme::SetWindowTheme\(p r0, w "", w ""\)/);     // no visual style: it takes colours
+  assert.match(bar, /SendMessage \$0 0x409 0 \$\{HCS_BAR_COLOUR\}/);      // PBM_SETBARCOLOR
+  assert.match(bar, /SendMessage \$0 0x2001 0 \$\{HCS_BAR_TRACK\}/);      // PBM_SETBKCOLOR
+  assert.match(nsh, /Function HcsProgressColour\n\s+!insertmacro HcsProgressBar/);
+  assert.match(nsh, /Function un\.HcsProgressColour\n\s+!insertmacro HcsProgressBar/);
+  assert.match(nsh, /MUI_PAGE_CUSTOMFUNCTION_SHOW HcsProgressColour/);
+  assert.match(nsh, /MUI_PAGE_CUSTOMFUNCTION_SHOW un\.HcsProgressColour/);
+});
+
 test('the installer\'s words: Korean, no particle right after a name, no "하면 됩니다", no "한림" (N-20)', () => {
   const words = [...nsh.matchAll(/LangString (\w+) 1042 "([^"]*)"/g)].map((m) => [m[1], m[2]] as const);
   const box = [...nsh.matchAll(/MessageBox [^"]*"([^"]*)"/g)].map((m) => ['notice', m[1]] as const);
+  // The pages' words (MUI defines, D-155): the same rules; the program's name there is followed by a noun, never a particle.
+  const pages = [...nsh.matchAll(/!define (MUI_\w+) "([^"]*)"/g)].filter((m) => !/FUNCTION/.test(m[1])).map((m) => [m[1], m[2]] as const);
+  assert.deepEqual(pages.map(([id]) => id).sort(), ['MUI_FINISHPAGE_RUN_TEXT', 'MUI_FINISHPAGE_TEXT', 'MUI_FINISHPAGE_TEXT', 'MUI_FINISHPAGE_TITLE',
+    'MUI_FINISHPAGE_TITLE', 'MUI_PAGE_HEADER_SUBTEXT', 'MUI_PAGE_HEADER_SUBTEXT', 'MUI_PAGE_HEADER_TEXT', 'MUI_PAGE_HEADER_TEXT']);
+  for (const [id, text] of pages) {
+    assert.match(text, /[가-힣]/, `${id}: Korean`);
+    assert.doesNotMatch(text, /(Studio|[A-Za-z0-9)])(을|를|이|가|은|는|의|에|로|으로|와|과|\(을\)|\(이\))(?![A-Za-z])/, `${id}: a particle after a name: ${text}`);
+    assert.doesNotMatch(text, /하면 됩니다|한림/, `${id}: ${text}`);
+  }
   assert.deepEqual(words.map(([id]) => id).sort(),
     ['appCannotBeClosed', 'appClosing', 'appRunning', 'areYouSureToUninstall', 'decompressionFailed', 'installing', 'uninstallFailed']);
   for (const [id, text] of [...words, ...box]) {
@@ -150,4 +212,27 @@ test('the installer\'s words: Korean, no particle right after a name, no "하면
   }
   // They replace electron-builder's after its own messages: customHeader, with only warning 6030 (set twice) allowed there.
   assert.match(nsh, /!macro customHeader\n\s+!pragma warning push\n\s+!pragma warning disable 6030\n/);
+});
+
+test('the guided install and uninstall (the students\' default) are compared as the /S ones are: a control period each, the four writes, then nothing (D-155)', () => {
+  const ui = readFileSync(path.join(root, 'tools/windows/check-installer-ui.ps1'), 'utf8');
+  const at = (s: string) => { const i = ui.indexOf(s); assert.ok(i >= 0, s); return i; };
+  // The order: control before the install, the install, its comparison; control before the uninstall, the uninstall, its comparison.
+  const order = [
+    "Control 'ui-install' 45 'ui-before'",
+    '$p = Launch (Resolve-Path $Setup).Path',
+    "ProgramGone 'the program closed'",
+    "StateDiff 'ui-before' 'ui-installed' 'install' 'ui-install'",
+    "Control 'ui-uninstall' 20 'ui-pre-uninstall'",
+    '$u = Launch $exe $uargs',
+    "StateDiff 'ui-before' 'ui-uninstalled' 'uninstalled' 'ui-uninstall'",
+  ].map(at);
+  assert.deepEqual([...order].sort((a, b) => a - b), order);
+  // The same comparison as check-install.ps1 (state.ts diff with that phase's noise only), programs started without the shell.
+  assert.match(ui, /node tools\/windows\/state\.ts diff .* --expect \$expect --noise \(Join-Path \$ReportFull "noise-\$control\.json"\)/);
+  assert.match(ui, /\$si\.UseShellExecute = \$false/);
+  assert.doesNotMatch(ui, /Start-Process/);
+  // Add-Type (which writes build files in %TEMP%) only before the first control period.
+  const lastAddType = ui.lastIndexOf('Add-Type');
+  assert.ok(lastAddType < order[0], 'Add-Type after a control period');
 });

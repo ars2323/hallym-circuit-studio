@@ -1,4 +1,4 @@
-/* A few DOM helpers (derived from Hallym MIPS v2.3.0
+/* A few DOM helpers (derived from Hallym MIPS v2.5.0
    electron/src/renderer/app/dom.ts).  The rule they keep: anything that may
    be a hexadecimal literal or a name with the digit 0 is set in the mono
    font (Pretendard draws 0x1 as 0×1), so text with code in it goes through

@@ -1,4 +1,4 @@
-/* The splitter between two panels (derived from Hallym MIPS v2.3.0
+/* The splitter between two panels (derived from Hallym MIPS v2.5.0
    electron/src/renderer/app/app.ts: its splitter between the Editor and the
    Run side, and its grips over the Console and the Assemble panel): drag to
    share the room, double-click for the default share.  One component for

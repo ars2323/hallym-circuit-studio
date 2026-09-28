@@ -69,6 +69,14 @@ test('step 2 is the same card: the same box and the same pixels, but for the cho
   const r = await launch();
   const { page } = r;
   try {
+    // The video behind the card (backdrop.e2e.ts) held on one frame: the card's rounded corners show it.
+    await page.waitForSelector('.wback.playing');
+    await page.evaluate(() => new Promise<void>((done) => {
+      const v = document.querySelector('.wback video') as HTMLVideoElement;
+      v.pause();
+      v.addEventListener('seeked', () => requestAnimationFrame(() => requestAnimationFrame(() => done())), { once: true });
+      v.currentTime = 3;
+    }));
     const box1 = await page.locator('.wcard').boundingBox();
     const actions1 = await page.locator('.wcard .actions').boundingBox();
     const shot1 = await settledShot(page);

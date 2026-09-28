@@ -192,6 +192,11 @@ export const ALLOWED: Allowed[] = [
     why: 'Windows Search\'s icon for the 1.0.x MSI\'s program in the Start menu, kept by Windows Search as for any program' },
   { where: 'registry', what: ['added'], in: INSTALLING, mayName: true, path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\UFH\\SHC :: \d+$/,
     why: 'the shell\'s history of the shortcuts Windows Installer made (the 1.0.x MSI\'s, which it names; seen only where that MSI was installed)' },
+  // The guided installer (D-155): its window has the focus while its pages show; the uninstaller's copy's name
+  // (Un_<X>.exe in %TEMP%) does not name this program.
+  { where: 'registry', what: ['added', 'changed'], in: INSTALLING, mayName: true,
+    path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\UserAssist\\\{[0-9A-F-]{36}\}\\Count :: [^\n]*\\UnyylzPvephvgFghqvb-[0-9a-z.]+(-[0-9a-z.]+)?-jva-k64-frghc\.rkr$/,
+    why: 'Explorer\'s launch and focus counter for the setup exe the student ran (ROT13 of <folder>\\HallymCircuitStudio-<version>-win-x64-setup.exe), kept by Windows for every program whose window has the focus: the guided installer\'s pages have it, a silent install none (seen in the first guided run, 2026-09-28)' },
 ];
 
 // A change that names this program -- in its place, its value's name or its data: its name, its app id,

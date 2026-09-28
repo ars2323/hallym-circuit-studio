@@ -1,5 +1,5 @@
 /* Starting the real app for the end-to-end tests and the screen captures
-   (derived from Hallym MIPS v2.3.0 electron/tests/e2e/harness.ts):
+   (derived from Hallym MIPS v2.5.0 electron/tests/e2e/harness.ts):
    Electron through Playwright's _electron.launch(), a fresh run folder and
    home every time, the fake engine (tests/fake-engine/fake-engine.ts)
    unless the test says otherwise, and the file dialogs answered from here

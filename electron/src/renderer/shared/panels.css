@@ -1,5 +1,5 @@
 /* The Registers, Data (here: Memory) and Inspector (here: Instruction)
-   panels' look (derived from Hallym MIPS v2.3.0
+   panels' look (derived from Hallym MIPS v2.5.0
    electron/src/renderer/app/app.css, the rules of those three panels): the
    same tokens, the same columns and bands, the same field colours -- the
    same instruction shows the same colours in both programs.  Left out: the

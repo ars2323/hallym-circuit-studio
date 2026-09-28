@@ -57,6 +57,32 @@ test('About > Licenses lists the runtime, with the release, and its text is the 
   }
 });
 
+// D-155: the first screen's video is Hallym MIPS 2.5.0's file; its notice is Hallym MIPS NOTICE section 8's.
+test('NOTICE and the marks\' notes: the first screen\'s video, whose it is and where it comes from, as Hallym MIPS NOTICE 8 says it', () => {
+  const flat = (s: string) => s.replace(/\s+/g, ' ');
+  const e = noticeEntry(/^Hallym University identity assets/);
+  assert.ok(e, 'NOTICE has no entry for the university\'s identity assets');
+  const text = flat(e);
+  for (const s of [
+    'the opening aerial shot of its promotional video (0:00.1 to 0:02.6), slowed down and without sound (the Electron edition\'s first screen), belong to Hallym University.',
+    'The video is "[Official Video] 한림대학교 홍보영상｜The New Hallym 대학의 내일을 열다", from Hallym University\'s official YouTube channel, @HALLYMNEWS.',
+    'Commercial use is prohibited',
+    'electron/src/renderer/assets/hallym/start/',
+    // "unmodified" is said of the marks and characters only; the video is said to be a clip, shown processed.
+    'The marks and the characters are used unmodified',
+    'The video is a short clip of the promotional video (the 2.5 s above, slowed to a third, its sound left out)',
+    'shows it blurred and desaturated under a translucent navy layer',
+  ]) assert.ok(text.includes(s), s);
+  assert.doesNotMatch(text, /and are used unmodified/);
+  assert.doesNotMatch(text, /taken from Hallym MIPS v2\.5\.0 unmodified/);
+  const notes = flat(readFileSync(path.join(root, 'hallym-assets.md'), 'utf8'));
+  assert.ok(notes.includes('"[Official Video] 한림대학교 홍보영상｜The New Hallym 대학의 내일을 열다" (official YouTube channel @HALLYMNEWS)'));
+  assert.ok(notes.includes('the character stands on the card\'s opaque white, never on the video'));
+  assert.ok(notes.includes('the first screen\'s video is not the university\'s file as received: it is a short clip of the promotional video'));
+  assert.ok(notes.includes('blurred and desaturated under a translucent navy layer'));
+  assert.ok(LICENSES.some((l) => l.name === 'hallym-assets.md' && /video/.test(l.title)));
+});
+
 test('when the runtime is built here, About\'s text is its legal/java.base files byte for byte', { skip: !existsSync(path.join(repo, 'engine/build/runtime/legal/java.base/LICENSE')) }, () => {
   const text = readFileSync(path.join(root, 'LICENSE.openjdk.txt'), 'utf8');
   for (const f of ['LICENSE', 'ASSEMBLY_EXCEPTION', 'ADDITIONAL_LICENSE_INFO']) {

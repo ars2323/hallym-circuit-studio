@@ -1,5 +1,5 @@
 /* Every e2e test at the window sizes the app is made for (derived from
-   Hallym MIPS v2.3.0 electron/tools/e2e-widths.ts): the lab PCs' 1920x1080
+   Hallym MIPS v2.5.0 electron/tools/e2e-widths.ts): the lab PCs' 1920x1080
    maximised over the taskbar at 100 % (1920x1032), 125 % (1536x816) and
    150 % (1280x672), and half of a 1920 screen (960x1032: narrow, Attributes
    in the left panel's tabs).  Tests that size their own windows keep theirs;

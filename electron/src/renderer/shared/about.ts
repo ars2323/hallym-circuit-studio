@@ -1,4 +1,4 @@
-/* About (derived from Hallym MIPS v2.3.0 electron/src/renderer/app/panels/
+/* About (derived from Hallym MIPS v2.5.0 electron/src/renderer/app/panels/
    about.ts): the version, what it is built on, and every notice that goes
    with the program -- read from the same files the package carries
    (src/main/paths.ts LICENSES), so the two cannot drift apart.  What the

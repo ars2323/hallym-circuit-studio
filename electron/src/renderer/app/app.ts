@@ -654,6 +654,7 @@ function toggleBottom(): void {
 function layout(): void {
   const open = files.count() > 0;
   stage.hidden = !decided || open || opening;
+  start.show(!stage.hidden); // the video plays on the first screen only (D-155)
   shell.hidden = !open;
   if (!stage.hidden && !startSeen) { startSeen = true; document.documentElement.dataset.startSeen = 'true'; }
   if (open) {
@@ -1405,8 +1406,9 @@ const about = aboutDialog({
       h('p', {}, h('b', {}, APP_NAME), ' ', code(info.version)),
       h('p', {}, 'Based on Logisim 2.7.1 by Carl Burch (GNU GPL, version 2 or later)'),
       h('p', {}, 'Screen parts from Hallym MIPS Simulator (BSD 3-Clause)'),
-      h('p', { class: 'hint' }, 'Hallym University의 논리설계와 컴퓨터구조 실습을 위한 회로 편집·시뮬레이션 도구입니다.'),
-      h('p', { class: 'hint' }, 'Hallym University의 로고와 캐릭터(하람, 하리)는 Hallym University의 소유이며 상업적 사용을 금지합니다. 이 프로그램은 Hallym University의 공식 제품이 아닙니다.'),
+      h('p', { class: 'hint' }, 'Hallym University 논리설계와 컴퓨터구조 실습을 위한 회로 편집·시뮬레이션 도구입니다.'),
+      // The university's marks, characters and the first screen's video (D-155: NOTICE, as Hallym MIPS NOTICE 8).
+      h('p', { class: 'hint' }, '로고, 캐릭터(하람, 하리), 시작 화면의 영상은 Hallym University 소유이며 상업적 사용을 금지합니다. 로고와 캐릭터는 원형 그대로 씁니다. 시작 화면의 영상은 홍보 영상의 첫 장면 2.5초를 소리 없이 느리게 자른 것이고, 흐리게 하고 남색 층을 덮어 보입니다. 영상 출처: Hallym University 공식 YouTube 채널 @HALLYMNEWS (NOTICE). 이 프로그램은 Hallym University 공식 제품이 아닙니다.'),
       h('p', { class: 'hint' }, 'Engine ', info.engine ? code(`${info.engine.engine} ${info.engine.version}`) : '—',
         info.engine ? h('span', {}, ' · Logisim ', code(info.engine.logisim), ' · Java ', code(info.engine.java)) : null),
       h('p', { class: 'hint' }, 'Electron ', code(info.electron), ' · Chromium ', code(info.chrome), ' · Node.js ', code(info.node)),

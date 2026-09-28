@@ -42,7 +42,7 @@ import path from 'node:path';
 
 export const root = path.join(import.meta.dirname, '..');
 export const HMIPS_REPO = 'ars2323/hallym-mips-simulator';
-export const HMIPS_TAG = 'v2.3.0';
+export const HMIPS_TAG = 'v2.5.0';   // D-155 (from v2.3.0: D-135); the .hmx spec and goldens stay at v2.4.0 (D-138)
 
 export interface Taken {
   from: string;       // path in Hallym MIPS, from its repository root
@@ -62,7 +62,9 @@ export const TAKEN: Taken[] = [
   { from: 'electron/src/renderer/app/panels/ask.ts', to: 'src/renderer/shared/ask.ts', how: 'derived',
     note: 'The window\'s own question dialog. Adds `character: false` and one-button use for errors (the engine could not start): no character next to an error; `choose()`, where Esc is neither answer (a recovery file: Recover / Discard), with an optional third answer (Save / Discard / Cancel); `names`, more label: name lines like the File line.' },
   { from: 'electron/src/renderer/app/panels/welcome.ts', to: 'src/renderer/shared/welcome.ts', how: 'derived',
-    note: 'The first screen\'s card and its two steps. The words and the choices come from the caller (src/renderer/app/start.ts); the second step can be one of several.' },
+    note: 'The first screen\'s card and its two steps, and behind it the university\'s video (backdrop.ts, 2.5.0), one for every step, shown while the first screen is (show()). The words and the choices come from the caller (src/renderer/app/start.ts); the second step can be one of several.' },
+  { from: 'electron/src/renderer/app/panels/backdrop.ts', to: 'src/renderer/shared/backdrop.ts', how: 'derived',
+    note: 'The first screen\'s background (2.5.0, D-155): the video and its still, silent, looping; the still only under prefers-reduced-motion; unloaded off the first screen; navy when it cannot play. The import path only.' },
   { from: 'electron/src/renderer/app/panels/about.ts', to: 'src/renderer/shared/about.ts', how: 'derived',
     note: 'About with About / Licenses tabs. The About tab\'s lines come from the caller (this program: Logisim 2.7.1 by Carl Burch, the engine, the university\'s marks).' },
   { from: 'electron/src/renderer/app/logic/overlay.ts', to: 'src/renderer/shared/overlay.ts', how: 'copy',
@@ -74,9 +76,9 @@ export const TAKEN: Taken[] = [
   { from: 'electron/src/renderer/app/app.ts', to: 'src/renderer/shared/splitter.ts', how: 'derived',
     note: 'The splitter and the grip (drag to share, double-click for the default) taken out of app.ts into one component for both directions.' },
   { from: 'electron/src/renderer/app/app.css', to: 'src/renderer/shared/shared.css', how: 'derived',
-    note: 'Tokens, fonts, title bar, buttons, panel heads, splitters, empty states, first screen, dialogs, About, status bar, band. The SPIM panels\' rules (Editor, Assemble, Text, Data, Registers, Inspector, Console) and the tutorial\'s are left out.' },
+    note: 'Tokens, fonts, title bar, buttons, panel heads, splitters, empty states, first screen (with 2.5.0\'s video behind the card: .wback, the card\'s shadow), dialogs, About, status bar, band. The SPIM panels\' rules (Editor, Assemble, Text, Data, Registers, Inspector, Console) and the tutorial\'s are left out; 2.4.0\'s narrower icon buttons (for its fifth icon, Export) are not taken.' },
   { from: 'electron/src/renderer/app/index.html', to: 'src/renderer/app/index.html', how: 'derived',
-    note: 'The same Content-Security-Policy; this app\'s title and style sheets.' },
+    note: 'The same Content-Security-Policy (media-src \'self\' for the first screen\'s video, 2.5.0); this app\'s title and style sheets.' },
   // ---- the main process
   // ---- the Cycle View's side panels (N-14, D-144): screen code only, no upstream core
   { from: 'electron/src/renderer/app/logic/columns.ts', to: 'src/renderer/shared/columns.ts', how: 'copy',
@@ -107,7 +109,13 @@ export const TAKEN: Taken[] = [
   ...['circle-question-mark', 'file-plus', 'folder-open', 'save', 'play', 'square', 'step-forward', 'rotate-ccw'].map((n): Taken => (
     { from: `electron/src/renderer/assets/icons/lucide/${n}.svg`, to: `src/renderer/assets/icons/lucide/${n}.svg`, how: 'copy', note: 'Lucide icon' })),
   { from: 'electron/src/renderer/assets/hallym/README.md', to: 'hallym-assets.md', how: 'derived',
-    note: 'The university\'s marks and characters: whose they are, the rules, how they are kept. Rewritten for this repository\'s assets/hallym/ file names.' },
+    note: 'The university\'s marks, characters and the first screen\'s video: whose they are, the rules, how they are kept. Rewritten for this repository\'s assets/hallym/ file names.' },
+  // ---- the first screen's video (2.5.0, D-155): Hallym MIPS's own files, byte for byte
+  { from: 'electron/src/renderer/assets/hallym/start/start.webm', to: 'src/renderer/assets/hallym/start/start.webm', how: 'copy',
+    note: 'The first screen\'s video: the opening aerial shot of Hallym University\'s promotional video, slowed, no sound (NOTICE, hallym-assets.md)' },
+  { from: 'electron/src/renderer/assets/hallym/start/start.jpg', to: 'src/renderer/assets/hallym/start/start.jpg', how: 'copy',
+    note: 'Its first frame: shown at once, and instead of the video under prefers-reduced-motion' },
+  { from: 'electron/tools/start-video.ts', to: 'tools/start-video.ts', how: 'copy', note: 'Makes the video and its still from the source video (ffmpeg)' },
   // ---- the license of what is taken
   { from: 'LICENSE', to: 'LICENSE.hallym-mips.txt', how: 'copy', note: 'Hallym MIPS\'s BSD 3-Clause license: goes with the code taken from it (About > Licenses, NOTICE)' },
   // ---- tools and tests
@@ -121,10 +129,20 @@ export const TAKEN: Taken[] = [
   { from: 'electron/tools/e2e-widths.ts', to: 'tools/e2e-widths.ts', how: 'derived', note: 'Every e2e test at this app\'s window sizes (the lab PCs\' 1920x1080 at 100/125/150 %, half a screen).' },
   { from: 'electron/tools/capture-screens.ts', to: 'tools/capture-screens.ts', how: 'derived', note: 'The PNG writer, the checks (no hover, size limit) and shot(); this app\'s scenes.' },
   { from: 'electron/tools/mutants.ts', to: 'tools/mutants.ts', how: 'derived', note: 'The mutant runner (a copy per mutant in a temporary folder); this app\'s mutants, no native build.' },
-  { from: 'electron/tools/package.ts', to: 'tools/package.ts', how: 'derived', note: 'electron-builder: staging the app and the engine; the installer\'s options in tools/package-config.ts (NSIS, per user, one click, no elevation; N-23).' },
-  { from: 'electron/packaging/installer.nsh', to: 'packaging/installer.nsh', how: 'derived', note: 'The install folder named after the program; no updater copy. The v1.0.x MSI removed, the installer\'s Korean words (N-23).' },
+  { from: 'electron/tools/package.ts', to: 'tools/package.ts', how: 'derived', note: 'electron-builder: staging the app and the engine; the installer\'s options in tools/package-config.ts (NSIS, per user, assisted as 2.5.0: the progress, then the finish page with 지금 실행하기, the side band; no elevation; N-23, D-155).' },
+  { from: 'electron/packaging/installer.nsh', to: 'packaging/installer.nsh', how: 'derived', note: 'The install folder named after the program; the pages (the progress, then the finish page with 지금 실행하기), their words, the progress bar in the app\'s blue, the uninstaller\'s pages (2.5.0); no updater copy. The v1.0.x MSI removed, the uninstaller\'s copy in %TEMP% removed, the installer\'s other Korean words (N-23, D-155).' },
+  { from: 'electron/tools/installer-art.py', to: 'tools/installer-art.py', how: 'derived',
+    note: 'The finish pages\' side band (2.5.0): navy, the symbol unaltered on a white plate, the name in Pretendard. This repository\'s symbol and font files; the name on two lines.' },
+  { from: 'electron/tools/windows/check-installer-ui.ps1', to: 'tools/windows/check-installer-ui.ps1', how: 'derived',
+    note: 'The installer run as a student runs it, its pages checked and pictured, the bar\'s and band\'s colours measured on the screen (2.5.0). This program\'s names; the band\'s plate and the finish pages\' words checked too.' },
   { from: 'electron/tools/windows/screen-1920.ps1', to: 'tools/windows/screen-1920.ps1', how: 'copy', note: 'Sets the Windows CI runner\'s screen to 1920x1080 (the installed program\'s start is measured there).' },
   { from: 'electron/tests/e2e/harness.ts', to: 'tests/e2e/harness.ts', how: 'derived', note: 'Launch with a fresh run folder, sizes and scale switches, dialogs answered from the test; the fake engine.' },
+  { from: 'electron/tests/e2e/backdrop-measure.ts', to: 'tests/e2e/backdrop-measure.ts', how: 'copy',
+    note: 'The first screen\'s background measured on the screen against the clip\'s own frame: the tint toward the navy, the blur (2.5.0)' },
+  { from: 'electron/tests/e2e/start.e2e.ts', to: 'tests/e2e/backdrop.e2e.ts', how: 'derived',
+    note: 'The first screen\'s video tests (2.5.0): this app\'s steps and file tab; the screen measurement at the lab PCs\' three scales; the processing\'s CSS read too.' },
+  { from: 'electron/tests/renderer/start-clip.test.ts', to: 'tests/unit/start-clip.test.ts', how: 'copy',
+    note: 'The video file: one VP9 track, no sound, its size; start-video.ts\'s arguments' },
   { from: 'electron/tests/renderer/overlay.test.ts', to: 'tests/unit/overlay.test.ts', how: 'derived', note: 'The same tests; the import path.' },
   { from: 'electron/tests/renderer/names.test.ts', to: 'tests/unit/names.test.ts', how: 'derived', note: 'The same tests; the import path.' },
 ];

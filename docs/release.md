@@ -6,7 +6,7 @@ Hallym Circuit Studio 2의 릴리스를 만드는 순서와 규칙이다(N-23, D
 
 | 파일 | 어디서 | 비고 |
 | --- | --- | --- |
-| `HallymCircuitStudio-<버전>-win-x64-setup.exe` | CI `setup-exe` 작업 | **Windows 배포물은 이것 하나**(electron-builder NSIS, 사용자별 원클릭, 엔진과 번들 JRE 포함) |
+| `HallymCircuitStudio-<버전>-win-x64-setup.exe` | CI `setup-exe` 작업 | **Windows 배포물은 이것 하나**(electron-builder NSIS, 사용자별 안내형: 진행·마침 화면, D-155; 엔진과 번들 JRE 포함) |
 | `hcs-mips.jar`, `hcs-mips-<버전>-windows.zip`, `hcs-mips-<버전>-linux.zip` | CI `linux` 작업 + `tools/package-track-a.sh` | 트랙 A: 원조 Logisim 2.7.1에서 쓰는 MIPS 부품 라이브러리 |
 | 안내 PDF(`hallym-circuit-studio-GUIDE-ko.pdf` 등, 이름에 `guide`) | 손으로 만들어 올림 | 안내서 md에서 만든다 |
 

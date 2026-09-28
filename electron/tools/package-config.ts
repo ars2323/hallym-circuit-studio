@@ -1,11 +1,20 @@
-/* What the Windows installer is (N-23, D-148): electron-builder's options
-   for tools/package.ts, kept apart from it so that
+/* What the Windows installer is (N-23, D-148; D-155): electron-builder's
+   options for tools/package.ts, kept apart from it so that
    tests/unit/package-config.test.ts reads them without electron-builder or
-   a build.  Derived from Hallym MIPS v2.3.0 electron/tools/package.ts (the
+   a build.  Derived from Hallym MIPS v2.5.0 electron/tools/package.ts (the
    config); the installer's own part is packaging/installer.nsh.
 
    One file, HallymCircuitStudio-<version>-win-x64-setup.exe (electron-builder
-   NSIS, one click), like Hallym MIPS's HallymMIPS-<version>-win-x64-setup.exe:
+   NSIS, assisted, in Korean), like Hallym MIPS 2.5.0's
+   HallymMIPS-<version>-win-x64-setup.exe:
+     - two pages: the progress, then the finish page (설치가 완료되었습니다,
+       지금 실행하기 ticked); the uninstaller the same (the user's decision,
+       D-155: it replaces the one-click installer of D-148).  Nothing is
+       asked: no folder, no "for all users"; /S installs silently and
+       starts nothing (the lab PCs, CI)
+     - the finish pages' band in the app's navy with the university's symbol
+       (packaging/*Sidebar.bmp, tools/installer-art.py), the progress bar in
+       the app's blue (installer.nsh)
      - per user, never elevated: %LOCALAPPDATA%\Programs\Hallym Circuit Studio
        (packaging/installer.nsh names the folder)
      - a Start menu shortcut "Hallym Circuit Studio"; no desktop shortcut
@@ -14,7 +23,8 @@
        the same folder, the same entry
      - no auto-update (no publish, no update info, no copy of the installer
        kept), no file association (.circ stays with whatever opens it, the
-       original Logisim on the lab PCs), no run after install
+       original Logisim on the lab PCs); the program starts after the install
+       only from the finish page (지금 실행하기)
      - the engine (hcs-engine.jar, hcs-mips.jar) and its bundled Java runtime
        in resources/ (tools/stage-engine.ts)
      - an earlier v1.0.x MSI install is removed silently (installer.nsh)
@@ -74,15 +84,20 @@ export function packageConfig(p: ConfigPaths): Configuration {
       signAndEditExecutable: true,                   // the icon and version in the .exe (no code signing: D-148)
     },
     nsis: {
-      oneClick: true,
+      // Assisted (D-155): the progress, then the finish page; nothing asked (installer.nsh).
+      oneClick: false,
       perMachine: false,
+      allowToChangeInstallationDirectory: false,
       allowElevation: false,
       packElevateHelper: false,          // no elevate.exe beside the program: it never asks for an administrator
       shortcutName: PRODUCT_NAME,
       createDesktopShortcut: false,
       createStartMenuShortcut: true,
       deleteAppDataOnUninstall: false,   // there is none (the lab-PC rule); a student's files are never the uninstaller's
-      runAfterFinish: false,
+      runAfterFinish: true,              // the finish page's "지금 실행하기", ticked (nothing under /S)
+      // The finish pages' band in the app's navy with the symbol (tools/installer-art.py), not electron-builder's drawing.
+      installerSidebar: path.join(p.root, 'packaging/installerSidebar.bmp'),
+      uninstallerSidebar: path.join(p.root, 'packaging/uninstallerSidebar.bmp'),
       // No auto-update: no block map beside the installer for differential updates (and the
       // app package compresses as one, a smaller installer).
       differentialPackage: false,

@@ -15,6 +15,8 @@ software is not an official product of Hallym University.
 - Clear space around the character on every side.
 - Do not place a character on a colour close to its own or on a busy background.
 - Do not use low-resolution or degraded artwork.
+- The first screen's video runs behind the card, blurred and under navy;
+  the character stands on the card's opaque white, never on the video.
 
 ## How this program keeps them
 
@@ -27,6 +29,14 @@ software is not an official product of Hallym University.
 - Characters appear only where there is nothing else to show: the first
   screen, the empty Canvas, the window's own questions. Never next to an
   error, never on the toolbar, panel heads, status bar or menus.
+- Unlike the marks and characters, the first screen's video is not the
+  university's file as received: it is a short clip of the promotional
+  video (2.5 s of it, slowed to a third, the sound left out), made by
+  Hallym MIPS Simulator; this program uses that clip and its still
+  byte for byte (v2.5.0; `electron/tools/import-hmips.ts` checks them):
+  `electron/src/renderer/assets/hallym/start/`. The screen shows them
+  blurred and desaturated under a translucent navy layer (CSS; the files
+  are not recoloured).
 
 ## Files
 
@@ -38,6 +48,19 @@ software is not an official product of Hallym University.
 - `logo/` — the symbol (basic form, `symbol-basic.svg`: the logo on the
   window's top bar), the logotype, the emblem and the signature as SVG (and
   PNG renderings), and the application icon (`app-*.png`, `app.ico`).
+- `start/` (in `electron/src/renderer/assets/hallym/`) — the first screen's
+  background. `start.webm`: the opening aerial shot of the university's
+  promotional video, "[Official Video] 한림대학교 홍보영상｜The New Hallym
+  대학의 내일을 열다" (official YouTube channel @HALLYMNEWS): 0:00.1–0:02.6,
+  slowed to a third, VP9, 960×540, 6.7 s, no sound track; it loops without
+  a seam. The one shot of the video with nothing written in it, no graphics
+  over it and no cut in it. `start.jpg`: its first frame, shown at once and
+  instead of the video when the PC's animation effects are off
+  (prefers-reduced-motion). Made by `electron/tools/start-video.ts`.
+- The Windows installer's side band (`electron/packaging/installerSidebar.bmp`,
+  `uninstallerSidebar.bmp`): the symbol (`logo/symbol-basic.svg`) unaltered
+  on a white plate over the app's navy, made by
+  `electron/tools/installer-art.py`.
 
-(From Hallym MIPS v2.3.0 `electron/src/renderer/assets/hallym/README.md`,
+(From Hallym MIPS v2.5.0 `electron/src/renderer/assets/hallym/README.md`,
 rewritten for this repository's file names.)

@@ -1,5 +1,5 @@
 /* The licenses of the npm packages that end up in the app (derived from
-   Hallym MIPS v2.3.0 electron/tools/licenses.ts): every package esbuild
+   Hallym MIPS v2.5.0 electron/tools/licenses.ts): every package esbuild
    bundled, from its metafile.  Written as one text file that About shows
    and the package carries (src/main/paths.ts, LICENSES).  This app bundles
    none today (its window and main process are its own code); the file then
