@@ -1,12 +1,13 @@
 /* What the program and its installer leave on a Windows PC (N-23, D-148;
    the lab-PC rule, v2 brief 7): a snapshot of the places they could write,
-   and the difference between two snapshots.  Read-only -- it lists folders
-   and runs reg.exe query, nothing else, so that taking a snapshot changes
-   none of what it looks at (PowerShell would: its own profile data in
-   %LOCALAPPDATA%).
+   the difference between two snapshots, and Windows' own noise measured
+   in between.  Read-only -- it lists folders and runs reg.exe query,
+   nothing else, so that taking a snapshot changes none of what it looks at
+   (PowerShell would: its own profile data in %LOCALAPPDATA%).
 
      node tools/windows/state.ts snapshot <out.json>
-     node tools/windows/state.ts diff <before.json> <after.json> [--expect none|install|uninstalled] [--report <file>]
+     node tools/windows/state.ts noise <a.json> <b.json> <out.json>
+     node tools/windows/state.ts diff <before.json> <after.json> [--expect none|install|uninstalled] [--noise <noise.json>] [--report <file>]
 
    The places:
      files     %APPDATA%, %LOCALAPPDATA% (not the install folder; Temp is
@@ -24,10 +25,22 @@
                          install record beside it (HKCU\Software\<guid>); the
                          install folder itself is not looked into
    --expect uninstalled  nothing left (compared with before the install)
-   What Windows and the test tools themselves change is not counted only
-   where it was seen on the runner: KNOWN below, each with its place, its
-   kind of change, the checks it may appear in and why (reported as "info").
-   Anything else counts. */
+
+   Windows changes its own places all the time, and which ones changes with
+   the runner's image and timing.  So it is measured, not listed: before each
+   checked period a control period -- snapshot A, the harness's own helpers
+   started as in the checked period, the same wait, snapshot B, nothing of
+   ours running -- and every place that changed from A to B is Windows' noise
+   for that period (report/noise-<period>.json; --noise).  Only the control
+   period measured just before a check excuses anything in it: not the union
+   of all, so that a control period after something of ours ran cannot
+   excuse a later check.  A change in a checked period counts unless it is
+   at such a place, exactly,
+   or in ALLOWED below: the few records Windows keeps of any program that
+   starts, the test tool's own folder, and for an install what Windows does
+   when any program is installed.  A change that names this program counts
+   even at a noise place, and everywhere but in ALLOWED's entries that say it
+   may (mayName: Windows' records of every program, by its app id). */
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
@@ -66,23 +79,51 @@ export function diffStates(a: State, b: State): Change[] {
   return out;
 }
 
-/* What Windows and the test tools themselves change, each seen on the CI
-   runner (D-148 12), by exact place, by kind of change, and only in the
-   checks it was seen in: anything else in these places, or these changes
-   in another check, count.  A change that names this program counts even
-   there (NAMES_US), but for the records Windows keeps of every program --
-   its launch counter, Windows Search's icon, the shell's shortcut history --
-   which say so (mayName).  A check is a run of the program ('none'), an
-   install ('install'), or an uninstall ('uninstalled': compared with before
-   the install, so the install's and the run's are in it too). */
+// ---- Windows' own noise, measured -------------------------------------------------------------
+
+/* The places Windows changed by itself in the control period(s) a check is given: each place
+   (where + path, exactly: not its folder, not its neighbours) -> the control period it was seen in.  A control
+   period is as long as the period it stands for, with the same helpers of the harness, and runs
+   while nothing of ours does (the callers check that), so what changes in it is not ours. */
+export type Noise = Map<string, string>;
+export const NO_NOISE: Noise = new Map();
+export const noiseKey = (c: Pick<Change, 'where' | 'path'>): string => `${c.where}\t${c.path}`;
+
+export interface NoiseFile {
+  name: string;          // the checked period it stands for (first-run, clean, uninstall, ...)
+  from: string;          // snapshot A's time
+  to: string;            // snapshot B's time
+  changes: Change[];     // A -> B
+}
+
+export function measureNoise(name: string, a: State, b: State): NoiseFile {
+  return { name, from: a.taken, to: b.taken, changes: diffStates(a, b) };
+}
+
+export function noiseOf(files: NoiseFile[]): Noise {
+  const n: Noise = new Map();
+  for (const f of files) for (const c of f.changes) if (!n.has(noiseKey(c))) n.set(noiseKey(c), f.name);
+  return n;
+}
+
+// The control period(s) named for a check, each its own file (report/noise-<name>.json): a missing one is an error,
+// never "no noise" silently taken from elsewhere.
+export function readNoise(files: string[]): NoiseFile[] {
+  return files.map((f) => JSON.parse(readFileSync(f, 'utf8')) as NoiseFile);
+}
+
+// ---- what does not count ----------------------------------------------------------------------
+
+/* A check is a run of the program ('none'), an install ('install'), or an uninstall
+   ('uninstalled': compared with before the install, so the install's and the run's are in it too). */
 export type Expect = 'none' | 'install' | 'uninstalled';
 
-export interface Known {
+export interface Allowed {
   where: Change['where'];
   what: Change['what'][];
   path: RegExp;
   in: Expect[];
-  mayName?: boolean;     // may name this program (otherwise a change that does counts)
+  mayName?: boolean;     // may name this program, by its app id (otherwise a change that does counts)
   data?: RegExp;         // registry: the value's data, exactly
   keyOnly?: boolean;     // registry: a key without values
   dirOnly?: boolean;     // files: a folder (and nothing in it)
@@ -91,7 +132,6 @@ export interface Known {
 
 const ALL: Expect[] = ['none', 'install', 'uninstalled'];
 const INSTALLING: Expect[] = ['install', 'uninstalled'];
-const G = '\\{[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\\}';
 const SEARCH = 'LOCALAPPDATA\\\\Packages\\\\Microsoft\\.Windows\\.Search_cw5n1h2txyewy\\\\';
 
 /* Where an installer puts what it installs under HKCU\Software\Microsoft and Classes: uninstall
@@ -101,32 +141,36 @@ const SEARCH = 'LOCALAPPDATA\\\\Packages\\\\Microsoft\\.Windows\\.Search_cw5n1h2
 export const INSTALLER_PLACES = /^HKCU\\Software\\(Microsoft\\Windows\\CurrentVersion\\(Uninstall|Run|RunOnce|App Paths|Installer)|Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts\\\.circ|Classes\\\.circ|Microsoft\\Installer)(\\| ::|$)/i;
 const WINDOWS_STORES = /^HKCU\\Software\\(Microsoft|Classes)\\/;
 
-export const KNOWN: Known[] = [
-  // ---- a run of the program: only these, each seen on the runner (and in the other checks too)
-  { where: 'temp', what: ['added'], in: ALL, path: /^TEMP\\playwright-artifacts-[A-Za-z0-9]+(\\.*)?$/,
-    why: 'Playwright (the test tool): a folder per launch, until the test run ends' },
+/* Not measured, because a control period cannot show them: what happens only when a program starts
+   (each check starts one: the program, the installer, the uninstaller) or is installed, and the test
+   tool's own.  Each entry says why; nothing else is let through but the measured noise. */
+export const ALLOWED: Allowed[] = [
+  // ---- any check: a program starts
+  { where: 'temp', what: ['added'], in: ALL, dirOnly: true, path: /^TEMP\\playwright-artifacts-[A-Za-z0-9]+$/,
+    why: 'Playwright (the test tool): the empty folder its test process makes for each launch, kept until the test run ends' },
   { where: 'registry', what: ['added'], in: ALL, keyOnly: true, path: /^HKCU\\Software\\Microsoft\\Spelling$/,
     why: 'Windows\' spell checking, its per-user key made empty when Chromium asks at its start which languages there are; no language is opened, no word list made (D-148 13)' },
   { where: 'registry', what: ['added'], in: ALL, keyOnly: true, path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\WinTrust(\\Trust Providers(\\Software Publishing)?)?$/,
-    why: 'WinTrust\'s per-user settings, made with their default the first time a program in the session checks a signature' },
+    why: 'WinTrust\'s per-user settings, made with their default the first time a program in the session has its signature checked (any program)' },
   { where: 'registry', what: ['added'], in: ALL, data: /^REG_DWORD 0x23c00$/,
     path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\WinTrust\\Trust Providers\\Software Publishing :: State$/,
     why: 'WinTrust\'s default state (0x23c00), written with that key' },
-  { where: 'files', what: ['changed'], in: ALL, path: /^LOCALAPPDATA\\Microsoft\\Windows\\Notifications\\wpndatabase\.db-wal$/,
-    why: 'the notification platform\'s database log (it writes on its own; the program shows no notification)' },
-  { where: 'files', what: ['changed'], in: ALL, path: /^LOCALAPPDATA\\Microsoft\\Windows\\UsrClass\.dat\.LOG[12]$/,
-    why: 'the HKCU\\Software\\Classes hive\'s own log (the registry is compared key by key)' },
-  { where: 'registry', what: ['added', 'changed'], in: ALL, path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings :: QuietHoursTelemetryLastRun$/,
-    why: 'the notification platform\'s own telemetry time' },
-  { where: 'files', what: ['added'], in: ALL, path: /^APPDATA\\Microsoft\\Windows\\Themes\\CachedFiles\\CachedImage_\d+_\d+_POS\d+\.jpg$/,
-    why: 'the desktop wallpaper for the new screen size (the job set it before)' },
   { where: 'registry', what: ['added', 'changed'], in: ALL, mayName: true,
     path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\UserAssist\\\{[0-9A-F-]{36}\}\\Count :: xe\.np\.unyylz\.pvephvg-fghqvb$/,
-    why: 'Explorer\'s launch counter for this program\'s app id (ROT13 of kr.ac.hallym.circuit-studio), kept by Windows as for every program' },
-  // ---- an install or an uninstall: Windows' own stores, which change on their own while installers
-  // run; there the checks count the installer's places (INSTALLER_PLACES) and anything naming this program
+    why: 'Explorer\'s launch counter for this program\'s app id (ROT13 of kr.ac.hallym.circuit-studio), kept by Windows for every program that starts' },
+  { where: 'files', what: ['added', 'changed'], in: ALL, mayName: true, path: new RegExp(`^${SEARCH}LocalState\\\\AppIconCache\\\\100\\\\kr_ac_hallym_circuit-studio$`),
+    why: 'Windows Search\'s icon for this program\'s Start menu entry, by its app id, kept by Windows Search for every program' },
+  { where: 'registry', what: ['added', 'changed'], in: ALL, data: /^REG_BINARY [0-9A-F]{16}$/,
+    path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings :: QuietHoursTelemetryLastRun$/,
+    why: 'the notification platform\'s quiet-hours telemetry time (a time only), written once a session 1 to 8 s after an app\'s window first comes up (seen after the program\'s first start in both setup-upgrade runs of 2026-09-28)' },
+  { where: 'files', what: ['changed'], in: ALL, path: new RegExp(`^${SEARCH}Settings\\\\settings\\.dat\\.LOG[12]$`),
+    why: 'the log of Windows Search\'s own settings hive, written when a program newly in the Start menu is first opened (seen on first runs after an install only, never on a second run)' },
+  { where: 'files', what: ['changed'], in: ALL, path: /^LOCALAPPDATA\\Microsoft\\Windows\\UsrClass\.dat(\.LOG[12])?$/,
+    why: 'the files of the HKCU\\Software\\Classes hive (the registry itself is compared key by key)' },
+  // ---- an install or an uninstall: Windows' own stores, which Windows changes when any program is installed or
+  // removed; there the checks count the installer's places (INSTALLER_PLACES) and anything naming this program
   { where: 'registry', what: ['added', 'removed', 'changed'], in: INSTALLING, path: WINDOWS_STORES,
-    why: 'Windows\' own stores under HKCU\\Software\\Microsoft and Classes (Explorer, the Start menu, Search, notifications, security, crypto) change on their own while an installer runs; the install checks count there only the installer\'s places and anything naming this program' },
+    why: 'Windows\' own stores under HKCU\\Software\\Microsoft and Classes (Explorer, the Start menu, Search, notifications, security, crypto) change when a program is installed or removed; the install checks count there only the installer\'s places and anything naming this program' },
   { where: 'files', what: ['added', 'removed', 'changed'], in: INSTALLING,
     path: /^(LOCALAPPDATA\\Packages\\Microsoft\.Windows\.Search_cw5n1h2txyewy\\.+|LOCALAPPDATA\\Microsoft\\Windows\\(Caches|WebCache|Notifications)\\[^\\]+|APPDATA\\Microsoft\\Windows\\Recent\\(Automatic|Custom)Destinations\\[0-9a-f]{16}\.(automatic|custom)Destinations-ms)$/,
     why: 'Windows\' own stores: Windows Search re-indexing the Start menu, the shell\'s caches and jump lists, WinINet\'s and the notification platform\'s databases' },
@@ -144,32 +188,30 @@ export const KNOWN: Known[] = [
     path: /^HKCU\\Software\\Policies\\Microsoft\\SystemCertificates\\TrustedPublisher(\\(CRLs|CTLs|Certificates))?$/,
     why: 'the crypto API\'s per-user policy store, made empty when Windows checks a program\'s signature' },
   { where: 'files', what: ['added'], in: INSTALLING, mayName: true,
-    path: new RegExp(`^${SEARCH}LocalState\\\\AppIconCache\\\\100\\\\(kr_ac_hallym_circuit-studio|C__Users_[^\\\\]+_AppData_Local_HallymCircuitStudio_HallymCircuitStudio_exe)$`),
-    why: 'Windows Search\'s icon for a Start menu entry of this program (its app id; the 1.0.x MSI\'s program), kept by Windows Search as for any program' },
+    path: new RegExp(`^${SEARCH}LocalState\\\\AppIconCache\\\\100\\\\C__Users_[^\\\\]+_AppData_Local_HallymCircuitStudio_HallymCircuitStudio_exe$`),
+    why: 'Windows Search\'s icon for the 1.0.x MSI\'s program in the Start menu, kept by Windows Search as for any program' },
   { where: 'registry', what: ['added'], in: INSTALLING, mayName: true, path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\UFH\\SHC :: \d+$/,
     why: 'the shell\'s history of the shortcuts Windows Installer made (the 1.0.x MSI\'s, which it names; seen only where that MSI was installed)' },
 ];
 
-// A change that names this program -- in its place, its value's name or its data -- is never
-// Windows' own, unless the entry says it may (UserAssist keeps program paths in ROT13: Unyylz).
-export const NAMES_US = /hallym|circuit-studio|circuitstudio|unyylz/i;
-const namesUs = (c: Change): boolean => NAMES_US.test(c.path) || NAMES_US.test(c.after ?? '') || NAMES_US.test(c.before ?? '');
+// A change that names this program -- in its place, its value's name or its data: its name, its app id,
+// its install folder, electron-builder's key for it -- is never Windows' own (UserAssist keeps program
+// paths in ROT13: Unyylz), unless an entry of ALLOWED says it may.
+export const NAMES_US = new RegExp(`hallym|circuit-studio|circuitstudio|unyylz|${APP_GUID}`, 'i');
+export const namesUs = (c: Change): boolean => NAMES_US.test(c.path) || NAMES_US.test(c.after ?? '') || NAMES_US.test(c.before ?? '');
 
-// Why a change is Windows' or the test tools', or null when it counts.
-export function notOurs(c: Change, expect: Expect = 'none'): string | null {
-  for (const k of KNOWN) {
+export function allowed(c: Change, expect: Expect): Allowed | undefined {
+  for (const k of ALLOWED) {
     if (k.where !== c.where || !k.what.includes(c.what) || !k.in.includes(expect) || !k.path.test(c.path)) continue;
     if (k.keyOnly && c.after !== 'key') continue;
     if (k.dirOnly && c.after !== 'dir') continue;
     if (!k.mayName && namesUs(c)) continue;
     if (k.data && !k.data.test(c.after ?? '')) continue;
     if (k.path === WINDOWS_STORES && INSTALLER_PLACES.test(c.path)) continue;
-    return k.why;
+    return k;
   }
-  return null;
+  return undefined;
 }
-
-export const counts = (c: Change, expect: Expect = 'none'): boolean => notOurs(c, expect) === null;
 
 const exactly = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const START_MENU_SHORTCUT = new RegExp(`^APPDATA\\\\Microsoft\\\\Windows\\\\Start Menu\\\\Programs\\\\${exactly(PRODUCT_NAME)}\\.lnk$`, 'i');
@@ -185,13 +227,45 @@ export function allowedByInstall(c: Change): boolean {
   return false;
 }
 
+export type Verdict =
+  | { kind: 'fail' }
+  | { kind: 'ok' }                                // the installer's own (--expect install)
+  | { kind: 'allowed'; why: string }              // ALLOWED
+  | { kind: 'noise'; control: string };           // measured: Windows changed this place by itself
+
+export function judge(c: Change, expect: Expect = 'none', noise: Noise = NO_NOISE): Verdict {
+  if (expect === 'install' && allowedByInstall(c)) return { kind: 'ok' };
+  const a = allowed(c, expect);
+  if (a) return { kind: 'allowed', why: a.why };
+  const control = noise.get(noiseKey(c));
+  if (control !== undefined && !namesUs(c)) return { kind: 'noise', control };
+  return { kind: 'fail' };
+}
+
+export const counts = (c: Change, expect: Expect = 'none', noise: Noise = NO_NOISE): boolean => judge(c, expect, noise).kind === 'fail';
+
 // The changes that are not allowed: none for a run, the installer's own for an install, none left after an uninstall.
-export function unexpected(changes: Change[], expect: Expect): Change[] {
-  return changes.filter((c) => counts(c, expect)).filter((c) => !(expect === 'install' && allowedByInstall(c)));
+export function unexpected(changes: Change[], expect: Expect, noise: Noise = NO_NOISE): Change[] {
+  return changes.filter((c) => counts(c, expect, noise));
 }
 
 export const describe = (c: Change): string =>
   `${c.what.padEnd(7)} ${c.where.padEnd(8)} ${c.path}${c.what === 'changed' ? `  (${c.before} -> ${c.after})` : c.after && c.after !== 'dir' ? `  (${c.after})` : ''}`;
+
+// A check's report: a line per change -- FAIL, ok (the installer's), info (ALLOWED, why), noise (the control period).
+export function report(title: string, changes: Change[], expect: Expect, controls: NoiseFile[] = []): { lines: string[]; bad: Change[] } {
+  const noise = noiseOf(controls);
+  const bad: Change[] = [];
+  const body = changes.map((c) => {
+    const v = judge(c, expect, noise);
+    if (v.kind === 'fail') { bad.push(c); return `FAIL  ${describe(c)}`; }
+    if (v.kind === 'ok') return `ok    ${describe(c)}`;
+    if (v.kind === 'allowed') return `info  ${describe(c)}  -- ${v.why}`;
+    return `noise ${describe(c)}  -- changed by Windows itself in the control period before ${v.control}`;
+  });
+  const head = `${title} (expect ${expect}): ${changes.length} difference(s), ${bad.length} not allowed; Windows' own noise: ${noise.size} place(s) in ${controls.length} control period(s)${controls.length ? ` (${controls.map((f) => f.name).join(', ')})` : ''}`;
+  return { lines: [head, ...body], bad };
+}
 
 // ---- reg.exe query output -------------------------------------------------------------------
 
@@ -233,7 +307,7 @@ function registry(): Record<string, string> {
   return r;
 }
 
-function walk(root: string, name: string, into: Record<string, string>, skip: (full: string) => boolean): void {
+export function walk(root: string, name: string, into: Record<string, string>, skip: (full: string) => boolean = () => false): void {
   if (!existsSync(root)) return;
   const stack = [root];
   while (stack.length) {
@@ -260,6 +334,8 @@ function walk(root: string, name: string, into: Record<string, string>, skip: (f
   }
 }
 
+export const lastTimes: { files: number; temp: number; registry: number } = { files: 0, temp: 0, registry: 0 };
+
 export function snapshot(env: NodeJS.ProcessEnv = process.env): State {
   const appData = env.APPDATA!;
   const local = env.LOCALAPPDATA!;
@@ -269,45 +345,77 @@ export function snapshot(env: NodeJS.ProcessEnv = process.env): State {
     const f = full.toLowerCase();
     return f === install || f === temp.toLowerCase() || f === path.join(local, 'Temp').toLowerCase();
   };
+  let t = Date.now();
   const files: Record<string, string> = {};
   walk(appData, 'APPDATA', files, skip);
   walk(local, 'LOCALAPPDATA', files, skip);
   walk(path.join(env.USERPROFILE ?? '', 'Desktop'), 'DESKTOP', files, skip);
   if (env.PUBLIC) walk(path.join(env.PUBLIC, 'Desktop'), 'PUBLIC_DESKTOP', files, skip);
   if (env.ProgramData) walk(path.join(env.ProgramData, 'Microsoft\\Windows\\Start Menu'), 'COMMON_START_MENU', files, skip);
+  lastTimes.files = Date.now() - t;
+  t = Date.now();
   const tempState: Record<string, string> = {};
-  walk(temp, 'TEMP', tempState, () => false);
-  return { files, temp: tempState, registry: registry(), taken: new Date().toISOString() };
+  walk(temp, 'TEMP', tempState);
+  lastTimes.temp = Date.now() - t;
+  t = Date.now();
+  const reg = registry();
+  lastTimes.registry = Date.now() - t;
+  return { files, temp: tempState, registry: reg, taken: new Date().toISOString() };
+}
+
+/* Waits until nothing in these folders has changed -- no file or folder added or removed, no size or
+   time changed (a hive's log grows without its time changing) -- for quietMs, at most maxMs. */
+export async function quiet(dirs: string[], quietMs = 10_000, maxMs = 120_000): Promise<string> {
+  const print = (): string => {
+    const s: Record<string, string> = {};
+    dirs.forEach((d, i) => walk(d, String(i), s));
+    return JSON.stringify(s);
+  };
+  const t0 = Date.now();
+  let last = print();
+  let since = Date.now();
+  while (Date.now() - t0 < maxMs) {
+    if (Date.now() - since >= quietMs) return `quiet after ${Date.now() - t0} ms`;
+    await new Promise((done) => setTimeout(done, 1000));
+    const now = print();
+    if (now !== last) { last = now; since = Date.now(); }
+  }
+  return `still changing after ${maxMs} ms`;
 }
 
 // ---- the command line -----------------------------------------------------------------------
 
+function readState(file: string): State {
+  return JSON.parse(readFileSync(file, 'utf8')) as State;
+}
+
 function main(argv: string[]): number {
   const [command, ...rest] = argv;
+  const option = (name: string): string | undefined => { const i = rest.indexOf(name); return i >= 0 ? rest[i + 1] : undefined; };
   if (command === 'snapshot' && rest[0]) {
     const t0 = Date.now();
     const s = snapshot();
     writeFileSync(rest[0], JSON.stringify(s));
-    console.log(`snapshot ${rest[0]}: ${Object.keys(s.files).length} files and folders, ${Object.keys(s.temp).length} in %TEMP%, ${Object.keys(s.registry).length} registry entries (${Date.now() - t0} ms)`);
+    console.log(`snapshot ${rest[0]}: ${Object.keys(s.files).length} files and folders, ${Object.keys(s.temp).length} in %TEMP%, ${Object.keys(s.registry).length} registry entries (${Date.now() - t0} ms: files ${lastTimes.files}, temp ${lastTimes.temp}, registry ${lastTimes.registry})`);
+    return 0;
+  }
+  if (command === 'noise' && rest[0] && rest[1] && rest[2]) {
+    const name = path.basename(rest[2]).replace(/^noise-|\.json$/g, '');
+    const n = measureNoise(name, readState(rest[0]), readState(rest[1]));
+    writeFileSync(rest[2], JSON.stringify(n, null, 1));
+    console.log([`noise before ${name} (${n.from} -> ${n.to}): ${n.changes.length} place(s) changed by Windows itself`, ...n.changes.map((c) => `      ${describe(c)}`)].join('\n'));
     return 0;
   }
   if (command === 'diff' && rest[0] && rest[1]) {
-    const a = JSON.parse(readFileSync(rest[0], 'utf8')) as State;
-    const b = JSON.parse(readFileSync(rest[1], 'utf8')) as State;
-    const at = rest.indexOf('--expect');
-    const expect = (at >= 0 ? rest[at + 1] : 'none') as Expect;
-    const all = diffStates(a, b);
-    const bad = unexpected(all, expect);
-    const lines = [
-      `${rest[0]} -> ${rest[1]} (expect ${expect}): ${all.length} difference(s), ${bad.length} not allowed`,
-      ...all.map((c) => (bad.includes(c) ? `FAIL  ${describe(c)}` : notOurs(c, expect) ? `info  ${describe(c)}  -- ${notOurs(c, expect)}` : `ok    ${describe(c)}`)),
-    ];
+    const expect = (option('--expect') ?? 'none') as Expect;
+    const noise = rest.flatMap((a, i) => (a === '--noise' && rest[i + 1] ? [rest[i + 1]] : []));
+    const { lines, bad } = report(`${rest[0]} -> ${rest[1]}`, diffStates(readState(rest[0]), readState(rest[1])), expect, readNoise(noise));
     console.log(lines.join('\n'));
-    const r = rest.indexOf('--report');
-    if (r >= 0 && rest[r + 1]) writeFileSync(rest[r + 1], `${lines.join('\n')}\n`);
+    const r = option('--report');
+    if (r) writeFileSync(r, `${lines.join('\n')}\n`);
     return bad.length ? 1 : 0;
   }
-  console.error('usage: state.ts snapshot <out.json> | diff <before.json> <after.json> [--expect none|install|uninstalled] [--report <file>]');
+  console.error('usage: state.ts snapshot <out.json> | noise <a.json> <b.json> <out.json> | diff <before.json> <after.json> [--expect none|install|uninstalled] [--noise <noise.json>]... [--report <file>]');
   return 2;
 }
 
