@@ -72,7 +72,7 @@ export function circuitsPanel(o: {
   });
   const bar = h('div', { class: 'circbar' }, add, imp, libs);
   const list = h('ul', { class: 'list circlist', 'aria-label': 'Circuits' });
-  const tree = h('ul', { class: 'list simtree', 'aria-label': 'Simulation Tree' });
+  const tree = h('ul', { class: 'simtree', 'aria-label': 'Simulation Tree' });   // the .list look, not a .list (the circuit list is that)
   const treeHead = h('h3', { class: 'simhead' }, 'Simulation Tree');
   const root = h('div', { class: 'circpanel' }, bar, list, treeHead, tree);
 

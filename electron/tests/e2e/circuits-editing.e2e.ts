@@ -411,12 +411,51 @@ test('an input pin poked inside an instance: the original\'s question; Open New 
     await expect(q).toBeVisible();
     await expect(q.locator('.askbody img')).toHaveCount(0);   // no character: not a greeting
     await q.getByRole('button', { name: 'Cancel' }).click();
+    await expect(page.locator('dialog[open]')).toHaveCount(0);
     await expect(page.locator('.canvas-crumbs')).toContainText('alu');
     await click(page, pin);
-    await page.locator('dialog.ask').getByRole('button', { name: 'Open New State' }).click();
+    await expect(page.locator('dialog.ask[open]')).toHaveCount(1);
+    await page.locator('dialog.ask[open]').getByRole('button', { name: 'Open New State' }).click();
     await expect(page.locator('.circuitbar .ptab.on')).toContainText('alu');
     await expect(page.locator('.canvas-crumbs')).toBeHidden();
     await expect(page.locator('.status')).toContainText('alu 회로를 따로 열었습니다(바깥과 떨어진 상태)');
+  } finally {
+    await r.close();
+  }
+});
+
+test('the appearance editor: a port chosen shows the circuit with its pin (the thumbnail); Revert to Default goes back to the default box', async () => {
+  const r = await launch();
+  const { page, app } = r;
+  try {
+    await openFile(r, sample(r.dir, DATAPATH));
+    await appearanceOf(page, 'alu');
+    await expect(page.locator('.appfacts')).toContainText('Custom appearance');
+    await expect(page.locator('.appthumb')).toBeHidden();
+    const port = (await page.locator('.appshapes .kind-port').first().boundingBox())!;
+    await page.mouse.click(port.x + port.width / 2, port.y + port.height / 2);
+    await expect(page.locator('.appthumb')).toBeVisible();
+    await recordCalls(app);
+    await page.getByRole('button', { name: 'Revert to Default' }).click();
+    await expect.poll(async () => (await ops(app, 'revert')).length).toBe(1);
+    await expect(page.locator('.appfacts')).toContainText('Default appearance');
+  } finally {
+    await r.close();
+  }
+});
+
+test('a circuit tab\'s ×: the tab goes, the circuit stays in the file and main is on show', async () => {
+  const r = await launch();
+  const { page } = r;
+  try {
+    await openFile(r, sample(r.dir, SUB));
+    await circuitsTab(page);
+    await page.locator('.circlist li button', { hasText: 'half_adder' }).click();
+    await expect(page.locator('.circuitbar .ptab')).toHaveCount(2);
+    await page.getByRole('button', { name: 'Close half_adder' }).click();
+    await expect(page.locator('.circuitbar .ptab')).toHaveCount(1);
+    await expect(page.locator('.circuitbar .ptab.on')).toContainText('main');
+    await expect(page.locator('.circlist li button .mono')).toHaveText(['main', 'half_adder']);
   } finally {
     await r.close();
   }
