@@ -33,12 +33,14 @@ test('security: context isolation, no Node in the page; the page may call only t
       .map((n) => typeof (globalThis as Record<string, unknown>)[n]))).toEqual(['undefined', 'undefined', 'undefined', 'undefined', 'undefined']);
     expect(await page.evaluate(() => Object.isFrozen(window.app) || Object.getOwnPropertyDescriptor(window, 'app')?.writable === false)).toBe(true);
     expect(await page.evaluate(() => Object.keys(window.app).sort())).toEqual(['about', 'call', 'engineStatus', 'license', 'loadProgram', 'onEngineRecovered', 'onEngineStatus', 'onNotify',
-      'openCredits', 'openFile', 'openStartupFile', 'retryEngine', 'saveFile', 'setOverlay', 'startupFile']);
-    for (const method of ['file.open', 'file.save', 'engine.shutdown', 'engine.hello', 'mips.load']) {
+      'openCredits', 'openFile', 'openRecovery', 'openStartupFile', 'retryEngine', 'saveFile', 'setOverlay', 'startupFile']);
+    for (const method of ['file.open', 'file.save', 'engine.shutdown', 'engine.hello', 'mips.load', 'file.recoverWrite']) {
       const answer = await page.evaluate((m) => window.app.call(m as never, { path: '/etc/passwd' }).then(() => 'answered', (e: { message: string }) => e.message), method);
       expect(answer, method).toBe(`not a method the window may call: ${method}`);
     }
     expect(await page.evaluate(() => window.app.call('file.new').then((f) => typeof (f as { fileId: string }).fileId))).toBe('string');
+    // A recovery file's answer names only the question the main process asked (N-19): never a path.
+    expect(await page.evaluate(() => window.app.openRecovery('/etc/passwd', 'recover'))).toBe(null);
   } finally {
     await r.close();
   }
