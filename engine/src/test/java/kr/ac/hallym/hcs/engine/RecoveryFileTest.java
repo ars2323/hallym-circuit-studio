@@ -111,6 +111,45 @@ class RecoveryFileTest {
         return out;
     }
 
+    /** 모델과 넷(넷마다 그 선과 포트를 id 없이), 회로 이름별. */
+    static Map<String, List<String>> netModel(Client c, String fileId) {
+        Map<String, List<String>> out = model(c, fileId);
+        JsonArray groups = c.call("model.library", params("fileId", fileId)).getAsJsonArray();
+        for (JsonElement t : groups.get(0).getAsJsonObject().getAsJsonArray("tools")) {
+            JsonObject tool = t.getAsJsonObject();
+            JsonObject snap = c.callObject("model.circuit", params("fileId", fileId, "circuitId",
+                    tool.get("circuitId").getAsString()));
+            Map<String, String> key = new java.util.HashMap<>();
+            for (JsonElement k : snap.getAsJsonArray("components")) {
+                JsonObject o = k.getAsJsonObject();
+                key.put(o.get("id").getAsString(), o.get("name").getAsString() + o.get("loc"));
+            }
+            for (JsonElement w : snap.getAsJsonArray("wires")) {
+                JsonObject o = w.getAsJsonObject();
+                String a = o.get("a").toString();
+                String b = o.get("b").toString();
+                key.put(o.get("id").getAsString(), a.compareTo(b) < 0 ? a + b : b + a);
+            }
+            List<String> nets = new ArrayList<>();
+            for (JsonElement n : snap.getAsJsonArray("nets")) {
+                List<String> members = new ArrayList<>();
+                for (JsonElement w : n.getAsJsonObject().getAsJsonArray("wires")) {
+                    members.add(key.get(w.getAsString()));
+                }
+                for (JsonElement pt : n.getAsJsonObject().getAsJsonArray("ports")) {
+                    members.add(key.get(pt.getAsJsonArray().get(0).getAsString()) + "#" + pt.getAsJsonArray().get(1));
+                }
+                Collections.sort(members);
+                nets.add("net " + n.getAsJsonObject().get("width") + " " + members);
+            }
+            Collections.sort(nets);
+            List<String> all = new ArrayList<>(out.get(tool.get("name").getAsString()));
+            all.addAll(nets);
+            out.put(tool.get("name").getAsString(), all);
+        }
+        return out;
+    }
+
     /** 학생이 하는 편집 몇 가지: 놓기, 속성, 옮기기, 선, 지우기. 마지막으로 놓은 부품 id. */
     static String edits(Client c, String fileId, String circuitId) {
         String and = c.callObject("edit.addComponent", params("fileId", fileId, "circuitId", circuitId, "lib", "Gates",
@@ -266,6 +305,39 @@ class RecoveryFileTest {
             assertEquals(copy.getAbsolutePath(), saved.get("path").getAsString());
             assertEquals(CircNormalizer.normalize(read(recoveryOf(copy))), CircNormalizer.normalize(read(copy)));
             assertFalse(c.callObject("file.dirty", params("fileId", id)).get("dirty").getAsBoolean());
+        }
+    }
+
+    /** demo-datapath에서 터널을 옮기는 편집(따라오는 선): 복구 내용, 그것을 저장한 파일을 다시 연 것, 죽기 전의 모델이 넷까지 같다. */
+    @Test
+    void theRecoveredModelSavedAndOpenedAgainIsTheSameToTheNets() throws Exception {
+        File copy = Fixtures.copyWithSiblings(new File(Fixtures.CIRC_DIR, "demo-datapath.circ"), tmp);
+        JsonObject opened = open(copy);
+        String fileId = opened.get("fileId").getAsString();
+        String main = opened.get("main").getAsString();
+        JsonObject snap = e.client.callObject("model.circuit", params("fileId", fileId, "circuitId", main));
+        String tunnel = null;
+        for (JsonElement k : snap.getAsJsonArray("components")) {
+            if (k.getAsJsonObject().get("name").getAsString().equals("Tunnel")) {
+                tunnel = k.getAsJsonObject().get("id").getAsString();
+                break;
+            }
+        }
+        e.client.call("edit.move", params("fileId", fileId, "circuitId", main, "ids", List.of(tunnel), "dx", 0, "dy", 10));
+        e.client.call("edit.addWire", params("fileId", fileId, "circuitId", main, "points",
+                List.of(xy(1000, 1000), xy(1100, 1000))));
+        e.client.call("edit.undo", params("fileId", fileId));
+        e.client.call("edit.redo", params("fileId", fileId));
+        Map<String, List<String>> crashed = netModel(e.client, fileId);
+        e.client.call("file.recoverWrite", params("fileId", fileId));
+        try (InProcess next = new InProcess()) {
+            String id = next.client.callObject("file.open", params("path", copy.getPath(), "recovery", "recover"))
+                    .get("fileId").getAsString();
+            assertEquals(crashed, netModel(next.client, id), "recovered");
+            next.client.call("file.save", params("fileId", id));
+            next.client.call("file.close", params("fileId", id));
+            String again = next.client.callObject("file.open", params("path", copy.getPath())).get("fileId").getAsString();
+            assertEquals(crashed, netModel(next.client, again), "saved and opened again");
         }
     }
 
