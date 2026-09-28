@@ -29,7 +29,7 @@ import kr.ac.hallym.hcs.engine.diag.DiagService;
 import kr.ac.hallym.hcs.engine.doc.Doc;
 import kr.ac.hallym.hcs.engine.doc.Files;
 import kr.ac.hallym.hcs.engine.edit.Intents;
-import kr.ac.hallym.hcs.engine.mips.CircuitFacts;
+import kr.ac.hallym.hcs.engine.mips.Programs;
 import kr.ac.hallym.hcs.engine.model.Ids;
 import kr.ac.hallym.hcs.engine.rpc.Params;
 import kr.ac.hallym.hcs.engine.rpc.RpcError;
@@ -50,6 +50,8 @@ public final class Engine {
     private final Map<String, SimSession> sims = new HashMap<>();
     /** Messages·E/X 출처(diag.*, trace.*, D-143). */
     private final DiagService diags;
+    /** MIPS 프로그램(mips.*, N-16, D-147): 불러오기, 다시 불러오기, 디스어셈블, Console, 사실. */
+    private Programs programs;
 
     public Engine(Server server) {
         this.server = server;
@@ -88,11 +90,17 @@ public final class Engine {
             }
         }
         diags.frame();
+        programs.frame();
     }
 
     /** 진단(테스트). */
     public DiagService diags() {
         return diags;
+    }
+
+    /** MIPS 프로그램(테스트). */
+    public Programs programs() {
+        return programs;
     }
 
     private void closeAll() {
@@ -101,6 +109,7 @@ public final class Engine {
         }
         sims.clear();
         diags.closeAll();
+        programs.closeAll();
         files.closeAll();
     }
 
@@ -184,6 +193,7 @@ public final class Engine {
                 s.close();
             }
             diags.detach(d);
+            programs.detach(d);
             files.close(d);
             return new JsonObject();
         });
@@ -210,6 +220,7 @@ public final class Engine {
     private void attach(Doc d) {
         sims.put(d.id(), new SimSession(d, server));
         diags.attach(d);
+        programs.attach(d);
     }
 
     // ---- model ----
@@ -266,11 +277,8 @@ public final class Engine {
     // ---- mips ----
 
     private void registerMips() {
-        // 파일의 MIPS 사실(진단이 아님, 상태 표시줄 한 줄, D-140): 따로 된 Stack 부품 등
-        server.register("mips.facts", (p, call) -> {
-            Doc d = files.get(p.str("fileId"));
-            return CircuitFacts.json(d.file(), d.ids());
-        });
+        // mips.facts(파일의 MIPS 사실, D-140·D-141, 프로그램 사실), mips.load·reload·disasm·console(N-16, D-147)
+        programs = new Programs(server, files, d -> sims.get(d.id()), this::publishChanges);
     }
 
     // ---- edit ----
@@ -351,6 +359,7 @@ public final class Engine {
     private void registerSim() {
         server.register("sim.reset", (p, call) -> {
             SimSession s = session(p);
+            programs.beforeReset(files.get(p.str("fileId"))); // 바뀐 .hmx를 먼저 다시 넣는다(PLAN.md 6.8, D-147)
             if (s.reset()) {
                 call.after(() -> s.sendState(true));
             }

@@ -57,12 +57,12 @@ test('Undo and Redo go to the engine (a new circuit has nothing to undo: nothing
     await page.keyboard.press('Control+y');
     await page.keyboard.press('Control+z');
     await expect(page.locator('.status .err')).toHaveCount(0);
-    // The Canvas tools, N Cycles and Load Program wait for their items: off.
+    // The Canvas tools and N Cycles wait for their items: off.  Load Program is on (N-16).
     for (const name of ['Edit', 'Poke', 'Wire', 'Text', 'Pin', 'Tunnel', 'Probe', 'Signal Flow']) {
       await expect(page.getByRole('radio', { name, exact: true })).toBeDisabled();
     }
     await expect(page.getByRole('button', { name: /N Cycles/ })).toBeDisabled();
-    await expect(page.getByRole('button', { name: /Load Program/ })).toBeDisabled();
+    await expect(page.getByRole('button', { name: /Load Program/ })).toBeEnabled();
     await expect(page.getByRole('button', { name: /1 Cycle/ })).toBeEnabled();
   } finally {
     await r.close();

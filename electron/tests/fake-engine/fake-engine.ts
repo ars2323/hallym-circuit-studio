@@ -21,7 +21,8 @@
    matched by file name; the list after cycles once the file has run the
    fixture's cycles, the first one again at Reset; every other file has no
    messages), trace.origin
-   (nothing to follow).  The same shapes as
+   (nothing to follow), mips.* (N-16: tests/fake-engine/fake-mips.ts -- the
+   real engine's answers for a few executable images, tests/fixtures/programs.json).  The same shapes as
    the real engine's (docs/engine-api.md, engine/ D-134): Logisim's project
    name (Untitled, a file's name without .circ), alreadyOpen, messages,
    needsMipsJar; and a restarted engine's engine.hello idFloor and
@@ -43,6 +44,8 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
+import * as mips from './fake-mips.ts';
+
 type Params = Record<string, unknown>;
 interface Comp { id: string; lib: string; name: string; loc: [number, number]; attrs: Record<string, string> }
 interface Wire { id: string; a: [number, number]; b: [number, number] }
@@ -51,6 +54,7 @@ interface Step { circuitId: string; comps: Comp[]; wires: Wire[] }   // a circui
 interface File {
   fileId: string; name: string; path: string | null; bytes: Buffer | null; circuits: Circuit[]; main: string; libs: string[];
   cycle: number; ticking: boolean; hz: number; on: boolean; dirty: boolean; undo: Step[]; redo: Step[]; diag: Diag | null; ran: boolean;
+  mips: mips.MipsState;     // mips.* (fake-mips.ts, N-16)
 }
 
 // Messages (diag.*): the real engine's, for a few circuits (tests/fixtures/messages.json).
@@ -189,7 +193,7 @@ const methods: Record<string, (p: Params) => unknown> = {
   'engine.shutdown': () => { setImmediate(() => process.exit(0)); return {}; },
   'file.new': (p) => {
     const c: Circuit = { circuitId: `c${nextCircuit++}`, name: 'main', comps: [], wires: [] };
-    const f: File = { fileId: fileIdFor(p), name: 'Untitled', path: null, bytes: null, circuits: [c], main: 'main', libs: [], cycle: 0, ticking: false, hz: 1, on: true, dirty: false, undo: [], redo: [], diag: null, ran: false };
+    const f: File = { fileId: fileIdFor(p), name: 'Untitled', path: null, bytes: null, circuits: [c], main: 'main', libs: [], cycle: 0, ticking: false, hz: 1, on: true, dirty: false, undo: [], redo: [], diag: null, ran: false, mips: mips.newState() };
     adopt(f, p);
     files.set(f.fileId, f);
     return { fileId: f.fileId, name: f.name, circuits: refs(f), main: mainId(f), libraries: libRefs(f) };
@@ -208,7 +212,7 @@ const methods: Record<string, (p: Params) => unknown> = {
     if (!text.includes('<project')) throw new Failure(2, `The file does not appear to be a Logisim project file: ${file}`, { path: file, reason: 'loadFailed' });
     const fileId = fileIdFor(p);
     const r = readCirc(text);
-    const f: File = { fileId, name: stem(path.basename(file)), path: file, bytes, circuits: r.circuits, main: r.main, libs: r.libs, cycle: 0, ticking: false, hz: 1, on: true, dirty: false, undo: [], redo: [], diag: DIAG[path.basename(file)] ?? null, ran: false };
+    const f: File = { fileId, name: stem(path.basename(file)), path: file, bytes, circuits: r.circuits, main: r.main, libs: r.libs, cycle: 0, ticking: false, hz: 1, on: true, dirty: false, undo: [], redo: [], diag: DIAG[path.basename(file)] ?? null, ran: false, mips: mips.newState() };
     adopt(f, p);
     files.set(f.fileId, f);
     const messages = process.env.FAKE_ENGINE_OPEN_MESSAGE ? [process.env.FAKE_ENGINE_OPEN_MESSAGE] : [];
@@ -227,7 +231,7 @@ const methods: Record<string, (p: Params) => unknown> = {
     f.dirty = false;
     return { path: target, bytes: bytes.length, needsMipsJar: modes.has('needs-mips') };
   },
-  'file.close': (p) => { fileOf(p); files.delete(String(p.fileId)); return {}; },
+  'file.close': (p) => { mips.close(fileOf(p)); files.delete(String(p.fileId)); return {}; },
   'file.dirty': (p) => ({ dirty: fileOf(p).dirty }),
   'model.circuit': (p) => {
     const c = circuitOf(p);
@@ -304,6 +308,7 @@ const methods: Record<string, (p: Params) => unknown> = {
     const f = fileOf(p);
     f.cycle = 0; f.ticking = false; f.on = true;
     setImmediate(() => notify('sim.state', simState(f)));
+    mips.reset(f, notify);
     if (f.ran) { f.ran = false; if (f.diag?.afterCycles) diagChanged(f); }
     return {};
   },
@@ -321,6 +326,7 @@ const methods: Record<string, (p: Params) => unknown> = {
       setImmediate(() => notify('engine.log', { level: 'warn', message: 'cycles stopped: the simulation is off (oscillation)' }));
     }
     setImmediate(() => notify('sim.state', simState(f)));
+    mips.cycles(f, notify);
     return {};
   },
   'sim.run': (p) => {
@@ -334,6 +340,17 @@ const methods: Record<string, (p: Params) => unknown> = {
   'sim.state': (p) => simState(fileOf(p)),
   'sim.watch': (p) => { circuitOf(p); return {}; },
   'diag.list': (p) => { const f = fileOf(p); return { fileId: f.fileId, messages: diagList(f) }; },
+  // ---- mips.* (fake-mips.ts, N-16)
+  'mips.load': (p) => {
+    const f = fileOf(p);
+    const r = mips.load(f, p, notify);
+    if ((r as { loaded?: boolean }).loaded) setImmediate(() => notify('sim.state', simState(f)));
+    return r;
+  },
+  'mips.facts': (p) => mips.facts(fileOf(p)),
+  'mips.console': (p) => mips.consoleOf(fileOf(p)),
+  'mips.disasm': (p) => mips.disasm(fileOf(p), p),
+  'mips.reload': (p) => ({ fileId: fileOf(p).fileId, results: [] }),
   'trace.origin': (p) => {
     circuitOf(p);
     return { found: false, text: { ko: '이 선의 값은 정해져 있어 따라갈 E·X 값이 없습니다.', en: "This wire's value is defined, so there is no E/X to trace." }, chain: [] };

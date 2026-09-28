@@ -155,15 +155,16 @@ export const ERR_READ_ONLY = 3;
 export const ERR_SIM = 4;
 export const ERR_NO_METHOD = -32601;
 
-/* What the window may call through window.app.call().  Opening and saving
-   are not here: the paths they take come from the main process (its file
-   dialogs, the command line), never from the page. */
+/* What the window may call through window.app.call().  Opening, saving and
+   loading a program (mips.load) are not here: the paths they take come from
+   the main process (its file dialogs, the command line), never from the page. */
 export const WINDOW_METHODS = [
   'file.new', 'file.close', 'file.dirty',
   'model.circuit', 'model.library',
   'edit.addComponent', 'edit.addWire', 'edit.move', 'edit.delete', 'edit.setAttr', 'edit.undo', 'edit.redo',
   'sim.reset', 'sim.poke', 'sim.cycles', 'sim.run', 'sim.enable', 'sim.watch', 'sim.state',
   'diag.list', 'trace.origin',
+  'mips.facts', 'mips.reload', 'mips.disasm', 'mips.console',
 ] as const;
 export type WindowMethod = typeof WINDOW_METHODS[number];
 
@@ -188,4 +189,134 @@ export interface EngineStatus {
   hello: Hello | null;
   error: string | null;     // why it is not running (state failed), in the window's words
   detail: string | null;    // what was tried and what the engine said last (stderr), for the dialog
+}
+
+// ---- mips.* (docs/engine-api.md "mips", N-16, D-147) ----------------------------
+// Loading an executable image (.hmx, Hallym MIPS's export) into the circuit's
+// memories, the facts about it, its disassembly and the Console's output.
+
+export interface Bilingual { en: string; ko: string }
+
+// A fact for the status bar (not a Messages diagnostic): separateStack, assemblySource, pcEntry.
+export interface MipsFact {
+  id: string;
+  en: string;
+  ko: string;
+  components: string[];
+  sources?: string[];       // assemblySource: each component's source attribute
+  pc?: string;              // pcEntry: the circuit's PC at cycle 0
+  entry?: string;           // pcEntry: the image's entry
+}
+
+// Why an image was not loaded: its line (0: no one line) -> what is wrong -> what to do.
+export interface LoadProblem { line: number; text: Bilingual }
+
+export interface ProgramMemory {
+  componentId: string;
+  circuitId: string;
+  kind: 'text' | 'data';
+  source: string | null;
+  words: number;
+  entry?: string;
+  text: string;             // the body line: "27 words (0x00400000–0x00400068), entry 0x00400024"
+}
+
+// A reload that failed: the program and the simulation on show are the last loaded ones.
+export interface ProgramFailure {
+  at: number;               // ms
+  file: string;             // the .hmx's name
+  source: string;           // the attribute's text
+  reason: 'open' | 'changed' | 'reset' | 'manual';
+  problems: LoadProblem[];
+  kept: { loadedAt: number | null };   // null: the program the .circ was saved with
+}
+
+export interface ProgramInfo {
+  name: string;             // "data.hmx"
+  source: string | null;    // the attribute's text ("prog/data.hmx")
+  entry: string | null;
+  loadedAt?: number | null; // this run's last good load (ms)
+  failure: ProgramFailure | null;
+  memories: ProgramMemory[];
+}
+
+export interface MipsFacts {
+  fileId: string;
+  facts: MipsFact[];
+  program: ProgramInfo | null;
+}
+
+export interface LoadSegment {
+  kind: 'text' | 'data';
+  start: string;
+  last: string;
+  range: string;            // "0x00400000–0x00400068"
+  units: number;
+  unit: 'word' | 'byte';
+  bytes: number;
+  words: number;
+  text: string;             // "28 bytes = 7 words (0x10010000–0x1001001b)"
+  componentId: string;
+  circuitId: string;
+  target: string;           // "main › Data Memory (10000000-100fffff)"
+}
+
+export interface LoadSummary {
+  entry: string | null;
+  entryLine: string;        // "entry 0x00400024 (main)"
+  regs: { name: string; value: string }[];
+  segments: LoadSegment[];
+  emptied?: { componentId: string; circuitId: string; target: string } | null;
+  stackBase: { componentId: string; target: string; part: string; stack: string; sp: string | null }[];   // part: "main › Data Memory", stack: its stack region
+  instructions: string[];
+  source?: { status: 'same' | 'changed' | 'notFound' | 'noHash'; name?: string | null; text: Bilingual; warn: boolean };
+  facts: { id: 'noHandler' | 'jrRa' | string; text: Bilingual }[];
+  producedBy?: string | null;
+  assembled?: string | null;
+  notes: string[];
+}
+
+export interface LoadChoice {
+  kind: 'text' | 'data';
+  segment: string;          // ".text 0x00400000–0x00400068"
+  candidates: { componentId: string; circuitId: string; name: string }[];
+}
+
+export interface LoadResult {
+  fileId: string;
+  file: string;             // the .hmx's name
+  loaded: boolean;
+  source?: string;
+  loadedAt?: number;
+  summary?: LoadSummary;
+  choose?: LoadChoice;      // several memories hold a segment: pick one and load again
+  problems?: LoadProblem[];
+}
+
+export interface Reloaded {
+  fileId: string;
+  ok: boolean;
+  reason: 'open' | 'changed' | 'reset' | 'manual';
+  file: string;
+  source: string;
+  loadedAt?: number;
+  summary?: LoadSummary;
+  problems?: LoadProblem[];
+  kept?: { loadedAt: number | null };
+}
+
+// The Console tab: every Console's output; `text` replaces, `append` adds.
+export interface ConsoleEntry { name: string; text?: string; append?: string; exited: boolean }
+export interface ConsoleUpdate { fileId: string; consoles: ConsoleEntry[] }
+
+export interface DisasmLine { addr: string; word: string; text: string; labels?: string[]; entry?: boolean }
+export interface Disasm {
+  fileId: string;
+  componentId: string;
+  words: number;
+  first: string | null;
+  last: string | null;
+  entry: string | null;
+  symbols: boolean;
+  lines: DisasmLine[];
 }

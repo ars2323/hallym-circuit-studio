@@ -189,6 +189,10 @@ class ProgramLoaderTest {
         assertEquals(".text 0x00400000–0x00400004 구간을 담는 Instruction Memory 부품이 없어 아무것도 불러오지 않았습니다."
                 + " 회로에 Instruction Memory 부품이 없습니다.", ProgramLoader.noMemory(text, List.of(), "Instruction Memory").ko);
         assertEquals(plan.errors.get(0), ProgramLoader.noMemory(text, ims, "Instruction Memory").en);
+        // v2 엔진(D-147)은 같은 문제를 두 언어로 받는다
+        assertEquals(1, plan.problems.size());
+        assertEquals(plan.errors.get(0), plan.problems.get(0).en);
+        assertEquals(ProgramLoader.noMemory(text, ims, "Instruction Memory").ko, plan.problems.get(0).ko);
         // 부품이 아예 없음
         ProgramLoader.Plan none = ProgramLoader.plan(image().data(0x10010000L, 1).build(), List.of(), List.of(),
                 List.of(), null, null, "p.hmx");
@@ -202,6 +206,9 @@ class ProgramLoaderTest {
         half.b.commit();
         ProgramLoader.Plan halfPlan = plan(image().data(0x10010000L, 1).build(), half, null, null);
         assertEquals(1, halfPlan.errors.size());
+        assertEquals(1, halfPlan.problems.size());
+        assertTrue(halfPlan.problems.get(0).ko.startsWith(".data 0x10010000–0x10010000 구간을 담는 Data Memory 부품이 없어"),
+                halfPlan.problems.get(0).ko);
         assertTrue(halfPlan.changes.isEmpty());
         assertTrue(halfPlan.text.isEmpty() && halfPlan.data.isEmpty());
         // 고르기를 취소하면 "아무것도 불러오지 않았습니다"
@@ -211,6 +218,7 @@ class ProgramLoaderTest {
         twoIm.b.commit();
         ProgramLoader.Plan cancelled = plan(image().build(), twoIm, null, (c, w) -> null);
         assertEquals(List.of("Nothing was loaded."), cancelled.errors);
+        assertEquals("아무것도 불러오지 않았습니다.", cancelled.problems.get(0).ko);
         assertTrue(cancelled.changes.isEmpty());
     }
 
@@ -278,11 +286,20 @@ class ProgramLoaderTest {
         assertFalse(missing.ok());
         assertNull(missing.image);
         assertTrue(missing.errors.get(0).startsWith("Cannot read the file none.hmx: "), missing.errors.toString());
+        assertEquals(0, missing.problems.get(0).line);
+        assertTrue(missing.problems.get(0).text.ko.startsWith("파일을 읽을 수 없습니다. File: none.hmx ("),
+                missing.problems.get(0).text.ko);
         Path bad = Files.writeString(tmp.resolve("bad.hmx"), "HALLYM-EXEC 1\nendian little\n");
         ProgramLoader.Loaded broken = ProgramLoader.read(bad.toFile());
         assertFalse(broken.ok());
         assertNull(broken.image);
         assertEquals(2, broken.errors.size(), broken.errors.toString());
+        assertEquals(2, broken.problems.size());
+        for (int i = 0; i < 2; i++) { // 줄 번호와 두 언어: 언어 설정의 글은 그중 하나
+            kr.ac.hallym.hcs.mips.image.LoadReport.Problem p = broken.problems.get(i);
+            assertEquals(broken.errors.get(i), p.text.en);
+            assertEquals(p.line > 0, p.text.ko.startsWith(p.line + "번째 줄: "), p.text.ko);
+        }
         ProgramLoader.Loaded good = ProgramLoader.read(ProgramLoadIntegrationTest.TESTS.resolve("hmx/example.hmx").toFile());
         assertTrue(good.ok());
         good.errors.add("later");

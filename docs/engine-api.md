@@ -16,7 +16,7 @@ Hallym Circuit Studio 2의 화면(Electron)과 Java 엔진(headless Logisim 2.7.
 - stdin·stdout: **JSON-RPC 2.0, 한 줄에 한 JSON 객체**(UTF-8, 줄 끝 `\n`). 요청은 `{"jsonrpc":"2.0","id":N,"method":"…","params":{…}}`, 응답은 `{"jsonrpc":"2.0","id":N,"result":…}` 또는 `"error":{"code","message","data"}`.
   - `id`는 숫자·글자 모두 된다(받은 그대로 돌려준다). `params`는 이름 있는 객체만 받는다(배열이면 -32602). 여러 요청을 배열로 묶은 요청(batch)은 받지 않는다(-32600).
   - 화면이 `id` 없이 보낸 것(알림)은 처리만 하고 응답하지 않는다.
-- 엔진이 먼저 보내는 알림은 `id`가 없다(`model.changed`, `sim.values`, `sim.state`, `diag.changed`, `engine.log`).
+- 엔진이 먼저 보내는 알림은 `id`가 없다(`model.changed`, `sim.values`, `sim.state`, `diag.changed`, `mips.facts`, `mips.reloaded`, `mips.console`, `engine.log`).
 - stdout에는 규약 줄만 나온다. Logisim 코드가 `System.out`에 쓰는 것도 stderr로 돌린다. stderr는 사람이 읽는 로그다(화면은 파일에 남기지 않는다).
 - 요청은 순서대로 처리한다. 긴 일(N Cycles, Run Until)은 곧바로 응답하고 진행은 알림으로 보낸다. 편집의 `model.changed`는 그 편집의 응답 **뒤에**, 그 뒤의 `sim.values`보다 **앞에** 온다.
 - 끝: `engine.shutdown`에 응답한 뒤, stdin이 닫히면, 또는 부모 프로세스가 끝나면(7절) 열린 파일을 닫고 종료 코드 0으로 끝난다(저장하지 않는다). 메모리 전용 환경설정을 켜지 못하면 코드 3으로 바로 끝난다.
@@ -120,12 +120,30 @@ Component = {
 
 | 메서드 | params | result |
 | --- | --- | --- |
-| `mips.facts` | `{fileId}` | `{facts:[{id, en, ko, components:[componentId], sources?:[글]}]}` |
+| `mips.facts` | `{fileId}` | `{fileId, facts:[{id, en, ko, components:[componentId], sources?:[글], pc?, entry?}], program: Program\|null}` |
+| `mips.load` | `{fileId, path, target?:componentId, picks?:{text?, data?}}` | `LoadResult`(아래) |
+| `mips.reload` | `{fileId}` | `{fileId, results:[{source, ok, changed?, problems?}]}` |
+| `mips.disasm` | `{fileId, componentId, from?, count?}` | `{fileId, componentId, words, first, last, entry, symbols, lines:[{addr, word, text, labels?, entry?}]}` |
+| `mips.console` | `{fileId}` | `{fileId, consoles:[{name, text, exited}]}` |
 
-- `mips.facts`: 파일의 MIPS **사실**(D-140, D-141). 진단(Messages)이 아니다: 회로는 동작하고, 도구가 바뀐 사실과 할 일만 상태 표시줄에 한 줄로 보인다(화면은 N-16/N-17). 문장은 영어(`en`)·한국어(`ko`) 두 벌이고 화면이 언어 설정에 맞춰 고른다. 파일을 열 때 묻는다.
+알림: `mips.facts`(result와 같은 객체, 바뀌었을 때), `mips.reloaded`(자동으로 다시 불러왔거나 불러오지 못함), `mips.console`(Console 출력, 바뀐 프레임마다).
+
+- `mips.facts`: 파일의 MIPS **사실**(D-140, D-141, D-147). 진단(Messages)이 아니다: 회로는 동작하고, 도구가 바뀐 사실과 할 일만 상태 표시줄에 한 줄로 보인다(화면은 N-16/N-17). 문장은 영어(`en`)·한국어(`ko`) 두 벌이고 화면이 언어 설정에 맞춰 고른다. 파일을 열 때 묻고, 엔진은 바뀔 때마다(약 100ms마다 보고) 같은 객체를 알림 `mips.facts`로 보낸다.
   - `separateStack`: 파일에 따로 된 옛 Stack 부품이 있다. `ko` = "이 회로는 따로 된 Stack 부품을 씁니다. 새 Data Memory는 스택 영역을 함께 맡습니다.", `components` = 파일 안의 Stack 부품들(모든 회로). 옛 Stack은 전과 똑같이 동작하므로 고치라고 하지 않는다.
   - `assemblySource`(D-141): MIPS 메모리 부품의 `source` 속성이 .s(.asm, 대소문자 무관)를 가리킨다. .s 불러오기와 hcs-asm은 없어졌다. `ko` = "이 파일은 .s 파일을 가리킵니다. Hallym MIPS에서 Export executable image (.hmx) 단추로 내보낸 파일을 불러오세요.", `en` = "This file points to a .s file. Load the file exported with Export executable image (.hmx) in Hallym MIPS.", `components` = 그 부품들(모든 회로), `sources` = 부품마다 속성 글(`components`와 같은 순서, 예 `"prog/sum.s"`). 속성은 읽기만 하므로 파일은 전과 같이 열리고, 고치지 않으면 같은 바이트로 저장된다. 불러오기(N-16, 트랙 A `ProgramLoader`와 같은 길)가 .hmx를 넣으면 `source`가 그 .hmx 경로(.circ 기준 상대 경로)로 바뀌고 사실이 없어진다. 불러오기에 .s를 넘기면 이미지 없이 같은 문장 하나가 오류로 온다.
-- 사실은 파일 내용에서 나오므로 편집(부품을 지우거나 놓음) 뒤에는 화면이 다시 묻는다.
+  - `pcEntry`(N-16, D-138): 사이클 0(`sim.state.cycle` = 0)에서 회로의 PC(상태 표시줄의 규칙 D-103: Mark as PC → 라벨이 PC인 부품 → Instruction Memory의 Addr)가 올린 실행 이미지의 entry와 다르다. `ko` = "PC 0x00400024 · 실행 이미지 진입점 0x0040002c", `en` = "PC 0x00400024 · executable image entry 0x0040002c"(`StartFacts.pcFact`), `components` = 그 Instruction Memory, `pc`·`entry`. 사이클이 0이 아니거나 PC가 정해지지 않았거나 entry를 모르면 없다. 도구는 PC에 아무것도 넣지 않는다(PC 시작은 학생 회로의 몫).
+- `program`(N-16): 올린 프로그램. 메모리 부품(Instruction Memory 먼저, 그다음 Data Memory, 위→아래)의 `source`가 .hmx를 가리키거나 다시 불러오기 실패가 서 있을 때만 있고, 아니면 `null`.
+  `Program = {name, source, entry, loadedAt, failure, memories:[{componentId, circuitId, kind:"text"|"data", source, words, entry?, text}]}`. `name`은 .hmx 파일 이름(`data.hmx`), `source`는 속성 글, `entry`는 부품 내용과 워드가 같은 이미지(이번 실행에서 넣은 것, 아니면 디스크의 .hmx)의 entry(모르면 `null`), `loadedAt`은 이번 실행에서 마지막으로 불러오거나 다시 불러온 시각(ms, 파일에 저장된 채로 열었으면 `null`). `memories[].text`는 부품 몸체의 줄: `27 words (0x00400000–0x00400068), entry 0x00400024`(비었으면 `no program`, 캔버스 N-05가 쓴다).
+  `failure = {at, file, source, reason:"open"|"changed"|"reset"|"manual", problems:[Problem], kept:{loadedAt}}`: 다시 불러오지 못해 **올라가 있던 프로그램과 시뮬레이션을 그대로 둔** 동안(화면의 띠). `kept.loadedAt`은 올라가 있는 것을 불러온 시각(`null`: .circ에 저장된 것). 같은 .hmx가 다시 읽히면(불러오기·다시 불러오기) 걷힌다.
+- **`mips.load`**(N-16, D-147): 실행 이미지(.hmx) 하나를 트랙 A 메뉴와 같은 길(lib-mips `ProgramLoader` read·plan, 공용 `HmxParser`·`StartFacts`·`SourceCheck`)로 넣는다. `path`는 절대 경로(화면은 main 프로세스의 고르기 창에서만 얻는다: 페이지는 경로를 보내지 않는다). `target`은 사람이 고른 메모리 부품(우클릭): 그 종류의 구간을 모두 담아야 한다. **전부 아니면 전무**: 문제가 하나라도 있거나 고를 것이 남으면 아무것도 바꾸지 않는다. 넣으면 부품마다 `contents`와 `source`(.circ 폴더 기준 상대 경로, 저장한 적 없는 파일이면 절대 경로: 트랙 A와 같은 속성, 원조 2.7.1 + hcs-mips.jar에서 열고 저장해도 같은 바이트)를 원조 `SetAttributeAction` 한 번(되돌리기 한 단계, 이름 `Load Program`)으로 바꾸고, 시뮬레이션을 처음으로 돌린다(`sim.reset`과 같다, `sim.state`가 따른다). 레지스터에는 아무것도 넣지 않는다. 읽기 전용 파일은 오류 3 `readOnly`, 없는 `target`·다른 종류의 `picks`는 오류 1·-32602, lib-mips가 없으면 -32603.
+  `LoadResult = {fileId, file, loaded, source?, loadedAt?, summary?, choose?, problems?}`:
+  - `loaded:true` → `summary = {entry, entryLine, regs:[{name, value}], segments:[{kind, start, last, range, units, unit, bytes, words, text, componentId, circuitId, target}], emptied, stackBase:[{componentId, target, part, stack, sp}], instructions, source:{status:"same"|"changed"|"notFound"|"noHash", name, text:{en,ko}, warn}, facts:[{id:"noHandler"|"jrRa", text:{en,ko}}], producedBy, assembled, notes}`. `segments[].text` 예: `27 words (0x00400000–0x00400068)`, `28 bytes = 7 words (0x10010000–0x1001001b)`. `target`은 트랙 A 목록과 같은 이름(`main › Instruction Memory (00400000-004fffff)`). `emptied`는 `.data`가 없어 비운 Data Memory, `stackBase`는 `reg $sp`를 깊이 기준으로 기억한 부품(D-140: `target`은 트랙 A 목록 이름, `part`는 영역 없는 이름, `stack`은 그 스택 영역 `7ffc0000-7fffffff`), `notes`는 트랙 A 요약 창과 같은 줄들.
+  - `choose = {kind:"text"|"data", segment, candidates:[{componentId, circuitId, name}]}`: 한 구간을 담는 부품이 여럿이다(위→아래 순). 화면이 묻고 `picks`에 고른 부품을 넣어 **같은 파일로** 다시 부른다(`text`를 고른 뒤 `data`를 또 물을 수 있다).
+  - `problems = [{line, text:{en,ko}}]`: 읽지 못했거나(줄 번호 → 무엇이 틀렸나 → 무엇을 할까, `HmxParser`) 넣을 곳이 없다(`line` 0). .s(.asm)를 넘기면 `assemblySource`와 같은 문장 하나(D-141).
+- **자동 다시 불러오기**(PLAN.md 6.8, v1 C-09의 .hmx판): 앱이 도는 동안만 엔진이 메모리 부품의 `source`가 가리키는 .hmx를 1초마다 본다(수정 시각·크기, 디스크에 아무것도 남기지 않는다). 파일을 연 뒤 처음 볼 때(`reason:"open"`, 열 때 부품이 가리키던 .hmx가 저장된 내용과 다르면. 연 뒤 편집으로 생긴 `source`는 그때부터 바뀜만 본다), 파일이 바뀌었을 때(`changed`), `sim.reset` 앞(`reset`, 감시가 아직 못 본 변경), `mips.reload`(`manual`)에 그 `source`를 가진 부품에 다시 넣는다(한 구간을 담는 부품이 여럿이면 그 `source`를 가진 부품). 내용이 같으면 아무것도 하지 않는다. 바뀌면 되돌리기 한 단계(`Reload data.hmx`)로 넣고 처음으로 돌린 뒤 `mips.reloaded {fileId, ok:true, reason, file, source, loadedAt, summary}`. **실패하면 올라가 있던 프로그램과 시뮬레이션을 그대로 두고** `mips.reloaded {fileId, ok:false, reason, file, source, problems, kept:{loadedAt}}`와 `program.failure`를 알린다(파일이 없어졌으면 "실행 이미지 파일이 그 자리에 없습니다. …"). 읽기 전용 파일과 .s 경로는 보지 않는다.
+- **`mips.disasm`**: 메모리 부품(보통 Instruction Memory)의 워드를 lib-mips 디스어셈블러(D-127, SPIM 목록 글)로. 기호는 부품 내용과 워드가 같은 이미지의 것(`jal 0x00400024 [main]`, `bne $17, $0, -16 [next-0x00400048]`), 없으면 `symbols:false`. `from`(주소 글 `0x00400024`·`400024` 또는 수, 없으면 첫 워드)부터 `count`줄(기본 1024, 1~4096). `lines[].labels`는 그 주소의 기호(파일 순서), `entry:true`는 entry 줄.
+- **`mips.console`·알림 `mips.console`**(v1 C-09): 보고 있는 회로 상태의 맨 위부터 모든 Console 부품의 출력 전체와 exit 여부(`ConsoleText`, 서브회로 안은 경로 이름). 요청은 `{name, text, exited}`, 알림은 콘솔마다 `text`(바꿈) 또는 `append`(앞에 보낸 것에 이어진 부분)와 `exited`이고 목록에 없는 Console은 사라진 것이다. 바뀐 프레임(16ms)에만 보낸다. `sim.reset`으로 비면 `text:""`가 온다(v1: Reset이 Console을 비운다). 입력은 없다: Console 부품은 출력 syscall(1, 4, 11)과 exit(10)만 처리한다(PLAN.md 6.9, D-147).
+- 사실은 파일 내용에서 나오므로 편집(부품을 지우거나 놓음) 뒤에는 화면이 다시 묻는다(엔진도 바뀌면 알린다).
 - **Memory 표(N-14가 메서드로 싣는다):** 엔진의 `MemoryTable`이 Hallym MIPS Data 탭 같은 한 표를 만든다. 줄은 `{kind:"section"|"words"|"zeros", section:"data"|"stack", part, addr, end}`(주소는 `"0x10010000"` 꼴 글자)에 `words`(칸 네 개 +0·+4·+8·+C, 구간 밖 `null`, 정해지지 않은 칸 `"xxxxxxxx"`), `zeros`의 `count`, `labels:[{addr, names}]`, `pointers:{"$sp": addr}`, 스택 `section`의 `base`·`depth`·`peak`가 붙는다. 데이터 구간은 `0x10010000`부터(그 아래에 값이 있으면 그 줄부터) 영역 끝까지, 스택 구간은 스택 영역 맨 위에서 아래로(높은 주소가 위) 지금 `$sp`·최고 수위·깊이 기준 가운데 가장 낮은 줄까지다. 0이 이어지는 줄들은 한 줄이고, 포인터가 가리키는 줄은 줄이지 않는다. 합친 Data Memory는 두 구간, 옛 구조(스택 영역 없는 Data Memory + Stack)는 부품마다 한 구간이다.
 
 ### edit(의도)
@@ -263,7 +281,7 @@ Message = {
 
 ## 6. 확장
 
-영향 경로, Signal Flow, 기록(사이클 표, Registers·Memory·Instruction), MIPS(.hmx 불러오기, 디스어셈블, Console)는 각 N 항목에서 이 문서에 절을 더하며 늘린다. 메서드 이름은 `trace.*`, `record.*`, `mips.*`로 묶는다(`mips.facts`는 5절, `diag.*`·`trace.origin`은 5절 끝에 있다).
+영향 경로, Signal Flow, 기록(사이클 표, Registers·Memory·Instruction)은 각 N 항목에서 이 문서에 절을 더하며 늘린다. 메서드 이름은 `trace.*`, `record.*`로 묶는다(`mips.*`는 5절, `diag.*`·`trace.origin`은 5절 끝에 있다).
 
 ## 7. 수명: 시작, 끝, 다시 시작, 되살리기(N-04, D-142)
 
@@ -296,7 +314,7 @@ Message = {
 
 main은 열린 파일마다 메모리에 **저널**을 든다(`recovery.ts`).
 - 연 방법: 경로(+ 읽기 전용 여부, 그때 파일 내용의 SHA-256, 회로 이름→id) 또는 `file.new`. 저장하면 저장한 경로·내용·회로로 바뀌고 의도 목록을 비운다. 닫으면 지운다.
-- 의도: 창이 보낸 `edit.*` 가운데 엔진이 **답한** 것(오류 응답은 적지 않는다)을, 엔진이 답한 순서의 전역 번호와 함께 적는다. `sim.*`(시뮬레이션)은 파일을 바꾸지 않으므로 적지 않는다. 모델을 바꾸는 새 메서드가 `edit.` 밖에 생기면 `recovery.ts`의 `journaled`에 더한다.
+- 의도: 창이 보낸 `edit.*`와 `mips.load`(실행 이미지 불러오기, N-16) 가운데 엔진이 **답한** 것(오류 응답은 적지 않는다)을, 엔진이 답한 순서의 전역 번호와 함께 적는다. `sim.*`(시뮬레이션)은 파일을 바꾸지 않으므로 적지 않는다. 모델을 바꾸는 새 메서드가 `edit.` 밖에 생기면 `recovery.ts`의 `journaled`에 더한다.
 - 부품 id: 새 엔진은 옛 id를 모르므로 의도의 id 매개변수(`ids`, `id`, `componentId`, `wire`; 새로 생기면 `ID_PARAMS`에 더한다)는 적을 때 **부품 자체**로 바꿔 둔다. 부품은 라이브러리·이름·위치·속성 전부, 선은 두 끝이다. main은 창에 간 `model.circuit` 응답과 `model.changed` 알림으로 모델의 사본(그림자)을 들고 있고, 의도는 그 응답을 읽는 순간(편집의 `model.changed`는 응답 뒤에 온다) 곧 편집 바로 앞의 모델로 적는다. 사본에 없는 id를 쓴 의도가 있으면 그 파일은 재생할 수 없는 것으로 표시한다(`notRecorded`).
 
 엔진이 다시 시작하면:

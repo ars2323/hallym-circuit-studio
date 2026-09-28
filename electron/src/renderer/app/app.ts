@@ -23,7 +23,7 @@
    Nothing is restored from an earlier run and nothing is written but the
    files the student saves (the lab-PC rule; src/main/main.ts). */
 
-import type { CircuitRef, DiagList, DiagMessage, EngineStatus, LibraryGroup, NewResult, Recovered, SimState, Snapshot } from '../../main/protocol.ts';
+import type { CircuitRef, ConsoleUpdate, DiagList, DiagMessage, EngineStatus, LibraryGroup, MipsFacts, NewResult, Recovered, Reloaded, SimState, Snapshot } from '../../main/protocol.ts';
 import { aboutDialog } from '../shared/about.ts';
 import { ask } from '../shared/ask.ts';
 import { band } from '../shared/band.ts';
@@ -34,12 +34,14 @@ import { splitter } from '../shared/splitter.ts';
 import { button, iconButton, titleBar } from '../shared/titlebar.ts';
 import { headButton, panelHead, tabStrip, tabsHead } from '../shared/ui.ts';
 import type { CallError, Opened } from './api.ts';
+import { consolePanel } from './console.ts';
 import { commandError, fileError } from './logic/errors.ts';
 import { circuitFacts, count, counted, engineFact, engineVersion } from './logic/facts.ts';
 import { Files, type OpenFile } from './logic/files.ts';
 import { arrange, nothingDragged, PAD, SPLITTER } from './logic/layout.ts';
 import { messageCount } from './logic/messages.ts';
 import { messagesPanel } from './messages.ts';
+import { programs as programController } from './program.ts';
 import { emitReveal, onReveal } from './reveal.ts';
 import { recoveredText } from './logic/recovered.ts';
 import { startScreen } from './start.ts';
@@ -88,7 +90,8 @@ const frequency = h('select', { title: 'Clock speed', 'aria-label': 'Clock speed
   ...FREQUENCIES.map(([label, hz]) => h('option', { value: String(hz), selected: hz === 1 }, label)));
 // A new speed while the clock runs applies at once (as v1's menu did).
 frequency.addEventListener('change', () => { if (files.active()?.sim?.ticking) void simCall('sim.run', { on: true, hz: Number(frequency.value) }, 'Run'); });
-const bLoad = button('Load Program…', 'file-code', '', () => {});
+// Load Program… (N-16): an executable image (.hmx) into the circuit's memories (program.ts).
+const bLoad = button('Load Program…', 'file-code', '', () => { const f = files.active(); if (f) void programs.load(f.fileId); });
 const toolbar = h('span', { class: 'toolbar', role: 'toolbar', 'aria-label': 'Toolbar' },
   h('span', { class: 'tgroup' }, bSave, bUndo, bRedo),
   h('span', { class: 'tgroup' }, h('span', { class: 'seg tools-seg', role: 'radiogroup', 'aria-label': 'Tools' }, ...toolButtons)),
@@ -104,6 +107,8 @@ const bar = titleBar({
   ],
 });
 const notices = band();
+// While a reload of the program has failed: what is on show and since when (N-16, program.ts).
+const programBand = band('progband');
 const status = h('footer', { class: 'status' });
 
 // ---- the first screen -----------------------------------------------------------
@@ -150,6 +155,8 @@ const messagesBody = noticeHost('bottom');
 const cycleBody = noticeHost('bottom');
 const consoleBody = noticeHost('bottom');
 const bottomBodies = [messagesBody.root, cycleBody.root, consoleBody.root];
+// The Console tab (N-16, console.ts): every Console part's output, streamed by the engine.
+const consoleView = consolePanel(consoleBody);
 const bottomHead = tabsHead(['Messages', 'Cycle View', 'Console'], (i) => { showBody(bottomBodies, i); if (bottomCollapsed) toggleBottom(); });
 const bCollapse = headButton('Collapse', 'Collapse the panel', () => toggleBottom());
 bottomHead.aside.append(bCollapse);
@@ -204,7 +211,7 @@ center.append(canvasPanel, bottomGrip, bottomPanel);
 shell.append(leftCol, leftSplit, center, rightSplit, rightCol);
 const work = h('main', { class: 'work' }, stage, shell);
 
-document.body.append(h('div', { class: 'app' }, bar.root, bar.row, notices.root, work, status));
+document.body.append(h('div', { class: 'app' }, bar.root, bar.row, h('div', { class: 'bands' }, notices.root, programBand.root), work, status));
 
 function toggleBottom(): void {
   bottomCollapsed = !bottomCollapsed;
@@ -252,7 +259,7 @@ function render(): void {
   for (const b of [bSave, bUndo, bRedo, bRun, bCycle, bReset]) b.disabled = !f || !ready;
   frequency.disabled = !f || !ready;
   bCycles.disabled = true;   // N-07: the count to go
-  bLoad.disabled = true;     // N-16: .hmx and .s
+  bLoad.disabled = !f || !ready;
   const ticking = f?.sim?.ticking ?? false;
   bRun.replaceChildren(icon(ticking ? 'square' : 'play'), h('span', { class: 'label' }, ticking ? 'Stop' : 'Run'), h('kbd', {}, 'F5'));
   bRun.title = ticking ? 'Stop (F5)' : 'Run (F5)';
@@ -269,8 +276,18 @@ function render(): void {
   }
   renderEmptyPanels();
   renderMessages();
+  consoleView.show(f?.fileId ?? null);
+  renderProgramBand();
   renderStatus();
   layout();
+}
+
+// The band over the work while the active file's program could not be loaded again (N-16).
+function renderProgramBand(): void {
+  const f = files.active();
+  const b = f ? programs.band(f.fileId) : null;
+  if (b) programBand.show(b.text, 'warn', b.title);
+  else if (programBand.text() !== null) programBand.hide();
 }
 
 function renderMessages(): void {
@@ -385,7 +402,6 @@ function renderEmptyPanels(): void {
   attributesBody.empty({ title: '고른 부품이 없습니다', body: codeText('Canvas에서 부품을 고르면 그 속성(`Data Bits`, `Facing`, `Label` …)이 여기에 나옵니다.') });
   minimapBody.empty({ title: '회로 전체가 작게 나옵니다', body: 'Canvas에 그린 회로의 전체 모습과 지금 보는 곳이 여기에 나옵니다.' });
   cycleBody.empty({ title: '아직 사이클이 없습니다', body: '1 Cycle이나 Run으로 클럭을 진행하면 사이클마다 값이 여기에 쌓입니다.' });
-  consoleBody.empty({ title: '아직 출력이 없습니다', body: '회로의 Console 부품이 출력하면 여기에 나옵니다.' });
 }
 
 function renderStatus(): void {
@@ -413,6 +429,8 @@ function renderStatus(): void {
       if (f.sim.ticking) parts.push(span('run', speed ? `Running (${speed})` : 'Running'));
       if (!f.sim.running) parts.push(span('err', f.sim.oscillating ? '발진으로 시뮬레이션이 꺼졌습니다' : '시뮬레이션이 꺼져 있습니다'));
     }
+    // The program: its name, PC ≠ entry at cycle 0, an old Stack, a .s path (facts, not messages; N-16).
+    parts.push(...programs.statusNodes(f.fileId));
   }
   if (note) parts.push(span(note.cls, note.text));
   parts.push(span('grow'));
@@ -447,6 +465,8 @@ function added(f: { fileId: string; name: string; path: string | null; circuits:
   note = null;
   render();
   void loadDiags(f.fileId);
+  void programs.refresh(f.fileId);
+  void loadConsole(f.fileId);
 }
 
 async function newCircuit(): Promise<void> {
@@ -522,6 +542,8 @@ async function closeFile(fileId: string): Promise<void> {
   for (const k of [...snapshots.keys()]) if (k.startsWith(`${fileId} `)) snapshots.delete(k);
   libraries.delete(fileId);
   diags.delete(fileId);
+  programs.drop(fileId);
+  consoleView.drop(fileId);
   note = null;
   if (files.count() === 0) start.go('first');
   render();
@@ -559,6 +581,25 @@ const reset = () => simCall('sim.reset', {}, 'Reset');
 async function resetSimulation(): Promise<void> {
   await simCall('sim.reset', {}, 'Reset');
   await simCall('sim.enable', { on: true }, 'Reset');
+}
+
+// ---- the program (N-16) ------------------------------------------------------------------
+
+const programs = programController({
+  loadProgram: (fileId, options) => api.loadProgram(fileId, options),
+  call: (method, params) => api.call(method, params),
+  note: (cls, text) => { note = text ? { cls, text } : null; renderStatus(); },
+  changed: (fileId) => { if (files.active()?.fileId === fileId) { renderProgramBand(); renderStatus(); } },
+});
+
+// The Console's output so far (then the engine streams it: mips.console).
+async function loadConsole(fileId: string): Promise<void> {
+  try {
+    const r = await api.call<ConsoleUpdate>('mips.console', { fileId });
+    if (files.get(fileId)) consoleView.update({ ...r, fileId });
+  } catch {
+    // an engine before N-16: no Console tab content
+  }
 }
 
 // ---- the engine ----------------------------------------------------------------------
@@ -607,7 +648,7 @@ function onRecovered(r: Recovered): void {
   libraries.clear();
   diags.clear();
   wanted = '';
-  for (const f of r.closed) files.close(f.fileId);
+  for (const f of r.closed) { files.close(f.fileId); programs.drop(f.fileId); consoleView.drop(f.fileId); }
   for (const f of r.restored) files.reopened(f.fileId, f.dirty);
   for (const f of r.lost) files.reopened(f.fileId, false);
   if (files.count() === 0) start.go('first');
@@ -615,6 +656,8 @@ function onRecovered(r: Recovered): void {
   notices.show(text.band, 'warn');
   render();
   for (const f of files.list()) void loadDiags(f.fileId);   // their messages name parts by the new ids
+  // The program's facts and the Console: the new engine's (N-16; the simulation starts from Reset)
+  for (const f of files.list()) { consoleView.drop(f.fileId); void programs.refresh(f.fileId); void loadConsole(f.fileId); }
   void ask({ title: text.title, body: text.body, detail: text.detail || undefined, ok: 'Close', cancel: null, character: false });
 }
 
@@ -633,6 +676,12 @@ api.onNotify((method, params) => {
     libraries.delete(fileId); // the first part of a pending library puts it in the file
     if (typeof p.dirty === 'boolean') files.setDirty(fileId, p.dirty);
     render();
+  } else if (method === 'mips.facts') {
+    if (files.get(String(p.fileId))) programs.facts(p as unknown as MipsFacts);
+  } else if (method === 'mips.reloaded') {
+    if (files.get(String(p.fileId))) { programs.reloaded(p as unknown as Reloaded); renderStatus(); }
+  } else if (method === 'mips.console') {
+    if (files.get(String(p.fileId))) consoleView.update(p as unknown as ConsoleUpdate);
   } else if (method === 'diag.changed') {
     const fileId = String(p.fileId);
     if (!files.get(fileId)) return;

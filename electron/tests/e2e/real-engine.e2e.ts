@@ -81,6 +81,43 @@ test('the real engine: a broken circuit\'s Messages (N-13), the same words as th
   }
 });
 
+test('the real engine: Load Program puts data.hmx into ref-mips; N Cycles to the exit; the Console says what SPIM said; after a crash the program is back (N-16)', async () => {
+  const r = await launch(undefined, { env: real });
+  const { page } = r;
+  try {
+    const golden = 'tests/hmx/hallym-mips-v2.4.0';
+    const circ = sample(r.dir, 'tests/mips/ref-mips.circ');
+    sample(r.dir, `${golden}/data.s`);
+    const hmx = sample(r.dir, `${golden}/data.hmx`);
+    await openFile(r, circ);
+    await answerOpen(r.app, hmx);
+    await page.getByRole('button', { name: /Load Program/ }).click();
+    const d = page.locator('dialog.loadsummary');
+    await expect(d.locator('table.summary tr').first().locator('td')).toHaveText('0x00400024 (main)');
+    await expect(d.locator('table.summary tr', { hasText: 'Source' }).locator('td')).toHaveText('원본 파일 data.s: 내보낸 때와 같음.');
+    await d.getByRole('button', { name: 'OK' }).click();
+    await expect(page.locator('.status .progfact').first()).toHaveText('Program data.hmx');
+    // N Cycles (the toolbar's count is N-07's): the engine's sim.cycles for the one open file
+    await r.app.evaluate(() => (globalThis as unknown as { __hcs: { engine: { call(m: string, p: unknown): Promise<unknown> } } })
+      .__hcs.engine.call('sim.cycles', { fileId: 'f1', n: 80 }));
+    await expect(page.locator('.status')).toContainText('Cycle 80', { timeout: 30_000 });
+    await page.getByRole('tab', { name: 'Console' }).click();
+    // The oracle: SPIM's console for the same program (tests/hmx/hallym-mips-v2.4.0/data.regs)
+    const oracle = /^console "(.*)"$/m.exec(readFileSync(path.join(repo, golden, 'data.regs'), 'utf8'))![1];
+    await expect(page.locator('pre.consoletext')).toHaveText(`${oracle}\n-- exit --\n`);
+    // The engine ends: the file comes back with the program (the journal replays mips.load, D-142), from Reset
+    await r.app.evaluate(() => (globalThis as unknown as { __hcs: { engine: { kill(): void } } }).__hcs.engine.kill());
+    await page.locator('dialog.ask').getByRole('button', { name: 'Close' }).click();
+    await expect(page.locator('.status .progfact').first()).toHaveText('Program data.hmx');
+    const facts = await r.app.evaluate(() => (globalThis as unknown as { __hcs: { engine: { call(m: string, p: unknown): Promise<unknown> } } })
+      .__hcs.engine.call('mips.facts', { fileId: 'f1' })) as { program: { memories: { kind: string; text: string }[] } };
+    expect(facts.program.memories.find((m) => m.kind === 'text')?.text).toBe('27 words (0x00400000–0x00400068), entry 0x00400024');
+    await expect(page.locator('.pbody.bottom:visible .notice h3')).toHaveText('아직 출력이 없습니다');
+  } finally {
+    await r.close();
+  }
+});
+
 test('the real engine: its file errors in the window\'s words (a file that is not there, a file Logisim cannot read)', async () => {
   const r = await launch(undefined, { env: real });
   const { page } = r;

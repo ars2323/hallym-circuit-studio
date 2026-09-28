@@ -125,9 +125,9 @@ test('the journal: an id the window was never shown breaks the file\'s journal (
   assert.match(j.files.get('f2')!.broken ?? '', /without a circuit/);
 });
 
-test('what is journaled: edit.* only; the id parameters', () => {
-  assert.ok(journaled('edit.addComponent') && journaled('edit.undo'));
-  for (const m of ['sim.poke', 'sim.cycles', 'model.circuit', 'file.save', 'mips.facts']) assert.ok(!journaled(m), m);
+test('what is journaled: edit.* and mips.load (N-16) only; the id parameters', () => {
+  assert.ok(journaled('edit.addComponent') && journaled('edit.undo') && journaled('mips.load'));
+  for (const m of ['sim.poke', 'sim.cycles', 'model.circuit', 'file.save', 'mips.facts', 'mips.reload', 'mips.console', 'mips.disasm']) assert.ok(!journaled(m), m);
   assert.deepEqual(ID_PARAMS, { ids: 'list', id: 'one', componentId: 'one', wire: 'one' });
 });
 

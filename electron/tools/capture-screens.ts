@@ -20,7 +20,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { answerOpen, DATAPATH, launch, openFile, root, sample, type Running } from '../tests/e2e/harness.ts';
+import { answerOpen, DATAPATH, launch, openFile, repo, root, sample, type Running } from '../tests/e2e/harness.ts';
 
 const out = process.env.SCREENS_OUT ? path.resolve(process.env.SCREENS_OUT) : path.join(root, 'docs/screens');
 mkdirSync(out, { recursive: true });
@@ -120,6 +120,32 @@ const kill = (r: Running) => r.app.evaluate(() => (globalThis as unknown as { __
   await page.locator('.status .msgcount', { hasText: 'No messages' }).waitFor();
   await page.locator('.pbody.bottom .notice h3', { hasText: '메시지가 없습니다' }).waitFor();
   await shot(r, 'messages-empty');
+  await r.close();
+}
+
+// The program (N-16): the summary after Load Program (ref-mips, data.hmx beside its .s), the Console after
+// the program ran to its exit, the band after the .hmx was exported again cut off.  The fake engine answers
+// with the real engine's words (tests/fixtures/programs.json); its clock is fixed and the zone is Seoul's.
+{
+  const r = await launch(FHD, { env: { TZ: 'Asia/Seoul' } });
+  const { page } = r;
+  const circ = sample(r.dir, 'tests/mips/ref-mips.circ');
+  sample(r.dir, 'tests/hmx/hallym-mips-v2.4.0/data.s');
+  const hmx = sample(r.dir, 'tests/hmx/hallym-mips-v2.4.0/data.hmx');
+  await openFile(r, circ);
+  await page.locator('.canvas h3', { hasText: '부품' }).waitFor();
+  await answerOpen(r.app, hmx);
+  await page.getByRole('button', { name: /Load Program/ }).click();
+  await page.locator('dialog.loadsummary').waitFor();
+  await shot(r, 'load-summary');
+  await page.locator('dialog.loadsummary').getByRole('button', { name: 'OK' }).click();
+  await page.getByRole('tab', { name: 'Console' }).click();
+  await page.keyboard.press('F10');
+  await page.locator('pre.consoletext', { hasText: 'sum = 14' }).waitFor();
+  await shot(r, 'console');
+  writeFileSync(hmx, readFileSync(path.join(repo, 'tests/hmx/truncated.hmx')));
+  await page.locator('.progband:not([hidden])').waitFor();
+  await shot(r, 'reload-kept');
   await r.close();
 }
 

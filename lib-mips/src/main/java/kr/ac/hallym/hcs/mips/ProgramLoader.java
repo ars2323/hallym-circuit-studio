@@ -24,6 +24,7 @@ import kr.ac.hallym.hcs.mips.image.AssemblySource;
 import kr.ac.hallym.hcs.mips.image.ExecutableImage;
 import kr.ac.hallym.hcs.mips.image.HmxError;
 import kr.ac.hallym.hcs.mips.image.HmxParser;
+import kr.ac.hallym.hcs.mips.image.LoadReport;
 import kr.ac.hallym.hcs.mips.image.Msg;
 import kr.ac.hallym.hcs.mips.image.SourceCheck;
 import kr.ac.hallym.hcs.mips.image.StartFacts;
@@ -75,13 +76,18 @@ final class ProgramLoader {
 
         /** 목록에 보일 이름. 예: {@code datapath › IMem (00400000-004fffff)}. */
         String describe() {
+            long[] r = region();
+            return part() + " (" + WordImage.hex(r[0]) + "-" + WordImage.hex(r[1] - 1) + ")";
+        }
+
+        /** 영역 없는 이름(회로 › 라벨 또는 부품 이름). 예: {@code datapath › IMem}. */
+        String part() {
             String label = component.getAttributeSet().getValue(StdAttr.LABEL);
             ComponentFactory f = component.getFactory();
             String name = label != null && !label.isEmpty() ? label
                     : f instanceof MemoryFactory ? ((MemoryFactory) f).title().get() // "Stack"(목록 이름은 "Stack (old circuits)")
                     : f.getDisplayName();
-            long[] r = region();
-            return circuit.getName() + " › " + name + " (" + WordImage.hex(r[0]) + "-" + WordImage.hex(r[1] - 1) + ")";
+            return circuit.getName() + " › " + name;
         }
 
         @Override
@@ -129,9 +135,17 @@ final class ProgramLoader {
         final List<String> facts = new ArrayList<String>();
         /** 노란 사실 줄(원본 .s가 내보낸 뒤 바뀜). */
         final List<String> warnings = new ArrayList<String>();
+        /** {@link #errors}와 같은 것을 두 언어와 줄 번호로(v2 엔진, D-147). */
+        final List<LoadReport.Problem> problems = new ArrayList<LoadReport.Problem>();
 
         Loaded(File file) {
             this.file = file;
+        }
+
+        /** 읽지 못한 이유 하나: 언어 설정의 글은 {@link #errors}에, 두 언어는 {@link #problems}에. */
+        void fail(int line, Msg m) {
+            errors.add(m.get(Text.korean()));
+            problems.add(new LoadReport.Problem(line, m));
         }
 
         boolean ok() {
@@ -160,6 +174,14 @@ final class ProgramLoader {
         final List<String> facts = new ArrayList<String>();
         final List<String> warnings = new ArrayList<String>();
         final List<String> errors = new ArrayList<String>();
+        /** {@link #errors}와 같은 것을 두 언어로(v2 엔진, D-147). */
+        final List<Msg> problems = new ArrayList<Msg>();
+
+        /** 넣지 못한 이유 하나: 언어 설정의 글은 {@link #errors}에, 두 언어는 {@link #problems}에. */
+        void fail(Msg m) {
+            errors.add(m.get(Text.korean()));
+            problems.add(m);
+        }
     }
 
     /** 후보가 여럿일 때 하나를 고른다(GUI는 묻고, 테스트는 정한다). null이면 취소. */
@@ -213,7 +235,7 @@ final class ProgramLoader {
     static Loaded read(File file) {
         if (AssemblySource.isAssembly(file.getName())) {
             Loaded out = new Loaded(file);
-            out.errors.add(AssemblySource.FACT.get(Text.korean()));
+            out.fail(0, AssemblySource.FACT);
             return out;
         }
         return readImage(file);
@@ -226,13 +248,13 @@ final class ProgramLoader {
         try {
             r = HmxParser.read(hmx);
         } catch (IOException e) {
-            out.errors.add(Text.of("Cannot read the file " + hmx.getName() + ": " + e.getMessage(),
-                    "파일을 읽을 수 없습니다. File: " + hmx.getName() + " (" + e.getMessage() + ")").get());
+            out.fail(0, Msg.of("Cannot read the file " + hmx.getName() + ": " + e.getMessage(),
+                    "파일을 읽을 수 없습니다. File: " + hmx.getName() + " (" + e.getMessage() + ")"));
             return out;
         }
         if (!r.ok()) {
             for (HmxError e : r.errors) {
-                out.errors.add(e.text(Text.korean()));
+                out.fail(e.line, Msg.of(e.text(false), e.text(true)));
             }
             return out;
         }
@@ -284,7 +306,7 @@ final class ProgramLoader {
                 Text.name("Data Memory").get());
         if (!plan.errors.isEmpty() || textTo == null || dataTo == null) {
             if (plan.errors.isEmpty()) {
-                plan.errors.add(Text.of("Nothing was loaded.", "아무것도 불러오지 않았습니다.").get()); // 고르기 취소
+                plan.fail(Msg.of("Nothing was loaded.", "아무것도 불러오지 않았습니다.")); // 고르기 취소
             }
             return plan; // 바꿀 것(changes)은 아직 하나도 없다
         }
@@ -383,10 +405,8 @@ final class ProgramLoader {
                 if (preferred.covers(s)) {
                     to = preferred;
                 } else {
-                    plan.errors.add(Text.of(s + " is outside the chosen " + preferred.describe()
-                            + ", so nothing was loaded.",
-                            s + " 구간이 고른 부품 " + preferred.describe() + " 영역 밖에 있어 아무것도 불러오지 않았습니다.")
-                            .get());
+                    plan.fail(Msg.of(s + " is outside the chosen " + preferred.describe() + ", so nothing was loaded.",
+                            s + " 구간이 고른 부품 " + preferred.describe() + " 영역 밖에 있어 아무것도 불러오지 않았습니다."));
                     continue;
                 }
             } else {
@@ -397,7 +417,7 @@ final class ProgramLoader {
                     }
                 }
                 if (covering.isEmpty()) {
-                    plan.errors.add(noMemory(s, candidates, kind).get(Text.korean()));
+                    plan.fail(noMemory(s, candidates, kind));
                     continue;
                 } else if (covering.size() == 1) {
                     to = covering.get(0);

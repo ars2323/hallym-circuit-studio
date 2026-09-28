@@ -5,7 +5,9 @@
  */
 package kr.ac.hallym.hcs.mips;
 
+import java.util.Collections;
 import java.util.Map;
+import java.util.SortedMap;
 import java.util.StringTokenizer;
 import java.util.TreeMap;
 
@@ -88,6 +90,11 @@ final class WordImage {
     /** 읽기 전용 부품(Instruction Memory)이 직접 읽는다. */
     int read(int addr) {
         return memory.read(addr);
+    }
+
+    /** 주소 → 워드(읽기 전용). v2 엔진의 디스어셈블·요약·다시 불러오기 비교가 쓴다(D-147). */
+    SortedMap<Long, Integer> words() {
+        return Collections.unmodifiableSortedMap(words);
     }
 
     Long firstAddress() {
