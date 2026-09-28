@@ -16,7 +16,7 @@ Hallym Circuit Studio 2의 화면(Electron)과 Java 엔진(headless Logisim 2.7.
 - stdin·stdout: **JSON-RPC 2.0, 한 줄에 한 JSON 객체**(UTF-8, 줄 끝 `\n`). 요청은 `{"jsonrpc":"2.0","id":N,"method":"…","params":{…}}`, 응답은 `{"jsonrpc":"2.0","id":N,"result":…}` 또는 `"error":{"code","message","data"}`.
   - `id`는 숫자·글자 모두 된다(받은 그대로 돌려준다). `params`는 이름 있는 객체만 받는다(배열이면 -32602). 여러 요청을 배열로 묶은 요청(batch)은 받지 않는다(-32600).
   - 화면이 `id` 없이 보낸 것(알림)은 처리만 하고 응답하지 않는다.
-- 엔진이 먼저 보내는 알림은 `id`가 없다(`model.changed`, `sim.values`, `sim.state`, `diag.changed`, `mips.facts`, `mips.reloaded`, `mips.console`, `engine.log`).
+- 엔진이 먼저 보내는 알림은 `id`가 없다(`model.changed`, `sim.values`, `sim.state`, `diag.changed`, `mips.facts`, `mips.reloaded`, `mips.console`, `engine.log`, N-11의 `file.changed`·`model.appearance`·`model.portImpact`·`file.libraryUpdated`).
 - stdout에는 규약 줄만 나온다. Logisim 코드가 `System.out`에 쓰는 것도 stderr로 돌린다. stderr는 사람이 읽는 로그다(화면은 파일에 남기지 않는다).
 - 요청은 순서대로 처리한다. 긴 일(N Cycles, Run Until)은 곧바로 응답하고 진행은 알림으로 보낸다. 편집의 `model.changed`는 그 편집의 응답 **뒤에**, 그 뒤의 `sim.values`보다 **앞에** 온다.
 - 끝: `engine.shutdown`에 응답한 뒤, stdin이 닫히면, 또는 부모 프로세스가 끝나면(7절) 열린 파일을 닫고 종료 코드 0으로 끝난다(저장하지 않는다). 메모리 전용 환경설정을 켜지 못하면 코드 3으로 바로 끝난다.
@@ -192,11 +192,14 @@ Component = {
 | `edit.setCircuitAttr` | `attr, value` | 회로 속성(이름 `circuit`, 라벨 `clabel` 등). `circuitId`가 대상 회로 |
 | `edit.createCircuit` | `name` | Project › Add Circuit(새 회로가 지금 회로가 된다). result `circuitId` |
 | `edit.setMainCircuit` | — | `circuitId`를 주 회로로 |
-| `edit.portOrder` | `order:{west\|east\|north\|south:[포트 이름]}, confirm?` | **제안(N-11):** 서브회로 포트 순서로 모양 만들기(v1 P-04). `circuitId`가 대상 서브회로 |
-| `edit.autoAppearance` | `confirm?` | **제안(N-11):** Auto Appearance(v1 S-08). `circuitId`가 대상 서브회로 |
-| `edit.importCircuits` | `path, circuits:[이름]` | **제안(N-11):** 다른 .circ의 회로 가져오기(v1 P-05, 쓰는 회로 함께) |
-| `edit.loadLibrary` | `kind:"builtin"\|"circ"\|"jar", name?, path?` | **제안(N-11):** Project › Load Library |
-| `edit.unloadLibrary` | `name` | **제안(N-11):** Unload Library |
+| `edit.portOrder` | `order:{west\|east\|north\|south:[포트 이름\|번호]}, confirm?` | 서브회로 포트 순서로 모양 만들기(v1 P-04). `circuitId`가 대상 서브회로. **N-11에서 확정**(아래) |
+| `edit.autoAppearance` | `confirm?` | Auto Appearance(v1 S-08). `circuitId`가 대상 서브회로. **N-11 확정** |
+| `edit.importCircuits` | `path, circuits:[이름]` | 다른 .circ의 회로 가져오기(v1 P-05, 쓰는 회로 함께). **N-11 확정** |
+| `edit.loadLibrary` | `kind:"builtin"\|"circ"\|"jar", name?, path?, className?` | Project › Load Library. **N-11 확정** |
+| `edit.unloadLibrary` | `name` | Unload Library. **N-11 확정** |
+| `edit.deleteCircuit` | — | Project › Remove Circuit(`circuitId`). **N-11** |
+| `edit.moveCircuit` | `to` | 회로 차례(Move Circuit Up/Down, 부품 목록 끌기). **N-11** |
+| `edit.appearance` | `op, …` | 모양 편집(Edit Circuit Appearance의 도구·Edit 메뉴, `circuitId`의 모양). **N-11** |
 | `edit.tunnelColor` | `id, color?:"#rrggbb"` | 터널 색(v1 팔레트 12색, 없으면 Automatic). 그 회로의 같은 이름 터널 모두. hcs:ext(N-12, 아래) |
 | `edit.signalGroup` | `wire, group?:"control"\|"data"\|"address"` | 신호 그룹(없으면 없음). hcs:ext(N-15, 아래) |
 | `edit.areaMemo` | `at, ids?, text?, color?, bounds?:[x,y,w,h], delete?` | 영역 메모 더하기(고른 것을 감싼 상자에서 시작)·고치기·맞추기·지우기. hcs:ext(N-15, 아래) |
@@ -236,6 +239,63 @@ Component = {
 - `edit.signalGroup {wire, group?}`: 선 `wire`의 넷에 그룹을 정한다(`group`이 없으면 None: 학생이 정한 그룹을 뗀다). 넷은 이름(터널·핀 라벨), 없으면 가장 작은 자리로 저장된다(v1). 이미 같으면 `changed:false, outcome:"same"`(Swing은 같은 그룹도 한 단계로 적는다: 차이는 되돌리기 기록뿐이고 저장 결과는 같다). 선이 아니면 -32602, 모르는 그룹 -32602.
 - `edit.areaMemo {at, ids?, text?, color?, bounds?, delete?}`: `at`을 감싸는 메모(겹치면 가장 작은 것)가 있으면 그 메모를 **고친다**: 준 것만 바뀐다(`text` 앞뒤 공백 뺌, `color` 0~11, `bounds` [x,y,w,h] 폭·높이 20 이상), `bounds` 없이 `ids`를 주면 그 부품·선 둘레로 맞춘다(Fit Area Memo to Selection), 같으면 `outcome:"same"`. `delete:true`면 그 메모를 지운다(없으면 `outcome:"noMemo"`). 감싸는 메모가 없으면 **더한다**(Add Area Memo…): `ids`의 둘레(여백 20, 격자에 맞춤), 없으면 `at`에 200×120, 색은 주지 않으면 메모 수로 돌아가며. result `outcome`: `"added"`·`"edited"`·`"deleted"`. 되돌린 지우기는 메모를 목록 끝에 다시 붙인다(v1, 그리기 차례만 다르다).
 - 두 의도 뒤에는 부품이 바뀌지 않아도 `model.changed`가 온다(`removed`·`added`는 비고 `groups`·`memos`가 새것). 되살리기 저널(7절)에 그대로 적힌다: `wire`·`ids`는 부품으로, `at`·`bounds`는 자리다.
+
+**회로·모양·라이브러리·다른 파일(N-11, D-153, 확정).** 모두 원조 동작 객체(`LogisimFileActions`, 원조 모양 편집기의 `ModelAction`, v1 `AutoAppearance`·`CircuitImport`)를 `Project.doAction`에 한 번 넘긴다: 되돌리기 한 단계. 원조가 오류 창으로 거절하던 것은 오류 3(`data.reason`)이다. 경로(`path`)는 절대 경로이거나 이 파일(.circ)의 폴더 기준 상대 경로다(편집 동등성 의도 파일의 `inputs/adders.circ`·`hcs-mips.jar`가 그대로 간다). 화면은 경로를 보내지 않는다: main 프로세스가 고르기 창에서 얻어 보낸다.
+
+- `edit.createCircuit {name}`(N-08): 원조 이름 검사(빈 이름 `nameMissing`, 있는 이름 `nameTaken`, -32602). result `circuitId`. `edit.setMainCircuit`(같으면 `outcome:"same"`), `edit.setCircuitAttr {attr:"circuit", value}`(이름 바꾸기, 인스턴스가 따라간다).
+- `edit.deleteCircuit`: 원조 `doRemoveCircuit`. 마지막 회로 `lastCircuit`, 다른 회로가 쓰는 회로 `inUse`(오류 3). 보던 회로를 지우면 원조 Project가 주 회로로 돌아간다.
+- `edit.moveCircuit {to}`: 옮긴 뒤 자리(0부터). 같은 자리 `outcome:"same"`, 밖이면 -32602.
+- `edit.portOrder {order, confirm?}`·`edit.autoAppearance {confirm?}`: v1 `PortOrderDialog.apply`·`AutoAppearance.run`. `order`의 변은 `west east north south`, 목록 항목은 핀 이름(라벨; 같은 이름이 여럿이면 지금 차례로 하나씩) 또는 지금 차례의 번호이고, 준 변은 그 변의 포트를 모두 한 번씩 든다(아니면 -32602). 이 회로를 쓰는 인스턴스에서 이어진 포트가 움직이면 `confirm:false`일 때 바꾸지 않고 `{changed:false, outcome:"needsConfirm", impact:{instances, connections, where:[글]}}`(v1 확인 창, `where`는 `main › half #1`, 화면은 8곳까지 보인다). `confirm`은 기본 참(Swing Apply). 바꾸면 result에도 `impact`가 있을 수 있다. 핀이 없으면 `outcome:"noPorts"`.
+- `edit.importCircuits {path, circuits}`: v1 Import Subcircuits…의 Apply(딸린 서브회로 먼저, 이미 있는 이름은 `이름-2`, 이 파일에 없는 라이브러리 부품은 빠짐). result `plan`(아래 `model.importPlan`과 같다). 같은 파일 `sameFile`(3), 읽지 못함 2, 없는 회로 -32602. v1은 원조 `new Loader`로 열어 그 파일의 Wiring 도구 일곱 개 설정(`<lib desc="#Wiring"><tool>`)이 모든 열린 파일의 도구에 남았다(골든 09). 엔진은 파일마다 제 도구라(D-149) 그 설정을 **이 파일의** Wiring 도구에만 옮긴다.
+- `edit.loadLibrary {kind, name?, path?, className?}`: `builtin`은 이 파일에 없는 기본 라이브러리 `name`(없으면 -32602), `circ`은 원조 `loadLogisimLibrary`(자기 자신 `self`, 엔진이 연 그 파일이 이미 이 파일을 쓰면 `circular`, 없는 파일 2, 이미 있으면 `outcome:"already"`), `jar`는 manifest의 `Library-Class`(없으면 `className`, 그것도 없으면 -32602 `noLibraryClass`). result `lib`: 넣은 라이브러리 이름(부품 목록의 `lib`). 다시 넣은 기본 라이브러리는 원조처럼 목록 끝에 붙는다(골든 11).
+- `edit.unloadLibrary {name}`(라이브러리 이름 또는 보이는 이름): 원조 `getUnloadLibraryMessage`로 거절하면 오류 3, `reason`은 `inUse`(`data.circuit`: 그 부품을 쓰는 첫 회로) 또는 `toolbar`(원조 도구 모음·마우스 설정이 그 도구를 씀). `message`는 원조 영어 글이다(화면은 까닭으로 문장을 짓는다).
+- `edit.appearance {op, …}`: 원조 모양 편집기(Project › Edit Circuit Appearance). 엔진은 회로마다 화면에 붙지 않은 원조 `AppearanceView`(Canvas와 Edit 메뉴 처리기)를 두고, 원조 도구가 마우스를 뗄 때 넘기는 동작을 같은 `AppearanceCanvas.doAction`으로 보낸다: 포트·기준점은 늘 맨 위이고 인스턴스가 있는 회로는 원조 거래 안에서 바뀐다. 편집하면 그 회로가 지금 회로가 된다(Swing과 같다). 도형은 **아래부터의 번호**(0부터, `model.appearance`의 `i`)로 가리키고, 고른 것은 화면의 몫이다. result `selected`: 원조 편집기가 그 동작 뒤에 고른 도형 번호들.
+
+  | op | 더 받는 것 | 원조 |
+  | --- | --- | --- |
+  | `add` | `shape:{kind, bounds?:[x,y,w,h], points?:[[x,y]…], at?, text?}, attrs?` | 그리기 도구(`rect roundrect oval`: bounds, `line`: 두 점, `polyline polygon`: 두 점 이상, `curve`: [끝, 끝, 조절점], `text`: at·text). 도구 속성(`attrs`, 원조 DrawingAttributeSet 이름: `stroke-width stroke fill paintType rx font align`)을 입힌다. 원조 PolyTool은 입히지 않아 다각선·다각형은 기본 속성이다(원조 그대로). 빈 새 글은 `outcome:"empty"`. result `index` |
+  | `move` | `shapes, dx, dy` | 고르기 도구 끌기(ModelTranslateAction). 포트·기준점도 옮긴다 |
+  | `handle` | `shape, at, dx, dy, shift?, ctrl?, alt?` | 손잡이 끌기(HandleGesture, ModelMoveHandleAction). 그 자리에 움직이는 손잡이가 없으면 -32602. result `handle?`: 그 뒤 고른 꼭짓점 |
+  | `delete` `cut` `copy` `paste` `duplicate` | `shapes` | Edit 메뉴(원조 AppearanceEditHandler. Copy도 원조처럼 되돌리기 한 단계, 클립보드는 앱 하나에 하나). 지울 수 없는 포트·기준점은 남기고 고른 채 둔다. 빈 클립보드 `outcome:"emptyClipboard"` |
+  | `raise` `lower` `raiseTop` `lowerBottom` | `shapes` | Edit › Raise …(포트 위로는 가지 않는다) |
+  | `addVertex` `removeVertex` | `shape, at` | Edit › Add/Remove Vertex(그 자리의 꼭짓점, 없으면 `outcome:"noVertex"`) |
+  | `setAttr` | `shapes, attr, value` | 속성 표(ModelChangeAttributeAction). 맞춤 `align`은 `left center right`, 기준점의 `facing`도. 같으면 `outcome:"same"` |
+  | `text` | `shape, text` | 글자 도구로 고치기. 빈 글이면 지운다 |
+  | `revert` | — | Project › Revert To Default Appearance. 원조 동작은 인스턴스가 있으면 거래 밖에서 포트를 바꿔 멈추므로(원조 결함) 쓰는 회로를 잠근 거래 안에서 부른다. 이미 기본이면 `outcome:"same"` |
+
+  모양이 바뀌면 그 인스턴스들이 `model.changed`의 `added`로, 연 모양이 `model.appearance` 알림으로 온다.
+
+물음(모델을 바꾸지 않는다):
+
+| 메서드 | params | result |
+| --- | --- | --- |
+| `model.ports` | `{fileId, circuitId}` | `{circuitId, name, default, sides:{west,east,north,south:[{name, width, input}]}, instances}`: Port Order 창(v1 `AutoAppearance.sides`: 핀이 보는 방향의 반대 변, 지금 모양의 차례) |
+| `model.instances` | `{fileId, circuitId}` | `{circuitId, main, mainName, paths:[{ids, names, text}], instances, connected, default}`: 주 회로에서 이 회로까지의 인스턴스 경로(v1 `InstancePaths`, 위치 차례, 64개까지; `text` = `main › cpu › alu`), 쓰는 인스턴스 수, 이어진 포트 수(인스턴스 안내 띠, 핀 도구 미리 보기) |
+| `model.pinImpact` | `{fileId, circuitId, ids}` | `{connections, instances}`: 이 핀들을 지우거나 옮기면 끊길 수 있는 연결(v1 `InstanceBanner.previewText`) |
+| `model.appearance` | `{fileId, circuitId}` | 아래 `AppearanceEdit`. 부른 뒤로 그 회로의 모양이 바뀌면 같은 모양의 알림 `model.appearance`가 온다(파일을 닫을 때까지) |
+| `model.appearanceHit` | `{fileId, circuitId, at?, selected?, zoom?, rect?:[x0,y0,x1,y1]}` | `{handle?:{shape, at}, clicked?, top, topFilled, removable?, insertable?, inRect?}`: 원조 고르기 도구가 누른 자리에서 묻는 것(고른 도형의 움직이는 손잡이(배율에 따른 크기), 채움 없이·채운 것으로 본 맨 위 도형, 지울·더할 꼭짓점, 사각형 안 도형) |
+| `model.appearanceHandles` | `{fileId, circuitId, shape, at, dx, dy, shift?, ctrl?, alt?}` | `{handles:[[x,y]]}`: 손잡이를 끄는 동안의 모습(원조 `getHandles(gesture)`) |
+| `model.appearanceMenu` | `{fileId, circuitId, shapes, vertexShape?, vertexAt?}` | `{cut, copy, paste, delete, duplicate, raise, lower, raiseTop, lowerBottom, addVertex, removeVertex}`: 원조 Edit 메뉴의 켜짐(`computeEnabled`) |
+| `model.libraries` | `{fileId}` | `{builtins:[{name, display}], loaded:[{name, display, usedIn}], openFiles:[{fileId, state, lib?, circuits, main}], mips}`: Load/Unload Library 창과 탭 간 라이브러리. `state`: `ok`, `loaded`(이미 라이브러리), `unsaved`, `self`, `circular` |
+| `model.importPlan` | `{fileId, path, circuits}` | `{order:[{name, as}], skipped:[글]}`: 가져오기 계획(v1 계획 창) |
+| `file.peek` | `{fileId, path}` | `{name, main, circuits:[{name, uses:[이름]}]}`: 가져오기 창의 목록 |
+| `file.saveImpact` | `{fileId}` | `{cuts:[{fileId, file, instances:[이름], connections}]}`: 지금 내용으로 저장하면 이 파일을 라이브러리로 쓰는 다른 열린 파일에서 끊길 연결(v1 `LibrarySync.impact`, D-065. 원조 기본 모양은 핀을 지우면 남은 포트가 당겨져 옆 선에 조용히 붙는다) |
+| `file.originOf` | `{fileId, circuitId}` | `{path, circuit}`: 라이브러리 회로의 파일(v1 Edit Original File). 이 파일의 회로면 `path:null` |
+| `file.copyMipsJar` | `{fileId}` | `{name}`: 번들 `hcs-mips.jar`를 저장한 .circ 옆에 복사한다(v1 [Copy hcs-mips.jar Here], D-096. 누르기 전에는 복사하지 않는다). 저장한 적 없으면 -32602 |
+
+```
+AppearanceEdit = {fileId, circuitId, name, default, editable,
+  shapes:[{i, kind, svg:{tag, attrs, text?}, attrs:{이름: 글자}, handles:[[x,y]], moves:[bool], bounds:[x,y,w,h],
+           removable, points?, closed?, text?, at?, port?:{input, pin:[x,y], name, width, at}, facing?}]}
+```
+
+`kind`: `rect roundrect oval line polyline polygon curve text port anchor`. `svg`는 원조 `<appear>`에 적히는 요소 그대로(인스턴스의 `appearance.shapes`와 같은 꼴), `attrs`는 원조 속성 표의 값(맞춤은 `left center right`), `handles`·`moves`는 원조 손잡이와 움직일 수 있는지.
+
+알림:
+
+- `file.changed = {fileId, name, circuits:[CircuitRef], main, libraries:[LibRef], dirty}`: 편집·되돌리기 뒤 회로 목록(차례·이름), 주 회로, 라이브러리가 바뀌었을 때만.
+- `model.portImpact = {fileId, circuitId, name, broken, kept}`: 주 회로가 아닌 회로를 보며 한 편집이 그 인스턴스의 이어진 포트를 끊었다(v1 P-02, D-064: 핀을 지움, 포트가 떨어지거나 옆 선에 붙음). 옛 자리에 선 끝이 남고 새 자리가 비었으면 v1처럼 선을 이어 되살린다(`kept`, 부모 회로마다 따로 되돌리는 한 단계 "Keep Instance Connections", 검사기 WireGuard). 되돌리기·다시 실행에는 하지 않는다(v1과 같다).
+- `file.libraryUpdated = {fileId, library}`: 이 파일이 라이브러리로 쓰는 `library`(파일 이름)가 다른 탭에서 저장되어, 원조 `Loader.reload`로 새 버전을 받고 그 인스턴스를 새 부품으로 바꿨다(원조 `LoadedLibrary`가 창의 프로젝트에 하는 것과 같은 CircuitMutation, 되돌리기 기록 밖). 시뮬레이션은 처음으로 돌아간다(v1 D-065). 앞에 그 파일의 `model.changed`가 온다.
 
 `model.changed = {fileId, circuitId, removed:[id], added:[Component|Wire], nets, junctions, groups, memos, dirty}`
 

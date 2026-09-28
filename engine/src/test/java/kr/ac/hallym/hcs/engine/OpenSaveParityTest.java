@@ -358,6 +358,21 @@ class OpenSaveParityTest {
         // Find와 검색 창(N-12): 이름 색인을 만들고 붙은 포트로 자리 글을 짓는다(읽기만)
         e.client.callObject("find.query", params("fileId", fileId, "text", "a"));
         e.client.callObject("find.query", params("fileId", fileId, "text", "Register"));
+        // 회로·모양·라이브러리 창(N-11, D-153): Circuits 패널, Port Order 창, 모양 편집 화면, 인스턴스 안내 띠,
+        // Load/Unload Library 창, 저장 전 영향. 모두 읽기만 한다(모양 편집 화면은 원조 AppearanceView를 만든다)
+        e.client.callObject("model.libraries", params("fileId", fileId));
+        e.client.callObject("file.saveImpact", params("fileId", fileId));
+        for (JsonElement ce : opened.getAsJsonArray("circuits")) {
+            String id = ce.getAsJsonObject().get("circuitId").getAsString();
+            e.client.callObject("model.ports", params("fileId", fileId, "circuitId", id));
+            e.client.callObject("model.instances", params("fileId", fileId, "circuitId", id));
+            JsonObject app = e.client.callObject("model.appearance", params("fileId", fileId, "circuitId", id));
+            int shapes = app.getAsJsonArray("shapes").size();
+            e.client.callObject("model.appearanceMenu", params("fileId", fileId, "circuitId", id, "shapes",
+                    shapes > 0 ? new Object[] {0} : new Object[0]));
+            e.client.callObject("model.appearanceHit", params("fileId", fileId, "circuitId", id, "at",
+                    new Object[] {50, 50}, "rect", new Object[] {0, 0, 200, 200}));
+        }
         if (opened.get("main").isJsonNull()) {
             return;
         }

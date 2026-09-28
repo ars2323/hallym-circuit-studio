@@ -117,6 +117,9 @@ public final class CircuitIntents {
     /** Auto Appearance(v1 S-08): 지금 포트 차례로 v1 표준 모양. 끊어질 연결은 {@link #portOrder}와 같이 묻는다. */
     public static Result autoAppearance(Doc d, Circuit c, boolean confirm) throws RpcError {
         Intents.editable(d, c);
+        if (AutoAppearance.sides(c).values().stream().allMatch(List::isEmpty)) {
+            return Result.unchanged("noPorts");
+        }
         return apply(d, c, AutoAppearance.build(c), confirm);
     }
 

@@ -35,6 +35,7 @@ import com.cburch.draw.shapes.Rectangle;
 import com.cburch.draw.shapes.RoundRectangle;
 import com.cburch.draw.shapes.Text;
 import com.cburch.draw.tools.DrawingAttributeSet;
+import com.cburch.logisim.circuit.appear.AppearancePort;
 import com.cburch.logisim.circuit.Circuit;
 import com.cburch.logisim.data.Attribute;
 import com.cburch.logisim.data.AttributeOption;
@@ -213,8 +214,7 @@ public final class AppearanceIntents {
         case "lowerBottom":
         case "paste": {
             List<CanvasObject> objs = shapes(c, indices(p, "shapes"));
-            sel.clearSelected();
-            sel.setSelected(objs, true);
+            select(s, objs);
             Session ss = s;
             if (op.equals("paste") && !enabled(s).getOrDefault(LogisimMenuBar.PASTE, false)) {
                 return Result.unchanged("emptyClipboard");
@@ -233,7 +233,16 @@ public final class AppearanceIntents {
                 }
             });
             Result r = changed ? new Result(true, null, null) : Result.unchanged("nothing");
-            return r.with("selected", selectedJson(c, sel.getSelected()));
+            // 원조는 지울 수 없는 포트를 고른 채 둔다(SelectionAction): 고른 포트를 다시 더한다
+            List<CanvasObject> now = new ArrayList<>(sel.getSelected());
+            if (!op.equals("paste")) {
+                for (CanvasObject o : objs) {
+                    if (o instanceof AppearancePort && !now.contains(o)) {
+                        now.add(o);
+                    }
+                }
+            }
+            return r.with("selected", selectedJson(c, now));
         }
         case "addVertex":
         case "removeVertex": {
@@ -268,13 +277,75 @@ public final class AppearanceIntents {
             if (c.getAppearance().isDefaultAppearance()) {
                 return Result.unchanged("same");
             }
-            d.project().doAction(new RevertAppearanceAction(c));
+            // 원조 Revert는 인스턴스가 있으면 거래 밖에서 포트를 바꿔 멈춘다(원조 결함, v1 AutoAppearance와 같은 까닭):
+            // 원조 동작을 이 회로를 쓰는 회로들을 잠근 거래 안에서 부른다
+            d.project().doAction(locked(c, new RevertAppearanceAction(c)));
             return new Result(true, null, null).with("selected", new JsonArray());
         }
         default:
             throw RpcError.params("op must be add, move, handle, delete, cut, copy, paste, duplicate, raise, lower,"
                     + " raiseTop, lowerBottom, addVertex, removeVertex, setAttr, text or revert");
         }
+    }
+
+    /**
+     * 캔버스의 고른 것을 objs로. 포트는 원조 모양 편집 화면의 선택에 넣지 않는다: 포트를 고르면 원조 LayoutPopupManager가
+     * 화면에 회로 축소 그림 창을 띄우려다(화면에 붙지 않아) 멈춘다. 포트는 어느 Edit 메뉴 동작에서도 옮기거나 지우거나
+     * 복사하지 않으므로(canRemove 거짓) 동작은 같다.
+     */
+    private static void select(Session s, List<CanvasObject> objs) {
+        Selection sel = s.canvas.getSelection();
+        sel.clearSelected();
+        List<CanvasObject> keep = new ArrayList<>();
+        for (CanvasObject o : objs) {
+            if (!(o instanceof AppearancePort)) {
+                keep.add(o);
+            }
+        }
+        sel.setSelected(keep, true);
+    }
+
+    /** 원조 동작을 c를 쓰는 회로들을 잠근 거래 안에서(원조 CanvasActionAdapter, v1 AutoAppearance.inUsers와 같은 방법). */
+    static com.cburch.logisim.proj.Action locked(Circuit c, com.cburch.logisim.proj.Action inner) {
+        return new com.cburch.logisim.proj.Action() {
+            @Override
+            public String getName() {
+                return inner.getName();
+            }
+
+            @Override
+            public boolean isModification() {
+                return inner.isModification();
+            }
+
+            @Override
+            public void doIt(com.cburch.logisim.proj.Project proj) {
+                inUsers(c, () -> inner.doIt(proj));
+            }
+
+            @Override
+            public void undo(com.cburch.logisim.proj.Project proj) {
+                inUsers(c, () -> inner.undo(proj));
+            }
+        };
+    }
+
+    private static void inUsers(Circuit c, Runnable r) {
+        new com.cburch.logisim.circuit.CircuitTransaction() {
+            @Override
+            protected Map<Circuit, Integer> getAccessedCircuits() {
+                Map<Circuit, Integer> m = new HashMap<>();
+                for (Circuit sup : c.getCircuitsUsingThis()) {
+                    m.put(sup, READ_WRITE);
+                }
+                return m;
+            }
+
+            @Override
+            protected void run(com.cburch.logisim.circuit.CircuitMutator mutator) {
+                r.run();
+            }
+        }.execute();
     }
 
     /** r 동안 원조 Project.doAction이 불렸는가(원조 처리기·AppearanceCanvas가 동작을 넘겼는지; 되돌리기 한 단계). */
@@ -498,8 +569,8 @@ public final class AppearanceIntents {
             throws RpcError {
         Session s = session(d, c);
         Selection sel = s.canvas.getSelection();
-        sel.clearSelected();
-        sel.setSelected(shapes(c, shapes), true);
+        List<CanvasObject> objs = shapes(c, shapes);
+        select(s, objs);
         sel.setHandleSelected(null);
         if (vertexShape != null && vertexAt != null) {
             CanvasObject o = shape(c, vertexShape);
@@ -511,10 +582,13 @@ public final class AppearanceIntents {
         sel.setHandleSelected(null);
         JsonObject o = new JsonObject();
         o.addProperty("cut", on.getOrDefault(LogisimMenuBar.CUT, false));
-        o.addProperty("copy", on.getOrDefault(LogisimMenuBar.COPY, false));
+        // 포트만 고른 것(캔버스 선택에 넣지 않은 것)도 원조에서는 고른 것이 있어 Copy·Duplicate가 켜진다
+        boolean portsOnly = !objs.isEmpty() && sel.getSelected().isEmpty();
+        boolean canChange = d.file().contains(c);
+        o.addProperty("copy", on.getOrDefault(LogisimMenuBar.COPY, false) || portsOnly);
         o.addProperty("paste", on.getOrDefault(LogisimMenuBar.PASTE, false));
         o.addProperty("delete", on.getOrDefault(LogisimMenuBar.DELETE, false));
-        o.addProperty("duplicate", on.getOrDefault(LogisimMenuBar.DUPLICATE, false));
+        o.addProperty("duplicate", on.getOrDefault(LogisimMenuBar.DUPLICATE, false) || portsOnly && canChange);
         o.addProperty("raise", on.getOrDefault(LogisimMenuBar.RAISE, false));
         o.addProperty("lower", on.getOrDefault(LogisimMenuBar.LOWER, false));
         o.addProperty("raiseTop", on.getOrDefault(LogisimMenuBar.RAISE_TOP, false));
