@@ -25,7 +25,7 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, writeFileSync } from 
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { describe, diffStates, measureNoise, NAMES_US, quiet, report as stateReport, snapshot, type NoiseFile, type State } from '../../tools/windows/state.ts';
+import { auditedWriters, auditFrom, describe, diffStates, measureNoise, NAMES_US, quiet, report as stateReport, snapshot, type NoiseFile, type State } from '../../tools/windows/state.ts';
 import { aboutEngineLine, alive, call, circuitsOf, engineHello, enginePid, openFileIds } from './model.ts';
 
 const exe = process.env.HCS_E2E_EXE;
@@ -117,7 +117,9 @@ async function control(what: string, ms = CONTROL_MS): Promise<{ before: State; 
 function nothingLeft({ before, noise, ms }: { before: State; noise: NoiseFile; ms: number }, what: string, runMs: number): void {
   expect(runMs, `${what}: the run (${Math.round(runMs)} ms) no longer than its control period`).toBeLessThanOrEqual(ms);
   const after = snapshot();
-  const { lines, bad } = stateReport(`${what} (run ${Math.round(runMs)} ms, control ${ms} ms)`, diffStates(before, after), 'none', [noise]);
+  // Who wrote Explorer's caches and counters meanwhile (D-164: the audit trail CI turns on, tools/windows/audit.ps1).
+  const writers = auditedWriters(auditFrom(before.taken), new Date().toISOString());
+  const { lines, bad } = stateReport(`${what} (run ${Math.round(runMs)} ms, control ${ms} ms)`, diffStates(before, after), 'none', [noise], writers);
   mkdirSync(report, { recursive: true });
   writeFileSync(path.join(report, `state-${what}.txt`), `${lines.join('\n')}\n`);
   expect(bad.map(describe), `${what}: left on the PC (report/state-${what}.txt)`).toEqual([]);

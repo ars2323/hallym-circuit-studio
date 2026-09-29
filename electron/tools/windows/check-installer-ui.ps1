@@ -170,7 +170,7 @@ $ReportFull = (Resolve-Path $Report).Path
 $installDir = Join-Path $env:LOCALAPPDATA 'Programs\Hallym Circuit Studio'
 function Snap([string]$name) { & node tools/windows/state.ts snapshot (Join-Path $ReportFull "state-$name.json") | Out-Host }
 function StateDiff([string]$a, [string]$b, [string]$expect, [string]$control, [string]$what) {
-  & node tools/windows/state.ts diff (Join-Path $ReportFull "state-$a.json") (Join-Path $ReportFull "state-$b.json") --expect $expect --noise (Join-Path $ReportFull "noise-$control.json") --report (Join-Path $ReportFull "diff-$b.txt") | Out-Host
+  & node tools/windows/state.ts diff (Join-Path $ReportFull "state-$a.json") (Join-Path $ReportFull "state-$b.json") --expect $expect --noise (Join-Path $ReportFull "noise-$control.json") --audit --report (Join-Path $ReportFull "diff-$b.txt") | Out-Host
   Check ($LASTEXITCODE -eq 0) "$what (state $a -> $b, expect ${expect}: $ReportFull\diff-$b.txt)"
 }
 # A program started without the shell (ShellExecute would record the launch in the user's jump lists: the

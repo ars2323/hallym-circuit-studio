@@ -108,6 +108,7 @@ import { answerRecovery, recoveredNote } from './logic/recovery-ask.ts';
 import { settleUnsaved, type Leaving } from './logic/unsaved.ts';
 import { RUN_DEFAULTS, RUN_ONLY } from './logic/run-settings.ts';
 import { startScreen } from './start.ts';
+import { keepTabInModal } from '../shared/modal-tab.ts';
 
 const api = window.app;
 const APP_NAME = 'Hallym Circuit Studio';
@@ -2025,6 +2026,8 @@ function updateOverlay(): void {
 new MutationObserver(updateOverlay).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'open'] });
 
 // ---- keys ---------------------------------------------------------------------------------
+
+keepTabInModal(document); // Tab goes round inside a modal dialog, never out of the page (D-164)
 
 window.addEventListener('keydown', (e) => {
   if (document.querySelector('dialog[open]')) return; // the dialog has the keys (Esc closes it)

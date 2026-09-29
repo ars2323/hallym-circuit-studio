@@ -78,7 +78,7 @@ function Snap([string]$name) { & node tools/windows/state.ts snapshot (Join-Path
 # The comparison of state $a with $b lets through only the places Windows changed by itself in the control period
 # measured just before this phase ($control: report/noise-<control>.json), never another phase's.
 function StateDiff([string]$a, [string]$b, [string]$expect, [string]$control, [string]$what) {
-  & node tools/windows/state.ts diff (Join-Path $Report "state-$a.json") (Join-Path $Report "state-$b.json") --expect $expect --noise (Join-Path $Report "noise-$control.json") --report (Join-Path $Report "diff-$b.txt") | Out-Host
+  & node tools/windows/state.ts diff (Join-Path $Report "state-$a.json") (Join-Path $Report "state-$b.json") --expect $expect --noise (Join-Path $Report "noise-$control.json") --audit --report (Join-Path $Report "diff-$b.txt") | Out-Host
   Check ($LASTEXITCODE -eq 0) "$what (state $a -> $b, expect ${expect}: $Report\diff-$b.txt)"
 }
 # Starts a program and waits for it, without the shell (Start-Process goes through ShellExecute,
