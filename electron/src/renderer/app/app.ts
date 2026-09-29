@@ -424,8 +424,8 @@ async function startTutorial(track: Course): Promise<void> {
 function setCourse(c: Course): void {
   const changed = c !== course;
   course = c;
-  courseChip.hidden = false;
-  courseChip.textContent = COURSE_NAMES[c];
+  courseChip.replaceChildren(icon(c === 'logic' ? 'circuit-board' : 'cpu'), h('span', { class: 'label' }, COURSE_NAMES[c]));
+  courseChip.setAttribute('aria-label', COURSE_NAMES[c]);
   courseChip.dataset.course = c;
   document.documentElement.dataset.course = c;
   const load = showing('loadProgram');
@@ -435,6 +435,8 @@ function setCourse(c: Course): void {
   cycleView.setSideShown(showing('cycleSide'));
   if (!changed) return;
   void overlays.refreshCycle(true);
+  const f = files.active();
+  if (f) void refreshChanged(f.fileId);   // the registers the cycle changed (컴퓨터구조's status bar)
   render();
 }
 const stage = h('div', { class: 'stage-welcome' }, start.root);
@@ -980,6 +982,7 @@ function layout(): void {
   const open = files.count() > 0;
   stage.hidden = !decided || open || opening;
   start.show(!stage.hidden); // the video plays on the first screen only (D-155)
+  courseChip.hidden = course === null || !stage.hidden;   // the course is the card's question there (A-08)
   shell.hidden = !open;
   if (!stage.hidden && !startSeen) { startSeen = true; document.documentElement.dataset.startSeen = 'true'; }
   if (open) {
@@ -1524,7 +1527,7 @@ function renderStatus(): void {
     // The registers the cycle on show changed (Hallym MIPS's 방금 바뀜), while the clock does not run.
     const ch = changedNow.get(f.fileId);
     const rec = cycleView.state(f.fileId);
-    if (ch && rec && ch.cycle === rec.cycle && !f.sim?.ticking && ch.chip) {
+    if (ch && rec && ch.cycle === rec.cycle && !f.sim?.ticking && ch.chip && showing('statusChanged')) {
       fact(KEEP.changed, span('changed', 'Changed ', ...ch.chip.shown.flatMap((n, i) => (i ? [', ', code(n)] : [code(n)])), ch.chip.more ? ` +${ch.chip.more}` : ''), true);
     }
   }
@@ -1553,7 +1556,7 @@ let askingChanged: string | null = null;
 async function refreshChanged(fileId: string): Promise<void> {
   const rec = cycleView.state(fileId);
   const f = files.get(fileId);
-  if (!rec || !f || rec.empty || !rec.cpu || f.sim?.ticking || engine.state !== 'ready') return;
+  if (!rec || !f || rec.empty || !rec.cpu || f.sim?.ticking || engine.state !== 'ready' || !showing('statusChanged')) return;
   if (changedNow.get(fileId)?.cycle === rec.cycle || askingChanged === fileId) return;
   askingChanged = fileId;
   try {
@@ -1783,7 +1786,7 @@ function dropFile(fileId: string): void {
   consoleView.drop(fileId);
   overlays.fileClosed(fileId);
   note = null;
-  if (files.count() === 0) start.go('first');
+  if (files.count() === 0) start.go('course');
   render();
 }
 
@@ -2109,7 +2112,7 @@ function onRecovered(r: Recovered): void {
   for (const f of r.closed) { files.close(f.fileId); programs.drop(f.fileId); consoleView.drop(f.fileId); }
   for (const f of r.restored) files.reopened(f.fileId, f.dirty);
   for (const f of r.lost) files.reopened(f.fileId, false);
-  if (files.count() === 0) start.go('first');
+  if (files.count() === 0) start.go('course');
   note = null;
   notices.show(text.band, 'warn');
   render();

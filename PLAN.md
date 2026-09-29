@@ -93,7 +93,7 @@ Logisim 2.7.1을 포크하되 시뮬레이션 엔진은 손대지 않고, Hallym
 | 글꼴 | 이름·문장은 Pretendard, 값·주소는 D2Coding(둘 다 SIL OFL 1.1, Hallym MIPS에서 가져온 woff2) | Hallym MIPS와 동일. D2Coding은 0과 O를 가른다 |
 | 그리기 | Canvas 2D. 부품 모양은 벡터 정의(윤곽·곡선·포트 표시·글자 자리)로 부품 렌더러 등록표 하나에 둔다. 크기와 포트 위치는 엔진 값 그대로이고, 그림 내보내기(SVG·PDF·PNG)도 같은 정의를 쓴다(D-137) | ref-mips에서 Canvas와 SVG 요소를 재 보니 클럭 중 선 색 갱신에서 Canvas만 60fps를 지켰다. 원조와 같은 크기·포트라 원조에서 열어도 선이 붙는다 |
 | 실습실 PC | 껐다 켜면 모두 기본값. 앱과 엔진은 설정을 디스크에 남기지 않는다. 비정상 종료 복구 파일은 학생 파일 옆에만 둔다(D-152) | 실습실 PC는 여럿이 쓴다. Hallym MIPS와 같다 |
-| 교과목 | 논리설계 및 실험, 컴퓨터구조. 교과목별 화면: A-08(#458). 예전 결정 "교과목 선택은 튜토리얼에만 쓰고 화면 구성은 같다"(O-08)는 사용자가 뒤집었다(2026-09-29) | 한 도구를 두 과목이 함께 쓴다 |
+| 교과목 | 논리설계 및 실험, 컴퓨터구조. **교과목별 화면**(12.5, A-08, D-168): 켤 때마다 교과목을 먼저 묻고(기억하지 않음), 논리설계 및 실험에서는 MIPS 전용 부품(Instruction Memory, Data Memory, Console, Stack)과 MIPS 기능(Load Program…, Cycle View의 Registers·Memory·Instruction, Mark as PC·Register File, Register Mapping, 필드 색, 상태 표시줄의 PC·Program·Changed, 실행 이미지 알림)을 가린다. Radix Probe는 두 교과목 모두 보인다. 엔진과 저장 파일은 교과목과 상관없다. 예전 결정 "교과목 선택은 튜토리얼에만 쓰고 화면 구성은 같다"(O-08)는 대체됨 (D-168, 사용자 2026-09-29) | 한 도구를 두 과목이 함께 쓴다. 논리설계 및 실험에서는 Instruction Memory·Data Memory·레지스터 파일을 배우지 않는다 |
 | UI 언어 | **이름·명령은 영어, 설명 문장만 한국어**(사용자 확정, D-049). 메뉴·도구 모음·버튼·탭·상태 표시줄·부품·라이브러리 분류·속성 이름과 값·우클릭 메뉴·부품 몸체 제목·검색 결과·단축키 이름·대화 상자 제목은 원조 2.7.1의 영어 그대로다(Poke Tool, Edit Tool, Wiring, Plexers, Splitter …). 새 기능 이름도 같은 문체다(Load Program, 1 Cycle, Quick Attributes, Fit to Window …). 진단 메시지, 도구 설명·마우스 오버 설명 문장, 대화 상자 안내 문장, 단축키 표의 설명 칸, 튜토리얼·빈 화면 안내는 한국어(영어 설정이면 영어)다. 용어와 문장 규칙은 `docs/GLOSSARY.md`. v2의 세부 규칙(상태 표시줄의 사실은 영어, 이름 바로 뒤 조사 없음, 화면에 "한림" 없음, "~하면 됩니다" 없음, `word-break: keep-all`, 오류 문구는 무엇이 잘못 → 무엇을 할지)은 D-135 14항과 CLAUDE.md 10절 | 학생이 수업·교재·원조 2.7.1에서 보는 이름과 같아야 한다. 이름을 번역하면 같은 것이 두 이름을 갖는다 |
 | 라이선스 | GPL(버전 2 이상) | 포크 원본을 따름. 배포 시 소스 공개. SPIM(BSD) 코드는 들어 있지 않다(hcs-asm과 vendor/spim은 D-141에서 지웠다. SPIM이 낸 출력만 시험 자료로 남는다). Hallym MIPS에서 가져온 화면 코드는 BSD-3-Clause이고 GPL 프로젝트에 넣을 수 있다(고지는 NOTICE, D-135) |
 
@@ -778,14 +778,16 @@ v1은 이 장을 Swing 화면에 만들었다. v2는 같은 기능을 Electron �
 
 ## 12. 시작 화면과 튜토리얼 (v2, N-17·N-18)
 
-Hallym MIPS와 같은 시작 화면과 튜토리얼 엔진을 쓴다(D-132). 교과목별 화면: A-08(#458). 아래 12.1의 시작 흐름은 v2 지시 때의 것이고, 교과목을 먼저 묻는 흐름으로 A-08이 고친다.
+Hallym MIPS와 같은 시작 화면과 튜토리얼 엔진을 쓴다(D-132). 교과목을 먼저 묻고 교과목마다 화면을 나눈다(12.5, A-08, D-168).
 
 ### 12.1 시작 화면
 
 - Hallym MIPS `welcome` 카드 그대로다. 제목 "안녕하세요!", 설명 "논리 회로와 MIPS 프로세서를 그리고, 클럭을 한 번씩 뛰며 동작을 보는 곳입니다."
-- 1단계: [튜토리얼 보기 — 예제를 열어 한 단계씩 따라가 봅니다] [바로 시작 — 새 회로를 그리거나 가진 파일을 엽니다].
-- 2단계(같은 카드, 선택지와 "← 처음으로"만 바뀜): 튜토리얼 → [논리설계 및 실험 — 게이트와 선, 서브회로, 클럭과 레지스터] [컴퓨터구조 — MIPS 부품, 프로그램 불러오기, 사이클 보기]. 바로 시작 → [새 회로] [파일 열기 (Ctrl+O)].
-- 카드 뒤에는 Hallym MIPS 2.5.0과 같은 배경 영상이 돈다(3장 학교 식별요소, D-155). `.circ`를 인자로 열면 시작 화면 없이 연다.
+- 1단계(교과목, 켤 때마다 묻고 기억하지 않음): [논리설계 및 실험 — 게이트와 선, 서브회로, 클럭과 레지스터] [컴퓨터구조 — MIPS 부품, 프로그램 불러오기, 사이클 보기].
+- 2단계: [튜토리얼 보기 — 예제를 열어 한 단계씩 따라가 봅니다] [바로 시작 — 새 회로를 그리거나 가진 파일을 엽니다]. 튜토리얼은 1단계에서 고른 교과목의 트랙으로 바로 간다(다시 묻지 않음).
+- 3단계(바로 시작): [새 회로] [파일 열기 (Ctrl+O)].
+- 세 단계 모두 같은 카드(위치·크기·제목·본문 픽셀 동일)에서 선택지와 "← 이전"(한 단계 뒤로)만 바뀐다.
+- 카드 뒤에는 Hallym MIPS 2.5.0과 같은 배경 영상이 돈다(3장 학교 식별요소, D-155). `.circ`를 인자로 열면 시작 화면 없이 열고, 교과목은 파일로 정한다(12.5).
 
 ### 12.2 원칙 (Hallym MIPS tutorial.ts와 같음)
 
@@ -814,6 +816,26 @@ L1 [설명] 환영 · L2 [실습] Ctrl+K에 and → AND Gate 고르기 · L3 [�
 C1 [설명] 환영(편집 기초는 논리설계 트랙에) · C2 [설명] 데이터패스 둘러보기(PC, Instruction Memory, regfile, alu, Data Memory(데이터+스택), Console) · C3 [설명] 부품 목록의 Hallym MIPS · C4 [실습] Messages 한 줄(짝 없는 터널 RegWirte) 누르기 · C5 [실습] 터널 이름을 RegWrite로(0건, "혹시 RegWrite?") · C6 [실습] Load Program…으로 tutorial.hmx(words, entry, 요약. Hallym MIPS 제목 줄 오른쪽의 Export executable image (.hmx) 단추로 내보낸 파일임을 말함) · C7 [설명] 진입점과 PC(시작 코드 자리는 실행되지 않음, PC 시작값은 회로의 몫) · C8 [실습] 1 Cycle · C9 [실습] Previous Cycle · C10 [설명] Registers(16·10·2진수, 방금 바뀜) · C11 [설명] Instruction(필드 색, Hallym MIPS Inspector와 같은 명령·같은 값) · C12 [실습] PC 출력 선 Signal Flow · C13 [실습] Run으로 끝까지(Console exit) · C14 [설명] 끝.
 
 단계를 바꾸는 편이 낫다고 판단하면(시도·측정 근거) 바꾸고 이유를 DECISIONS에 적는다.
+
+### 12.5 교과목별 화면 (A-08, D-168)
+
+교과목은 화면에 보이는 것만 정한다. 회로·시뮬레이션·엔진·저장 파일은 교과목과 상관없다. 표는 화면 코드 한 곳(`electron/src/renderer/app/logic/course.ts`의 `COURSE_TABLE`, `MIPS_ONLY`)이다.
+
+| 보이는 것 | 논리설계 및 실험 | 컴퓨터구조 |
+| --- | --- | --- |
+| 부품 목록·Ctrl+K의 Hallym MIPS 부품 | Radix Probe만 | 모두(Instruction Memory, Data Memory, Console, Radix Probe) |
+| 도구 모음·» 메뉴·Ctrl+K 명령의 Load Program…, 메모리 부품의 Load Program…·Reload | 없음 | 있음 |
+| Cycle View | 사이클 표와 파형만(표가 폭 전부) | 사이클 표 + Registers·Memory·Instruction |
+| Mark as PC, Mark as Register File, Register Mapping… | 없음 | 있음 |
+| 명령어 필드 색 덧그림 | 없음 | 있음 |
+| 상태 표시줄의 PC, Program 사실, Changed(방금 바뀐 레지스터) | 없음 | 있음 |
+| 실행 이미지 알림(다시 불러오기 실패 띠 등) | 없음 | 있음 |
+| Help › Examples | adder-1bit, ripple-carry-4bit, counter-4bit | demo-datapath, console-demo, stack-demo |
+
+- 제목 줄의 칩이 지금 교과목을 보이고, 누르면 바꾼다(기억하지 않음). 시작 화면에서는 칩이 없다(카드가 묻는다).
+- 교과목을 고르기 전에 연 파일(명령줄 인자, 시작 화면의 Ctrl+O)은 MIPS 전용 부품이 있으면 컴퓨터구조, 없으면 논리설계 및 실험으로 연다(Radix Probe만 있으면 논리설계). 고르기 전의 Ctrl+N은 논리설계 및 실험이다.
+- 논리설계 및 실험에서 MIPS 전용 부품이 든 파일을 열면 부품은 그대로 그려지고 돈다. 얇은 띠: "이 파일은 컴퓨터구조 부품(Hallym MIPS)을 씁니다" + [컴퓨터구조로 바꾸기].
+- 새 파일에는 교과목과 상관없이 Hallym MIPS 라이브러리가 들어가지 않는다(부품을 처음 놓을 때 들어감, V-01). 그래서 MIPS 부품을 놓지 않은 파일은 원조 2.7.1과 바이트가 같고, 논리설계에서 Radix Probe를 놓은 파일은 컴퓨터구조에서 같은 편집을 한 파일과 바이트가 같다(`real-engine-course.e2e.ts`).
 
 ## 부록 A. 자동 배치·배선과 검증된 연결 규칙 (향후 Verilog → 회로용)
 

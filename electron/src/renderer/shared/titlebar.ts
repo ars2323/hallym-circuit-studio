@@ -20,6 +20,8 @@
         names.ts; KEEP_OVER_FILE), and the program's name goes (the logo stays) before the most used
         ones (KEEP_OVER_NAME);
      3. the file's name to its least.
+   With the course chip (A-08), the program's name is the first to go (0.),
+   and the chip's name (not its icon) goes where the program's name did.
    Every command is always on the bar or in its » menu, never cut off or
    hidden for good.  (Until D-158 the toolbar went to a row of its own
    under the bar at step 3: that took the Canvas's height -- v1 Y-01 wants
@@ -130,13 +132,16 @@ export function titleBar(o: TitleBarOptions): TitleBar {
     const key = [window.innerWidth, file?.name ?? '', file?.dirty ?? false, toolbarShown, o.views?.hidden ?? true, o.toolbar.dataset.fit ?? '', o.course?.textContent ?? '', o.course?.hidden ?? true].join('|');
     if (!force && key === fitted) return;
     fitted = key;
-    root.classList.remove('noapp');
+    root.classList.remove('noapp', 'nocoursename');
     showFileName(FILE_MOST);
     for (const u of units()) u.removeAttribute('data-over');
     syncGroups();
     more.hidden = true;
     steps(0);
     if (toolbarShown) {
+      // 0. With the course chip on the bar (A-08, D-168), the program's name gives way to it first: the logo stays, the
+      //    window's title (the taskbar's) has the name, and the chip says what the window shows.
+      if (o.course && !o.course.hidden && !fits()) root.classList.add('noapp');
       // 1. The steps that hide nothing.
       for (let level = 0; level <= TOOLBAR_STEPS.length; level += 1) {
         steps(level);
@@ -157,6 +162,11 @@ export function titleBar(o: TitleBarOptions): TitleBar {
         }
         if (keep >= KEEP_OVER_NAME && !root.classList.contains('noapp')) {
           root.classList.add('noapp');
+          if (longest()) return;
+        }
+        // the course chip's name (its icon stays, the name in its tooltip: A-08) before the most used commands
+        if (keep >= KEEP_OVER_NAME && o.course && !o.course.hidden && !root.classList.contains('nocoursename')) {
+          root.classList.add('nocoursename');
           if (longest()) return;
         }
         more.hidden = false;

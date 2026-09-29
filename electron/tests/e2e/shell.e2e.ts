@@ -72,13 +72,15 @@ test('the » rule on the toolbar: at half a screen and at 683 px every command i
       await expect(page.locator('.ovmenu.barmenu').getByRole('menuitemradio', { name: 'Wire' })).toHaveAttribute('aria-checked', 'true');
       await page.keyboard.press('Escape');
     }
-    // 683 px (half a 1366 screen): Run, 1 Cycle, Reset and Load Program still on the bar (the program's name went first),
-    // Save on the menu with its key.
+    // 683 px (half a 1366 screen): Run and 1 Cycle still on the bar (the program's name went first, then the course chip's
+    // name -- its icon stays, A-08: Reset may join the » menu for it), Save on the menu with its key.
     await resize(r, TIGHT);
     await expect.poll(() => units(page, '[data-over]')).toContain('Save');
     await expect.poll(() => fitsWindow(page)).toEqual({ status: true, title: true });
-    for (const name of ['Run', '1 Cycle', 'Reset']) await expect(page.locator(`.toolbar [data-unit="${name}"]`)).toBeVisible();
+    for (const name of ['Run', '1 Cycle']) await expect(page.locator(`.toolbar [data-unit="${name}"]`)).toBeVisible();
     await expect(page.locator('.titlebar .appname')).toBeHidden();
+    await expect(page.locator('.titlebar .coursechip img.icon')).toBeVisible();
+    await expect(page.locator('.titlebar .coursechip .label')).toBeHidden();
     await expect(page.locator('.titlebar .logo')).toBeVisible();
     await page.locator('.toolbar .more').click();
     await expect(page.locator('.ovmenu.barmenu').getByRole('menuitem', { name: /^Save/ }).locator('.keys')).toHaveText('Ctrl+S');

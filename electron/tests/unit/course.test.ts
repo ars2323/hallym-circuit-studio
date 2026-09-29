@@ -20,7 +20,7 @@ test('the table: 컴퓨터구조 shows everything, 논리설계 및 실험 none 
   assert.deepEqual(COURSES, ['logic', 'architecture']);
   assert.deepEqual(COURSE_NAMES, { logic: '논리설계 및 실험', architecture: '컴퓨터구조' });
   const features = Object.keys(COURSE_TABLE) as (keyof typeof COURSE_TABLE)[];
-  assert.deepEqual(features.sort(), ['cycleSide', 'fieldColors', 'loadProgram', 'markPc', 'markRegisterFile', 'programNotices', 'registerMapping', 'statusPc', 'statusProgram']);
+  assert.deepEqual(features.sort(), ['cycleSide', 'fieldColors', 'loadProgram', 'markPc', 'markRegisterFile', 'programNotices', 'registerMapping', 'statusChanged', 'statusPc', 'statusProgram']);
   for (const f of features) {
     assert.equal(shows('architecture', f), true, f);
     assert.equal(shows('logic', f), false, f);

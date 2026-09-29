@@ -1,7 +1,8 @@
 /* The first screen (src/renderer/app/start.ts, shared/welcome.ts): the card
-   and its two steps -- the same box, the same pixels but for the choices;
-   the four ways in (the two courses, a new circuit, a file); a .circ on the
-   command line opens with no first screen at all. */
+   and its three steps (A-08: the course, then 튜토리얼 보기 / 바로 시작,
+   then 새 회로 / 파일 열기) -- the same box, the same pixels but for the
+   choices and ← 이전; the ways in; a .circ on the command line opens with
+   no first screen at all, in the course its parts say. */
 
 import { expect, test, type Page } from '@playwright/test';
 import { writeFileSync } from 'node:fs';
@@ -11,7 +12,7 @@ import { answerOpen, answerSave, DATAPATH, GATES, launch, repo, sample, visibleC
 import { pixelDiff } from './png.ts';
 
 // The card, and the part of it that is the step's own: the choices and the
-// "← 처음으로" row, from the choices' top to that row's bottom, across the
+// "← 이전" row, from the choices' top to that row's bottom, across the
 // choices' width (2 px more on every side: a glyph's edge).
 interface CardShot { png: Buffer; choices: { x: number; y: number; width: number; height: number } }
 async function cardShot(page: Page): Promise<CardShot> {
@@ -39,7 +40,7 @@ async function settledShot(page: Page): Promise<CardShot> {
   throw new Error('the card never looked the same twice in a row');
 }
 
-test('the first screen: greeting, lead in two lines, two ways in; no toolbar', async () => {
+test('the first screen: greeting, lead in two lines, the course first; no toolbar, no course chip yet', async () => {
   const r = await launch();
   const { page } = r;
   try {
@@ -47,12 +48,13 @@ test('the first screen: greeting, lead in two lines, two ways in; no toolbar', a
     await expect(page.locator('.wcard p.lead')).toHaveText('논리 회로와 MIPS 프로세서를 그리고,클럭을 한 번씩 뛰며 동작을 보는 곳입니다.');
     expect(await page.locator('.wcard p.lead br').count()).toBe(1);
     await expect(page.locator('.action')).toHaveCount(2);
-    await expect(page.locator('.action').nth(0)).toContainText('튜토리얼 보기');
-    await expect(page.locator('.action').nth(0)).toContainText('예제를 열어한 단계씩 따라가 봅니다');
-    await expect(page.locator('.action').nth(1)).toContainText('바로 시작');
-    await expect(page.locator('.action').nth(1)).toContainText('새 회로를 그리거나가진 파일을 엽니다');
+    await expect(page.locator('.action').nth(0)).toContainText('논리설계 및 실험');
+    await expect(page.locator('.action').nth(0)).toContainText('게이트와 선, 서브회로,클럭과 레지스터');
+    await expect(page.locator('.action').nth(1)).toContainText('컴퓨터구조');
+    await expect(page.locator('.action').nth(1)).toContainText('MIPS 부품, 프로그램 불러오기,사이클 보기');
     await expect(page.locator('.wcard .back')).toHaveCSS('visibility', 'hidden');
     await expect(page.locator('.titlebar .toolbar')).toBeHidden();
+    await expect(page.locator('.titlebar .coursechip')).toBeHidden();
     await expect(page.locator('.wcard img.char')).toHaveAttribute('src', /haram-hari-greeting\.png$/);
     // The status bar's facts are names, in English.
     await expect(page.locator('.status > span').first()).toHaveText('Ready');
@@ -65,7 +67,7 @@ test('the first screen: greeting, lead in two lines, two ways in; no toolbar', a
   }
 });
 
-test('step 2 is the same card: the same box and the same pixels, but for the choices and ← 처음으로', async () => {
+test('steps 2 and 3 are the same card: the same box and the same pixels, but for the choices and ← 이전 (one step back)', async () => {
   const r = await launch();
   const { page } = r;
   try {
@@ -80,11 +82,14 @@ test('step 2 is the same card: the same box and the same pixels, but for the cho
     const box1 = await page.locator('.wcard').boundingBox();
     const actions1 = await page.locator('.wcard .actions').boundingBox();
     const shot1 = await settledShot(page);
-    for (const [way, choices] of [['튜토리얼 보기', ['논리설계 및 실험', '컴퓨터구조']], ['바로 시작', ['새 회로', '파일 열기']]] as const) {
-      await page.getByRole('button', { name: new RegExp(way) }).click();
+    // step 1 (the course) → step 2 (튜토리얼 보기 · 바로 시작) → step 3 (새 회로 · 파일 열기), each against step 1
+    for (const [press, choices] of [[/논리설계 및 실험/, ['튜토리얼 보기', '바로 시작']], [/바로 시작/, ['새 회로', '파일 열기']]] as const) {
+      await page.getByRole('button', { name: press }).click();
       await expect(page.locator('.action').nth(0)).toContainText(choices[0]);
       await expect(page.locator('.action').nth(1)).toContainText(choices[1]);
       await expect(page.locator('.wcard .back')).toHaveCSS('visibility', 'visible');
+      await expect(page.locator('.wcard .back')).toHaveText('← 이전');
+      await expect(page.locator('.titlebar .coursechip')).toBeHidden();   // the card asks: no chip on the first screen
       expect(await page.locator('.wcard').boundingBox()).toEqual(box1);
       expect(await page.locator('.wcard .actions').boundingBox()).toEqual(actions1);
       for (const sub of await page.locator('.action .sub').all()) {
@@ -92,30 +97,32 @@ test('step 2 is the same card: the same box and the same pixels, but for the cho
       }
       const shot2 = await settledShot(page);
       expect(shot2.choices).toEqual(shot1.choices);
-      expect(pixelDiff(shot1.png, shot2.png, [shot1.choices]), `${way}: the card changed outside its choices`).toBe('');
-      await page.getByRole('button', { name: '← 처음으로' }).click();
-      await expect(page.locator('.action').nth(0)).toContainText('튜토리얼 보기');
+      expect(pixelDiff(shot1.png, shot2.png, [shot1.choices]), `${choices[0]}: the card changed outside its choices`).toBe('');
     }
-    await page.getByRole('button', { name: /튜토리얼 보기/ }).click();
-    await expect(page.locator('.action').nth(0)).toContainText('게이트와 선, 서브회로,클럭과 레지스터');
-    await expect(page.locator('.action').nth(1)).toContainText('MIPS 부품, 프로그램 불러오기,사이클 보기');
-    await page.getByRole('button', { name: '← 처음으로' }).click();
-    await page.getByRole('button', { name: /바로 시작/ }).click();
     await expect(page.locator('.action').nth(0)).toContainText('빈 회로에서시작합니다');
     await expect(page.locator('.action').nth(1)).toContainText('가진 .circ 파일을엽니다 (Ctrl+O)');
+    // ← 이전: one step back each time
+    await page.getByRole('button', { name: '← 이전' }).click();
+    await expect(page.locator('.action').nth(0)).toContainText('튜토리얼 보기');
+    await expect(page.locator('.action').nth(0)).toContainText('예제를 열어한 단계씩 따라가 봅니다');
+    await expect(page.locator('.action').nth(1)).toContainText('새 회로를 그리거나가진 파일을 엽니다');
+    await page.getByRole('button', { name: '← 이전' }).click();
+    await expect(page.locator('.action').nth(0)).toContainText('논리설계 및 실험');
+    await expect(page.locator('.wcard .back')).toHaveCSS('visibility', 'hidden');
   } finally {
     await r.close();
   }
 });
 
 for (const course of ['논리설계 및 실험', '컴퓨터구조']) {
-  test(`튜토리얼 보기 → ${course}: a new circuit (the course's tutorial is N-18's)`, async () => {
+  test(`${course} → 튜토리얼 보기: a new circuit in that course (the course's tutorial is N-18's)`, async () => {
     const r = await launch();
     const { page } = r;
     try {
-      await page.getByRole('button', { name: /튜토리얼 보기/ }).click();
       await page.getByRole('button', { name: new RegExp(course) }).click();
+      await page.getByRole('button', { name: /튜토리얼 보기/ }).click();
       await expect(page.locator('.filebar .ptab')).toHaveText(['untitled.circ']);
+      await expect(page.locator('.titlebar .coursechip')).toHaveText(course);
       await expect(page.locator('.stage-welcome')).toBeHidden();
       await expect(page.locator('.canvas h3')).toHaveText('빈 회로입니다');
       await expect(page.locator('.toolbar')).toBeVisible();   // in the bar, or in its own row under it
@@ -129,6 +136,7 @@ test('바로 시작 → 새 회로: an empty circuit from the engine, its main c
   const r = await launch();
   const { page } = r;
   try {
+    await page.getByRole('button', { name: /컴퓨터구조/ }).click();
     await page.getByRole('button', { name: /바로 시작/ }).click();
     await page.getByRole('button', { name: /새 회로/ }).click();
     await expect(page.locator('.filebar .ptab')).toHaveText(['untitled.circ']);
@@ -148,6 +156,7 @@ test('바로 시작 → 파일 열기: the open dialog, then the engine opens it
   try {
     const file = sample(r.dir, DATAPATH);
     await answerOpen(r.app, file);
+    await page.getByRole('button', { name: /컴퓨터구조/ }).click();
     await page.getByRole('button', { name: /바로 시작/ }).click();
     await page.getByRole('button', { name: /파일 열기/ }).click();
     await expect(page.locator('.filebar .ptab')).toHaveText(['demo-datapath.circ']);
@@ -173,12 +182,13 @@ test('바로 시작 → 파일 열기: the open dialog, then the engine opens it
   }
 });
 
-test('a .circ on the command line opens with no first screen', async () => {
+test('a .circ on the command line opens with no first screen, in 논리설계 및 실험 when it has no MIPS-only part', async () => {
   const dir = path.join(repo, 'tests/circ');
   const r = await launch(undefined, { args: [path.join(dir, path.basename(GATES))], waitFor: '.filebar .ptab' });
   const { page } = r;
   try {
     await expect(page.locator('.filebar .ptab')).toHaveText(['gates.circ']);
+    await expect(page.locator('.titlebar .coursechip')).toHaveText('논리설계 및 실험');
     expect(await page.evaluate(() => document.documentElement.dataset.startSeen ?? null)).toBeNull();
     await expect(page.locator('.stage-welcome')).toBeHidden();
     // Closing it: the first screen.
@@ -233,6 +243,7 @@ test('a file Logisim cannot read, a file that cannot be saved: the same kind of 
     await expect(dialog.locator('.askdetail')).toContainText('does not appear to be a Logisim project file');
     await dialog.getByRole('button', { name: 'Close' }).click();
     // Saving where nothing can be written (a folder that is not there).
+    await page.getByRole('button', { name: /논리설계 및 실험/ }).click();
     await page.getByRole('button', { name: /바로 시작/ }).click();
     await page.getByRole('button', { name: /새 회로/ }).click();
     await page.locator('.canvas h3').waitFor();

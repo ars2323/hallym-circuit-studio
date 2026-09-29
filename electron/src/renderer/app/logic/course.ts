@@ -38,6 +38,7 @@ export type Feature =
   | 'registerMapping'    // Register Mapping…
   | 'fieldColors'        // the instruction's field colours over the Canvas
   | 'statusPc'           // the status bar's PC
+  | 'statusChanged'      // the status bar's Changed $t0, $sp (the registers the cycle changed, Hallym MIPS's 방금 바뀜)
   | 'statusProgram'      // the status bar's program facts
   | 'programNotices';    // the execution image's notices (a reload that failed, a program loaded again)
 
@@ -49,6 +50,7 @@ export const COURSE_TABLE: Readonly<Record<Feature, readonly Course[]>> = {
   registerMapping: ['architecture'],
   fieldColors: ['architecture'],
   statusPc: ['architecture'],
+  statusChanged: ['architecture'],
   statusProgram: ['architecture'],
   programNotices: ['architecture'],
 };

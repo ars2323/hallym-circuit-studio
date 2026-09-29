@@ -31,6 +31,7 @@ test('no engine: the dialog says the engine could not start, with what was tried
     await expect(page.locator('.status .err')).toHaveText('엔진을 시작하지 못했습니다');
     // Nothing that needs the engine can be pressed, and it looks so (D-158: #413's UI review): the first screen's
     // choices, New and Open.
+    await page.getByRole('button', { name: /컴퓨터구조/ }).click();
     await page.getByRole('button', { name: /바로 시작/ }).click();
     for (const name of [/새 회로/, /파일 열기/]) {
       const b = page.getByRole('button', { name });
