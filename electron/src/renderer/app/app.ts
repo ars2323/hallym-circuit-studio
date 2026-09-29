@@ -456,7 +456,7 @@ const attrsPanel = new AttributesPanel(attributesBody, {
   toolChanged: () => { if (editor.tool === 'Place') void editor.place.refresh(); },
   heldChanged: (attr, value) => {
     const held = editor.tool === 'Place' ? editor.place.held : null;
-    if (held?.attrs && attr in held.attrs) { held.attrs = { ...held.attrs, [attr]: value }; renderAttributes(); }
+    if (held?.attrs && attr in held.attrs) { held.attrs = { ...held.attrs, [attr]: value }; void editor.place.refresh(); renderAttributes(); }
   },
   quickToggled: () => quickBar?.update(),
 });

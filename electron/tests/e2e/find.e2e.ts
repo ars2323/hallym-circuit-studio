@@ -9,7 +9,8 @@
 
 import { expect, test, type Page } from '@playwright/test';
 
-import { canvasSettled, DATAPATH, launch, newCircuit, openFile, sample } from './harness.ts';
+import { canvasSettled, DATAPATH, launch, newCircuit, openFile, recordCalls, sample, sentCalls } from './harness.ts';
+import { call } from './model.ts';
 
 const BROKEN = 'electron/tests/fixtures/broken-datapath.circ';
 
@@ -539,3 +540,41 @@ test('the events: a part a listener takes (N-08\'s placement flow) is not placed
     await r.close();
   }
 });
+
+test('a part held with values of its own (the palette\'s "and 3"): changing one in Attributes changes that part only -- no engine call, the file clean, the library\'s tool as it was; placed with the new value (D-158 18 ⑦)', async () => {
+  const r = await launch();
+  const { page } = r;
+  try {
+    await openFile(r, sample(r.dir, DATAPATH));
+    await drawn(page);
+    const fileId = await page.evaluate(() => (window as unknown as { __hcsCanvas: { scene: { fileId: string } } }).__hcsCanvas.scene.fileId);
+    const toolInputs = async () => (await call<{ rows: { attr: string; value: string | null }[] }>(page, 'model.attributes', { fileId, lib: 'Gates', name: 'AND Gate' })).rows.find((x) => x.attr === 'inputs')?.value;
+    const before = await toolInputs();
+    const box = page.getByRole('searchbox', { name: 'Search parts' });
+    await box.fill('and 3');
+    await page.locator('.compresults li', { hasText: 'AND Gate' }).first().getByRole('option').click();
+    const inputs = page.locator('.pbody.attributes').getByLabel('Number Of Inputs');
+    await expect(inputs).toHaveValue('3');
+    await recordCalls(r.app);
+    await inputs.selectOption('4');
+    await expect(inputs).toHaveValue('4');
+    await page.waitForTimeout(200);
+    expect((await sentCalls(r.app)).filter((c) => c.method.startsWith('edit.')).map((c) => c.method)).toEqual([]);
+    await expect(page.locator('.filebar .ptab.on .dirty')).toHaveCount(0);
+    expect(await toolInputs()).toBe(before);
+    // placed: a four-input AND gate
+    const q = await page.evaluate(() => {
+      const c = (window as unknown as { __hcsCanvas: { canvas: HTMLCanvasElement; view: { x: number; y: number; zoom: number } } }).__hcsCanvas;
+      const rr = c.canvas.getBoundingClientRect();
+      return { x: rr.left + (300 - c.view.x) * c.view.zoom, y: rr.top + (640 - c.view.y) * c.view.zoom };
+    });
+    await page.mouse.move(q.x, q.y, { steps: 4 });
+    await page.mouse.down();
+    await page.mouse.up();
+    await expect.poll(async () => (await sentCalls(r.app, 'edit.addComponent')).map((c) => (c.params.attrs as Record<string, string> | undefined)?.inputs)).toEqual(['4']);
+    expect(await toolInputs()).toBe(before);
+  } finally {
+    await r.close();
+  }
+});
+

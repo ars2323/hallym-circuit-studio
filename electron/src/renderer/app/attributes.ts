@@ -235,6 +235,14 @@ export class AttributesPanel {
       const why = circuitNameProblem(value, this.host.circuitNames(req.fileId, t.circuitId ?? ''));
       if (why) { this.fail(r, why, value); return false; }
     }
+    // a value the part held carries of its own (the palette's "and 3", Ctrl+2..9's toolbar tool): that part's value
+    // only -- the library's tool is not changed and the file stays as it was (D-158 18 ⑦); the ghost and the table
+    // follow.  A row it does not carry is the tool's, as ever (edit.setToolAttr).
+    if (t.target === 'tool' && req.kind === 'tool' && req.attrs?.[r.attr] !== undefined && this.host.heldChanged) {
+      this.error = null;
+      this.host.heldChanged(r.attr, value);
+      return true;
+    }
     const method: WindowMethod = t.target === 'tool' ? 'edit.setToolAttr' : t.target === 'circuit' ? 'edit.setCircuitAttr' : 'edit.setAttr';
     const params: Record<string, unknown> = t.target === 'tool'
       ? { fileId: req.fileId, lib: t.lib ?? null, name: t.name, attr: r.attr, value }
@@ -242,8 +250,6 @@ export class AttributesPanel {
     try {
       await this.host.call(method, params);
       this.error = null;
-      // the part held has this value of its own: that one changes too (else the ghost and the table keep the old one)
-      if (t.target === 'tool' && req.kind === 'tool' && req.attrs?.[r.attr] !== undefined) this.host.heldChanged?.(r.attr, value);
       if (t.target === 'tool') this.host.toolChanged();
       await this.refresh(true);
       return true;
