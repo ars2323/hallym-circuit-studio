@@ -134,7 +134,8 @@ async function shot(r: Running, name: string, o: { keepFocus?: boolean; keepPoin
   if (!o.keepPointer) await page.mouse.move(-10, -10);
   if (!o.keepFocus) await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await settle(r);
-  await repaint(page);
+  // (not when the scene is about the focus or the pointer: a hidden page loses both -- the palette closes, the ghost goes)
+  if (!o.keepFocus && !o.keepPointer) await repaint(page);
   const hovers = () => page.evaluate(() => [...document.querySelectorAll(':hover')].map((e) => e.tagName.toLowerCase() + (e.className ? `.${String(e.className).split(' ')[0]}` : '')));
   let hovered = await hovers();
   // a modal dialog opened under the pointer may miss the move out of the window: in and out again, then look once more
@@ -721,6 +722,10 @@ const canvasPoint = (r: Running, p: [number, number]) => r.page.evaluate((q) => 
   await page.locator('.ovmenu .mhead').waitFor();
   await shot(r, 'menu-part', { keepFocus: true });
   await page.keyboard.press('Escape');
+  // nothing chosen first (a click on an empty place): the menu is the wire's alone, the Attributes panel the circuit's
+  // (a right click keeps the selection, as the original's -- a kept PC beside a wire's menu read as the menu's)
+  await click(page, [pc.at[0], pc.at[1] + 400]);
+  await page.locator('.pbody.attributes .ahead .badge', { hasText: 'Circuit' }).waitFor();
   const w = await wireAtPort(page, 'Register', 'Q');
   await rightClick(page, w.quarter);
   await page.locator('.ovmenu .mhead', { hasText: 'Net' }).waitFor();

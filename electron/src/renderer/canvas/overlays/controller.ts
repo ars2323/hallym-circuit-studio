@@ -31,6 +31,7 @@ import { h } from '../../shared/dom.ts';
 import type { CircuitCanvas } from '../canvas.ts';
 import { onSelection, onTool, type SelectionDetail } from '../events.ts';
 import type { Scene } from '../scene.ts';
+import type { Box } from '../shapes.ts';
 import { toCircuit } from '../view.ts';
 import { BandOverlay } from './bands.ts';
 import { BusValueOverlay } from './busvalues.ts';
@@ -101,6 +102,14 @@ export class Overlays {
 
   // Something the status bar or the panels show changed.
   onChange(f: () => void): void { this.listeners.add(f); }
+
+  // What the overlays show over the circuit on show, as boxes (circuit units): the flow's arcs and labels, the
+  // influence's chips and dotted lines, the bus values' chips.  Quick Attributes is placed off them (D-158).
+  obstacles(): Box[] {
+    const s = this.scene;
+    if (!s) return [];
+    return [...this.flow.obstacles(s.fileId, s.circuitId), ...this.influence.obstacles(), ...this.bus.boxes({ canvas: this.host.board, scene: s })];
+  }
   private emit(): void { for (const f of this.listeners) f(); this.host.changed(); }
 
   private get scene(): Scene | null { return this.host.board.scene; }

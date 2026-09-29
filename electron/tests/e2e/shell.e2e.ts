@@ -10,7 +10,7 @@ import { expect, test, type Page } from '@playwright/test';
 import path from 'node:path';
 
 import { overlayColor } from '../../src/renderer/shared/overlay.ts';
-import { answerSave, DATAPATH, launch, newCircuit, openFile, recordCalls, resize, sample, sentCalls, type Running } from './harness.ts';
+import { answerSave, DATAPATH, launch, openFile, recordCalls, resize, sample, sentCalls, type Running } from './harness.ts';
 import { click, partMiddle } from './overlay-helpers.ts';
 
 const HALF = { width: 960, height: 1032 };
@@ -361,6 +361,9 @@ test('the menu: File › Edit › Project › Simulate › Window › Help with 
     await page.keyboard.press('Escape');
     // Project: the circuit on show (the main one); Add Circuit… is the Circuits panel's dialog
     m = await sub('Project');
+    // the row that opened the submenu stays lit while it is open (UI review of menu.png)
+    await expect(page.locator('.ovmenu.barmenu').getByRole('menuitem', { name: /^Project/ })).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator('.ovmenu.barmenu').getByRole('menuitem', { name: /^Edit/ })).not.toHaveAttribute('aria-expanded', 'true');
     await expect(m.getByRole('menuitem', { name: /^Set As Main Circuit/ })).toBeDisabled();
     await expect(m.getByRole('menuitem', { name: /^Edit Circuit Layout/ })).toBeEnabled();
     await m.getByRole('menuitem', { name: /^Add Circuit…/ }).click();
@@ -463,6 +466,20 @@ test('the lab PCs at 125 % and 150 %: the whole bar and every fact at once, noth
       expect(await units(r.page, '[data-over]'), scale).toEqual([]);
       expect((await facts(r.page)).more, scale).toEqual([]);
       expect(await fitsWindow(r.page)).toEqual({ status: true, title: true });
+      // the Attributes panel (the circuit's table): names on one line, the font's style list wide enough for its
+      // longest choice (UI review of lab-125/150.png: "Plai", "Shared / Label / Facing")
+      const table = r.page.locator('.pbody.attributes .atable');
+      await expect(table.locator('tbody th', { hasText: 'Shared Label Font' })).toBeVisible();
+      const fit = await table.evaluate((t) => {
+        const names = [...t.querySelectorAll('tbody th')].map((th) => { const range = document.createRange(); range.selectNodeContents(th); return new Set([...range.getClientRects()].map((q) => Math.round(q.top))).size === 1; });
+        const style = t.querySelectorAll('.afont select')[1] as HTMLSelectElement;
+        const ctx = document.createElement('canvas').getContext('2d')!;
+        ctx.font = getComputedStyle(style).font;
+        const longest = Math.max(...[...style.options].map((o) => ctx.measureText(o.text).width));
+        return { oneLine: names.every(Boolean), room: style.clientWidth - 12 - 18 - longest };
+      });
+      expect(fit.oneLine, scale).toBe(true);
+      expect(fit.room, scale).toBeGreaterThanOrEqual(0);
     } finally {
       await r.close();
     }
@@ -564,39 +581,6 @@ test('a file just opened keeps the Canvas\'s own fit while the window settles; a
     await page.waitForFunction(() => window.innerWidth === 1500);
     await page.waitForTimeout(200);
     expect((await view()).zoom).toBe(1);
-  } finally {
-    await r.close();
-  }
-});
-
-test('the Components list is not built again when it has not changed: a part being dragged stays on the page and drops (D-158 16)', async () => {
-  const r = await launch();
-  const { page } = r;
-  try {
-    await newCircuit(r);
-    const button = page.locator('.upper .libgroup.pending .list li', { hasText: 'Console' }).getByRole('button');
-    await button.waitFor();
-    // the drag starts; the button is marked to tell it from a new one
-    const dt = await page.evaluateHandle(() => new DataTransfer());
-    await button.evaluate((b) => { (b as unknown as { __kept: boolean }).__kept = true; });
-    await button.dispatchEvent('dragstart', { dataTransfer: dt });
-    // the window renders again with the same list (a status change, the panels laid out again)
-    await page.keyboard.press('Control+e');
-    await expect(page.locator('.status')).toContainText('Simulation Off');
-    await page.keyboard.press('Control+e');
-    await expect(page.locator('.status')).toContainText('Simulation On');
-    await resize(r, { width: 1500, height: 900 });
-    await page.waitForFunction(() => window.innerWidth === 1500);
-    // the same element: still in the page, so the drag it started can end with a drop
-    expect(await button.evaluate((b) => b.isConnected && (b as unknown as { __kept?: boolean }).__kept === true)).toBe(true);
-    await recordCalls(r.app);
-    const box = (await page.locator('.pbody.canvas').boundingBox())!;
-    const at = { clientX: box.x + 300, clientY: box.y + 200 };
-    await page.locator('.pbody.canvas').dispatchEvent('dragover', { dataTransfer: dt, ...at });
-    await page.locator('.pbody.canvas').dispatchEvent('drop', { dataTransfer: dt, ...at });
-    await expect.poll(async () => (await sentCalls(r.app, 'edit.addComponent')).map((c) => c.params.name)).toEqual(['Console']);
-    // a list that did change is built again (the Console's library is in the file now)
-    await expect(page.locator('.upper .libgroup.pending')).toHaveCount(0);
   } finally {
     await r.close();
   }

@@ -29,6 +29,7 @@ import type { CircuitCanvas } from '../canvas/canvas.ts';
 import { showMenu } from '../canvas/overlays/menu.ts';
 import { toScreen } from '../canvas/view.ts';
 import { h } from '../shared/dom.ts';
+import { monoValue } from './attributes.ts';
 import { hintLine, placement, type QuickButton, quickButtons, type Rect } from './logic/attributes.ts';
 
 export interface QuickHost {
@@ -41,6 +42,9 @@ export interface QuickHost {
   editLabel(id: string): void;               // F2's field
   showAll(): void;                           // All Attributes: the Attributes panel
   autoAppearance?: (circuitId: string) => void;          // N-11 (Auto Appearance), when it is there
+  // what the overlays show over the circuit (circuit units): Signal Flow's arcs and labels, the influence's chips and
+  // lines, the bus values -- kept clear like the parts (D-158, UI review of influence.png and signal-flow.png)
+  overlayBoxes?: () => { x0: number; y0: number; x1: number; y1: number }[];
 }
 
 export class QuickBar {
@@ -141,7 +145,7 @@ export class QuickBar {
 
   private button(b: QuickButton, parts: Component[]): HTMLElement {
     const el = h('button', { type: 'button', class: 'qbtn', tabindex: '-1', title: `Change ${b.name}`, 'aria-label': `${b.name} ${b.text}`, 'data-attr': b.attr },
-      h('span', { class: 'qname' }, b.name), ' ', h('span', { class: 'qval' }, b.text));
+      h('span', { class: 'qname' }, b.name), ' ', h('span', { class: `qval${b.text !== '(none)' && monoValue(b.attr, b.text) ? ' mono' : ''}` }, b.text));
     noFocus(el);
     el.addEventListener('click', () => {
       if (b.options) {
@@ -221,6 +225,7 @@ export class QuickBar {
     const hard: Rect[] = [];
     for (const c of s.components.values()) if (!chosen.has(c.id)) hard.push(toRect(c.bounds[0], c.bounds[1], c.bounds[0] + c.bounds[2], c.bounds[1] + c.bounds[3]));
     for (const box of b.chipBoxes()) hard.push(toRect(box.x0, box.y0, box.x1, box.y1));
+    for (const box of this.host.overlayBoxes?.() ?? []) hard.push(toRect(box.x0, box.y0, box.x1, box.y1));
     const soft: Rect[] = [...s.wires.values()].map((w: Wire) => {
       const r = toRect(Math.min(w.a[0], w.b[0]), Math.min(w.a[1], w.b[1]), Math.max(w.a[0], w.b[0]), Math.max(w.a[1], w.b[1]));
       return { x: r.x - 4, y: r.y - 4, w: r.w + 8, h: r.h + 8 };     // a bus is 4 px, a dot bigger

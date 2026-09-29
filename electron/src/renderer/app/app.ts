@@ -472,7 +472,11 @@ quickBar = new QuickBar({
   },
   editLabel: (id) => editor.editLabel(id),
   showAll: () => showAttributesPanel(),
+  overlayBoxes: () => overlays.obstacles(),
 });
+// an overlay shown or gone (a flow, the influence, bus values): placed again once it is drawn (its boxes come from the
+// frame that draws it)
+overlays.onChange(() => requestAnimationFrame(() => requestAnimationFrame(() => quickBar?.place())));
 attrsPanel.onTable(() => quickBar?.update());
 new ResizeObserver(() => quickBar?.place()).observe(board.root);
 // The Attributes panel forward: its own column, or its tab of the left panel when the window is narrow.

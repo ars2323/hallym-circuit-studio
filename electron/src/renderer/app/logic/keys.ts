@@ -36,20 +36,20 @@ const s = (code: string, key: string, mods: Omit<Stroke, 'code' | 'key'> = {}): 
 const ctrl = (code: string, key: string, more: Omit<Stroke, 'code' | 'key' | 'ctrl'> = {}): Stroke => s(code, key, { ctrl: true, ...more });
 
 export const COMMANDS: readonly Command[] = [
-  { id: 'rotate', name: 'Rotate', say: '고른 부품을 시계 방향으로 돌립니다(Shift: 반대로)', defaults: [s('KeyR', 'r')], shiftReverses: true },
-  { id: 'label', name: 'Edit Label', say: '고른 부품의 라벨을 그 자리에서 고칩니다', defaults: [s('F2', 'F2')] },
-  { id: 'redo', name: 'Redo', say: '되돌린 것을 다시 합니다', defaults: [ctrl('KeyY', 'y'), ctrl('KeyZ', 'z', { shift: true })] },
-  { id: 'zoomIn', name: 'Zoom In', say: 'Canvas 배율을 한 단계 키웁니다', defaults: [ctrl('Equal', '='), ctrl('NumpadAdd', '+')] },
-  { id: 'zoomOut', name: 'Zoom Out', say: 'Canvas 배율을 한 단계 줄입니다', defaults: [ctrl('Minus', '-'), ctrl('NumpadSubtract', '-')] },
-  { id: 'zoomFit', name: 'Fit to Window', say: '회로 전체가 Canvas 안에 들어오게 맞춥니다', defaults: [ctrl('Digit0', '0'), ctrl('Numpad0', '0')] },
-  { id: 'zoom100', name: 'Zoom 100%', say: 'Canvas 배율을 100%로 합니다', defaults: [ctrl('Digit1', '1'), ctrl('Numpad1', '1')] },
-  { id: 'zoomSel', name: 'Fit to Selection', say: '고른 것이 Canvas 안에 들어오게 맞춥니다', defaults: [s('KeyF', 'f')] },
-  { id: 'influence', name: 'Show Influence', say: '고른 부품이 영향을 주는 곳을 보입니다(Shift: 영향을 받는 곳)', defaults: [s('KeyI', 'i')], shiftReverses: true },
-  { id: 'influenceLess', name: 'Influence: One Step Less', say: '영향 경로를 한 단계 좁힙니다', defaults: [s('BracketLeft', '[')] },
-  { id: 'influenceMore', name: 'Influence: One Step More', say: '영향 경로를 한 단계 넓힙니다', defaults: [s('BracketRight', ']')] },
-  { id: 'flowToggle', name: 'Signal Flow on Click', say: 'Edit 도구로 누른 곳의 신호 흐름 보이기를 켜고 끕니다', defaults: [ctrl('KeyF', 'f', { shift: true })] },
-  { id: 'find', name: 'Find', say: '라벨·터널·회로 이름을 찾습니다', defaults: [ctrl('KeyF', 'f')] },
-  { id: 'palette', name: 'Search', say: '부품·명령·터널을 찾는 검색 창을 엽니다', defaults: [ctrl('KeyK', 'k')] },
+  { id: 'rotate', name: 'Rotate', say: '고른 부품을 시계 방향으로 돌립니다(Shift: 반대로).', defaults: [s('KeyR', 'r')], shiftReverses: true },
+  { id: 'label', name: 'Edit Label', say: '고른 부품의 라벨을 그 자리에서 고칩니다.', defaults: [s('F2', 'F2')] },
+  { id: 'redo', name: 'Redo', say: '되돌린 것을 다시 합니다.', defaults: [ctrl('KeyY', 'y'), ctrl('KeyZ', 'z', { shift: true })] },
+  { id: 'zoomIn', name: 'Zoom In', say: 'Canvas 배율을 한 단계 키웁니다.', defaults: [ctrl('Equal', '='), ctrl('NumpadAdd', '+')] },
+  { id: 'zoomOut', name: 'Zoom Out', say: 'Canvas 배율을 한 단계 줄입니다.', defaults: [ctrl('Minus', '-'), ctrl('NumpadSubtract', '-')] },
+  { id: 'zoomFit', name: 'Fit to Window', say: '회로 전체가 Canvas 안에 들어오게 맞춥니다.', defaults: [ctrl('Digit0', '0'), ctrl('Numpad0', '0')] },
+  { id: 'zoom100', name: 'Zoom 100%', say: 'Canvas 배율을 100%로 합니다.', defaults: [ctrl('Digit1', '1'), ctrl('Numpad1', '1')] },
+  { id: 'zoomSel', name: 'Fit to Selection', say: '고른 것이 Canvas 안에 들어오게 맞춥니다.', defaults: [s('KeyF', 'f')] },
+  { id: 'influence', name: 'Show Influence', say: '고른 부품이 영향을 주는 곳을 보입니다(Shift: 영향을 받는 곳).', defaults: [s('KeyI', 'i')], shiftReverses: true },
+  { id: 'influenceLess', name: 'Influence: One Step Less', say: '영향 경로를 한 단계 좁힙니다.', defaults: [s('BracketLeft', '[')] },
+  { id: 'influenceMore', name: 'Influence: One Step More', say: '영향 경로를 한 단계 넓힙니다.', defaults: [s('BracketRight', ']')] },
+  { id: 'flowToggle', name: 'Signal Flow on Click', say: 'Edit 도구로 누른 곳의 신호 흐름 보이기를 켜고 끕니다.', defaults: [ctrl('KeyF', 'f', { shift: true })] },
+  { id: 'find', name: 'Find', say: '라벨·터널·회로 이름을 찾습니다.', defaults: [ctrl('KeyF', 'f')] },
+  { id: 'palette', name: 'Search', say: '부품·명령·터널을 찾는 검색 창을 엽니다.', defaults: [ctrl('KeyK', 'k')] },
 ];
 
 // The keys that do not change (the menus' keys, Simulate's, the tools', the arrows …), and what each does: the

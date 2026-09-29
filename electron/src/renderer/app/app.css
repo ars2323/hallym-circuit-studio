@@ -168,13 +168,14 @@ table.summary tr.warn td { background: var(--amber-tint); color: var(--amber-tex
 .prefs .keytable td { padding: 6px 4px; border-bottom: 1px solid var(--border); vertical-align: top; }
 .prefs .keytable .kname { color: var(--navy); font-weight: 600; }
 .prefs .keytable .kname .hint { font-weight: 400; }
-.prefs .keytable .kkey { width: 150px; white-space: nowrap; }
+.prefs .keytable .kkey { width: 112px; white-space: nowrap; }
+.prefs .keytable .kname .hint { word-break: keep-all; }
 .prefs .keytable .kbtns { width: 140px; text-align: right; white-space: nowrap; }
 .prefs .keytable .kbtns .hbtn + .hbtn { margin-left: 4px; }
 .prefs .keytable kbd { font: 12px var(--code); color: var(--text); background: var(--window); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; }
 .prefs .keytable tr.changed kbd { background: var(--blue-tint); border-color: var(--blue-tint2); color: var(--navy); }
 .prefs .keytable tr.waiting { background: var(--blue-tint); }
-.prefs .keytable .kwait { color: var(--blue); font-weight: 600; }
+.prefs .keytable .kwait { color: var(--blue); font-weight: 600; white-space: normal; }
 .prefs .keytable tr.fixed .kname { color: var(--text-2); font-weight: 500; }
 .prefs .hint.err { color: var(--error-text); }
 .prefs > .row .grow { flex: 1; }

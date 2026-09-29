@@ -122,7 +122,8 @@ export function tabStrip(o: { label: string; closable: boolean; onSelect(id: str
           it.dirty ? h('span', { class: 'dirty', title: 'Unsaved changes' }, '•') : null);
         tab.addEventListener('click', () => o.onSelect(it.id));
         // the right click does not choose the tab (v1 FileTabBar.tabMenu, I-179)
-        if (o.onMenu) tab.addEventListener('contextmenu', (e) => { e.preventDefault(); o.onMenu!(it.id, e.clientX, e.clientY); });
+        // its menu under the tab, not over the row it was opened from (UI review of file-tabs.png)
+        if (o.onMenu) tab.addEventListener('contextmenu', (e) => { e.preventDefault(); o.onMenu!(it.id, e.clientX, tab.getBoundingClientRect().bottom + 2); });
         if (o.drag) {
           const d = o.drag;
           tab.addEventListener('dragstart', (e) => {

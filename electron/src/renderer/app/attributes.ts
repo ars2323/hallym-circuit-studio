@@ -139,7 +139,7 @@ export class AttributesPanel {
     const label = r.display;
     switch (kind) {
       case 'text':
-        return h('span', { class: `aval${numericValue(r.text) ? ' mono' : ''}`, title: r.text }, r.text);
+        return h('span', { class: `aval${monoValue(r.attr, r.text) ? ' mono' : ''}`, title: r.text }, r.text);
       case 'contents': {
         const b = h('button', { type: 'button', class: 'alink', 'aria-label': label }, r.text || '(click to edit)');
         const ids = t.target === 'selection' ? this.selectionIds() : [];
@@ -179,7 +179,7 @@ export class AttributesPanel {
       }
       default: {
         const input = h('input', {
-          type: 'text', class: kind === 'number' ? 'mono' : undefined, 'aria-label': label, value: r.value === null ? '' : r.text,
+          type: 'text', class: kind === 'number' || NAME_ATTRS.has(r.attr) ? 'mono' : undefined, 'aria-label': label, value: r.value === null ? '' : r.text,
           spellcheck: 'false', autocomplete: 'off', placeholder: r.mixed ? '(various)' : undefined,
           title: kind === 'number' && r.radix === 16 ? '16진수(0x1F) 또는 10진수(31)' : undefined,
         }) as HTMLInputElement;
@@ -256,6 +256,10 @@ export class AttributesPanel {
   }
 }
 
-// A value that is a number (32, -3, 0x1F): set in D2Coding like the Canvas's values and the tables' (0 and O
-// apart; D-158, the coordinator's note on #449).  Words and names stay in the sentences' font.
+// A value that is a number (32, -3, 0x1F, 0/1): set in D2Coding like the Canvas's values and the tables' (0 and O
+// apart; D-158, the coordinator's note on #449 and the UI review).  Words (East, Rising Edge) stay in the sentences' font.
 export const numericValue = (text: string): boolean => /^[-+]?(0x[0-9a-f]+|\d+)$/i.test(text.trim());
+// A name the student gives (a label, a circuit's name, a shared label): in D2Coding like names everywhere else in the
+// window (the Tunnels panel, the lists, the dialogs' names).
+export const NAME_ATTRS: ReadonlySet<string> = new Set(['label', 'circuit', 'clabel']);
+export const monoValue = (attr: string, text: string): boolean => NAME_ATTRS.has(attr) || numericValue(text);

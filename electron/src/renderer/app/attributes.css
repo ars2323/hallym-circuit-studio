@@ -13,7 +13,9 @@
 .atable { margin: 8px 12px 6px 16px; border-collapse: collapse; font-size: var(--fs); table-layout: fixed; width: calc(100% - 28px); }
 .atable thead th { font: 500 11.5px var(--ui); color: var(--muted); height: 20px; border-bottom: 1px solid var(--border); text-align: left; padding: 0 8px 0 0; }
 .atable thead th:first-child { width: 44%; }
-.atable tbody th { font-weight: 500; color: var(--text-2); text-align: left; padding: 3px 8px 3px 0; overflow-wrap: anywhere; line-height: 1.3; vertical-align: middle; }
+/* an attribute's name on one line (an English name never breaks inside, D-158: lab PCs at 125/150 %); cut with … and
+   whole in its tooltip */
+.atable tbody th { font-weight: 500; color: var(--text-2); text-align: left; padding: 3px 8px 3px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.3; vertical-align: middle; }
 .atable tbody td { padding: 3px 0; vertical-align: middle; min-width: 0; }
 .atable tbody tr + tr > * { border-top: 1px solid var(--window); }
 .atable tbody tr.bad th { color: var(--error-text); }
@@ -27,8 +29,12 @@
 .atable .aval { display: block; padding: 0 1px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .atable .alink { border: 0; padding: 0; background: none; color: var(--blue); font: inherit; text-decoration: underline; cursor: pointer; }
 .atable .alink:disabled { color: var(--muted); text-decoration: none; cursor: default; }
-.atable .afont { display: grid; grid-template-columns: minmax(0, 1fr) 48px; gap: 4px; }
-.atable .afont > select:first-child { grid-column: 1 / -1; }
+/* the family on its row; the style and the size beside it, or the size on a row of its own when the column is too
+   narrow for the longest style, "Bold Italic" (the right panel at 125/150 %, D-158) */
+.atable .afont { display: flex; flex-wrap: wrap; gap: 4px; }
+.atable .afont > select:first-child { flex: 1 0 100%; }
+.atable .afont > select + select { flex: 1 1 7.5em; min-width: 7.5em; }
+.atable .afont > input.size { flex: 0 0 48px; width: 48px; }
 .atable .afont input.size { text-align: right; }
 .atable .acolor { display: flex; align-items: center; gap: 6px; }
 .atable .acolor input[type="color"] { width: 30px; height: 24px; padding: 0 2px; border: 1px solid var(--border); border-radius: 5px; background: var(--white); }
@@ -45,6 +51,7 @@
 .quickbar .qbtn:hover { background: var(--hover); border-color: var(--border); }
 .quickbar .qname { color: var(--text-2); }
 .quickbar .qval { font-weight: 600; color: var(--navy); }
+.quickbar .qval.mono { font-family: var(--code); }
 .quickbar .qlink { color: var(--blue); }
 .quickbar .qhint { padding: 1px 6px 0; color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 

@@ -122,6 +122,9 @@ test('the Attributes panel (I-99..I-101, I-20, I-53, I-54, I-83; B-04, Y-05): th
     // numbers in D2Coding as every value (0 and O apart, D-158); words (Facing's East) in the sentences' font
     expect(await panel.getByLabel('Data Bits').evaluate((e) => getComputedStyle(e).fontFamily)).toMatch(/D2Coding/);
     expect(await panel.getByLabel('Facing').evaluate((e) => getComputedStyle(e).fontFamily)).not.toMatch(/D2Coding/);
+    // and the names the student gives (Label) like names everywhere; a font's size a number (UI review)
+    expect(await panel.getByLabel('Label', { exact: true }).evaluate((e) => getComputedStyle(e).fontFamily)).toMatch(/D2Coding/);
+    expect(await panel.getByLabel('Label Font size').evaluate((e) => getComputedStyle(e).fontFamily)).toMatch(/D2Coding/);
     // the Text tool: a Label's attributes (I-83)
     await tool(page, 'Text').click();
     await expect(panel.locator('.aname')).toHaveText('Text Tool');
@@ -145,6 +148,9 @@ test('Quick Attributes (I-103, I-104, S-04): by one kind of part chosen with the
     await expect(bar.locator('.qbtn:not(.qlink)')).toHaveText(['Number Of Inputs 5', 'Data Bits 1', 'Gate Size Medium', 'Facing East', 'Label (none)']);
     await expect(bar.locator('.qlink')).toHaveText(['All Attributes']);
     await expect(bar.locator('.qhint')).toHaveText('0–9: Number Of Inputs  ·  Alt+0–9: Data Bits  ·  R: Rotate  ·  F2: Label');
+    // numbers in D2Coding (5, 1), words in the sentences' font (Medium, East); (none) is not a name
+    const fonts = await bar.locator('.qbtn:not(.qlink) .qval').evaluateAll((els) => els.map((e) => /D2Coding/.test(getComputedStyle(e).fontFamily)));
+    expect(fonts).toEqual([true, true, false, false, false]);
     // covers no other part (v1 placement)
     const box = await bar.boundingBox();
     for (const k of [two, p['OR Gate']]) {

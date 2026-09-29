@@ -372,3 +372,52 @@ test('a wire\'s right click: Net Information… (v1\'s words), Highlight Net and
     await r.close();
   }
 });
+
+// The Quick Attributes bar and what an overlay draws over the circuit, in page pixels: the boxes it meets.
+async function barOverOverlays(page: import('@playwright/test').Page): Promise<number> {
+  return page.evaluate(() => {
+    type B = { x0: number; y0: number; x1: number; y1: number };
+    const o = (window as unknown as { __hcsOverlays: { obstacles(): B[] } }).__hcsOverlays;
+    const c = (window as unknown as { __hcsCanvas: { canvas: HTMLCanvasElement; view: { x: number; y: number; zoom: number } } }).__hcsCanvas;
+    const bar = document.querySelector('.quickbar') as HTMLElement;
+    const r = bar.getBoundingClientRect(), cr = c.canvas.getBoundingClientRect(), v = c.view;
+    return o.obstacles().filter((b) => {
+      const x0 = cr.left + (b.x0 - v.x) * v.zoom, x1 = cr.left + (b.x1 - v.x) * v.zoom;
+      const y0 = cr.top + (b.y0 - v.y) * v.zoom, y1 = cr.top + (b.y1 - v.y) * v.zoom;
+      return x0 < r.right && r.left < x1 && y0 < r.bottom && r.top < y1;
+    }).length;
+  });
+}
+
+test('Quick Attributes keeps off what the overlays draw: Signal Flow\'s arcs and labels, the influence\'s chips and lines (D-158, UI review)', async () => {
+  const r = await launch();
+  const { page } = r;
+  try {
+    await opened(r);
+    // fitted, as signal-flow.png and influence.png: the pc tunnels' arc runs where the bar would go by the PC
+    await page.locator('.canvas-view canvas').hover();
+    await page.keyboard.press('Control+0');
+    await page.waitForTimeout(300);
+    const pc = await partMiddle(page, 'Register', 'PC');
+    await click(page, pc.at);      // the PC chosen, and a flow from it
+    const bar = page.locator('.quickbar');
+    await expect(bar).toBeVisible();
+    await page.waitForFunction(() => { const f = (window as unknown as { __hcsOverlays: { shown(): { flow: { t: number; total: number; running: boolean } } } }).__hcsOverlays.shown().flow; return f.running && f.t >= f.total; });
+    const flowBoxes = await page.evaluate(() => (window as unknown as { __hcsOverlays: { obstacles(): unknown[] } }).__hcsOverlays.obstacles().length);
+    expect(flowBoxes).toBeGreaterThan(0);
+    await expect(bar).toBeVisible();
+    await expect.poll(() => barOverOverlays(page)).toBe(0);
+    // the register file's influence both ways (Esc stops the flow first; Signal Flow off: a click only chooses)
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Signal Flow', exact: true }).click();
+    const rf = await partMiddle(page, 'regfile');
+    await click(page, rf.at);
+    await rightClick(page, rf.at);
+    await menu(page, 'Influence', 'Show Influence (Both)');
+    await page.waitForFunction(() => (window as unknown as { __hcsOverlays: { shown(): { influence: unknown } } }).__hcsOverlays.shown().influence !== null);
+    await expect(bar).toBeVisible();
+    await expect.poll(() => barOverOverlays(page)).toBe(0);
+  } finally {
+    await r.close();
+  }
+});

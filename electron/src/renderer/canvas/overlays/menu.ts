@@ -37,6 +37,12 @@ export function closeMenus(): void {
 
 export function menuOpen(): boolean { return open.length > 0; }
 
+// The submenus from `depth` on closed; the item that opened the last one left no longer marked open.
+function closeFrom(depth: number): void {
+  while (open.length > depth) open.pop()!.remove();
+  open[depth - 1]?.querySelectorAll('[aria-expanded="true"]').forEach((x) => x.setAttribute('aria-expanded', 'false'));
+}
+
 // The entries shown: no separator at the start or the end, none twice in a row, none right after the header.
 export function tidy(entries: MenuEntry[]): MenuEntry[] {
   const out: MenuEntry[] = [];
@@ -72,8 +78,9 @@ function build(entries: MenuEntry[], depth: number): HTMLElement {
     e.items ? h('span', { class: 'sub', 'aria-hidden': 'true' }, '›') : h('span', { class: 'keys', 'aria-hidden': 'true' }, e.keys ?? ''));
     if (e.items) {
       const openSub = () => {
-        while (open.length > depth + 1) open.pop()!.remove();
+        closeFrom(depth + 1);
         const sub = build(e.items!, depth + 1);
+        b.setAttribute('aria-expanded', 'true');   // the row stays lit while its submenu is open (UI review of menu.png)
         document.body.append(sub);
         const r = b.getBoundingClientRect();
         place(sub, r.right - 2, r.top - 5, r.left);
@@ -84,7 +91,7 @@ function build(entries: MenuEntry[], depth: number): HTMLElement {
       b.addEventListener('click', () => { const s = openSub(); s.dataset.for = e.label; focusFirst(s); });
       b.addEventListener('keydown', (k) => { if (k.key === 'ArrowRight') { k.preventDefault(); const s = openSub(); s.dataset.for = e.label; focusFirst(s); } });
     } else {
-      b.addEventListener('pointerenter', () => { while (open.length > depth + 1) open.pop()!.remove(); });
+      b.addEventListener('pointerenter', () => closeFrom(depth + 1));
       b.addEventListener('click', () => { closeMenus(); e.run?.(); });
     }
     menu.append(b);
@@ -103,7 +110,7 @@ function build(entries: MenuEntry[], depth: number): HTMLElement {
     else if (k.key === 'ArrowLeft' && depth > 0) {
       k.preventDefault();
       const parent = open[depth - 1];
-      while (open.length > depth) open.pop()!.remove();
+      closeFrom(depth);
       (parent.querySelector('button[aria-haspopup]') as HTMLButtonElement | null)?.focus();
     } else if (k.key.length === 1 && /\S/.test(k.key) && !k.ctrlKey && !k.altKey && !k.metaKey) {
       // a letter: the next item whose name starts with it
