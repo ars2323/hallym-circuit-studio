@@ -5,7 +5,7 @@
 ## 0. 이번 범위
 
 - **v2 로드맵 N-00~N-28**(PLAN.md 9.2, `docs/PROGRESS.md`의 N 표)을 모두 끝내고 v2.0.0을 공개하는 것이 이번 범위다. 사용자 추가 지시는 같은 표의 A 항목으로 올린다.
-- 화면은 Hallym MIPS Simulator(Electron판, 참고 태그 v2.5.0)와 같은 재료·같은 흐름으로 만든다. 쓰는 법은 원조 Logisim과 거의 같고 기능은 v1 전부다(`docs/v1-feature-parity.md`).
+- 화면은 Hallym MIPS Simulator(Electron판, 참고 태그 v2.6.0)와 같은 재료·같은 흐름으로 만든다. 쓰는 법은 원조 Logisim과 거의 같고 기능은 v1 전부다(`docs/v1-feature-parity.md`).
 - **Swing 화면은 은퇴했다.** v1.0.3이 마지막 Swing 릴리스이고 태그 `swing-final`로 남는다. Swing·FlatLaf 코드는 N-27에서 지웠다(D-163). 되살리지 않는다.
 - **Verilog(PLAN.md 7장, 로드맵 5~9단계)는 구현하지 않는다.** PLAN.md 7.0의 원칙만 지킨다. Verilog 파서, Yosys, ANTLR 의존성을 추가하지 않는다.
 
@@ -56,11 +56,11 @@ resources/, ref/   # 사용자 원본과 참고 클론. .gitignore 대상
 
 ## 4. Hallym MIPS 공유 규칙
 
-- Hallym MIPS Simulator(`ars2323/hallym-mips-simulator`, 같은 저자, BSD-3-Clause)의 `electron/`에서 화면 코드·디자인 값·글꼴·아이콘·도구·테스트 틀을 가져와 쓴다. 기준 태그는 **v2.5.0**이다(D-155). 다른 것을 쓰려면 이유를 DECISIONS에 적는다.
+- Hallym MIPS Simulator(`ars2323/hallym-mips-simulator`, 같은 저자, BSD-3-Clause)의 `electron/`에서 화면 코드·디자인 값·글꼴·아이콘·도구·테스트 틀을 가져와 쓴다. 참고 태그는 **v2.6.0**이다(사용자 추가 지시 2026-09-29, A-07. 그 전은 v2.5.0, D-155). 지금 가져와 있는 파일의 출처 태그는 `electron/ORIGIN.md`가 기준이다. 다른 것을 쓰려면 이유를 DECISIONS에 적는다.
 - **공유 화면 부품은 한 폴더에 모은다:** `electron/src/renderer/shared/`(dom, ui, ask, welcome, backdrop, notice, about, titlebar, splitter, registers, memory, inspector …).
 - **가져온 파일마다 출처를 적는다:** `electron/ORIGIN.md`에 여기 경로, Hallym MIPS 경로, 방식(`copy` = 바이트 그대로, `derived` = 고쳐 씀), 바꾼 곳. 라이선스 원문은 `electron/LICENSE.hallym-mips.txt`, 고지는 NOTICE와 About › Licenses다.
 - **다시 가져오기:** `cd electron && node tools/import-hmips.ts [--tag <태그>]`. 대상 목록은 그 파일의 `TAKEN`이다. `copy`는 덮어쓰고, `derived`는 바뀐 것만 알려 준다. 손으로 합친 뒤 `--record`로 `tools/hmips-sums.json`을 갱신한다. `--check`는 CI와 `origin.test.ts`가 매번 돌린다.
-- **.hmx 명세와 골든만 v2.4.0에 고정한다**(`docs/hmx.md`, `tests/hmx/hallym-mips-v2.4.0/`, D-138). 명세 원본은 Hallym MIPS `docs/hmx-format.md`다. 전문을 복사하지 않는다.
+- **.hmx 명세와 골든은 v2.4.0에 고정한다**(`docs/hmx.md`, `tests/hmx/hallym-mips-v2.4.0/`, D-138). 명세 원본은 Hallym MIPS `docs/hmx-format.md`다. v2.6.0의 명세는 v2.4.0과 바이트까지 같고 골든 7개는 머리의 produced-by·assembled만 다르므로, 참조 주소만 옮기고 시험 자료는 그대로 둔다(A-07). 전문을 복사하지 않는다.
 
 ## 5. Git·GitHub 관리
 
@@ -90,6 +90,7 @@ git과 gh는 설치·로그인돼 있다. 저장소 관리는 전부 직접 한�
   - `docs/v1-feature-parity.md`와 `docs/interaction-parity.md`의 e2e 칸을 채운다.
 - **정상 회로 Messages 0건**은 매 PR 필수다.
 - **가볍게 확인한다.** 세 범위 검토, 전체 재촬영 반복, 절차 증명은 하지 않는다. 한 항목에서 확인 시간이 구현 시간보다 길어지면 멈추고 원인을 적은 뒤 줄여서 계속한다.
+- **고치기 전에 숫자로 잰다.** 느림, 흔들림, 겹침, 크기 같은 문제는 먼저 재서 값을 남기고, 고친 뒤 같은 방법으로 다시 잰다. 잰 값 없이 "나아졌다"고 적지 않는다.
 - **기대 결과는 고정값이다.** "N번 중 M번" 같은 임계값 테스트를 쓰지 않는다. 흔들리면 원인을 없앤다.
 
 ## 7. 스크린샷 규약
@@ -103,7 +104,7 @@ git과 gh는 설치·로그인돼 있다. 저장소 관리는 전부 직접 한�
 
 ## 8. 보고 형식
 
-- **작업 세션 끝:** 한국어로 짧게. 끝난 것, 머지한 PR, 다음 할 일, `needs-human` 변경. 화면이 바뀌었으면 끝에 "스크린샷" 절(7절 링크).
+- **작업 세션 끝:** 한국어로 짧게. 끝난 것, 머지한 PR, 배포(릴리스 URL, 또는 "배포 없음"과 이유, 13절), 다음 할 일, `needs-human` 변경. 화면이 바뀌었으면 끝에 "스크린샷" 절(7절 링크).
 - **중간 보고:** alpha를 올릴 때마다 짧게 한다. 릴리스 URL, 된 것, 스크린샷 5~10장(한 줄에 링크 하나와 볼 것 한 줄).
 - **최종 보고(v2.0.0 뒤 한 번):**
   - 첫 줄 `커밋: <main SHA>`, 다음 줄 릴리스 URL
@@ -162,6 +163,8 @@ git과 gh는 설치·로그인돼 있다. 저장소 관리는 전부 직접 한�
 ## 13. 배포 규칙
 
 순서와 명령은 `docs/release.md`를 따른다.
+
+- **앱을 바꾼 라운드는 배포로 끝낸다.** 문서·테스트만 바꾼 라운드는 보고에 "배포 없음"과 그 이유를 적는다.
 
 - **Windows 배포물은 setup exe 하나다:** `HallymCircuitStudio-<버전>-win-x64-setup.exe`(electron-builder NSIS, 사용자별 안내형 설치, 엔진과 번들 JRE 포함, D-148·D-155). 앱 zip과 MSI는 올리지 않는다. 함께 올리는 것은 트랙 A 파일(`hcs-mips.jar`, 트랙 A zip)과 이름에 `guide`가 든 안내 PDF뿐이다. 규칙은 `electron/tools/release-assets.ts` 하나이고 CI가 올리기 전·뒤·게시 때 본다.
 - 코드 서명이 없다. 릴리스 노트와 안내서에 SmartScreen 안내(추가 정보 → 실행)를 넣는다(`docs/install-windows-ko.md`).

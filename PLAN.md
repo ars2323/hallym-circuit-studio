@@ -89,11 +89,11 @@ Logisim 2.7.1을 포크하되 시뮬레이션 엔진은 손대지 않고, Hallym
 | 어셈블 | Hallym MIPS에서만 한다(SPIM 코어) | QtSpim과 기계어가 비트 단위로 같음. 이 도구에는 어셈블러가 없다 (6.7, D-141) |
 | 편집기 | 새 화면이 원조 2.7.1의 도구와 키·마우스 동작을 그대로 옮기고(`docs/interaction-parity.md`, D-139) 탭·확대·우클릭·검색·배선·영향 경로를 더한다. 툴바·마우스 매핑·라벨 글꼴 같은 .circ 안의 값은 바꾸지 않는다. 사용자 설정은 이번 실행에만 둔다(D-152). 예전 결정 "사용자 설정은 앱 환경설정에 둔다"는 대체됨 (D-152) | 학생이 매 시간 쓰는 화면이다. 파일은 원조와 섞어 써야 하므로 표시 층에서만 바꾼다(11장). 실습실 PC는 여럿이 쓴다 |
 | 개발 언어 | **화면은 Electron + TypeScript**(Hallym MIPS와 같은 스택: esbuild, 자체 dom 도우미, UI 프레임워크 없음, `node --test`, Playwright, electron-builder). **안은 Java 21 엔진 서버**(headless Logisim 2.7.1, stdio 위 JSON-RPC, 3.1). 트랙 A(lib-mips)는 Java 8 그대로(D-132, D-133). 예전 결정 "Java, Swing + FlatLaf. Electron은 쓰지 않음"은 대체됨 (D-132) | 사용자 결정. 두 프로그램(Hallym MIPS와 이 도구)을 같은 재료·같은 코드로 맞춘다. 엔진은 그대로 두므로 2.7.1을 고른 이유(호환)가 남고, 트랙 A도 그대로다. Swing판은 v1.0.3으로 끝났다(태그 `swing-final`) |
-| 디자인 | Hallym MIPS v2.5.0 `electron/`의 디자인 값(`app.css` 변수)과 화면 부품(대화상자, 시작 화면, 빈 상태, 띠, 패널 머리·탭, Registers·Data·Inspector 패널)을 가져와 쓴다(`electron/ORIGIN.md`, D-135, D-155). 예전 결정 "디자인 토큰을 Swing으로 이식"은 대체됨 (D-132) | 두 도구가 한 제품군으로 보이고, 같은 명령이면 같은 필드 색과 이름이 보인다 |
+| 디자인 | Hallym MIPS `electron/`(참고 태그 v2.6.0, A-07. 처음 v2.3.0, 이어 v2.5.0, D-155)의 디자인 값(`app.css` 변수)과 화면 부품(대화상자, 시작 화면, 빈 상태, 띠, 패널 머리·탭, Registers·Data·Inspector 패널)을 가져와 쓴다(`electron/ORIGIN.md`, D-135, D-155). 예전 결정 "디자인 토큰을 Swing으로 이식"은 대체됨 (D-132) | 두 도구가 한 제품군으로 보이고, 같은 명령이면 같은 필드 색과 이름이 보인다 |
 | 글꼴 | 이름·문장은 Pretendard, 값·주소는 D2Coding(둘 다 SIL OFL 1.1, Hallym MIPS에서 가져온 woff2) | Hallym MIPS와 동일. D2Coding은 0과 O를 가른다 |
 | 그리기 | Canvas 2D. 부품 모양은 벡터 정의(윤곽·곡선·포트 표시·글자 자리)로 부품 렌더러 등록표 하나에 둔다. 크기와 포트 위치는 엔진 값 그대로이고, 그림 내보내기(SVG·PDF·PNG)도 같은 정의를 쓴다(D-137) | ref-mips에서 Canvas와 SVG 요소를 재 보니 클럭 중 선 색 갱신에서 Canvas만 60fps를 지켰다. 원조와 같은 크기·포트라 원조에서 열어도 선이 붙는다 |
 | 실습실 PC | 껐다 켜면 모두 기본값. 앱과 엔진은 설정을 디스크에 남기지 않는다. 비정상 종료 복구 파일은 학생 파일 옆에만 둔다(D-152) | 실습실 PC는 여럿이 쓴다. Hallym MIPS와 같다 |
-| 교과목 | 논리설계 및 실험, 컴퓨터구조. 교과목 선택은 튜토리얼에만 쓰고 화면 구성은 같다(12장) | 한 도구를 두 과목이 함께 쓴다 |
+| 교과목 | 논리설계 및 실험, 컴퓨터구조. 교과목별 화면: A-08(#458). 예전 결정 "교과목 선택은 튜토리얼에만 쓰고 화면 구성은 같다"(O-08)는 사용자가 뒤집었다(2026-09-29) | 한 도구를 두 과목이 함께 쓴다 |
 | UI 언어 | **이름·명령은 영어, 설명 문장만 한국어**(사용자 확정, D-049). 메뉴·도구 모음·버튼·탭·상태 표시줄·부품·라이브러리 분류·속성 이름과 값·우클릭 메뉴·부품 몸체 제목·검색 결과·단축키 이름·대화 상자 제목은 원조 2.7.1의 영어 그대로다(Poke Tool, Edit Tool, Wiring, Plexers, Splitter …). 새 기능 이름도 같은 문체다(Load Program, 1 Cycle, Quick Attributes, Fit to Window …). 진단 메시지, 도구 설명·마우스 오버 설명 문장, 대화 상자 안내 문장, 단축키 표의 설명 칸, 튜토리얼·빈 화면 안내는 한국어(영어 설정이면 영어)다. 용어와 문장 규칙은 `docs/GLOSSARY.md`. v2의 세부 규칙(상태 표시줄의 사실은 영어, 이름 바로 뒤 조사 없음, 화면에 "한림" 없음, "~하면 됩니다" 없음, `word-break: keep-all`, 오류 문구는 무엇이 잘못 → 무엇을 할지)은 D-135 14항과 CLAUDE.md 10절 | 학생이 수업·교재·원조 2.7.1에서 보는 이름과 같아야 한다. 이름을 번역하면 같은 것이 두 이름을 갖는다 |
 | 라이선스 | GPL(버전 2 이상) | 포크 원본을 따름. 배포 시 소스 공개. SPIM(BSD) 코드는 들어 있지 않다(hcs-asm과 vendor/spim은 D-141에서 지웠다. SPIM이 낸 출력만 시험 자료로 남는다). Hallym MIPS에서 가져온 화면 코드는 BSD-3-Clause이고 GPL 프로젝트에 넣을 수 있다(고지는 NOTICE, D-135) |
 
@@ -139,7 +139,7 @@ vendor/logisim-2.7.1/, assets/, tests/, docs/, tools/
 
 예전 구조의 `native/hcs-asm/`과 `vendor/spim-9.1.24/`는 지웠다(D-141).
 
-**Hallym MIPS와 나누는 것.** Hallym MIPS(같은 저자, BSD-3-Clause)의 `electron/`에서 Hallym MIPS가 직접 쓴 화면 코드·디자인 값·글꼴(Pretendard 부분집합, D2Coding)·Lucide 아이콘·도구(빌드, 스크린샷, 돌연변이, 패키징)를 가져온다. 기준 태그는 v2.5.0이다(D-155). 공유 화면 부품은 `electron/src/renderer/shared/` 한 폴더에 모으고, 파일마다 출처와 바꾼 곳을 `electron/ORIGIN.md`에 적는다. `electron/tools/import-hmips.ts`가 다시 가져오고 바이트 동일을 검사한다. SPIM에서 나온 파일(명령어 표, 네이티브 애드온, 코어에 기대는 디코더 등)은 가져오지 않는다(D-133 5항, 3장 라이선스).
+**Hallym MIPS와 나누는 것.** Hallym MIPS(같은 저자, BSD-3-Clause)의 `electron/`에서 Hallym MIPS가 직접 쓴 화면 코드·디자인 값·글꼴(Pretendard 부분집합, D2Coding)·Lucide 아이콘·도구(빌드, 스크린샷, 돌연변이, 패키징)를 가져온다. 참고 태그는 v2.6.0이다(A-07. 처음 v2.3.0, 이어 v2.5.0, D-155. 지금 가져온 파일의 태그는 `electron/ORIGIN.md`). 공유 화면 부품은 `electron/src/renderer/shared/` 한 폴더에 모으고, 파일마다 출처와 바꾼 곳을 `electron/ORIGIN.md`에 적는다. `electron/tools/import-hmips.ts`가 다시 가져오고 바이트 동일을 검사한다. SPIM에서 나온 파일(명령어 표, 네이티브 애드온, 코어에 기대는 디코더 등)은 가져오지 않는다(D-133 5항, 3장 라이선스).
 
 **캔버스.** Canvas 2D로 그린다. 부품 모양은 벡터 정의로 부품 렌더러 등록표 하나(`electron/src/renderer/canvas/registry.ts`)에 두고, 수업에 쓰는 부품은 전부 제 렌더러가 있다(`docs/canvas-renderers.md`). 크기와 포트 위치는 엔진 값 그대로이고, 기하 동등성 검사가 부품 종류 × 대표 속성마다 엔진 포트 위치에 렌더러가 포트를 그리는지 본다(D-137). 값 색(1·0·떠 있음·오류·버스·폭 불일치)은 원조 Logisim의 뜻 그대로 토큰으로 정하고 범례와 맞춘다.
 
@@ -232,7 +232,7 @@ E·X가 보이는 선에서 입력 쪽으로 거슬러 올라가, 처음 생긴 
 
 ## 6. MIPS 부품과 프로그램(.hmx) 불러오기
 
-MIPS 32비트 주소를 그대로 쓰는 Instruction Memory, Data Memory(데이터+스택), Console 부품을 제공한다. Hallym MIPS에서 어셈블해 내보낸 실행 이미지(`.hmx`)를 골라 이 메모리에 넣는다. 명세 원본은 Hallym MIPS의 [`docs/hmx-format.md`](https://raw.githubusercontent.com/ars2323/hallym-mips-simulator/v2.4.0/docs/hmx-format.md)이고 태그 v2.4.0에 고정한다. 명세와 다르면 명세를 따르고, 명세가 정하지 않은 곳의 우리 선택만 docs/hmx.md에 적는다(D-138). 명세의 골든 7쌍은 `tests/hmx/hallym-mips-v2.4.0/`에 받아 두고 대조한다. 화면·공유 코드의 참고 태그(v2.5.0)와 달리 명세와 골든은 v2.4.0 그대로다(D-155). 두 도구의 접점은 실행 이미지 파일 하나다. 학생은 Hallym MIPS에서 Ctrl+S로 어셈블한 뒤 제목 줄 오른쪽 아이콘 묶음의 Export executable image (.hmx) 단추로 내보낸 파일을 불러온다. .s는 받지 않는다(사용자 결정, D-141): Hallym MIPS 2.4.0이 내보내기를 배포해 전환 기간의 .s 불러오기와 hcs-asm을 지웠다.
+MIPS 32비트 주소를 그대로 쓰는 Instruction Memory, Data Memory(데이터+스택), Console 부품을 제공한다. Hallym MIPS에서 어셈블해 내보낸 실행 이미지(`.hmx`)를 골라 이 메모리에 넣는다. 명세 원본은 Hallym MIPS의 [`docs/hmx-format.md`](https://raw.githubusercontent.com/ars2323/hallym-mips-simulator/v2.4.0/docs/hmx-format.md)이고 태그 v2.4.0에 고정한다. 명세와 다르면 명세를 따르고, 명세가 정하지 않은 곳의 우리 선택만 docs/hmx.md에 적는다(D-138). 명세의 골든 7쌍은 `tests/hmx/hallym-mips-v2.4.0/`에 받아 두고 대조한다. 화면·공유 코드의 참고 태그(v2.6.0)와 달리 명세와 골든은 v2.4.0 그대로다(D-155). v2.6.0의 명세는 v2.4.0과 바이트까지 같고 골든은 머리의 produced-by·assembled만 다르다(A-07). 두 도구의 접점은 실행 이미지 파일 하나다. 학생은 Hallym MIPS에서 Ctrl+S로 어셈블한 뒤 제목 줄 오른쪽 아이콘 묶음의 Export executable image (.hmx) 단추로 내보낸 파일을 불러온다. .s는 받지 않는다(사용자 결정, D-141): Hallym MIPS 2.4.0이 내보내기를 배포해 전환 기간의 .s 불러오기와 hcs-asm을 지웠다.
 
 ### 6.1 기본 RAM·ROM의 한계
 
@@ -778,7 +778,7 @@ v1은 이 장을 Swing 화면에 만들었다. v2는 같은 기능을 Electron �
 
 ## 12. 시작 화면과 튜토리얼 (v2, N-17·N-18)
 
-Hallym MIPS와 같은 시작 화면과 튜토리얼 엔진을 쓴다(D-132). 교과목 선택은 튜토리얼에만 쓰고 화면 구성은 같다.
+Hallym MIPS와 같은 시작 화면과 튜토리얼 엔진을 쓴다(D-132). 교과목별 화면: A-08(#458). 아래 12.1의 시작 흐름은 v2 지시 때의 것이고, 교과목을 먼저 묻는 흐름으로 A-08이 고친다.
 
 ### 12.1 시작 화면
 
