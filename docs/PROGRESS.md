@@ -214,11 +214,11 @@ Swing판 v1.1.0은 내지 않는다(D-132). 엔진 쪽 항목은 v2의 N-00에�
 | N-04 | jlink JRE 번들, 엔진 시작·종료·재시작·복구 | #380 | 완료 | #422 | jlink 런타임(Temurin 21.0.12, AppCDS): zip 32~36MB, hello 52~109ms, ref-mips 열기 304ms(Linux CI)·454ms(Windows CI), 부모 감시, 메모리 저널로 엔진 복구(디스크 기록 없음), NOTICE·About에 OpenJDK, 테스트 수와 측정은 D-142(머지 시점 main 누계: 단위 132·e2e 44·돌연변이 66/66) |
 | N-05 | 캔버스 보기: 그리기 엔진, 부품 렌더러 등록표(수업 부품 전부), 선·연결점·점프·버스, 라벨·터널 색·포트 이름·값 칩, 배율·이동 | #381 | 완료 | #425 | 렌더러 등록표(벡터 모양 정의, Canvas 2D, SVG 내보내기 같은 정의), 수업 부품 53종 전용 렌더러, 값 색·범례, 칩 간격 규칙, 25~400% 배율, Canvas·SVG 측정(값 갱신 최악 경우에 SVG 프레임 누락 44~57%, 실제 엔진 스트림에서 5~13% → Canvas 결정), D-137 |
 | N-06 | 기하 동등성 검사(부품 × 속성, 엔진 포트 위치 = 렌더러 포트) | #382 | 완료 | #425 | 엔진이 만든 883개 조합·63종, 포트 검사 8,408번 문제 0, CI에서 자료 다시 만들기 동일 확인(#436로 결정성 확보), D-137 |
-| N-07 | 시뮬레이션 연결: Poke, 1 Cycle, N Cycles, Run, Reset, 주파수, 값 스트림, 진동 | #383 | 대기 |  |  |
-| N-08 | 편집 도구와 조작(원조와 같은 사용감 표 전부) | #384 | 진행 | #410 | 조작 동등성 표 docs/interaction-parity.md(I-01~I-213, D-139). 구현은 캔버스(N-05) 뒤 |
-| N-09 | 편집 동등성 통과 → v2.0.0-alpha.1 | #385 | 대기 |  |  |
-| N-10 | Attributes(Inspector 형식), Quick Attributes, 우클릭 메뉴 | #386 | 대기 |  |  |
-| N-11 | 여러 파일 탭, 탭 간 라이브러리, 서브회로(들어가기, 포트 순서, Auto Appearance, 모양 편집, 가져오기), 창 분리·나란히 보기 | #387 | 대기 |  |  |
+| N-07 | 시뮬레이션 연결: Poke, 1 Cycle, N Cycles, Run, Reset, 주파수, 값 스트림, 진동 | #383 | 완료 | #431 | 빠른 N Cycles(D-145: 1000 사이클 v1 10,139 ms → v2 1.9~2.3 s, 프로그램 없는 ref-mips; D-160 측정도 참고), Run/Stop, 1 Cycle, Reset, 속도, Poke(SimGate 안), 꺼짐 띠, D-145 |
+| N-08 | 편집 도구와 조작(원조와 같은 사용감 표 전부) | #384 | 완료 | #410, #439, #447 | 조작 동등성 표 I-01~I-213(D-139), 엔진 선택 모델과 원조 도구 코드로 편집, 복구 저널, undo·redo에 circuitId, D-146 |
+| N-09 | 편집 동등성 통과 → v2.0.0-alpha.1 | #385 | 완료 | #448 | 편집 동등성 18/18(엔진 재생, 보통·상수 해시 JVM), 화면 재생 7장면(다리 0건, #449 뒤), D-159, v2.0.0-alpha.1 |
+| N-10 | Attributes(Inspector 형식), Quick Attributes, 우클릭 메뉴 | #386 | 완료 | #449 | Attributes(Inspector 형식), Quick Attributes, 메뉴 등록표 하나, 메뉴 의도·RAM/ROM 편집, D-157 |
+| N-11 | 여러 파일 탭, 탭 간 라이브러리, 서브회로(들어가기, 포트 순서, Auto Appearance, 모양 편집, 가져오기), 창 분리·나란히 보기 | #387 | 완료 | #444 | 회로 관리·Port Order·Auto Appearance·모양 편집기·Import·라이브러리(저장 반영 SimGate·저널), 창 분리·나란히, D-153 |
 | N-12 | 부품 목록·검색 팔레트, Splitter 편집기, 찾기, Tunnels, Minimap | #388 | 완료 | #433 | Components 검색, 검색 창(Ctrl+K), Find(find.query), Tunnels(색·외톨이), Minimap, Splitter 편집기, 사건 규약 tool-events.ts, D-150 |
 | N-13 | Messages(정적·동적 진단), E/X 출처, 진동, 가까운 이름 | #389 | 완료 | #421 | engine diag.*·trace.origin, Messages 패널·상태 표시줄 개수, 정상 회로 11개 0건·고장 회로 22개 한 줄씩, 가까운 이름(짝 없는 터널, 후보 하나일 때만), hcs:reveal 이벤트(캔버스 연결은 N-05), D-143 |
 | N-14 | Cycle View, Run Until, Registers·Memory·Instruction(Hallym MIPS 패널), Mark as PC, Register Mapping | #390 | 완료 | #423 | record.* 메서드 19개(RecordTest 20개), Cycle View·Run Until, Hallym MIPS Registers·Data·Inspector 패널(SPIM 유래 제외), Mark as PC·Register Mapping(hcs:ext), 지난 사이클 경합 수정, D-144 |
@@ -229,9 +229,9 @@ Swing판 v1.1.0은 내지 않는다(D-132). 엔진 쪽 항목은 v2의 N-00에�
 | N-19 | 실습실 PC 규칙(화면·엔진)과 자동 검사 | #395 | 완료 | #434 | 학생 파일 옆 복구 파일(앱이 죽을 때), 끝내기·탭 닫기 저장 질문, 설정은 이번 실행에만, 엔진 디스크 환경설정 검사(LabPcRuleTest), 부모가 사라지면 엔진 제한 시간 뒤 종료, D-152 |
 | N-20 | 화면 문구 규칙, 문구 리소스, About·NOTICE | #396 | 대기 |  |  |
 | N-21 | 그 밖의 v1 기능 전부, v1 기능 대조표 완료 | #397 | 대기 |  |  |
-| N-22 | 성능 목표 측정과 달성 | #398 | 대기 |  |  |
+| N-22 | 성능 목표 측정과 달성 | #398 | 완료 | #451 | 첫 시작 0.8~1.3 s, ref-mips 열기 0.7~1.3 s, 이동·확대 60fps(100·150%), N Cycles 1000 2.7~4.3 s(v1 10.2 s), Run 4 kHz 끊김 0, setup exe 118 MB, CI 측정 단계, D-160 |
 | N-23 | setup exe(electron-builder NSIS), 예전 설치본 처리, zip·MSI 금지 CI, Windows 설치본 e2e | #399 | 완료 | #429, #435 | setup exe(NSIS, 사용자별, 약 117MB), 옛 MSI 자동 제거, 설치·실행·제거 변화 0 검사(대조 구간으로 잰 잡음), 릴리스 파일 규칙, D-148 |
-| N-24 | 사전 릴리스 alpha들 | #400 | 대기 |  |  |
+| N-24 | 사전 릴리스 alpha들 | #400 | 진행 | #440, #448 | v2.0.0-alpha.0(보기 전용, facb3cbd, setup sha de7b1370…), v2.0.0-alpha.1(편집, 83e4f7c1, setup sha 73aacd95…), 공개 주소 해시 일치 |
 | N-25 | OPEN-ISSUES 전부 해소 | #401 | 대기 |  |  |
 | N-26 | PLAN 개정, CLAUDE.md, 안내서·PDF, README | #402 | 대기 |  |  |
 | N-27 | Swing 화면 코드 삭제, 빌드·CI 정리 | #403 | 대기 |  |  |
@@ -247,5 +247,5 @@ Swing판 v1.1.0은 내지 않는다(D-132). 엔진 쪽 항목은 v2의 N-00에�
 | A-02 | .s 불러오기·hcs-asm·native·vendor/spim 제거, SPIM 오라클 굳힘 | #419 | 완료 | #420 | tests/spim-oracle(run 5, dump 11=5825줄, memory-layout), 옛 .s 속성은 읽기만 하고 사실+할 일 표시, D-141 |
 | A-03 | Data Memory와 Stack을 한 부품으로(SPIM 두 영역) | #415 | 완료 | #417 | 데이터 0x10000000~0x100FFFFF·스택 0x7FFC0000~0x7FFFFFFF, 옛 Stack 파일 동작 불변(LegacyStackFileTest), 새 부품 원조 저장 바이트 같음, mips.facts separateStack, MemoryTable, D-140 |
 | A-04 | 부품 모양을 벡터 정의로(화면 Canvas, 내보내기 같은 정의), Canvas·SVG 측정 | #381 | 완료 | #425 | 등록표의 벡터 정의를 Canvas로 그리고 SVG 내보내기가 같은 정의를 씀, ref-mips에서 Canvas·SVG 측정 후 Canvas 결정(D-137) |
-| A-05 | Hallym MIPS 2.5.0 기준 맞추기(시작 화면 배경 영상, 안내형 설치: oneClick false·마침 화면 지금 실행하기·남색 띠·파란 진행 막대, ORIGIN 출처 v2.5.0, .gitattributes, 릴리스 규칙) | #438 | 진행 |  | N-17·N-23과 함께. .gitattributes와 릴리스 규칙은 A-06 PR(D-154) |
-| A-06 | 보기 전용 사전 릴리스 v2.0.0-alpha.0 | #400 | 진행 |  | 이 PR: 상태 표시줄의 엔진·Java 버전 뺌(About에만), 편집 도구(Wire·Text·Pin·Tunnel·Probe) 비활성 e2e, 노트 docs/releases/2.0.0-alpha.0.md, D-154 |
+| A-05 | Hallym MIPS 2.5.0 기준 맞추기(시작 화면 배경 영상, 안내형 설치: oneClick false·마침 화면 지금 실행하기·남색 띠·파란 진행 막대, ORIGIN 출처 v2.5.0, .gitattributes, 릴리스 규칙) | #438 | 완료 | #442 | Hallym MIPS v2.5.0 기준, 시작 화면 배경 영상(측정 검사), 안내형 설치(진행 막대·띠 색 측정, 안내형 경로 변화 0 비교), D-155 |
+| A-06 | 보기 전용 사전 릴리스 v2.0.0-alpha.0 | #400 | 완료 | #440 | v2.0.0-alpha.0 사전 릴리스 게시(보기 전용), D-154 |
