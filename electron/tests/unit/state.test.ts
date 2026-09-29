@@ -15,7 +15,7 @@ import { test } from 'node:test';
 
 import { APP_GUID } from '../../tools/package-config.ts';
 import {
-  ALLOWED, allowedByInstall, auditFrom, counts, diffStates, judge, measureNoise, noiseKey, noiseOf, parseAudit, parseRegQuery, readNoise, report,
+  ALLOWED, allowedByInstall, auditFrom, counts, diffStates, judge, measureNoise, nameServices, noiseKey, noiseOf, parseAudit, parseRegQuery, parseTasklist, readNoise, report,
   unexpected, type Change, type NoiseFile, type State, type Writers,
 } from '../../tools/windows/state.ts';
 
@@ -395,6 +395,7 @@ test('a change that names this program is never Windows\' own -- but for Windows
 // ---- Explorer's caches and counters: the audit trail's word (D-164) ----------------------------------------
 
 const EXPLORER_EXE = 'C:\\Windows\\explorer.exe';
+const SVCHOST = 'C:\\Windows\\System32\\svchost.exe';
 const OURS_EXE = 'C:\\Users\\runneradmin\\AppData\\Local\\Programs\\Hallym Circuit Studio\\HallymCircuitStudio.exe';
 const COUNT = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\UserAssist\\{CEBFF5CD-ACE2-4F4F-9178-9926F41749EA}\\Count';
 const written = (by: Record<string, string[]>): Writers => new Map(Object.entries(by).map(([k, v]) => [k, new Set(v)]));
@@ -418,7 +419,9 @@ test('Explorer\'s caches and counters (D-164): through only when the audit trail
       assert.equal(counts(c, e, undefined, by([EXPLORER_EXE])), false, `${c.what} ${c.path} (${e}): Explorer's`);
       assert.equal(counts(c, e, undefined, by(['c:\\windows\\EXPLORER.EXE'])), false, `${c.what} ${c.path} (${e}): Explorer's, in any case`);
       assert.equal(counts(c, e, undefined, by([EXPLORER_EXE, OURS_EXE])), true, `${c.what} ${c.path} (${e}): the program wrote it too`);
-      for (const other of [OURS_EXE, 'C:\\Windows\\System32\\msiexec.exe', 'C:\\Users\\u\\AppData\\Local\\Temp\\~nsu1.tmp\\Un_A.exe', 'C:\\x\\Windows\\explorer.exe'])
+      assert.equal(counts(c, e, undefined, by([EXPLORER_EXE, `${SVCHOST} [CDPUserSvc_1a2b]`])), false, `${c.what} ${c.path} (${e}): Explorer's and a service's`);
+      for (const other of [OURS_EXE, 'C:\\Windows\\System32\\msiexec.exe', 'C:\\Users\\u\\AppData\\Local\\Temp\\~nsu1.tmp\\Un_A.exe', 'C:\\x\\Windows\\explorer.exe',
+        'C:\\Windows\\System32\\svchost.exe #12', 'C:\\Windows\\Temp\\svchost.exe', `${SVCHOST} [x] ${OURS_EXE}`])
         assert.equal(counts(c, e, undefined, by([other])), true, `${c.what} ${c.path} (${e}): ${other}`);
     }
   }
@@ -451,6 +454,7 @@ test('the audit trail read: file writes and deletes (4663), registry values set 
   const xml = [
     ev(4663, { ObjectType: 'File', ObjectName: `${L}\\Microsoft\\Windows\\Explorer\\iconcache_idx.db`, AccessMask: '0x2', ProcessName: EXPLORER_EXE }),
     ev(4663, { ObjectType: 'File', ObjectName: `${L}\\Microsoft\\Windows\\Caches\\{3DA71D5A-20CC-432F-A115-DFE92379E91F}.3.ver0x0000000000000006.db`, AccessMask: '0x10000', ProcessName: EXPLORER_EXE }),
+    ev(4663, { ObjectType: 'File', ObjectName: `${L}\\Microsoft\\Windows\\Caches\\{3DA71D5A-20CC-432F-A115-DFE92379E91F}.3.ver0x0000000000000006.db`, AccessMask: '0x2', ProcessName: SVCHOST, ProcessId: '0x4d8' }),
     ev(4663, { ObjectType: 'File', ObjectName: `${L}\\Microsoft\\Windows\\Explorer\\iconcache_32.db`, AccessMask: '0x1', ProcessName: OURS_EXE }),          // read: not a write
     ev(4663, { ObjectType: 'File', ObjectName: `${L}\\Microsoft\\Windows\\Explorer\\iconcache_idx.db`, AccessMask: '0x4', ProcessName: 'C:\\a&amp;b\\x.exe' }),
     ev(4663, { ObjectType: 'Key', ObjectName: '\\REGISTRY\\USER\\S-1-5-21-1-2-3-500\\Software\\x', AccessMask: '0x2', ProcessName: EXPLORER_EXE }),   // a key: not a file
@@ -462,12 +466,21 @@ test('the audit trail read: file writes and deletes (4663), registry values set 
   const w = parseAudit(xml, env);
   assert.deepEqual([...w.entries()].map(([k, v]) => [k, [...v]]), [
     [noiseKey(EXPLORERS[0]), [EXPLORER_EXE, 'C:\\a&b\\x.exe']],
-    [noiseKey(EXPLORERS[2]), [EXPLORER_EXE]],
+    [noiseKey(EXPLORERS[2]), [EXPLORER_EXE, `${SVCHOST} #1240`]],
     [noiseKey(EXPLORERS[5]), [EXPLORER_EXE]],
   ]);
+  // A service host named by its services (tasklist /svc), or as ended.
+  const services = parseTasklist('"svchost.exe","1240","CDPUserSvc_5e1f2,WpnUserService_5e1f2"\r\n"explorer.exe","3012","N/A"\r\n');
+  assert.deepEqual([...services], [[1240, 'CDPUserSvc_5e1f2,WpnUserService_5e1f2'], [3012, 'N/A']]);
+  const named = nameServices(w, services);
+  assert.deepEqual([...named.get(noiseKey(EXPLORERS[2]))!], [EXPLORER_EXE, `${SVCHOST} [CDPUserSvc_5e1f2,WpnUserService_5e1f2]`]);
+  assert.deepEqual([...nameServices(w, new Map()).get(noiseKey(EXPLORERS[2]))!], [EXPLORER_EXE, `${SVCHOST} [ended]`]);
   // So what it read lets two flakes' places through, but not the one with a stranger among its writers.
-  assert.equal(counts(EXPLORERS[0], 'install', undefined, w), true);
-  assert.equal(counts(EXPLORERS[2], 'none', undefined, w), false);
-  assert.equal(counts(EXPLORERS[5], 'none', undefined, w), false);
+  assert.equal(counts(EXPLORERS[2], 'none', undefined, w), true);   // a service host not yet named: not taken on trust
+  const w0 = w;
+  const wn = named;
+  assert.equal(counts(EXPLORERS[0], 'install', undefined, w0), true);
+  assert.equal(counts(EXPLORERS[2], 'none', undefined, wn), false);
+  assert.equal(counts(EXPLORERS[5], 'none', undefined, wn), false);
   assert.equal(auditFrom('2026-09-28T12:30:00.000Z'), '2026-09-28T12:29:00.000Z');
 });

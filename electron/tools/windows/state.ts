@@ -146,7 +146,8 @@ export function parseAudit(xml: string, env: { LOCALAPPDATA?: string; APPDATA?: 
     const data: Record<string, string> = {};
     for (const m of ev.matchAll(/<Data Name=['"]([^'"]+)['"]>([^<]*)<\/Data>/g)) data[m[1]] = xmlText(m[2]);
     const object = data.ObjectName ?? '';
-    const image = data.ProcessName ?? '';
+    // a service host: its process id too (auditedWriters names its services)
+    const image = /\\svchost\.exe$/i.test(data.ProcessName ?? '') && data.ProcessId ? `${data.ProcessName} #${parseInt(data.ProcessId, 16)}` : data.ProcessName ?? '';
     if (id === '4657') {
       const key = /^\\REGISTRY\\USER\\S-1-5-21-[\d-]+\\(.+)$/i.exec(object)?.[1];
       if (key && data.ObjectValueName !== undefined) add(noiseKey({ where: 'registry', path: `HKCU\\${key} :: ${data.ObjectValueName}` }), image);
@@ -164,7 +165,25 @@ export function parseAudit(xml: string, env: { LOCALAPPDATA?: string; APPDATA?: 
 export function auditedWriters(from: string, to: string, env: NodeJS.ProcessEnv = process.env): Writers {
   const q = `*[System[(EventID=4663 or EventID=4657) and TimeCreated[@SystemTime>='${from}' and @SystemTime<='${to}']]]`;
   const xml = execFileSync('wevtutil.exe', ['qe', 'Security', `/q:${q}`, '/f:xml'], { encoding: 'utf8', maxBuffer: 1 << 30, windowsHide: true });
-  return parseAudit(xml, env);
+  const services = parseTasklist(execFileSync('tasklist.exe', ['/svc', '/fo', 'csv', '/nh'], { encoding: 'utf8', windowsHide: true }));
+  return nameServices(parseAudit(xml, env), services);
+}
+
+// tasklist /svc /fo csv /nh: "image","pid","services" -> pid -> services.
+export function parseTasklist(csv: string): Map<number, string> {
+  const out = new Map<number, string>();
+  for (const line of csv.split(/\r?\n/)) {
+    const m = /^"([^"]*)","(\d+)","([^"]*)"/.exec(line.trim());
+    if (m) out.set(Number(m[2]), m[3]);
+  }
+  return out;
+}
+
+// A service host's "#<pid>" -> "[<its services>]" ("[ended]" when it is no longer running).
+export function nameServices(w: Writers, services: Map<number, string>): Writers {
+  const out: Writers = new Map();
+  for (const [k, set] of w) out.set(k, new Set([...set].map((p) => p.replace(/ #(\d+)$/, (_, pid: string) => ` [${services.get(Number(pid)) ?? 'ended'}]`))));
+  return out;
 }
 
 // A period's audit window: from a minute before its first snapshot was finished (the snapshot's walk takes seconds) to now.
@@ -192,8 +211,11 @@ export interface Allowed {
 const ALL: Expect[] = ['none', 'install', 'uninstalled'];
 const INSTALLING: Expect[] = ['install', 'uninstalled'];
 const SEARCH = 'LOCALAPPDATA\\\\Packages\\\\Microsoft\\.Windows\\.Search_cw5n1h2txyewy\\\\';
-// Explorer, the Windows shell: the only program the audit trail may show writing its caches and counters (D-164).
-export const EXPLORER = /^[A-Z]:\\Windows\\explorer\.exe$/i;
+/* Windows' own programs, the only ones the audit trail may show writing Explorer's caches and counters (D-164):
+   Explorer (the shell) and svchost.exe in System32, the host of Windows' services (the shell's versioned caches are
+   also written by a service; the per-user installer, run without elevation, can register none).  A svchost writer is
+   named with its services, as tasklist gave them when the trail was read. */
+export const WINDOWS_WRITERS = /^[A-Z]:\\Windows\\(explorer\.exe|System32\\svchost\.exe( \[[^\]]*\])?)$/i;
 
 /* Where an installer puts what it installs under HKCU\Software\Microsoft and Classes: uninstall
    entries, programs run at logon, App Paths, the .circ file type and its open-with list, Windows
@@ -230,13 +252,13 @@ export const ALLOWED: Allowed[] = [
     why: 'the files of the HKCU\\Software\\Classes hive (the registry itself is compared key by key)' },
   // ---- any check: Explorer's own caches and counters, written once in a while (a control period may miss it) --
   // only with the audit trail's word that Explorer, and nothing else, wrote them in the period (D-164)
-  { where: 'files', what: ['added', 'removed', 'changed'], in: ALL, writers: EXPLORER,
+  { where: 'files', what: ['added', 'removed', 'changed'], in: ALL, writers: WINDOWS_WRITERS,
     path: /^LOCALAPPDATA\\Microsoft\\Windows\\Explorer\\(iconcache|thumbcache)_[A-Za-z0-9_]+\.db$/,
     why: 'Explorer\'s icon and thumbnail caches: it writes them when it draws an icon (a new Start menu entry, a window\'s taskbar button) and flushes its index at a time of its own (seen after the MSI-to-setup install, 2026-09-28)' },
-  { where: 'files', what: ['added', 'removed', 'changed'], in: ALL, writers: EXPLORER,
+  { where: 'files', what: ['added', 'removed', 'changed'], in: ALL, writers: WINDOWS_WRITERS,
     path: /^LOCALAPPDATA\\Microsoft\\Windows\\Caches\\(cversions\.\d+\.db|\{[0-9A-F-]{36}\}\.\d+\.ver0x[0-9a-f]{16}\.db)$/,
     why: 'the shell\'s versioned caches: a new version when the Start menu changes, the old one removed later, at a time of Explorer\'s own (seen in a first run after an install, 2026-09-28)' },
-  { where: 'registry', what: ['added', 'changed'], in: ALL, writers: EXPLORER,
+  { where: 'registry', what: ['added', 'changed'], in: ALL, writers: WINDOWS_WRITERS,
     path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\UserAssist\\\{[0-9A-F-]{36}\}\\Count :: HRZR_PGYFRFFVBA$/,
     why: 'Explorer\'s session record (UEME_CTLSESSION in ROT13), rewritten at a time of its own while a user is logged on (seen in a run check, 2026-09-28)' },
   // ---- an install or an uninstall: Windows' own stores, which Windows changes when any program is installed or
