@@ -256,7 +256,7 @@ export const MUTANTS: Mutant[] = [
   { module: 'shell', file: 'src/renderer/app/logic/facts.ts', what: 'PC in the Changed chip',
     find: ".filter((r) => r.changed && r.key !== 'PC')", replace: '.filter((r) => r.changed)', tests: ['tests/unit/shell.test.ts'] },
   { module: 'shell', file: 'src/renderer/app/app.ts', what: 'the Changed chip while the clock runs',
-    find: '    if (ch && rec && ch.cycle === rec.cycle && !f.sim?.ticking && ch.chip) {', replace: '    if (ch && ch.chip) {', tests: ['tests/e2e/shell.e2e.ts'] },
+    find: "    if (ch && rec && ch.cycle === rec.cycle && !f.sim?.ticking && ch.chip && showing('statusChanged')) {", replace: '    if (ch && ch.chip) {', tests: ['tests/e2e/shell.e2e.ts'] },
   { module: 'shell', file: 'src/renderer/app/captions.ts', what: 'the caption patch ignores the tutorial\'s shade',
     find: 'overlayColor(document.documentElement.hasAttribute(TUTORIAL_SHADE),', replace: 'overlayColor(false,', tests: ['tests/e2e/shell.e2e.ts'] },
   { module: 'shell', file: 'src/main/examples.ts', what: 'any path opened as an example',
