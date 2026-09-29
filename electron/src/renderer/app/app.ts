@@ -412,10 +412,13 @@ const start = startScreen({
   openFile: () => void openFile(),
 });
 
-// The course's tutorial (step 2 of the first screen).  N-18's startCourse(track) plugs in here -- the one adapter
-// (D-168); until it lands, a new circuit in that course, as 바로 시작 › 새 회로 (D-135).
+// The course's tutorial (step 2 of the first screen, straight to the chosen course's track: A-08).  The one adapter
+// (D-168): N-18 (#466) sets `tutorialTrack = startCourse` -- its startCourse(track) takes 'logic' | 'architecture'; until
+// then, a new circuit in that course, as 바로 시작 › 새 회로 (D-135).
+let tutorialTrack = null as ((track: Course) => void | Promise<void>) | null;
 async function startTutorial(track: Course): Promise<void> {
   setCourse(track);
+  if (tutorialTrack) { await tutorialTrack(track); return; }
   await newCircuit();
 }
 
