@@ -146,8 +146,9 @@ export function parseAudit(xml: string, env: { LOCALAPPDATA?: string; APPDATA?: 
     const data: Record<string, string> = {};
     for (const m of ev.matchAll(/<Data Name=['"]([^'"]+)['"]>([^<]*)<\/Data>/g)) data[m[1]] = xmlText(m[2]);
     const object = data.ObjectName ?? '';
-    // a service host: its process id too (auditedWriters names its services)
-    const image = /\\svchost\.exe$/i.test(data.ProcessName ?? '') && data.ProcessId ? `${data.ProcessName} #${parseInt(data.ProcessId, 16)}` : data.ProcessName ?? '';
+    // a service host: its process id and the event's time too (auditedWriters names its services, when it is sure)
+    const at = /<TimeCreated SystemTime=['"]([^'"]+)['"]/.exec(ev)?.[1] ?? '';
+    const image = /\\svchost\.exe$/i.test(data.ProcessName ?? '') && data.ProcessId ? `${data.ProcessName} #${parseInt(data.ProcessId, 16)}@${at}` : data.ProcessName ?? '';
     if (id === '4657') {
       const key = /^\\REGISTRY\\USER\\S-1-5-21-[\d-]+\\(.+)$/i.exec(object)?.[1];
       if (key && data.ObjectValueName !== undefined) add(noiseKey({ where: 'registry', path: `HKCU\\${key} :: ${data.ObjectValueName}` }), image);
@@ -162,11 +163,30 @@ export function parseAudit(xml: string, env: { LOCALAPPDATA?: string; APPDATA?: 
 }
 
 // The audit trail between two times (ISO), read with wevtutil (read-only; PowerShell would write its own profile data).
+// Read at the end of the window, so the service hosts that wrote in it are still running when tasklist names them.
+// Fails, rather than answers less, when the log may not hold the whole window (auditCoverage).
 export function auditedWriters(from: string, to: string, env: NodeJS.ProcessEnv = process.env): Writers {
+  const wev = (args: string[]) => execFileSync('wevtutil.exe', args, { encoding: 'utf8', maxBuffer: 1 << 30, windowsHide: true });
   const q = `*[System[(EventID=4663 or EventID=4657) and TimeCreated[@SystemTime>='${from}' and @SystemTime<='${to}']]]`;
-  const xml = execFileSync('wevtutil.exe', ['qe', 'Security', `/q:${q}`, '/f:xml'], { encoding: 'utf8', maxBuffer: 1 << 30, windowsHide: true });
+  const xml = wev(['qe', 'Security', `/q:${q}`, '/f:xml']);
   const services = parseTasklist(execFileSync('tasklist.exe', ['/svc', '/fo', 'csv', '/nh'], { encoding: 'utf8', windowsHide: true }));
-  return nameServices(parseAudit(xml, env), services);
+  const raw = execFileSync('wmic.exe', ['process', 'where', "name='svchost.exe'", 'get', 'CreationDate,ProcessId', '/value'], { windowsHide: true, maxBuffer: 16 << 20 });
+  const created = parseWmicCreated(raw.includes(0) ? raw.toString('utf16le') : raw.toString('latin1'));
+  const oldest = /<TimeCreated SystemTime=['"]([^'"]+)['"]/.exec(wev(['qe', 'Security', '/c:1', '/f:xml']))?.[1];
+  const size = Number(/fileSize:\s*(\d+)/.exec(wev(['gli', 'Security']))?.[1] ?? NaN);
+  const max = Number(/maxSize:\s*(\d+)/.exec(wev(['gl', 'Security']))?.[1] ?? NaN);
+  auditCoverage(from, oldest, size, max);
+  return nameServices(parseAudit(xml, env), services, created);
+}
+
+/* The Security log holds the whole window: its oldest event is no newer than the window's start, and it is not full
+   (a full log overwrites its oldest events).  Otherwise a write in the window may be gone from it: an error, never
+   "nothing written". */
+export function auditCoverage(from: string, oldest: string | undefined, fileSize: number, maxSize: number): void {
+  if (!oldest) throw new Error('audit trail: the Security log has no events (is auditing on? tools/windows/audit.ps1)');
+  if (Date.parse(oldest) > Date.parse(from)) throw new Error(`audit trail: the Security log's oldest event (${oldest}) is newer than the window's start (${from})`);
+  if (!(fileSize > 0) || !(maxSize > 0)) throw new Error(`audit trail: the Security log's size unknown (${fileSize} of ${maxSize})`);
+  if (fileSize >= maxSize * 0.95) throw new Error(`audit trail: the Security log is full (${fileSize} of ${maxSize} bytes) and may have overwritten the window`);
 }
 
 // tasklist /svc /fo csv /nh: "image","pid","services" -> pid -> services.
@@ -179,10 +199,38 @@ export function parseTasklist(csv: string): Map<number, string> {
   return out;
 }
 
-// A service host's "#<pid>" -> "[<its services>]" ("[ended]" when it is no longer running).
-export function nameServices(w: Writers, services: Map<number, string>): Writers {
+// wmic's "CreationDate=20260929031500.123456+540" (local time, the offset in minutes) -> ISO (UTC).
+export function wmicTime(t: string): string | undefined {
+  const m = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\.(\d{3})\d*([+-]\d+)$/.exec(t.trim());
+  if (!m) return undefined;
+  const local = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6], +m[7]);
+  return new Date(local - Number(m[8]) * 60_000).toISOString();
+}
+
+// wmic process ... get CreationDate,ProcessId /value -> pid -> its start (ISO).
+export function parseWmicCreated(text: string): Map<number, string> {
+  const out = new Map<number, string>();
+  for (const block of text.split(/(?:\r?\n\s*){2,}/)) {
+    const c = /CreationDate=(\S+)/.exec(block)?.[1];
+    const pid = /ProcessId=(\d+)/.exec(block)?.[1];
+    const at = c ? wmicTime(c) : undefined;
+    if (pid && at) out.set(Number(pid), at);
+  }
+  return out;
+}
+
+/* A service host's "#<pid>@<event time>" -> "[<its services>]" -- only when the process with that id is running now,
+   started no later than the event (not an id used again), and tasklist names real services for it.  Otherwise
+   "[pid <n> not named]", which WINDOWS_WRITERS does not take: an unknown writer counts. */
+export function nameServices(w: Writers, services: Map<number, string>, created: Map<number, string>): Writers {
   const out: Writers = new Map();
-  for (const [k, set] of w) out.set(k, new Set([...set].map((p) => p.replace(/ #(\d+)$/, (_, pid: string) => ` [${services.get(Number(pid)) ?? 'ended'}]`))));
+  const name = (pid: number, at: string): string => {
+    const svc = services.get(pid);
+    const start = created.get(pid);
+    const ok = svc && /^[A-Za-z][\w.-]*(,[A-Za-z][\w.-]*)*$/.test(svc) && start && at && Date.parse(start) <= Date.parse(at);
+    return ok ? ` [${svc}]` : ` [pid ${pid} not named]`;
+  };
+  for (const [k, set] of w) out.set(k, new Set([...set].map((p) => p.replace(/ #(\d+)@(.*)$/, (_, pid: string, at: string) => name(Number(pid), at)))));
   return out;
 }
 
@@ -213,9 +261,9 @@ const INSTALLING: Expect[] = ['install', 'uninstalled'];
 const SEARCH = 'LOCALAPPDATA\\\\Packages\\\\Microsoft\\.Windows\\.Search_cw5n1h2txyewy\\\\';
 /* Windows' own programs, the only ones the audit trail may show writing Explorer's caches and counters (D-164):
    Explorer (the shell) and svchost.exe in System32, the host of Windows' services (the shell's versioned caches are
-   also written by a service; the per-user installer, run without elevation, can register none).  A svchost writer is
-   named with its services, as tasklist gave them when the trail was read. */
-export const WINDOWS_WRITERS = /^[A-Z]:\\Windows\\(explorer\.exe|System32\\svchost\.exe( \[[^\]]*\])?)$/i;
+   also written by a service; the per-user installer, run without elevation, can register none) -- a svchost only
+   with the services tasklist named for it (nameServices): never bare, unnamed, ended or N/A. */
+export const WINDOWS_WRITERS = /^[A-Z]:\\Windows\\(explorer\.exe|System32\\svchost\.exe \[(?!ended\])[A-Za-z][\w.-]*(,[A-Za-z][\w.-]*)*\])$/i;
 
 /* Where an installer puts what it installs under HKCU\Software\Microsoft and Classes: uninstall
    entries, programs run at logon, App Paths, the .circ file type and its open-with list, Windows
@@ -253,13 +301,13 @@ export const ALLOWED: Allowed[] = [
   // ---- any check: Explorer's own caches and counters, written once in a while (a control period may miss it) --
   // only with the audit trail's word that Explorer, and nothing else, wrote them in the period (D-164)
   { where: 'files', what: ['added', 'removed', 'changed'], in: ALL, writers: WINDOWS_WRITERS,
-    path: /^LOCALAPPDATA\\Microsoft\\Windows\\Explorer\\(iconcache|thumbcache)_[A-Za-z0-9_]+\.db$/,
-    why: 'Explorer\'s icon and thumbnail caches: it writes them when it draws an icon (a new Start menu entry, a window\'s taskbar button) and flushes its index at a time of its own (seen after the MSI-to-setup install, 2026-09-28)' },
+    path: /^LOCALAPPDATA\\Microsoft\\Windows\\Explorer\\iconcache_idx\.db$/,
+    why: 'the index of Explorer\'s icon cache: it flushes it at a time of its own after drawing an icon (a new Start menu entry) (seen after the MSI-to-setup install, 2026-09-28)' },
   { where: 'files', what: ['added', 'removed', 'changed'], in: ALL, writers: WINDOWS_WRITERS,
-    path: /^LOCALAPPDATA\\Microsoft\\Windows\\Caches\\(cversions\.\d+\.db|\{[0-9A-F-]{36}\}\.\d+\.ver0x[0-9a-f]{16}\.db)$/,
+    path: /^LOCALAPPDATA\\Microsoft\\Windows\\Caches\\(cversions\.\d+\.db|\{3DA71D5A-20CC-432F-A115-DFE92379E91F\}\.\d+\.ver0x[0-9a-f]{16}\.db)$/,
     why: 'the shell\'s versioned caches: a new version when the Start menu changes, the old one removed later, at a time of Explorer\'s own (seen in a first run after an install, 2026-09-28)' },
   { where: 'registry', what: ['added', 'changed'], in: ALL, writers: WINDOWS_WRITERS,
-    path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\UserAssist\\\{[0-9A-F-]{36}\}\\Count :: HRZR_PGYFRFFVBA$/,
+    path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\UserAssist\\\{CEBFF5CD-ACE2-4F4F-9178-9926F41749EA\}\\Count :: HRZR_PGYFRFFVBA$/,
     why: 'Explorer\'s session record (UEME_CTLSESSION in ROT13), rewritten at a time of its own while a user is logged on (seen in a run check, 2026-09-28)' },
   // ---- an install or an uninstall: Windows' own stores, which Windows changes when any program is installed or
   // removed; there the checks count the installer's places (INSTALLER_PLACES) and anything naming this program

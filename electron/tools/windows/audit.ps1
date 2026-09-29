@@ -26,6 +26,9 @@ foreach ($sub in '{0CCE921D-69AE-11D9-BED3-505054503030}', '{0CCE921E-69AE-11D9-
 }
 # Room for the whole job's events (the default Security log is 20 MB and overwrites the oldest).
 & wevtutil.exe sl Security /ms:268435456 | Out-Null
+if ($LASTEXITCODE -ne 0) { throw "wevtutil sl Security exit $LASTEXITCODE" }
+# state.ts refuses a window the log may not hold whole (auditCoverage): its size now, for the report.
+& wevtutil.exe gl Security | Select-String 'maxSize|retention'
 
 $everyone = New-Object Security.Principal.SecurityIdentifier('S-1-1-0')
 $inherit = [Security.AccessControl.InheritanceFlags]'ContainerInherit, ObjectInherit'
