@@ -58,7 +58,12 @@ test('the main process writes to disk only this run\'s folder: the student\'s fi
     'main/run-folder.ts rmSync',         // an earlier run's folder
     'main/run-folder.ts rmSync',         // (the script that removes this one after quit)
     'main/run-folder.ts rmdirSync',
+    'main/pictures.ts writeFileSync',    // Export Image: the picture, where the student's save dialog said (N-21)
+    'main/pictures.ts writeFileSync',    // Print with HCS_PRINT_TO_PDF (the e2e tests) instead of the printer
   ].sort());
+  // a picture goes only where the save dialog answered (or the tests' file): never a path the page names
+  assert.match(code(path.join(SRC, 'main/pictures.ts')), /writeFileSync\(target, bytes\)/);
+  assert.match(code(path.join(SRC, 'main/pictures.ts')), /let target = r\.filePath;/);
   // Windows: the engine outside libuv's kill-on-close job, so a killed app's engine still writes the recovery files
   assert.match(code(path.join(SRC, 'main/main.ts')), /detached: process\.platform === 'win32'/);
   // recovery-files.ts only looks (stat): the engine writes and removes them

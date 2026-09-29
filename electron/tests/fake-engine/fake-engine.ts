@@ -61,6 +61,10 @@
    ROM contents (N-10, D-157): tests/fake-engine/fake-attrs.ts -- the real
    engine's rows and menu facts (tests/fixtures/attributes.json), this
    fake's values; a value the rows cannot take is refused (badValue).
+   Undo History, Analyze Circuit, Get Circuit Statistics, Create Submission
+   (N-21, D-162): tests/fake-engine/fake-tools.ts -- this fake's undo steps
+   named by their edits, the real engine's analyses and counts
+   (tests/fixtures/project-tools.json), a small zip.
    Anything else: -32601.
 
    FAKE_ENGINE_MODE (comma-separated) for the tests of the client:
@@ -97,12 +101,13 @@ import * as rec from './fake-record.ts';
 import * as flow from './fake-flow.ts';
 import * as circuitsFake from './fake-circuits.ts';
 import * as attrs from './fake-attrs.ts';
+import * as tools from './fake-tools.ts';
 
 type Params = Record<string, unknown>;
 interface Comp { id: string; lib: string; name: string; loc: [number, number]; attrs: Record<string, string>; ext?: { color?: string; arms?: string[] } }
 interface Wire { id: string; a: [number, number]; b: [number, number] }
 interface Circuit { circuitId: string; name: string; comps: Comp[]; wires: Wire[] }
-interface Step { circuitId: string; comps: Comp[]; wires: Wire[]; ext?: flow.Ext; file?: circuitsFake.FileState }   // a circuit's parts before an edit (ext: a group or memo edit; file: the file's circuits, N-11)
+interface Step { circuitId: string; comps: Comp[]; wires: Wire[]; ext?: flow.Ext; file?: circuitsFake.FileState; name?: string }   // a circuit's parts before an edit (ext: a group or memo edit; file: the file's circuits, N-11)
 interface File {
   fileId: string; name: string; path: string | null; bytes: Buffer | null; circuits: Circuit[]; main: string; libs: string[];
   cycle: number; ticking: boolean; hz: number; on: boolean; dirty: boolean; undo: Step[]; redo: Step[]; diag: Diag | null; ran: boolean;
@@ -339,6 +344,8 @@ function toolbarOf(f: { bytes: Buffer | null }): ToolbarItem[] {
   }
   return out;
 }
+// The call being answered (its undo step's name, N-21 Undo History).
+let calling: { method: string; params: Params } | null = null;
 
 const methods: Record<string, (p: Params) => unknown> = {
   'engine.hello': (p) => {
@@ -1199,6 +1206,13 @@ const circuitsCtx: circuitsFake.Ctx = {
   builtins: BUILTIN,
 };
 Object.assign(methods, circuitsFake.methods(circuitsCtx));
+// N-21: Undo History, Analyze Circuit, Get Circuit Statistics, Create Submission (fake-tools.ts)
+Object.assign(methods, tools.methods({
+  fileOf: (p) => fileOf(p) as unknown as tools.ToolsFile,
+  circuitOf: (p) => circuitOf(p) as unknown as tools.ToolsCircuit,
+  undoRedo: (f, which) => undoRedo(f as unknown as File, which) as { changed: boolean },
+  fail: (code, message, data) => { throw new Failure(code, message, data); },
+}));
 
 function floor(n: number): void {
   nextFile = Math.max(nextFile, n + 1);
@@ -1257,6 +1271,7 @@ function edit(p: Params, c: Circuit, change: () => { removed: string[]; added: (
   const f = fileOf(p);
   const before = copyParts(c);
   const { removed, added } = change();
+  before.name = calling ? tools.actionName(calling.method, calling.params) : 'Edit';   // Undo History's row (N-21)
   f.undo.push(before);
   f.redo = [];
   f.dirty = true;
@@ -1272,7 +1287,7 @@ function undoRedo(f: File, which: 'undo' | 'redo'): unknown {
   if (!step) return { changed: false };
   if (step.file) {
     // a circuit, appearance or library edit (N-11): the file's state back
-    to.push({ circuitId: '', comps: [], wires: [], file: circuitsFake.snapshot(f as unknown as circuitsFake.CFile) });
+    to.push({ circuitId: '', comps: [], wires: [], file: circuitsFake.snapshot(f as unknown as circuitsFake.CFile), name: step.name });
     circuitsFake.restore(f as unknown as circuitsFake.CFile, step.file);
     f.dirty = true;
     circuitsFake.told(circuitsCtx, f as unknown as circuitsFake.CFile);
@@ -1282,13 +1297,13 @@ function undoRedo(f: File, which: 'undo' | 'redo'): unknown {
   const c = f.circuits.find((x) => x.circuitId === step.circuitId)!;
   if (step.ext) {
     // a group or memo edit: its hcs:ext back, the parts (and their ids) as they are
-    to.push({ circuitId: c.circuitId, comps: [], wires: [], ext: structuredClone(extOf(f, c.circuitId)) });
+    to.push({ circuitId: c.circuitId, comps: [], wires: [], ext: structuredClone(extOf(f, c.circuitId)), name: step.name });
     f.ext.set(c.circuitId, step.ext);
     f.dirty = true;
     extChanged(f, c);
     return { changed: true };
   }
-  to.push(copyParts(c));
+  to.push({ ...copyParts(c), name: step.name });
   const removed = [...c.comps.map((k) => k.id), ...c.wires.map((w) => w.id)];
   // What comes back comes back under new ids (as the real engine's).
   c.comps = step.comps.map((k) => ({ ...k, id: `k${nextComp++}` }));
@@ -1612,6 +1627,7 @@ function handle(line: string): void {
   const f = method ? methods[method] : undefined;
   if (!f) { write({ jsonrpc: '2.0', id, error: { code: -32601, message: `no method ${String(method)}` } }); return; }
   try {
+    calling = { method: method!, params: (msg.params ?? {}) as Params };
     write({ jsonrpc: '2.0', id, result: f(msg.params ?? {}) });
   } catch (e) {
     const err = e instanceof Failure ? e : new Failure(-32603, String(e));

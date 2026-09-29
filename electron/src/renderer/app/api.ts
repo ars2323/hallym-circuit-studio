@@ -1,6 +1,6 @@
 /* window.app, as src/main/preload.cjs exposes it. */
 
-import type { EditResult, EngineStatus, Hello, ImportPeek, ImportPlan, LoadResult, OpenResult, Recovered, RecoveryAsk, WindowMethod } from '../../main/protocol.ts';
+import type { EditResult, SubmissionPlan, EngineStatus, Hello, ImportPeek, ImportPlan, LoadResult, OpenResult, Recovered, RecoveryAsk, WindowMethod } from '../../main/protocol.ts';
 import type { Handover } from '../../main/windows.ts';
 
 // Load Program's options: the memory right-clicked (target), the answer to
@@ -75,6 +75,12 @@ export interface AppApi {
   onFilesChanged(listener: (list: { fileId: string; path: string | null }[]) => void): void;
   openDropped(files: File[]): Promise<(Opened | RecoveryAsk)[]>;   // .circ files dropped on the window (I-181)
   editOriginal(fileId: string, circuitId: string): Promise<((Opened | RecoveryAsk) & { circuit: string }) | null>;
+  // N-21 (src/main/pictures.ts): Export Image… (the save dialog, then the file; null: cancelled), Print… (the
+  // system's print dialog), Create Submission… (its checks; the save dialog, then the zip).
+  exportPicture(fileId: string, o: { format: 'svg' | 'png' | 'pdf'; svg: string; name: string; scale?: number }): Promise<{ name: string; bytes: number; scale: number } | null>;
+  printPictures(pages: { svg: string; name: string }[], o: { header: string; rotate: boolean }): Promise<{ printed: boolean; pages: number }>;
+  submissionPlan(fileId: string): Promise<SubmissionPlan>;
+  submissionWrite(fileId: string): Promise<SubmissionPlan | null>;
   // N-11 (src/main/windows.ts): this window (the main one, or a file's own and what it starts from), Detach Tab /
   // View Side by Side, Attach Tab, a window of its own closed after its file, the close question cancelled.
   windowRole(): Promise<{ main: boolean; handover: Handover | null }>;

@@ -643,6 +643,41 @@ export interface PortImpact { fileId: string; circuitId: string; name: string; b
 // file.libraryUpdated: a library file saved in another tab came in (its instances replaced, Reset).
 export interface LibraryUpdated { fileId: string; library: string; lib: string }   // library: the saved file's name; lib: its name in this file (journaled as edit.reloadLibrary, D-153)
 
+// ---- N-21 (D-162): Undo History, Analyze Circuit, Get Circuit Statistics, Create Submission ----
+
+// model.history: the original's undo log (oldest first) and the fork's redo stack (next first); moves: what
+// edit.history takes to get to just after that row's action (start: everything undone).
+export interface HistoryRow { kind: 'start' | 'undo' | 'now' | 'redo'; name?: string; moves: number }
+export interface History { fileId: string; rows: HistoryRow[] }
+
+// model.analyze: the original's Combinational Analysis of a circuit (read only).  A table row: the inputs'
+// bits (top input first), then each output's entry: '0', '1', 'x' (don't care), 'E' (conflict), '!!' (oscillation).
+export type AnalyzeProblem = 'multibitInput' | 'multibitOutput' | 'tooManyInputs' | 'tooManyOutputs' | 'noInputs' | 'noOutputs';
+export interface Analysis {
+  circuit: string;
+  inputs: string[];
+  outputs: string[];
+  maxInputs: number;
+  maxOutputs: number;
+  problem?: AnalyzeProblem;
+  pin?: string;                               // the multi-bit pin
+  source: 'expression' | 'table' | null;      // table: no expression, the table was simulated
+  expressionFailure?: string;                 // the original's reason (English)
+  table?: { rows: string[][] };
+  expressions?: { output: string; expression: string | null; sop: string | null; pos: string | null }[];
+}
+
+// model.statistics: the original's Get Circuit Statistics table.
+export interface StatCount { simple: number; unique: number; recursive: number }
+export interface Statistics { circuit: string; rows: (StatCount & { component: string; library: string })[]; without: StatCount; with: StatCount }
+
+// file.submission: the checks and the files (paths inside the zip), and what was written.
+export interface SubmissionPlan {
+  saved: boolean; dirty: boolean; messages: number; probes: number; bundledJar: boolean;
+  missing: string[]; files: string[]; suggested: string;
+  written?: { path: string; name: string; bytes: number; count: number };
+}
+
 // Error codes (docs/engine-api.md 2).
 export const ERR_NOT_FOUND = 1;
 export const ERR_FILE = 2;
@@ -676,6 +711,8 @@ export const WINDOW_METHODS = [
   'model.appearanceMenu', 'model.libraries',
   'model.attributes', 'model.menu', 'edit.labels', 'edit.attach', 'edit.swapGate', 'edit.deleteNet', 'edit.wireToTunnels',
   'edit.probe', 'edit.deleteProbes', 'edit.combineBus', 'edit.originalItem', 'edit.memContents', 'mem.read', 'mem.write', 'mem.clear',
+  // N-21: Undo History, Analyze Circuit, Get Circuit Statistics (file.submission takes a path: src/main/pictures.ts)
+  'model.history', 'edit.history', 'model.analyze', 'model.statistics',
 ] as const;
 export type WindowMethod = typeof WINDOW_METHODS[number];
 

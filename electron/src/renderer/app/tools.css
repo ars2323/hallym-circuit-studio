@@ -1,0 +1,62 @@
+/* The rest of v1's commands (project-tools.ts, N-21): Undo History over the Canvas, and the dialogs of
+   Analyze Circuit, Get Circuit Statistics, Create Submission, Export Image and Print. */
+
+/* ---- Undo History: the Find window's look (find.css .findwin), over the Canvas's top left ------ */
+.histwin {
+  position: absolute; z-index: 30; top: 72px; left: 12px; width: min(340px, calc(100% - 24px)); max-height: min(440px, calc(100% - 84px));
+  display: flex; flex-direction: column; background: var(--white); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 12px 36px rgba(0,32,91,.20); overflow: hidden;
+}
+.histwin .phead { flex: none; }
+.histwin .histclose { width: 24px; height: 24px; }
+.histwin .histclose img { width: 14px; height: 14px; }
+.histfoot { flex: none; padding: 6px 12px 8px; border-top: 1px solid var(--border); color: var(--text-2); font-size: 12px; line-height: 1.5; word-break: keep-all; }
+.histlist { list-style: none; margin: 0; padding: 4px 0; overflow: auto; flex: 1; min-height: 0; }
+.histrow { display: flex; align-items: center; gap: 6px; padding: 4px 12px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+.histrow:hover { background: var(--hover); }
+.histrow.start, .histrow.redo { color: var(--text-2); }
+.histrow.redo { font-style: normal; }
+.histrow.now { color: var(--blue); font-weight: 600; background: var(--blue-tint); box-shadow: inset 3px 0 0 var(--blue); cursor: default; }
+.histrow .histnow { font-size: 10px; }
+.histempty { padding: 8px 12px; color: var(--text-2); word-break: keep-all; }
+
+/* ---- the dialogs ------------------------------------------------------------------------------- */
+.modal.ask.menudlg.tooldlg { width: min(560px, calc(100vw - 32px)); }
+.modal.ask.menudlg.analysisdlg, .modal.ask.menudlg.statsdlg { width: min(720px, calc(100vw - 32px)); }
+.tooldlg p, .tooldlg li { word-break: keep-all; }
+.tooldlg h3 { margin: 14px 0 6px; font-size: 13px; color: var(--navy); }
+.tooldlg .mradios { display: flex; gap: 14px; }
+.tooldlg .mradios label { display: inline-flex; align-items: center; gap: 5px; }
+.tooldlg .mextra { display: flex; flex-direction: column; gap: 6px; }
+.tooltable { max-height: 46vh; overflow: auto; border: 1px solid var(--border); border-radius: 8px; margin-top: 10px; }
+.tooltable table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+.tooltable th { position: sticky; top: 0; background: var(--window); color: var(--navy); font-weight: 600; text-align: left; padding: 5px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.tooltable td { padding: 3px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.tooltable .num { text-align: right; }
+.tooltable td.num { font-family: var(--code); }
+.tooltable tr.total td { font-weight: 600; background: var(--window); }
+.tooltable table.truth { width: auto; min-width: 100%; }
+.tooltable table.truth th, .tooltable table.truth td { text-align: center; padding: 2px 10px; }
+.tooltable table.truth .out.first { border-left: 2px solid var(--navy); }
+.tooltable table.truth td.odd { color: var(--error-text); font-weight: 600; }
+.tooltabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-top: 12px; }
+.tooltab { padding: 6px 12px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--text-2); font-weight: 600; }
+.tooltab[aria-selected="true"] { color: var(--navy); border-bottom-color: var(--blue); }
+.toolpane { min-height: 120px; padding-top: 6px; }
+.toolnote { color: var(--text); }
+.varlist { margin: 8px 0; padding-left: 24px; }
+.exprs { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 14px; margin: 10px 0; }
+.exprs dt { font-weight: 600; color: var(--navy); }
+.exprs dd { margin: 0; display: flex; flex-direction: column; gap: 2px; }
+.exprs dt:nth-of-type(n) + dd + dd { grid-column: 2; }
+.exprs .fmt { color: var(--muted); font-size: 11.5px; }
+.expr { white-space: pre-wrap; }
+.expr .not { text-decoration: overline; }
+.checks { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.checks li { display: flex; gap: 8px; align-items: baseline; }
+.checks .mark { flex: none; width: 16px; text-align: center; font-weight: 700; }
+.checks li.ok .mark { color: var(--teal); }
+.checks li.warn .mark { color: var(--amber-text); }
+.subfiles { margin: 0; padding-left: 20px; max-height: 140px; overflow: auto; }
+.subfiles.missing { color: var(--amber-text); }
+.printcircs { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px 12px; margin: 10px 0; max-height: 160px; overflow: auto; }

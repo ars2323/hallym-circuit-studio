@@ -46,6 +46,7 @@ import { Supervisor, WINDOW } from './recovery.ts';
 import { recoveryBeside, RecoveryWriter } from './recovery-files.ts';
 import { LICENSES, paths, version } from './paths.ts';
 import { IMAGE_FILTER, programDialogPath } from './program-path.ts';
+import { registerPictures } from './pictures.ts';
 import { registerCircuitFiles } from './circuit-files.ts';
 import { FileWindows, type Handover, halves, offset } from './windows.ts';
 import { WINDOW_METHODS, type EngineStatus, type LoadResult, type OpenResult, type RecoveryAsk, type SaveResult } from './protocol.ts';
@@ -505,6 +506,17 @@ function registerHandlers(): void {
     parent: (e) => from(e),
     isMain: (e) => windows.isMain(from(e)),
     handle: (channel, f) => ipcMain.handle(channel, (e, ...args: unknown[]) => answer(() => f(e, ...args))),
+  });
+
+  // Export Image, Print, Create Submission (N-21, D-162): the save dialogs and the writing here.
+  registerPictures({
+    dialog, windowCall, openFiles, fontsDir: paths.fonts,
+    parent: (e) => from(e),
+    handle: (channel, f) => ipcMain.handle(channel, (e, ...args: unknown[]) => answer(() => f(e, ...args))),
+    hiddenWindow: () => new BrowserWindow({
+      show: false, width: 1024, height: 768,
+      webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, spellcheck: false },
+    }),
   });
 
   // The windows (N-11): what a window of its own starts from, Detach / Side by Side / Attach, closing one.

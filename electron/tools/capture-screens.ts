@@ -955,6 +955,73 @@ function sideBySide(name: string, left: Buffer, right: Buffer): void {
   await shot(r, 'narrow-tabs');
   await r.close();
 }
+  // N-21 (D-162): Undo History, Export Image, Create Submission, Get Circuit Statistics, Analyze Circuit.
+  {
+    const r = await start(FHD);
+    const { page } = r;
+    await openFile(r, sample(r.dir, DATAPATH));
+    await drawn(r);
+    const palette = async (text: string, name: string) => {
+      await page.keyboard.press('Control+k');
+      await page.keyboard.type(text);
+      await page.getByRole('dialog', { name: 'Search' }).locator('.palrow').first().filter({ hasText: name }).waitFor();
+      await page.keyboard.press('Enter');
+    };
+    // Undo History: three gates placed, the last undone -- Start of History, the actions, Now, one to redo
+    await page.evaluate(async () => {
+      const app = (window as unknown as { app: { call(m: string, p: unknown): Promise<unknown> } }).app;
+      const sc = (window as unknown as { __hcsCanvas: { scene: { fileId: string; circuitId: string } } }).__hcsCanvas.scene;
+      const at = { fileId: sc.fileId, circuitId: sc.circuitId };
+      await app.call('edit.addComponent', { ...at, lib: 'Gates', name: 'AND Gate', loc: [700, 800] });
+      await app.call('edit.addComponent', { ...at, lib: 'Gates', name: 'OR Gate', loc: [800, 800] });
+      await app.call('edit.addComponent', { ...at, lib: 'Gates', name: 'NOT Gate', loc: [900, 800] });
+      await app.call('edit.undo', at);
+    });
+    await palette('undo history', 'Undo History…');
+    await page.getByRole('dialog', { name: 'Undo History' }).locator('.histrow.redo').waitFor();
+    await drawn(r);
+    await shot(r, 'undo-history');
+    await page.getByRole('dialog', { name: 'Undo History' }).locator('.histlist').focus();
+    await page.keyboard.press('Escape');
+    // Export Image: PNG at 2x, the whole circuit, chips on
+    await palette('export', 'Export Image…');
+    await page.getByRole('dialog', { name: 'Export Image' }).waitFor();
+    await shot(r, 'export-dialog', { keepFocus: true });
+    await page.keyboard.press('Escape');
+    // Get Circuit Statistics of main (the engine's counts)
+    await page.getByRole('tab', { name: 'Circuits' }).click();
+    await page.locator('.circlist li button', { hasText: 'main' }).first().click({ button: 'right' });
+    await page.locator('.ovmenu button', { hasText: 'Get Circuit Statistics' }).click();
+    await page.getByRole('dialog', { name: 'main Statistics' }).waitFor();
+    await shot(r, 'statistics');
+    await page.keyboard.press('Escape');
+    await r.close();
+  }
+  {
+    const r = await start(FHD);
+    const { page } = r;
+    await openFile(r, sample(r.dir, 'tests/circ/subcircuit.circ'));
+    await page.locator('.canvas-view canvas').waitFor();
+    await canvasSettled(page);   // no values: the fake engine has none for this file
+    // Analyze Circuit of half_adder: the simulated table, the note why
+    await page.getByRole('tab', { name: 'Circuits' }).click();
+    await page.locator('.circlist li button', { hasText: 'half_adder' }).first().click({ button: 'right' });
+    await page.locator('.ovmenu button', { hasText: 'Analyze Circuit' }).click();
+    const a = page.getByRole('dialog', { name: 'Combinational Analysis: half_adder' });
+    await a.locator('.tooltab', { hasText: 'Minimized' }).click();
+    await shot(r, 'analyze');
+    await page.keyboard.press('Escape');
+    // Create Submission: saved, the four checks, the files
+    await page.keyboard.press('Control+k');
+    await page.keyboard.type('submission');
+    await page.getByRole('dialog', { name: 'Search' }).locator('.palrow').first().filter({ hasText: 'Create Submission…' }).waitFor();
+    await page.keyboard.press('Enter');
+    await page.getByRole('dialog', { name: 'Create Submission' }).waitFor();
+    await shot(r, 'submission');
+    await page.keyboard.press('Escape');
+    await r.close();
+  }
+
 }
 
 await captureAll();

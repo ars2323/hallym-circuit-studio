@@ -1,0 +1,684 @@
+{
+  "demo-datapath.circ": {
+    "main": {
+      "analyze": {
+        "circuit": "main",
+        "maxInputs": 12,
+        "maxOutputs": 12,
+        "inputs": [
+          "RegWrite",
+          "MemtoReg",
+          "MemWrite",
+          "MemRead",
+          "ALUOp"
+        ],
+        "outputs": [
+          "Zero",
+          "halt"
+        ],
+        "problem": "multibitInput",
+        "pin": "ALUOp"
+      },
+      "statistics": {
+        "circuit": "main",
+        "rows": [
+          {
+            "simple": 1,
+            "unique": 1,
+            "recursive": 1,
+            "component": "regfile",
+            "library": "demo-datapath"
+          },
+          {
+            "simple": 1,
+            "unique": 1,
+            "recursive": 1,
+            "component": "alu",
+            "library": "demo-datapath"
+          },
+          {
+            "simple": 1,
+            "unique": 4,
+            "recursive": 4,
+            "component": "Splitter",
+            "library": "Wiring"
+          },
+          {
+            "simple": 7,
+            "unique": 20,
+            "recursive": 20,
+            "component": "Pin",
+            "library": "Wiring"
+          },
+          {
+            "simple": 16,
+            "unique": 93,
+            "recursive": 93,
+            "component": "Tunnel",
+            "library": "Wiring"
+          },
+          {
+            "simple": 1,
+            "unique": 1,
+            "recursive": 1,
+            "component": "Clock",
+            "library": "Wiring"
+          },
+          {
+            "simple": 2,
+            "unique": 4,
+            "recursive": 4,
+            "component": "Constant",
+            "library": "Wiring"
+          },
+          {
+            "simple": 0,
+            "unique": 4,
+            "recursive": 4,
+            "component": "AND Gate",
+            "library": "Gates"
+          },
+          {
+            "simple": 0,
+            "unique": 1,
+            "recursive": 1,
+            "component": "OR Gate",
+            "library": "Gates"
+          },
+          {
+            "simple": 1,
+            "unique": 4,
+            "recursive": 4,
+            "component": "Multiplexer",
+            "library": "Plexers"
+          },
+          {
+            "simple": 0,
+            "unique": 1,
+            "recursive": 1,
+            "component": "Decoder",
+            "library": "Plexers"
+          },
+          {
+            "simple": 1,
+            "unique": 2,
+            "recursive": 2,
+            "component": "Adder",
+            "library": "Arithmetic"
+          },
+          {
+            "simple": 0,
+            "unique": 1,
+            "recursive": 1,
+            "component": "Subtractor",
+            "library": "Arithmetic"
+          },
+          {
+            "simple": 1,
+            "unique": 2,
+            "recursive": 2,
+            "component": "Comparator",
+            "library": "Arithmetic"
+          },
+          {
+            "simple": 1,
+            "unique": 4,
+            "recursive": 4,
+            "component": "Register",
+            "library": "Memory"
+          },
+          {
+            "simple": 1,
+            "unique": 1,
+            "recursive": 1,
+            "component": "Instruction Memory",
+            "library": "Hallym MIPS"
+          },
+          {
+            "simple": 1,
+            "unique": 1,
+            "recursive": 1,
+            "component": "Data Memory",
+            "library": "Hallym MIPS"
+          }
+        ],
+        "without": {
+          "simple": 33,
+          "unique": 143,
+          "recursive": 143
+        },
+        "with": {
+          "simple": 35,
+          "unique": 145,
+          "recursive": 145
+        }
+      }
+    },
+    "regfile": {
+      "analyze": {
+        "circuit": "regfile",
+        "maxInputs": 12,
+        "maxOutputs": 12,
+        "inputs": [
+          "RR1",
+          "RR2",
+          "WR",
+          "WD",
+          "RegWrite",
+          "clk"
+        ],
+        "outputs": [
+          "RD1",
+          "RD2"
+        ],
+        "problem": "multibitInput",
+        "pin": "RR1"
+      },
+      "statistics": {
+        "circuit": "regfile",
+        "rows": [
+          {
+            "simple": 3,
+            "unique": 3,
+            "recursive": 3,
+            "component": "Splitter",
+            "library": "Wiring"
+          },
+          {
+            "simple": 8,
+            "unique": 8,
+            "recursive": 8,
+            "component": "Pin",
+            "library": "Wiring"
+          },
+          {
+            "simple": 52,
+            "unique": 52,
+            "recursive": 52,
+            "component": "Tunnel",
+            "library": "Wiring"
+          },
+          {
+            "simple": 1,
+            "unique": 1,
+            "recursive": 1,
+            "component": "Constant",
+            "library": "Wiring"
+          },
+          {
+            "simple": 3,
+            "unique": 3,
+            "recursive": 3,
+            "component": "AND Gate",
+            "library": "Gates"
+          },
+          {
+            "simple": 2,
+            "unique": 2,
+            "recursive": 2,
+            "component": "Multiplexer",
+            "library": "Plexers"
+          },
+          {
+            "simple": 1,
+            "unique": 1,
+            "recursive": 1,
+            "component": "Decoder",
+            "library": "Plexers"
+          },
+          {
+            "simple": 3,
+            "unique": 3,
+            "recursive": 3,
+            "component": "Register",
+            "library": "Memory"
+          }
+        ],
+        "without": {
+          "simple": 73,
+          "unique": 73,
+          "recursive": 73
+        },
+        "with": {
+          "simple": 73,
+          "unique": 73,
+          "recursive": 73
+        }
+      }
+    },
+    "alu": {
+      "analyze": {
+        "circuit": "alu",
+        "maxInputs": 12,
+        "maxOutputs": 12,
+        "inputs": [
+          "A",
+          "B",
+          "ALUOp"
+        ],
+        "outputs": [
+          "Result",
+          "Zero"
+        ],
+        "problem": "multibitInput",
+        "pin": "A"
+      },
+      "statistics": {
+        "circuit": "alu",
+        "rows": [
+          {
+            "simple": 5,
+            "unique": 5,
+            "recursive": 5,
+            "component": "Pin",
+            "library": "Wiring"
+          },
+          {
+            "simple": 25,
+            "unique": 25,
+            "recursive": 25,
+            "component": "Tunnel",
+            "library": "Wiring"
+          },
+          {
+            "simple": 1,
+            "unique": 1,
+            "recursive": 1,
+            "component": "Constant",
+            "library": "Wiring"
+          },
+          {
+            "simple": 1,
+            "unique": 1,
+            "recursive": 1,
+            "component": "AND Gate",
+            "library": "Gates"
+          },
+          {
+            "simple": 1,
+            "unique": 1,
+            "recursive": 1,
+            "component": "OR Gate",
+            "library": "Gates"
+          },
+          {
+            "simple": 1,
+            "unique": 1,
+            "recursive": 1,
+            "component": "Multiplexer",
+            "library": "Plexers"
+          },
+          {
+            "simple": 1,
+            "unique": 1,
+            "recursive": 1,
+            "component": "Adder",
+            "library": "Arithmetic"
+          },
+          {
+            "simple": 1,
+            "unique": 1,
+            "recursive": 1,
+            "component": "Subtractor",
+            "library": "Arithmetic"
+          },
+          {
+            "simple": 1,
+            "unique": 1,
+            "recursive": 1,
+            "component": "Comparator",
+            "library": "Arithmetic"
+          }
+        ],
+        "without": {
+          "simple": 37,
+          "unique": 37,
+          "recursive": 37
+        },
+        "with": {
+          "simple": 37,
+          "unique": 37,
+          "recursive": 37
+        }
+      }
+    }
+  },
+  "gates.circ": {
+    "main": {
+      "analyze": {
+        "circuit": "main",
+        "maxInputs": 12,
+        "maxOutputs": 12,
+        "inputs": [],
+        "outputs": [
+          "n",
+          "and",
+          "or",
+          "nand",
+          "nor",
+          "halt",
+          "xnor",
+          "xor3",
+          "notc",
+          "mux"
+        ],
+        "problem": "multibitOutput",
+        "pin": "n"
+      },
+      "statistics": {
+        "circuit": "main",
+        "rows": [
+          {
+            "simple": 1,
+            "unique": 1,
+            "recursive": 1,
+            "component": "Splitter",
+            "library": "Wiring"
+          },
+          {
+            "simple": 10,
+            "unique": 10,
+            "recursive": 10,
+            "component": "Pin",
+            "library": "Wiring"
+          },
+          {
+            "simple": 48,
+            "unique": 48,
+            "recursive": 48,
+            "component": "Tunnel",
+            "library": "Wiring"
+          },
+          {
+            "simple": 1,
+            "unique": 1,
+            "recursive": 1,
+            "component": "Clock",
+            "library": "Wiring"
+          },
+          {
+            "simple": 2,
+            "unique": 2,
+            "recursive": 2,
+            "component": "Constant",
+            "library": "Wiring"
+          },
+          {
+            "simple": 1,
+            "unique": 1,
+            "recursive": 1,
+            "component": "NOT Gate",
+            "library": "Gates"
+          },
+          {
+            "simple": 1,
+            "unique": 1,
+            "recursive": 1,
+            "component": "AND Gate",
+            "library": "Gates"
+          },
+          {
+            "simple": 1,
+            "unique": 1,
+            "recursive": 1,
+            "component": "OR Gate",
+            "library": "Gates"
+          },
+          {
+            "simple": 1,
+            "unique": 1,
+            "recursive": 1,
+            "component": "NAND Gate",
+            "library": "Gates"
+          },
+          {
+            "simple": 1,
+            "unique": 1,
+            "recursive": 1,
+            "component": "NOR Gate",
+            "library": "Gates"
+          },
+          {
+            "simple": 1,
+            "unique": 1,
+            "recursive": 1,
+            "component": "XOR Gate",
+            "library": "Gates"
+          },
+          {
+            "simple": 1,
+            "unique": 1,
+            "recursive": 1,
+            "component": "XNOR Gate",
+            "library": "Gates"
+          },
+          {
+            "simple": 1,
+            "unique": 1,
+            "recursive": 1,
+            "component": "Multiplexer",
+            "library": "Plexers"
+          },
+          {
+            "simple": 1,
+            "unique": 1,
+            "recursive": 1,
+            "component": "Counter",
+            "library": "Memory"
+          }
+        ],
+        "without": {
+          "simple": 71,
+          "unique": 71,
+          "recursive": 71
+        },
+        "with": {
+          "simple": 71,
+          "unique": 71,
+          "recursive": 71
+        }
+      }
+    }
+  },
+  "subcircuit.circ": {
+    "main": {
+      "analyze": {
+        "circuit": "main",
+        "maxInputs": 12,
+        "maxOutputs": 12,
+        "inputs": [],
+        "outputs": [
+          "n",
+          "sum",
+          "cout",
+          "halt"
+        ],
+        "problem": "multibitOutput",
+        "pin": "n"
+      },
+      "statistics": {
+        "circuit": "main",
+        "rows": [
+          {
+            "simple": 2,
+            "unique": 2,
+            "recursive": 2,
+            "component": "half_adder",
+            "library": "subcircuit"
+          },
+          {
+            "simple": 1,
+            "unique": 1,
+            "recursive": 1,
+            "component": "Splitter",
+            "library": "Wiring"
+          },
+          {
+            "simple": 4,
+            "unique": 8,
+            "recursive": 12,
+            "component": "Pin",
+            "library": "Wiring"
+          },
+          {
+            "simple": 28,
+            "unique": 38,
+            "recursive": 48,
+            "component": "Tunnel",
+            "library": "Wiring"
+          },
+          {
+            "simple": 1,
+            "unique": 1,
+            "recursive": 1,
+            "component": "Clock",
+            "library": "Wiring"
+          },
+          {
+            "simple": 2,
+            "unique": 2,
+            "recursive": 2,
+            "component": "Constant",
+            "library": "Wiring"
+          },
+          {
+            "simple": 0,
+            "unique": 1,
+            "recursive": 2,
+            "component": "AND Gate",
+            "library": "Gates"
+          },
+          {
+            "simple": 1,
+            "unique": 1,
+            "recursive": 1,
+            "component": "OR Gate",
+            "library": "Gates"
+          },
+          {
+            "simple": 0,
+            "unique": 1,
+            "recursive": 2,
+            "component": "XOR Gate",
+            "library": "Gates"
+          },
+          {
+            "simple": 1,
+            "unique": 1,
+            "recursive": 1,
+            "component": "Counter",
+            "library": "Memory"
+          }
+        ],
+        "without": {
+          "simple": 38,
+          "unique": 54,
+          "recursive": 70
+        },
+        "with": {
+          "simple": 40,
+          "unique": 56,
+          "recursive": 72
+        }
+      }
+    },
+    "half_adder": {
+      "analyze": {
+        "circuit": "half_adder",
+        "maxInputs": 12,
+        "maxOutputs": 12,
+        "inputs": [
+          "a",
+          "b"
+        ],
+        "outputs": [
+          "s",
+          "c"
+        ],
+        "expressionFailure": "Computing truth table instead of expression due to Tunnel.",
+        "source": "table",
+        "table": {
+          "rows": [
+            [
+              "00",
+              "0",
+              "0"
+            ],
+            [
+              "01",
+              "1",
+              "0"
+            ],
+            [
+              "10",
+              "1",
+              "0"
+            ],
+            [
+              "11",
+              "0",
+              "1"
+            ]
+          ]
+        },
+        "expressions": [
+          {
+            "output": "s",
+            "expression": "~a b + a ~b",
+            "sop": "~a b + a ~b",
+            "pos": "(a + b) (~a + ~b)"
+          },
+          {
+            "output": "c",
+            "expression": "a b",
+            "sop": "a b",
+            "pos": "a b"
+          }
+        ]
+      },
+      "statistics": {
+        "circuit": "half_adder",
+        "rows": [
+          {
+            "simple": 4,
+            "unique": 4,
+            "recursive": 4,
+            "component": "Pin",
+            "library": "Wiring"
+          },
+          {
+            "simple": 10,
+            "unique": 10,
+            "recursive": 10,
+            "component": "Tunnel",
+            "library": "Wiring"
+          },
+          {
+            "simple": 1,
+            "unique": 1,
+            "recursive": 1,
+            "component": "AND Gate",
+            "library": "Gates"
+          },
+          {
+            "simple": 1,
+            "unique": 1,
+            "recursive": 1,
+            "component": "XOR Gate",
+            "library": "Gates"
+          }
+        ],
+        "without": {
+          "simple": 16,
+          "unique": 16,
+          "recursive": 16
+        },
+        "with": {
+          "simple": 16,
+          "unique": 16,
+          "recursive": 16
+        }
+      }
+    }
+  }
+}

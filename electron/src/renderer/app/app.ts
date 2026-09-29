@@ -99,6 +99,7 @@ import type { CommandId, SearchItem } from './logic/search.ts';
 import { fromAttrs, initialSplit } from './logic/splitter.ts';
 import { minimapPanel } from './minimap.ts';
 import { palette } from './palette.ts';
+import { ProjectTools } from './project-tools.ts';
 import { splitterEditor } from './splitter-editor.ts';
 import { type EditSplitter, emitPlaceTool, emitSelection, onEditSplitter, onPlaceTool, type PlaceTool, snap } from './tool-events.ts';
 import { tunnelsPanel } from './tunnels.ts';
@@ -615,6 +616,7 @@ const circuitCtl = new CircuitControl({
   show: (fileId, circuitId, appear) => showCircuit(fileId, circuitId, appear),
   opened: async (r) => { const o = await recoveryAnswered(r); await openedOrError(o); return o; },
   label: (fileId, name) => fileLabel(fileId, name),
+  project: (cmd, id) => void (cmd === 'analyze' ? tools.analyze(id) : tools.statistics(id)),
   librariesChanged: (fileId) => { libraries.delete(fileId); libInfo.delete(fileId); if (files.active()?.fileId === fileId) renderComponents(files.active()!); },
 });
 const circuitsList = circuitsPanel({
@@ -674,6 +676,25 @@ board.coveredRight = () => {
   const f = finder.root.getBoundingClientRect(), c = board.canvas.getBoundingClientRect();
   return Math.max(0, c.right - f.left + 12);
 };
+// Undo History, Analyze Circuit, Get Circuit Statistics, Create Submission, Export Image, Print (N-21, D-162).
+const tools = new ProjectTools({
+  api,
+  ready: () => engine.state === 'ready',
+  active: () => files.active(),
+  shownScene: () => {
+    const f = files.active();
+    return f && !appearanceShown(f) ? scenes.get(shown(f).k) ?? null : null;
+  },
+  selected: () => {
+    const f = files.active();
+    return f && selection && selection.fileId === f.fileId && selection.circuitId === shown(f).circuit ? selection.ids : [];
+  },
+  busWidths: () => board.busWidths,
+  save: (f) => saveOf(f, false),
+  note: (cls, text) => { note = text ? { cls, text } : null; renderStatus(); },
+  circuitName: (f, id) => files.circuitName(f, id),
+});
+canvasPanel.append(tools.history.root);
 // The search palette (Ctrl+K, a letter on the Canvas).
 const pal = palette({
   sources: () => {
@@ -777,7 +798,12 @@ async function dropFileTab(fileId: string, at: Point): Promise<void> {
 
 // The commands the palette offers now.
 function commandsNow(s: Snapshot | null): CommandId[] {
+<<<<<<< HEAD
   const out: CommandId[] = ['reset', 'cycle', 'run', 'enable', ...(showing('loadProgram') ? ['load' as const] : []), 'find'];
+=======
+  const out: CommandId[] = ['reset', 'cycle', 'run', 'enable', 'load', 'find', 'undoHistory', 'submission', 'print', 'analyze', 'statistics'];
+  if (board.root.isConnected && board.scene) out.push('exportImage');
+>>>>>>> 071cb911 (Show Undo History, Export Image, Print, Create Submission, Analyze Circuit and Statistics (N-21))
   if (board.root.isConnected && board.scene) out.push('fit');
   if (selectedSplitter(s)) out.push('editSplitter');
   const f = files.active();
@@ -816,6 +842,12 @@ function runCommand(id: CommandId): void {
     case 'fit': board.fitView(); break;
     case 'revertAppearance': void appearance.revertToDefault(); break;
     case 'find': finder.open(); break;
+    case 'undoHistory': tools.history.open(); break;
+    case 'exportImage': void tools.exportImage(); break;
+    case 'print': void tools.print(); break;
+    case 'submission': void tools.submission(); break;
+    case 'analyze': void tools.analyze(shown(f).circuit); break;
+    case 'statistics': void tools.statistics(shown(f).circuit); break;
     case 'editSplitter': {
       const id2 = selectedSplitter(shownSnapshot(f));
       if (id2) void editSplitter({ fileId: f.fileId, circuitId: shown(f).circuit, componentId: id2 });
@@ -1598,6 +1630,7 @@ function showFile(fileId: string): void {
   note = null;
   render();
   finder.refresh();
+  tools.history.refresh();
 }
 
 async function engineReady(): Promise<boolean> {
@@ -2162,6 +2195,7 @@ api.onNotify((method, params) => {
     overlays.cycleChanged(st.fileId);
   } else if (method === 'edit.selection') {
     editor.onSelection(p as unknown as EditSelection);
+    tools.history.refresh();   // a selection is an action of the original's log too
     renderAttributes();   // pasted parts (floating) change it without changing the ids
     void attrsPanel.refresh();
   } else if (method === 'model.changed') {
@@ -2178,6 +2212,7 @@ api.onNotify((method, params) => {
     board.invalidate();
     render();
     finder.refresh();   // its index is the model now (I-171 정함)
+    tools.history.refresh();
     if (c.fileId === files.active()?.fileId) void attrsPanel.refresh();   // values changed in place (N-10)
     void mipsCircuitChanged(c.fileId, c.circuitId);   // a MIPS-only part in or out: the strip (A-08)
   } else if (method === 'mips.facts') {
@@ -2457,6 +2492,8 @@ window.addEventListener('keydown', (e) => {
   // Ctrl+K the search palette, Ctrl+F Find (D-139, I-168, I-171; e.code too: a Korean keyboard layout)
   if ((k === 'k' || e.code === 'KeyK') && !e.shiftKey && !e.altKey) { e.preventDefault(); if (files.active()) pal.open(''); return; }
   if ((k === 'f' || e.code === 'KeyF') && !e.shiftKey && !e.altKey) { e.preventDefault(); if (files.active()) finder.open(); return; }
+  // Ctrl+P File › Print… (I-134, the original's key; never the page's own print)
+  if ((k === 'p' || e.code === 'KeyP') && !e.shiftKey && !e.altKey) { e.preventDefault(); if (files.active()) void tools.print(); return; }
   // Simulate's keys (docs/interaction-parity.md I-148..I-152; the physical key: a Korean layout gives the same code)
   if (!e.shiftKey && !e.altKey && files.active()) {
     const code = e.code;

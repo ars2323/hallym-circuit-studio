@@ -362,7 +362,7 @@ test('the Canvas\'s right-click menu (I-85..I-98, I-174, I-211; B-03, S-25): one
 });
 
 // A circuit's items: the Circuits panel's own list (N-11's circuitItems), wherever the circuit is right-clicked.
-const CIRCUIT_ITEMS = ['Edit Circuit Layout', 'Edit Circuit Appearance', 'Rename…', 'Set As Main Circuit', 'Port Order…', 'Auto Appearance',
+const CIRCUIT_ITEMS = ['Edit Circuit Layout', 'Edit Circuit Appearance', 'Analyze Circuit', 'Get Circuit Statistics', 'Rename…', 'Set As Main Circuit', 'Port Order…', 'Auto Appearance',
   'Move Circuit Up', 'Move Circuit Down', 'Remove Circuit'];
 
 test('the Components list\'s and the circuit tabs\' menus (I-109): from the same registry, the Circuits panel\'s items; Set As Main Circuit; a library\'s Unload Library; a library\'s tool has none', async () => {

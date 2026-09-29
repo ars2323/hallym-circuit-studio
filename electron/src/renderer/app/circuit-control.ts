@@ -25,6 +25,8 @@ export interface CircuitHost {
   opened(r: Opened | RecoveryAsk): Promise<Opened | null>;
   label(fileId: string, name: string): string;       // a file's name as its tab shows it (same names: the folder)
   librariesChanged(fileId: string): void;           // the Components list asks again
+  // Analyze Circuit, Get Circuit Statistics (N-21: project-tools.ts)
+  project(cmd: 'analyze' | 'statistics', circuitId: string): void;
 }
 
 type Result = EditResult & { impact?: Impact; lib?: string };
@@ -64,6 +66,7 @@ export class CircuitControl {
       case 'open': this.host.show(f.fileId, circuitId, false); break;
       case 'layout': this.host.show(f.fileId, circuitId, false); break;
       case 'appearance': this.host.show(f.fileId, circuitId, true); break;
+      case 'analyze': case 'statistics': this.host.project(cmd, circuitId); break;
       case 'rename': await this.rename(f, c); break;
       case 'main': await this.call('edit.setMainCircuit', { fileId: f.fileId, circuitId }, 'Set As Main Circuit'); break;
       case 'portOrder': await this.portOrder(f, c); break;
