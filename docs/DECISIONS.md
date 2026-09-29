@@ -2297,7 +2297,14 @@
   2. **concurrency:** `group: ci-${{ github.ref }}`, `cancel-in-progress`는 PR일 때만 참이다. rebase·새 push가 같은 PR의 옛 실행을 취소한다. main과 태그는 ref마다 한 줄로 서지만 취소하지 않는다.
   3. **main의 Windows 실패:** main의 Windows 작업이 실패하면 고치는 PR을 가장 먼저 한다. alpha·v2.0.0 태그 전에는 그 main 커밋의 Windows 작업이 초록이어야 한다(D-154의 태그 규칙에 더함).
   4. **공용 파일:** `docs/PROGRESS.md`와 DECISIONS 번호는 지휘 세션만 고치고, 번호는 지휘 세션이 나눠 준다. 에이전트 PR은 받은 D 번호로 자기 항목만 쓰고 PROGRESS를 고치지 않는다. PROGRESS는 지휘 세션이 모아서 한 PR로 갱신한다.
-  5. **흔들리는 검사:** 원인을 고칠 때까지 격리해 머지를 막지 않는다. 격리하려면 테스트나 단계에 이슈 번호를 달고 `docs/OPEN-ISSUES.md` "격리한 검사" 표에 적는다. v2.0.0 전까지 모두 되돌린다(그 표가 비어야 한다).
+  5. **linux 나누기(잰 뒤 더함):** 재 보니 PR 실행의 가장 긴 줄은 Windows만이 아니라 `linux`(20–24분)였다. #454 run 36503209450의 단계:
+     - `build` 4.2분
+     - PIT 1.6분
+     - app identity hash 재실행 5.9분
+     - 엔진 테스트 identity hash 재실행 8.2분
+
+     긴 셋을 `linux-checks` 행렬(`linux-pit`, `linux-app-constant-hash`, `linux-engine-constant-hash`)로 떼어 나란히 돌린다. `linux`는 원본·자산·엔진 불변 검사와 `build`(엔진 테스트 포함), 캔버스 시험 자료, 산출물만 맡는다. 같은 검사를 모두 그대로 돌리고, 줄인 것은 차례뿐이다. 전에 있던 두 번째 `:engine:test`(보통 JVM)는 `build`가 이미 돌아 뺐다. PR 게이트는 `linux`·`linux-checks`·`electron`·`runtime`(Linux)·`track-a-java8`이고 `release`는 `linux-checks`도 기다린다.
+  6. **흔들리는 검사:** 원인을 고칠 때까지 격리해 머지를 막지 않는다. 격리하려면 테스트나 단계에 이슈 번호를 달고 `docs/OPEN-ISSUES.md` "격리한 검사" 표에 적는다. v2.0.0 전까지 모두 되돌린다(그 표가 비어야 한다).
 - **이유:**
   - PR 하나의 머지까지 40~50분이 걸렸고, rebase마다 처음부터 다시 돌았다. 대부분이 Windows 러너의 setup-exe → setup-e2e·setup-upgrade 사슬과 runtime Windows다.
   - 화면(renderer)·엔진 Java 변경은 Linux 작업이 같은 코드를 모두 돌린다. Windows에서만 드러나는 것은 포장·설치·주 프로세스·런타임이고, 그것에 닿는 PR은 여전히 PR에서 돈다.

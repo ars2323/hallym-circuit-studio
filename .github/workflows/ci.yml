@@ -72,15 +72,8 @@ jobs:
       # tests/disasm, tests/spim-oracle 등에 굳혀 두었고 Gradle 테스트가 그 파일과 대조한다.
       - name: Gradle build and tests
         run: ./gradlew --no-daemon build
-      # Z-24(D-138): 두 트랙 공용 로더·디스어셈블러와 ProgramLoader의 돌연변이 테스트. 죽인 비율이 95% 아래면 실패한다
-      - name: Mutation tests (PIT, loader and disassembler)
-        run: ./gradlew --no-daemon :lib-mips:pitest
-      # D-129: identity hash가 모두 같은 JVM(-XX:hashCode=2)에서 단위 테스트를 한 번 더 돈다. identityHashCode를
-      # 열쇠·서명으로 쓰면(고유하지 않다) 여기서 틀린다. 벽시계 시간을 재는 @Tag("timing")은 뺀다.
-      - name: Unit tests with a constant identity hash
-        run: ./gradlew --no-daemon :app:testConstantIdentityHash
-      - name: Engine server tests (N-03; again with a constant identity hash, D-129)
-        run: ./gradlew --no-daemon :engine:test && ./gradlew --no-daemon :engine:test -Phcs.constantHash=true
+      # D-166: 돌연변이 테스트(PIT)와 identity hash 고정 JVM의 재실행은 아래 linux-* 작업이 나란히 돈다.
+      # `build`가 :engine:test를 이미 돈다(N-03 엔진 서버 테스트).
       # N-06(D-137): 부품 종류 × 대표 속성 조합의 경계·포트와 캔버스 시험 회로를 엔진 API로 다시 만들어 저장소의 것과
       # 한 글자라도 다르면 실패하고, 방금 만든 자료로 렌더러 등록표의 기하 동등성 검사(node)를 돈다
       - uses: actions/setup-node@v4
@@ -106,6 +99,43 @@ jobs:
           name: linux-build
           path: |
             lib-mips/build/libs/hcs-mips.jar
+
+  # D-166: linux에서 떼어 나란히 도는 긴 Gradle 검사들(각각 자기 빌드). 전에는 linux 한 작업에서 차례로 돌아 20분이었다.
+  linux-checks:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Z-24(D-138): 두 트랙 공용 로더·디스어셈블러와 ProgramLoader의 돌연변이 테스트. 죽인 비율이 95% 아래면 실패한다
+          - name: pit
+            run: ./gradlew --no-daemon :lib-mips:pitest
+          # D-129: identity hash가 모두 같은 JVM(-XX:hashCode=2)에서 단위 테스트를 한 번 더 돈다. identityHashCode를
+          # 열쇠·서명으로 쓰면(고유하지 않다) 여기서 틀린다. 벽시계 시간을 재는 @Tag("timing")은 뺀다.
+          - name: app-constant-hash
+            run: ./gradlew --no-daemon :app:testConstantIdentityHash
+          # N-03: 엔진 서버 테스트를 identity hash 고정 JVM에서 한 번 더(D-129)
+          - name: engine-constant-hash
+            run: ./gradlew --no-daemon :engine:test -Phcs.constantHash=true
+    name: linux-${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: ${{ matrix.name }}
+        run: ${{ matrix.run }}
+      - name: Test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-${{ matrix.name }}
+          path: |
+            **/build/reports/tests/
+            **/build/test-results/
+            lib-mips/build/reports/pitest/
 
   # Hallym Circuit Studio 2의 화면(electron/, D-133·D-135). 엔진은 가짜 엔진(electron/tests/fake-engine)으로 시험한다.
   electron:
@@ -633,7 +663,7 @@ jobs:
   # v* 태그: 태그 = electron/package.json의 버전, 노트 docs/releases/<버전>.md + SHA-256으로 draft를 만든다(-가 든 버전은
   # 사전 릴리스). 게시는 사람이 확인한 뒤 한다(docs/release.md). 태그가 아니면 같은 파일을 모아 규칙만 확인한다.
   release:
-    needs: [linux, track-a-java8, setup-exe, setup-e2e, setup-upgrade]
+    needs: [linux, linux-checks, track-a-java8, setup-exe, setup-e2e, setup-upgrade]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
