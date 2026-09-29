@@ -117,6 +117,15 @@ public final class DiagSession {
         return o;
     }
 
+    /** 지금 메시지 수(Create Submission의 점검, N-21): 화면이 받은 목록(told)은 건드리지 않는다. */
+    public int count() {
+        if (staticDirty) {
+            refreshStatic();
+            dynamicChanged = true; // 다음 프레임이 화면에 알린다(frame이 told와 견준다)
+        }
+        return messages().size();
+    }
+
     private void refreshStatic() {
         staticDirty = false;
         set.refreshStatic();

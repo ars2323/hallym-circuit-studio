@@ -95,6 +95,7 @@ public final class Engine {
         registerFlow();
         registerCircuits();
         registerMenus();
+        registerProject();
         server.onShutdown(this::closeAll);
         server.executor().scheduleAtFixedRate(this::frame, SimSession.FRAME_MS, SimSession.FRAME_MS,
                 TimeUnit.MILLISECONDS);
@@ -617,6 +618,9 @@ public final class Engine {
         // 화면이 보던 회로(circuitId, 화면은 늘 보낸다)를 먼저 편집하는 회로로 둔다: 저널에 적혀 재생이 같다(D-146)
         edit("edit.undo", false, (d, p) -> Intents.undo(d, p.has("circuitId") ? d.circuit(p.str("circuitId")) : null));
         edit("edit.redo", false, (d, p) -> Intents.redo(d, p.has("circuitId") ? d.circuit(p.str("circuitId")) : null));
+        // Undo History(E-05, N-21): 한 줄을 누른 것 = 되돌리기·다시 실행 여러 번이 의도 하나(저널 한 줄)
+        edit("edit.history", false, (d, p) -> kr.ac.hallym.hcs.engine.edit.HistoryIntents.go(d, p.integer("moves"),
+                p.has("circuitId") ? d.circuit(p.str("circuitId")) : null));
         // 모델을 바꾸지 않는 물음(model.*): 놓을 부품의 모습, 끄는 동안의 연결 유지 선
         server.register("model.tool", (p, call) -> {
             Doc d = files.get(p.str("fileId"));
@@ -636,6 +640,30 @@ public final class Engine {
             Circuit c = d.circuit(p.str("circuitId"));
             return new com.google.gson.Gson().toJsonTree(SelectionIntents.movePreview(d, c, p.integer("dx"),
                     p.integer("dy"), p.optBool("connect", true)));
+        });
+    }
+
+    // ---- Undo History, Project › Analyze Circuit·Get Circuit Statistics, Create Submission(N-21, D-162) ----
+
+    private void registerProject() {
+        server.register("model.history", (p, call) -> kr.ac.hallym.hcs.engine.edit.HistoryIntents.rows(
+                files.get(p.str("fileId"))));
+        server.register("model.analyze", (p, call) -> {
+            Doc d = files.get(p.str("fileId"));
+            Circuit c = d.circuit(p.str("circuitId"));
+            SimSession s = sims.get(d.id());
+            return s == null ? kr.ac.hallym.hcs.engine.project.Analysis.analyze(d, c)
+                    : s.quiet(() -> kr.ac.hallym.hcs.engine.project.Analysis.analyze(d, c));
+        });
+        server.register("model.statistics", (p, call) -> {
+            Doc d = files.get(p.str("fileId"));
+            return kr.ac.hallym.hcs.engine.project.Analysis.statistics(d, d.circuit(p.str("circuitId")));
+        });
+        // path(zip을 쓸 곳)는 main만 준다(저장 창): 창이 부르면 점검과 파일 목록만
+        server.register("file.submission", (p, call) -> {
+            Doc d = files.get(p.str("fileId"));
+            int messages = diags.session(d).count();
+            return kr.ac.hallym.hcs.engine.project.Submissions.run(d, messages, p.optStr("path", null));
         });
     }
 

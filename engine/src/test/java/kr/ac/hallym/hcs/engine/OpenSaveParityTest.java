@@ -381,6 +381,15 @@ class OpenSaveParityTest {
             e.client.callObject("model.appearanceHit", params("fileId", fileId, "circuitId", id, "at",
                     new Object[] {50, 50}, "rect", new Object[] {0, 0, 200, 200}));
         }
+        // N-21(D-162): Undo History의 목록, Project › Analyze Circuit·Get Circuit Statistics(원조 계산 클래스),
+        // Create Submission의 점검(경로 없이: zip을 쓰지 않는다). 모두 읽기만 한다
+        e.client.callObject("model.history", params("fileId", fileId));
+        e.client.callObject("file.submission", params("fileId", fileId));
+        for (JsonElement ce : opened.getAsJsonArray("circuits")) {
+            String id = ce.getAsJsonObject().get("circuitId").getAsString();
+            e.client.callObject("model.analyze", params("fileId", fileId, "circuitId", id));
+            e.client.callObject("model.statistics", params("fileId", fileId, "circuitId", id));
+        }
         if (opened.get("main").isJsonNull()) {
             return;
         }
