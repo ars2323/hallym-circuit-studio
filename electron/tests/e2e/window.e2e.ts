@@ -10,6 +10,7 @@ import path from 'node:path';
 import { answerOpen, launch, newCircuit, openAbout, type Running } from './harness.ts';
 
 const overlay = (r: Running) => r.app.evaluate(({ BrowserWindow }) => (BrowserWindow.getAllWindows()[0] as unknown as { overlayColor?: string }).overlayColor ?? '#ffffff');
+const symbols = (r: Running) => r.app.evaluate(({ BrowserWindow }) => (BrowserWindow.getAllWindows()[0] as unknown as { overlaySymbol?: string }).overlaySymbol ?? '#00205b');
 
 test('opens over the whole work area, maximised where a window manager can', async () => {
   const r = await launch(null, { keepSize: true });
@@ -77,13 +78,16 @@ test('a dialog: modal, a click outside (backdrop, toolbar, New) does nothing, Ta
   const r = await launch();
   const { page } = r;
   try {
-    expect(await overlay(r)).toBe('#ffffff');
+    // the first screen: the caption buttons on the dark glass bar -- no patch, white symbols (Hallym MIPS v2.6.0, D-169)
+    await expect.poll(() => overlay(r)).toBe('#00000000');
+    expect(await symbols(r)).toBe('#ffffff');
     await answerOpen(r.app, path.join(r.dir, 'not-there.circ'));
     await page.keyboard.press('Control+o');
     const dialog = page.locator('dialog.ask');
     await expect(dialog).toBeVisible();
     expect(await dialog.evaluate((d) => d.matches(':modal'))).toBe(true);
-    await expect.poll(() => overlay(r)).toBe('#a6b1c6'); // white under navy at 35 %
+    // the dialog's backdrop covers the glass bar too: the patch stays see-through (the window shows what covers it)
+    await expect.poll(() => overlay(r)).toBe('#00000000');
     expect(await dialog.evaluate((d) => getComputedStyle(d, '::backdrop').backgroundColor)).toBe('rgba(0, 32, 91, 0.35)');
     // Outside: the backdrop, the first screen's choice, the title bar's New -- nothing happens.
     const h = await page.evaluate(() => window.innerHeight);
@@ -117,6 +121,15 @@ test('a dialog: modal, a click outside (backdrop, toolbar, New) does nothing, Ta
     expect(await page.evaluate(() => (window as unknown as { leftDialog: string[] }).leftDialog), 'the focus never left the dialog').toEqual([]);
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
+    await expect.poll(() => overlay(r)).toBe('#00000000');
+    // a circuit on screen: the white bar, the patch white with navy symbols; a dialog over it: white under navy at 35 %
+    await page.keyboard.press('Control+n');
+    await page.locator('.filebar .ptab').first().waitFor();
+    await expect.poll(() => overlay(r)).toBe('#ffffff');
+    expect(await symbols(r)).toBe('#00205b');
+    await page.getByTitle('Preferences').click();
+    await expect.poll(() => overlay(r)).toBe('#a6b1c6');
+    await page.keyboard.press('Escape');
     await expect.poll(() => overlay(r)).toBe('#ffffff');
   } finally {
     await r.close();

@@ -65,7 +65,7 @@ export function welcome(spec: WelcomeSpec): Welcome {
   showStep(spec.first);
   const start = backdrop();
   const card = h('div', { class: 'wcard' },
-    character(spec.pose, 200),
+    character(spec.pose, 168),
     h('div', { class: 'wbody' }, h('h1', {}, spec.title),
       h('p', { class: 'lead' }, spec.lead[0], h('br'), spec.lead[1]),
       actions, back));
