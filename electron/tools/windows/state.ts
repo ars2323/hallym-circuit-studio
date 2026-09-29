@@ -253,7 +253,9 @@ export interface Allowed {
   keyOnly?: boolean;     // registry: a key without values
   dirOnly?: boolean;     // files: a folder (and nothing in it)
   writers?: RegExp;      // only when the audit trail has this place written in the period, by these programs only (D-164)
-  along?: RegExp;        // only when the same check also has a change at this path (a record Windows writes with that one)
+  onlyWindows?: boolean; // not when the audit trail has any program but Windows' own writing it (D-168 11)
+  along?: RegExp;        // only when the same check also has a REG_BINARY value added or changed at this path (a record Windows
+                         // writes with that one), and no program but Windows' own is recorded writing either (D-168 11)
   why: string;
 }
 
@@ -289,7 +291,7 @@ export const ALLOWED: Allowed[] = [
   { where: 'registry', what: ['added'], in: ALL, data: /^REG_DWORD 0x23c00$/,
     path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\WinTrust\\Trust Providers\\Software Publishing :: State$/,
     why: 'WinTrust\'s default state (0x23c00), written with that key' },
-  { where: 'registry', what: ['added', 'changed'], in: ALL, mayName: true,
+  { where: 'registry', what: ['added', 'changed'], in: ALL, mayName: true, onlyWindows: true,
     path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\UserAssist\\\{[0-9A-F-]{36}\}\\Count :: xe\.np\.unyylz\.pvephvg-fghqvb$/,
     why: 'Explorer\'s launch counter for this program\'s app id (ROT13 of kr.ac.hallym.circuit-studio), kept by Windows for every program that starts' },
   { where: 'files', what: ['added', 'changed'], in: ALL, mayName: true, path: new RegExp(`^${SEARCH}LocalState\\\\AppIconCache\\\\100\\\\kr_ac_hallym_circuit-studio$`),
@@ -316,9 +318,9 @@ export const ALLOWED: Allowed[] = [
   // entry above), it rewrites its session record in the same stroke -- seen in every first and recovery run of the
   // setup-e2e job once the first run passed about 4.5 s (the start card's third step, A-08, D-168: runs 36539373664,
   // 36542204169, 36544666558), where the audit trail had the counter but not the session record written
-  { where: 'registry', what: ['changed'], in: ['none'], data: /^REG_BINARY [0-9A-F]+$/,
+  { where: 'registry', what: ['changed'], in: ['none'], data: /^REG_BINARY [0-9A-F]+$/, onlyWindows: true,
     along: new RegExp(`${USER_ASSIST_COUNT}xe\\.np\\.unyylz\\.pvephvg-fghqvb$`), path: new RegExp(`${USER_ASSIST_COUNT}HRZR_PGYFRFFVBA$`),
-    why: 'Explorer\'s session record (UEME_CTLSESSION), rewritten with its use counter for this program in the same check (D-168)' },
+    why: 'Explorer\'s session record (UEME_CTLSESSION), rewritten with its use counter for this program in the same check -- Windows as its writer inferred, not shown by the audit trail: an exception to D-164 3 (D-168 11, #465)' },
   // ---- an install or an uninstall: Windows' own stores, which Windows changes when any program is installed or
   // removed; there the checks count the installer's places (INSTALLER_PLACES) and anything naming this program
   { where: 'registry', what: ['added', 'removed', 'changed'], in: INSTALLING, path: WINDOWS_STORES,
@@ -357,10 +359,23 @@ export const ALLOWED: Allowed[] = [
 export const NAMES_US = new RegExp(`hallym|circuit-studio|circuitstudio|unyylz|${APP_GUID}`, 'i');
 export const namesUs = (c: Change): boolean => NAMES_US.test(c.path) || NAMES_US.test(c.after ?? '') || NAMES_US.test(c.before ?? '');
 
+// A change only Windows' own programs are recorded writing: none recorded, or every one of WINDOWS_WRITERS (the app, an
+// installer or uninstaller, msiexec, an unknown or ended process: not).
+export const onlyWindowsWrote = (c: Change, writers: Writers): boolean => [...(writers.get(noiseKey(c)) ?? [])].every((p) => WINDOWS_WRITERS.test(p));
+
+// `along` (D-168 11): the paired value added or changed as REG_BINARY in the same check, and neither it nor the change itself
+// written by anything but Windows as far as the audit trail shows.
+function alongOk(c: Change, along: RegExp, writers: Writers, others: readonly Change[]): boolean {
+  // (the change's own writers: its rule's onlyWindows)
+  return others.some((o) => o !== c && along.test(o.path) && (o.what === 'added' || o.what === 'changed')
+    && /^REG_BINARY [0-9A-F]*$/.test(o.after ?? '') && onlyWindowsWrote(o, writers));
+}
+
 export function allowed(c: Change, expect: Expect, writers: Writers = NO_WRITERS, others: readonly Change[] = []): Allowed | undefined {
   for (const k of ALLOWED) {
     if (k.where !== c.where || !k.what.includes(c.what) || !k.in.includes(expect) || !k.path.test(c.path)) continue;
-    if (k.along && !others.some((o) => o !== c && k.along!.test(o.path))) continue;
+    if (k.onlyWindows && !onlyWindowsWrote(c, writers)) continue;
+    if (k.along && !alongOk(c, k.along, writers, others)) continue;
     if (k.writers) {
       const w = writers.get(noiseKey(c));
       if (!w || w.size === 0 || [...w].some((p) => !k.writers!.test(p))) continue;

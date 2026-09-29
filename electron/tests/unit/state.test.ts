@@ -535,3 +535,29 @@ test('the audit trail must hold the whole window: its oldest event no newer than
   assert.throws(() => auditCoverage(from, '2026-09-28T11:00:00Z', NaN, 256 << 20), /size unknown/);
   assert.throws(() => auditCoverage(from, '2026-09-28T11:00:00Z', 1, NaN), /size unknown/);
 });
+
+test('Explorer\'s session record beside the counter (D-168 11): only Windows\' own writers, the counter added or changed as binary, a run check only', () => {
+  const session = ch('registry', 'changed', `${COUNT} :: HRZR_PGYFRFFVBA`, 'REG_BINARY 000000001000000019000000');
+  const counter = ch('registry', 'added', `${COUNT} :: xe.np.unyylz.pvephvg-fghqvb`, 'REG_BINARY 0000000000000000');
+  const pair = [counter, session];
+  const wrote = (who: Record<string, string[]>) => written(Object.fromEntries(Object.entries(who).map(([k, v]) => [k === 's' ? noiseKey(session) : noiseKey(counter), v])));
+  // through: no writer recorded, or Explorer / a named service only
+  assert.deepEqual(unexpected(pair, 'none'), []);
+  assert.deepEqual(unexpected(pair, 'none', undefined, wrote({ c: [EXPLORER_EXE] })), []);
+  assert.deepEqual(unexpected(pair, 'none', undefined, wrote({ s: [EXPLORER_EXE], c: [WPN] })), []);
+  // any other writer of either value: counts
+  for (const other of [OURS_EXE, 'C:\\Users\\u\\AppData\\Local\\Temp\\~nsu1.tmp\\Un_A.exe', 'C:\\Windows\\System32\\msiexec.exe',
+    'C:\\Users\\u\\Downloads\\HallymCircuitStudio-2.0.0-win-x64-setup.exe', `${SVCHOST} [pid 12 not named]`, `${SVCHOST} [ended]`]) {
+    assert.deepEqual(unexpected(pair, 'none', undefined, wrote({ s: [EXPLORER_EXE, other] })), [session], `session record by ${other}`);
+    const bad = unexpected(pair, 'none', undefined, wrote({ c: [other] }));
+    assert.ok(bad.includes(session) && bad.includes(counter), `counter by ${other}: ${bad.map((c) => c.path).join(', ')}`);
+  }
+  // the counter removed, or not binary: no pair
+  assert.deepEqual(unexpected([{ ...counter, what: 'removed', before: 'REG_BINARY 00' }, session], 'none').includes(session), true);
+  assert.deepEqual(unexpected([{ ...counter, after: 'REG_SZ 1' }, session], 'none').includes(session), true);
+  // an install or an uninstall check does not use this rule (its Windows-store rule is its own: D-148 12)
+  for (const e of ['install', 'uninstalled'] as const) {
+    const r = judge(session, e, undefined, undefined, pair);
+    assert.ok(r.kind !== 'allowed' || !/D-168/.test(r.why), `${e}: ${JSON.stringify(r)}`);
+  }
+});
