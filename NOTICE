@@ -83,7 +83,7 @@ Electron, Chromium and Node.js (Hallym Circuit Studio 2, electron/)
 Hallym MIPS Simulator (screen code, design values, tools and test harness)
   Copyright (c) 2026, Hakhyeon Kim (AIAC Lab, Hallym University).
   License: BSD 3-Clause (electron/LICENSE.hallym-mips.txt)
-  Source:  https://github.com/ars2323/hallym-mips-simulator, tag v2.5.0
+  Source:  https://github.com/ars2323/hallym-mips-simulator, tag v2.6.0
   Location: the files listed in electron/ORIGIN.md. Nothing that comes from
             SPIM is taken (no instruction tables, no simulator core).
 

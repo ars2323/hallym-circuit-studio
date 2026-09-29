@@ -979,6 +979,17 @@ export const MUTANTS: Mutant[] = [
     find: "  if (course === null) { start.go('course'); return; }\n", replace: '', tests: ['tests/e2e/titlebar-icons.e2e.ts'] },
   { module: 'glass', file: 'src/renderer/app/app.ts', what: 'Export Image shown with nothing to export with',
     find: '  bExport.hidden = exportImage === null || !f;', replace: '  bExport.hidden = false;', tests: ['tests/e2e/titlebar-icons.e2e.ts'] },
+  // ---- Hallym MIPS 2.6.0: the field colours, the screenshots' fixed conditions (A-07, D-167)
+  { module: 'field colours', file: 'src/renderer/shared/panels.css', what: 'shamt\'s tint a level off Hallym MIPS\'s',
+    find: '.f-shamt, .f-fd { background: #efe9f6;', replace: '.f-shamt, .f-fd { background: #efe9f7;', tests: ['tests/unit/field-colors.test.ts'] },
+  { module: 'field colours', file: 'src/renderer/canvas/overlays/logic.ts', what: 'rd\'s band in rt\'s colour',
+    find: "  rd: '#8a5a00', fs: '#8a5a00',", replace: "  rd: '#00736f', fs: '#8a5a00',", tests: ['tests/unit/field-colors.test.ts'] },
+  { module: 'screen conditions', file: 'tests/fake-engine/fake-mips.ts', what: 'the fake engine\'s held clock moves on',
+    find: '(held !== null && Number.isFinite(held) ? held :', replace: '(held !== null && Number.isFinite(held) ? held + 1000 * tick++ :', tests: ['tests/unit/screen-conditions.test.ts'] },
+  { module: 'screen conditions', file: 'tests/e2e/screen-conditions.ts', what: 'the clock at another hour',
+    find: "export const FIXED_TIME = '2026-09-28T10:00:00+09:00';", replace: "export const FIXED_TIME = '2026-09-28T11:00:00+09:00';", tests: ['tests/unit/screen-conditions.test.ts'] },
+  { module: 'screen conditions', file: 'tests/e2e/screen-conditions.ts', what: 'the held frame without the video\'s filter',
+    find: '      c.style.filter = look.filter;\n', replace: '', tests: ['tests/e2e/screen-conditions.e2e.ts'] },
 ];
 
 function copyTree(dir: string): void {

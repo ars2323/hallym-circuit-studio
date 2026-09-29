@@ -1,13 +1,46 @@
 # .hmx 명세
 
-**기준:** Hallym MIPS의 `docs/hmx-format.md`, 태그 `v2.4.0`(커밋 `b3117c701da6a17c22ab6af778ce97e69745ede8`)으로 고정한 원본:
-<https://raw.githubusercontent.com/ars2323/hallym-mips-simulator/v2.4.0/docs/hmx-format.md>
+**기준:** Hallym MIPS의 `docs/hmx-format.md`, 태그 `v2.6.0`(커밋 `d8f0c9752574fc69beaf4c3271b2f4079324b945`)으로 고정한 원본:
+<https://raw.githubusercontent.com/ars2323/hallym-mips-simulator/v2.6.0/docs/hmx-format.md>
 
-명세와 이 도구가 다르면 명세를 따른다(D-138). 이 문서는 명세 본문을 옮기지 않는다. 명세가 정하지 않은 곳에서 이 도구가 고른 것과 불러오기 동작만 적는다. 코드: `lib-mips/src/shared/java/kr/ac/hallym/hcs/mips/image/`(두 트랙 공용, D-125). 명세 골든: `tests/hmx/hallym-mips-v2.4.0/`(README 참고). 손으로 쓴 시험 파일: `tests/hmx/`. 명세 쪽에 바라는 것: [hmx-feedback.md](hmx-feedback.md).
+v2.6.0의 명세는 처음 따른 v2.4.0(커밋 `b3117c701da6a17c22ab6af778ce97e69745ede8`, D-138)과 바이트까지 같다(아래 "v2.6.0 확인", D-167). 명세와 이 도구가 다르면 명세를 따른다(D-138). 이 문서는 명세 본문을 옮기지 않는다. 명세가 정하지 않은 곳에서 이 도구가 고른 것과 불러오기 동작만 적는다. 코드: `lib-mips/src/shared/java/kr/ac/hallym/hcs/mips/image/`(두 트랙 공용, D-125). 명세 골든: `tests/hmx/hallym-mips-v2.4.0/`(README 참고, v2.6.0의 골든과 바이트까지 같아 폴더 이름과 내용을 그대로 둔다). 손으로 쓴 시험 파일: `tests/hmx/`. 명세 쪽에 바라는 것: [hmx-feedback.md](hmx-feedback.md).
+
+## v2.6.0 확인(2026-09-29, D-167)
+
+Hallym MIPS v2.6.0이 나와 참조를 v2.6.0으로 옮기기 전에 명세와 골든이 v2.4.0과 같은지 태그끼리 비교했다. 저장소 `ref/hallym-mips-simulator`(태그 v2.4.0·v2.6.0을 받아 둔 클론)에서:
+
+```
+$ git rev-parse v2.4.0:docs/hmx-format.md v2.6.0:docs/hmx-format.md
+aec07b0ab0e14d57002563fa93d35e5fd187e93b
+aec07b0ab0e14d57002563fa93d35e5fd187e93b
+$ git diff --stat v2.4.0 v2.6.0 -- docs/hmx-format.md electron/tests/hmx/
+$ git log --oneline v2.4.0..v2.6.0 -- docs/hmx-format.md electron/tests/hmx/
+$ git archive v2.6.0 electron/tests/hmx | tar -x -C /tmp/t260
+$ for f in /tmp/t260/electron/tests/hmx/*; do cmp -s "$f" tests/hmx/hallym-mips-v2.4.0/$(basename "$f") && echo "$(basename "$f") same"; done
+branches.hmx same
+branches.s same
+data.hmx same
+data.s same
+main-later.hmx same
+main-later.s same
+no-data.hmx same
+no-data.s same
+no-handler.hmx same
+no-handler.s same
+pseudo.hmx same
+pseudo.s same
+space-gap.hmx same
+space-gap.s same
+```
+
+- **명세:** 두 태그의 blob 해시가 같다: 바이트까지 같다.
+- **골든 7쌍:** 두 태그 사이에 명세와 `electron/tests/hmx/`를 바꾼 커밋이 없고(`git diff`·`git log` 출력 없음), v2.6.0의 14개 파일이 이 저장소의 `tests/hmx/hallym-mips-v2.4.0/`과 바이트까지 같다. 파일 안의 `produced-by Hallym MIPS 2.4.0`과 `assembled 2026-09-27T19:05+09:00`도 그대로다.
+- **"produced-by·assembled만 다름"의 뜻:** 파일은 다르지 않다. 그 말은 v2.6.0이 같은 `.s`를 지금 다시 어셈블해 내보내면 나오는 이미지에 대한 것이다: Hallym MIPS v2.6.0 `electron/tests/sim/hmx.test.ts` 41~43행이 새로 만든 이미지와 골든을 `assembled` 줄(시각)과 `produced-by`의 판 번호만 빼고 줄마다 같다고 본다(`comparable`). 그래서 v2.6.0이 내보낸 파일은 이 두 줄만 다르다. 이 도구는 두 필드를 사실로 보이기만 하고(요약의 Made by) 판단에 쓰지 않으므로 달라질 것이 없다.
+- **그래서:** 참조 주소와 판만 v2.6.0으로 바꾸고 시험 자료(`tests/hmx/hallym-mips-v2.4.0/`, `.regs` 오라클, `Hallym MIPS 2.4.0`을 기대하는 시험)는 그대로 둔다.
 
 ## 받는 파일은 .hmx 하나(D-141)
 
-- **만드는 곳.** Hallym MIPS(2.4.0부터)에서 `.s`를 열고 Ctrl+S로 어셈블한 뒤, 제목 줄 오른쪽 아이콘 묶음의 Export executable image (.hmx) 단추로 내보낸다. 이 도구는 어셈블하지 않는다(hcs-asm과 `vendor/spim`은 지웠다, [hcs-asm.md](hcs-asm.md)).
+- **만드는 곳.** Hallym MIPS(2.4.0부터, 지금 기준은 2.6.0)에서 `.s`를 열고 Ctrl+S로 어셈블한 뒤, 제목 줄 오른쪽 아이콘 묶음의 Export executable image (.hmx) 단추로 내보낸다. 이 도구는 어셈블하지 않는다(hcs-asm과 `vendor/spim`은 지웠다, [hcs-asm.md](hcs-asm.md)).
 - **Load Program...** 파일 고르기 창은 "Executable image (*.hmx)" 거르개 하나뿐이다("모든 파일"도 없다). 그래도 `.s`(`.asm`, 대소문자 무관)가 들어오면 이미지 없이 사실과 할 일 한 줄만 알리고 아무것도 바꾸지 않는다: "이 파일은 .s 파일을 가리킵니다. Hallym MIPS에서 Export executable image (.hmx) 단추로 내보낸 파일을 불러오세요." (영어: "This file points to a .s file. Load the file exported with Export executable image (.hmx) in Hallym MIPS.")
 - **옛 .circ의 .s 경로.** 메모리 부품의 `source` 속성이 `.s`를 가리키는 옛 파일은 전과 똑같이 열리고, 고치지 않으면 같은 바이트로 저장된다(속성은 읽기만 한다). 트랙 A 우클릭 메뉴는 "Reload 이름.s" 대신 "Load .hmx for 이름.s..."이고, 누르면 위 문장과 속성 값을 보인 뒤 `.s`가 있던 폴더에서 `.hmx` 고르기 창을 연다(같은 이름의 `.hmx`가 있으면 골라 둔다). `.hmx`를 불러오면 `source`가 그 경로로 바뀐다. v2 엔진은 파일을 열 때 같은 문장을 사실 `assemblySource`로 준다(docs/engine-api.md `mips.facts`, 화면은 N-16). 공용 규칙과 문장은 `AssemblySource` 한 곳에 있다.
 

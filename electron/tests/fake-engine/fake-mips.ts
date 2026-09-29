@@ -18,8 +18,10 @@
                      with no loadable answer is a failure that keeps the program
                      on show (mips.reloaded, the failure in mips.facts)
 
-   Times come from a fixed clock (13:47:44 KST, then a second per load) so
-   the screenshots are the same every run. */
+   Times come from a made-up clock (13:47:44 KST, then a second per load) so
+   every run gives the same times.  FAKE_ENGINE_NOW (ms) holds it still at
+   that moment instead: the screenshots' fixed clock, 10:00:00
+   (tests/e2e/screen-conditions.ts, D-167). */
 
 import { createHash } from 'node:crypto';
 import { readFileSync, statSync } from 'node:fs';
@@ -68,8 +70,10 @@ const FACT_S = {
 const STACK = { en: 'This circuit uses a separate Stack part. New Data Memory parts also hold the stack region.', ko: '이 회로는 따로 된 Stack 부품을 씁니다. 새 Data Memory는 스택 영역을 함께 맡습니다.' };
 
 let tick = 0;
+const HELD = process.env.FAKE_ENGINE_NOW ? Number(process.env.FAKE_ENGINE_NOW) : null;
 const BASE = Date.parse('2026-09-28T13:47:44+09:00');
-const clock = () => BASE + 1000 * tick++;
+export const fakeClock = (held: number | null = HELD) => (held !== null && Number.isFinite(held) ? held : BASE + 1000 * tick++);
+const clock = () => fakeClock();
 
 export const newState = (): MipsState => ({ program: null, failure: null, stamp: '', timer: null, console: { text: '', exited: false } });
 
