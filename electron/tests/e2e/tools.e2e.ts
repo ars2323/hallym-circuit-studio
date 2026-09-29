@@ -15,7 +15,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { answerSave, canvasSettled, DATAPATH, launch, openFile, recordCalls, sample, sentCalls } from './harness.ts';
+import { answerSave, canvasSettled, DATAPATH, launch, openFile, recordCalls, resize, sample, sentCalls } from './harness.ts';
 import { decodePng } from './png.ts';
 
 const SUB = 'tests/circ/subcircuit.circ';
@@ -207,6 +207,16 @@ test('Export Image (E-07): SVG with its fonts in it, PNG at 2x, PDF, from the Ca
       await d.getByRole('button', { name: 'Export…' }).click();
       await expect(d).toBeHidden();
     };
+    // the title bar's Export Image… button opens the same dialog
+    await expect(page.getByTitle('Export Image…')).toBeVisible();
+    await page.getByTitle('Export Image…').click();
+    await expect(page.getByRole('dialog', { name: 'Export Image' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    // under 800 px the button gives its room to the toolbar (File › Export Image… is still there)
+    await resize(r, { width: 760, height: 900 });
+    await expect(page.getByTitle('Export Image…')).toBeHidden();
+    await resize(r, { width: 1600, height: 1000 });
+    await expect(page.getByTitle('Export Image…')).toBeVisible();
     const svgFile = path.join(r.dir, 'out.svg');
     await answerSave(r.app, svgFile);
     await pick('svg');

@@ -385,12 +385,14 @@ const bTutorial = iconButton('Tutorial', 'circle-question-mark', () => {
 });
 const bNew = iconButton('New circuit (Ctrl+N)', 'file-plus', () => void newCircuit());
 const bOpen = iconButton('Open file (Ctrl+O)', 'folder-open', () => void openFile());
-// Export Image… (Hallym MIPS's place of Export executable image): the circuit on show as a picture.  N-21 (#453) plugs
-// its exporter in here (`exportImage`); until then, and without a circuit on show, the button is not there (as Hallym
-// MIPS hides its export without a file).
+// Export Image… (Hallym MIPS's place of Export executable image): the circuit on show as a picture.  N-21 plugs its
+// exporter in here (`exportImage`, below with the ProjectTools); without a circuit on show the button is not there
+// (as Hallym MIPS hides its export without a file).
 let exportImage = null as (() => void) | null;
 const bExport = iconButton('Export Image…', 'image-down', () => exportImage?.());
 bExport.hidden = true;
+// under 800 px (one side at a time, D-158) it gives its room to Run and 1 Cycle: File › Export Image… is still there
+bExport.classList.add('wideonly');
 const bPrefs = iconButton('Preferences', 'settings', () => prefs.open());
 // The course on show (A-08): a chip after the name; pressed, the two courses to switch to (only what is shown changes).
 const courseChip = h('button', { type: 'button', class: 'coursechip', hidden: true, 'aria-haspopup': 'menu', title: '교과목을 바꿉니다. 화면에 보이는 것만 바뀌고 회로와 시뮬레이션은 그대로입니다.' });
@@ -695,6 +697,8 @@ const tools = new ProjectTools({
   circuitName: (f, id) => files.circuitName(f, id),
 });
 canvasPanel.append(tools.history.root);
+// the title bar's Export Image… button (N-21, D-162)
+exportImage = () => void tools.exportImage();
 // The search palette (Ctrl+K, a letter on the Canvas).
 const pal = palette({
   sources: () => {
