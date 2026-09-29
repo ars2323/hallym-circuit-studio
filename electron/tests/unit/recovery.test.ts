@@ -448,6 +448,39 @@ test('recovery: signal groups and area memos (N-15) are replayed with the wire a
   }
 });
 
+test('recovery: an Undo History jump (N-21, edit.history) is one journal entry, replayed as that many undos after the edits it undoes', async () => {
+  const { dir, datapath } = scratch();
+  const copy = path.join(dir, 'datapath-history.circ');
+  copyFileSync(datapath, copy);
+  const { engine, sup } = fake();
+  try {
+    await engine.start();
+    const a = await win<OpenResult>(engine, 'file.open', { path: copy });
+    const main = a.circuits.find((c) => c.name === 'main')!.circuitId;
+    const before = (await win<Snapshot>(engine, 'model.circuit', { fileId: a.fileId, circuitId: main })).components.length;
+    await win(engine, 'edit.addComponent', { fileId: a.fileId, circuitId: main, lib: 'Gates', name: 'AND Gate', loc: [900, 900] });
+    await win(engine, 'edit.addComponent', { fileId: a.fileId, circuitId: main, lib: 'Gates', name: 'OR Gate', loc: [1000, 900] });
+    await win(engine, 'edit.history', { fileId: a.fileId, circuitId: main, moves: -1 });
+    const replayed: [string, Record<string, unknown>][] = [];
+    engine.on('answer', (x) => { if (x.tag === 'recovery' && x.method.startsWith('edit.')) replayed.push([x.method, x.params as Record<string, unknown>]); });
+    const done = recovered(sup);
+    engine.kill();
+    const r = await done;
+    assert.deepEqual(r.restored, [{ fileId: a.fileId, edits: 3, dirty: true }]);
+    assert.deepEqual(replayed.map(([m, q]) => `${m} ${q.moves ?? ''}`.trim()), ['edit.addComponent', 'edit.addComponent', 'edit.history -1']);
+    const now = await win<Snapshot>(engine, 'model.circuit', { fileId: a.fileId, circuitId: main });
+    assert.equal(now.components.length, before + 1);
+    assert.ok(now.components.some((c) => c.name === 'AND Gate') && !now.components.some((c) => c.name === 'OR Gate'));
+    // and the redo row it left is still there to click
+    const h = await win<{ rows: { kind: string; name?: string }[] }>(engine, 'model.history', { fileId: a.fileId });
+    assert.deepEqual(h.rows.map((x) => x.kind), ['start', 'undo', 'now', 'redo']);
+    assert.equal(h.rows[3].name, 'Add OR Gate');
+  } finally {
+    await engine.shutdown();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('the journal: the right-click menu\'s intents (N-10) name their parts as refs -- ids in order, one id, a wire; RAM contents are the simulation\'s (not journaled)', () => {
   const s = new Shadow();
   const j = new Journal();

@@ -1041,8 +1041,9 @@ export class CircuitCanvas {
 
   /* The picture of the circuit as drawn now, as SVG (picture export, N-21, writes this to a file):
      the same wires, jumps, dots, parts' shapes and chips as the Canvas at 100 %, without the grid,
-     hover or selection.  `box` defaults to everything drawn with a 20-unit margin. */
-  exportSvg(box?: Box): string {
+     hover or selection.  `box` defaults to everything drawn with a 20-unit margin.  `chips: false`
+     leaves the label, value and width chips out (Export Image's choice, v1's "overlays", N-21). */
+  exportSvg(box?: Box, o: { chips?: boolean } = {}): string {
     const s = this.scene;
     if (!s) return '';
     this.layout();
@@ -1068,13 +1069,14 @@ export class CircuitCanvas {
     const ordered = byArea([...s.components.values()]);
     out.push('<g class="fills">', ...ordered.map((c) => shapesToSvg(this.layersOf(c).base, look)), '</g>');
     for (const c of ordered) out.push(`<g data-part="${c.id}">`, shapesToSvg(this.layersOf(c).top, look), '</g>');
-    for (const ch of this.chips) {
+    const chips = o.chips === false ? [] : this.chips;
+    for (const ch of chips) {
       if ((ch.kind === 'width' && !this.busWidths) || ch.size < MIN_TEXT_PX) continue;   // as on screen at 100 %
       out.push(...this.chipSvg(ch));
     }
     const e = s.extent();
     let b = box ?? { x0: e.x0 - 20, y0: e.y0 - 20, x1: e.x1 + 20, y1: e.y1 + 20 };
-    if (!box) for (const ch of this.chips) b = { x0: Math.min(b.x0, ch.box.x0 - 4), y0: Math.min(b.y0, ch.box.y0 - 4), x1: Math.max(b.x1, ch.box.x1 + 4), y1: Math.max(b.y1, ch.box.y1 + 4) };
+    if (!box) for (const ch of chips) b = { x0: Math.min(b.x0, ch.box.x0 - 4), y0: Math.min(b.y0, ch.box.y0 - 4), x1: Math.max(b.x1, ch.box.x1 + 4), y1: Math.max(b.y1, ch.box.y1 + 4) };
     return svgDocument(out, b, look);
   }
 

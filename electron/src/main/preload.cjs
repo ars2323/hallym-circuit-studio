@@ -51,6 +51,11 @@ contextBridge.exposeInMainWorld('app', {
     const paths = Array.from(files ?? []).map((f) => { try { return webUtils.getPathForFile(f); } catch { return ''; } }).filter((p) => p);
     return ipcRenderer.invoke('file:openDropped', paths).then(unwrap);
   },
+  // N-21: pictures and papers (src/main/pictures.ts): the save dialog and the writing in the main process
+  exportPicture: (fileId, o) => ipcRenderer.invoke('picture:export', fileId, o).then(unwrap),
+  printPictures: (pages, o) => ipcRenderer.invoke('picture:print', pages, o).then(unwrap),
+  submissionPlan: (fileId) => ipcRenderer.invoke('submission:plan', fileId).then(unwrap),
+  submissionWrite: (fileId) => ipcRenderer.invoke('submission:write', fileId).then(unwrap),
   // N-11: a file tab in a window of its own (src/main/windows.ts)
   windowRole: () => ipcRenderer.invoke('win:role'),
   detach: (fileId, handover, how) => ipcRenderer.invoke('win:detach', fileId, handover, how).then(unwrap),

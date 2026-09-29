@@ -8,8 +8,8 @@
    Only what the window can do is here.  Project runs the Circuits panel's
    commands (N-11's circuit-control.ts) on the circuit on show; Analyze
    Circuit and Get Circuit Statistics (the engine's read-only wrap of the
-   original's classes), Print, Export Image, Undo History, Create
-   Submission and Logging come with N-21, which adds its items to this
+   original's classes), Print, Export Image, Undo History and Create
+   Submission come with N-21 (D-162; Logging is not moved: D-162 6), which adds its items to this
    table.  Edit › Tool picks a tool, the Menu Tool too (I-84: the
    original's Base library tool, no toolbar button).  An item is off while it cannot be done now (no
    file, the engine not up). */
@@ -55,6 +55,11 @@ export function appMenu(st: MenuState): MenuSpec[] {
     SEP,
     item('Save', 'file.save', 'Ctrl+S', noFile),
     item('Save As…', 'file.saveAs', 'Ctrl+Shift+S', noFile),
+    // the original's File menu (Export Image…, Print…) and v1's Create Submission… (N-21, D-162)
+    item('Create Submission…', 'file.submission', undefined, noFile),
+    SEP,
+    item('Export Image…', 'file.export', undefined, noFile),
+    item('Print…', 'file.print', 'Ctrl+P', noFile),
     SEP,
     item('Preferences…', 'file.preferences'),
     SEP,
@@ -63,6 +68,7 @@ export function appMenu(st: MenuState): MenuSpec[] {
   const edit: MenuSpec[] = [
     item('Undo', 'edit.undo', 'Ctrl+Z', noFile),
     item('Redo', 'edit.redo', keyText('redo'), noFile),
+    item('Undo History…', 'edit.history', undefined, noFile),
     SEP,
     item('Cut', 'edit.cut', 'Ctrl+X', noFile),
     item('Copy', 'edit.copy', 'Ctrl+C', noFile),
@@ -92,6 +98,9 @@ export function appMenu(st: MenuState): MenuSpec[] {
     SEP,
     item('Edit Circuit Layout', 'project.layout', undefined, noFile || !pr),
     item('Edit Circuit Appearance', 'project.appearance', undefined, noFile || !pr),
+    // read only: on for a file that cannot be edited too (N-21)
+    item('Analyze Circuit', 'project.analyze', undefined, noFile || !pr),
+    item('Get Circuit Statistics', 'project.statistics', undefined, noFile || !pr),
   ];
   const simulate: MenuSpec[] = [
     { ...item('Simulation Enabled', 'sim.enabled', 'Ctrl+E', noFile), checked: st.file && st.simOn },

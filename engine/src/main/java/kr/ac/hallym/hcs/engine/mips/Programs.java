@@ -458,7 +458,13 @@ public final class Programs {
             sendFacts(s, false);
             return out;
         }
+        // 파일을 연 뒤 처음 대조해 다시 넣은 것은 학생의 편집이 아니다: 연 파일이 깨끗했으면 깨끗한 그대로 둔다
+        // (N-21, D-162: 끝내기·Create Submission이 손대지 않은 파일을 저장하라고 하지 않는다). 되돌리기 한 단계는 남는다.
+        boolean cleanBefore = "open".equals(reason) && !d.isDirty();
         apply(d, r, "Reload " + hmx.getName());
+        if (cleanBefore) {
+            d.project().setFileAsClean();
+        }
         s.loadedAt = System.currentTimeMillis();
         SimSession sim = sims.apply(d);
         if (sim != null && sim.reset()) {

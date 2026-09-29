@@ -460,7 +460,8 @@ class ProgramsTest {
         assertEquals("open", opened.get("reason").getAsString());
         ExecutableImage branches = image(prog("branches"));
         assertEquals(branches.words(branches.segments(ExecutableImage.Kind.TEXT)), contents(im));
-        assertTrue(e.client.callObject("file.dirty", params("fileId", g[0])).get("dirty").getAsBoolean());
+        // 연 뒤 처음의 다시 넣기는 학생의 편집이 아니다: 깨끗한 파일은 깨끗한 그대로(D-162)
+        assertFalse(e.client.callObject("file.dirty", params("fileId", g[0])).get("dirty").getAsBoolean());
         assertNull(facts(g[0]).getAsJsonObject("program").get("failure").isJsonNull() ? null : "failure");
 
         // Reset: 감시가 아직 못 본 변경도 먼저 넣는다

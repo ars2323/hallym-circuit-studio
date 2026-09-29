@@ -13,7 +13,7 @@ const names = (r: { page: import('@playwright/test').Page }) =>
 const icons = (r: { page: import('@playwright/test').Page }) =>
   r.page.locator('.titlebar .tools .iconbtn:visible img').evaluateAll((els) => els.map((e) => (e as HTMLImageElement).src.split('/').pop()));
 
-test('the icons: Menu, Tutorial, New, Open, Preferences (Hallym MIPS\'s order and shapes); Export Image waits for its exporter; white on the first screen\'s glass, dark on the white bar', async () => {
+test('the icons: Menu, Tutorial, New, Open, Export Image (with a circuit on show, N-21), Preferences (Hallym MIPS\'s order and shapes); white on the first screen\'s glass, dark on the white bar', async () => {
   const r = await launch();
   const { page } = r;
   try {
@@ -21,7 +21,7 @@ test('the icons: Menu, Tutorial, New, Open, Preferences (Hallym MIPS\'s order an
     expect(await icons(r)).toEqual(['menu.svg', 'circle-question-mark.svg', 'file-plus.svg', 'folder-open.svg', 'settings.svg']);
     await expect(page.locator('body')).toHaveClass(/first-screen/);
     await expect(page.locator('.titlebar .iconbtn img').first()).toHaveCSS('filter', 'brightness(0) invert(1)');
-    // the export is in its place, not shown until N-21's exporter is there
+    // the export is in its place, not shown without a circuit on show
     await expect(page.getByTitle('Export Image…')).toBeHidden();
     await expect(page.getByTitle('Export Image…').locator('img')).toHaveAttribute('src', /image-down\.svg$/);
     // Tutorial with no course yet: the card asks the course (step 1)
@@ -31,7 +31,7 @@ test('the icons: Menu, Tutorial, New, Open, Preferences (Hallym MIPS\'s order an
     await expect(page.locator('body')).not.toHaveClass(/first-screen/);
     await expect(page.locator('.titlebar')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
     await expect(page.locator('.titlebar .iconbtn img').first()).toHaveCSS('filter', 'none');
-    expect(await names(r)).toEqual(['Menu', 'Tutorial', 'New circuit (Ctrl+N)', 'Open file (Ctrl+O)', 'Preferences']);
+    expect(await names(r)).toEqual(['Menu', 'Tutorial', 'New circuit (Ctrl+N)', 'Open file (Ctrl+O)', 'Export Image…', 'Preferences']);
     // Tutorial with a course: that course's (N-18's; until then a new circuit in it)
     await page.getByTitle('Tutorial').click();
     await expect(page.locator('.filebar .ptab')).toHaveCount(2);

@@ -25,7 +25,7 @@ import { type MenuEntry, SEPARATOR, showMenu } from '../canvas/overlays/menu.ts'
 import { h, icon } from '../shared/dom.ts';
 import type { NoticeHost } from '../shared/notice.ts';
 
-export type CircuitCommand = 'open' | 'layout' | 'appearance' | 'rename' | 'main' | 'portOrder' | 'autoAppearance' | 'up' | 'down' | 'remove';
+export type CircuitCommand = 'open' | 'layout' | 'appearance' | 'analyze' | 'statistics' | 'rename' | 'main' | 'portOrder' | 'autoAppearance' | 'up' | 'down' | 'remove';
 export type FileCommand = 'add' | 'import' | 'loadBuiltin' | 'loadCirc' | 'loadJar' | 'unload';
 
 export interface CircuitsState {
@@ -55,6 +55,9 @@ export function circuitItems(st: { circuits: CircuitRef[]; main: string; editabl
   return [
     { label: 'Edit Circuit Layout', run: () => run('layout', circuitId) },
     { label: 'Edit Circuit Appearance', run: () => run('appearance', circuitId) },
+    // the original's circuit menu (Popups.forCircuit; read only: N-21)
+    { label: 'Analyze Circuit', run: () => run('analyze', circuitId) },
+    { label: 'Get Circuit Statistics', run: () => run('statistics', circuitId) },
     SEPARATOR,
     { label: 'Rename…', disabled: !ed, run: () => run('rename', circuitId) },
     { label: 'Set As Main Circuit', disabled: !ed || circuitId === st.main, run: () => run('main', circuitId) },

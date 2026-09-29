@@ -25,6 +25,8 @@ export const paths = {
   icon: bundled ? null : path.join(electronRoot, '..', 'assets/hallym/logo/app-256.png'),
   // A license file by its name in licenses/ (the packaged name; see LICENSES).
   license: (name: string) => (bundled ? path.join(here, 'licenses', name) : path.join(electronRoot, LICENSE_SOURCES[name])),
+  // The window's fonts (Pretendard, D2Coding): embedded into exported pictures (pictures.ts, N-21).
+  fonts: bundled ? path.join(here, 'renderer/assets/fonts') : path.join(electronRoot, 'src/renderer/assets/fonts'),
   electronLicense: () => path.join(electronDist(), bundled ? 'LICENSE.electron.txt' : 'LICENSE'),
   chromiumCredits: () => path.join(electronDist(), 'LICENSES.chromium.html'),
 };

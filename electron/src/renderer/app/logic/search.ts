@@ -20,7 +20,8 @@ import { TOOL_ARGS } from './tool-args.ts';
 
 export type ItemKind = 'component' | 'subcircuit' | 'tunnel' | 'command';
 
-export type CommandId = 'reset' | 'cycle' | 'run' | 'enable' | 'load' | 'fit' | 'find' | 'editSplitter' | 'revertAppearance';
+export type CommandId = 'reset' | 'cycle' | 'run' | 'enable' | 'load' | 'fit' | 'find' | 'editSplitter' | 'revertAppearance'
+  | 'undoHistory' | 'exportImage' | 'print' | 'submission' | 'analyze' | 'statistics';
 
 export interface Command { id: CommandId; name: string; aliases: string[] }
 
@@ -35,6 +36,13 @@ export const COMMANDS: readonly Command[] = [
   { id: 'find', name: 'Find', aliases: ['find', '찾기'] },
   { id: 'editSplitter', name: 'Edit Splitter…', aliases: ['edit splitter', 'splitter', '스플리터 편집', '스플리터'] },
   { id: 'revertAppearance', name: 'Revert To Default Appearance', aliases: ['revert', 'default appearance', '기본 모양'] },
+  // N-21 (D-162): the menus' other commands
+  { id: 'undoHistory', name: 'Undo History…', aliases: ['undo history', 'history', '되돌리기 목록', '기록'] },
+  { id: 'exportImage', name: 'Export Image…', aliases: ['export', 'image', 'png', 'svg', 'pdf', '그림 내보내기', '내보내기', '그림'] },
+  { id: 'print', name: 'Print…', aliases: ['print', '인쇄'] },
+  { id: 'submission', name: 'Create Submission…', aliases: ['submission', 'submit', 'zip', '제출', '제출 파일'] },
+  { id: 'analyze', name: 'Analyze Circuit', aliases: ['analyze', 'analysis', 'truth table', '진리표', '조합 분석', '분석'] },
+  { id: 'statistics', name: 'Get Circuit Statistics', aliases: ['statistics', 'stats', '통계', '부품 수'] },
 ];
 
 // A part's saved name → what else a student may call it (v1 Palette.ALIASES).

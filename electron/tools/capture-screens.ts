@@ -955,6 +955,83 @@ function sideBySide(name: string, left: Buffer, right: Buffer): void {
   await shot(r, 'narrow-tabs');
   await r.close();
 }
+  // N-21 (D-162): Export Image, Get Circuit Statistics and Create Submission over demo-datapath as opened (its values,
+  // the counts of what is on the Canvas); Undo History after edits made off to the side, the Canvas panned so the window
+  // stands over empty paper; Analyze Circuit of the half adder example (tests/circ/half-adder.circ, overlap-checked).
+  async function palette(r: Running, text: string, name: string): Promise<void> {
+    await r.page.keyboard.press('Control+k');
+    await r.page.keyboard.type(text);
+    await r.page.getByRole('dialog', { name: 'Search' }).locator('.palrow').first().filter({ hasText: name }).waitFor();
+    await r.page.keyboard.press('Enter');
+  }
+  {
+    const r = await start(FHD);
+    const { page } = r;
+    await openFile(r, sample(r.dir, DATAPATH));
+    await drawn(r);
+    // Export Image: PNG at 2x, the whole circuit, chips on
+    await palette(r, 'export', 'Export Image…');
+    await page.getByRole('dialog', { name: 'Export Image' }).waitFor();
+    await shot(r, 'export-dialog', { keepFocus: true });
+    await page.keyboard.press('Escape');
+    // Get Circuit Statistics of main (the engine's counts of this file)
+    await page.getByRole('tab', { name: 'Circuits' }).click();
+    await page.locator('.circlist li button', { hasText: 'main' }).first().click({ button: 'right' });
+    await page.locator('.ovmenu button', { hasText: 'Get Circuit Statistics' }).click();
+    await page.getByRole('dialog', { name: 'main Statistics' }).waitFor();
+    await shot(r, 'statistics');
+    await page.keyboard.press('Escape');
+    // Create Submission: saved, the four checks, the files
+    await palette(r, 'submission', 'Create Submission…');
+    await page.getByRole('dialog', { name: 'Create Submission' }).waitFor();
+    await shot(r, 'submission');
+    await page.keyboard.press('Escape');
+    await r.close();
+  }
+  {
+    const r = await start(FHD);
+    const { page } = r;
+    await openFile(r, sample(r.dir, DATAPATH));
+    await drawn(r);
+    // three gates placed below the datapath (no undo: the fake engine gives what an undo brings back new ids, and the
+    // values it sends are for the file's own)
+    await page.evaluate(async () => {
+      const app = (window as unknown as { app: { call(m: string, p: unknown): Promise<unknown> } }).app;
+      const sc = (window as unknown as { __hcsCanvas: { scene: { fileId: string; circuitId: string } } }).__hcsCanvas.scene;
+      const at = { fileId: sc.fileId, circuitId: sc.circuitId };
+      await app.call('edit.addComponent', { ...at, lib: 'Gates', name: 'AND Gate', loc: [700, 800] });
+      await app.call('edit.addComponent', { ...at, lib: 'Gates', name: 'OR Gate', loc: [800, 800] });
+      await app.call('edit.addComponent', { ...at, lib: 'Gates', name: 'NOT Gate', loc: [900, 800] });
+    });
+    await drawn(r);
+    // the Canvas moved right by the window's width: the window stands over empty paper
+    await page.evaluate(() => {
+      const c = (window as unknown as { __hcsCanvas: { view: { x: number; y: number; zoom: number }; setView(v: object): void } }).__hcsCanvas;
+      c.setView({ ...c.view, x: c.view.x - 360 / c.view.zoom });
+    });
+    await canvasSettled(page);
+    await palette(r, 'undo history', 'Undo History…');
+    await page.getByRole('dialog', { name: 'Undo History' }).locator('.histrow', { hasText: 'Add NOT Gate' }).waitFor();
+    await drawn(r);
+    await shot(r, 'undo-history');
+    await r.close();
+  }
+  {
+    const r = await start(FHD);
+    const { page } = r;
+    await openFile(r, sample(r.dir, 'tests/circ/half-adder.circ'));
+    await page.locator('.canvas-view canvas').waitFor();
+    await canvasSettled(page);   // no values: the fake engine has none for this file
+    // Analyze Circuit of main: the original's expression, its minimized forms
+    await page.getByRole('tab', { name: 'Circuits' }).click();
+    await page.locator('.circlist li button', { hasText: 'main' }).first().click({ button: 'right' });
+    await page.locator('.ovmenu button', { hasText: 'Analyze Circuit' }).click();
+    const a = page.getByRole('dialog', { name: 'Combinational Analysis: main' });
+    await a.locator('.tooltab', { hasText: 'Minimized' }).click();
+    await shot(r, 'analyze');
+    await page.keyboard.press('Escape');
+    await r.close();
+  }
 }
 
 await captureAll();
