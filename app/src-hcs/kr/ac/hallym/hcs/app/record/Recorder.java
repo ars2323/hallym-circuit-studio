@@ -357,7 +357,8 @@ public final class Recorder {
         // 바꿔 끼운 상태의 부품이 실제 시뮬레이션 쪽에 다시 등록되게(MIPS 메모리) 한 번 다시 전파한다. 값은 그대로라
         // 기록은 바뀌지 않는다(onPropagation이 걸러낸다). 더러운 부품 표시는 바꿔 끼우기 **전에** 한다: 끼운 뒤에는
         // 시뮬레이터 스레드가 남은 전파 요청으로 이 상태를 바로 돌 수 있고, 원조 SmallSet은 두 스레드가 함께 고치면
-        // 깨진다(엔진 CI, 상수 identity hash에서 NullPointerException, D-144)
+        // 깨진다(엔진 CI, 상수 identity hash에서 NullPointerException, D-144). 지금으로 돌아올 때 끼우는 떼어 둔 상태는
+        // 시뮬레이터 스레드가 아직 전파하고 있을 수 있으므로, 엔진은 view를 시뮬레이터를 세운 채 부른다(SimGate, D-171)
         Recording.prime(newRoot);
         proj.setCircuitState(target);
         proj.getSimulator().requestPropagate();

@@ -1023,6 +1023,100 @@ class RecordTest {
         assertEquals(6, awaitRecorded(6).get("cycle").getAsInt(), "the clock goes on from the latest cycle");
     }
 
+    /**
+     * 위 테스트가 CI에서 가끔 실패한 경합(D-171)을 늘 일으킨다: 지금으로 돌아올 때 끼우는 떼어 둔 상태를 시뮬레이터
+     * 스레드가 아직 전파하고 있을 때 record.view가 그 상태의 더러운 부품 집합(원조 SmallSet)을 고쳤다. 시험용 부품이
+     * 지금 상태의 전파 한가운데에서 시뮬레이터 스레드를 붙잡아 두는 동안, record.view는 전파가 끝날 때까지 기다려야
+     * 한다(SimGate). 세우지 않으면 곧바로 돌아와 실패한다.
+     */
+    @Test
+    void viewingWaitsUntilTheSimulatorIsOutsideAPropagation() throws Exception {
+        File dir = tmp.resolve("gate").toFile();
+        dir.mkdirs();
+        open(Fixtures.counter(dir.toPath()));
+        Blocker blocker = new Blocker();
+        com.cburch.logisim.proj.Project proj = e.onEngine(() -> e.engine.files().get(fileId).project());
+        com.cburch.logisim.comp.Component comp = blocker.createComponent(
+                com.cburch.logisim.data.Location.create(600, 400), blocker.createAttributeSet());
+        e.onEngine(() -> e.engine.sim(fileId).quiet(() -> {
+            com.cburch.logisim.circuit.CircuitMutation m =
+                    new com.cburch.logisim.circuit.CircuitMutation(proj.getCurrentCircuit());
+            m.add(comp);
+            m.execute();
+            return null;
+        }));
+        reset(); // 부품을 더한 편집 뒤 기록을 스텝 0부터 다시
+        cycles(3);
+        awaitRecorded(3);
+        // 지금 상태에만 표시를 둔다: 지난 사이클을 보고(떼어 둠) 지금으로 돌아오면 그 상태의 다시 전파가 붙잡힌다
+        e.onEngine(() -> e.engine.sim(fileId).quiet(() -> {
+            proj.getCircuitState().setData(comp, Blocker.LIVE);
+            return null;
+        }));
+        blocker.arm();
+        call("record.view", "cycle", 1);
+        call("record.view", "latest", true);
+        try {
+            assertTrue(blocker.entered.await(Client.TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS),
+                    "the simulator thread propagates the live state again");
+            java.util.concurrent.CompletableFuture<JsonObject> back = java.util.concurrent.CompletableFuture
+                    .supplyAsync(() -> call("record.view", "cycle", 1));
+            Thread.sleep(300);
+            assertFalse(back.isDone(), "record.view swapped states while the simulator thread was inside a propagation");
+            blocker.release();
+            assertTrue(back.get(Client.TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS).get("past").getAsBoolean());
+        } finally {
+            blocker.release();
+        }
+        call("record.view", "latest", true);
+        cycles(2);
+        assertEquals(5, awaitRecorded(5).get("cycle").getAsInt(), "the clock goes on from the latest cycle");
+    }
+
+    /** 시험용 부품: 켜 두면 표시가 있는 상태(떼어 둔 지금 상태)의 전파 한가운데에서 시뮬레이터 스레드를 한 번 붙잡는다. */
+    static final class Blocker extends com.cburch.logisim.instance.InstanceFactory {
+        /** 지금 상태에만 둔다. 다시 만든 지난 상태는 기록의 사본이라 이것을 갖지 않는다. */
+        static final com.cburch.logisim.instance.InstanceData LIVE = new com.cburch.logisim.instance.InstanceData() {
+            @Override
+            public Object clone() {
+                return null;
+            }
+        };
+        final java.util.concurrent.CountDownLatch entered = new java.util.concurrent.CountDownLatch(1);
+        private final java.util.concurrent.CountDownLatch released = new java.util.concurrent.CountDownLatch(1);
+        private volatile boolean armed;
+
+        Blocker() {
+            super("HcsTestBlocker");
+            setOffsetBounds(com.cburch.logisim.data.Bounds.create(-10, -10, 20, 20));
+        }
+
+        void arm() {
+            armed = true;
+        }
+
+        void release() {
+            released.countDown();
+        }
+
+        @Override
+        public void paintInstance(com.cburch.logisim.instance.InstancePainter painter) {
+        }
+
+        @Override
+        public void propagate(com.cburch.logisim.instance.InstanceState state) {
+            if (armed && state.getData() == LIVE) {
+                armed = false;
+                entered.countDown();
+                try {
+                    released.await(Client.TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS);
+                } catch (InterruptedException x) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
+    }
+
     /** 필드 경로(C-07 데이터): demo-datapath의 스플리터 팔 op rs rt rd shamt funct → Hallym MIPS 이름으로 선 id들. */
     @Test
     void fieldPathsFollowTheNamedSplitterArms() throws Exception {

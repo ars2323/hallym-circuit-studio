@@ -553,7 +553,11 @@ public final class RecordSession {
         if (r == null || r.isEmpty()) {
             throw RpcError.simState("empty", "nothing is recorded yet");
         }
-        int at = recorder.view(latest ? r.last() : CycleModel.stepOf(cycle));
+        int step = latest ? r.last() : CycleModel.stepOf(cycle);
+        // 바꿔 끼우기는 끼울 상태의 더러운 부품 집합(원조 SmallSet)을 고친다. 지금으로 돌아올 때 끼울 떼어 둔 상태는
+        // 시뮬레이터 스레드가 아직 전파하고 있을 수 있으므로(앞서 지금으로 돌아올 때 요청한 전파), 편집처럼 시뮬레이터를
+        // 전파 밖에 세워 둔 채 한다(SimGate, D-143; D-171)
+        int at = sim == null ? recorder.view(step) : sim.quiet(() -> recorder.view(step));
         if (sim != null && at >= 0) {
             sim.syncTicks(at);
             sim.rewatch();
