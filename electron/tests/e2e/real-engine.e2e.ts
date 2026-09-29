@@ -649,6 +649,20 @@ test('the real engine and the shell (N-17, D-158): Ctrl+5 holds the toolbar\'s o
     await page.mouse.down();
     await page.mouse.up();
     await expect.poll(outputPins).toBe(before + 1);
+    // a part held with values of its own ("and 3"): the engine's table for that part (three Negate rows); 3 → 4 changes
+    // the held part only -- no edit, the file as it was, the library's AND Gate still 5 inputs (D-158 18)
+    const dirty = async () => (await call<{ dirty: boolean }>(page, 'file.dirty', { fileId })).dirty;
+    const dirtyBefore = await dirty();
+    await page.getByRole('searchbox', { name: 'Search parts' }).fill('and 3');
+    await page.locator('.compresults li', { hasText: 'AND Gate' }).first().getByRole('option').click();
+    const negates = () => page.locator('.pbody.attributes .atable tbody th').filter({ hasText: /^Negate/ }).allInnerTexts();
+    await expect.poll(negates).toEqual(['Negate 1 (Top)', 'Negate 2', 'Negate 3 (Bottom)']);
+    await page.locator('.pbody.attributes').getByLabel('Number Of Inputs').selectOption('4');
+    await expect.poll(negates).toEqual(['Negate 1 (Top)', 'Negate 2', 'Negate 3', 'Negate 4 (Bottom)']);
+    expect(await dirty()).toBe(dirtyBefore);
+    const lib = await call<{ rows: { attr: string; value: string }[] }>(page, 'model.attributes', { fileId, lib: 'Gates', name: 'AND Gate' });
+    expect(lib.rows.find((x) => x.attr === 'inputs')?.value).toBe('5');
+    await page.keyboard.press('Escape');
     // Help › Examples › console-demo.circ: the engine opens it read-only; Ctrl+S asks where
     await page.getByTitle('Menu').click();
     await page.locator('.ovmenu.barmenu').getByRole('menuitem', { name: /^Help/ }).click();

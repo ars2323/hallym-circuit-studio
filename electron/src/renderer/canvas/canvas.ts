@@ -95,8 +95,10 @@ export class CircuitCanvas {
   private drag: { x: number; y: number; view: View } | null = null;
   private spaceDown = false;
   private fitted = false;
-  // The view is the fit the Canvas chose itself (a circuit shown with no view of its own) and nobody has moved it since:
-  // while so, a new size fits again -- the panels settling round a file just opened give the same view every time (D-158).
+  // The view is the fit the Canvas chose itself (a circuit shown with no view of its own) and nobody has moved it or
+  // come to the Canvas since: while so, a new size fits again -- the panels settling round a file just opened give the
+  // same view every time (D-158).  The pointer over the Canvas, a press or a key anywhere ends it: what the student is
+  // about to click stays where it is.
   private autoFit = false;
   // The tool in hand (app/editor.ts, N-07/N-08): every pointer event but panning, and the keys. None: N-05's own click and double click.
   tool: CanvasTool | null = null;
@@ -300,6 +302,8 @@ export class CircuitCanvas {
         this.setView({ ...this.view, x: this.view.x + dx / this.view.zoom, y: this.view.y + dy / this.view.zoom });
       }
     }, { passive: false });
+    c.addEventListener('pointermove', () => { this.autoFit = false; });
+    for (const ev of ['pointerdown', 'keydown', 'wheel'] as const) window.addEventListener(ev, () => { this.autoFit = false; }, { capture: true, passive: true });
     c.addEventListener('pointerdown', (e) => {
       c.focus({ preventScroll: true });
       if (e.button === 1 || (e.button === 0 && this.spaceDown)) {

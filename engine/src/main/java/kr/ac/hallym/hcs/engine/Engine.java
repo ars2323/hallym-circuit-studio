@@ -916,8 +916,12 @@ public final class Engine {
             Doc d = files.get(p.str("fileId"));
             if (p.has("name")) {
                 String lib = p.optStr("lib", null);
-                return kr.ac.hallym.hcs.engine.model.AttrTable.tool(d, lib,
-                        SelectionIntents.findTool(d, lib, p.str("name")));
+                com.cburch.logisim.tools.Tool t = SelectionIntents.findTool(d, lib, p.str("name"));
+                java.util.Map<String, String> held = p.optStringMap("attrs");
+                // a part held with values of its own (N-17, D-158 18): the table of that part, the tool untouched
+                return held.isEmpty() || t.getAttributeSet() == null
+                        ? kr.ac.hallym.hcs.engine.model.AttrTable.tool(d, lib, t)
+                        : kr.ac.hallym.hcs.engine.model.AttrTable.tool(d, lib, t, ToolParts.held(t, held));
             }
             Circuit c = d.circuit(p.str("circuitId"));
             if (p.optBool("circuit", false)) {

@@ -101,6 +101,18 @@ public final class ToolParts {
     }
 
     /** attrs: 놓을 부품에만 줄 값(edit.addComponent의 attrs와 같다, 검색창 "and 3"). 도구 속성은 그대로 둔다. */
+    /**
+     * 든 부품의 속성(N-17, D-158 18): 도구 속성의 복사본에 {@code attrs}(원조 문자열)를 얹는다. 도구 자신은 그대로(읽기만:
+     * model.attributes의 attrs, model.tool의 유령과 같은 값).
+     */
+    public static AttributeSet held(Tool t, java.util.Map<String, String> attrs) throws RpcError {
+        AttributeSet as = (AttributeSet) t.getAttributeSet().clone();
+        for (java.util.Map.Entry<String, String> e : attrs.entrySet()) {
+            Intents.set(as, e.getKey(), e.getValue());
+        }
+        return as;
+    }
+
     public static JsonObject ghost(Doc d, String lib, String name, Location loc, java.util.Map<String, String> attrs)
             throws RpcError {
         Tool t = SelectionIntents.findTool(d, lib, name);

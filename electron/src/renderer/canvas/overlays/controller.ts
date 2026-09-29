@@ -108,7 +108,8 @@ export class Overlays {
   obstacles(): Box[] {
     const s = this.scene;
     if (!s) return [];
-    return [...this.flow.obstacles(s.fileId, s.circuitId), ...this.influence.obstacles(), ...this.bus.boxes({ canvas: this.host.board, scene: s })];
+    const active = this.bands.activePath.map(([a, b]) => ({ x0: Math.min(a[0], b[0]) - 6, y0: Math.min(a[1], b[1]) - 6, x1: Math.max(a[0], b[0]) + 6, y1: Math.max(a[1], b[1]) + 6 }));
+    return [...this.flow.obstacles(s.fileId, s.circuitId), ...this.influence.obstacles(), ...active, ...this.bus.boxes({ canvas: this.host.board, scene: s })];
   }
   private emit(): void { for (const f of this.listeners) f(); this.host.changed(); }
 

@@ -61,7 +61,7 @@ test('the Attributes panel (I-99..I-101, I-20, I-53, I-54, I-83; B-04, Y-05): th
     await expect(panel.locator('.afacts li')).toHaveText(['Location (300, 200)', 'Facing east']);
     await expect(panel.locator('.atable tbody th')).toHaveText(['Facing', 'Data Bits', 'Gate Size', 'Number Of Inputs', 'Output Value', 'Label', 'Label Font',
       'Negate 1 (Top)', 'Negate 2', 'Negate 3', 'Negate 4', 'Negate 5 (Bottom)']);
-    // every name whole at 1920 × 100 % (not cut with …: D-158 18)
+    // every name whole at 1920 × 100 % (not cut with …: D-158 18); the circuit's table too (Shared Label Facing)
     expect(await panel.locator('.atable tbody th').evaluateAll((ths) => ths.filter((th) => th.scrollWidth > th.clientWidth).map((th) => th.textContent))).toEqual([]);
     // and the font's style list wide enough for its longest choice, Bold Italic
     expect(await panel.locator('.afont select').nth(1).evaluate((style) => {
@@ -111,6 +111,8 @@ test('the Attributes panel (I-99..I-101, I-20, I-53, I-54, I-83; B-04, Y-05): th
     await expect(panel.locator('.aname')).toHaveText('main');
     await expect(panel.locator('.ahead .badge')).toHaveText('Circuit');
     await expect(panel.locator('.atable tbody th')).toHaveText(['Circuit Name', 'Shared Label', 'Shared Label Facing', 'Shared Label Font']);
+    // whole: when a name would not fit its half, every name on its own line over its value (UI review: "Shared Label Faci…")
+    await expect.poll(() => panel.locator('.atable tbody th').evaluateAll((ths) => ths.filter((th) => th.scrollWidth > th.clientWidth).length)).toBe(0);
     await panel.getByLabel('Circuit Name').fill('  ');
     await panel.getByLabel('Circuit Name').press('Enter');
     await expect(panel.locator('.aerr')).toHaveText('회로 이름이 비어 있습니다. 이름을 적으세요.');

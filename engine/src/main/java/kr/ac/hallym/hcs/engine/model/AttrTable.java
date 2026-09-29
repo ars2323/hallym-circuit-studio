@@ -89,13 +89,20 @@ public final class AttrTable {
 
     /** 든 도구(원조 AttrTableToolModel). 속성이 없는 도구면 rows가 빈다. */
     public static JsonObject tool(Doc d, String lib, Tool t) {
+        return tool(d, lib, t, t.getAttributeSet());
+    }
+
+    /**
+     * 든 부품의 표(N-17, D-158 18): 도구의 속성 복사본에 든 부품만의 값을 얹은 {@code as}로(ToolParts.held). 줄의 목록도 그
+     * 값을 따른다(원조 GateAttributeList: 입력 수만큼의 Negate 줄). 도구도 파일도 바꾸지 않는다.
+     */
+    public static JsonObject tool(Doc d, String lib, Tool t, AttributeSet as) {
         JsonObject o = new JsonObject();
         o.addProperty("target", "tool");
         o.addProperty("lib", lib);
         o.addProperty("name", t.getName());
         o.addProperty("title", StringUtil.format(GUI.get("toolAttrTitle"), t.getDisplayName()));
         o.addProperty("editable", !d.isReadOnly());
-        AttributeSet as = t.getAttributeSet();
         o.add("rows", as == null ? new JsonArray() : rows(as));
         return o;
     }

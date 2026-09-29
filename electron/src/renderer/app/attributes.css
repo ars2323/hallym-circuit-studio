@@ -43,6 +43,11 @@
   .atable tbody th { white-space: normal; overflow: visible; padding: 0 0 2px; }
   .atable tbody td { padding: 0; }
 }
+/* the same when a name does not fit its half at any width (attributes.ts fitNames): no name cut with … */
+.atable.stacked thead { display: none; }
+.atable.stacked tbody tr { display: grid; grid-template-columns: minmax(0, 1fr); padding: 4px 0; }
+.atable.stacked tbody th { white-space: normal; overflow: visible; padding: 0 0 2px; }
+.atable.stacked tbody td { padding: 0; }
 .atable .afont input.size { text-align: right; }
 .atable .acolor { display: flex; align-items: center; gap: 6px; }
 .atable .acolor input[type="color"] { width: 30px; height: 24px; padding: 0 2px; border: 1px solid var(--border); border-radius: 5px; background: var(--white); }

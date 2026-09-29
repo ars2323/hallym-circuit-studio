@@ -69,7 +69,7 @@ export class AttributesPanel {
     let t: AttrTable | null = null;
     try {
       t = req.kind === 'tool'
-        ? await this.host.call<AttrTable>('model.attributes', { fileId: req.fileId, lib: req.lib, name: req.name })
+        ? await this.host.call<AttrTable>('model.attributes', { fileId: req.fileId, lib: req.lib, name: req.name, ...(req.attrs ? { attrs: req.attrs } : {}) })
         : await this.host.call<AttrTable>('model.attributes', { fileId: req.fileId, circuitId: req.circuitId });
     } catch {
       t = null;                                         // the engine is not there (restarting): the facts only
@@ -115,6 +115,25 @@ export class AttributesPanel {
       t && !t.editable && t.target !== 'tool' ? h('p', { class: 'ahint' }, '이 회로는 바꿀 수 없습니다(읽기 전용 파일이거나 불러온 라이브러리의 회로).') : null,
       this.foot());
     this.body.fill(box);
+    this.fitNames();
+  }
+
+  // Names whole (D-158 18): when one does not fit its half of the table, every name goes on its own line over its
+  // value; measured again when the panel's width changes.
+  private fitted: ResizeObserver | null = null;
+  private fitNames(): void {
+    const table = this.body.root.querySelector<HTMLTableElement>('.atable');
+    if (!table) return;
+    const fit = () => {
+      table.classList.remove('stacked');
+      const cut = [...table.querySelectorAll<HTMLElement>('tbody th')].some((th) => th.scrollWidth > th.clientWidth + 0.5);
+      table.classList.toggle('stacked', cut);
+    };
+    fit();
+    this.fitted?.disconnect();
+    let width = this.body.root.clientWidth;
+    this.fitted = new ResizeObserver(() => { if (this.body.root.clientWidth !== width) { width = this.body.root.clientWidth; fit(); } });
+    this.fitted.observe(this.body.root);
   }
 
   private tableOf(t: AttrTable): HTMLElement {

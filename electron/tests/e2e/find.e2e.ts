@@ -555,9 +555,13 @@ test('a part held with values of its own (the palette\'s "and 3"): changing one 
     await page.locator('.compresults li', { hasText: 'AND Gate' }).first().getByRole('option').click();
     const inputs = page.locator('.pbody.attributes').getByLabel('Number Of Inputs');
     await expect(inputs).toHaveValue('3');
+    // the rows are the held part's (the engine's table for its values): three Negate rows, the last (Bottom)
+    const negates = () => page.locator('.pbody.attributes .atable tbody th').filter({ hasText: /^Negate/ }).allInnerTexts();
+    expect(await negates()).toEqual(['Negate 1 (Top)', 'Negate 2', 'Negate 3 (Bottom)']);
     await recordCalls(r.app);
     await inputs.selectOption('4');
     await expect(inputs).toHaveValue('4');
+    await expect.poll(negates).toEqual(['Negate 1 (Top)', 'Negate 2', 'Negate 3', 'Negate 4 (Bottom)']);
     await page.waitForTimeout(200);
     expect((await sentCalls(r.app)).filter((c) => c.method.startsWith('edit.')).map((c) => c.method)).toEqual([]);
     await expect(page.locator('.filebar .ptab.on .dirty')).toHaveCount(0);

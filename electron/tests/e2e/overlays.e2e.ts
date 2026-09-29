@@ -403,8 +403,17 @@ test('Quick Attributes keeps off what the overlays draw: Signal Flow\'s arcs and
     const bar = page.locator('.quickbar');
     await expect(bar).toBeVisible();
     await page.waitForFunction(() => { const f = (window as unknown as { __hcsOverlays: { shown(): { flow: { t: number; total: number; running: boolean } } } }).__hcsOverlays.shown().flow; return f.running && f.t >= f.total; });
-    const flowBoxes = await page.evaluate(() => (window as unknown as { __hcsOverlays: { obstacles(): unknown[] } }).__hcsOverlays.obstacles().length);
-    expect(flowBoxes).toBeGreaterThan(0);
+    // among them every wire the flow lit (UI review: the bar cut the wire from the pc tunnel into the PC)
+    const lit = await page.evaluate(() => {
+      type B = { x0: number; y0: number; x1: number; y1: number };
+      const o = (window as unknown as { __hcsOverlays: { obstacles(): B[]; flow: { path: { segments: { from: number[]; to: number[]; path: string[] }[] } | null } } }).__hcsOverlays;
+      const boxes = o.obstacles();
+      const segs = (o.flow.path?.segments ?? []).filter((g) => !g.path.length);
+      const inside = (p: number[]) => boxes.some((b) => p[0] >= b.x0 && p[0] <= b.x1 && p[1] >= b.y0 && p[1] <= b.y1);
+      return { segs: segs.length, covered: segs.filter((g) => inside(g.from) && inside(g.to) && inside([(g.from[0] + g.to[0]) / 2, (g.from[1] + g.to[1]) / 2])).length };
+    });
+    expect(lit.segs).toBeGreaterThan(0);
+    expect(lit.covered).toBe(lit.segs);
     await expect(bar).toBeVisible();
     await expect.poll(() => barOverOverlays(page)).toBe(0);
     // the register file's influence both ways (Esc stops the flow first; Signal Flow off: a click only chooses)

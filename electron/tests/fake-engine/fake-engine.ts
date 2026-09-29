@@ -979,7 +979,9 @@ const methods: Record<string, (p: Params) => unknown> = {
     const f = fileOf(p);
     if (typeof p.name === 'string') {
       const lib = (p.lib as string | null | undefined) ?? null;
-      return failing(() => attrs.toolTable(lib, p.name as string, toolAttrs.get(`${lib ?? 'circuit'}/${p.name}`) ?? {}));
+      // a part held with values of its own (N-17, D-158 18): those over the tool's, the tool untouched
+      const held = p.attrs && typeof p.attrs === 'object' ? p.attrs as Record<string, string> : {};
+      return failing(() => attrs.toolTable(lib, p.name as string, { ...toolAttrs.get(`${lib ?? 'circuit'}/${p.name}`) ?? {}, ...held }));
     }
     const c = circuitOf(p);
     if (p.circuit === true) return attrs.circuitTable(c, true);

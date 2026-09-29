@@ -38,6 +38,11 @@ export class InfluenceOverlay implements CanvasOverlay {
     const boxes: Box[] = [];
     this.drawnBoxes = boxes;
     const { ctx, scene, zoom: z, shown, canvas } = d;
+    // the wires it reached (their bands)
+    for (const id of [...r.forward.wires, ...r.backward.wires]) {
+      const w = scene.wires.get(id);
+      if (w) boxes.push({ x0: Math.min(w.a[0], w.b[0]) - 6, y0: Math.min(w.a[1], w.b[1]) - 6, x1: Math.max(w.a[0], w.b[0]) + 6, y1: Math.max(w.a[1], w.b[1]) + 6 });
+    }
     const px = (v: number) => v / z;
     ctx.save();
     // the rest dimmed (the dimming itself is not faded)
