@@ -18,7 +18,7 @@ import kr.ac.hallym.hcs.engine.rpc.RpcError;
 
 /**
  * Undo History(E-05, N-21, D-162): v1 {@code UndoHistory}의 목록과 옮기기에서 창만 뺐다. 목록은 원조 되돌리기
- * 기록({@code Project.getUndoActions}, 오래된 것부터)과 포크의 다시 실행 기록({@link RedoStack#names}, 바로 다음 것부터)을
+ * 기록(원조 {@code Project}의 {@code undoLog}, 오래된 것부터, 반사로 읽기만)과 포크의 다시 실행 기록({@link RedoStack#names}, 바로 다음 것부터)을
  * 읽기만 한다. 옮기기는 원조 {@code undoAction}과 {@code RedoStack.redo}를 여러 번 부를 뿐이다({@link Intents#undo},
  * {@link Intents#redo}와 같은 길).
  */
@@ -38,7 +38,7 @@ public final class HistoryIntents {
         JsonObject o = new JsonObject();
         o.addProperty("fileId", d.id());
         JsonArray rows = new JsonArray();
-        List<Action> undo = d.project().getUndoActions();
+        List<Action> undo = undoLog(d.project());
         int n = undo.size();
         rows.add(row("start", null, -n));
         for (int i = 0; i < n; i++) {
@@ -51,6 +51,26 @@ public final class HistoryIntents {
         }
         o.add("rows", rows);
         return o;
+    }
+
+    /**
+     * 원조 되돌리기 기록의 동작들(오래된 것부터). 원조 {@code Project}에는 읽는 길이 {@code getLastAction}뿐이라
+     * 개인 필드 {@code undoLog}와 {@code ActionData.action}을 반사로 읽기만 한다(원조 파일을 고치지 않는다, D-163 4).
+     */
+    static List<Action> undoLog(com.cburch.logisim.proj.Project proj) {
+        try {
+            java.lang.reflect.Field log = com.cburch.logisim.proj.Project.class.getDeclaredField("undoLog");
+            log.setAccessible(true);
+            List<Action> out = new java.util.ArrayList<>();
+            for (Object data : (java.util.List<?>) log.get(proj)) {
+                java.lang.reflect.Field action = data.getClass().getDeclaredField("action");
+                action.setAccessible(true);
+                out.add((Action) action.get(data));
+            }
+            return out;
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("the original undo log cannot be read", e);
+        }
     }
 
     private static JsonObject row(String kind, String name, int moves) {
