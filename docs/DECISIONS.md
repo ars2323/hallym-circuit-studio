@@ -2338,6 +2338,7 @@
     - 옮기기와 .md
   - `package-stage.test.ts` 5개
 ## D-164 PLAN.md·CLAUDE.md·검토자·README를 v2 기준으로(N-26 1단계): 옛 결정은 "대체됨"으로 남기고, 규칙은 지금 트리와 결정에서만
+## D-165 PLAN.md·CLAUDE.md·검토자·README를 v2 기준으로(N-26 1단계): 옛 결정은 "대체됨"으로 남기고, 규칙은 지금 트리와 결정에서만
 
 - **날짜:** 2026-09-28
 - **결정:**
@@ -2349,6 +2350,7 @@
   6. **README.md.** v2 기준으로 새로 썼다: 무엇인지, 화면(상대 링크 `electron/docs/screens/*.png`), 다운로드(setup exe, SmartScreen, alpha 사전 릴리스), 두 트랙, 소스에서 빌드(gradle + electron), 폴더, 라이선스·NOTICE. 아직 없는 기능(튜토리얼 트랙, N-18)은 쓰지 않았다. 옛 README의 review-shots 링크는 뺐다.
   7. **Pretendard OTF(D-163 7이 N-26에 넘긴 것)는 남긴다.** 화면은 Hallym MIPS의 woff2 부분집합을 쓰지만, `assets/fonts/pretendard/Pretendard-Bold.otf`는 설치 파일 띠 그림(`electron/tools/installer-art.py`)이 쓴다. 넷은 `tools/import-assets.py`·`assets/MANIFEST.sha256`이 정한 한 벌이라 셋만 지우면 자산 규칙과 검사를 함께 고쳐야 하고 얻는 것은 작다.
   8. **사용자 추가 지시(2026-09-29, v2-addendum-3) 반영:** CLAUDE.md에 "고치기 전에 숫자로 잰다"(6절)와 "앱을 바꾼 라운드는 배포로 끝내고, 문서·테스트만 바꾼 라운드는 '배포 없음'과 이유를 적는다"(13절, 8절 보고)를 더했다. Hallym MIPS 참고 태그는 v2.6.0(A-07)으로 적고, .hmx 명세·골든은 v2.4.0 고정(v2.6.0과 명세 바이트 동일)을 적었다. 교과목별 화면은 사용자가 O-08을 뒤집은 것이라 "화면 구성은 같다"를 쓰지 않고 A-08(#458)을 가리키기만 한다(본문은 그 작업이 코드와 함께 쓴다).
+  9. **조정 규칙(D-166) 반영:** CLAUDE.md 1·5절에 D 번호와 PROGRESS는 조정 세션만, PR 관문은 Linux 작업·Windows 작업이 도는 때, 앞선 PR 실행 취소, main Windows 실패 먼저·태그 전 초록, 흔들리는 검사 격리("격리한 검사", v2.0.0 전 모두 되살림)를 짧게 적었다. 이 결정의 번호는 조정 세션이 준 D-165다(#456이 D-164).
 - **이유:** v2 지시 10절(PLAN 개정, CLAUDE.md 갱신)과 N-26. 규칙 파일이 지운 도구(tools/screenshots, hcs-asm)와 버린 결정(Swing, zip)을 말하면 다음 작업자가 잘못된 길로 간다. 옛 결정을 지우지 않으면 결정 기록과 PLAN이 서로를 가리킨 채로 남는다.
 - **대안(버림):** PLAN.md를 v2 문서로 새로 쓰고 v1 PLAN을 따로 보관(결정 번호가 가리키는 절이 흩어진다). 옛 결정을 지우기(지시와 다르다). CLAUDE.md를 고쳐 쓰기만(0단계 할 일·단계별 요점이 섞여 v2 규칙이 묻힌다). 검토자의 v1 검사(hcs-asm 링크)를 지우기만(SPIM이 다시 들어오는 길을 보지 못해 검사가 약해진다).
 - **테스트:** 문서만 바뀐다(제품 코드·테스트 변화 없음). 쓴 사실은 지금 트리와 결정에서 확인했다: 경로(`electron/src/renderer/shared/`, `electron/ORIGIN.md`, `electron/tools/import-hmips.ts`의 `TAKEN`·`NEVER`·`--record`·`--check`, `electron/src/main/recovery.ts`의 `journaled`·`MODEL_EDITS`, `WINDOW_METHODS`, `body.error-dialog`·`body.band-shown`, `real-engine*.e2e.ts`, `electron/docs/screens/*.png`), 명령(`npm run screens`·`electron`·`e2e`, `./gradlew :engine:stage`·`:engine:runtime`), CI 작업 이름, 릴리스(`v2.0.0-alpha.0`·`alpha.1` 사전 릴리스, v1.0.3 Latest). CI의 문서 검사(`docs/engine-api.md` 등 `-text` 파일)는 건드리지 않았다.

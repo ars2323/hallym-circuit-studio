@@ -12,7 +12,7 @@
 ## 1. 일하는 방식: 사용자에게 일을 시키지 않는다
 
 - 사용자는 결과만 받는다. 질문하거나 확인을 요청하지 말고, 가장 합리적인 쪽으로 결정하고 기록한다.
-- 결정은 `docs/DECISIONS.md`에 한 항목씩 남긴다(날짜, 결정, 이유, 대안, 테스트). 번호는 커밋 직전에 main의 다음 빈 번호로 잡고, 다른 PR과 겹치면 rebase 때 고친다. PLAN.md의 미결정 사항을 풀면 PLAN.md도 함께 고친다.
+- 결정은 `docs/DECISIONS.md`에 한 항목씩 남긴다(날짜, 결정, 이유, 대안, 테스트). **D 번호는 조정 세션만 매긴다**(D-166). 항목 작업자는 조정 세션이 준 번호를 쓰고, 번호가 없으면 받을 때까지 자리만 비워 둔다. PLAN.md의 미결정 사항을 풀면 PLAN.md도 함께 고친다.
 - 끝날 때까지 멈추지 않는다. CI·빌드·검토를 기다리는 동안 다른 항목을 한다. 컨텍스트가 길어지면 `docs/PROGRESS.md`와 메모리에 진행 상태를 남기고 이어 간다.
 - 멈추는 경우는 **되돌릴 수 없고 어느 쪽이든 그럴듯한 결정**뿐이다. 예: 학생에게 배포하기, 사용자가 둔 원본 파일 삭제. 이때는 준비 작업까지 하고 결정만 남긴다. 공개 저장소와 공개 릴리스는 이미 승인됐다.
 - 사람이 해야 하는 일은 모두 **GitHub 이슈 하나**(#54, `needs-human` 라벨)에 체크리스트로 모은다. 예: 실습실 PC 설치 확인, 교수님 확인, 학생 배포 안내. 정확한 명령 한 줄을 적는다. 그동안 다른 일은 계속한다.
@@ -67,7 +67,7 @@ resources/, ref/   # 사용자 원본과 참고 클론. .gitignore 대상
 git과 gh는 설치·로그인돼 있다. 저장소 관리는 전부 직접 한다.
 
 - **저장소:** `ars2323/hallym-circuit-studio`, public(D-017). 가이드라인 PDF·`.ai`·`resources/`·비밀 값이 기록에 들어가지 않게 한다.
-- **마일스톤과 이슈:** v2 항목은 마일스톤 `v2.0.0`에 항목마다 이슈 하나다. `docs/PROGRESS.md`의 N·A 표(ID | 이슈 | 상태 | PR | 비고)를 항목이 끝날 때마다 갱신한다. 미결정 사항은 `question` 라벨 이슈로 만들고, 풀리면 결론을 달고 닫는다.
+- **마일스톤과 이슈:** v2 항목은 마일스톤 `v2.0.0`에 항목마다 이슈 하나다. `docs/PROGRESS.md`의 N·A 표(ID | 이슈 | 상태 | PR | 비고)는 항목이 끝날 때마다 **조정 세션만** 갱신한다(D-166). 항목 PR은 PROGRESS를 고치지 않는다. 미결정 사항은 `question` 라벨 이슈로 만들고, 풀리면 결론을 달고 닫는다.
 - **브랜치와 PR:** `main`에 직접 push하지 않는다. `feat/…`, `fix/…`, `docs/…`, `chore/…` 브랜치를 만들고 작업 단위마다 PR을 연다. PR 본문은 한국어로 쓰고 `Closes #N`을 단다.
 - **머지 절차:**
   1. CI의 모든 작업이 초록인지 확인한다. 건너뛴 검사는 통과가 아니다(이유와 이슈 번호를 남긴다).
@@ -76,7 +76,11 @@ git과 gh는 설치·로그인돼 있다. 저장소 관리는 전부 직접 한�
   4. 위반이 있으면 고친 뒤 다시 돌린다. 위반 0건(ui-reviewer는 "막음" 0건)이어야 머지한다. "확인 필요"는 PR 본문에 판단 근거를 적는다.
   5. `gh pr merge --squash --delete-branch`로 머지한다.
 - **커밋:** 영어 명령형 한 줄 제목(`Add Data Memory component`)에 필요하면 본문을 단다. 작은 단위로 자주 커밋한다.
-- **CI(`.github/workflows/ci.yml`):** Linux 빌드·단위 테스트·엔진 회귀·편집 동등성·저장소 검사(`linux`), 트랙 A jar를 Java 8에서(`track-a-java8`), 화면 단위·e2e(`electron`), 번들 JRE와 진짜 엔진 e2e(`runtime`, Linux·Windows), Windows 설치 파일과 설치본 e2e(`setup-exe`, `setup-e2e`, `setup-upgrade`), 릴리스 파일 규칙(`release`)을 매 push·PR마다 돌린다.
+- **CI(`.github/workflows/ci.yml`):** Linux 빌드·단위 테스트·엔진 회귀·편집 동등성·저장소 검사(`linux`), 트랙 A jar를 Java 8에서(`track-a-java8`), 화면 단위·e2e(`electron`), 번들 JRE와 진짜 엔진 e2e(`runtime`, Linux·Windows), Windows 설치 파일과 설치본 e2e(`setup-exe`, `setup-e2e`, `setup-upgrade`), 릴리스 파일 규칙(`release`)이 있다. 언제 도는지는 D-166이다:
+  - **PR의 관문은 Linux 작업**이다. Windows 작업은 main push·태그·수동 실행(dispatch)에서 돌고, PR에서는 포장·Windows·Electron main 프로세스·CI 파일을 건드린 PR에서만 돈다.
+  - `concurrency`가 같은 PR의 앞선 실행을 새 push가 오면 취소한다.
+  - **main의 Windows 실패는 가장 먼저 고친다.** main의 Windows 작업이 초록이어야 alpha와 v2.0.0 태그를 단다.
+  - **흔들리는 검사는 격리한다.** 이슈를 열고 `docs/OPEN-ISSUES.md`의 "격리한 검사"에 적은 뒤 뺀다. v2.0.0 전에 모두 되살린다.
 - **.gitignore:** `resources/`, `ref/`, `build/`, `.gradle/`, IDE 파일, 에이전트 worktree.
 - **줄 끝:** 시험이 바이트로 비교하는 골든과 명세(`tests/hmx/**`, `tests/parity/**`, `tests/circ/**`, `tests/mips/*.circ`, `tests/jarlib/**`, 시험이 읽는 docs)는 `.gitattributes`에서 `-text`다. 새 바이트 비교 파일을 더하면 여기에도 더한다(D-154).
 
