@@ -76,9 +76,10 @@ git과 gh는 설치·로그인돼 있다. 저장소 관리는 전부 직접 한�
   4. 위반이 있으면 고친 뒤 다시 돌린다. 위반 0건(ui-reviewer는 "막음" 0건)이어야 머지한다. "확인 필요"는 PR 본문에 판단 근거를 적는다.
   5. `gh pr merge --squash --delete-branch`로 머지한다.
 - **커밋:** 영어 명령형 한 줄 제목(`Add Data Memory component`)에 필요하면 본문을 단다. 작은 단위로 자주 커밋한다.
-- **CI(`.github/workflows/ci.yml`):** Linux 빌드·단위 테스트·엔진 회귀·편집 동등성·저장소 검사(`linux`), 트랙 A jar를 Java 8에서(`track-a-java8`), 화면 단위·e2e(`electron`), 번들 JRE와 진짜 엔진 e2e(`runtime`, Linux·Windows), Windows 설치 파일과 설치본 e2e(`setup-exe`, `setup-e2e`, `setup-upgrade`), 릴리스 파일 규칙(`release`)이 있다. 언제 도는지는 D-166이다:
-  - **PR의 관문은 Linux 작업**이다. Windows 작업은 main push·태그·수동 실행(dispatch)에서 돌고, PR에서는 포장·Windows·Electron main 프로세스·CI 파일을 건드린 PR에서만 돈다.
-  - `concurrency`가 같은 PR의 앞선 실행을 새 push가 오면 취소한다.
+- **CI(`.github/workflows/ci.yml`):** 첫 판정(`changes`), Linux 빌드·단위 테스트·엔진 회귀·편집 동등성·저장소 검사(`linux`), 돌연변이 테스트와 identity hash 고정 재실행(`linux-checks`, 나란히), 트랙 A jar를 Java 8에서(`track-a-java8`), 화면 단위·e2e(`electron`), 번들 JRE와 진짜 엔진 e2e(`runtime`, Linux·Windows), Windows 설치 파일과 설치본 e2e(`setup-exe`, `setup-e2e`, `setup-upgrade`), 릴리스 파일 규칙(`release`)이 있다. 언제 도는지는 D-166이다:
+  - **PR의 관문은 Linux 작업과 `release`(트랙 A와 배포 파일 규칙)**다. Windows 작업은 main push·태그·수동 실행(dispatch)에서 돈다. PR에서는 바뀐 파일이 **모두** 허용 목록(화면 renderer, 단위·e2e 시험 파일, 엔진·앱·lib-mips 소스, 시험 회로, docs)에 들 때만 건너뛰고, 하나라도 밖이면 돈다. 목록과 예외는 `ci.yml`의 `changes` 작업에 있다.
+  - Windows에서만 도는 설치 시험이 화면과 예제에 기대는 부분은 main에서 잡는다. 그래서 다음 줄의 규칙이 있다.
+  - `concurrency`가 같은 PR의 앞선 실행을 새 push가 오면 취소한다. main·태그 실행은 취소하지 않는다.
   - **main의 Windows 실패는 가장 먼저 고친다.** main의 Windows 작업이 초록이어야 alpha와 v2.0.0 태그를 단다.
   - **흔들리는 검사는 격리한다.** 이슈를 열고 `docs/OPEN-ISSUES.md`의 "격리한 검사"에 적은 뒤 뺀다. v2.0.0 전에 모두 되살린다.
 - **.gitignore:** `resources/`, `ref/`, `build/`, `.gradle/`, IDE 파일, 에이전트 worktree.
