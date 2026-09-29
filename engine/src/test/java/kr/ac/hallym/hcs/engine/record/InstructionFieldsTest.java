@@ -45,6 +45,35 @@ class InstructionFieldsTest {
         assertEquals(want, bits.toString(), "the fields' bits are the word");
     }
 
+    /** 이름:높은 비트-낮은 비트, 높은 비트부터. */
+    static String ranges(int word) {
+        StringBuilder sb = new StringBuilder();
+        for (InstructionFields.Field f : InstructionFields.fields(word)) {
+            sb.append(sb.length() == 0 ? "" : " ").append(f.name).append(':').append(f.hi).append('-').append(f.lo);
+        }
+        return sb.toString();
+    }
+
+    /**
+     * 필드 경계가 Hallym MIPS v2.6.0 Inspector와 같다(D-167, docs/field-colors.md): 그쪽
+     * electron/src/core/decoder.ts 231~268행 fieldsOf와 273~288행 formatOf를 형식마다 옮겨 적었다. 색은 이름으로
+     * 고르므로(electron tests/unit/field-colors.test.ts) 이름과 경계가 같으면 같은 명령이 두 프로그램에서 같은 칸에 같은
+     * 색이다.
+     */
+    @Test
+    void fieldBoundariesAreHallymMips260() {
+        assertEquals("opcode:31-26 rs:25-21 rt:20-16 rd:15-11 shamt:10-6 funct:5-0", ranges(0x01095020)); // R: add
+        assertEquals("opcode:31-26 rs:25-21 rt:20-16 rd:15-11 shamt:10-6 funct:5-0", ranges(0x70851002)); // R: mul (0x1c)
+        assertEquals("opcode:31-26 rs:25-21 rt:20-16 immediate:15-0", ranges(0x8e090000)); // I: lw
+        assertEquals("opcode:31-26 rs:25-21 rt:20-16 immediate:15-0", ranges(0x1109fffa)); // I: beq
+        assertEquals("opcode:31-26 target:25-0", ranges(0x0c100016)); // J: jal
+        assertEquals("opcode:31-26 target:25-0", ranges(0x08100000)); // J: j
+        assertEquals("opcode:31-26 rs:25-21 rt:20-16 rd:15-11 0:10-3 sel:2-0", ranges(0x40046000)); // CP0: mfc0
+        assertEquals("opcode:31-26 CO:25-25 code:24-6 funct:5-0", ranges(0x42000018)); // CP0 CO: eret
+        assertEquals("opcode:31-26 fmt:25-21 ft:20-16 fs:15-11 fd:10-6 funct:5-0", ranges(0x46020800)); // FR: add.s
+        assertEquals("opcode:31-26 fmt:25-21 cc:20-18 nd:17-17 tf:16-16 immediate:15-0", ranges(0x45010003)); // FI: bc1t
+    }
+
     @Test
     void formatsAndFieldNamesAreHallymMips() {
         int add = 0x01095020; // add $10, $8, $9
