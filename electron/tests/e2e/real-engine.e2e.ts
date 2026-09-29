@@ -228,6 +228,7 @@ test('the real engine: its file errors in the window\'s words (a file that is no
     await expect(dialog).toContainText('폴더에 그 이름의 파일이 없습니다.');
     expect(await dialog.innerText()).not.toContain(r.dir);
     await dialog.getByRole('button', { name: 'Close' }).click();
+    await expect(dialog).toHaveCount(0);   // gone (its close event comes a task after the press) before Ctrl+O asks again
     const notCirc = path.join(r.dir, 'notes.circ');
     writeFileSync(notCirc, 'not a circuit\n');
     await answerOpen(r.app, notCirc);
