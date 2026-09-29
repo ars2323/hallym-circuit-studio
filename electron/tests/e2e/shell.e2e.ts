@@ -10,7 +10,7 @@ import { expect, test, type Page } from '@playwright/test';
 import path from 'node:path';
 
 import { overlayColor } from '../../src/renderer/shared/overlay.ts';
-import { answerSave, DATAPATH, launch, openFile, recordCalls, resize, sample, sentCalls, type Running } from './harness.ts';
+import { answerSave, canvasSettled, DATAPATH, launch, openFile, recordCalls, resize, sample, sentCalls, type Running } from './harness.ts';
 import { click, partMiddle } from './overlay-helpers.ts';
 
 const HALF = { width: 960, height: 1032 };
@@ -585,3 +585,41 @@ test('a file just opened keeps the Canvas\'s own fit while the window settles; a
     await r.close();
   }
 });
+
+test('the re-fit of a file just opened ends with the student\'s first input: the pointer over the Canvas, a key, a wheel, a press elsewhere; none: the new size re-fits (D-158 18)', async () => {
+  type B = { view: { zoom: number; x: number; y: number } };
+  const cases: [string, (page: Page) => Promise<void>][] = [
+    ['nothing', async () => {}],
+    ['the pointer over the Canvas', async (page) => {
+      const b = (await page.locator('.canvas-view canvas').boundingBox())!;
+      await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+    }],
+    ['a key', async (page) => { await page.keyboard.press('Shift'); }],
+    ['a wheel elsewhere', async (page) => {
+      const b = (await page.locator('.pbody.attributes').boundingBox())!;
+      await page.mouse.move(b.x + b.width / 2, b.y + b.height - 40);
+      await page.mouse.wheel(0, 60);
+    }],
+    ['a press elsewhere', async (page) => { await page.locator('.pbody.attributes .ahead').click(); }],
+  ];
+  for (const [what, input] of cases) {
+    const r = await withDatapath();
+    const { page } = r;
+    try {
+      const view = () => page.evaluate(() => ({ ...(window as unknown as { __hcsCanvas: B }).__hcsCanvas.view }));
+      await canvasSettled(page);
+      await input(page);
+      await page.waitForTimeout(100);
+      const before = await view();
+      await resize(r, { width: 1300, height: 800 });
+      await page.waitForFunction(() => window.innerWidth === 1300);
+      await page.waitForTimeout(300);
+      const after = await view();
+      if (what === 'nothing') expect(after.zoom, what).not.toBe(before.zoom);   // fitted again to the new size
+      else expect(after, what).toEqual(before);                                 // kept where the student is
+    } finally {
+      await r.close();
+    }
+  }
+});
+
