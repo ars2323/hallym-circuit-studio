@@ -663,6 +663,8 @@ export interface Analysis {
   pin?: string;                               // the multi-bit pin
   source: 'expression' | 'table' | null;      // table: no expression, the table was simulated
   expressionFailure?: string;                 // the original's reason (English)
+  expressionReason?: 'circular' | 'conflict' | 'cannotHandle';   // why no expression (source: table)
+  expressionPart?: string;                    // cannotHandle: the part's name (Tunnel)
   table?: { rows: string[][] };
   expressions?: { output: string; expression: string | null; sop: string | null; pos: string | null }[];
 }

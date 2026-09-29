@@ -38,7 +38,7 @@ export function analyzeProblemText(a: Analysis): string | null {
   const p: AnalyzeProblem | undefined = a.problem;
   if (!p) return null;
   switch (p) {
-    case 'multibitInput': return `여러 비트 입력 핀이 있어 분석하지 않았습니다(핀 이름: ${a.pin ?? ''}). 조합 분석은 1비트 핀만 다룹니다. Splitter 부품으로 나눈 1비트 핀을 두면 분석합니다.`;
+    case 'multibitInput': return `여러 비트 입력 핀이 있어 분석하지 않았습니다(핀 이름: ${a.pin ?? ''}). 조합 분석은 1비트 핀만 다룹니다.`;
     case 'multibitOutput': return `여러 비트 출력 핀이 있어 분석하지 않았습니다(핀 이름: ${a.pin ?? ''}). 조합 분석은 1비트 핀만 다룹니다.`;
     case 'tooManyInputs': return `입력 핀이 ${a.inputs.length}개입니다. 조합 분석은 입력 핀 ${a.maxInputs}개까지 다룹니다.`;
     case 'tooManyOutputs': return `출력 핀이 ${a.outputs.length}개입니다. 조합 분석은 출력 핀 ${a.maxOutputs}개까지 다룹니다.`;
@@ -49,7 +49,11 @@ export function analyzeProblemText(a: Analysis): string | null {
 
 // How the table came (the original: an expression when the circuit is gates only, else simulated).
 export function analyzeSourceText(a: Analysis): string | null {
-  if (a.source === 'table') return '원조의 식 계산이 다루지 않는 부품이 있어, 입력의 모든 조합을 시뮬레이션해 진리표를 만들었습니다. 식은 그 진리표에서 만든 것입니다.';
+  if (a.source !== 'table') return null;
+  const why = a.expressionReason === 'circular' ? '값이 되돌아 들어가는 고리가 있어'
+    : a.expressionReason === 'conflict' ? '한 선에 출력이 둘 이어져 있어'
+    : a.expressionPart ? `식 계산이 다루지 않는 부품이 있어(부품 이름: ${a.expressionPart})` : '식 계산이 다루지 않는 부품이 있어';
+  return `${why} 식을 바로 만들지 못했습니다. 입력의 모든 조합을 시뮬레이션해 진리표를 만들었고, 식은 그 진리표에서 만든 것입니다.`;
   return null;
 }
 

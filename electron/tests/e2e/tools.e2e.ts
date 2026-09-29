@@ -102,7 +102,8 @@ test('Analyze Circuit (the original\'s, read only): the circuit menu, the simula
     await circuitMenu(page, 'half_adder', 'Analyze Circuit');
     const d = page.getByRole('dialog', { name: 'Combinational Analysis: half_adder' });
     await expect(d).toBeVisible();
-    await expect(d.locator('.toolnote')).toContainText('시뮬레이션해 진리표를 만들었습니다');
+    await expect(d.locator('.toolnote')).toHaveText(/^식 계산이 다루지 않는 부품이 있어\u2060?\(부품 이름: Tunnel\) 식을 바로 만들지 못했습니다\. 입력의 모든 조합을 시뮬레이션해 진리표를 만들었고, 식은 그 진리표에서 만든 것입니다\.$/);
+    await expect(d).not.toContainText('Computing truth table');
     await expect(d.locator('.tooltab[aria-selected="true"]')).toHaveText('Table');
     await expect(d.locator('table.truth thead th')).toHaveText(['a', 'b', 's', 'c']);
     await expect(d.locator('table.truth tbody tr')).toHaveCount(4);
@@ -138,10 +139,13 @@ test('Get Circuit Statistics: the original\'s table (Simple, Unique, Recursive) 
     await expect(d).toBeVisible();
     await expect(d.locator('thead th')).toHaveText(['Component', 'Library', 'Simple', 'Unique', 'Recursive']);
     const want = JSON.parse(readFileSync(path.join(import.meta.dirname, '../fixtures/project-tools.json'), 'utf8'))['demo-datapath.circ'].main.statistics;
-    await expect(d.locator('tbody tr')).toHaveCount(want.rows.length + 2);
+    await expect(d.locator('tbody tr')).toHaveCount(want.rows.length);
+    await expect(d.locator('tfoot tr.total')).toHaveCount(2);
+    // both TOTAL rows in view at the table's foot, the rows scrolling above them
+    for (const t of await d.locator('tfoot tr.total').all()) await expect(t).toBeInViewport({ ratio: 1 });
     await expect(d.locator('tbody tr').first().locator('td')).toHaveText([want.rows[0].component, want.rows[0].library, String(want.rows[0].simple), String(want.rows[0].unique), String(want.rows[0].recursive)]);
-    await expect(d.locator('tbody tr.total').last().locator('td').first()).toHaveText('TOTAL (with subcircuits)');
-    await expect(d.locator('tbody tr.total').last().locator('td').nth(4)).toHaveText(String(want.with.recursive));
+    await expect(d.locator('tfoot tr.total').last().locator('td').first()).toHaveText('TOTAL (with subcircuits)');
+    await expect(d.locator('tfoot tr.total').last().locator('td').nth(4)).toHaveText(String(want.with.recursive));
     await d.getByRole('button', { name: 'Close' }).click();
   } finally {
     await r.close();

@@ -979,7 +979,6 @@ export const MUTANTS: Mutant[] = [
     find: "  if (course === null) { start.go('course'); return; }\n", replace: '', tests: ['tests/e2e/titlebar-icons.e2e.ts'] },
   { module: 'glass', file: 'src/renderer/app/app.ts', what: 'Export Image shown with nothing to export with',
     find: '  bExport.hidden = exportImage === null || !f;', replace: '  bExport.hidden = false;', tests: ['tests/e2e/titlebar-icons.e2e.ts'] },
-<<<<<<< HEAD
   // ---- Hallym MIPS 2.6.0: the field colours, the screenshots' fixed conditions (A-07, D-167)
   { module: 'field colours', file: 'src/renderer/shared/panels.css', what: 'shamt\'s tint a level off Hallym MIPS\'s',
     find: '.f-shamt, .f-fd { background: #efe9f6;', replace: '.f-shamt, .f-fd { background: #efe9f7;', tests: ['tests/unit/field-colors.test.ts'] },
@@ -991,7 +990,6 @@ export const MUTANTS: Mutant[] = [
     find: "export const FIXED_TIME = '2026-09-28T10:00:00+09:00';", replace: "export const FIXED_TIME = '2026-09-28T11:00:00+09:00';", tests: ['tests/unit/screen-conditions.test.ts'] },
   { module: 'screen conditions', file: 'tests/e2e/screen-conditions.ts', what: 'the held frame without the video\'s filter',
     find: '      c.style.filter = look.filter;\n', replace: '', tests: ['tests/e2e/screen-conditions.e2e.ts'] },
-=======
   // ---- the rest of v1's commands (N-21, D-162: logic/project-tools.ts, project-tools.ts, src/main/pictures.ts)
   { module: 'tools', file: 'src/renderer/app/logic/project-tools.ts', what: 'a selection picture keeps every net\'s wires',
     find: 'wires: n.wires.filter((w) => kept.has(w))', replace: 'wires: n.wires', tests: ['tests/unit/project-tools.test.ts'] },
@@ -1009,7 +1007,6 @@ export const MUTANTS: Mutant[] = [
     find: '      if ((dirty || f.path === null) && !(await this.host.save(f))) return;\n', replace: '', tests: ['tests/e2e/tools.e2e.ts'] },
   { module: 'tools', file: 'src/renderer/app/project-tools.ts', what: 'the export draws everything when the selection was asked for',
     find: 'const snap = c.selection ? subSnapshot(scene.snapshot(), ids) : scene.snapshot();', replace: 'const snap = scene.snapshot();', tests: ['tests/e2e/tools.e2e.ts'] },
->>>>>>> 2d4f1c53 (Show Undo History, Export Image, Print, Create Submission, Analyze Circuit and Statistics (N-21))
 ];
 
 function copyTree(dir: string): void {

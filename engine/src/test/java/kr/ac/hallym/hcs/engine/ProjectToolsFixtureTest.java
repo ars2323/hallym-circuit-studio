@@ -26,7 +26,7 @@ import com.google.gson.JsonParser;
  */
 class ProjectToolsFixtureTest {
     static final File FIXTURE = new File(System.getProperty("hcs.electronFixtures"), "project-tools.json");
-    static final String[] FILES = {"demo-datapath.circ", "gates.circ", "subcircuit.circ"};
+    static final String[] FILES = {"demo-datapath.circ", "gates.circ", "subcircuit.circ", "half-adder.circ"};
 
     @Test
     void theFakeEnginesAnalysesAndStatisticsAreTheRealEnginesAnswers() throws Exception {

@@ -596,6 +596,8 @@
           "c"
         ],
         "expressionFailure": "Computing truth table instead of expression due to Tunnel.",
+        "expressionReason": "cannotHandle",
+        "expressionPart": "Tunnel",
         "source": "table",
         "table": {
           "rows": [
@@ -677,6 +679,98 @@
           "simple": 16,
           "unique": 16,
           "recursive": 16
+        }
+      }
+    }
+  },
+  "half-adder.circ": {
+    "main": {
+      "analyze": {
+        "circuit": "main",
+        "maxInputs": 12,
+        "maxOutputs": 12,
+        "inputs": [
+          "a",
+          "b"
+        ],
+        "outputs": [
+          "s",
+          "c"
+        ],
+        "source": "expression",
+        "table": {
+          "rows": [
+            [
+              "00",
+              "0",
+              "0"
+            ],
+            [
+              "01",
+              "1",
+              "0"
+            ],
+            [
+              "10",
+              "1",
+              "0"
+            ],
+            [
+              "11",
+              "0",
+              "1"
+            ]
+          ]
+        },
+        "expressions": [
+          {
+            "output": "s",
+            "expression": "a ^ b",
+            "sop": "~a b + a ~b",
+            "pos": "(a + b) (~a + ~b)"
+          },
+          {
+            "output": "c",
+            "expression": "a b",
+            "sop": "a b",
+            "pos": "a b"
+          }
+        ]
+      },
+      "statistics": {
+        "circuit": "main",
+        "rows": [
+          {
+            "simple": 4,
+            "unique": 4,
+            "recursive": 4,
+            "component": "Pin",
+            "library": "Wiring"
+          },
+          {
+            "simple": 1,
+            "unique": 1,
+            "recursive": 1,
+            "component": "AND Gate",
+            "library": "Gates"
+          },
+          {
+            "simple": 1,
+            "unique": 1,
+            "recursive": 1,
+            "component": "XOR Gate",
+            "library": "Gates"
+          }
+        ],
+        "without": {
+          "simple": 6,
+          "unique": 6,
+          "recursive": 6
+        },
+        "with": {
+          "simple": 6,
+          "unique": 6,
+          "recursive": 6
         }
       }
     }

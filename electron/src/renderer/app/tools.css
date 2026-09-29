@@ -26,7 +26,8 @@
 .tooldlg p, .tooldlg li { word-break: keep-all; }
 .tooldlg h3 { margin: 14px 0 6px; font-size: 13px; color: var(--navy); }
 .tooldlg .mradios { display: flex; gap: 14px; }
-.tooldlg .mradios label { display: inline-flex; align-items: center; gap: 5px; }
+.tooldlg .mradios label, .tooldlg .mcheck { display: inline-flex; align-items: center; gap: 6px; line-height: 20px; }
+.tooldlg .mradios input, .tooldlg .mcheck input { margin: 0; }
 .tooldlg .mextra { display: flex; flex-direction: column; gap: 6px; }
 .tooltable { max-height: 46vh; overflow: auto; border: 1px solid var(--border); border-radius: 8px; margin-top: 10px; }
 .tooltable table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
@@ -35,6 +36,10 @@
 .tooltable .num { text-align: right; }
 .tooltable td.num { font-family: var(--code); }
 .tooltable tr.total td { font-weight: 600; background: var(--window); }
+.tooltable tfoot tr.total td { position: sticky; border-bottom: 0; }
+.tooltable tfoot tr.total:first-child td { bottom: 26px; border-top: 1px solid var(--border); }
+.tooltable tfoot tr.total:last-child td { bottom: 0; }
+.statsdlg .tooltable { max-height: min(62vh, 640px); }
 .tooltable table.truth { width: auto; min-width: 100%; }
 .tooltable table.truth th, .tooltable table.truth td { text-align: center; padding: 2px 10px; }
 .tooltable table.truth .out.first { border-left: 2px solid var(--navy); }

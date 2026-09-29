@@ -76,7 +76,7 @@
 | Add Area Memo…, Edit Area Memo…, Fit Area Memo to Selection, Delete Area Memo, Text, Color | |
 | Duplicate, Undo, Redo | |
 | Recover, Discard | |
-| Undo History…, Start of History, Now, Export Image…, Format, Scale, Range, Entire Circuit, Selection Only, Label Chips and Bus Widths, Print…, Header, Rotate To Fit, Printer View, Create Submission…, Create…, Files, Not Included, Analyze Circuit, Combinational Analysis, Inputs, Outputs, Table, Expression, Minimized, Sum of Products, Product of Sums, Get Circuit Statistics, Statistics, Component, Library, Simple, Unique, Recursive | |
+| Undo History…, Start of History, Now, Export Image…, Format, Scale, Range, Chips, Entire Circuit, Selection Only, Label Chips and Bus Widths, Print…, Header, Rotate To Fit, Printer View, Create Submission…, Create…, Files, Not Included, Analyze Circuit, Combinational Analysis, Inputs, Outputs, Table, Expression, Minimized, Sum of Products, Product of Sums, Get Circuit Statistics, Statistics, Component, Library, Simple, Unique, Recursive | |
 | Getting Started, Shortcuts | |
 | Menu, Preferences, General, Keyboard, Change…, Reset All, Reset Panel Sizes, About · Licenses, Keys That Do Not Change | 설정 창, 단축키 설정 |
 | More commands, More facts, Canvas, Panels, Changed, Read-only, Turn On, Try Again | 방금 바뀜 |

@@ -137,11 +137,15 @@ export function historyWindow(host: ProjectToolsHost): HistoryWindow {
 
 export function showStatistics(s: Statistics): Promise<boolean> {
   const head = h('tr', {}, ...['Component', 'Library', 'Simple', 'Unique', 'Recursive'].map((t, i) => h('th', { class: i > 1 ? 'num' : '' }, t)));
-  const rows = statisticsLines(s).map((l) => h('tr', { class: l.total ? 'total' : '' },
-    h('td', {}, l.component), h('td', {}, l.library), h('td', { class: 'num' }, String(l.simple)), h('td', { class: 'num' }, String(l.unique)), h('td', { class: 'num' }, String(l.recursive))));
+  const row = (l: ReturnType<typeof statisticsLines>[number]) => h('tr', { class: l.total ? 'total' : '' },
+    h('td', {}, l.component), h('td', {}, l.library), h('td', { class: 'num' }, String(l.simple)), h('td', { class: 'num' }, String(l.unique)), h('td', { class: 'num' }, String(l.recursive)));
+  const lines = statisticsLines(s);
+  // the two TOTAL rows stay in view at the table's foot (the rows scroll above them)
   return dialog({
     title: `${s.circuit} Statistics`, cls: 'statsdlg',
-    body: [h('div', { class: 'tooltable' }, h('table', { class: 'stats' }, h('thead', {}, head), h('tbody', {}, ...rows))), h('p', { class: 'hint' }, prose(STATISTICS_HINT))],
+    body: [h('div', { class: 'tooltable' }, h('table', { class: 'stats' }, h('thead', {}, head),
+      h('tbody', {}, ...lines.filter((l) => !l.total).map(row)), h('tfoot', {}, ...lines.filter((l) => l.total).map(row)))),
+    h('p', { class: 'hint' }, prose(STATISTICS_HINT))],
     cancel: 'Close',
   });
 }
@@ -191,7 +195,6 @@ export function showAnalysis(a: Analysis): Promise<boolean> {
     : a.problem === 'noOutputs' || a.problem === 'tooManyOutputs' || a.problem === 'multibitOutput' ? 1 : 0;
   pick(Math.max(0, first));
   const notes = [problem, analyzeSourceText(a)].filter((t): t is string => !!t).map((t) => h('p', { class: 'toolnote' }, prose(t)));
-  if (a.expressionFailure) notes.push(h('p', { class: 'hint mono' }, a.expressionFailure));
   return dialog({ title: `Combinational Analysis: ${a.circuit}`, cls: 'analysisdlg', body: [...notes, strip, pane], cancel: 'Close' });
 }
 
@@ -226,8 +229,8 @@ export function askExport(o: { selection: boolean }): Promise<ExportChoice | nul
     sentence: EXPORT_SENTENCE,
     body: [h('div', { class: 'mfields' },
       field('Format', format), field('Scale', scale),
-      field('Range', h('span', { class: 'mradios' }, h('label', {}, all, 'Entire Circuit'), h('label', {}, sel, 'Selection Only')))),
-    h('div', { class: 'mextra' }, h('label', { class: 'mcheck' }, chips, 'Label Chips and Bus Widths'))],
+      field('Range', h('span', { class: 'mradios' }, h('label', {}, all, 'Entire Circuit'), h('label', {}, sel, 'Selection Only'))),
+      field('Chips', h('label', { class: 'mcheck' }, chips, 'Label Chips and Bus Widths')))],
     ok: 'Export…',
     onOpen: () => format.focus(),
   }).then((ok) => {

@@ -53,12 +53,17 @@ test('Analyze Circuit: the original\'s stops as facts and what to do, the simula
     analyzeProblemText(analysis({ problem: 'noInputs', inputs: [], source: null })),
     analyzeProblemText(analysis({ problem: 'noOutputs', outputs: [], source: null })),
     analyzeSourceText(analysis({ source: 'table' })),
+    analyzeSourceText(analysis({ source: 'table', expressionReason: 'cannotHandle', expressionPart: 'Tunnel' })),
   ];
   assert.ok(texts.every((t) => typeof t === 'string' && t.length > 10), JSON.stringify(texts));
   assert.match(texts[0]!, /핀 이름: d/);
   assert.match(texts[2]!, /13개.*12개/);
   assert.match(texts[3]!, /14개.*12개/);
   assert.equal(analyzeSourceText(analysis({})), null);
+  assert.match(analyzeSourceText(analysis({ source: 'table', expressionReason: 'cannotHandle', expressionPart: 'Tunnel' }))!, /^식 계산이 다루지 않는 부품이 있어\(부품 이름: Tunnel\) 식을/);
+  assert.match(analyzeSourceText(analysis({ source: 'table', expressionReason: 'circular' }))!, /고리/);
+  assert.match(analyzeSourceText(analysis({ source: 'table', expressionReason: 'conflict' }))!, /출력이 둘/);
+  assert.doesNotMatch(texts[0]!, /Splitter|두면/, 'facts only: which pin, and what the analysis takes');
   for (const t of texts) clean(t!);
 });
 

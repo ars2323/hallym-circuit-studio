@@ -94,6 +94,19 @@ public final class Analysis {
         } catch (AnalyzeException ex) {
             // 원조: 알림 창("analyzeNoExpressionTitle") 뒤 시뮬레이션으로 진리표를 만든다
             o.addProperty("expressionFailure", ex.getMessage());
+            // 화면이 한국어 문장으로 말하게(원조 영어 문장은 보이지 않는다): 까닭의 종류와, 다루지 못한 부품 이름
+            if (ex instanceof AnalyzeException.Circular) {
+                o.addProperty("expressionReason", "circular");
+            } else if (ex instanceof AnalyzeException.Conflict) {
+                o.addProperty("expressionReason", "conflict");
+            } else {
+                o.addProperty("expressionReason", "cannotHandle");
+                java.util.regex.Matcher m = java.util.regex.Pattern.compile("due to (.+?)\\.?$").matcher(
+                        String.valueOf(ex.getMessage()));
+                if (m.find()) {
+                    o.addProperty("expressionPart", m.group(1));
+                }
+            }
             Analyze.computeTable(model, d.project(), circuit, pinNames);
             source = "table";
         }

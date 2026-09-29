@@ -240,6 +240,8 @@ class ProjectToolsTest {
         JsonObject mux = call("model.analyze", "fileId", fileId, "circuitId", ids.get("mux"));
         assertEquals("table", mux.get("source").getAsString(), "no expression for a multiplexer: simulated");
         assertTrue(mux.has("expressionFailure"), mux.toString());
+        assertEquals("cannotHandle", mux.get("expressionReason").getAsString());
+        assertEquals("Multiplexer", mux.get("expressionPart").getAsString());
         assertEquals(8, mux.getAsJsonObject("table").getAsJsonArray("rows").size());
         List<String> ins = new ArrayList<>();
         mux.getAsJsonArray("inputs").forEach(x -> ins.add(x.getAsString()));
@@ -358,6 +360,11 @@ class ProjectToolsTest {
         return lab;
     }
 
+    /** mips.reloaded after the file opened (the program the memory's source names, loaded once). */
+    void awaitProgramLoaded(String fileId) {
+        e.client.awaitNotification("mips.reloaded", n -> n.get("fileId").getAsString().equals(fileId));
+    }
+
     static List<String> strings(JsonArray a) {
         List<String> out = new ArrayList<>();
         a.forEach(x -> out.add(x.getAsString()));
@@ -371,10 +378,15 @@ class ProjectToolsTest {
         Path prog = Files.createDirectories(dir.resolve("prog"));
         File hmx = new File(Fixtures.REF_MIPS.getParentFile().getParentFile(), "hmx/example.hmx");
         Files.copy(hmx.toPath(), prog.resolve("example.hmx"));
+        long mtime = lab.lastModified();
+        byte[] labBytes = Files.readAllBytes(lab.toPath());
         String fileId = open(lab);
+        // the program the Instruction Memory points at is loaded when the file opens (D-147): not the student's edit
+        awaitProgramLoaded(fileId);
+        assertFalse(call("file.dirty", "fileId", fileId).get("dirty").getAsBoolean(), "opening leaves the file clean");
         JsonObject plan = call("file.submission", "fileId", fileId);
         assertTrue(plan.get("saved").getAsBoolean());
-        // (dirty right after opening depends on the program loading from the source attribute: not checked here)
+        assertFalse(plan.get("dirty").getAsBoolean());
         assertEquals(List.of("lab.circ", "hcs-mips.jar", "prog/example.hmx"), strings(plan.getAsJsonArray("files")),
                 "the .circ, its libraries, its program, by their paths from the .circ's folder");
         assertTrue(plan.get("bundledJar").getAsBoolean(), "no hcs-mips.jar beside it: the bundled one under that name");
@@ -406,6 +418,8 @@ class ProjectToolsTest {
         }
         left.sort(null);
         assertEquals(List.of("hand-in.zip", "lab.circ", "prog"), left);
+        assertArrayEquals(labBytes, Files.readAllBytes(lab.toPath()), "the student's .circ is not written");
+        assertEquals(mtime, lab.lastModified(), "nor touched");
 
         // an edit not saved yet: said so (the zip holds the saved file); a Probe left: counted
         String main = call("file.info", "fileId", fileId).get("main").getAsString();

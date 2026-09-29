@@ -798,12 +798,8 @@ async function dropFileTab(fileId: string, at: Point): Promise<void> {
 
 // The commands the palette offers now.
 function commandsNow(s: Snapshot | null): CommandId[] {
-<<<<<<< HEAD
-  const out: CommandId[] = ['reset', 'cycle', 'run', 'enable', ...(showing('loadProgram') ? ['load' as const] : []), 'find'];
-=======
-  const out: CommandId[] = ['reset', 'cycle', 'run', 'enable', 'load', 'find', 'undoHistory', 'submission', 'print', 'analyze', 'statistics'];
+  const out: CommandId[] = ['reset', 'cycle', 'run', 'enable', ...(showing('loadProgram') ? ['load' as const] : []), 'find', 'undoHistory', 'submission', 'print', 'analyze', 'statistics'];
   if (board.root.isConnected && board.scene) out.push('exportImage');
->>>>>>> 071cb911 (Show Undo History, Export Image, Print, Create Submission, Analyze Circuit and Statistics (N-21))
   if (board.root.isConnected && board.scene) out.push('fit');
   if (selectedSplitter(s)) out.push('editSplitter');
   const f = files.active();
