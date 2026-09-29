@@ -91,11 +91,6 @@ public class PokeTool extends Tool {
 	private Component pokedComponent;
 	private Caret pokeCaret;
 
-	// HCS: whether typed keys go to a poked component (#76 letters open the search palette otherwise)
-	public boolean hcsHasCaret() {
-		return pokeCaret != null;
-	}
-
 	public PokeTool() {
 		this.listener = new Listener();
 	}

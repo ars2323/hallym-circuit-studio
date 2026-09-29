@@ -26,9 +26,6 @@ import com.cburch.logisim.tools.Tool;
 import com.cburch.logisim.util.JFileChoosers;
 import com.cburch.logisim.util.StringUtil;
 
-import kr.ac.hallym.hcs.app.Messages; // HCS
-import kr.ac.hallym.hcs.app.ext.CircExtensions; // HCS
-
 public class ProjectActions {
 	private ProjectActions() { }
 	
@@ -135,7 +132,6 @@ public class ProjectActions {
 		}
 		Frame newFrame = new Frame(newProject);
 		newProject.setFrame(newFrame);
-		kr.ac.hallym.hcs.app.tabs.FileTabs.get().placeLikeActive(newFrame); // HCS: #68
 		return newFrame;
 	}
 	
@@ -155,7 +151,6 @@ public class ProjectActions {
 		Loader loader = new Loader(monitor);
 		LogisimFile file = loader.openLogisimFile(source, substitutions);
 		AppPreferences.updateRecentFile(source);
-		loadExtension(file, source); // HCS
 		
 		return completeProject(monitor, loader, file, false);
 	}
@@ -222,7 +217,6 @@ public class ProjectActions {
 			LogisimFile lib = loader.openLogisimFile(f);
 			AppPreferences.updateRecentFile(f);
 			if (lib == null) return null;
-			loadExtension(lib, f); // HCS
 			if (proj == null) {
 				proj = new Project(lib);
 			} else {
@@ -256,9 +250,8 @@ public class ProjectActions {
 		Loader loader = proj.getLogisimFile().getLoader();
 		JFileChooser chooser = loader.createChooser();
 		chooser.setFileFilter(Loader.LOGISIM_FILTER);
-		File preselect = kr.ac.hallym.hcs.app.autosave.AutoSave.get().saveAsTarget(proj); // HCS: #70
-		if (preselect != null) {
-			chooser.setSelectedFile(preselect);
+		if (loader.getMainFile() != null) {
+			chooser.setSelectedFile(loader.getMainFile());
 		}
 		int returnVal = chooser.showSaveDialog(proj.getFrame());
 		if (returnVal != JFileChooser.APPROVE_OPTION) return false;
@@ -307,59 +300,21 @@ public class ProjectActions {
 	public static boolean doSave(Project proj) {
 		Loader loader = proj.getLogisimFile().getLoader();
 		File f = loader.getMainFile();
-		// HCS: a window recovered from autosave asks where to save (#70)
-		if (kr.ac.hallym.hcs.app.autosave.AutoSave.get().isRecovered(proj)) return doSaveAs(proj);
-		if (kr.ac.hallym.hcs.app.tutorial.Examples.interceptsSave(proj)) return doSaveAs(proj); // HCS: V-07 examples are read-only
 		if (f == null) return doSaveAs(proj);
 		else return doSave(proj, f);
 	}
 	
 	private static boolean doSave(Project proj, File f) {
-		// HCS: P-03 warn when other open files lose instance connections, then refresh them after saving
-		if (!kr.ac.hallym.hcs.app.libs.LibrarySync.beforeSave(proj, f)) return false;
 		Loader loader = proj.getLogisimFile().getLoader();
 		Tool oldTool = proj.getTool();
 		proj.setTool(null);
-		boolean ret;
-		if (kr.ac.hallym.hcs.app.autosave.AutoSave.get().isRecovered(proj)) { // HCS: #70
-			ret = kr.ac.hallym.hcs.app.autosave.AutoSave.saveRecovered(loader, proj.getLogisimFile(), f);
-		} else {
-			ret = loader.save(proj.getLogisimFile(), f);
-		}
-		if (ret) ret = saveExtension(proj, f); // HCS
-		if (ret) kr.ac.hallym.hcs.app.autosave.AutoSave.get().saved(proj); // HCS: #70
-		if (ret) kr.ac.hallym.hcs.app.libs.JarBesideNotice.afterSave(proj, f); // HCS: V-01
-		if (ret) kr.ac.hallym.hcs.app.tutorial.Examples.saved(proj, f); // HCS: V-07
+		boolean ret = loader.save(proj.getLogisimFile(), f);
 		if (ret) {
 			AppPreferences.updateRecentFile(f);
 			proj.setFileAsClean();
-			kr.ac.hallym.hcs.app.libs.LibrarySync.afterSave(proj, f); // HCS: P-03
 		}
 		proj.setTool(oldTool);
 		return ret;
-	}
-
-	// HCS: .circ 확장 정보(D-024). 원조 로더는 hcs:ext 요소를 건너뛰므로 따로 읽고, 원조 방식으로 저장한
-	// 파일 끝에 다시 넣는다. 확장 정보가 없으면 저장한 파일을 건드리지 않는다.
-	private static void loadExtension(LogisimFile file, File source) {
-		try {
-			CircExtensions.afterOpen(file, source);
-		} catch (IOException e) {
-			// 확장 정보를 못 읽어도 회로는 연다
-		}
-	}
-
-	private static boolean saveExtension(Project proj, File f) {
-		try {
-			CircExtensions.afterSave(proj.getLogisimFile(), f);
-			return true;
-		} catch (IOException e) {
-			JOptionPane.showMessageDialog(proj.getFrame(),
-				Messages.get("extSaveError", e.toString()),
-				Messages.get("extSaveErrorTitle"),
-				JOptionPane.ERROR_MESSAGE);
-			return false;
-		}
 	}
 
 	public static void doQuit() {

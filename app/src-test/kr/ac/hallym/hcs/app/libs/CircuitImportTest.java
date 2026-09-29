@@ -86,8 +86,6 @@ class CircuitImportTest {
         assertEquals("half-2", plan.names.get(plan.order.get(0)));
         assertEquals("full", plan.names.get(full));
         assertTrue(plan.skipped.isEmpty());
-        String summary = ImportDialog.summary(plan);
-        assertTrue(summary.contains("half  →  half-2") && summary.contains("full"), summary);
 
         Project proj = new Project(dst);
         proj.doAction(CircuitImport.action(dst, plan));

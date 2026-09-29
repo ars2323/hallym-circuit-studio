@@ -5,7 +5,6 @@
  */
 package kr.ac.hallym.hcs.app.cycle;
 
-import java.awt.Color;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -23,7 +22,6 @@ import com.cburch.logisim.file.LogisimFile;
 
 import kr.ac.hallym.hcs.app.model.Trace;
 import kr.ac.hallym.hcs.app.splitter.SplitterEdits;
-import kr.ac.hallym.hcs.app.theme.Tokens;
 
 /**
  * 명령어 필드 경로(C-07, PLAN.md 5.2 "명령어 클릭"). 학생이 스플리터 팔에 op, rs, rt, rd, shamt, funct, imm, addr라는
@@ -36,11 +34,6 @@ public final class FieldPaths {
             Arrays.asList("op", "rs", "rt", "rd", "shamt", "funct", "imm", "addr"));
 
     private FieldPaths() {
-    }
-
-    public static Color color(String field) {
-        int i = FIELDS.indexOf(field);
-        return i < 0 ? Tokens.TEXT_2 : Tokens.FIELD[i];
     }
 
     /** 형식에 쓰는 필드 이름(R: op rs rt rd shamt funct, I: op rs rt imm, J: op addr). */

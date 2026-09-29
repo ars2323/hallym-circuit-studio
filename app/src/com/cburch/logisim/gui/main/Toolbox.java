@@ -20,8 +20,7 @@ class Toolbox extends JPanel {
 		
 		ToolboxToolbarModel toolbarModel = new ToolboxToolbarModel(menu);
 		Toolbar toolbar = new Toolbar(toolbarModel);
-		// HCS: review 1: no icon row (add/move/remove circuit are in the Project menu); the model stays for the menu
-		toolbar.setVisible(false);
+		add(toolbar, BorderLayout.NORTH);
 		
 		toolbox = new ProjectExplorer(proj);
 		toolbox.setListener(new ToolboxManip(proj, toolbox));

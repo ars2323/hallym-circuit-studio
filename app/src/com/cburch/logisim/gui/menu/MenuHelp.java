@@ -22,9 +22,6 @@ import javax.swing.JOptionPane;
 class MenuHelp extends JMenu implements ActionListener {
 	private LogisimMenuBar menubar;
 	private JMenuItem tutorial = new JMenuItem();
-	private JMenuItem quickStart = new JMenuItem(); // HCS: #23
-	private JMenuItem shortcuts = new JMenuItem(); // HCS: E-09 keyboard shortcuts
-	private JMenu examples = new JMenu(); // HCS: V-07 bundled examples
 	private JMenuItem guide = new JMenuItem();
 	private JMenuItem library = new JMenuItem();
 	private JMenuItem about = new JMenuItem();
@@ -37,21 +34,10 @@ class MenuHelp extends JMenu implements ActionListener {
 		this.menubar = menubar;
 
 		tutorial.addActionListener(this);
-		quickStart.addActionListener(this);
-		shortcuts.addActionListener(this); // HCS: E-09
 		guide.addActionListener(this);
 		library.addActionListener(this);
 		about.addActionListener(this);
 
-		add(quickStart);
-		for (String name : kr.ac.hallym.hcs.app.tutorial.Examples.NAMES) { // HCS: V-07
-			JMenuItem it = new JMenuItem(name);
-			it.addActionListener(e -> kr.ac.hallym.hcs.app.tutorial.Examples.open(menubar.getParentWindow(),
-					menubar.getProject(), name));
-			examples.add(it);
-		}
-		add(examples); // HCS: V-07
-		add(shortcuts); // HCS: E-09
 		add(tutorial);
 		add(guide);
 		add(library);
@@ -66,10 +52,7 @@ class MenuHelp extends JMenu implements ActionListener {
 		if (helpFrame != null) {
 			helpFrame.setTitle(Strings.get("helpWindowTitle"));
 		}
-		tutorial.setText(kr.ac.hallym.hcs.app.Messages.get("tour.menu")); // HCS: E-10 window tour
-		quickStart.setText(kr.ac.hallym.hcs.app.Messages.get("quickstart.menu")); // HCS: #23
-		shortcuts.setText(kr.ac.hallym.hcs.app.Messages.get("keys.menu")); // HCS: E-09
-		examples.setText(kr.ac.hallym.hcs.app.Messages.get("examples.menu")); // HCS: V-07
+		tutorial.setText(Strings.get("helpTutorialItem"));
 		guide.setText(Strings.get("helpGuideItem"));
 		library.setText(Strings.get("helpLibraryItem"));
 		about.setText(Strings.get("helpAboutItem"));
@@ -83,21 +66,12 @@ class MenuHelp extends JMenu implements ActionListener {
 		Object src = e.getSource();
 		if (src == guide) {
 			showHelp("guide");
-		} else if (src == shortcuts) { // HCS: E-09
-			kr.ac.hallym.hcs.app.keys.Shortcuts.showTable(menubar.getParentWindow());
-		} else if (src == quickStart) { // HCS: #23
-			kr.ac.hallym.hcs.app.tutorial.QuickStart.show(menubar.getParentWindow());
-		} else if (src == tutorial) { // HCS: E-10 window tour instead of the JavaHelp tutorial (still in the guide)
-			java.awt.Window w = menubar.getParentWindow();
-			if (w instanceof com.cburch.logisim.gui.main.Frame) {
-				kr.ac.hallym.hcs.app.tutorial.Tour.show((com.cburch.logisim.gui.main.Frame) w);
-			} else {
-				showHelp("tutorial");
-			}
+		} else if (src == tutorial) {
+			showHelp("tutorial");
 		} else if (src == library) {
 			showHelp("libs");
 		} else if (src == about) {
-			kr.ac.hallym.hcs.app.about.AboutDialog.show(menubar.getParentWindow()); // HCS: E-11 About
+			About.showAboutDialog(menubar.getParentWindow());
 		}
 	}
 	

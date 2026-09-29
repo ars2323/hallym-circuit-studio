@@ -25,7 +25,6 @@ import com.cburch.logisim.proj.Action;
 import com.cburch.logisim.proj.Project;
 import com.cburch.logisim.util.StringGetter;
 
-import kr.ac.hallym.hcs.app.Messages;
 import kr.ac.hallym.hcs.app.model.Netlist;
 
 /**
@@ -47,14 +46,13 @@ public final class WireGuard {
     }
 
     /**
-     * 검사를 통과하면 편집 동작을, 아니면 null을 돌려주고 상태 표시줄에 한 줄로 알린다. allowed는 새 부품의 포트가
+     * 검사를 통과하면 편집 동작을, 아니면 null을 돌려준다(알리는 것은 부르는 쪽의 일, D-163). allowed는 새 부품의 포트가
      * 옛 선·포트에 닿아도 되는 점(붙일 포트, 나눌 선 위의 점 등).
      */
     public static Action guarded(Project proj, Circuit circuit, CircuitMutation m, Collection<Location> allowed,
             StringGetter name) {
         List<String> problems = problems(proj, circuit, m, allowed);
         if (!problems.isEmpty()) {
-            kr.ac.hallym.hcs.app.sim.SimControls.notice(proj, Messages.get("edit.wireRules"));
             return null;
         }
         return m.toAction(name);

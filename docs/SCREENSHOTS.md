@@ -16,7 +16,9 @@ UI가 바뀌는 작업은 스크린샷을 저장소에 올리고 보고서와 PR
 
 ## 촬영 방법
 
-사람이 누르지 않고 스크립트로 재현한다. `tools/screenshots/`(main 브랜치)의 시나리오 실행기가 같은 장면을 언제든 다시 찍는다.
+> **v2(Electron 화면, N-27 이후):** v1 Swing판의 촬영 도구(`tools/screenshots/`, `Shots.java`)와 장면 표(`screens/`), Windows 스모크(`tools/winsmoke/`)는 Swing 화면과 함께 지웠다(D-163, 옛 코드는 태그 `swing-final`). 화면 스크린샷은 `electron/tools/capture-screens.ts`가 `electron/docs/screens/`에 고정 이름으로 찍는다(`electron/docs/screens/README.md`). 아래는 v1 기록을 읽을 때 쓰는 옛 절차다.
+
+사람이 누르지 않고 스크립트로 재현한다. v1에서는 `tools/screenshots/`(태그 `swing-final`)의 시나리오 실행기가 같은 장면을 언제든 다시 찍었다.
 
 ```
 tools/screenshots/run.sh <출력 폴더> [장면 번호 ...]

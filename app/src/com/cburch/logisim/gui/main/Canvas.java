@@ -111,8 +111,6 @@ public class Canvas extends JPanel
 		}
 
 		public void mouseDragged(MouseEvent e) {
-			if (hcsZoom != null && hcsZoom.handlePan(e)) return; // HCS: #69
-			if (hcsKeys != null && hcsKeys.mouse(e, getGraphics())) return; // HCS: #78
 			if (drag_tool != null) {
 				drag_tool.mouseDragged(Canvas.this, getGraphics(), e);
 			}
@@ -141,8 +139,6 @@ public class Canvas extends JPanel
 		}
 
 		public void mousePressed(MouseEvent e) {
-			if (hcsZoom != null && hcsZoom.handlePan(e)) { Canvas.this.requestFocus(); return; } // HCS: #69
-			if (hcsKeys != null && hcsKeys.mouse(e, getGraphics())) { Canvas.this.requestFocus(); return; } // HCS: #78
 			viewport.setErrorMessage(null, null);
 			proj.setStartupScreen(false);
 			Canvas.this.requestFocus();
@@ -155,8 +151,6 @@ public class Canvas extends JPanel
 		}
 
 		public void mouseReleased(MouseEvent e) {
-			if (hcsZoom != null && hcsZoom.handlePan(e)) return; // HCS: #69
-			if (hcsKeys != null && hcsKeys.mouse(e, getGraphics())) return; // HCS: #78
 			if (drag_tool != null) {
 				drag_tool.mouseReleased(Canvas.this, getGraphics(), e);
 				drag_tool = null;
@@ -182,7 +176,6 @@ public class Canvas extends JPanel
 		// KeyListener methods
 		//
 		public void keyPressed(KeyEvent e) {
-			if (hcsKeys != null && hcsKeys.keyPressed(e)) { e.consume(); return; } // HCS: #78
 			Tool tool = proj.getTool();
 			if (tool != null) tool.keyPressed(Canvas.this, e);
 		}
@@ -517,56 +510,6 @@ public class Canvas extends JPanel
 	private Selection selection;
 	private MouseMappings mappings;
 	private CanvasPane canvasPane;
-	private kr.ac.hallym.hcs.app.zoom.ZoomController hcsZoom; // HCS: #69
-	// HCS: S-10 origin offset in screen pixels, set only by "fit" so a circuit smaller than the view is centered
-	private int hcsOriginX = 0;
-	private int hcsOriginY = 0;
-
-	public int getHcsOriginX() { return hcsOriginX; } // HCS: S-10
-	public int getHcsOriginY() { return hcsOriginY; } // HCS: S-10
-
-	public void setHcsOrigin(int x, int y) { // HCS: S-10
-		if (x == hcsOriginX && y == hcsOriginY) return;
-		hcsOriginX = Math.max(0, x);
-		hcsOriginY = Math.max(0, y);
-		computeSize(true);
-		super.repaint();
-	}
-
-	/** HCS: S-10 canvas pixels to circuit coordinates (origin offset and zoom). */
-	public com.cburch.logisim.data.Location hcsToCircuit(int x, int y) {
-		double zoom = getZoomFactor();
-		return com.cburch.logisim.data.Location.create((int) Math.round((x - hcsOriginX) / zoom),
-				(int) Math.round((y - hcsOriginY) / zoom));
-	}
-
-	/** HCS: S-10 circuit rectangle to canvas pixels (zoom and origin offset). */
-	public Rectangle hcsToScreen(Rectangle r) {
-		double zoom = getZoomFactor();
-		int x0 = (int) Math.floor(r.x * zoom) + hcsOriginX;
-		int y0 = (int) Math.floor(r.y * zoom) + hcsOriginY;
-		int x1 = (int) Math.ceil((r.x + r.width) * zoom) + hcsOriginX;
-		int y1 = (int) Math.ceil((r.y + r.height) * zoom) + hcsOriginY;
-		return new Rectangle(x0, y0, x1 - x0, y1 - y0);
-	}
-
-	// HCS: #69
-	public void setHcsZoom(kr.ac.hallym.hcs.app.zoom.ZoomController value) {
-		hcsZoom = value;
-	}
-
-	// HCS: #78
-	private kr.ac.hallym.hcs.app.keys.Shortcuts hcsKeys;
-
-	// HCS: #78
-	public void setHcsKeys(kr.ac.hallym.hcs.app.keys.Shortcuts value) {
-		hcsKeys = value;
-	}
-
-	// HCS: #72 (fit from the context menu)
-	public kr.ac.hallym.hcs.app.zoom.ZoomController getHcsZoom() {
-		return hcsZoom;
-	}
 	private Bounds oldPreferredSize;
 	private MyListener myListener = new MyListener();
 	private MyViewport viewport = new MyViewport();
@@ -590,7 +533,6 @@ public class Canvas extends JPanel
 		this.tickCounter = new TickCounter();
 
 		setBackground(Color.white);
-		setFont(new Font("Dialog", Font.PLAIN, 12)); // HCS: S-06 the original (Metal) canvas font, so parts keep their text width
 		addMouseListener(myListener);
 		addMouseMotionListener(myListener);
 		addKeyListener(myListener);
@@ -694,8 +636,6 @@ public class Canvas extends JPanel
 			x = (int) Math.round(x * zoom);
 			y = (int) Math.round(y * zoom);
 		}
-		x += hcsOriginX; // HCS: S-10
-		y += hcsOriginY;
 		myListener.menu_on = true;
 		menu.addPopupMenuListener(myListener);
 		menu.show(this, x, y);
@@ -712,9 +652,6 @@ public class Canvas extends JPanel
 		Bounds bounds = proj.getCurrentCircuit().getBounds();
 		int width = bounds.getX() + bounds.getWidth() + BOUNDS_BUFFER;
 		int height = bounds.getY() + bounds.getHeight() + BOUNDS_BUFFER;
-		// HCS: S-10 room for the origin offset
-		width += (int) Math.ceil(hcsOriginX / getZoomFactor());
-		height += (int) Math.ceil(hcsOriginY / getZoomFactor());
 		Dimension dim;
 		if (canvasPane == null) {
 			dim = new Dimension(width, height);
@@ -785,8 +722,6 @@ public class Canvas extends JPanel
 			viewableBase = new Rectangle(0, 0, bds.getWidth(), bds.getHeight());
 		}
 		double zoom = getZoomFactor();
-		viewableBase = new Rectangle(viewableBase.x - hcsOriginX, viewableBase.y - hcsOriginY, // HCS: S-10
-				viewableBase.width, viewableBase.height);
 		if (zoom == 1.0) {
 			viewable = viewableBase;
 		} else {
@@ -841,7 +776,7 @@ public class Canvas extends JPanel
 	@Override
 	public void repaint(Rectangle r) {
 		double zoom = getZoomFactor();
-		if (zoom == 1.0 && hcsOriginX == 0 && hcsOriginY == 0) { // HCS: S-10
+		if (zoom == 1.0) {
 			super.repaint(r);
 		} else {
 			this.repaint(r.x, r.y, r.width, r.height);
@@ -864,29 +799,15 @@ public class Canvas extends JPanel
 			width = x1 - x;
 			height = y1 - y;
 		}
-		super.repaint(x + hcsOriginX, y + hcsOriginY, width, height); // HCS: S-10
+		super.repaint(x, y, width, height);
 	}
 	
-	// HCS: S-08 hover info next to the part, not over it (the part, its caption and ports stay visible)
-	@Override
-	public java.awt.Point getToolTipLocation(MouseEvent event) {
-		return kr.ac.hallym.hcs.app.labels.HoverInfo.location(this, event.getX(), event.getY());
-	}
-
 	@Override
 	public String getToolTipText(MouseEvent event) {
 		boolean showTips = AppPreferences.COMPONENT_TIPS.getBoolean();
 		if (showTips) {
 			Canvas.snapToGrid(event);
 			Location loc = Location.create(event.getX(), event.getY());
-			// HCS: port name and width over a port (#78)
-			String hcsTip = kr.ac.hallym.hcs.app.keys.Shortcuts.portTip(getCircuit(), loc);
-			// HCS: full path, label, inputs, width and net names over a component or wire (#79)
-			if (hcsTip == null) hcsTip = kr.ac.hallym.hcs.app.labels.HoverInfo.tip(proj.getCircuitState(), loc, this);
-			if (hcsTip != null) {
-				unrepairMouseEvent(event);
-				return hcsTip;
-			}
 			ComponentUserEvent e = null;
 			for (Component comp : getCircuit().getAllContaining(loc)) {
 				Object makerObj = comp.getFeature(ToolTipMaker.class);
@@ -919,7 +840,6 @@ public class Canvas extends JPanel
 	}
 
 	private void repairMouseEvent(MouseEvent e) {
-		e.translatePoint(-hcsOriginX, -hcsOriginY); // HCS: S-10
 		double zoom = getZoomFactor();
 		if (zoom != 1.0) zoomEvent(e, zoom);
 	}
@@ -927,7 +847,6 @@ public class Canvas extends JPanel
 	private void unrepairMouseEvent(MouseEvent e) {
 		double zoom = getZoomFactor();
 		if (zoom != 1.0) zoomEvent(e, 1.0 / zoom);
-		e.translatePoint(hcsOriginX, hcsOriginY); // HCS: S-10
 	}
 	
 	private void zoomEvent(MouseEvent e, double zoom) { 

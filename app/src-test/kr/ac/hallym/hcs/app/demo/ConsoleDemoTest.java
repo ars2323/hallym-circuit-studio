@@ -25,7 +25,7 @@ import com.cburch.logisim.file.LogisimFile;
 import com.cburch.logisim.proj.Project;
 import com.cburch.logisim.tools.Library;
 
-import kr.ac.hallym.hcs.app.cycle.ConsoleTextAccess;
+import kr.ac.hallym.hcs.app.cycle.ConsoleText;
 import kr.ac.hallym.hcs.regress.CircNormalizer;
 import kr.ac.hallym.hcs.regress.CircuitBuilder;
 
@@ -76,9 +76,9 @@ class ConsoleDemoTest {
             p.tick();
             p.propagate();
         }
-        List<String[]> out = ConsoleTextAccess.collect(root);
+        List<ConsoleText.Entry> out = ConsoleText.collect(root);
         assertEquals(1, out.size());
-        assertEquals("ABCDEF", out.get(0)[1]);
-        assertTrue(Boolean.parseBoolean(out.get(0)[2]), "exited");
+        assertEquals("ABCDEF", out.get(0).text);
+        assertTrue(out.get(0).exited, "exited");
     }
 }

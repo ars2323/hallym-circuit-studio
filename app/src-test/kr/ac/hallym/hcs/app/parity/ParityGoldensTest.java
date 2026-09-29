@@ -15,6 +15,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -34,7 +35,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * 편집 동등성 골든(N-01, D-136)의 화면 없는 검사. 의도 파일이 모두 읽히고 장면마다 골든이 있다. 원조 Logisim
+ * 편집 동등성 골든(N-01, D-136)의 화면 없는 검사. 골든은 v1 Swing판이 만든 기준이고 그대로 둔다(Swing 재생기는 N-27에서
+ * 지웠다, D-163: 엔진이 같은 결과를 내는지는 EngineParityReplayTest가 본다). 의도 파일이 모두 읽히고 장면마다 골든이 있다. 원조 Logisim
  * 2.7.1이 골든을 모두 연다({@code -tty stats} 종료 코드 0, MIPS 부품을 쓰는 골든은 원조가 찾는 자리인 .circ 옆에
  * hcs-mips.jar를 둔다). README 표가 장면·의도 수·원조 결과와 맞고, docs/engine-api.md가 쓰인 메서드를 모두 적는다.
  */
@@ -43,13 +45,15 @@ class ParityGoldensTest {
     Path tmp;
 
     static Path parityDir() {
-        return EditParityGuiTest.parityDir();
+        return Paths.get(System.getProperty("hcs.testsDir", "../tests"), "parity");
     }
 
     static List<IntentScript> scripts() throws IOException {
         List<IntentScript> out = new ArrayList<>();
-        for (Path p : EditParityGuiTest.scenarios()) {
-            out.add(IntentScript.read(p));
+        try (Stream<Path> s = Files.list(parityDir())) {
+            for (Path p : (Iterable<Path>) s.filter(x -> x.getFileName().toString().endsWith(".intents")).sorted()::iterator) {
+                out.add(IntentScript.read(p));
+            }
         }
         return out;
     }

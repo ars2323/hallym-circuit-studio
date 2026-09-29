@@ -113,7 +113,7 @@ class DynamicCheckTest {
         assertTrue(d.message().contains(Messages.get("diag.causePrefix", "").trim()), d.message());
         // Messages 흐름처럼 스텝마다 검사를 새로 만들어도(넷 객체가 매번 새것) 같은 원인은 한 번
         Run again = new Run(f);
-        Diagnostics diags = Diagnostics.of(again.proj);
+        DiagnosticSet diags = diagnostics(again.proj);
         diags.onRecording(again.rec);
         for (int i = 0; i < 8; i++) {
             again.steps(1);
@@ -230,33 +230,6 @@ class DynamicCheckTest {
         assertTrue(ds.get(0).components.contains(pin));
     }
 
-    /** 선 우클릭 Find E/X Origin: 보이는 상태에서 원인을 찾고 원인 문장을 알린다. 정해진 선은 메뉴가 꺼진다. */
-    @Test
-    void findOriginFromAWire() throws Exception {
-        LogisimFile f = fresh();
-        CircuitBuilder b = new CircuitBuilder(f, f.getMainCircuit());
-        Component not = b.add("Gates", "NOT Gate", 300, 200);
-        Component pin = b.input("a", 1, 100, 100); // 3상태 기본값: X
-        b.tunnel(not, 1, "a");
-        Component out = b.add("Wiring", "Pin", 400, 200, "facing", "west", "output", "true", "label", "y");
-        b.wire(not.getEnd(0).getLocation(), out.getEnd(0).getLocation());
-        b.commit();
-        Project proj = new Project(f);
-        proj.getCircuitState().getPropagator().propagate();
-        com.cburch.logisim.circuit.Wire w = f.getMainCircuit().getWires().iterator().next();
-        assertTrue(FindOrigin.undefined(proj, w));
-        kr.ac.hallym.hcs.app.model.OriginTrace.Origin o = FindOrigin.find(proj, f.getMainCircuit(), w);
-        assertEquals(kr.ac.hallym.hcs.app.model.OriginTrace.Cause.INPUT_PIN, o.cause);
-        assertEquals(pin, o.component);
-        FindOrigin.run(proj, f.getMainCircuit(), w);
-        assertEquals(Messages.get("origin.found", Messages.get("diag.cause.INPUT_PIN", "main › a")),
-                kr.ac.hallym.hcs.app.sim.SimControls.lastNotice(proj));
-        com.cburch.logisim.std.wiring.Pin.FACTORY.setValue(proj.getCircuitState().getInstanceState(pin), Value.TRUE);
-        proj.getCircuitState().getInstanceState(pin).fireInvalidated();
-        proj.getCircuitState().getPropagator().propagate();
-        assertTrue(!FindOrigin.undefined(proj, w), "defined now: the menu item is off");
-    }
-
     /** 시뮬레이터 스레드에서 스텝마다 도므로 가볍게(PERFORMANCE.md D-01): ref-mips 한 스텝 평균 2ms 안. */
     @Test
     @Tag("timing") // 상수 identity hash 실행에서는 뺀다(D-129)
@@ -295,7 +268,7 @@ class DynamicCheckTest {
         b.output("q", 8, 700, 100);
         b.commit();
         Run r = new Run(f);
-        Diagnostics diags = Diagnostics.of(r.proj);
+        DiagnosticSet diags = diagnostics(r.proj);
         // 처음 한 번은 기록을 새로 본다. 스텝 0에서 RegWrite를 정해 두면 에지에서 문제가 없다
         com.cburch.logisim.std.wiring.Pin.FACTORY.setValue(r.root.getInstanceState(pin), Value.FALSE);
         r.root.getInstanceState(pin).fireInvalidated();
@@ -342,7 +315,7 @@ class DynamicCheckTest {
         m.set(rw, com.cburch.logisim.std.wiring.Pin.ATTR_TRISTATE, Boolean.TRUE);
         m.execute();
         Run r = new Run(file);
-        Diagnostics diags = Diagnostics.of(r.proj);
+        DiagnosticSet diags = diagnostics(r.proj);
         diags.onRecording(r.rec);
         for (int i = 0; i < 6 * 2; i++) { // 6사이클 = 12스텝
             r.steps(1);
@@ -420,5 +393,12 @@ class DynamicCheckTest {
                 .equals(DynamicCheck.writeKey(Diagnostic.Kind.X_WRITE_DATA, r1, 4, top)));
         assertTrue(!DynamicCheck.writeKey(Diagnostic.Kind.X_WRITE_CONTROL, r1, 4, top)
                 .equals(DynamicCheck.writeKey(Diagnostic.Kind.X_WRITE_CONTROL, r1, 4, List.of(r2))));
+    }
+
+    /** Messages의 목록(D-143, 엔진의 DiagSession과 같다): 정적 검사를 한 번 돈 진단 모음. */
+    static DiagnosticSet diagnostics(Project proj) {
+        DiagnosticSet set = new DiagnosticSet(proj, () -> { });
+        set.refreshStatic();
+        return set;
     }
 }

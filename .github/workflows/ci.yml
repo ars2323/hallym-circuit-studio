@@ -12,8 +12,6 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Install Xvfb
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -51,8 +49,6 @@ jobs:
           git diff --exit-code -- electron/tests/fixtures
           test -z "$(git status --porcelain -- electron/tests/fixtures)"
           node --test electron/tests/unit/canvas-geometry.test.ts
-      - name: GUI tests (Xvfb)
-        run: xvfb-run -a ./gradlew --no-daemon :app:guiTest
       - name: Test reports
         if: failure()
         uses: actions/upload-artifact@v4
@@ -563,93 +559,6 @@ jobs:
             electron/report/
             electron/test-results/
           if-no-files-found: ignore
-
-  # Windows: 포장(jpackage zip)과 포장한 런타임으로 실제 실행. hcs-asm.exe 빌드는 D-141에서 없어졌다.
-  windows:
-    runs-on: windows-2022
-    defaults:
-      run:
-        shell: pwsh
-    steps:
-      - uses: actions/checkout@v4
-      # R-01: jpackage로 JRE 포함 zip(MSI는 배포하지 않는다, D-122). R-02: 푼 zip의 런타임으로 실제 실행(100%·150%) 뒤 화면을 찍는다.
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-      - uses: gradle/actions/setup-gradle@v4
-      - name: Stage the app
-        shell: pwsh
-        run: ./gradlew --no-daemon :app:stage :lib-mips:jar
-      - name: Package (zip)
-        shell: pwsh
-        run: |
-          $v = if ($env:GITHUB_REF_NAME -match '^v(\d+\.\d+\.\d+)') { $Matches[1] } else { "0.0.0" }
-          pwsh tools/package-windows.ps1 -Version $v -Dest dist
-          # D-122: MSI는 배포하지 않는다. 배포물에 .msi가 섞이면 실패한다
-          if (Get-ChildItem dist -Filter *.msi) { throw "dist has an .msi: MSI is not distributed (D-122)" }
-      - name: Run the packaged app (tty engine check)
-        shell: pwsh
-        run: |
-          Expand-Archive dist/hallym-circuit-studio-*-windows.zip -DestinationPath smoke
-          Get-ChildItem smoke -Recurse -Depth 3 | Select-Object -ExpandProperty FullName
-          $jar = (Get-ChildItem smoke -Recurse -Filter hallym-circuit-studio.jar | Select-Object -First 1).FullName
-          $java = Get-ChildItem smoke -Recurse -Filter java.exe | Select-Object -First 1
-          $java = if ($java) { $java.FullName } else { "java" }  # 포장 런타임에 java.exe가 없으면 JDK의 java로 같은 jar를
-          Write-Host "java: $java"; Write-Host "jar: $jar"
-          # jpackage의 창 실행 파일은 콘솔에 쓰지 않으므로 java로 같은 jar를 돌린다
-          & $java -cp $jar com.cburch.logisim.Main tests/circ/demo-datapath.circ -tty table 2>&1 | Tee-Object -FilePath smoke/tty.txt
-          # 원조 -tty table은 머리글 없이 출력 핀 값 줄만 찍는다(halt 핀 → 0/1)
-          if (-not (Select-String -Path smoke/tty.txt -Pattern '^[01xE]+\s*$' -Quiet)) { throw "tty output has no value row" }
-      - name: Run the packaged app (first run, .hmx, 10 cycles, screenshots at 100% and 150%)
-        shell: pwsh
-        run: |
-          $jar = (Get-ChildItem smoke -Recurse -Filter hallym-circuit-studio.jar | Select-Object -First 1).FullName
-          javac -encoding UTF-8 -cp $jar -d smoke/classes tools/winsmoke/Smoke.java
-          $java = Get-ChildItem smoke -Recurse -Filter java.exe | Select-Object -First 1
-          $java = if ($java) { $java.FullName } else { "java" }
-          & $java "-Dsun.java2d.uiScale=1" "-Dhcs.configDir=smoke/config100" "-Djava.util.prefs.userRoot=smoke/prefs100" -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/hmx/mips/sum.hmx smoke/screenshot-100.png
-          if ($LASTEXITCODE -ne 0) { throw "smoke at 100% failed" }
-          & $java "-Dsun.java2d.uiScale=1.5" "-Dhcs.configDir=smoke/config150" "-Djava.util.prefs.userRoot=smoke/prefs150" -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/hmx/mips/sum.hmx smoke/screenshot-150.png
-          if ($LASTEXITCODE -ne 0) { throw "smoke at 150% failed" }
-          # Y-04(v1.0.3): 튜토리얼이 뜬 첫 실행 화면. 말풍선이 창·작업 영역 안에 들어오고 Next·Close가 보여야 한다
-          & $java "-Dsmoke.mode=tutorial" "-Dsun.java2d.uiScale=1" "-Dhcs.configDir=smoke/config-tut100" "-Djava.util.prefs.userRoot=smoke/prefs-tut100" -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/hmx/mips/sum.hmx smoke/screenshot-tutorial-100.png
-          if ($LASTEXITCODE -ne 0) { throw "tutorial smoke at 100% failed" }
-          & $java "-Dsmoke.mode=tutorial" "-Dsun.java2d.uiScale=1.5" "-Dhcs.configDir=smoke/config-tut150" "-Djava.util.prefs.userRoot=smoke/prefs-tut150" -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/hmx/mips/sum.hmx smoke/screenshot-tutorial-150.png
-          if ($LASTEXITCODE -ne 0) { throw "tutorial smoke at 150% failed" }
-      # X-05(v1.0.2): 러너가 허용하면 1920×1080에서도 첫 실행(빈 환경설정)을 100%·125%로 찍는다. 못 바꾸면 건너뛰고 로그에 남긴다.
-      - name: First run at 1920x1080 (100% and 125%, if the runner allows)
-        shell: pwsh
-        run: |
-          $jar = (Get-ChildItem smoke -Recurse -Filter hallym-circuit-studio.jar | Select-Object -First 1).FullName
-          $java = Get-ChildItem smoke -Recurse -Filter java.exe | Select-Object -First 1
-          $java = if ($java) { $java.FullName } else { "java" }
-          $res = (pwsh tools/winsmoke/set-resolution.ps1 -Width 1920 -Height 1080 | Select-Object -Last 1)
-          Write-Host "resolution: $res"
-          if ("$res" -like "OK*") {
-            & $java "-Dsun.java2d.uiScale=1" "-Dhcs.configDir=smoke/config1920-100" "-Djava.util.prefs.userRoot=smoke/prefs1920-100" -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/hmx/mips/sum.hmx smoke/screenshot-1920-100.png
-            if ($LASTEXITCODE -ne 0) { throw "smoke at 1920x1080 100% failed" }
-            & $java "-Dsun.java2d.uiScale=1.25" "-Dhcs.configDir=smoke/config1920-125" "-Djava.util.prefs.userRoot=smoke/prefs1920-125" -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/hmx/mips/sum.hmx smoke/screenshot-1920-125.png
-            if ($LASTEXITCODE -ne 0) { throw "smoke at 1920x1080 125% failed" }
-            & $java "-Dsmoke.mode=tutorial" "-Dsun.java2d.uiScale=1.25" "-Dhcs.configDir=smoke/config-tut1920-125" "-Djava.util.prefs.userRoot=smoke/prefs-tut1920-125" -cp "$jar;smoke/classes" Smoke tests/circ/demo-datapath.circ tests/hmx/mips/sum.hmx smoke/screenshot-tutorial-1920-125.png
-            if ($LASTEXITCODE -ne 0) { throw "tutorial smoke at 1920x1080 125% failed" }
-          } else {
-            Write-Host "::notice::1920x1080 first-run scenes skipped: $res"
-            Set-Content -Path smoke/1920-skipped.txt -Value "$res"
-          }
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: windows-smoke
-          path: |
-            smoke/*.png
-            smoke/tty.txt
-            smoke/1920-skipped.txt
-      - uses: actions/upload-artifact@v4
-        with:
-          name: windows-package
-          path: |
-            dist/*.zip
 
   # R-03: 트랙 A jar가 원조 2.7.1 + Java 8 런타임에서 불러와 도는지(tty로 demo-datapath를 돌린다)
   track-a-java8:

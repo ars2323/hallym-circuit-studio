@@ -146,9 +146,6 @@ public class MenuTool extends Tool {
 			}
 		}
 
-		// HCS: context menus by target (#72, #105) are added after the original items
-		menu = kr.ac.hallym.hcs.app.menu.ContextMenus.extend(canvas, menu, pt, g);
-
 		if (menu != null) {
 			canvas.showPopupMenu(menu, x, y);
 		}

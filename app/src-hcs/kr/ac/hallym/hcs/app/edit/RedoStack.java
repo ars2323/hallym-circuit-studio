@@ -5,9 +5,6 @@
  */
 package kr.ac.hallym.hcs.app.edit;
 
-import java.awt.Toolkit;
-import java.awt.event.ActionEvent;
-import java.awt.event.KeyEvent;
 import java.lang.ref.WeakReference;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -16,18 +13,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 
-import javax.swing.AbstractAction;
-import javax.swing.JComponent;
-import javax.swing.JMenuItem;
-import javax.swing.KeyStroke;
-
 import com.cburch.logisim.circuit.CircuitState;
 import com.cburch.logisim.proj.Action;
 import com.cburch.logisim.proj.Project;
 import com.cburch.logisim.proj.ProjectEvent;
 import com.cburch.logisim.proj.ProjectListener;
-
-import kr.ac.hallym.hcs.app.Messages;
 
 /**
  * 다시 실행(redo). 원조 2.7.1에는 되돌리기만 있다. 엔진과 원조 되돌리기 기록({@code Project}의 undoLog)은 그대로 두고,
@@ -176,43 +166,5 @@ public final class RedoStack implements ProjectListener {
         for (Runnable r : new ArrayList<>(listeners)) {
             r.run();
         }
-    }
-
-    /** 편집 메뉴의 "다시 실행" 항목(Ctrl+Y). */
-    public static JMenuItem menuItem(Project proj) {
-        JMenuItem item = new JMenuItem();
-        // 대표 키는 메뉴 항목이, 나머지 키(Ctrl+Shift+Z)는 창이 맡는다(E-09 단축키 표에서 바꿀 수 있다)
-        item.setAccelerator(kr.ac.hallym.hcs.app.keys.KeyBindings.primary("redo"));
-        kr.ac.hallym.hcs.app.keys.KeyBindings.addListener(
-                () -> item.setAccelerator(kr.ac.hallym.hcs.app.keys.KeyBindings.primary("redo")));
-        if (proj == null) {
-            item.setText(Messages.get("redo.none"));
-            item.setEnabled(false);
-            return item;
-        }
-        RedoStack r = of(proj);
-        Runnable update = () -> {
-            String name = r.nextName();
-            item.setText(name == null ? Messages.get("redo.none") : Messages.get("redo.item", name));
-            item.setEnabled(name != null);
-        };
-        r.addListener(update);
-        update.run();
-        item.addActionListener(e -> r.redo());
-        return item;
-    }
-
-    /** 창에 Ctrl+Shift+Z를 단다(Ctrl+Y는 메뉴 항목의 단축키). */
-    public static void installKeys(JComponent root, Project proj) {
-        kr.ac.hallym.hcs.app.keys.KeyBindings.installAlternates(root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW),
-                "redo", "hcsRedo");
-        root.getActionMap().put("hcsRedo", new AbstractAction() {
-            private static final long serialVersionUID = 1L;
-
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                of(proj).redo();
-            }
-        });
     }
 }

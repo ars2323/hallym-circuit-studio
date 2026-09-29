@@ -75,7 +75,7 @@ class FaultCollectionTest {
         root.getPropagator().propagate();
         Recording r = new Recording(file.getMainCircuit());
         r.restart(root, 0);
-        Diagnostics d = Diagnostics.of(proj);
+        DiagnosticSet d = DynamicCheckTest.diagnostics(proj);
         d.onRecording(r);
         d.checkOscillation();
         for (int s = 1; s <= steps && !proj.getSimulator().isOscillating(); s++) {
@@ -189,35 +189,25 @@ class FaultCollectionTest {
     }
 
     @Test
-    void oscillationReplacesTheStaticLoopAndOffersReset() throws Exception {
+    void oscillationReplacesTheStaticLoopAndGoesAfterReset() throws Exception {
         Object[] g = generate("dynamic-oscillation", tmp.resolve("o"));
         LogisimFile file = (LogisimFile) g[1];
         Project proj = new Project(file);
         proj.getSimulator().setIsRunning(false);
-        Diagnostics d = Diagnostics.of(proj);
+        DiagnosticSet d = DynamicCheckTest.diagnostics(proj);
         assertEquals(Diagnostic.Kind.COMBINATIONAL_LOOP, d.list().get(0).kind, "before running: the static loop");
-        MessagesPanel panel = new MessagesPanel(proj);
-        assertTrue(!panel.resetShown());
         List<Diagnostic> ds = messages(proj, 8);
         assertEquals(1, ds.size(), ds.toString());
         assertEquals(Diagnostic.Kind.OSCILLATION, ds.get(0).kind);
         assertTrue(ds.get(0).components.stream().anyMatch(c -> c.getFactory().getName().equals("NAND Gate")),
                 ds.get(0).components.toString());
-        javax.swing.SwingUtilities.invokeAndWait(() -> { }); // 알림은 GUI 스레드로 간다
-        assertTrue(panel.resetShown(), "a Reset button under the oscillation message");
-        // Reset: 원조 리셋(기록기가 다음 전파에서 새로 시작). 진동이 멈추면 진단도 걷힌다
-        javax.swing.SwingUtilities.invokeAndWait(() -> panel.resetButton().doClick());
+        // Reset: 원조 리셋(v1 Messages의 Reset 단추가 부르던 것). 진동이 멈추면 진단도 걷힌다
+        kr.ac.hallym.hcs.app.record.Recorder.requestReset(proj);
         for (int i = 0; i < 100 && proj.getSimulator().isOscillating(); i++) {
             Thread.sleep(20); // 원조 시뮬레이터 스레드가 리셋한다
         }
-        d(proj).checkOscillation();
-        javax.swing.SwingUtilities.invokeAndWait(() -> { });
+        d.checkOscillation();
         assertTrue(!proj.getSimulator().isOscillating());
-        assertTrue(d(proj).list().stream().noneMatch(x -> x.kind == Diagnostic.Kind.OSCILLATION), d(proj).list()
-                .toString());
-    }
-
-    static Diagnostics d(Project proj) {
-        return Diagnostics.of(proj);
+        assertTrue(d.list().stream().noneMatch(x -> x.kind == Diagnostic.Kind.OSCILLATION), d.list().toString());
     }
 }

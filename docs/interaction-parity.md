@@ -4,7 +4,7 @@ v2는 편집 화면을 Electron으로 새로 만든다(D-132). 목표는 "쓰는
 
 ## 읽는 법
 
-- **원천:** 원조는 태그 `upstream/logisim-2.7.1`의 `app/src/com/cburch/logisim/`(도구·메뉴·캔버스 코드)와 원조 안내서 `app/doc/en/html/`이다. v1은 `swing-final`(c628668)의 `app/src-hcs/kr/ac/hallym/hcs/app/`과 원조 파일의 `// HCS:` 줄이다(main의 `app/` 조작 코드는 `swing-final`과 같다). 코드가 동작을 정하면 `클래스.메서드`로, 안내서가 말하면 파일로 적는다(안내서 경로는 `app/doc/en/html/` 아래).
+- **원천:** 원조는 태그 `upstream/logisim-2.7.1`의 `app/src/com/cburch/logisim/`(도구·메뉴·캔버스 코드)와 원조 안내서 `app/doc/en/html/`이다. v1은 `swing-final`(c628668)의 `app/src-hcs/kr/ac/hallym/hcs/app/`과 원조 파일의 `// HCS:` 줄이다(N-27, D-163 뒤 main의 `app/`에는 엔진이 쓰는 GUI 없는 부분만 남았다. v1 조작 코드는 `swing-final`에서 읽는다). 코드가 동작을 정하면 `클래스.메서드`로, 안내서가 말하면 파일로 적는다(안내서 경로는 `app/doc/en/html/` 아래).
 - **열:** 번호 | 도구·상황 | 입력(키·마우스) | 원조 2.7.1 동작 | v1 추가·차이 | v2 할 일 | e2e. e2e는 비워 두고 v2 PR이 테스트 이름을 채운다.
 - **키 표기:** Ctrl은 원조의 "메뉴 단축키 수식"(`Toolkit.getMenuShortcutKeyMask`, macOS는 Cmd)이다. 실습실 PC는 Windows다.
 - **v1 칸:** "같음"은 v1이 원조 동작을 그대로 둔 것이다. **[차이]**는 원조와 v1이 다른 줄이다. **[추가]**는 원조에 없던 v1 동작이다.

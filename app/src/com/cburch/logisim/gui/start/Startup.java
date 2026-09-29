@@ -82,7 +82,6 @@ public class Startup {
 	private File loadFile;
 	private HashMap<File,File> substitutions = new HashMap<File,File>();
 	private int ttyFormat = 0;
-	private boolean hcsLocaleGiven = false; // HCS: -locale was on the command line (#23)
 	
 	// from other sources
 	private boolean initialized = false;
@@ -112,20 +111,6 @@ public class Startup {
 
 	public void run() {
 		if (isTty) {
-			// HCS: -tty prints English like the original 2.7.1 (which had no Korean bundle), so scripts that
-			// read its output keep working on Korean systems. -locale on the command line still chooses, and
-			// the language saved for the GUI is left as it was (#23, D-026).
-			if (!hcsLocaleGiven) {
-				AppPreferences.LOCALE.get(); // apply the saved language first, as the original does
-				if (LocaleManager.getLocale().getLanguage().equals("ko")) {
-					java.util.prefs.Preferences prefs = java.util.prefs.Preferences.userNodeForPackage(
-							com.cburch.logisim.Main.class);
-					String saved = prefs.get("locale", null);
-					LocaleManager.setLocale(Locale.ENGLISH);
-					if (saved == null) prefs.remove("locale");
-					else prefs.put("locale", saved);
-				}
-			}
 			try {
 				TtyInterface.run(this);
 				return;
@@ -181,16 +166,9 @@ public class Startup {
 		// use that as the file to open now.
 		initialized = true;
 		
-		// HCS: file tabs (#68)
-		kr.ac.hallym.hcs.app.tabs.FileTabs.get().install();
-
 		// load file
 		if (filesToOpen.isEmpty()) {
-			// HCS: reopen the files that were open last time; a file that fails to open is skipped (#68)
-			if (!kr.ac.hallym.hcs.app.tabs.FileTabs.get().openRestored(
-					f -> ProjectActions.doOpen(monitor, f, substitutions))) {
-				ProjectActions.doNew(monitor, true);
-			}
+			ProjectActions.doNew(monitor, true);
 			if (showSplash) monitor.close();
 		} else {
 			boolean first = true;
@@ -211,15 +189,6 @@ public class Startup {
 
 		for (File fileToPrint : filesToPrint) {
 			doPrintFile(fileToPrint);
-		}
-
-		// HCS: autosave and recovery of unsaved work (#70)
-		kr.ac.hallym.hcs.app.autosave.AutoSave.get().offerRecovery();
-		kr.ac.hallym.hcs.app.autosave.AutoSave.get().start();
-
-		// HCS: first-run window tour (E-10); the quick start cards (#23) only if the tour did not show
-		if (!kr.ac.hallym.hcs.app.tutorial.Tour.showOnFirstRun()) {
-			kr.ac.hallym.hcs.app.tutorial.QuickStart.showOnFirstRun();
 		}
 	}
 
@@ -285,10 +254,9 @@ public class Startup {
 			AppPreferences.clear();
 		}
 
-		// HCS: FlatLaf with the Hallym design tokens and Pretendard (#21) instead of the platform look.
-		if (!isTty) {
-			kr.ac.hallym.hcs.app.theme.Theme.install();
-		}
+		try {
+			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+		} catch (Exception ex) { }
 
 		// parse arguments
 		for (int i = 0; i < args.length; i++) {
@@ -375,7 +343,6 @@ public class Startup {
 					System.exit(-1);
 				}
 			} else if (arg.equals("-locale")) {
-				ret.hcsLocaleGiven = true; // HCS: #23
 				i++;
 				if (i >= args.length) printUsage();
 				setLocale(args[i]);
