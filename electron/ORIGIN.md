@@ -2,7 +2,7 @@
 
 Hallym Circuit Studio 2의 화면(`electron/`)은 **Hallym MIPS Simulator**(`ars2323/hallym-mips-simulator`, 같은 저자, BSD 3-Clause)의 Electron판과 같은 스택·같은 재료로 만든다(D-132, D-133, D-135, D-155). 이 파일은 거기서 가져온 파일마다 어디서 왔는지와 무엇을 바꿨는지를 적는다.
 
-- **출처:** https://github.com/ars2323/hallym-mips-simulator, 태그 **`v2.6.0`**(커밋 `d8f0c97`). 경로는 그 저장소의 뿌리에서부터다. 처음에는 `v2.3.0`(커밋 `749841e`, D-135)에서 가져왔고, 사용자 지시(2026-09-28)로 모두 `v2.5.0`(커밋 `16d0597`)에 맞췄다(D-155: 바뀐 공유 파일은 다시 가져오고, 일부러 다른 곳은 아래 "v2.5.0에서 가져오지 않은 것"에 적었다). 사용자 추가 지시(2026-09-29)로 `v2.6.0`에 맞췄다(A-07: 1단계 D-167, 2단계 D-169 — 아래 "v2.6.0에서 가져온 것"). **.hmx 명세와 골든만 `v2.4.0`에 고정한다**(`tests/hmx/hallym-mips-v2.4.0/`, D-138).
+- **출처:** https://github.com/ars2323/hallym-mips-simulator, 태그 **`v2.6.0`**(커밋 `d8f0c97`). 경로는 그 저장소의 뿌리에서부터다. 처음에는 `v2.3.0`(커밋 `749841e`, D-135)에서 가져왔고, 사용자 지시(2026-09-28)로 모두 `v2.5.0`(커밋 `16d0597`)에 맞췄다(D-155: 바뀐 공유 파일은 다시 가져오고, 일부러 다른 곳은 아래 "v2.5.0에서 가져오지 않은 것"에 적었다). 사용자 추가 지시(2026-09-29)로 `v2.6.0`에 맞췄다(A-07: 1단계 D-167, 2단계 D-169 — 아래 "v2.6.0에서 가져온 것"). **.hmx 골든은 `v2.4.0`의 것을 그대로 둔다**(`tests/hmx/hallym-mips-v2.4.0/`, D-138): v2.6.0의 명세와 골든 7쌍이 바이트까지 같다(D-167, docs/hmx.md "v2.6.0 확인"). 명세 참조는 v2.6.0이다.
 - **라이선스:** BSD 3-Clause. 원문은 `LICENSE.hallym-mips.txt`(그 저장소 `LICENSE`와 바이트까지 같음)이고, 앱의 About › Licenses와 저장소 `NOTICE`에 함께 실린다.
 - **다시 가져오기:** `node tools/import-hmips.ts`(목록은 그 파일의 `TAKEN`). `copy`는 태그의 파일을 그대로 덮어쓰고, `derived`는 태그의 파일을 `build/hmips/<태그>/`에 내려놓고 우리가 가져온 뒤로 바뀌었는지(`tools/hmips-sums.json`의 SHA-256과 비교) 알려 준다. 바뀌었으면 손으로 합치고 `--record`로 기록한다. `--check`는 저장소 밖에 아무것도 없이 목록의 파일이 다 있는지, `copy` 파일이 바이트까지 같은지 본다(`tests/unit/origin.test.ts`가 매번 돌린다).
 
@@ -16,7 +16,7 @@ Hallym MIPS `electron/`에는 SPIM의 `CPU/op.h`에서 만든 `src/core/op-table
 
 `copy` = 태그의 파일과 바이트까지 같다. `derived` = 그 파일을 바탕으로 이 앱에 맞게 고쳤다.
 
-| 여기(`electron/`) | Hallym MIPS v2.5.0 | 방식 | 바꾼 곳 |
+| 여기(`electron/`) | Hallym MIPS v2.6.0 | 방식 | 바꾼 곳 |
 | --- | --- | --- | --- |
 | `src/renderer/shared/dom.ts` | `electron/src/renderer/app/dom.ts` | derived | `codeParts`를 직접 씀(`src/core/explain.ts`를 가져오지 않음). `hallym()`·`character()`가 이 저장소의 원본 `assets/hallym/`을 가리킴(빌드 때 `__HALLYM__`). `withHex()`는 뺌. 표용 `monoCh()`, `userScrolls()`는 Registers·Data 패널과 함께 가져옴(N-14) |
 | `src/renderer/shared/ui.ts` | `electron/src/renderer/app/ui.ts` | derived | `panelHead`, `tabsHead`, `headButton` 그대로. `tabsHead`에 탭 숨기기(`show`)와 `selected()`를 더함(좁은 창에서 패널이 다른 패널의 탭으로 들어감). `fitMeta()`는 뺌. `columnButton()`은 Registers·Data 패널과 함께 가져옴(N-14). 여러 파일·회로 탭용 `tabStrip()`을 새로 더함 |
@@ -28,7 +28,7 @@ Hallym MIPS `electron/`에는 SPIM의 `CPU/op.h`에서 만든 `src/core/op-table
 | `src/renderer/assets/hallym/start/start.jpg` | `electron/src/renderer/assets/hallym/start/start.jpg` | copy | — (그 첫 프레임) |
 | `tools/start-video.ts` | `electron/tools/start-video.ts` | copy | — (원본 영상에서 둘을 만드는 도구, ffmpeg) |
 | `src/renderer/shared/about.ts` | `electron/src/renderer/app/panels/about.ts` | derived | About / Licenses 탭 그대로. About 탭의 줄은 부르는 쪽이 줌(Logisim 2.7.1 by Carl Burch, 엔진, 학교 식별요소) |
-| `src/renderer/shared/overlay.ts` | `electron/src/renderer/app/logic/overlay.ts` | copy | — |
+| `src/renderer/shared/overlay.ts` | `electron/src/renderer/app/logic/overlay.ts` | copy | — (2.6.0의 `captionPatch`·`FIRST_SCREEN_PATCH`가 함께 왔다. 창은 아직 쓰지 않는다: 시작 화면 유리는 A-07 2단계) |
 | `src/renderer/shared/names.ts` | `electron/src/renderer/app/logic/names.ts` | copy | — |
 | `src/renderer/shared/titlebar.ts` | `electron/src/renderer/app/app.ts` | derived | 제목 줄, `button()`, `iconButton()`, `fitTitlebar()`를 부품으로 떼어 냄. 이름 뒤에 교과목 칩 자리(`course`, 줄이기에서 빠지지 않음, A-08·D-168). 줄이는 단계에 "도구 모음을 제목 줄 아래 제 줄로"를 더함(도구 모음이 버튼 20개 남짓) |
 | `src/renderer/shared/splitter.ts` | `electron/src/renderer/app/app.ts` | derived | 편집기·Run 사이 분할선과 Console·Assemble 위 손잡이를 한 부품으로(두 방향). 접기 버튼은 뺌 |
@@ -61,7 +61,7 @@ Hallym MIPS `electron/`에는 SPIM의 `CPU/op.h`에서 만든 `src/core/op-table
 | `tools/electron.ts` | `electron/tools/electron.ts` | copy | — |
 | `tools/licenses.ts` | `electron/tools/licenses.ts` | derived | 애드온(node-addon-api) 없음. 묶은 패키지가 없으면 그렇게 적음 |
 | `tools/e2e-widths.ts` | `electron/tools/e2e-widths.ts` | derived | 이 앱의 창 크기(실습실 1920×1080의 100·125·150 %, 화면 절반) |
-| `tools/capture-screens.ts` | `electron/tools/capture-screens.ts` | derived | PNG 메타데이터 빼기, 크기 한도, 마우스·포커스 치우기, `shot()` 그대로. 장면은 이 앱의 것 |
+| `tools/capture-screens.ts` | `electron/tools/capture-screens.ts` | derived | PNG 메타데이터 빼기, 크기 한도, 마우스·포커스 치우기, `shot()` 그대로. 2.6.0의 고정 시계(10:00:00, 창의 `Date`)와 "바뀌지 않은 그림은 다시 쓰지 않음"(같은 판정 기준, `tests/e2e/png.ts` `samePicture`)을 들였고, 이 앱은 시간대·가짜 엔진의 시계·복구 파일 시각까지 같은 시각에 둔다(`tests/e2e/screen-conditions.ts`, D-167). 장면은 이 앱의 것 |
 | `tools/mutants.ts` | `electron/tools/mutants.ts` | derived | 임시 폴더에 복사해 돌연변이마다 테스트하는 틀 그대로. 돌연변이 목록은 이 앱의 것, 네이티브 빌드 없음 |
 | `tools/package.ts` | `electron/tools/package.ts` | derived | 앱과 엔진(jar 둘, 번들 JRE: N-04)을 모아 electron-builder를 부름. 설치 파일의 옵션은 `tools/package-config.ts`(2.5.0과 같은 안내형 NSIS: `oneClick: false`, 사용자별, 폴더 선택 없음, 권한 상승 없음, 한국어, 시작 메뉴 바로 가기만, 마침 화면의 지금 실행하기, 왼쪽 띠 그림; 블록맵·elevate.exe 없음; N-23, D-148, D-155). `--version`·`--out`·`--win` |
 | `packaging/installer.nsh` | `electron/packaging/installer.nsh` | derived | 설치 폴더 이름을 이 프로그램 이름으로, 이 사용자만(묻는 화면 없음), 진행 화면 머리 문구, 마침 화면("설치가 완료되었습니다", "Hallym Circuit Studio 설치를 마쳤습니다…", 지금 실행하기), 진행 막대를 앱 파랑 #0055A5로(`PBM_SETBARCOLOR`), 제거 화면(진행, "제거가 끝났습니다"), 업데이터 사본 지우기(여기까지 upstream 2.5.0, 함수 이름 `Hcs…`). v1.0.x MSI를 UpgradeCode로 찾아 조용히 지우기, `%TEMP%`의 제거 프로그램 사본 지우기, 설치 파일의 나머지 한국어 문구(이름 뒤 조사 없음)는 이 앱의 것(N-23, D-148, D-155) |
@@ -72,7 +72,7 @@ Hallym MIPS `electron/`에는 SPIM의 `CPU/op.h`에서 만든 `src/core/op-table
 | `tests/e2e/backdrop-measure.ts` | `electron/tests/e2e/backdrop-measure.ts` | copy | — (시작 화면 배경을 화면에서 재기: 남색 쪽 tint, 흐림) |
 | `tests/e2e/backdrop.e2e.ts` | `electron/tests/e2e/start.e2e.ts` | derived | 영상 시험(2.5.0)을 이 앱의 단계·파일 탭으로. 화면 측정을 실습실 PC의 세 배율(1920×1080 100·125·150 %)에서, 처리의 CSS도 읽음. 튜토리얼 부분은 뺌(튜토리얼은 N-18) |
 | `tests/unit/start-clip.test.ts` | `electron/tests/renderer/start-clip.test.ts` | copy | — (영상 파일: VP9 한 트랙, 소리 없음, 크기; `start-video.ts`의 인자) |
-| `tests/unit/overlay.test.ts` | `electron/tests/renderer/overlay.test.ts` | derived | 같은 테스트. import 경로 |
+| `tests/unit/overlay.test.ts` | `electron/tests/renderer/overlay.test.ts` | derived | 같은 테스트(2.6.0의 `captionPatch` 시험 포함). import 경로 |
 | `tests/unit/names.test.ts` | `electron/tests/renderer/names.test.ts` | derived | 같은 테스트. import 경로 |
 
 ## v2.6.0에서 가져온 것(A-07 2단계, D-169)
@@ -83,6 +83,8 @@ Hallym MIPS `electron/`에는 SPIM의 `CPU/op.h`에서 만든 `src/core/op-table
 - **Windows 캡션 단추:** 시작 화면에서는 단추 뒤 조각이 투명(`#00000000`)이고 기호가 흰색이라 유리 위에 바로 앉는다(흰 조각 없음). 그 밖에서는 전처럼 흰색, 또는 대화상자·튜토리얼이 덮으면 그 아래 흰색의 색이고 기호는 남색. `shared/overlay.ts`(copy: `captionPatch`, `FIRST_SCREEN_PATCH`), `app/captions.ts`, `src/main/main.ts`의 `win:overlay`(조각과 기호 둘 다).
 - **제목 줄 아이콘:** Hallym MIPS의 다섯(Tutorial, New, Open, Export, Settings)과 같은 자리·같은 모양: `Tutorial`(`circle-question-mark`), `New circuit`(`file-plus`), `Open file`(`folder-open`), `Export Image…`(`image-down`, Hallym MIPS의 Export executable image 자리: 그림 내보내기는 N-21의 것이라 그것이 들어올 때까지·회로가 없을 때는 보이지 않음 — Hallym MIPS가 파일이 없을 때 Export를 숨기는 것과 같다), `Preferences`(`settings`). 그 앞에 이 앱의 `Menu`(원조 메뉴 막대). About은 Hallym MIPS처럼 Preferences 안(About · Licenses)과 Help › About…에 있다.
 - **재기:** `tests/e2e/backdrop-measure.ts`(copy)가 영상의 배율을 계산된 transform에서 읽는다(scale 1.06).
+- **1단계(D-167):** .hmx 참조를 v2.6.0으로(명세·골든 바이트 같음), 명령어 필드 색을 v2.6.0 Inspector와 대조(같음, docs/field-colors.md), 스크린샷의 고정 시계 — upstream `capture-screens.ts`의 `FIXED_TIME`(창의 `Date`를 10:00:00에)을 들였고, 이 앱은 시간대·가짜 엔진의 시계·복구 파일 시각까지 같은 시각에 둔다(`tests/e2e/screen-conditions.ts`). upstream의 "바뀌지 않은 그림은 다시 쓰지 않음"(오차 허용 비교)은 들이지 않았다: D-158로 다시 찍으면 바이트까지 같다(`--twice`).
+- 1단계에서 들이지 않은 것: `tools/mutants.ts`의 `--changed`·`--jobs`·`--shard`·`--merge`·`--baseline-from`·`--verify-selector`와 `tools/mutants-baseline.json`·`.github/workflows/mutants.yml`(upstream의 CI 속도용 선택 실행: 이 앱은 이름 거르개로 고르고 CI 구성은 D-166을 따름), `tools/start-variants.ts`·`start-variants-list.ts`·`docs/start-variants/`·`tools/windows/animations-on.ps1`(upstream의 시작 화면 디자인 후보를 재던 도구).
 - 가져오지 않은 것: v2.6.0 `tests/e2e/backdrop.e2e.ts`의 유리 카드 대비 측정(`docs/PORTING.md` 29의 디자인 후보 비교)은 이 앱의 `backdrop.e2e.ts`가 같은 규칙(모든 프레임에서 부제 4.5:1 이상, 카드 밝기)을 자체 방법으로 본다.
 
 ## v2.5.0에서 가져오지 않은 것(일부러 다른 곳, D-155)
@@ -91,7 +93,7 @@ Hallym MIPS `electron/`에는 SPIM의 `CPU/op.h`에서 만든 `src/core/op-table
 
 - **실행 이미지 내보내기(.hmx Export, 2.4.0):** `app.ts`(→ `shared/titlebar.ts`·`shared/splitter.ts`의 upstream)·`main.ts`·`preload.cjs`의 Export 버튼·`file:exportImage`·`exportImage`. SPIM 코어로 어셈블해 이미지를 만드는 기능이라(`src/core/hmx.ts`, `src/sim/image.ts`) 가져올 수 없고(D-133 5항), 이 앱은 .hmx를 읽기만 한다(D-138, D-147).
 - **제목 줄 가장 좁은 단계의 20 px 아이콘 단추**(`app.css` `.titlebar.tighter .iconbtn`, 2.4.0): upstream의 다섯째 아이콘(Export) 때문이다. 이 앱의 제목 줄 단계(D-135 3항)는 그대로 둔다.
-- **`tools/capture-screens.ts`의 JPEG 사진·너비별 시작 화면 장면(`start-<너비>.jpg`)과 `tools/mutants.ts`의 .hmx 돌연변이:** 스크린샷은 이 앱의 고정 이름(`start.png` 등, PNG)을 지키고, 영상은 upstream처럼 3.0초에 멈춰 찍는다(`videoAt`). 돌연변이는 시작 화면과 설치 파일 것만 이 앱에 맞게 옮겼다.
+- **`tools/capture-screens.ts`의 JPEG 사진·너비별 시작 화면 장면(`start-<너비>.jpg`)과 `tools/mutants.ts`의 .hmx 돌연변이:** 스크린샷은 이 앱의 고정 이름(`start.png` 등, PNG)을 지키고, 영상은 upstream처럼 3.0초에 멈춰 찍는다(`videoAt`, 지금은 `tests/e2e/screen-conditions.ts`). 돌연변이는 시작 화면과 설치 파일 것만 이 앱에 맞게 옮겼다.
 - **`tools/package.ts`의 아이콘 경로·이름:** 이 앱의 것(`assets/hallym/logo/app.ico`).
 - **upstream `start.e2e.ts`의 튜토리얼 부분:** 이 앱의 튜토리얼은 N-18이다.
 - **`installerSidebar.bmp`·`uninstallerSidebar.bmp`:** 이름이 "Hallym MIPS"라 가져오지 않고 `tools/installer-art.py`로 이 앱의 것을 만들었다.

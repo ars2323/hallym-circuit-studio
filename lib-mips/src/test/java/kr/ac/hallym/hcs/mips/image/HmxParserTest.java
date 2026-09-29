@@ -23,7 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * 실행 이미지(.hmx 1판) 파서와 원본 대조(Z-01, Z-06, D-138). 기준은 Hallym MIPS 명세 docs/hmx-format.md(v2.4.0), 명세가
+ * 실행 이미지(.hmx 1판) 파서와 원본 대조(Z-01, Z-06, D-138). 기준은 Hallym MIPS 명세 docs/hmx-format.md(v2.6.0, v2.4.0과 같음), 명세가
  * 말하지 않은 곳은 docs/hmx.md. 시험 파일은 tests/hmx. Hallym MIPS가 낸 골든은 {@code HallymMipsGoldenTest}.
  */
 class HmxParserTest {

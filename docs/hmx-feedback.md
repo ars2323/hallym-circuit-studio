@@ -1,6 +1,6 @@
 # .hmx 명세에 바라는 것(Hallym MIPS에)
 
-명세 원본: Hallym MIPS `docs/hmx-format.md`(v2.4.0, [docs/hmx.md](hmx.md)에 고정 링크). 이 도구는 명세를 그대로 따른다(D-138).
+명세 원본: Hallym MIPS `docs/hmx-format.md`(v2.6.0, v2.4.0과 바이트까지 같음, [docs/hmx.md](hmx.md)에 고정 링크). 이 도구는 명세를 그대로 따른다(D-138).
 
 ## 명세가 이미 정한 것(요청에서 뺌)
 

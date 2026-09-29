@@ -192,7 +192,7 @@ public final class ExecutableImage {
         return endian;
     }
 
-    /** 시작 주소. .hmx는 늘 적는다(명세 v2.4.0). 직접 만든 이미지에서 적지 않았으면 null. */
+    /** 시작 주소. .hmx는 늘 적는다(명세 v2.6.0). 직접 만든 이미지에서 적지 않았으면 null. */
     public Long entry() {
         return entry;
     }

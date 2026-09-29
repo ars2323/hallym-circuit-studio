@@ -23,7 +23,7 @@ import java.util.Map;
  * 실행 이미지 파일(.hmx 1판)을 읽는다(Z-01, D-126, D-138). 글 → 결과(이미지, 또는 줄 번호가 붙은 오류 목록). 오류가 하나라도
  * 있으면 이미지는 없고, 불러오는 쪽은 아무것도 바꾸지 않는다.
  *
- * <p>기준은 Hallym MIPS의 명세 {@code docs/hmx-format.md}(v2.4.0으로 고정, docs/hmx.md)다. 무시하는 줄이 아닌 첫 줄이
+ * <p>기준은 Hallym MIPS의 명세 {@code docs/hmx-format.md}(v2.6.0으로 고정, v2.4.0과 바이트까지 같음, docs/hmx.md)다. 무시하는 줄이 아닌 첫 줄이
  * {@code HALLYM-EXEC <판>} 머리 줄이고, 필드(아무 순서), 구간({@code .text}, {@code .data}) 순이다. 읽는 쪽이 할 일(명세
  * "What a reader must do")을 그대로 한다: 1판보다 높은 판은 읽지 않고, 개수를 모두 확인하고, {@code endian}·{@code entry}·
  * {@code .text}가 없거나 모르는 구간, 같은 종류의 두 번째 구간, 틀린 숫자는 오류이고, 빈 줄·{@code #} 줄·모르는 필드는
