@@ -128,13 +128,15 @@ test('Analyze Circuit (the original\'s, read only): the circuit menu, the simula
   }
 });
 
-test('Get Circuit Statistics: the original\'s table (Simple, Unique, Recursive) and its two totals', async () => {
+test('Get Circuit Statistics: the original\'s table (Simple, Unique, Recursive) and its two totals; from the title bar\'s Project menu', async () => {
   const r = await launch();
   const { page } = r;
   try {
     await openFile(r, sample(r.dir, DATAPATH));
     await drawn(page);
-    await circuitMenu(page, 'main', 'Get Circuit Statistics');
+    await page.getByTitle('Menu').click();
+    await page.locator('.ovmenu.barmenu').getByRole('menuitem', { name: /^Project/ }).click();
+    await page.locator('.ovmenu').nth(1).getByRole('menuitem', { name: /^Get Circuit Statistics/ }).click();
     const d = page.getByRole('dialog', { name: 'main Statistics' });
     await expect(d).toBeVisible();
     await expect(d.locator('thead th')).toHaveText(['Component', 'Library', 'Simple', 'Unique', 'Recursive']);

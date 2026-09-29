@@ -17,6 +17,7 @@ import {
   analyzeProblemText, analyzeSourceText, EXPORT_SENTENCE, expressionParts, HISTORY_HINT, PRINT_NONE, PRINT_SENTENCE, STATISTICS_HINT, SUBMISSION_HINT, historyLines, pictureName, PRINT_HEADER, statisticsLines, subSnapshot, submissionChecks,
 } from '../../src/renderer/app/logic/project-tools.ts';
 import { COMMANDS, search } from '../../src/renderer/app/logic/search.ts';
+import { appMenu, type MenuSpec } from '../../src/renderer/app/logic/menus.ts';
 
 // A Latin name, a closing quote or bracket right before a Korean particle reads wrong (D-135 14).
 const PARTICLE_AFTER_NAME = /[A-Za-z0-9_)\]`'"][을를이가은는의에과와로도만]/;
@@ -204,4 +205,26 @@ test('Print: the original\'s header (%n %p %P %%), a page per circuit, a wide pi
   assert.equal(html.match(/class="pic turn"/g)?.length, 1, 'only the wide one turns');
   assert.equal(printHtml([{ svg: SVG, name: 'm' }], { header: PRINT_HEADER, rotate: false }, '').match(/pic turn/g), null);
   assert.equal(printHtml([{ svg: SVG, name: 'm' }], { header: '  ', rotate: true }, '').includes('class="head"'), false, 'no header');
+});
+
+test('the title bar\'s menu has the original\'s places for them: File (Create Submission…, Export Image…, Print… Ctrl+P), Edit › Undo History…, Project › Analyze Circuit, Get Circuit Statistics (read only)', () => {
+  const st = { file: true, ready: true, simOn: true, ticking: false, hz: 1, frequencies: [], recent: [], examples: [], files: [], tool: 'Edit', project: { editable: false, index: 0, count: 1, main: true } };
+  const m = appMenu(st as unknown as Parameters<typeof appMenu>[0]);
+  const items = (menu: string): MenuSpec[] => m.find((x) => x.label === menu)!.items!;
+  const labels = (menu: string) => items(menu).map((i) => i.label);
+  const file = labels('File');
+  assert.ok(file.indexOf('Create Submission…') === file.indexOf('Save As…') + 1, file.join(' | '));
+  assert.ok(file.indexOf('Export Image…') < file.indexOf('Print…') && file.indexOf('Print…') < file.indexOf('Preferences…'));
+  assert.equal(items('File').find((i) => i.label === 'Print…')!.key, 'Ctrl+P');
+  assert.equal(labels('Edit')[labels('Edit').indexOf('Redo') + 1], 'Undo History…');
+  const project = items('Project');
+  for (const [label, id] of [['Analyze Circuit', 'project.analyze'], ['Get Circuit Statistics', 'project.statistics']]) {
+    const it = project.find((i) => i.label === label)!;
+    assert.equal(it.id, id);
+    assert.equal(it.disabled, undefined, `${label}: on for a file that cannot be edited (read only)`);
+  }
+  const none = appMenu({ ...st, file: false } as unknown as Parameters<typeof appMenu>[0]);
+  for (const [menu, label] of [['File', 'Export Image…'], ['Edit', 'Undo History…'], ['Project', 'Analyze Circuit']]) {
+    assert.equal(none.find((x) => x.label === menu)!.items!.find((i) => i.label === label)!.disabled, true, label);
+  }
 });

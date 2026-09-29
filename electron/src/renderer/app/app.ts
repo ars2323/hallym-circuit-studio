@@ -2384,6 +2384,13 @@ async function runMenu(id: string): Promise<void> {
     case 'file.saveAs': return save(true);
     case 'file.preferences': case 'window.preferences': prefs.open(); return;
     case 'file.exit': return leave();
+    // N-21 (D-162)
+    case 'file.submission': return tools.submission();
+    case 'file.export': return tools.exportImage();
+    case 'file.print': return tools.print();
+    case 'edit.history': if (f) tools.history.open(); return;
+    case 'project.analyze': if (f) await tools.analyze(shown(f).circuit); return;
+    case 'project.statistics': if (f) await tools.statistics(shown(f).circuit); return;
     case 'edit.undo': return edit('edit.undo', 'Undo');
     case 'edit.redo': return edit('edit.redo', 'Redo');
     case 'edit.cut': case 'edit.copy': case 'edit.paste': case 'edit.delete': case 'edit.duplicate': case 'edit.selectAll':
