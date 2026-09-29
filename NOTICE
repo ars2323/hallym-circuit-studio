@@ -113,24 +113,15 @@ Hallym MIPS Simulator (screen code, design values, tools and test harness)
      OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 --------------------------------------------------------------------------
-FlatLaf
-  Copyright (c) FormDev Software GmbH.
-  License: Apache License, Version 2.0
-  Source:  https://www.formdev.com/flatlaf/
-  Bundled in the fork jar (hallym-circuit-studio.jar) with its license text
-  at META-INF/LICENSE-FlatLaf.txt. Apache-2.0 is compatible with GPL
-  version 3, so the fork jar that bundles FlatLaf is distributed under
-  GPL version 3 (the "any later version" option of Logisim's license).
-
---------------------------------------------------------------------------
 Gson 2.13.2
   Copyright (c) 2008 Google Inc.
   License: Apache License, Version 2.0
   Source:  https://github.com/google/gson
   Bundled in the engine jar (hcs-engine.jar, Hallym Circuit Studio 2) as its
   JSON library, with its license text at META-INF/LICENSE-Gson.txt (also
-  engine/licenses/). As with FlatLaf, the engine jar that bundles Gson is
-  distributed under GPL version 3.
+  engine/licenses/). Apache-2.0 is compatible with GPL version 3, so the
+  engine jar that bundles Gson is distributed under GPL version 3 (the "any
+  later version" option of Logisim's license).
 
 --------------------------------------------------------------------------
 OpenJDK runtime (Eclipse Temurin 21.0.12), Hallym Circuit Studio 2

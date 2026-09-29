@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # 포크(app/)의 원본 트리가 Logisim 2.7.1 jar에서 어떻게 달라졌는지 기계로 확인한다(D-130, CLAUDE.md 9절).
 # - app/src: jar의 src/와 파일 목록이 같아야 한다(새 코드는 app/src-hcs에). 다른 .java에는 "// HCS:" 주석이 있어야 한다.
-# - app/resources, app/doc: jar와 다른 파일(새 파일 포함)은 docs/upstream-resources.txt에 D-번호와 함께 있어야 한다.
+# - app/resources: jar와 다른 파일(새 파일 포함)은 docs/upstream-resources.txt에 D-번호와 함께 있어야 한다.
+# - app/doc(원조 도움말 HTML, Swing Help 메뉴 전용)은 N-27(D-163)에서 지웠다. 원본은 jar와 태그 upstream/logisim-2.7.1에 있다.
+#   다시 생기면 실패한다.
 # 엔진 패키지는 더 엄격한 tools/check-engine-unchanged.sh가 따로 본다.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -9,7 +11,7 @@ jar="$root/vendor/logisim-2.7.1/logisim-generic-2.7.1.jar"
 allow="$root/docs/upstream-resources.txt"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
-unzip -q "$jar" 'src/*' 'resources/*' 'doc/*' -d "$tmp"
+unzip -q "$jar" 'src/*' 'resources/*' -d "$tmp"
 fail=0
 changed=0
 
@@ -30,7 +32,7 @@ while IFS= read -r f; do
   fi
 done < <(comm -12 <(list "$tmp/src") <(list "$root/app/src"))
 
-# app/resources, app/doc
+# app/resources
 allowed="$(grep -v '^\s*#' "$allow" | awk 'NF {print $1}')"
 is_allowed() {
   local p="$1" a
@@ -40,7 +42,8 @@ is_allowed() {
   done <<< "$allowed"
   return 1
 }
-for d in resources doc; do
+[ ! -e "$root/app/doc" ] || { echo "app/doc은 N-27(D-163)에서 지웠다: 원조 도움말은 엔진이 쓰지 않는다" >&2; fail=1; }
+for d in resources; do
   while IFS= read -r f; do
     p="app/$d/$f"
     if [ ! -f "$tmp/$d/$f" ] || ! cmp -s "$tmp/$d/$f" "$root/$p"; then
