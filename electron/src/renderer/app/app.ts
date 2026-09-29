@@ -1,8 +1,10 @@
 /* The window.
 
-     title bar   logo, name, file, the toolbar (its own row under the bar
-                 when the bar cannot hold it); New, Open, About at the right
-                 end; the system's caption buttons (titleBarOverlay)
+     title bar   logo, name, the course chip, file, the toolbar (» for what
+                 it cannot hold); Menu, then Hallym MIPS v2.6.0's five at the
+                 right end: Tutorial, New, Open, Export Image, Preferences
+                 (D-169); the system's caption buttons (titleBarOverlay),
+                 on dark glass over the first screen's photo
      band        one line, only when there is something the student must
                  not miss (the engine stopped and what came back, or it
                  could not start)
@@ -374,8 +376,20 @@ function toCanvas(): void {
   if (arranged?.tight && side !== 'canvas') showSide('canvas');
 }
 const bMenu = iconButton('Menu', 'menu', () => void openMenu());
+// Hallym MIPS v2.6.0's title bar icons, in its places and shapes (D-169): Tutorial, New, Open, the export, Settings.
+// Tutorial: the course's (the card's step 1 asks it first when none is chosen yet).
+const bTutorial = iconButton('Tutorial', 'circle-question-mark', () => {
+  if (course === null) { start.go('course'); return; }
+  void startTutorial(course);
+});
 const bNew = iconButton('New circuit (Ctrl+N)', 'file-plus', () => void newCircuit());
 const bOpen = iconButton('Open file (Ctrl+O)', 'folder-open', () => void openFile());
+// Export Image… (Hallym MIPS's place of Export executable image): the circuit on show as a picture.  N-21 (#453) plugs
+// its exporter in here (`exportImage`); until then, and without a circuit on show, the button is not there (as Hallym
+// MIPS hides its export without a file).
+let exportImage = null as (() => void) | null;
+const bExport = iconButton('Export Image…', 'image-down', () => exportImage?.());
+bExport.hidden = true;
 const bPrefs = iconButton('Preferences', 'settings', () => prefs.open());
 // The course on show (A-08): a chip after the name; pressed, the two courses to switch to (only what is shown changes).
 const courseChip = h('button', { type: 'button', class: 'coursechip', hidden: true, 'aria-haspopup': 'menu', title: '교과목을 바꿉니다. 화면에 보이는 것만 바뀌고 회로와 시뮬레이션은 그대로입니다.' });
@@ -388,8 +402,8 @@ const bar = titleBar({
   toolbar,
   views: viewSwitch,
   course: courseChip,
-  // About is Hallym MIPS's: in Preferences (About · Licenses) and the menu's Help › About….
-  tools: [bMenu, bNew, bOpen, bPrefs],
+  // About is Hallym MIPS's: in Preferences (About · Licenses) and the menu's Help › About… (D-169).
+  tools: [bMenu, bTutorial, bNew, bOpen, bExport, bPrefs],
   onMore: (units, at) => void moreMenu(units, at),
 });
 const notices = band();
@@ -986,6 +1000,8 @@ function layout(): void {
   stage.hidden = !decided || open || opening;
   start.show(!stage.hidden); // the video plays on the first screen only (D-155)
   courseChip.hidden = course === null || !stage.hidden;   // the course is the card's question there (A-08)
+  // the first screen's bars are dark glass over the photo (shared.css), the caption buttons on it (captions.ts, D-169)
+  document.body.classList.toggle('first-screen', !stage.hidden);
   shell.hidden = !open;
   if (!stage.hidden && !startSeen) { startSeen = true; document.documentElement.dataset.startSeen = 'true'; }
   if (open) {
@@ -1081,6 +1097,8 @@ function render(): void {
   start.enable(!down);
   bNew.disabled = down;
   bOpen.disabled = down;
+  bTutorial.disabled = down;
+  bExport.hidden = exportImage === null || !f;
   if (f) {
     // files of one name show the folder that tells them apart (v1 V-05); a library that came in new, " · Updated"
     const folders = folderMap();

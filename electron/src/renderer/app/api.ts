@@ -62,7 +62,7 @@ export interface AppApi {
   about(): Promise<AboutInfo>;
   license(index: number): Promise<string>;  // LICENSES[index]; one past the end: Electron's
   openCredits(): Promise<void>;             // LICENSES.chromium.html, in the browser
-  setOverlay(color: string | null): Promise<void>;  // the caption buttons' patch; null: white
+  setOverlay(patch: { color: string; symbolColor: string }): Promise<void>;  // the caption buttons' patch and symbols (shared/overlay.ts)
   // N-11 (src/main/circuit-files.ts): Import Subcircuits (the .circ dialog, then its circuits; null: cancelled),
   // its plan and the import; Load Library (builtin by name; circ and jar through a dialog); another open file
   // as a library; Edit Original File.

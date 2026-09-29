@@ -75,9 +75,9 @@ for (const [scale, size] of [[1, { width: 1920, height: 1032 }], [1.25, { width:
         `still ${still.towardNavy.toFixed(3)}, ${still.sharpness.toFixed(3)}; rect ${JSON.stringify(rect)}`;
       console.log(said);
       measured[`${scale * 100}%`] = { video: { towardNavy: video.towardNavy, sharpness: video.sharpness }, still: { towardNavy: still.towardNavy, sharpness: still.sharpness }, rect };
-      expect(video.towardNavy, said).toBeGreaterThan(0.4);
+      expect(video.towardNavy, said).toBeGreaterThan(0.35);   // v2.6.0's lighter tint (D-169): 0.43-0.44 on Linux
       expect(video.sharpness, said).toBeLessThan(0.6);
-      expect(still.towardNavy, said).toBeGreaterThan(0.4);
+      expect(still.towardNavy, said).toBeGreaterThan(0.35);
       expect(still.sharpness, said).toBeLessThan(0.6);
     } finally {
       await r.close();
