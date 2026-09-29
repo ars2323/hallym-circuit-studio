@@ -77,7 +77,7 @@
 | Duplicate, Undo, Redo | |
 | Recover, Discard | |
 | Getting Started, Shortcuts | |
-| Menu, Preferences, General, Keyboard, Change…, Reset All, Reset Panel Sizes, About · Licenses, Keys That Do Not Change | 환경설정, 단축키 설정 |
+| Menu, Preferences, General, Keyboard, Change…, Reset All, Reset Panel Sizes, About · Licenses, Keys That Do Not Change | 설정 창, 단축키 설정 |
 | More commands, More facts, Canvas, Panels, Changed, Read-only, Turn On, Try Again | 방금 바뀜 |
 | Open Recent, Close, Save As…, Exit, Minimize, Maximize, Examples, Keyboard Shortcuts, Ticks Enabled, Tick Frequency, Simulation Enabled, Reset Simulation, Step Simulation, Tick Once | 최근 파일 |
 
