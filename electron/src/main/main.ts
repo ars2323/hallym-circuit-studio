@@ -40,7 +40,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { EngineClient, EngineError, type EngineProcess } from './engine.ts';
-import { EXAMPLES, examplesDir, isExample } from './examples.ts';
+import { EXAMPLE_COURSE, EXAMPLES, examplesDir, isExample } from './examples.ts';
 import { locateEngine } from './engine-locate.ts';
 import { Supervisor, WINDOW } from './recovery.ts';
 import { recoveryBeside, RecoveryWriter } from './recovery-files.ts';
@@ -426,7 +426,7 @@ function registerHandlers(): void {
   }));
   // Help › Examples (V-07, D-158): opened read-only from the program's own folder.
   const exampleFolder = examplesDir(app.isPackaged ? process.resourcesPath : null, paths.repoRoot);
-  ipcMain.handle('examples:list', () => (exampleFolder ? EXAMPLES.filter((n) => existsSync(path.join(exampleFolder, n))).map((n) => ({ id: n, name: n })) : []));
+  ipcMain.handle('examples:list', () => (exampleFolder ? EXAMPLES.filter((n) => existsSync(path.join(exampleFolder, n))).map((n) => ({ id: n, name: n, course: EXAMPLE_COURSE[n] })) : []));
   ipcMain.handle('examples:open', (_e, id: string) => answer(async () => {
     if (!exampleFolder || !isExample(id)) return null;
     return openPath(path.join(exampleFolder, id), undefined, true);

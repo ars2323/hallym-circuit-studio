@@ -10,6 +10,9 @@
   font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .cmain { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) var(--side-w, 420px); }
 .cycleview.compact .cmain { grid-template-columns: minmax(0, 1fr); }
+/* 논리설계 및 실험 (A-08): no Registers | Memory | Instruction, the table has the whole width */
+.cycleview.noside .cmain { grid-template-columns: minmax(0, 1fr); }
+.cycleview.noside .cside { display: none; }
 
 /* The table: the names stick on the left, the head rows on top; a column is a cycle. */
 .ctablebox { overflow: auto; min-height: 0; min-width: 0; position: relative; }

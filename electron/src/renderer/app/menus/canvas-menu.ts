@@ -18,6 +18,7 @@ import { toScreen } from '../../canvas/view.ts';
 import { ask } from '../../shared/ask.ts';
 import type { CallError, MemoryImageOptions } from '../api.ts';
 import { hexEditor } from '../hex-editor.ts';
+import type { Feature } from '../logic/course.ts';
 import { ctrlPokes } from '../logic/editing.ts';
 import type { MenuCommand } from '../editor.ts';
 import { emitReveal } from '../reveal.ts';
@@ -42,6 +43,7 @@ export interface CanvasMenuDeps {
   tunnelColor(id: string, color: string | null): void;
   loadProgram(fileId: string, target: string, forSource?: string): void;
   registerMapping(): void;
+  shows?(feature: Feature): boolean;              // what the course on show shows (A-08, logic/course.ts); all without
   memoryImage(fileId: string, o: MemoryImageOptions): Promise<unknown>;
   quietQuick(): void;                             // Quick Attributes stays away (a program's selection)
   // A menu shown for something else than the selection (D-158): Quick Attributes away until it closes.
@@ -99,6 +101,7 @@ export function installCanvasMenu(d: CanvasMenuDeps): CanvasMenu {
       void d.call('record.markRegisterFile', { fileId: t.fileId, circuitId, on }).catch((e) => d.failed('Register File', e));
     },
     registerMapping: () => d.registerMapping(),
+    shows: (feature) => d.shows?.(feature) ?? true,
     loadProgram: (t, id, forSource) => d.loadProgram(t.fileId, id, forSource),
     reloadProgram: (t) => { void d.call('mips.reload', { fileId: t.fileId }).catch((e) => d.failed('Reload', e)); },
     findOrigin: (t, w) => void findOrigin(t, w),

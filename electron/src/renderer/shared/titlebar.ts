@@ -2,7 +2,7 @@
    electron/src/renderer/app/app.ts: its title bar, button(), iconButton()
    and fitTitlebar(), taken out into a component).
 
-     logo · name · file · toolbar [»] · views · (drag) · tools · [the system's caption buttons]
+     logo · name · [course] · file · toolbar [»] · views · (drag) · tools · [the system's caption buttons]
 
    The whole bar moves the window (and double-click maximises); everything
    that is pressed opts out (shared.css).  The caption buttons are the
@@ -60,6 +60,7 @@ export interface TitleBarOptions {
   appName: string;
   toolbar: HTMLElement;     // .toolbar: its commands ([data-unit]), in groups
   views?: HTMLElement;      // after the toolbar, never moved to the menu
+  course?: HTMLElement;     // after the name: the course on show (A-08), never moved or hidden by the fitting
   tools: HTMLElement[];     // the icon buttons at the right end
   onMore(units: HTMLElement[], anchor: DOMRect): void;   // the » button pressed
 }
@@ -83,7 +84,7 @@ export function titleBar(o: TitleBarOptions): TitleBar {
     h('span', { class: 'brand' },
       h('img', { class: 'logo', src: hallym('logo/symbol-basic.svg'), alt: '' }),
       h('span', { class: 'appname' }, o.appName)),
-    fileLabel, toolbarSlot, o.views ?? null, h('span', { class: 'drag' }), tools);
+    o.course ?? null, fileLabel, toolbarSlot, o.views ?? null, h('span', { class: 'drag' }), tools);
   let file: { name: string; dirty: boolean } | null = null;
   let toolbarShown = true;
   const units = () => [...o.toolbar.querySelectorAll<HTMLElement>('[data-unit]')];
@@ -126,7 +127,7 @@ export function titleBar(o: TitleBarOptions): TitleBar {
   // What the fitting depends on: fitting again for nothing reads the layout dozens of times at a narrow width.
   let fitted = '';
   const fit = (force = false) => {
-    const key = [window.innerWidth, file?.name ?? '', file?.dirty ?? false, toolbarShown, o.views?.hidden ?? true, o.toolbar.dataset.fit ?? ''].join('|');
+    const key = [window.innerWidth, file?.name ?? '', file?.dirty ?? false, toolbarShown, o.views?.hidden ?? true, o.toolbar.dataset.fit ?? '', o.course?.textContent ?? '', o.course?.hidden ?? true].join('|');
     if (!force && key === fitted) return;
     fitted = key;
     root.classList.remove('noapp');

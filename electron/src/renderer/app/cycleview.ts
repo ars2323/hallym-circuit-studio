@@ -1,7 +1,8 @@
 /* The Cycle View tab under the Canvas (N-14; v1 C-02..C-07, D-074..D-078,
    D-098, D-113, D-114): the cycle table on the left, Registers | Memory |
    Instruction on the right (Hallym MIPS's Registers, Data and Inspector
-   panels, shared/), and a bar with Previous / Next / Latest, the cycle on
+   panels, shared/; 컴퓨터구조 only -- in 논리설계 the table has the whole
+   width, A-08 logic/course.ts), and a bar with Previous / Next / Latest, the cycle on
    show and Run Until.  A narrow tab puts the table in a fourth tab
    (Cycles) instead of beside the others.
 
@@ -72,6 +73,7 @@ export class CycleView {
   private readonly memBox: HTMLElement;
   private readonly inspector = new Inspector();
   private compact = false;
+  private sideShown = true;         // Registers | Memory | Instruction (컴퓨터구조 only, A-08)
   private visible = false;
   private tab = 1;                  // the side tab: 1 Registers, 2 Memory, 3 Instruction (0 Cycles, compact)
   private window: Window | null = null;
@@ -168,6 +170,23 @@ export class CycleView {
     }
   }
 
+  // The side (Registers | Memory | Instruction) shown or not: without it the cycle table has the whole width.
+  setSideShown(on: boolean): void {
+    if (on === this.sideShown) return;
+    this.sideShown = on;
+    this.root.classList.toggle('noside', !on);
+    if (!on && this.compact) {
+      // the table back beside where the side was (the layout keeps it there while there is no side)
+      this.compact = false;
+      this.root.classList.remove('compact');
+      this.sideHead.show(0, false);
+      this.main.prepend(this.tableBox);
+      this.sideHead.select(1);
+      this.selectSide(1);
+    }
+    this.layout();
+  }
+
   setVisible(on: boolean): void {
     this.visible = on;
     if (on) {
@@ -182,9 +201,9 @@ export class CycleView {
     const w = this.root.clientWidth;
     if (!w) return;
     // The side takes 40 % of the width within limits; if the table would not keep three cycles beside it,
-    // the table becomes a tab of its own, the first one (D-113).
+    // the table becomes a tab of its own, the first one (D-113).  No side (논리설계): the table, never a tab.
     const side = Math.round(Math.max(SIDE_LEAST, Math.min(SIDE_MOST, w * 0.4)));
-    const compact = w - side < NAME_LEAST + 3 * COLUMN_PX + 2;
+    const compact = this.sideShown && w - side < NAME_LEAST + 3 * COLUMN_PX + 2;
     if (compact !== this.compact) {
       this.compact = compact;
       this.root.classList.toggle('compact', compact);
@@ -254,9 +273,9 @@ export class CycleView {
     const jobs: Promise<void>[] = [];
     const tableShown = !this.compact || this.tab === 0;
     if (tableShown) jobs.push(this.fetchTable(fileId, s));
-    if (this.tab === 1) jobs.push(this.fetchRegisters(fileId));
-    if (this.tab === 2) jobs.push(this.fetchMemory(fileId));
-    if (this.tab === 3) jobs.push(this.fetchInstruction(fileId));
+    if (this.sideShown && this.tab === 1) jobs.push(this.fetchRegisters(fileId));
+    if (this.sideShown && this.tab === 2) jobs.push(this.fetchMemory(fileId));
+    if (this.sideShown && this.tab === 3) jobs.push(this.fetchInstruction(fileId));
     await Promise.all(jobs);
   }
 

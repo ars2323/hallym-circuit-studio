@@ -24,6 +24,7 @@ export interface Handover {
   path: string | null;
   tabs: string[];
   circuit: string;
+  course?: 'logic' | 'architecture';   // the course the window it came from shows (A-08): a window of its own shows the same
 }
 
 export class FileWindows {

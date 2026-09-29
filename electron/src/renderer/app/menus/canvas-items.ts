@@ -25,6 +25,7 @@
 import type { AttrOption, EditResult, MenuFacts, MenuPart, Point, WindowMethod } from '../../../main/protocol.ts';
 import type { MenuEntry } from '../../canvas/overlays/menu.ts';
 import { ALIGNS, changeN, combineN, count, DISTRIBUTES, editLabelsN, FACINGS, gateShort, INPUT_COUNTS, type MenuItem, PROBE_RADICES, undefinedValue, WIDTHS } from '../logic/menu-layout.ts';
+import type { Feature } from '../logic/course.ts';
 import { palette } from '../logic/tunnels.ts';
 import { type CanvasTarget, registerMenu } from './registry.ts';
 
@@ -45,6 +46,7 @@ export interface CanvasActions {
   markPc(t: CanvasTarget, id: string, on: boolean): void;
   markRegisterFile(t: CanvasTarget, circuitId: string, on: boolean): void;
   registerMapping(): void;
+  shows(feature: Feature): boolean;                // what the course on show shows (A-08, logic/course.ts)
   loadProgram(t: CanvasTarget, id: string, forSource?: string): void;
   reloadProgram(t: CanvasTarget): void;
   findOrigin(t: CanvasTarget, wire: string): void;
@@ -95,7 +97,7 @@ export function registerCanvasItems(a: CanvasActions): void {
         out.push({ label: 'Load Image…', disabled: kind === 'rom' && !t.facts.editable, run: () => a.image(t, id, kind, 'load') });
         out.push({ label: 'Save Image…', run: () => a.image(t, id, kind, 'save') });
       }
-      if (p.memory === 'program') {
+      if (p.memory === 'program' && a.shows('loadProgram')) {
         out.push({ label: 'Load Program…', disabled: !t.facts.editable, run: () => a.loadProgram(t, id) });
         const src = p.source;
         if (src && ASSEMBLY.test(src)) out.push({ label: `Load .hmx for ${fileName(src)}…`, disabled: !t.facts.editable, run: () => a.loadProgram(t, id, src) });
@@ -151,7 +153,7 @@ export function registerCanvasItems(a: CanvasActions): void {
     else if (p.gate) out.push(...gate(t, p, id));
     else if (p.name === 'Tunnel' && p.tunnel) out.push(...tunnel(t, p, id));
     else if (p.subcircuit) out.push(...subcircuit(t, p));
-    if (p.pcMarked !== undefined) {
+    if (p.pcMarked !== undefined && a.shows('markPc')) {
       out.push({ label: p.pcMarked ? 'Unmark as PC' : 'Mark as PC', disabled: !ed, run: () => a.markPc(t, id, !p.pcMarked) });
     }
     return out;
@@ -215,8 +217,8 @@ export function registerCanvasItems(a: CanvasActions): void {
       const s = q.subcircuit!;
       if (s.library !== undefined) return [];              // another file's circuit: N-11's Edit Original File
       const r: MenuItem[] = [];
-      r.push({ label: s.registerFile ? 'Unmark Register File' : 'Mark as Register File', disabled: !ed, run: () => a.markRegisterFile(t2, s.circuitId, !s.registerFile) });
-      if (s.registerFile) r.push({ label: 'Register Mapping…', run: () => a.registerMapping() });
+      if (a.shows('markRegisterFile')) r.push({ label: s.registerFile ? 'Unmark Register File' : 'Mark as Register File', disabled: !ed, run: () => a.markRegisterFile(t2, s.circuitId, !s.registerFile) });
+      if (s.registerFile && a.shows('registerMapping')) r.push({ label: 'Register Mapping…', run: () => a.registerMapping() });
       return r;
     }
   }

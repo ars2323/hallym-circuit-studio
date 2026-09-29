@@ -4,9 +4,9 @@
    nothing of a session is kept (lab PCs are shared).
 
    Every step has the same shape: the card has a fixed width, each choice a
-   fixed size with its line break written in, and the "← 처음으로" row is
-   there in every step (hidden in the first), so going from one step to
-   another moves nothing but the words.  What the steps say and do is the
+   fixed size with its line break written in, and the "← 이전" row is there
+   in every step (hidden in the first; it goes back one step), so going from
+   one step to another moves nothing but the words.  What the steps say and do is the
    caller's (src/renderer/app/start.ts).  Behind the card, the same for
    every step: the university's video (backdrop.ts), which a step never
    restarts; the caller says when the first screen is on show (show()). */
@@ -19,8 +19,8 @@ export interface Choice {
   lines: [string, string];      // the two lines under the label, broken where they are written
   icon: string;
   main?: boolean;               // the one to take first: tinted
-  go?: string;                  // another step of the card
-  onClick?: () => void;         // or something to do
+  go?: string;                  // another step of the card (after onClick, when both are given)
+  onClick?: () => void;         // something to do
 }
 
 export interface WelcomeSpec {
@@ -48,18 +48,21 @@ function action(c: Choice, onClick: () => void, enabled: boolean): HTMLElement {
 
 export function welcome(spec: WelcomeSpec): Welcome {
   const actions = h('div', { class: 'actions' });
-  const back = h('button', { class: 'linkbtn back', type: 'button' }, '← 처음으로');
+  const back = h('button', { class: 'linkbtn back', type: 'button' }, '← 이전');
   let current = spec.first;
   let enabled = true;
-  const go = (step: string) => {
+  const trail: string[] = [];     // the steps before this one (← 이전 goes back one)
+  const showStep = (step: string) => {
     current = step;
-    actions.replaceChildren(...spec.steps[step].map((c) => action(c, () => (c.go ? go(c.go) : c.onClick?.()), enabled)));
+    actions.replaceChildren(...spec.steps[step].map((c) => action(c, () => { c.onClick?.(); if (c.go) { trail.push(current); showStep(c.go); } }, enabled)));
     back.style.visibility = step === spec.first ? 'hidden' : 'visible';
     actions.dataset.step = step;
     if (step !== spec.first) (actions.firstElementChild as HTMLElement).focus();
   };
-  back.addEventListener('click', () => go(spec.first));
-  go(spec.first);
+  // A step from outside (the first one again once every file is closed): its way back starts there.
+  const go = (step: string) => { trail.length = 0; if (step !== spec.first) trail.push(spec.first); showStep(step); };
+  back.addEventListener('click', () => showStep(trail.pop() ?? spec.first));
+  showStep(spec.first);
   const start = backdrop();
   const card = h('div', { class: 'wcard' },
     character(spec.pose, 200),
@@ -67,6 +70,6 @@ export function welcome(spec: WelcomeSpec): Welcome {
       h('p', { class: 'lead' }, spec.lead[0], h('br'), spec.lead[1]),
       actions, back));
   const root = h('div', { class: 'welcome' }, start.root, card);
-  const enable = (on: boolean) => { if (on !== enabled) { enabled = on; go(current); } };
+  const enable = (on: boolean) => { if (on !== enabled) { enabled = on; showStep(current); } };
   return { root, go, step: () => current, show: start.show, enable };
 }
