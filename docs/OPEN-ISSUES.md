@@ -110,6 +110,6 @@
 | V-10 | NOTICE | Logisim 2.7.1에 딸린 서드파티(ColorPicker com.bric, FontChooser connectina, JavaHelp, MRJAdapter net.roydesign)가 엔진 jar에 있으나 NOTICE에 따로 없다(#454 검토) | N-27 뒤 쓰이지 않으면 jar에서 빼고, 쓰이면 NOTICE에 적는다 | N-20 | 열림 |
 | V-11 | 시험 | Windows 변화 0 검사: AppX 재등록 중 `RegisteredApplications`, 설치 뒤 작업 `PostAppInstallTasksCompleted`·`PackageListVersion` 흔들림 | 감사 기록으로 쓴 이 증명 또는 재기 바꾸기. 증거 없이 넓히지 않는다 | #464 | 열림 |
 | V-12 | 시험 | 변화 0 검사의 감사 경로 대소문자·8.3 정규화, D-164 문구(CI는 권한 상승), D-168 11 UEME_CTLSESSION 쓴 이가 감사에 안 잡히는 이유 | 정규화·fail closed, 증거로 바꾸거나 예외 없앰 | #465 | 열림 |
-| V-13 | 시험 | 돌연변이 부족: D-168 11의 REG_BINARY after 조건과 in: ['none'] 넓히기(#467), 시작 캐릭터 168 px와 유리 부제 색(#469) | 돌연변이·시험 더하기, D-169·시험 주석의 towardNavy 실측값(0.415–0.429)과 ci.yml Windows 요약 머리('> 0.4') 고치기 | N-25 | 열림 |
+| V-13 | 시험 | 돌연변이 부족: D-168 11의 REG_BINARY after 조건과 in: ['none'] 넓히기(#467), 시작 캐릭터 168 px와 유리 부제 색(#469) | 돌연변이·시험 더하기, D-169 테스트 항목과 시험 주석의 "화면에서 잰 남색 쪽 0.43~0.44"를 CI 실측값(run 36559347773: 0.415–0.429)으로과 ci.yml Windows 요약 머리('> 0.4') 고치기 | N-25 | 열림 |
 | V-14 | 시험 | 한 번씩 본 흔들림: overlays.e2e:114(#455), CanvasFixturesTest 상수 해시(#456), find.e2e 'Components search'·circuits-editing 'a subcircuit instance'(#466 로컬) | 원인을 찾거나 D-166 6대로 격리 | N-25 | 열림 |
 | V-15 | 시험 | NOTICE의 OpenJDK 모듈 목록을 runtime/release MODULES와 대조하는 시험 없음(#422 검토) | notice.test.ts에 더한다 | N-25 | 열림 |
