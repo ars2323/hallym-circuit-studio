@@ -55,13 +55,11 @@ public final class SafeMove {
     }
 
     /**
-     * 선택을 (dx, dy)만큼 옮긴다. result는 원조 연결 유지 계산 결과(없으면 선을 잇지 않는 이동). 옮긴 뒤에는 빠른 속성
-     * 창을 띄우지 않는다(S-04: 끌기 직후 창이 칩을 가렸다. 다음에 누르면 다시 뜬다).
+     * 선택을 (dx, dy)만큼 옮긴다. result는 원조 연결 유지 계산 결과(없으면 선을 잇지 않는 이동). 결과를 알리는 것은
+     * 부르는 쪽의 일이다(v1 Swing판은 상태 표시줄에 적었다. N-27에서 화면 코드와 함께 걷어 냈다, D-163).
      */
     public static Outcome move(Project proj, Selection sel, int dx, int dy, MoveResult result) {
-        Outcome o = moveInner(proj, sel, dx, dy, result);
-        kr.ac.hallym.hcs.app.props.QuickBar.markQuiet(proj, sel.getComponents());
-        return o;
+        return moveInner(proj, sel, dx, dy, result);
     }
 
     static Outcome moveInner(Project proj, Selection sel, int dx, int dy, MoveResult result) {
@@ -124,12 +122,10 @@ public final class SafeMove {
         if (plain.check(circuit, sig, null, nets)) {
             proj.doAction(plain.action(sel, circuit));
             if (result != null) {
-                kr.ac.hallym.hcs.app.sim.SimControls.notice(proj, Messages.get("move.withoutWires"));
                 return Outcome.MOVED_WITHOUT_WIRES;
             }
             return Outcome.MOVED;
         }
-        kr.ac.hallym.hcs.app.sim.SimControls.notice(proj, Messages.get("move.refused"));
         return Outcome.REFUSED;
     }
 

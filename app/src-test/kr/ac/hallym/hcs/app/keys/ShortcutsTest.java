@@ -6,14 +6,10 @@
 package kr.ac.hallym.hcs.app.keys;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.Locale;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -21,14 +17,13 @@ import org.junit.jupiter.api.io.TempDir;
 import com.cburch.logisim.circuit.Circuit;
 import com.cburch.logisim.comp.Component;
 import com.cburch.logisim.data.Direction;
-import com.cburch.logisim.data.Location;
 import com.cburch.logisim.file.Loader;
 import com.cburch.logisim.file.LogisimFile;
 import com.cburch.logisim.instance.StdAttr;
 
 import kr.ac.hallym.hcs.regress.CircuitBuilder;
 
-/** #78: 단축키 표, 회전, 값 해석, 포트 툴팁. */
+/** #78의 GUI 없는 부분: 회전, 값 해석, 핀 값 넣기(엔진의 edit.rotate·sim.pinValue). */
 class ShortcutsTest {
     @TempDir
     Path tmp;
@@ -96,65 +91,5 @@ class ShortcutsTest {
         CircuitBuilder.save(file, after);
         assertEquals(new String(java.nio.file.Files.readAllBytes(before.toPath()), "UTF-8"),
                 new String(java.nio.file.Files.readAllBytes(after.toPath()), "UTF-8"), "nothing about the value is saved");
-    }
-
-    @Test
-    void portTipNamesThePortAndWidth() throws Exception {
-        LogisimFile file = CircuitBuilder.newFile(new Loader(null), tmp.toFile());
-        CircuitBuilder b = new CircuitBuilder(file, file.getMainCircuit());
-        Component reg = b.add("Memory", "Register", 400, 300, "width", "8", "label", "PC");
-        b.commit();
-        Circuit main = file.getMainCircuit();
-        Location q = reg.getEnds().get(0).getLocation();
-        String tip = Shortcuts.portTip(main, q.translate(2, 1));
-        assertTrue(tip.startsWith("PC (Q) · 8"), tip);
-        assertNull(Shortcuts.portTip(main, Location.create(10, 10)));
-    }
-
-    @Test
-    void everyShortcutHasKoreanAndEnglishText() throws Exception {
-        Method get = kr.ac.hallym.hcs.app.Messages.class.getDeclaredMethod("get", Locale.class, String.class,
-                Object[].class);
-        get.setAccessible(true);
-        for (String key : Shortcuts.messageKeys()) {
-            String en = (String) get.invoke(null, Locale.ENGLISH, key, new Object[0]);
-            String ko = (String) get.invoke(null, Locale.KOREAN, key, new Object[0]);
-            assertNotEquals(key, en);
-            assertNotEquals(key, ko);
-        }
-        assertTrue(Shortcuts.table().containsKey("R / Shift+R"), Shortcuts.table().keySet().toString());
-    }
-
-    private static java.awt.event.KeyEvent key(char c, int mods) {
-        return new java.awt.event.KeyEvent(new javax.swing.JPanel(), java.awt.event.KeyEvent.KEY_PRESSED, 0L, mods,
-                java.awt.event.KeyEvent.getExtendedKeyCodeForChar(c), c);
-    }
-
-    /** #76: 글자를 치면 검색창. 조작 도구(첫 화면의 기본 도구)에서도 열리고, 값을 받는 부품을 누르고 있으면 원조대로. */
-    @Test
-    void lettersOpenThePaletteInPokeAndEditTools() throws Exception {
-        com.cburch.logisim.tools.PokeTool poke = new com.cburch.logisim.tools.PokeTool();
-        assertTrue(Shortcuts.opensPalette(poke, true, key('m', 0)), "poke tool, nothing poked");
-        assertTrue(Shortcuts.opensPalette(poke, false, key('M', java.awt.event.InputEvent.SHIFT_DOWN_MASK)));
-        assertTrue(Shortcuts.opensPalette(new com.cburch.logisim.tools.EditTool(
-                new com.cburch.logisim.tools.SelectTool(), new com.cburch.logisim.tools.WiringTool()), true,
-                key('r', 0)), "edit tool, empty selection");
-        assertTrue(Shortcuts.opensPalette(new com.cburch.logisim.tools.SelectTool(), true, key('a', 0)));
-        assertTrue(!Shortcuts.opensPalette(new com.cburch.logisim.tools.SelectTool(), false, key('a', 0)),
-                "a selection keeps the original keys (R rotates, digits set inputs)");
-        assertTrue(Shortcuts.opensPalette(new com.cburch.logisim.tools.WiringTool(), true, key('x', 0)));
-        assertTrue(!Shortcuts.opensPalette(new com.cburch.logisim.tools.TextTool(), true, key('a', 0)),
-                "the text tool types text");
-        assertTrue(!Shortcuts.opensPalette(poke, true, key('3', 0)), "digits are not letters");
-        assertTrue(!Shortcuts.opensPalette(poke, true,
-                key('k', java.awt.event.InputEvent.CTRL_DOWN_MASK)), "Ctrl+K is its own shortcut");
-
-        // 핀·키보드 부품을 누르고 있으면(원조 poke caret) 글자는 그 부품으로 간다
-        java.lang.reflect.Field f = com.cburch.logisim.tools.PokeTool.class.getDeclaredField("pokeCaret");
-        f.setAccessible(true);
-        f.set(poke, java.lang.reflect.Proxy.newProxyInstance(getClass().getClassLoader(),
-                new Class<?>[] {com.cburch.logisim.tools.Caret.class}, (proxy, m, args) -> null));
-        assertTrue(poke.hcsHasCaret());
-        assertTrue(!Shortcuts.opensPalette(poke, true, key('a', 0)), "hex digit a goes to the poked pin");
     }
 }

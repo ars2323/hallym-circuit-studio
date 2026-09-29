@@ -261,20 +261,6 @@ class InstancePathsTest {
                 kr.ac.hallym.hcs.app.Messages.get("instance.broken", "regfile", 2, 1));
     }
 
-    /** 핀 도구 미리 보기는 모양에 따라 사실만: 기본 모양은 움직일 수 있다, 사용자 모양은 새 포트만(ui-reviewer #248). */
-    @Test
-    void pinToolPreviewDependsOnTheAppearance() throws Exception {
-        build();
-        String def = kr.ac.hallym.hcs.app.instance.InstanceBanner.pinAddPreview(file, blk);
-        assertEquals(expect("핀을 더하면 blk의 인스턴스 3개 모양이 바뀌어 이어진 포트 3개가 움직일 수 있습니다.",
-                "Adding a pin reshapes 3 instances of blk: 3 connected ports may move."), def);
-        blk.getAppearance().setDefaultAppearance(false);
-        String custom = kr.ac.hallym.hcs.app.instance.InstanceBanner.pinAddPreview(file, blk);
-        assertEquals(expect("핀을 더하면 blk의 인스턴스 3개에 포트가 하나 생깁니다. 사용자 모양이라 기존 포트는 그대로입니다.",
-                "Adding a pin adds a port to 3 instances of blk; its custom appearance keeps the existing ports in place."),
-                custom);
-    }
-
     /** 지금 환경 언어의 기대값(설명 문장만 한국어·영어). */
     static String expect(String ko, String en) {
         return com.cburch.logisim.util.LocaleManager.getLocale().getLanguage().equals("ko") ? ko : en;

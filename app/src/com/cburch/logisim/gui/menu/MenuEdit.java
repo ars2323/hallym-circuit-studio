@@ -84,8 +84,6 @@ class MenuEdit extends Menu {
 				KeyEvent.VK_DOWN, menuMask | KeyEvent.SHIFT_DOWN_MASK));
 
 		add(undo);
-		add(kr.ac.hallym.hcs.app.edit.RedoStack.menuItem(menubar.getProject())); // HCS: redo, Ctrl+Y (review)
-		add(kr.ac.hallym.hcs.app.edit.UndoHistory.menuItem(menubar.getProject())); // HCS: E-05 Undo History
 		addSeparator();
 		add(cut);
 		add(copy);

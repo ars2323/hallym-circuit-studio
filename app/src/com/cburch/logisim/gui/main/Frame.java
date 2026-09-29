@@ -68,8 +68,7 @@ public class Frame extends LFrame implements LocaleListener {
 	public static final String VIEW_TOOLBOX = "toolbox";
 	public static final String VIEW_SIMULATION = "simulation";
 
-	// HCS: 25-400% steps shared with Ctrl+wheel and Ctrl+= / Ctrl+- (#69, kr.ac.hallym.hcs.app.zoom.ZoomMath)
-	private static final double[] ZOOM_OPTIONS = { 25, 33, 50, 67, 75, 100, 125, 150, 200, 250, 300, 400 };
+	private static final double[] ZOOM_OPTIONS = { 20, 50, 75, 100, 133, 150, 200, 250, 300, 400 };
 	
 	class MyProjectListener
 			implements ProjectListener, LibraryListener, CircuitListener,
@@ -172,10 +171,6 @@ public class Frame extends LFrame implements LocaleListener {
 	private LayoutToolbarModel layoutToolbarModel;
 	private Canvas          layoutCanvas;
 	private ZoomModel       layoutZoomModel;
-	private kr.ac.hallym.hcs.app.sim.SimControls hcsSim; // HCS: review 1
-	private java.awt.Component hcsToolbar; // HCS: review 1
-	private JPanel hcsNorth; // HCS: review 1
-	private kr.ac.hallym.hcs.app.diag.MessagesPanel hcsMessages; // HCS: #27
 	private LayoutEditHandler layoutEditHandler;
 	private AttrTableSelectionModel attrTableSelectionModel;
 	
@@ -230,85 +225,37 @@ public class Frame extends LFrame implements LocaleListener {
 		mainPanel = new CardPanel();
 		mainPanel.addView(EDIT_LAYOUT, canvasPane);
 		mainPanel.setView(EDIT_LAYOUT);
-		// HCS: attribute panel docked right of the canvas and collapsible, quick attribute bar (#74)
-		JPanel attrPanel = new JPanel(new BorderLayout());
-		attrPanel.add(attrTable, BorderLayout.CENTER);
-		kr.ac.hallym.hcs.app.props.AttrDock hcsDock = new kr.ac.hallym.hcs.app.props.AttrDock(mainPanel, attrPanel);
-		kr.ac.hallym.hcs.app.props.QuickBar.install(this, layoutCanvas, hcsDock);
-		// HCS: Messages tab below the canvas, diagnostic count in the status bar (#27)
-		hcsMessages = kr.ac.hallym.hcs.app.diag.MessagesPanel.install(this);
-		hcsMessages.setCanvasHeight(() -> { // HCS: Y-01 the canvas keeps half of the window height
-			java.awt.Component sp = javax.swing.SwingUtilities.getAncestorOfClass(javax.swing.JScrollPane.class, layoutCanvas);
-			return sp == null ? -1 : sp.getHeight();
-		});
-		mainPanelSuper.add(hcsMessages.around(hcsDock.component()), BorderLayout.CENTER);
-		kr.ac.hallym.hcs.app.cycle.CycleView.install(this, hcsMessages); // HCS: C-02 Cycle View tab below the canvas
-		// HCS: file tabs, circuit tabs and simulation path above the canvas (#68);
-		// toolbar groups, simulation-off banner and status bar (#77)
-		// review 1: the toolbar and the status bar span the whole window (placeToolbar, below)
-		hcsSim = kr.ac.hallym.hcs.app.sim.SimControls.install(this);
-		hcsToolbar = hcsSim.toolbar();
-		JPanel hcsTop = new JPanel(new BorderLayout());
-		hcsTop.add(new kr.ac.hallym.hcs.app.tabs.FileTabBar(this), BorderLayout.CENTER);
-		JPanel hcsBanners = new JPanel(new BorderLayout()); // HCS: P-02 instance banner under the simulation banner
-		hcsBanners.add(hcsSim.banner(), BorderLayout.NORTH);
-		hcsBanners.add(kr.ac.hallym.hcs.app.instance.InstanceBanner.install(this), BorderLayout.SOUTH);
-		hcsTop.add(hcsBanners, BorderLayout.SOUTH);
-		mainPanelSuper.add(hcsTop, BorderLayout.NORTH);
-		// HCS: drop .circ files on the window to open them (#70)
-		kr.ac.hallym.hcs.app.dnd.DropOpen.install(this, layoutCanvas);
-		// HCS: context menus follow the order in which things were selected (#105)
-		kr.ac.hallym.hcs.app.menu.ContextMenus.install(this);
-		kr.ac.hallym.hcs.app.libs.LibrarySync.install(this); // HCS: P-03 library changed or moved since last save
-		kr.ac.hallym.hcs.app.probe.ProbeMenu.installKey(layoutCanvas); // HCS: P puts a probe on a wire (#75)
-		kr.ac.hallym.hcs.app.flow.FlowController.install(layoutCanvas); // HCS: P-07 signal flow on click
-		kr.ac.hallym.hcs.app.keys.Shortcuts hcsKeys = new kr.ac.hallym.hcs.app.keys.Shortcuts(layoutCanvas); // HCS: #78
-		layoutCanvas.setHcsKeys(hcsKeys); // HCS: #78
-		layoutCanvas.addMouseMotionListener(new java.awt.event.MouseMotionAdapter() { // HCS: #76 cursor for palette
-			@Override
-			public void mouseMoved(java.awt.event.MouseEvent e) {
-				hcsKeys.moved(e);
-			}
-		});
-		kr.ac.hallym.hcs.app.palette.PaletteWindow.install(this, hcsKeys::lastMouse); // HCS: Ctrl+K (#76)
-		kr.ac.hallym.hcs.app.find.FindDialog.install(this); // HCS: Ctrl+F (#80)
-		kr.ac.hallym.hcs.app.edit.RedoStack.installKeys(getRootPane(), proj); // HCS: Ctrl+Shift+Z redo (review)
+		mainPanelSuper.add(mainPanel, BorderLayout.CENTER);
 
 		// set up the contents, split down the middle, with the canvas
 		// on the right and a split pane on the left containing the
 		// explorer and attribute values.
 		JPanel explPanel = new JPanel(new BorderLayout());
-		// HCS: review 1: no explorer icon row (same items in the Project menu), no old zoom box (status bar),
-		// a search box above the component tree
-		// HCS: S-11 the lower part of the left panel holds Tunnels and Minimap tabs
-		explPanel.add(new kr.ac.hallym.hcs.app.side.SidePanel(proj, layoutCanvas,
-				new kr.ac.hallym.hcs.app.palette.ToolboxSearch(proj, explorerPane)), BorderLayout.CENTER);
+		explPanel.add(projectToolbar, BorderLayout.NORTH);
+		explPanel.add(explorerPane, BorderLayout.CENTER);
+		JPanel attrPanel = new JPanel(new BorderLayout());
+		attrPanel.add(attrTable, BorderLayout.CENTER);
+		attrPanel.add(zoom, BorderLayout.SOUTH);
 
-		mainRegion = new VerticalSplitPane(explPanel, mainPanelSuper, // HCS: #74 attributes moved to the right dock
-				kr.ac.hallym.hcs.app.window.WindowBounds.mainSplit()); // HCS: X-01 fork-only panel width
+		leftRegion = new HorizontalSplitPane(explPanel, attrPanel,
+				AppPreferences.WINDOW_LEFT_SPLIT.get().doubleValue());
+		mainRegion = new VerticalSplitPane(leftRegion, mainPanelSuper,
+				AppPreferences.WINDOW_MAIN_SPLIT.get().doubleValue());
 
 		getContentPane().add(mainRegion, BorderLayout.CENTER);
-		// HCS: X-03 keep the canvas at least half the window wide; shrink or collapse the side panels first
-		kr.ac.hallym.hcs.app.window.PanelBalance.install(this, mainRegion, explPanel, hcsDock,
-				kr.ac.hallym.hcs.app.window.WindowBounds.mainSplit());
-		JPanel hcsStatus = hcsSim.statusBar(); // HCS: review 1 full-width status bar
-		hcsStatus.add(hcsMessages.statusLabel(), 0); // HCS: #27 diagnostic count first (PLAN.md 11.7)
-		getContentPane().add(hcsStatus, BorderLayout.SOUTH);
 
 		computeTitle();
 
-		// HCS: X-01 (D-105) fork-only window bounds: first run fills the work area, saved bounds are fitted to the
-		// current monitors, the original AppPreferences window values are neither read nor written
-		kr.ac.hallym.hcs.app.window.WindowBounds.apply(this);
-
+		this.setSize(AppPreferences.WINDOW_WIDTH.get().intValue(),
+				AppPreferences.WINDOW_HEIGHT.get().intValue());
+		Point prefPoint = getInitialLocation();
+		if (prefPoint != null) {
+			this.setLocation(prefPoint);
+		}
+		this.setExtendedState(AppPreferences.WINDOW_STATE.get().intValue());
+		
 		menuListener.register(mainPanel);
-		// HCS: zoom and pan (#69)
-		layoutCanvas.setHcsZoom(kr.ac.hallym.hcs.app.zoom.ZoomController.install(proj, layoutCanvas,
-				canvasPane, layoutZoomModel, getRootPane(), () -> EDIT_LAYOUT.equals(getEditorView())));
 		KeyboardToolSelection.register(toolbar);
-		kr.ac.hallym.hcs.app.keys.ToolKeys.register(getRootPane(), toolbar); // HCS: Ctrl+2..9 with the toolbar hidden
-		hcsSim.zoomStatus().setModel(layoutZoomModel, layoutCanvas.getHcsZoom()::zoomTo, // HCS: review 1
-				layoutCanvas.getHcsZoom()::fitCircuit);
 
 		proj.setFrame(this);
 		if (proj.getTool() == null) {
@@ -328,20 +275,6 @@ public class Frame extends LFrame implements LocaleListener {
 		Container contents = getContentPane();
 		contents.remove(toolbar);
 		mainPanelSuper.remove(toolbar);
-		// HCS: review 1: the app toolbar across the window; the original toolbar only for appearance drawing tools
-		if (hcsToolbar != null) {
-			if (hcsNorth == null) hcsNorth = new JPanel(new BorderLayout());
-			hcsNorth.removeAll();
-			hcsNorth.add(hcsToolbar, BorderLayout.NORTH);
-			if (EDIT_APPEARANCE.equals(getEditorView())) {
-				toolbar.setOrientation(Toolbar.HORIZONTAL);
-				hcsNorth.add(toolbar, BorderLayout.SOUTH);
-			}
-			contents.remove(hcsNorth);
-			contents.add(hcsNorth, BorderLayout.NORTH);
-			contents.validate();
-			return;
-		}
 		if (AppPreferences.TOOLBAR_HIDDEN.equals(loc)) {
 			; // don't place value anywhere
 		} else if (AppPreferences.TOOLBAR_DOWN_MIDDLE.equals(loc)) {
@@ -419,21 +352,17 @@ public class Frame extends LFrame implements LocaleListener {
 			toolbar.setToolbarModel(app.getToolbarModel());
 			app.getAttrTableDrawManager(attrTable).attributesSelected();
 			zoom.setZoomModel(app.getZoomModel());
-			hcsSim.zoomStatus().setModel(app.getZoomModel(), app.getZoomModel()::setZoomFactor, null); // HCS: review 1
 			menuListener.setEditHandler(app.getEditHandler());
 			mainPanel.setView(view);
 			app.getCanvas().requestFocus();
 		} else { // layout view
 			toolbar.setToolbarModel(layoutToolbarModel);
 			zoom.setZoomModel(layoutZoomModel);
-			hcsSim.zoomStatus().setModel(layoutZoomModel, layoutCanvas.getHcsZoom()::zoomTo, // HCS: review 1
-					layoutCanvas.getHcsZoom()::fitCircuit);
 			menuListener.setEditHandler(layoutEditHandler);
 			viewAttributes(proj.getTool(), true);
 			mainPanel.setView(view);
 			layoutCanvas.requestFocus();
 		}
-		placeToolbar(); // HCS: review 1 drawing tools only while editing an appearance
 	}
 
 	public String getEditorView() {
@@ -454,15 +383,8 @@ public class Frame extends LFrame implements LocaleListener {
 		} else {
 			s = StringUtil.format(Strings.get("titleFileKnown"), name);
 		}
-		name = kr.ac.hallym.hcs.app.tabs.FileTabs.displayName(proj); // HCS: V-05 same-name files get their folder
-		s = kr.ac.hallym.hcs.app.about.AppIdentity.title(name, circuit, // HCS: E-12 window title
-				proj.getLogisimFile().getMainCircuit());
 		this.setTitle(s);
 		myProjectListener.enableSave();
-	}
-
-	public void recomputeTitle() { // HCS: V-05
-		computeTitle();
 	}
 	
 	void viewAttributes(Tool newTool) {
@@ -485,8 +407,7 @@ public class Frame extends LFrame implements LocaleListener {
 			AttrTableModel oldModel = attrTable.getAttrTableModel();
 			boolean same = oldModel instanceof AttrTableToolModel
 				&& ((AttrTableToolModel) oldModel).getTool() == oldTool;
-			boolean blank = oldModel == null || oldModel.getTitle() == null; // HCS: Y-05 an empty pane shows the circuit
-			if (!force && !same && !blank && !(oldModel instanceof AttrTableCircuitModel)) {
+			if (!force && !same && !(oldModel instanceof AttrTableCircuitModel)) {
 				return;
 			}
 		}
@@ -517,15 +438,22 @@ public class Frame extends LFrame implements LocaleListener {
 			AppPreferences.APPEARANCE_SHOW_GRID.setBoolean(aZoom.getShowGrid());
 			AppPreferences.APPEARANCE_ZOOM.set(Double.valueOf(aZoom.getZoomFactor()));
 		}
-		// HCS: X-01 window state, size, location and the panel split go to the fork's own settings
-		kr.ac.hallym.hcs.app.window.WindowBounds.save(this);
-		kr.ac.hallym.hcs.app.window.PanelBalance pb = kr.ac.hallym.hcs.app.window.PanelBalance.of(this); // HCS: X-03
-		kr.ac.hallym.hcs.app.window.WindowBounds.saveMainSplit(pb != null ? pb.userFraction() : mainRegion.getFraction());
+		int state = getExtendedState() & ~JFrame.ICONIFIED;
+		AppPreferences.WINDOW_STATE.set(Integer.valueOf(state));
+		Dimension dim = getSize();
+		AppPreferences.WINDOW_WIDTH.set(Integer.valueOf(dim.width));
+		AppPreferences.WINDOW_HEIGHT.set(Integer.valueOf(dim.height));
+		Point loc;
 		try {
-			kr.ac.hallym.hcs.app.Settings.get().save();
-		} catch (java.io.IOException e) {
-			// settings not writable: the window opens at the default size next time
+			loc = getLocationOnScreen();
+		} catch (IllegalComponentStateException e) {
+			loc = Projects.getLocation(this);
 		}
+		if (loc != null) {
+			AppPreferences.WINDOW_LOCATION.set(loc.x + "," + loc.y);
+		}
+		AppPreferences.WINDOW_LEFT_SPLIT.set(Double.valueOf(leftRegion.getFraction()));
+		AppPreferences.WINDOW_MAIN_SPLIT.set(Double.valueOf(mainRegion.getFraction()));
 		AppPreferences.DIALOG_DIRECTORY.set(JFileChoosers.getCurrentDirectory());
 	}
 	

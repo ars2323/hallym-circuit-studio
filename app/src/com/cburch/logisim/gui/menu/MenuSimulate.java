@@ -106,13 +106,11 @@ class MenuSimulate extends Menu {
 					proj.repaintCanvas();
 				}
 			} else if (src == reset) {
-				if (proj != null) kr.ac.hallym.hcs.app.record.Recorder.requestReset(proj); // HCS: C-01 record from step 0
+				if (sim != null) sim.requestReset();
 			} else if (src == step || src == LogisimMenuBar.SIMULATE_STEP) {
 				if (sim != null) sim.step();
 			} else if (src == tickOnce || src == LogisimMenuBar.TICK_STEP) {
-				// HCS: D-091 a tick requested while the simulation is off is never consumed and the
-				// propagation thread spins; refuse it and say so in the status bar
-				if (proj != null) kr.ac.hallym.hcs.app.sim.TickGuard.tick(proj);
+				if (sim != null) sim.tick();
 			} else if (src == ticksEnabled || src == LogisimMenuBar.TICK_ENABLE) {
 				if (sim != null) sim.setIsTicking(!sim.isTicking());
 			} else if (src == log) {

@@ -9,12 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
-
-import javax.swing.SwingUtilities;
 
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -22,7 +16,6 @@ import org.junit.jupiter.api.io.TempDir;
 
 import com.cburch.logisim.circuit.CircuitState;
 import com.cburch.logisim.circuit.Simulator;
-import com.cburch.logisim.circuit.SimulatorEvent;
 import com.cburch.logisim.circuit.SimulatorListener;
 import com.cburch.logisim.comp.Component;
 import com.cburch.logisim.data.Location;
@@ -30,16 +23,14 @@ import com.cburch.logisim.file.Loader;
 import com.cburch.logisim.file.LogisimFile;
 import com.cburch.logisim.proj.Project;
 
-import kr.ac.hallym.hcs.app.sim.CyclePacer;
-import kr.ac.hallym.hcs.app.sim.SimControls;
 import kr.ac.hallym.hcs.regress.CircuitBuilder;
 
 /**
  * 부하에서 틱이 빠지지 않는지(D-123). 원조 엔진은 처리 못 한 틱을 16개까지만 쌓고 나머지를 버린다. 틱 완료 알림에서
  * 잠깐 쉬는 청취자로 엔진을 느리게 하고(느린 회로와 같다) CPU를 바쁘게 하는 스레드를 함께 돌린다.
  * <ul>
- * <li>N Cycles: 100·1000 사이클을 요청하면 정확히 그만큼 돈다(v1.0.3까지는 창이 없으면 한꺼번에, 창이 있으면 5ms마다
- * 요청해 엔진이 밀리면 빠졌다).</li>
+ * <li>N Cycles: 엔진의 N Cycles(SimTest·NCyclesSpeedTest)가 처리 중인 틱을 한도 안에 두어 빠지지 않는다. v1 Swing
+ * 실행기의 시험은 N-27에서 실행기와 함께 지웠다(D-163).</li>
  * <li>연속 실행(Ticks Enabled, 높은 Tick Frequency): 엔진이 따라가지 못해 버린 틱은 돌지 않은 틱이다. 돈 틱은 모두
  * 기록되고 사이클 번호가 이어지며 Console 글도 빠지지 않는다.</li>
  * </ul>
@@ -73,26 +64,6 @@ class TickLoadTest {
         return proj.getSimulator().getCircuitState().getValue(counter.getEnd(0).getLocation()).toIntValue();
     }
 
-    void nCycles(int n, int slowMs) throws Exception {
-        Recorder rec = counterCircuit();
-        Simulator sim = proj.getSimulator();
-        sim.addSimulatorListener(TickLoadTestSupport.slow(slowMs));
-        AtomicReference<CyclePacer> pacer = new AtomicReference<>();
-        try (TickLoadTestSupport.Burner b = new TickLoadTestSupport.Burner(4)) {
-            SwingUtilities.invokeAndWait(() -> pacer.set(SimControls.runCycles(proj, n)));
-            long end = System.currentTimeMillis() + 120_000;
-            while (!pacer.get().isFinished() && System.currentTimeMillis() < end) {
-                Thread.sleep(20);
-            }
-        }
-        assertTrue(pacer.get().isFinished(), "N Cycles finished");
-        RecorderTest.waitFor(() -> rec.current().last() == 2 * n, "recorded " + 2 * n + " steps, got "
-                + rec.current().last());
-        assertEquals(2 * n, pacer.get().requested());
-        assertEquals(n, counterValue(), "counter after " + n + " cycles");
-        assertEquals(n, rec.current().value(counter.getEnd(0).getLocation(), 2 * n).toIntValue());
-    }
-
     /**
      * 원인 확인: 틱 200개를 한꺼번에 요청하면(v1.0.3까지 창 없는 Next Cycle이 이렇게 했다) 엔진이 느릴 때 16개를 넘는
      * 요청은 버려져 200틱이 돌지 않는다. 엔진 동작이 바뀌면(버리지 않으면) 이 테스트가 알려 준다.
@@ -111,16 +82,6 @@ class TickLoadTest {
         RecorderTest.waitFor(() -> rec.current().last() == stable(rec.current()), "the queue drained");
         assertTrue(ran.get() < 200, "the engine ran " + ran.get() + " of 200 ticks");
         assertEquals(ran.get(), rec.current().last(), "what ran is what was recorded");
-    }
-
-    @Test
-    void hundredCyclesAreExactlyHundredUnderLoad() throws Exception {
-        nCycles(100, 8);
-    }
-
-    @Test
-    void thousandCyclesAreExactlyThousandUnderLoad() throws Exception {
-        nCycles(1000, 6);
     }
 
     /** 기록된 스텝이 0부터 빈틈없이 이어지고 스텝 2k의 카운터가 k: 돈 틱은 모두 한 줄씩 기록됐다(두 사이클이 한 줄로 합쳐지지 않았다). */

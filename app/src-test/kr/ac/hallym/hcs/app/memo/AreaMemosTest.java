@@ -9,7 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -98,10 +97,5 @@ class AreaMemosTest {
         LogisimFile again = new Loader(null).openLogisimFile(ext);
         CircExtensions.afterOpen(again, ext);
         assertEquals(Arrays.asList(big, small), AreaMemos.of(again, again.getMainCircuit()));
-
-        BufferedImage img = new BufferedImage(600, 500, BufferedImage.TYPE_INT_ARGB);
-        MemoOverlay.paint(img.createGraphics(), AreaMemos.of(f, main));
-        assertTrue((img.getRGB(101, 300) >>> 24) > 0, "box fill drawn");
-        assertEquals(0, img.getRGB(550, 450) >>> 24, "outside untouched");
     }
 }

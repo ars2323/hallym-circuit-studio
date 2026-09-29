@@ -142,7 +142,9 @@ class SubprocessTest {
         try (java.util.jar.JarFile j = new java.util.jar.JarFile(jar)) {
             assertEquals("kr.ac.hallym.hcs.engine.Main", j.getManifest().getMainAttributes().getValue("Main-Class"));
             for (String must : new String[] {"com/google/gson/Gson.class", "META-INF/LICENSE-Gson.txt", "META-INF/NOTICE",
-                "COPYING.TXT", "com/cburch/logisim/file/Loader.class", "resources/logisim/default.templ"}) {
+                "COPYING.TXT", "com/cburch/logisim/file/Loader.class", "resources/logisim/default.templ",
+                // D-125: 두 트랙 공용 소스는 app 모듈이 컴파일해 엔진 jar에 싣는다
+                "kr/ac/hallym/hcs/mips/image/HmxFormat.class"}) {
                 assertTrue(j.getEntry(must) != null, "has " + must);
             }
             String notice = new String(j.getInputStream(j.getEntry("META-INF/NOTICE")).readAllBytes(),

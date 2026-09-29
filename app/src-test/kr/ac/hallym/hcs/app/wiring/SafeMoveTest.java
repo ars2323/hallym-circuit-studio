@@ -219,7 +219,6 @@ class SafeMoveTest {
         assertEquals(SafeMove.Outcome.REFUSED, move(List.of(lower), 0, -50), "would lie on P–Q's line");
         assertEquals(geo, geometry(c));
         assertEquals(all, NetSignature.of(c, List.of()));
-        assertTrue(kr.ac.hallym.hcs.app.sim.SimControls.lastNotice(proj) != null, "one line in the status bar");
     }
 
     /** P ─ 가로 다리 ─ 세로 선분 ─ 가로 다리 ─ Q(ㄹ자). */
@@ -252,8 +251,6 @@ class SafeMoveTest {
         Set<String> geo = geometry(c);
         Set<Set<Netlist.PortRef>> all = NetSignature.of(c, List.of());
         assertEquals(SafeMove.Outcome.MOVED, move(List.of(middle(c)), 40, 0));
-        assertTrue(kr.ac.hallym.hcs.app.props.QuickBar.isQuiet(proj, sel.getComponents()),
-                "no quick bar right after a move (S-04)");
         assertTrue(geometry(c).containsAll(List.of("W" + Location.create(100, 100) + Location.create(240, 100),
                 "W" + Location.create(240, 100) + Location.create(240, 200),
                 "W" + Location.create(240, 200) + Location.create(300, 200))), geometry(c).toString());

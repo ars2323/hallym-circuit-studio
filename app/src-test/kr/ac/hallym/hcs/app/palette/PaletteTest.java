@@ -16,14 +16,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import com.cburch.logisim.circuit.Circuit;
-import com.cburch.logisim.comp.Component;
-import com.cburch.logisim.data.Location;
 import com.cburch.logisim.file.Loader;
 import com.cburch.logisim.file.LogisimFile;
 import com.cburch.logisim.tools.Library;
@@ -129,23 +126,6 @@ class PaletteTest {
         assertEquals(Arrays.asList("Adder", "AND Gate"), Palette.touch(Arrays.asList("AND Gate", "Adder"), "Adder"));
     }
 
-    /** Enter로 놓은 부품의 속성이 입력과 같다. */
-    @Test
-    void placedComponentHasTheTypedAttributes() throws Exception {
-        start();
-        Circuit main = file.getMainCircuit();
-        PaletteActions.place(main, first("and 3"), Location.create(203, 198)).execute();
-        PaletteActions.place(main, first("reg 32"), Location.create(400, 300)).execute();
-        Map<String, Component> byName = new java.util.HashMap<>();
-        for (Component c : main.getNonWires()) {
-            byName.put(c.getFactory().getName(), c);
-        }
-        Component and = byName.get("AND Gate");
-        assertEquals(Location.create(200, 200), and.getLocation(), "snapped to the grid");
-        assertEquals(1 + 3, and.getEnds().size(), "three inputs and an output");
-        assertEquals(32, byName.get("Register").getEnds().get(0).getWidth().getWidth());
-    }
-
     /**
      * 목록에는 원조 표시 이름과 속성 표시 이름이 보인다. 이름은 한국어 UI에서도 영어다(D-049). 저장용 속성 이름
      * (width=)은 보이지 않는다.
@@ -160,9 +140,7 @@ class PaletteTest {
             assertEquals("Multiplexer", mux.name, "storage name for placing");
             assertEquals("Multiplexer", Palette.displayName(mux));
             assertEquals("Data Bits 32", Palette.attrText(mux));
-            String label = PaletteWindow.label(mux);
-            assertTrue(label.contains("Multiplexer") && label.contains("Data Bits 32") && !label.contains("width="),
-                    label);
+            assertTrue(!Palette.attrText(mux).contains("width="), Palette.attrText(mux));
             assertEquals("Multiplexer", first("먹스").name, "Korean aliases still find it");
         } finally {
             com.cburch.logisim.util.LocaleManager.setLocale(before);

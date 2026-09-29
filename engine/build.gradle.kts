@@ -1,6 +1,6 @@
 // N-03: Java 엔진 서버(D-133, D-134). headless Logisim 2.7.1 위에서 stdio JSON-RPC(docs/engine-api.md)로
 // 파일·모델·편집·시뮬레이션을 연다. 화면(Electron main)이 `java -jar hcs-engine.jar`로 띄운다.
-// Logisim 소스와 GUI 없는 kr.ac.hallym.hcs.app.* 코드는 :app 모듈에서 그대로 쓴다(N-27에서 필요한 것만 옮긴다).
+// Logisim 소스와 GUI 없는 kr.ac.hallym.hcs.app.* 코드는 :app 모듈(N-27부터 GUI 없는 라이브러리, D-163)에서 쓴다.
 
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -49,7 +49,8 @@ tasks.named("distZip") { enabled = false }
 tasks.named("distTar") { enabled = false }
 
 // 실행 가능한 단일 jar(D-134): 엔진 + 포크 클래스·Logisim 리소스 + Gson. 화면 전용 짐(도움말 HTML, FlatLaf,
-// 글꼴, 캐릭터 그림)은 뺀다. hcs-mips.jar는 넣지 않고 옆에 둔다(원조와 같은 JAR 라이브러리 방식, D-007).
+// 글꼴, 캐릭터 그림)은 N-27(D-163)에서 app 모듈과 함께 없어졌다. hcs-mips.jar는 넣지 않고 옆에 둔다(원조와 같은
+// JAR 라이브러리 방식, D-007).
 tasks.jar {
     archiveFileName = "hcs-engine.jar"
     manifest {
@@ -63,13 +64,10 @@ tasks.jar {
     from(configurations.runtimeClasspath.map { cp -> cp.map { if (it.isDirectory) it else zipTree(it) } }) {
         exclude("META-INF/MANIFEST.MF", "META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
         exclude("module-info.class", "META-INF/versions/**")
-        exclude("doc/**") // Logisim 도움말(Swing Help 메뉴)
-        // FlatLaf(Swing 화면)는 싣지 않으므로 그 라이선스 글도 뺀다
-        exclude("com/formdev/**", "META-INF/LICENSE", "META-INF/LICENSE-FlatLaf.txt", "LICENSE-FlatLaf.txt")
-        exclude("kr/ac/hallym/hcs/app/fonts/**", "kr/ac/hallym/hcs/app/character/**", "kr/ac/hallym/hcs/app/logo/**")
     }
-    // Gson(Apache-2.0) 라이선스 전문. GPL 전문은 포크 클래스와 함께 COPYING.TXT로 들어간다
+    // Gson(Apache-2.0) 라이선스 전문과 GPL 전문(COPYING.TXT, 원조 Logisim jar와 같은 자리)
     from("licenses") { into("META-INF") }
+    from(rootProject.file("LICENSE")) { rename { "COPYING.TXT" } }
     from(rootProject.file("NOTICE")) { into("META-INF") }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }

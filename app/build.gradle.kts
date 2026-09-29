@@ -1,13 +1,13 @@
-// 트랙 B: Logisim 2.7.1 포크. app/src, app/resources, app/doc은 원본 jar에서 그대로 들여온 것이다(#3).
+// 트랙 B: Logisim 2.7.1 포크. app/src, app/resources는 원본 jar에서 그대로 들여온 것이다(#3).
 // 원본 jar에 소스 없이 클래스로만 들어 있던 서드파티(ColorPicker, FontChooser, JavaHelp, MRJAdapter)는
 // vendor jar에서 꺼내 함께 묶는다. 엔진 소스는 원본과 같아야 한다(tools/check-engine-unchanged.sh).
+// N-27(D-163): Swing 화면(v1 앱)은 지웠다(옛 코드는 태그 swing-final). 이 모듈은 이제 엔진(engine/)이 쓰는 라이브러리다:
+// 원조 Logisim 소스와 GUI 없는 kr.ac.hallym.hcs.app.* 코드(넷·진단·기록·경로·식별자·등록표·확장 정보). 실행 jar를
+// 만들지 않는다.
 
 plugins {
-    java
-    application
+    `java-library`
 }
-
-version = "1.0.3"
 
 val logisimJar = rootProject.file("vendor/logisim-2.7.1/logisim-generic-2.7.1.jar")
 
@@ -31,7 +31,7 @@ sourceSets {
         // src-hcs: 포크가 더한 코드(kr.ac.hallym.hcs.app). lib-mips/src/shared/java: 두 트랙 공용 코드(D-125)
         java.setSrcDirs(listOf("src", "src-hcs", rootProject.file("lib-mips/src/shared/java")))
         resources.setSrcDirs(listOf("."))
-        resources.include("resources/**", "doc/**")
+        resources.include("resources/**")
     }
     test {
         java.setSrcDirs(listOf("src-test")) // src/는 원본 소스 트리라 테스트는 따로 둔다
@@ -41,7 +41,6 @@ sourceSets {
 
 dependencies {
     implementation(files(thirdParty))
-    implementation("com.formdev:flatlaf:3.7.2") // Apache-2.0, NOTICE
     testImplementation(project(":regress"))
     testImplementation(platform("org.junit:junit-bom:5.13.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")
@@ -50,23 +49,6 @@ dependencies {
 
 tasks.processResources {
     from("src-hcs") { include("**/*.properties") } // 포크 문구 번들은 코드 옆에 둔다
-    // Help › Examples(V-07): 사람이 그린 예제 회로를 번들한다(tests/circ와 같은 파일)
-    from(rootProject.file("tests/circ")) {
-        include("demo-datapath.circ", "console-demo.circ", "stack-demo.circ")
-        into("kr/ac/hallym/hcs/app/examples")
-    }
-    from(rootProject.file("assets/fonts/pretendard")) { into("kr/ac/hallym/hcs/app/fonts") } // OFL, LICENSE.txt 포함
-    // 첫 실행 안내의 캐릭터(한림대학교 소유, 원본 그대로). 쓰는 두 장만 넣는다.
-    from(rootProject.file("assets/hallym/character")) {
-        include("haram-hari-greeting.png", "haram-hari-ok.png", "haram-hari.png")
-        into("kr/ac/hallym/hcs/app/character")
-    }
-    // About 창과 앱 아이콘(E-11·E-12): 학교 엠블럼과 앱 아이콘(원형 그대로 만든 파생 PNG), 라이선스·고지 원문
-    from(rootProject.file("assets/hallym/logo")) {
-        include("app-*.png", "emblem-a-navy-112.png", "emblem-a-navy-112@2x.png")
-        into("kr/ac/hallym/hcs/app/logo")
-    }
-    from(rootProject.files("LICENSE", "NOTICE")) { into("kr/ac/hallym/hcs/app/about") }
 }
 
 tasks.withType<JavaCompile>().configureEach {
@@ -76,51 +58,33 @@ tasks.withType<JavaCompile>().configureEach {
     options.compilerArgs.addAll(listOf("-Xlint:none", "-nowarn"))
 }
 
-application {
-    mainClass = "com.cburch.logisim.Main"
-}
-
-tasks.jar {
-    archiveFileName = "hallym-circuit-studio.jar"
-    manifest {
-        attributes(
-            "Main-Class" to "com.cburch.logisim.Main",
-            "Implementation-Version" to project.version,
-            "Multi-Release" to "true", // FlatLaf의 META-INF/versions/9 클래스
-        )
-    }
-    from(zipTree(thirdParty.map { it.archiveFile })) // 실행 가능한 단일 jar
-    from(configurations.runtimeClasspath.map { cp -> cp.filter { it.name.startsWith("flatlaf") }.map { zipTree(it) } }) {
-        exclude("META-INF/versions/**/module-info.class", "module-info.class", "META-INF/MANIFEST.MF")
-        rename("^LICENSE$", "LICENSE-FlatLaf.txt") // Apache-2.0 전문
-    }
-    from(rootProject.file("LICENSE")) { rename { "COPYING.TXT" } }
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-}
-
 evaluationDependsOn(":lib-mips")
 val mipsJar = project(":lib-mips").tasks.named<Jar>("jar")
 
-// 개발용 배치: 포크 jar 옆 lib/에 번들 라이브러리(hcs-mips.jar)를 둔다(D-007). hcs-asm은 없어졌다(D-141).
-val stage by tasks.registering(Sync::class) {
-    into(layout.buildDirectory.dir("stage"))
-    from(tasks.jar)
-    into("lib") {
-        from(mipsJar)
+// 시험 전용: 포크 클래스를 원조 시작점(com.cburch.logisim.Main)으로 돌리는 jar. 엔진 회귀(ForkEngineRegressionTest)와
+// .circ 라이브러리 시험이 원조 jar와 같은 방법(-tty table)으로 돌린다. 배포하지 않는다(D-163).
+val ttyJar by tasks.registering(Jar::class) {
+    archiveFileName = "fork-tty.jar"
+    destinationDirectory = layout.buildDirectory.dir("tty")
+    manifest {
+        attributes("Main-Class" to "com.cburch.logisim.Main")
     }
+    from(sourceSets["main"].output)
+    from(zipTree(thirdParty.map { it.archiveFile }))
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 // D-129: 모든 객체의 identity hash가 같은 상수인 JVM. System.identityHashCode는 고유하지 않으므로 열쇠·서명으로
 // 쓰면 이 JVM에서 드러난다(촬영 도구가 같은 옵션으로 돈다).
 val constantIdentityHash = listOf("-XX:+UnlockExperimentalVMOptions", "-XX:hashCode=2")
 
-// 단위 테스트와 GUI 테스트(@Tag("gui"), 화면이 필요)가 함께 쓰는 설정.
+// 단위 테스트 설정.
 // prefs·config: 환경설정 폴더 이름(build/ 아래). 같은 테스트를 다른 JVM 옵션으로 도는 작업은 따로 둔다.
 fun Test.hcsTestSetup(headless: Boolean, prefs: String = "test-prefs", config: String = "test-config") {
-    dependsOn(tasks.jar, mipsJar)
+    dependsOn(mipsJar, ttyJar)
     // 같은 곳에서 되풀이된 예외에도 스택을 남긴다: 동시성 테스트가 원조 자체의 경합을 스택으로 가려낸다(D-143, LogisimRace)
     jvmArgs("-XX:-OmitStackTraceInFastThrow")
-    // GUI 테스트 등을 상수 identity hash로 한 번 돌려 볼 때: ./gradlew :app:guiTest -Phcs.constantHash=true (D-129)
+    // 상수 identity hash로 한 번 돌려 볼 때: ./gradlew :app:test -Phcs.constantHash=true (D-129)
     if ((findProperty("hcs.constantHash") ?: "false").toString() == "true") {
         jvmArgs(constantIdentityHash)
     }
@@ -135,7 +99,7 @@ fun Test.hcsTestSetup(headless: Boolean, prefs: String = "test-prefs", config: S
     // Logisim은 언어 등을 Java 환경설정에 저장한다. 테스트가 개발자 PC의 설정을 바꾸지 않게 따로 둔다.
     systemProperty("java.util.prefs.userRoot", layout.buildDirectory.dir(prefs).get().asFile.absolutePath)
     systemProperty("hcs.configDir", layout.buildDirectory.dir(config).get().asFile.absolutePath)
-    systemProperty("hcs.forkJar", tasks.jar.get().archiveFile.get().asFile.absolutePath)
+    systemProperty("hcs.forkJar", ttyJar.get().archiveFile.get().asFile.absolutePath)
     systemProperty("hcs.logisimJar", logisimJar.absolutePath)
     systemProperty("hcs.circDir", rootProject.file("tests/circ").absolutePath)
     // 기록 엔진 테스트는 굳혀 둔 실행 이미지(tests/hmx)를 올린다(hcs-asm은 없어졌다, D-141)
@@ -169,15 +133,4 @@ val testConstantIdentityHash by tasks.registering(Test::class) {
     hcsTestSetup(headless = true, prefs = "hash-test-prefs", config = "hash-test-config")
     jvmArgs(constantIdentityHash)
     mustRunAfter(tasks.test)
-}
-
-// GUI 스모크 테스트(PLAN.md 11.16): 실제 창을 만든다. 화면이 필요하다: xvfb-run -a ./gradlew :app:guiTest
-val guiTest by tasks.registering(Test::class) {
-    description = "Runs GUI tests (@Tag(\"gui\")); needs a display such as Xvfb."
-    group = "verification"
-    testClassesDirs = sourceSets["test"].output.classesDirs
-    classpath = sourceSets["test"].runtimeClasspath
-    useJUnitPlatform { includeTags("gui") }
-    hcsTestSetup(headless = false)
-    systemProperty("java.util.prefs.userRoot", layout.buildDirectory.dir("gui-test-prefs").get().asFile.absolutePath)
 }

@@ -125,17 +125,4 @@ class SignalGroupsTest {
         SignalGroups.PRUNER.prune(f, CircExtensions.of(f));
         assertFalse(CircExtensions.of(f).items(main.getName()).stream().anyMatch(i -> i.kind().equals("group")));
     }
-
-    @Test
-    void viewModeIsAnAppSetting() {
-        boolean before = SignalGroups.showGroups();
-        try {
-            SignalGroups.setShowGroups(false);
-            assertFalse(SignalGroups.showGroups(), "values by default");
-            SignalGroups.setShowGroups(true);
-            assertTrue(SignalGroups.showGroups());
-        } finally {
-            SignalGroups.setShowGroups(before);
-        }
-    }
 }

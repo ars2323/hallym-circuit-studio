@@ -192,16 +192,6 @@ class SplitterEditsTest {
     }
 
     @Test
-    void clickingABoundarySplitsOrJoins() throws Exception {
-        SplitterSpec s = SplitterSpec.parse("7:0", 8, true);
-        SplitterSpec split = SplitterEditor.toggle(s, 4).ordered(true);
-        assertEquals("7:4, 3:0", split.toText());
-        SplitterSpec joined = SplitterEditor.toggle(split, 4).ordered(true);
-        assertEquals("7:0", joined.toText());
-        assertEquals("7:0", SplitterEditor.toggle(s, 0).toText(), "no boundary right of bit 0");
-    }
-
-    @Test
     void selectionOrderFollowsClicks() {
         SelectionOrder<String> o = new SelectionOrder<>();
         String pc = new String("PC[31:28]");

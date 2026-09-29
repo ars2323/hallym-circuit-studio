@@ -52,7 +52,7 @@ public class WindowManagers {
 		private Project proj;
 		
 		ProjectManager(Project proj) {
-			super(kr.ac.hallym.hcs.app.tabs.FileTabs.displayName(proj), false); // HCS: V-05
+			super(proj.getLogisimFile().getName(), false);
 			this.proj = proj;
 			proj.addProjectListener(this);
 			proj.addLibraryListener(this);
@@ -66,21 +66,15 @@ public class WindowManagers {
 		
 		public void projectChanged(ProjectEvent event) {
 			if (event.getAction() == ProjectEvent.ACTION_SET_FILE) {
-				setText(kr.ac.hallym.hcs.app.tabs.FileTabs.displayName(proj)); // HCS: V-05
+				setText(proj.getLogisimFile().getName());
 			}
 		}
 
 		public void libraryChanged(LibraryEvent event) {
 			if (event.getAction() == LibraryEvent.SET_NAME) {
-				setText(kr.ac.hallym.hcs.app.tabs.FileTabs.displayName(proj)); // HCS: V-05
+				setText((String) event.getData());
 			}           
 		}
-	}
-
-	/** HCS: V-05. Same-name files: refresh the Window menu text of one project. */
-	public static void retitle(Project proj) {
-		ProjectManager m = projectMap.get(proj);
-		if (m != null) m.setText(kr.ac.hallym.hcs.app.tabs.FileTabs.displayName(proj));
 	}
 	
 	private static void computeListeners() {

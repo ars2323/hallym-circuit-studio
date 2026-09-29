@@ -19,7 +19,6 @@ import com.cburch.logisim.proj.Action;
 import com.cburch.logisim.proj.Project;
 
 import kr.ac.hallym.hcs.app.Messages;
-import kr.ac.hallym.hcs.app.Settings;
 import kr.ac.hallym.hcs.app.ext.CircExtension;
 import kr.ac.hallym.hcs.app.ext.CircExtensions;
 import kr.ac.hallym.hcs.app.model.Netlist;
@@ -48,7 +47,6 @@ public final class SignalGroups {
     }
 
     static final String KIND = "group";
-    static final String MODE = "wires.colorMode";
 
     /** 저장 전: 가리키는 넷이 사라진 항목을 지운다. */
     public static final CircExtensions.Pruner PRUNER = (file, ext) -> {
@@ -63,20 +61,6 @@ public final class SignalGroups {
     };
 
     private SignalGroups() {
-    }
-
-    /** 그룹 색 보기(Colors: Groups)인가. 기본은 값(Values). */
-    public static boolean showGroups() {
-        return "groups".equals(Settings.get().getString(MODE, "values"));
-    }
-
-    public static void setShowGroups(boolean on) {
-        Settings.get().set(MODE, on ? "groups" : "values");
-        try {
-            Settings.get().save();
-        } catch (java.io.IOException e) {
-            // 환경설정을 못 써도 이번 실행에는 바뀐다
-        }
     }
 
     /** 넷을 가리키는 열쇠: 이름, 없으면 가장 작은 자리. */

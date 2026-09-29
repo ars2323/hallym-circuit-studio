@@ -107,12 +107,8 @@ class CanvasPainter implements PropertyChangeListener {
 		}
 		g.setColor(Color.white);
 		g.fillRect(clip.x, clip.y, clip.width, clip.height);
-		// HCS: S-10 the circuit is drawn at the canvas origin offset (set by "fit")
-		g = g.create();
-		g.translate(canvas.getHcsOriginX(), canvas.getHcsOriginY());
 
 		grid.paintGrid(g);
-		kr.ac.hallym.hcs.app.tutorial.EmptyHint.paint(canvas, g, proj.getCurrentCircuit()); // HCS: V-07 empty canvas hint
 		g.setColor(Color.black);
 
 		Graphics gScaled = g.create();
@@ -132,7 +128,6 @@ class CanvasPainter implements PropertyChangeListener {
 		gScaled.setColor(Color.BLUE);
 		proj.getSimulator().drawStepPoints(ptContext);
 		gScaled.dispose();
-		g.dispose(); // HCS: S-10
 	}
 
 	private void drawWithUserState(Graphics base, Graphics g, Project proj) {
@@ -168,23 +163,11 @@ class CanvasPainter implements PropertyChangeListener {
 		// draw circuit and selection
 		CircuitState circState = proj.getCircuitState();
 		boolean printerView = AppPreferences.PRINTER_VIEW.getBoolean();
-		// HCS: label chips take the place of the original label text on the editing canvas (#79)
-		Graphics hcsG = kr.ac.hallym.hcs.app.labels.LabelOverlay.wrap(canvas, g, circ, hidden);
-		// HCS: S-06 original parts' port names only when hovered or at 200%+, outside the part
-		ComponentDrawContext context = kr.ac.hallym.hcs.app.labels.PortLabels.context(canvas,
-				circ, circState, base, hcsG, printerView);
+		ComponentDrawContext context = new ComponentDrawContext(canvas,
+				circ, circState, base, g, printerView);
 		context.setHighlightedWires(highlightedWires);
-		kr.ac.hallym.hcs.app.memo.MemoOverlay.paintBehind(canvas, g, circ); // HCS: E-08 area memos behind parts
 		circ.draw(context, hidden);
-		kr.ac.hallym.hcs.app.wiring.WireMarks.paint(canvas, g, circ, circState, hidden); // HCS: W-04 junctions, jumps
-		kr.ac.hallym.hcs.app.influence.InfluenceOverlay.paint(canvas, context, g, circ); // HCS: P-01 influence
-		kr.ac.hallym.hcs.app.cycle.ActivePathOverlay.paint(canvas, g, circ, circState); // HCS: C-08 active path
-		kr.ac.hallym.hcs.app.cycle.FieldOverlay.paint(canvas, g, circ); // HCS: C-07 instruction field colors
-		kr.ac.hallym.hcs.app.flow.FlowController.paint(canvas, g, circ); // HCS: P-07 signal flow
 		sel.draw(context, hidden);
-		kr.ac.hallym.hcs.app.labels.LabelOverlay.paint(canvas, g, circ, circState, hidden); // HCS: #79
-		kr.ac.hallym.hcs.app.flow.FlowController.afterLabels(canvas); // HCS: P-07 flow labels avoid fresh chips
-		kr.ac.hallym.hcs.app.diag.DiagMarks.paint(canvas, g, circ); // HCS: #27 diagnostic marks
 
 		// draw tool
 		Tool tool = dragTool != null ? dragTool : proj.getTool();

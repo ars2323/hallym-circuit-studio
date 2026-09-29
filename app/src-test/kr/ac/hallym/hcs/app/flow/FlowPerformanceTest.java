@@ -7,8 +7,6 @@ package kr.ac.hallym.hcs.app.flow;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Graphics2D;
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -16,7 +14,6 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.function.Supplier;
 
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -27,16 +24,13 @@ import com.cburch.logisim.comp.Component;
 import com.cburch.logisim.file.Loader;
 
 /**
- * P-07 성능(CI 로그에 수치를 남기고 넘으면 실패): ref-mips.circ 전체와 demo-datapath.circ에서 경로 계산 50ms 이하,
- * 프레임 그리기 4ms 이하. 중앙값으로 잰다(처음 몇 번은 JIT 예열로 버린다).
+ * P-07 성능(CI 로그에 수치를 남기고 넘으면 실패): ref-mips.circ 전체와 demo-datapath.circ에서 경로 계산 50ms 이하.
+ * 중앙값으로 잰다(처음 몇 번은 JIT 예열로 버린다). 그리기는 화면(electron/)의 몫이다(v1 Swing 그리기는 N-27에서 지웠다).
  */
 // 벽시계 시간을 잰다: 상수 identity hash 실행(testConstantIdentityHash)에서는 뺀다(D-129)
 @Tag("timing")
 class FlowPerformanceTest {
     static final double PATH_MS = 50;
-    static final double FRAME_MS = 4;
-    /** 앞단이 퍼지는 동안(처음 약 2초)은 그때그때 그린다: 30fps 한 장 33ms 안에서 넉넉히. */
-    static final double FRONT_MS = 8;
 
     @TempDir
     Path tmp;
@@ -91,64 +85,14 @@ class FlowPerformanceTest {
         return worst;
     }
 
-    static double frame(Circuit c, Supplier<SignalFlowPath> path, List<String> log, String name) {
-        return frame(c, path, log, name, false);
-    }
-
-    /** front가 참이면 앞단이 절반쯤 퍼진 장면, 아니면 연속 흐름. */
-    static double frame(Circuit c, Supplier<SignalFlowPath> path, List<String> log, String name, boolean front) {
-        SignalFlowPath p = path.get();
-        BufferedImage img = new BufferedImage(1600, 900, BufferedImage.TYPE_INT_RGB); // 캔버스 바탕처럼
-        double t = front ? p.total / 2 : p.total + 123; // 연속 흐름: 경로 전체를 그린다
-        java.awt.Rectangle whole = FlowPainter.bounds(p, c);
-        // 캔버스처럼: 다시 그리는 영역은 경로 상자 ∩ 보이는 창(1600×900)
-        java.awt.Rectangle box = whole == null ? null
-                : whole.intersection(new java.awt.Rectangle(whole.x, whole.y, 1600, 900));
-        double ms = median(10, 30, () -> {
-            Graphics2D g = img.createGraphics();
-            if (box != null) {
-                g.setClip(box); // 캔버스처럼 경로 상자만 다시 그린다
-            }
-            FlowPainter.paint(g, p, c, t, 1.0, false, null);
-            g.dispose();
-        });
-        log.add(String.format("[perf] %s " + (front ? "front " : "") + "frame (%d segments): %.3f ms (%d jumps, %d endpoints)", name, p.segments.size(), ms, p.jumps.size(), p.endpoints.size()));
-        return ms;
-    }
-
     @Test
-    void pathAndFrameAreFastEnough() throws Exception {
+    void pathIsFastEnough() throws Exception {
         List<String> log = new ArrayList<>();
         Circuit ref = open(new File(System.getProperty("hcs.refMips")));
         Circuit demo = open(new File(System.getProperty("hcs.circDir"), "demo-datapath.circ"));
         double refPath = worstPath(ref, log, "ref-mips");
         double demoPath = worstPath(demo, log, "demo-datapath");
-        Component pc = null;
-        for (Component x : demo.getNonWires()) {
-            if ("PC".equals(x.getAttributeSet().getValue(com.cburch.logisim.instance.StdAttr.LABEL))) {
-                pc = x;
-            }
-        }
-        final Component start = pc;
-        SignalFlowPath.Options through = new SignalFlowPath.Options();
-        through.throughRegisters = true;
-        double demoFrame = frame(demo, () -> SignalFlowPath.fromComponent(demo, start, 0, through), log,
-                "demo-datapath");
-        Component refStart = null;
-        for (Component x : ref.getNonWires()) {
-            if (x.getFactory().getName().equals("Register")) {
-                refStart = x;
-                break;
-            }
-        }
-        final Component rs = refStart;
-        double refFrame = frame(ref, () -> SignalFlowPath.fromComponent(ref, rs, -1, through), log, "ref-mips");
-        double demoFront = frame(demo, () -> SignalFlowPath.fromComponent(demo, start, 0, through), log,
-                "demo-datapath", true);
-        double refFront = frame(ref, () -> SignalFlowPath.fromComponent(ref, rs, -1, through), log, "ref-mips", true);
         log.forEach(System.out::println);
         assertTrue(refPath <= PATH_MS && demoPath <= PATH_MS, "path: " + log);
-        assertTrue(demoFrame <= FRAME_MS && refFrame <= FRAME_MS, "frame: " + log);
-        assertTrue(demoFront <= FRONT_MS && refFront <= FRONT_MS, "front frame: " + log);
     }
 }

@@ -25,7 +25,6 @@ import com.cburch.logisim.data.Direction;
 import com.cburch.logisim.data.Location;
 import com.cburch.logisim.file.LoadedLibrary;
 import com.cburch.logisim.file.LogisimFile;
-import com.cburch.logisim.gui.main.Frame;
 import com.cburch.logisim.instance.Instance;
 import com.cburch.logisim.instance.StdAttr;
 import com.cburch.logisim.proj.Project;
@@ -40,12 +39,12 @@ import kr.ac.hallym.hcs.app.model.Netlist;
  * 바꾼다. 원조 {@code LibraryManager.fileSaved}가 그 일을 하려 하지만 찾지 못해 아무것도 하지 않으므로, 원조 공개
  * {@code Loader.reload}로 다시 불러온다(D-065).
  * <ul>
- * <li>저장 전: 저장할 파일의 회로 포트가 바뀌어 다른 열린 파일의 인스턴스 연결이 끊기면 "ripple_carry의 fa0, fa1
- * 연결 4곳이 끊깁니다"처럼 알리고 저장할지 묻는다(학생이 고른다). 끊긴 곳은 학생이 그 파일에서 다시 잇는다.</li>
- * <li>저장 뒤: 그 파일을 쓰는 열린 탭의 시뮬레이션을 리셋하고 탭에 "Updated"를 단다.</li>
- * <li>열 때: 이 파일이 쓰는 라이브러리 파일이 이 파일보다 나중에 바뀌었으면 알린다. 라이브러리 경로를 찾기 창으로 바꿨으면
- * 저장해서 상대 경로로 남기라고 알리고 저장할 것으로 표시한다.</li>
+ * <li>저장 전: 저장할 파일의 회로 포트가 바뀌어 다른 열린 파일의 인스턴스 연결이 끊기는 곳({@link #impact}).</li>
+ * <li>원본 파일: 라이브러리 회로를 주는 파일({@link #originFile}).</li>
+ * <li>열 때: 이 파일이 쓰는 라이브러리 파일이 이 파일보다 나중에 바뀌었는지, 경로가 바뀌었는지({@link #check}).</li>
  * </ul>
+ * 엔진이 이 사실로 답하고 저장 뒤 다시 불러오기는 엔진이 한다({@code CircuitService}). v1 Swing판의 묻는 창·탭 표시·상태
+ * 표시줄 알림은 화면 코드와 함께 지웠다(N-27, D-163, 옛 코드는 태그 {@code swing-final}).
  */
 public final class LibrarySync {
     private LibrarySync() {
@@ -197,46 +196,6 @@ public final class LibrarySync {
         return ret;
     }
 
-    // ---- 저장 앞뒤(ProjectActions의 HCS 한 줄씩) ----
-
-    /** 저장 전. 끊길 연결이 있으면 알리고 학생이 고른다. 창이 없으면(테스트) 그냥 저장한다. false면 저장하지 않는다. */
-    public static boolean beforeSave(Project proj, File f) {
-        List<Cut> cuts = impact(proj, f);
-        if (cuts.isEmpty() || proj.getFrame() == null) {
-            return true;
-        }
-        StringBuilder msg = new StringBuilder();
-        for (Cut c : cuts) {
-            msg.append(c.message()).append('\n');
-        }
-        msg.append('\n').append(Messages.get("libs.cutQuestion"));
-        Object[] options = {Messages.get("libs.saveAnyway"), Messages.get("libs.cancel")};
-        int r = javax.swing.JOptionPane.showOptionDialog(proj.getFrame(), msg.toString(),
-                Messages.get("libs.cutTitle"), javax.swing.JOptionPane.DEFAULT_OPTION,
-                javax.swing.JOptionPane.WARNING_MESSAGE, null, options, options[1]);
-        return r == 0;
-    }
-
-    /**
-     * 저장 뒤: 이 파일을 쓰는 열린 탭의 라이브러리를 새 버전으로 다시 불러오고(원조 공개 {@code Loader.reload}, 인스턴스는
-     * 원조가 새 회로로 바꾼다), 시뮬레이션을 리셋하고 "Updated"를 단다. 원조 {@code LibraryManager.fileSaved}는 파일로
-     * 라이브러리를 찾지만 등록표 열쇠가 설명자라 찾지 못해 아무것도 바꾸지 않는다(D-065).
-     */
-    public static List<Project> afterSave(Project proj, File f) {
-        List<Project> touched = new ArrayList<>();
-        java.util.Set<LoadedLibrary> reloaded = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
-        for (Use u : users(proj, f)) {
-            if (reloaded.add(u.library)) {
-                u.project.getLogisimFile().getLoader().reload(u.library); // 여러 파일이 같은 라이브러리를 나눠 쓴다
-            }
-            kr.ac.hallym.hcs.app.record.Recorder.requestReset(u.project);
-            kr.ac.hallym.hcs.app.tabs.FileTabs.get().model().markUpdated(u.project);
-            kr.ac.hallym.hcs.app.sim.SimControls.notice(u.project, Messages.get("libs.updated", f.getName()));
-            touched.add(u.project);
-        }
-        return touched;
-    }
-
     // ---- 원본 파일에서 편집 ----
 
     /** 이 프로젝트가 라이브러리로 쓰는 파일 가운데 circuit을 주는 것. 이 파일의 회로면 null. */
@@ -259,37 +218,7 @@ public final class LibrarySync {
         return null;
     }
 
-    /** "Edit Original File": 원본 파일이 열려 있으면 그 탭으로, 아니면 연다. 그리고 그 회로를 보인다. */
-    public static Project editOriginal(Project from, File file, String circuit) {
-        Project target = null;
-        for (Project p : OpenFileLibraries.openProjects.get()) {
-            if (OpenFileLibraries.same(OpenFileLibraries.fileOf(p), file)) {
-                target = p;
-            }
-        }
-        if (target == null) {
-            target = com.cburch.logisim.proj.ProjectActions.doOpen(from.getFrame(), from, file);
-        } else {
-            kr.ac.hallym.hcs.app.tabs.FileTabs.get().model().activate(target);
-            if (target.getFrame() != null) {
-                target.getFrame().toFront();
-            }
-        }
-        if (target != null) {
-            Circuit c = target.getLogisimFile().getCircuit(circuit);
-            if (c != null) {
-                target.setCurrentCircuit(c);
-            }
-        }
-        return target;
-    }
-
     // ---- 열 때 ----
-
-    /** 창을 만들 때: 열린 뒤 한 번 확인한다. */
-    public static void install(Frame frame) {
-        javax.swing.SwingUtilities.invokeLater(() -> opened(frame.getProject()));
-    }
 
     /** 열 때 알릴 것(테스트가 부른다): 나중에 바뀐 라이브러리 파일 이름들, 경로가 바뀐 라이브러리 이름들. */
     public static final class OnOpen {
@@ -326,17 +255,6 @@ public final class LibrarySync {
             }
         }
         return o;
-    }
-
-    static void opened(Project p) {
-        OnOpen o = check(p);
-        if (!o.moved.isEmpty()) {
-            // 찾기 창으로 바꾼 경로: 저장하면 원조 방식대로 상대 경로로 남는다
-            p.getLogisimFile().setDirty(true);
-            kr.ac.hallym.hcs.app.sim.SimControls.notice(p, Messages.get("libs.moved", String.join(", ", o.moved)));
-        } else if (!o.newer.isEmpty()) {
-            kr.ac.hallym.hcs.app.sim.SimControls.notice(p, Messages.get("libs.newer", String.join(", ", o.newer)));
-        }
     }
 
     private static final Pattern LIB = Pattern.compile("<lib\\s+desc=\"([^\"]*)\"");

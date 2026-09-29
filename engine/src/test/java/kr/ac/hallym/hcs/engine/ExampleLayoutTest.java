@@ -11,13 +11,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.AfterEach;
@@ -38,7 +33,7 @@ class ExampleLayoutTest {
     static final Path REPO = new File(System.getProperty("hcs.circDir")).toPath().getParent().getParent();
 
     /**
-     * 검사하는 회로: Help › Examples에 번들되는 예제(app/build.gradle.kts), 참조 CPU(화면 스크린샷·진짜 엔진 e2e가 연다),
+     * 검사하는 회로: 학생에게 가는 예제(v1 Help › Examples의 셋), 참조 CPU(화면 스크린샷·진짜 엔진 e2e가 연다),
      * demo-datapath에서 만든 고장 회로(Messages 스크린샷). tests/mips/ref-mips-v1-stack.circ는 옛 파일 회귀용으로
      * 그대로 둔 파일이라, tests/circ의 작은 회귀 회로·고장·흐름 회로는 학생에게 가지 않는 시험 입력이라 뺀다.
      */
@@ -69,22 +64,6 @@ class ExampleLayoutTest {
             assertEquals(List.of(), found.stream().map(Object::toString).toList(),
                     name + ": parts overlap (move them apart, D-156)");
         }));
-    }
-
-    /** Help › Examples에 더한 예제는 이 검사에도 들어 있어야 한다. */
-    @Test
-    void everyBundledExampleIsChecked() throws Exception {
-        String gradle = Files.readString(REPO.resolve("app/build.gradle.kts"), StandardCharsets.UTF_8);
-        Matcher m = Pattern.compile("from\\(rootProject\\.file\\(\"(tests/circ)\"\\)\\) \\{\\s*include\\(([^)]*)\\)\\s*"
-                + "into\\(\"kr/ac/hallym/hcs/app/examples\"\\)").matcher(gradle);
-        assertTrue(m.find(), "Help › Examples block in app/build.gradle.kts");
-        List<String> bundled = new ArrayList<>();
-        Matcher n = Pattern.compile("\"([^\"]+\\.circ)\"").matcher(m.group(2));
-        while (n.find()) {
-            bundled.add(m.group(1) + "/" + n.group(1));
-        }
-        assertEquals(3, bundled.size(), bundled.toString());
-        assertTrue(CHECKED.containsAll(bundled), bundled.toString());
     }
 
     // ---- 규칙 ----

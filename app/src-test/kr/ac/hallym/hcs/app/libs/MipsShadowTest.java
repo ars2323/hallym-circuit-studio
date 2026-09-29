@@ -36,7 +36,6 @@ import com.cburch.logisim.tools.Library;
 import com.cburch.logisim.util.StringUtil;
 
 import kr.ac.hallym.hcs.app.palette.Palette;
-import kr.ac.hallym.hcs.app.palette.ToolboxSearch;
 import kr.ac.hallym.hcs.regress.CircNormalizer;
 import kr.ac.hallym.hcs.regress.CircuitBuilder;
 import kr.ac.hallym.hcs.regress.Engine;
@@ -93,7 +92,9 @@ class MipsShadowTest {
 
         for (String q : new String[] {"instruction memory", "console"}) {
             boolean found = false;
-            for (Palette.Item it : ToolboxSearch.results(q, file)) {
+            // v1 부품 목록 검색(ToolboxSearch.results)과 같은 물음: 새 파일에도 Hallym MIPS가 있는 라이브러리 목록
+            for (Palette.Item it : Palette.search(q, MipsShadow.libraries(file), file.getCircuits(),
+                    java.util.Collections.emptyList(), java.util.Collections.emptyList())) {
                 found |= it.kind == Palette.Kind.COMPONENT && it.library == tree;
             }
             assertTrue(found, q + " is found in a new file");
