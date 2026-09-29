@@ -89,10 +89,24 @@ test('a dialog: modal, a click outside (backdrop, toolbar, New) does nothing, Ta
     await expect(dialog).toBeVisible();
     await expect(page.locator('.filebar .ptab')).toHaveCount(0);
     await expect(page.locator('.action').first()).toContainText('튜토리얼 보기');
-    for (let i = 0; i < 3; i += 1) {
-      await page.keyboard.press('Tab');
-      expect(await page.evaluate(() => !!document.activeElement?.closest('dialog.ask')), `Tab ${i + 1}: focus inside`).toBe(true);
+    // Tab and Shift+Tab go round inside (D-164): the focus never leaves the dialog, not even for a moment (Chromium
+    // let Tab go past the last control: the window lost the focus and got it back a little later).
+    await page.evaluate(() => {
+      const w = window as unknown as { leftDialog: string[] };
+      w.leftDialog = [];
+      document.addEventListener('focusout', (e) => {
+        const to = e.relatedTarget as Element | null;
+        if (!to?.closest('dialog.ask')) w.leftDialog.push(`focusout to ${to ? to.tagName : 'nothing'}`);
+      }, true);
+      window.addEventListener('blur', () => w.leftDialog.push('window blur'));
+    });
+    const inside = () => page.evaluate(() => !!document.activeElement?.closest('dialog.ask'));
+    for (const [i, key] of ['Tab', 'Tab', 'Tab', 'Shift+Tab', 'Shift+Tab'].entries()) {
+      await page.keyboard.press(key);
+      await expect.poll(inside, { message: `${key} ${i + 1}: focus inside` }).toBe(true);
     }
+    await expect(dialog.locator('button.primary')).toBeFocused();
+    expect(await page.evaluate(() => (window as unknown as { leftDialog: string[] }).leftDialog), 'the focus never left the dialog').toEqual([]);
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
     await expect.poll(() => overlay(r)).toBe('#ffffff');
