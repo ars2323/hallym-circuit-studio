@@ -42,22 +42,24 @@ jobs:
               case "$f" in
                 # Windows-relevant exceptions inside the allowed folders first
                 electron/src/renderer/app/index.html|electron/tests/e2e/installed*|electron/tests/e2e/windows-*|\
-                electron/tests/e2e/real-engine*|electron/tests/e2e/harness.ts|\
+                electron/tests/e2e/real-engine*|\
                 engine/src/main/java/kr/ac/hallym/hcs/engine/Main.java|engine/src/main/java/*/prefs/*|\
                 *.gitattributes)
                   windows=true ;;
-                electron/src/renderer/*|electron/src/shared/*|electron/tests/unit/*|electron/tests/e2e/*|\
+                # e2e: the test files only; their helpers (harness, model, backdrop-measure ...) are shared with the
+                # Windows-run tests and may branch on win32, so they run the Windows jobs
+                electron/src/renderer/*|electron/tests/unit/*|electron/tests/e2e/*.e2e.ts|\
                 electron/tests/fixtures/*|electron/tests/fake-engine/*|electron/docs/*|electron/tools/capture-screens.ts|\
                 electron/tools/mutants.ts|electron/tools/geometry-report.ts|electron/tools/measure-canvas.ts|\
                 electron/tools/diag-fixture.ts|electron/tools/e2e-widths.ts|\
                 engine/src/*|app/src/*|app/src-hcs/*|app/test/*|app/resources/*|lib-mips/src/*|\
                 tests/circ/*|tests/parity/*|tests/hmx/*|tests/mips/*|tests/disasm/*|tests/spim-oracle/*|\
-                docs/*|*.md)
+                docs/*|README.md|PLAN.md|CLAUDE.md)
                   ;;
                 *) windows=true ;;
               esac
               [ "$windows" = true ] && { echo "Windows jobs: $f"; break; }
-            done <<< "$(git diff --name-only "$BASE"...HEAD)"
+            done <<< "$(git diff --no-renames --name-only "$BASE"...HEAD)"   # a move lists both paths
           fi
           if [ "$windows" = true ]; then os='["ubuntu-24.04","windows-2022"]'; else os='["ubuntu-24.04"]'; fi
           echo "windows=$windows" >> "$GITHUB_OUTPUT"

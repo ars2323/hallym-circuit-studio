@@ -44,7 +44,6 @@ const repo = path.join(root, '..');
 const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
 const electronVersion = JSON.parse(readFileSync(path.join(root, 'node_modules/electron/package.json'), 'utf8')).version;
 const stage = path.join(root, 'build/package/app');
-const at = (...p: string[]) => path.join(stage, ...p);
 const dirOnly = process.argv.includes('--dir');
 const option = (name: string): string | null => {
   const i = process.argv.indexOf(name);
@@ -58,9 +57,19 @@ export { APP_ID };
 // The marks and characters the window shows, from the page (renderer/app/): renderer/hallym/.
 export const PACKAGED_HALLYM = '../hallym';
 
-async function stageApp(): Promise<void> {
-  rmSync(stage, { recursive: true, force: true });
-  mkdirSync(stage, { recursive: true });
+/* The page's stylesheets, as index.html links them (relative to renderer/app/).  The packaged window copies exactly
+   these, so a stylesheet a PR adds to the page is packaged without a second list to keep (D-166: the second list
+   had missed attributes.css). */
+export function pageStylesheets(html: string): string[] {
+  return [...html.matchAll(/<link\s+rel="stylesheet"\s+href="([^"]+)"/g)].map((m) => m[1]);
+}
+
+/* Stages the app into `into` (default build/package/app/).  Exported so the Linux unit tests stage the packaged
+   window and check that everything its page and stylesheets refer to is there (tests/unit/package-stage.test.ts). */
+export async function stageApp(into: string = stage): Promise<void> {
+  const at = (...p: string[]) => path.join(into, ...p);
+  rmSync(into, { recursive: true, force: true });
+  mkdirSync(into, { recursive: true });
   const define = { 'process.env.HCS_BUNDLE': '"1"', 'process.env.HCS_VERSION': JSON.stringify(version) };
   const main = await esbuild.build({ ...nodeOptions('src/main/main.ts', at('main.js')), define });
   const ui = await esbuild.build({ ...rendererOptions(PACKAGED_HALLYM), outfile: at('renderer/app/app.js'), sourcemap: false });
@@ -70,14 +79,12 @@ async function stageApp(): Promise<void> {
   const packagedHtml = html.replace('src="../../../build/renderer/app.js"', 'src="app.js"');
   if (packagedHtml === html) throw new Error('index.html: the script tag to rewrite was not found');
   writeFileSync(at('renderer/app/index.html'), packagedHtml);
-  cpSync(path.join(root, 'src/renderer/app/app.css'), at('renderer/app/app.css'));
-  cpSync(path.join(root, 'src/renderer/app/find.css'), at('renderer/app/find.css'));
-  cpSync(path.join(root, 'src/renderer/shared/shared.css'), at('renderer/shared/shared.css'));
-  cpSync(path.join(root, 'src/renderer/canvas/canvas.css'), at('renderer/canvas/canvas.css'));
-  cpSync(path.join(root, 'src/renderer/shared/panels.css'), at('renderer/shared/panels.css'));
-  cpSync(path.join(root, 'src/renderer/app/cycle.css'), at('renderer/app/cycle.css'));
-  cpSync(path.join(root, 'src/renderer/app/circuits.css'), at('renderer/app/circuits.css'));
-  cpSync(path.join(root, 'src/renderer/canvas/overlays/overlays.css'), at('renderer/canvas/overlays/overlays.css'));
+  for (const href of pageStylesheets(html)) {
+    const from = path.join(root, 'src/renderer/app', href);
+    const to = at('renderer/app', href);
+    mkdirSync(path.dirname(to), { recursive: true });
+    cpSync(from, to);
+  }
   cpSync(path.join(root, 'src/renderer/assets'), at('renderer/assets'), { recursive: true });
   for (const d of ['character', 'logo']) cpSync(path.join(repo, 'assets/hallym', d), at('renderer/hallym', d), { recursive: true });
   cpSync(path.join(root, 'src/main/preload.cjs'), at('preload.cjs'));

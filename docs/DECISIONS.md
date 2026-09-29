@@ -2287,14 +2287,21 @@
   1. **PR 게이트:** `linux`, `linux-checks`, `electron`(Linux e2e), `runtime`(Linux), `track-a-java8`, `release`.
      - Windows 작업(`setup-exe`, `setup-e2e`, `setup-upgrade`, `runtime` Windows)은 main push, `v*` 태그, `workflow_dispatch`에서 돈다.
      - PR에서는 ci.yml 첫 작업 `changes`가 판정한다. 바뀐 파일(`base...HEAD`)이 **모두** 허용 목록 안이면 Windows 작업을 건너뛰고, 하나라도 밖이면 돈다. 빠뜨린 경로는 Windows 쪽으로 기운다.
-     - 허용 목록은 Windows 작업이 Linux와 다르게 포장하거나 시험하지 않는 것이다:
-       - 화면 renderer, `electron/tests/{unit,e2e,fixtures,fake-engine}`, `electron/docs`, 측정·촬영 도구
-       - 엔진·앱·lib-mips 소스, `tests/{circ,parity,hmx,mips,disasm,spim-oracle}`, `docs/`, `*.md`
+     - 허용 목록은 Windows 작업이 Linux와 다르게 시험하지 않는 것이다:
+       - 화면 renderer, `electron/tests/unit`, e2e 시험 파일(`*.e2e.ts`), `electron/tests/{fixtures,fake-engine}`, `electron/docs`, 측정·촬영 도구
+       - 엔진·앱·lib-mips 소스, `tests/{circ,parity,hmx,mips,disasm,spim-oracle}`, `docs/`, 루트의 README·PLAN·CLAUDE.md
+     - renderer는 설치 파일에서 따로 조립된다(`package.ts stageApp`: esbuild 다시, 스타일시트, 자산, 학교 표지). 그래서 같은 조립을 Linux 단위 시험 `package-stage.test.ts`가 PR마다 돈다. 이 시험은 다음을 본다:
+       - 포장된 페이지의 src·href와 스타일시트의 url()이 모두 있는가
+       - src/renderer의 스타일시트가 모두 페이지에 있는가
+       - hallym()으로 부르는 표지가 있는가
+     - 스타일시트 복사는 index.html의 link에서 읽는다(손으로 적은 두 번째 목록을 없앰). 이 검토에서 기존 main의 설치 파일에 `attributes.css`(#449)가 빠진 것이 드러났고, 이것으로 고쳤다. 시험은 그 파일을 빼면 실패한다.
      - 허용 목록 안이라도 Windows 작업이 도는 것:
-       - `electron/src/renderer/app/index.html`: 포장이 이 줄을 고쳐 쓴다.
-       - `installed*`·`windows-*`·`real-engine*` e2e와 `harness.ts`
+       - `electron/src/renderer/app/index.html`
+       - `installed*`·`windows-*`·`real-engine*` e2e와, e2e의 도우미 파일 전부: Windows 시험과 함께 쓰이고 win32 분기가 있다.
        - 엔진 `Main.java`와 `prefs/`: Windows 레지스트리 변화 0의 대상
        - 모든 `.gitattributes`
+     - 옮기기는 옛 경로와 새 경로를 모두 본다(`--no-renames`).
+     - 포장 입력인 `electron/hallym-assets.md` 같은 다른 .md는 목록 밖이다.
      - 주 프로세스, 포장, 설치 시험, jlink 런타임·Gradle 설정, CI 자체, 트랙 A 포장 스크립트는 목록 밖이라 Windows 작업이 돈다.
      - 판정 이유(처음 걸린 파일)는 로그와 작업 요약에 남는다. `setup-e2e`·`setup-upgrade`는 `setup-exe`에 딸려 함께 건너뛴다.
      - `release`는 PR마다 돈다. Windows 작업이 없는 PR에서는 setup exe 이름의 빈 대역을 두고 트랙 A 포장(`package-track-a.sh`)과 배포 파일 규칙(`release-assets.ts check`)을 그대로 확인한다. 그 밖에는 Windows 작업이 모두 통과해야 돈다.
@@ -2321,4 +2328,12 @@
 - **시험:**
   - 이 PR은 `.github/workflows/`에 닿으므로 Windows 작업까지 돈다(판정 확인).
   - 다음 화면 PR에서 Windows 작업이 건너뛰어지는 것과 머지까지 걸린 시간을 잰다. 후 값은 지휘 세션의 PROGRESS 묶음 PR에서 이 항목의 "측정(후)"로 더한다.
-  - 검토(compat-reviewer)의 확인 필요 4건을 반영했다: 목록 방식을 허용 목록으로 바꿈, main group, PR의 release 확인, 없는 파일 항목.
+  - 검토(compat-reviewer) 두 번의 확인 필요 7건을 반영했다:
+    - 목록 방식을 허용 목록으로 바꿈
+    - main group
+    - PR의 release 확인
+    - 없는 파일 항목
+    - renderer 포장 시험과 attributes.css
+    - e2e 도우미
+    - 옮기기와 .md
+  - `package-stage.test.ts` 5개
