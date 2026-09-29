@@ -71,11 +71,23 @@ test('the first screen: the university video behind the card, from the app\'s ow
       return !!top?.closest('.wcard');
     })).toBe(true);
     await expect(page.locator('.wcard img.char')).toHaveAttribute('src', /haram-hari-greeting\.png$/);
-    // The card's shadow, Hallym MIPS 2.5.0's value (dark navy: on the dark ground it is subtle by design).
-    await expect(page.locator('.wcard')).toHaveCSS('box-shadow', 'rgba(0, 16, 46, 0.45) 0px 18px 60px 0px');
-    // The processing: CSS on the video and the still, a navy layer over them.
-    for (const sel of ['.wback video', '.wback img.still']) await expect(page.locator(sel)).toHaveCSS('filter', 'blur(3px) saturate(0.85)');
-    expect(await page.evaluate(() => getComputedStyle(document.querySelector('.wback')!, '::after').backgroundImage)).toContain('rgba(0, 32, 91, 0.78)');
+    // The card is glass (Hallym MIPS v2.6.0, D-169): white at .82 blurring what is behind it, a lighter shadow.
+    await expect(page.locator('.wcard')).toHaveCSS('background-color', 'rgba(255, 255, 255, 0.82)');
+    await expect(page.locator('.wcard')).toHaveCSS('backdrop-filter', 'blur(18px) saturate(1.2)');
+    await expect(page.locator('.wcard')).toHaveCSS('box-shadow', 'rgba(0, 16, 46, 0.25) 0px 10px 40px 0px');
+    // The processing: CSS on the video and the still, a navy layer over them, under the whole window.
+    for (const sel of ['.wback video', '.wback img.still']) await expect(page.locator(sel)).toHaveCSS('filter', 'blur(8px) saturate(1.25) sepia(0.1) hue-rotate(-6deg)');
+    await expect(page.locator('.wback')).toHaveCSS('position', 'fixed');
+    const after = await page.evaluate(() => { const a = getComputedStyle(document.querySelector('.wback')!, '::after'); return [a.backgroundImage, a.backgroundColor]; });
+    expect(after[0]).toContain('rgba(0, 20, 56, 0.35)');
+    expect(after[1]).toBe('rgba(0, 32, 91, 0.4)');
+    // The bars over it are dark glass, their words and icons white (body.first-screen).
+    for (const sel of ['.titlebar', '.status']) {
+      await expect(page.locator(sel)).toHaveCSS('background-color', 'rgba(0, 20, 56, 0.3)');
+      await expect(page.locator(sel)).toHaveCSS('backdrop-filter', 'blur(16px)');
+    }
+    await expect(page.locator('.titlebar .appname')).toHaveCSS('color', 'rgb(255, 255, 255)');
+    await expect(page.locator('.titlebar .iconbtn img').first()).toHaveCSS('filter', 'brightness(0) invert(1)');
   } finally {
     await r.close();
   }
@@ -117,7 +129,7 @@ test('every step of the first screen: one background, which runs on from one to 
   }
 });
 
-test('the card stays readable over the video: it does not change while the video does, and the ground around it is dark', async () => {
+test('the glass card stays readable over the video (Hallym MIPS v2.6.0, D-169): light at every frame, its secondary text 4.5:1 or better, barely moving while the video does; the ground around it dark', async () => {
   const r = await launch();
   const { page } = r;
   try {
@@ -130,17 +142,21 @@ test('the card stays readable over the video: it does not change while the video
     const ground = card.y - stage.y > 60
       ? { x: stage.x, y: stage.y, width: stage.width, height: card.y - stage.y - 30 }
       : { x: stage.x, y: stage.y, width: Math.max(24, card.x - stage.x - 30), height: stage.height };
-    const cards: string[] = [], grounds: string[] = [];
+    const cards: number[] = [], grounds: string[] = [];
+    // --text-2-glass (#4b5563): its relative luminance, and the contrast over the card's mean at each frame
+    const lin = (v: number) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+    const text = 0.2126 * lin(0x4b / 255) + 0.7152 * lin(0x55 / 255) + 0.0722 * lin(0x63 / 255);
     for (const t of [0.5, 3.0, 5.5]) {
       await at(page, t);
       const c = await pixels(r, inner), g = await pixels(r, ground);
-      cards.push(c.hash);
+      cards.push(c.luminance);
       grounds.push(g.hash);
       expect(g.luminance, `the ground at ${t} s`).toBeLessThan(0.4);
-      expect(c.luminance, `the card at ${t} s`).toBeGreaterThan(0.85);
+      expect(c.luminance, `the card at ${t} s`).toBeGreaterThan(0.8);   // measured 0.850 (the opaque card was 0.9+)
+      expect((lin(c.luminance) + 0.05) / (text + 0.05), `the secondary text over the card at ${t} s`).toBeGreaterThanOrEqual(4.5);
     }
     expect(new Set(grounds).size).toBe(3); // the video does change behind it
-    expect(new Set(cards).size).toBe(1);   // the card does not
+    expect(Math.max(...cards) - Math.min(...cards)).toBeLessThan(0.01);   // the glass lets it through, blurred: measured 0.0005
   } finally {
     await r.close();
   }
@@ -172,7 +188,7 @@ for (const [scale, size] of [[1, { width: 1920, height: 1032 }], [1.25, { width:
       const said = `${scale * 100} %: screen: toward navy ${onScreen.towardNavy.toFixed(3)}, sharpness ${onScreen.sharpness.toFixed(3)}; ` +
         `readback: ${inReadback.towardNavy.toFixed(3)}, ${inReadback.sharpness.toFixed(3)}; rect ${JSON.stringify(rect)}`;
       console.log(said);
-      expect(onScreen.towardNavy, said).toBeGreaterThan(0.4); // the tint: 0.5 at the edges .. 0.78 behind the card
+      expect(onScreen.towardNavy, said).toBeGreaterThan(0.35); // the tint (v2.6.0, D-169: navy .4, darker at the edges): measured 0.43-0.44 above the card
       expect(onScreen.sharpness, said).toBeLessThan(0.6);     // the blur: about 0.3; unblurred, about 1
     } finally {
       await r.close();
@@ -190,7 +206,7 @@ test('prefers-reduced-motion: the still, and no video loaded, from the start or 
     await expect(page.locator('.wback img.still')).toBeVisible();
     await expect(page.locator('.wback video')).toHaveCSS('opacity', '0');
     // The still has the same processing.
-    await expect(page.locator('.wback img.still')).toHaveCSS('filter', 'blur(3px) saturate(0.85)');
+    await expect(page.locator('.wback img.still')).toHaveCSS('filter', 'blur(8px) saturate(1.25) sepia(0.1) hue-rotate(-6deg)');
     // From the start: the window loaded again with the preference already on.
     await page.reload();
     await page.waitForSelector('.wcard');

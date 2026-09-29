@@ -2444,3 +2444,21 @@
   - 진짜 엔진 e2e(선택 실행): 새 `real-engine-course.e2e.ts` — 논리설계와 컴퓨터구조에서 같은 편집(AND Gate 하나)을 저장한 바이트가 같고 라이브러리는 원조 일곱뿐·`hcs:` 없음; Radix Probe 하나를 놓은 파일도 두 교과목의 바이트가 같고 끝 라이브러리가 `jar#…hcs-mips.jar#kr.ac.hallym.hcs.mips.MipsLibrary`; 그 논리설계 파일을 명령줄로 열면 논리설계(띠 없음), demo-datapath는 컴퓨터구조.
   - 엔진(`:engine:test`): 새 `LogicExamplesTest` 5 — 커밋한 세 예제 = `LogicExamples`가 엔진 편집 의도로 지은 것(D-006 정규화), 원조 라이브러리 일곱·`hcs:`·`jar#` 없음, 엔진(원조 CircuitState)으로 돌려 1비트 전가산기 8조합·4비트 리플 캐리 8조합(자리올림 포함)·카운터(5사이클 0101, 17사이클 0001)가 맞음. `ExampleLayoutTest`(D-156 겹침)에 세 예제를 더함. 열고 저장한 바이트는 `OpenSaveParityTest`가 tests/circ 전부로 본다.
   - 돌연변이(`tools/mutants.ts` course): 표·부품 거르기·MIPS 전용 판단·띠 조건·칩 숨김·예제 거르기를 바꾼 돌연변이가 모두 잡힘.
+
+## D-169 Hallym MIPS v2.6.0에 맞추기 2단계(A-07): 시작 화면의 유리, 캡션 단추가 유리 위에, 제목 줄 아이콘 다섯 (2026-09-29)
+
+- **결정(사용자 추가 지시 2026-09-29, v2 추가 지시 3의 2절; 1단계는 D-167):** 창 껍데기의 디자인을 Hallym MIPS **v2.6.0**(커밋 `d8f0c97`)에서 다시 가져온다. 가져온 곳과 바꾼 곳은 `electron/ORIGIN.md` "v2.6.0에서 가져온 것"이고, `tools/import-hmips.ts`의 태그를 `v2.6.0`으로 올려 가져온 64개 파일의 SHA-256을 다시 기록했다(`copy` 파일 `shared/overlay.ts`·`tests/e2e/backdrop-measure.ts`는 v2.6.0과 바이트까지 같다; 1단계 PR의 같은 변경과 겹치며 내용이 같다).
+  1. **시작 화면:** 영상이 창 전체 아래에 깔리고, 제목 줄과 상태 표시줄은 그 위의 어두운 유리(흰 글자·아이콘, 나눔선 없음), 가운데 카드는 반투명 유리(흰색 .82 + 뒤를 흐리는 `backdrop-filter`, 가벼운 그림자, 캐릭터 168 px, 부제는 더 짙은 `--text-2-glass`). 영상 처리값도 v2.6.0 그대로(`blur(8px) saturate(1.25) sepia(.1) hue-rotate(-6deg)`, `scale(1.06)`, 위아래가 조금 짙은 남색 .4). 파일을 열면 흰 막대로 돌아온다(`body.first-screen`는 시작 화면이 보일 때만).
+  2. **Windows 캡션 단추(최소화·최대화·닫기):** 시작 화면에서는 단추 뒤 조각을 투명(`#00000000`)으로, 기호를 흰색으로 둬 유리 위에 바로 앉는다(흰 조각 없음). 대화상자가 시작 화면을 덮어도 투명 그대로다(창이 그 아래를 비춘다). 파일이 열린 화면은 전처럼 흰색(또는 대화상자·튜토리얼 밑의 흰색)과 남색 기호. main 프로세스의 `win:overlay`가 조각과 기호를 함께 받는다(그 밖의 값은 흰색·남색으로).
+  3. **제목 줄 아이콘:** Hallym MIPS의 다섯과 같은 자리·같은 모양 — Tutorial(`circle-question-mark`) · New(`file-plus`) · Open(`folder-open`) · 넷째 · Settings(`settings`, 이 앱의 이름은 원조를 따라 Preferences). 그 앞에 이 앱의 Menu(원조 메뉴 막대, Hallym MIPS에는 없음)를 둔다.
+     - **넷째는 Export Image…(그림 내보내기, `image-down`)로 정했다.** 이유: Hallym MIPS의 넷째 자리는 "지금 보는 것을 파일로 내보내기"(Export executable image)이고, 이 앱에서 같은 뜻은 보는 회로를 그림으로 내보내기다. Create Submission은 과제 하나에 한 번 하는 일이라 File 메뉴(N-21)가 맞고, 제목 줄의 늘 보이는 자리에 둘 만큼 자주 쓰지 않는다. 그림 내보내기 자체는 N-21(#453, 아직 머지 전)의 것이므로 `app.ts`의 `exportImage` 하나에 N-21이 내보내기를 꽂는다. 그 전까지, 그리고 파일이 없을 때는 단추가 보이지 않는다(Hallym MIPS가 파일이 없을 때 Export를 숨기는 것과 같다). 작동하지 않는 단추는 두지 않는다.
+     - **Tutorial:** 교과목을 이미 골랐으면 그 교과목의 튜토리얼(N-18의 `startCourse`가 꽂힐 `startTutorial`, 그 전까지는 그 교과목의 새 회로: D-168), 아직 고르지 않았으면 시작 카드의 교과목 단계를 보인다.
+     - **About의 자리:** Hallym MIPS처럼 설정(Preferences) 창 아래의 About · Licenses, 그리고 Menu의 Help › About…(D-158 그대로). 제목 줄에 따로 두지 않는다.
+  4. **교과목 칩(D-168)은 이름 뒤 그 자리에 그대로 들어간다.** 아이콘이 하나 늘어도(30 px) 실습실 PC 크기(FHD 100·125·150 %)에서 » 메뉴로 가는 명령은 없다(`shell.e2e.ts` lab-PC 검사).
+- **이유:** 사용자 지시(두 프로그램이 같은 시작 화면과 같은 제목 줄). v2.6.0이 유리로 바꾼 이유(영상의 색이 카드와 막대로 이어져 한 화면으로 보이고, 흰 조각이 떠 보이지 않음)가 이 앱에도 그대로 맞다. 넷째 아이콘을 비워 두거나 누르면 아무 일 없는 단추로 두는 것은 학생에게 거짓말이므로 기능이 들어올 때까지 숨긴다.
+- **대안(버림):** 넷째를 Create Submission(위 이유), 넷째를 지금 비활성으로 보이기(누를 수 없는 단추가 늘 보임), Menu를 없애고 메뉴 막대를 되살리기(창 줄이 늘고 Hallym MIPS와 다름, D-158), 캡션 조각을 시작 화면에서도 흰색으로(흰 사각형이 유리 위에 뜸 — 바로 이것을 고치라는 지시), 영상을 카드 뒤 무대에만 두기(막대가 흰 띠로 남아 세 조각으로 보임).
+- **테스트:**
+  - 단위: `overlay.test.ts` +1(시작 화면은 무엇이 덮든 투명 조각·흰 기호, 그 밖은 흰색 또는 겹친 색·남색 기호), `origin.test.ts`(v2.6.0 64개 파일, copy 바이트 동일, `image-down` 아이콘).
+  - e2e(가짜 엔진): 새 `titlebar-icons.e2e.ts`(아이콘 차례·모양 Menu·Tutorial·New·Open·Preferences, Export Image는 내보내기가 없으면 숨음, 시작 화면의 흰 아이콘과 파일 화면의 원래 아이콘, 교과목 없을 때 Tutorial은 교과목 단계·있을 때 그 교과목, About은 Preferences 안), `backdrop.e2e.ts`(유리 카드의 배경·backdrop-filter·그림자, 영상 처리값과 `position: fixed`, 막대의 어두운 유리와 흰 글자, 카드 밝기 0.80 이상·부제 대비 4.5:1 이상·프레임마다 거의 그대로(잰 값 0.850, 차 0.0005), 화면에서 잰 남색 쪽 0.43~0.44·흐림 0.10~0.11, 기준은 0.35·0.6), `window.e2e.ts`(시작 화면의 조각 투명·기호 흰색, 대화상자가 덮어도 투명; 회로 화면은 흰색·남색, 대화상자 밑 `#a6b1c6`).
+  - 돌연변이 `glass` 6개 모두 잡힘; 옛 시작 화면 돌연변이 셋은 새 값으로 옮김.
+  - Windows 캡션 단추가 실제로 유리 위에 앉은 모습(windows-frame)은 Windows 러너의 태그 실행에서만 찍힌다(A-05). 이 PR의 비교 그림은 Linux 캡처(캡션 단추 없이)와 Hallym MIPS v2.6.0 참고 그림이다.

@@ -453,15 +453,19 @@ function registerHandlers(): void {
     const error = await shell.openPath(paths.chromiumCredits());
     if (error) throw new Error(error);
   }));
-  // The caption buttons' patch (titleBarOverlay, drawn by the system) takes
-  // the colour the page asks for while it is covered (a dialog's backdrop:
-  // src/renderer/shared/overlay.ts); null is white again.  Kept on the
-  // window for the tests to read (Electron has no getter for it).
-  ipcMain.handle('win:overlay', (e, color: string | null) => {
+  // The caption buttons' patch (titleBarOverlay, drawn by the system) and
+  // their symbols take what the page asks for: transparent with white
+  // symbols on the first screen (the bar is dark glass there), white or white
+  // under what covers the page with navy symbols elsewhere
+  // (src/renderer/shared/overlay.ts, D-169).  Kept on the window for the
+  // tests to read (Electron has no getter for it).
+  ipcMain.handle('win:overlay', (e, patch: { color?: unknown; symbolColor?: unknown } | null) => {
     const w = from(e);
-    const c = color ?? '#ffffff';
-    (w as BrowserWindow & { overlayColor?: string }).overlayColor = c;
-    try { w.setTitleBarOverlay({ color: c, symbolColor: NAVY, height: TITLE_BAR_HEIGHT }); } catch { /* no title bar overlay on this platform */ }
+    const hexColour = (v: unknown, or: string) => (typeof v === 'string' && /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(v) ? v : or);
+    const color = hexColour(patch?.color, '#ffffff');
+    const symbolColor = hexColour(patch?.symbolColor, NAVY);
+    Object.assign(w, { overlayColor: color, overlaySymbol: symbolColor });
+    try { w.setTitleBarOverlay({ color, symbolColor, height: TITLE_BAR_HEIGHT }); } catch { /* no title bar overlay on this platform */ }
   });
 
   // Leaving (N-19, D-152): the window asks about unsaved files first; it closes when the window says so.

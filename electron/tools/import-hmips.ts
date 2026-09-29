@@ -42,7 +42,7 @@ import path from 'node:path';
 
 export const root = path.join(import.meta.dirname, '..');
 export const HMIPS_REPO = 'ars2323/hallym-mips-simulator';
-export const HMIPS_TAG = 'v2.5.0';   // D-155 (from v2.3.0: D-135); the .hmx spec and goldens stay at v2.4.0 (D-138)
+export const HMIPS_TAG = 'v2.6.0';   // D-167 (from v2.5.0: D-155; from v2.3.0: D-135); the .hmx goldens stay at v2.4.0, the spec is the same bytes (D-138, D-167)
 
 export interface Taken {
   from: string;       // path in Hallym MIPS, from its repository root
@@ -154,8 +154,8 @@ export const LUCIDE_EXTRA = ['undo-2', 'redo-2', 'mouse-pointer-2', 'pointer', '
   // N-11: the appearance editor's drawing tools, the Circuits panel
   'slash', 'spline', 'waypoints', 'rectangle-horizontal', 'square-round-corner', 'circle', 'pentagon', 'plus', 'import',
   'library', 'arrow-up', 'arrow-down',
-  // N-17: the title bar's Menu
-  'menu'];
+  // N-17: the title bar's Menu; A-07 part 2 (D-169): the title bar's Export Image
+  'menu', 'image-down'];
 
 // Never taken (D-133 point 5): SPIM's tables and what leans on them.
 export const NEVER = ['src/core/', 'src/sim/', 'native/', 'op-table', 'decoder', 'instruction-text', 'explain',
