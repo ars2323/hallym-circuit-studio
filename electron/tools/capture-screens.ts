@@ -858,7 +858,8 @@ function sideBySide(name: string, left: Buffer, right: Buffer): void {
   await page.getByRole('button', { name: /바로 시작/ }).click();
   await page.getByRole('button', { name: /새 회로/ }).click();
   await page.locator('.canvas h3').waitFor();
-  await page.locator('.upper .libgroup', { hasText: 'Hallym MIPS' }).locator('.list li', { hasText: 'Radix Probe' }).waitFor();
+  // the Hallym MIPS group in view (it is under the built-in libraries)
+  await page.locator('.upper .libgroup', { hasText: 'Hallym MIPS' }).locator('.list li', { hasText: 'Radix Probe' }).scrollIntoViewIfNeeded();
   await shot(r, 'course-logic');
   await openFile(r, sample(r.dir, DATAPATH));
   await drawn(r);
