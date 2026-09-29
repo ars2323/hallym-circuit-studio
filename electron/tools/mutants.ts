@@ -294,6 +294,8 @@ export const MUTANTS: Mutant[] = [
     find: "'새 키를 누르세요 · Esc: Cancel'", replace: "'새 키를 누르세요 · Esc 취소'", tests: ['tests/e2e/shell.e2e.ts'] },
   { module: 'shell', file: 'src/renderer/app/attributes.css', what: 'the names\' column too narrow for Number Of Inputs at 100 %',
     find: '.atable thead th:first-child { width: 50%; }', replace: '.atable thead th:first-child { width: 40%; }', tests: ['tests/e2e/attributes.e2e.ts'] },
+  { module: 'shell', file: 'src/renderer/app/logic/attributes.ts', what: 'Quick Attributes over a part when every near place covers something',
+    find: '  return wide.score < first.score ? wide.at : first.at;', replace: '  return first.at;', tests: ['tests/unit/attributes.test.ts', 'tests/e2e/overlays.e2e.ts'] },
   { module: 'shell', file: 'src/renderer/canvas/canvas.ts', what: 'the re-fit not ended by the pointer over the Canvas',
     find: "    c.addEventListener('pointermove', () => { this.autoFit = false; });\n", replace: '', tests: ['tests/e2e/shell.e2e.ts'] },
   { module: 'shell', file: 'src/renderer/canvas/canvas.ts', what: 'the re-fit not ended by a key, a wheel or a press elsewhere',

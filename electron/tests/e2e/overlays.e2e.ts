@@ -373,6 +373,29 @@ test('a wire\'s right click: Net Information… (v1\'s words), Highlight Net and
   }
 });
 
+// The Quick Attributes bar and the circuit's own things, in page pixels: the parts (but the chosen ones) and label
+// chips it meets, and the wires it crosses.
+async function barOverCircuit(page: import('@playwright/test').Page): Promise<{ parts: string[]; wires: number }> {
+  return page.evaluate(() => {
+    type B = { x0: number; y0: number; x1: number; y1: number };
+    type C = { canvas: HTMLCanvasElement; view: { x: number; y: number; zoom: number }; selection(): string[]; chipBoxes(): B[];
+      scene: { components: Map<string, { id: string; name: string; attrs: Record<string, string>; bounds: number[] }>; wires: Map<string, { a: number[]; b: number[] }> } };
+    const c = (window as unknown as { __hcsCanvas: C }).__hcsCanvas;
+    const r = (document.querySelector('.quickbar') as HTMLElement).getBoundingClientRect(), cr = c.canvas.getBoundingClientRect(), v = c.view;
+    const meets = (b: B) => {
+      const x0 = cr.left + (b.x0 - v.x) * v.zoom, x1 = cr.left + (b.x1 - v.x) * v.zoom;
+      const y0 = cr.top + (b.y0 - v.y) * v.zoom, y1 = cr.top + (b.y1 - v.y) * v.zoom;
+      return x0 < r.right && r.left < x1 && y0 < r.bottom && r.top < y1;
+    };
+    const chosen = new Set(c.selection());
+    const parts = [...c.scene.components.values()].filter((k) => !chosen.has(k.id) && meets({ x0: k.bounds[0], y0: k.bounds[1], x1: k.bounds[0] + k.bounds[2], y1: k.bounds[1] + k.bounds[3] }))
+      .map((k) => `${k.name}${k.attrs.label ? ` ${k.attrs.label}` : ''}`);
+    const chips = c.chipBoxes().filter(meets).length;
+    const wires = [...c.scene.wires.values()].filter((w) => meets({ x0: Math.min(w.a[0], w.b[0]), y0: Math.min(w.a[1], w.b[1]), x1: Math.max(w.a[0], w.b[0]), y1: Math.max(w.a[1], w.b[1]) })).length;
+    return { parts: chips ? [...parts, `${chips} label chips`] : parts, wires };
+  });
+}
+
 // The Quick Attributes bar and what an overlay draws over the circuit, in page pixels: the boxes it meets.
 async function barOverOverlays(page: import('@playwright/test').Page): Promise<number> {
   return page.evaluate(() => {
@@ -416,6 +439,8 @@ test('Quick Attributes keeps off what the overlays draw: Signal Flow\'s arcs and
     expect(lit.covered).toBe(lit.segs);
     await expect(bar).toBeVisible();
     await expect.poll(() => barOverOverlays(page)).toBe(0);
+    // and, as everywhere, no part, label or wire of the circuit (UI review: the RegWrite tunnel and the WD wire)
+    await expect.poll(() => barOverCircuit(page)).toEqual({ parts: [], wires: 0 });
     // the register file's influence both ways (Esc stops the flow first; Signal Flow off: a click only chooses)
     await page.keyboard.press('Escape');
     await page.getByRole('button', { name: 'Signal Flow', exact: true }).click();

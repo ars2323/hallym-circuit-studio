@@ -225,13 +225,13 @@ export class QuickBar {
     const hard: Rect[] = [];
     for (const c of s.components.values()) if (!chosen.has(c.id)) hard.push(toRect(c.bounds[0], c.bounds[1], c.bounds[0] + c.bounds[2], c.bounds[1] + c.bounds[3]));
     for (const box of b.chipBoxes()) hard.push(toRect(box.x0, box.y0, box.x1, box.y1));
-    for (const box of this.host.overlayBoxes?.() ?? []) hard.push(toRect(box.x0, box.y0, box.x1, box.y1));
+    const overlay = (this.host.overlayBoxes?.() ?? []).map((box) => toRect(box.x0, box.y0, box.x1, box.y1));
     const soft: Rect[] = [...s.wires.values()].map((w: Wire) => {
       const r = toRect(Math.min(w.a[0], w.b[0]), Math.min(w.a[1], w.b[1]), Math.max(w.a[0], w.b[0]), Math.max(w.a[1], w.b[1]));
       return { x: r.x - 4, y: r.y - 4, w: r.w + 8, h: r.h + 8 };     // a bus is 4 px, a dot bigger
     });
     const bar = { w: this.root.offsetWidth, h: this.root.offsetHeight };
-    const at = placement(self, bar, hard, soft, view);
+    const at = placement(self, bar, hard, soft, view, 6, overlay);
     this.target = at;
     this.root.style.left = `${Math.round(at.x)}px`;
     this.root.style.top = `${Math.round(at.y)}px`;

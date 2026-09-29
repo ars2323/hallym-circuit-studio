@@ -142,7 +142,9 @@ export function hintLine(q: QuickFacts): string {
 export interface Rect { x: number; y: number; w: number; h: number }
 
 export const HARD_WEIGHT = 1000;          // covering a part or a label chip is this much worse than a wire
+export const OVERLAY_WEIGHT = 100;        // covering what an overlay draws (a flow's arc, a lit wire, a chip)
 export const FARTHER = [0, 20, 40, 60];   // tried further away when nothing near is free (screen px)
+export const WIDER = [100, 160, 240, 320];   // then, when the best near place still covers a part or an overlay
 
 const overlap = (a: Rect, rs: Rect[]): number => rs.reduce((sum, b) => {
   const w = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
@@ -153,30 +155,55 @@ const intersects = (a: Rect, b: Rect): boolean => a.x < b.x + b.w && b.x < a.x +
 
 // Above the target (left-aligned, then right-aligned), below (the same two), right, left (top-aligned, then
 // bottom-aligned); then all of it again 20, 40, 60 px further.  The first place inside the view that covers
-// nothing; else the one covering the least (parts and chips a thousand times a wire), earlier on a tie.
-export function placement(target: Rect, bar: { w: number; h: number }, hard: Rect[], soft: Rect[], view: Rect, gap = 6): Rect {
-  const cands: Rect[] = [];
-  for (const far of FARTHER) {
-    const above = target.y - gap - far - bar.h;
-    const below = target.y + target.h + gap + far;
-    const rightAligned = target.x + target.w - bar.w;
-    const right = target.x + target.w + gap + far;
-    const left = target.x - gap - far - bar.w;
-    cands.push({ x: target.x, y: above, ...bar }, { x: rightAligned, y: above, ...bar },
-      { x: target.x, y: below, ...bar }, { x: rightAligned, y: below, ...bar },
-      { x: right, y: target.y, ...bar }, { x: left, y: target.y, ...bar },
-      { x: right, y: target.y + target.h - bar.h, ...bar }, { x: left, y: target.y + target.h - bar.h, ...bar });
+// nothing; else the one covering the least (parts and chips a thousand times a wire, an overlay's drawing a hundred
+// times), earlier on a tie.  When that one still covers a part, a label or an overlay (D-158 18, UI review of
+// signal-flow.png), the search goes wider: further away, slid sideways, and the Canvas's corners and edges.
+export function placement(target: Rect, bar: { w: number; h: number }, hard: Rect[], soft: Rect[], view: Rect, gap = 6, overlay: Rect[] = []): Rect {
+  const near = around(target, bar, gap, FARTHER, [0]);
+  const first = best(near, target, hard, soft, overlay, view);
+  if (!first.covers) return first.at;                   // wires only (or nothing): the near place, as v1
+  const edges: Rect[] = [];
+  const m = 8;
+  for (const y of [view.y + m, view.y + view.h - bar.h - m]) {
+    for (const x of [target.x, target.x + target.w - bar.w, view.x + m, view.x + view.w - bar.w - m]) edges.push({ x, y, ...bar });
   }
-  let best: Rect | null = null;
+  const wide = best([...around(target, bar, gap, WIDER, [0, -0.5, 0.5, -1, 1]), ...edges], target, hard, soft, overlay, view);
+  return wide.score < first.score ? wide.at : first.at;
+}
+
+function around(target: Rect, bar: { w: number; h: number }, gap: number, distances: number[], slides: number[]): Rect[] {
+  const cands: Rect[] = [];
+  for (const far of distances) {
+    for (const k of slides) {
+      const dx = k * bar.w;
+      const above = target.y - gap - far - bar.h;
+      const below = target.y + target.h + gap + far;
+      const rightAligned = target.x + target.w - bar.w;
+      const right = target.x + target.w + gap + far;
+      const left = target.x - gap - far - bar.w;
+      cands.push({ x: target.x + dx, y: above, ...bar }, { x: rightAligned + dx, y: above, ...bar },
+        { x: target.x + dx, y: below, ...bar }, { x: rightAligned + dx, y: below, ...bar },
+        { x: right, y: target.y + dx / 4, ...bar }, { x: left, y: target.y + dx / 4, ...bar },
+        { x: right, y: target.y + target.h - bar.h + dx / 4, ...bar }, { x: left, y: target.y + target.h - bar.h + dx / 4, ...bar });
+    }
+  }
+  return cands;
+}
+
+function best(cands: Rect[], target: Rect, hard: Rect[], soft: Rect[], overlay: Rect[], view: Rect): { at: Rect; score: number; covers: boolean } {
+  let at: Rect | null = null;
   let bestScore = Infinity;
+  let covers = false;                                   // the best one covers a part, a label or an overlay's drawing
   for (const c of cands) {
     const r = { ...c };
     r.x = Math.max(view.x, Math.min(r.x, view.x + view.w - r.w));
     r.y = Math.max(view.y, Math.min(r.y, view.y + view.h - r.h));
     if (intersects(r, target)) continue;   // pushed back into the view, it came over the target
-    const score = HARD_WEIGHT * overlap(r, hard) + overlap(r, soft);
-    if (score === 0) return r;
-    if (score < bestScore) { bestScore = score; best = r; }
+    const h = overlap(r, hard), o = overlap(r, overlay);
+    const score = HARD_WEIGHT * h + OVERLAY_WEIGHT * o + overlap(r, soft);
+    if (score === 0) return { at: r, score, covers: false };
+    if (score < bestScore) { bestScore = score; at = r; covers = h > 0 || o > 0; }
   }
-  return best ?? cands[0];
+  return { at: at ?? { ...cands[0] }, score: bestScore, covers };
 }
+
