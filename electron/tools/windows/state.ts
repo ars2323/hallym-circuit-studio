@@ -253,10 +253,13 @@ export interface Allowed {
   keyOnly?: boolean;     // registry: a key without values
   dirOnly?: boolean;     // files: a folder (and nothing in it)
   writers?: RegExp;      // only when the audit trail has this place written in the period, by these programs only (D-164)
+  along?: RegExp;        // only when the same check also has a change at this path (a record Windows writes with that one)
   why: string;
 }
 
 const ALL: Expect[] = ['none', 'install', 'uninstalled'];
+// The value names of Explorer's use counters under the one UserAssist GUID seen in CI (a RegExp source, up to ' :: ').
+const USER_ASSIST_COUNT = String.raw`^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\UserAssist\\\{CEBFF5CD-ACE2-4F4F-9178-9926F41749EA\}\\Count :: `;
 const INSTALLING: Expect[] = ['install', 'uninstalled'];
 const SEARCH = 'LOCALAPPDATA\\\\Packages\\\\Microsoft\\.Windows\\.Search_cw5n1h2txyewy\\\\';
 /* Windows' own programs, the only ones the audit trail may show writing Explorer's caches and counters (D-164):
@@ -309,6 +312,13 @@ export const ALLOWED: Allowed[] = [
   { where: 'registry', what: ['added', 'changed'], in: ALL, writers: WINDOWS_WRITERS,
     path: /^HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\UserAssist\\\{CEBFF5CD-ACE2-4F4F-9178-9926F41749EA\}\\Count :: HRZR_PGYFRFFVBA$/,
     why: 'Explorer\'s session record (UEME_CTLSESSION in ROT13), rewritten at a time of its own while a user is logged on (seen in a run check, 2026-09-28)' },
+  // Explorer's use record of this program: when it counts the program's window (its launch counter by the app id, the
+  // entry above), it rewrites its session record in the same stroke -- seen in every first and recovery run of the
+  // setup-e2e job once the first run passed about 4.5 s (the start card's third step, A-08, D-168: runs 36539373664,
+  // 36542204169, 36544666558), where the audit trail had the counter but not the session record written
+  { where: 'registry', what: ['changed'], in: ['none'], data: /^REG_BINARY [0-9A-F]+$/,
+    along: new RegExp(`${USER_ASSIST_COUNT}xe\\.np\\.unyylz\\.pvephvg-fghqvb$`), path: new RegExp(`${USER_ASSIST_COUNT}HRZR_PGYFRFFVBA$`),
+    why: 'Explorer\'s session record (UEME_CTLSESSION), rewritten with its use counter for this program in the same check (D-168)' },
   // ---- an install or an uninstall: Windows' own stores, which Windows changes when any program is installed or
   // removed; there the checks count the installer's places (INSTALLER_PLACES) and anything naming this program
   { where: 'registry', what: ['added', 'removed', 'changed'], in: INSTALLING, path: WINDOWS_STORES,
@@ -347,9 +357,10 @@ export const ALLOWED: Allowed[] = [
 export const NAMES_US = new RegExp(`hallym|circuit-studio|circuitstudio|unyylz|${APP_GUID}`, 'i');
 export const namesUs = (c: Change): boolean => NAMES_US.test(c.path) || NAMES_US.test(c.after ?? '') || NAMES_US.test(c.before ?? '');
 
-export function allowed(c: Change, expect: Expect, writers: Writers = NO_WRITERS): Allowed | undefined {
+export function allowed(c: Change, expect: Expect, writers: Writers = NO_WRITERS, others: readonly Change[] = []): Allowed | undefined {
   for (const k of ALLOWED) {
     if (k.where !== c.where || !k.what.includes(c.what) || !k.in.includes(expect) || !k.path.test(c.path)) continue;
+    if (k.along && !others.some((o) => o !== c && k.along!.test(o.path))) continue;
     if (k.writers) {
       const w = writers.get(noiseKey(c));
       if (!w || w.size === 0 || [...w].some((p) => !k.writers!.test(p))) continue;
@@ -384,20 +395,20 @@ export type Verdict =
   | { kind: 'allowed'; why: string }              // ALLOWED
   | { kind: 'noise'; control: string };           // measured: Windows changed this place by itself
 
-export function judge(c: Change, expect: Expect = 'none', noise: Noise = NO_NOISE, writers: Writers = NO_WRITERS): Verdict {
+export function judge(c: Change, expect: Expect = 'none', noise: Noise = NO_NOISE, writers: Writers = NO_WRITERS, others: readonly Change[] = []): Verdict {
   if (expect === 'install' && allowedByInstall(c)) return { kind: 'ok' };
-  const a = allowed(c, expect, writers);
+  const a = allowed(c, expect, writers, others);
   if (a) return { kind: 'allowed', why: a.why };
   const control = noise.get(noiseKey(c));
   if (control !== undefined && !namesUs(c)) return { kind: 'noise', control };
   return { kind: 'fail' };
 }
 
-export const counts = (c: Change, expect: Expect = 'none', noise: Noise = NO_NOISE, writers: Writers = NO_WRITERS): boolean => judge(c, expect, noise, writers).kind === 'fail';
+export const counts = (c: Change, expect: Expect = 'none', noise: Noise = NO_NOISE, writers: Writers = NO_WRITERS, others: readonly Change[] = []): boolean => judge(c, expect, noise, writers, others).kind === 'fail';
 
 // The changes that are not allowed: none for a run, the installer's own for an install, none left after an uninstall.
 export function unexpected(changes: Change[], expect: Expect, noise: Noise = NO_NOISE, writers: Writers = NO_WRITERS): Change[] {
-  return changes.filter((c) => counts(c, expect, noise, writers));
+  return changes.filter((c) => counts(c, expect, noise, writers, changes));
 }
 
 export const describe = (c: Change): string =>
@@ -410,7 +421,7 @@ export function report(title: string, changes: Change[], expect: Expect, control
   // who wrote it, where the audit trail looked (D-164)
   const by = (c: Change): string => { const w = writers?.get(noiseKey(c)); return w ? `  [written by ${[...w].join(', ') || 'nothing audited'}]` : ''; };
   const body = changes.map((c) => {
-    const v = judge(c, expect, noise, writers);
+    const v = judge(c, expect, noise, writers, changes);
     if (v.kind === 'fail') { bad.push(c); return `FAIL  ${describe(c)}${by(c)}`; }
     if (v.kind === 'ok') return `ok    ${describe(c)}`;
     if (v.kind === 'allowed') return `info  ${describe(c)}${by(c)}  -- ${v.why}`;

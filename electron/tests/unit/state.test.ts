@@ -457,6 +457,24 @@ test('Explorer\'s caches and counters (D-164): through only when the audit trail
   assert.match(r.lines[1], /^FAIL .*\[written by .*HallymCircuitStudio\.exe\]/);
 });
 
+test('Explorer\'s session record with its use counter for this program (D-168): through in a run check only when that counter changed in the same check', () => {
+  const session = ch('registry', 'changed', `${COUNT} :: HRZR_PGYFRFFVBA`, 'REG_BINARY 000000001000000019000000');
+  const counter = ch('registry', 'added', `${COUNT} :: xe.np.unyylz.pvephvg-fghqvb`, 'REG_BINARY 0000000000000000');
+  // as seen in setup-e2e's first and recovery runs: both together, the trail having only the counter
+  assert.deepEqual(unexpected([counter, session], 'none'), []);
+  assert.deepEqual(report('t', [counter, session], 'none').bad, []);
+  // alone (no use of this program counted), or beside another value, it counts as before
+  assert.deepEqual(unexpected([session], 'none'), [session]);
+  const other = ch('registry', 'added', `${COUNT} :: HRZR_PGYPHNPbhag:pgbe`, 'REG_BINARY 00');
+  assert.deepEqual(unexpected([other, session], 'none'), [other, session]);
+  // only a change, only binary data, only that GUID's value
+  assert.equal(counts({ ...session, what: 'added' }, 'none', undefined, undefined, [counter]), true);
+  assert.equal(counts({ ...session, after: 'REG_SZ x' }, 'none', undefined, undefined, [counter]), true);
+  assert.equal(counts({ ...session, path: session.path.replace('CEBFF5CD', 'F4E57C4B') }, 'none', undefined, undefined, [counter]), true);
+  // naming this program in its data: never Windows' own
+  assert.equal(counts({ ...session, after: 'REG_BINARY 00 Unyylz' }, 'none', undefined, undefined, [counter]), true);
+});
+
 test('the audit trail read: file writes and deletes (4663), registry values set (4657), with their programs, as the snapshots\' places', () => {
   const env = { LOCALAPPDATA: 'C:\\Users\\runneradmin\\AppData\\Local', APPDATA: 'C:\\Users\\runneradmin\\AppData\\Roaming' };
   const ev = (id: number, data: Record<string, string>, at = '2026-09-28T12:29:05.1000000Z') =>

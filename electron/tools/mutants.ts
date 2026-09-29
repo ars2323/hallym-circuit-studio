@@ -582,6 +582,8 @@ export const MUTANTS: Mutant[] = [
     find: 'Explorer\\\\iconcache_idx\\.db$/', replace: 'Explorer\\\\(iconcache|thumbcache)_[A-Za-z0-9_]+\\.db$/', tests: ['tests/unit/state.test.ts'] },
   { module: 'state', file: 'tools/windows/state.ts', what: 'any versioned cache of the shell taken for the one seen',
     find: '\\{3DA71D5A-20CC-432F-A115-DFE92379E91F\\}', replace: '\\{[0-9A-F-]{36}\\}', tests: ['tests/unit/state.test.ts'] },
+  { module: 'state', file: 'tools/windows/state.ts', what: 'Explorer\'s session record through without this program\'s counter beside it (D-168)',
+    find: '    if (k.along && !others.some((o) => o !== c && k.along!.test(o.path))) continue;\n', replace: '', tests: ['tests/unit/state.test.ts'] },
   { module: 'state', file: 'tools/windows/state.ts', what: 'any UserAssist GUID taken for the one seen',
     find: 'UserAssist\\\\\\{CEBFF5CD-ACE2-4F4F-9178-9926F41749EA\\}\\\\Count :: HRZR', replace: 'UserAssist\\\\\\{[0-9A-F-]{36}\\}\\\\Count :: HRZR', tests: ['tests/unit/state.test.ts'] },
   { module: 'state', file: 'tools/windows/state.ts', what: 'every Explorer launch counter taken for its session record',
