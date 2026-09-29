@@ -16,8 +16,14 @@
    chunks (metadata), losslessly, and must stay within 1.5 MB.
 
    The first screen has the university's video behind it (D-155): those
-   shots stop it at a fixed second, 3.0 s as Hallym MIPS 2.5.0's start.jpg
+   shots stop it at a fixed second, 3.0 s as Hallym MIPS 2.6.0's start.jpg
    (videoAt), so every round gives the same picture.
+
+   Every time on screen is 10:00:00 (2026-09-28, Seoul) -- the window's
+   clock, the zone, the fake engine's clock, a recovery file's time (Hallym
+   MIPS 2.6.0 fixes the window's clock; D-167).  The window, the clock and
+   the video's frame are tests/e2e/screen-conditions.ts, which the e2e test
+   of the first screen uses too.
 
    The same code gives the same pixels (D-158), and --twice proves it: every
    scene is taken again into a temporary folder and each PNG must be the
@@ -39,9 +45,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { crc32, deflateSync } from 'node:zlib';
 
-import { answerOpen, canvasSettled, DATAPATH, launch, type LaunchOptions, openAbout, openFile, repo, root, sample, type Running } from '../tests/e2e/harness.ts';
+import { answerOpen, canvasSettled, DATAPATH, openAbout, openFile, repo, root, sample, type Running } from '../tests/e2e/harness.ts';
 import { click, menu, partMiddle, rightClick, wireAtPort } from '../tests/e2e/overlay-helpers.ts';
 import { decodePng } from '../tests/e2e/png.ts';
+import { FIXED_MS, launchAtFixedTime as launch, startForScreens as start, videoAt } from '../tests/e2e/screen-conditions.ts';
 
 let out = process.env.SCREENS_OUT ? path.resolve(process.env.SCREENS_OUT) : path.join(root, 'docs/screens');
 mkdirSync(out, { recursive: true });
@@ -69,23 +76,6 @@ function written(name: string): void {
   const bytes = stripPng(file);
   console.log(`wrote ${path.relative(root, file)} (${Math.round(bytes / 1024)} KB)`);
   if (bytes > MAX_BYTES) throw new Error(`${name}.png is ${bytes} bytes, over ${MAX_BYTES}: crop it`);
-}
-
-// Every window of this tool: no motion (prefers-reduced-motion, as a PC with Windows' animation effects off),
-// no transition, animation or blinking caret (D-158: the same code, the same pixels).  motion: the scene is
-// about the first screen's video (held at a second by videoAt()).
-const CAPTURE_CSS = '*, *::before, *::after { transition: none !important; animation: none !important; caret-color: transparent !important; }'
-  // the first screen's video frame held in a canvas (videoAt): the video's own look (shared.css .wback video)
-  + ' .wback canvas.capture-frame { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(3px) saturate(.85); transform: scale(1.03); }';
-// Chromium rasterising on the CPU, whole tiles, one thread: its GPU path (SwiftShader under Xvfb) and partial raster
-// left a pixel of anti-aliasing at a rounded corner or a button's edge different from one run to the next.
-export const CAPTURE_SWITCHES = ['--disable-gpu', '--disable-gpu-compositing', '--disable-partial-raster', '--num-raster-threads=1'];
-async function start(size: { width: number; height: number } | null, o: LaunchOptions & { motion?: boolean } = {}): Promise<Running> {
-  const r = await launch(size, { ...o, switches: [...CAPTURE_SWITCHES, ...(o.switches ?? [])] });
-  if (!o.motion) await r.page.emulateMedia({ reducedMotion: 'reduce' });
-  await r.page.addStyleTag({ content: CAPTURE_CSS });
-  await r.page.evaluate(() => document.documentElement.classList.add('capture'));
-  return r;
 }
 
 // Nothing more to come (D-158): the fonts and images loaded, no engine call of the window's outstanding (the main
@@ -151,33 +141,6 @@ async function shot(r: Running, name: string, o: { keepFocus?: boolean; keepPoin
   if (hovered.length && !o.keepPointer) throw new Error(`${name}: still hovered: ${hovered.join(' ')}`);
   await page.screenshot({ path: path.join(out, `${name}.png`) });
   written(name);
-}
-
-// The first screen's video, stopped at `t` seconds, that frame on screen (Hallym MIPS 2.5.0 capture-screens.ts).
-const START_AT = 3.0;
-async function videoAt(r: Running, t = START_AT): Promise<void> {
-  if (await r.page.locator('.stage-welcome').isHidden()) throw new Error('videoAt: the first screen is not on show');
-  await r.page.waitForSelector('.wback.playing');
-  // That frame decoded (requestVideoFrameCallback at its time), then drawn into a canvas that takes the video's place
-  // with the same look (D-158): a paused video's frame reached the software compositor late now and then (the first
-  // frame's still showed through in one round of two), a canvas's bitmap never does.
-  await r.page.evaluate((t) => new Promise<void>((done) => {
-    const v = document.querySelector('.wback video') as HTMLVideoElement;
-    v.pause();
-    const hold = () => {
-      const c = document.createElement('canvas');
-      c.width = v.videoWidth;
-      c.height = v.videoHeight;
-      c.getContext('2d')!.drawImage(v, 0, 0);
-      c.className = 'capture-frame';
-      v.after(c);
-      v.style.visibility = 'hidden';
-      requestAnimationFrame(() => requestAnimationFrame(() => done()));
-    };
-    const presented = () => v.requestVideoFrameCallback((_now, meta) => { if (Math.abs(meta.mediaTime - t) < 0.02) hold(); else presented(); });
-    presented();
-    v.currentTime = t;
-  }), t);
 }
 
 // The Canvas has drawn the circuit with the engine's values (N-05).
@@ -469,9 +432,9 @@ async function view(r: Running, v: { x: number; y: number; zoom: number }): Prom
 
 // The program (N-16): the summary after Load Program (ref-mips, data.hmx beside its .s), the Console after
 // the program ran to its exit, the band after the .hmx was exported again cut off.  The fake engine answers
-// with the real engine's words (tests/fixtures/programs.json); its clock is fixed and the zone is Seoul's.
+// with the real engine's words (tests/fixtures/programs.json); its clock held at 10:00:00 (screen-conditions.ts).
 {
-  const r = await start(FHD, { env: { TZ: 'Asia/Seoul' } });
+  const r = await start(FHD);
   const { page } = r;
   const circ = sample(r.dir, 'tests/mips/ref-mips.circ');
   sample(r.dir, 'tests/hmx/hallym-mips-v2.4.0/data.s');
@@ -752,15 +715,15 @@ for (const [name, size, scale] of [
 }
 
 // A recovery file beside the file being opened (N-19, D-152): the question before it opens, over the file on
-// show.  The recovery file's time is fixed (2026-09-28 14:05, Seoul) so the same code gives the same pixels.
+// show.  The recovery file's time is the fixed clock's (2026-09-28 10:00, Seoul): the same code, the same pixels.
 {
-  const r = await start(FHD, { env: { TZ: 'Asia/Seoul' } });
+  const r = await start(FHD);
   const { page } = r;
   await openFile(r, sample(r.dir, DATAPATH));
   await drawn(r);
   const lab3 = sample(r.dir, 'tests/circ/gates.circ', 'lab3.circ');
   copyFileSync(lab3, `${lab3}.hcs-recover`);
-  const at = Date.parse('2026-09-28T14:05:31+09:00') / 1000;
+  const at = FIXED_MS / 1000;
   utimesSync(lab3, at - 3600, at - 3600);
   utimesSync(`${lab3}.hcs-recover`, at, at);
   await answerOpen(r.app, lab3);

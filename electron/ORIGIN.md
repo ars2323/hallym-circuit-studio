@@ -61,7 +61,7 @@ Hallym MIPS `electron/`에는 SPIM의 `CPU/op.h`에서 만든 `src/core/op-table
 | `tools/electron.ts` | `electron/tools/electron.ts` | copy | — |
 | `tools/licenses.ts` | `electron/tools/licenses.ts` | derived | 애드온(node-addon-api) 없음. 묶은 패키지가 없으면 그렇게 적음 |
 | `tools/e2e-widths.ts` | `electron/tools/e2e-widths.ts` | derived | 이 앱의 창 크기(실습실 1920×1080의 100·125·150 %, 화면 절반) |
-| `tools/capture-screens.ts` | `electron/tools/capture-screens.ts` | derived | PNG 메타데이터 빼기, 크기 한도, 마우스·포커스 치우기, `shot()` 그대로. 2.6.0의 고정 시계(10:00:00, 창의 `Date`)와 "바뀌지 않은 그림은 다시 쓰지 않음"(같은 판정 기준, `tests/e2e/png.ts` `samePicture`)을 들였고, 이 앱은 시간대·가짜 엔진의 시계·복구 파일 시각까지 같은 시각에 둔다(`tests/e2e/screen-conditions.ts`, D-167). 장면은 이 앱의 것 |
+| `tools/capture-screens.ts` | `electron/tools/capture-screens.ts` | derived | PNG 메타데이터 빼기, 크기 한도, 마우스·포커스 치우기, `shot()` 그대로. 2.6.0의 고정 시계(10:00:00, 창의 `Date`)를 들였고, 이 앱은 시간대·가짜 엔진의 시계·복구 파일 시각까지 같은 시각에 둔다(`tests/e2e/screen-conditions.ts`, D-167). 2.6.0의 "바뀌지 않은 그림은 다시 쓰지 않음"(오차 허용 비교)은 들이지 않았다: 이 앱은 D-158로 두 번 찍어 바이트까지 같게(`--twice`) 만들었으므로 바뀌지 않은 그림은 git에서 이미 바뀌지 않는다. 장면은 이 앱의 것 |
 | `tools/mutants.ts` | `electron/tools/mutants.ts` | derived | 임시 폴더에 복사해 돌연변이마다 테스트하는 틀 그대로. 돌연변이 목록은 이 앱의 것, 네이티브 빌드 없음 |
 | `tools/package.ts` | `electron/tools/package.ts` | derived | 앱과 엔진(jar 둘, 번들 JRE: N-04)을 모아 electron-builder를 부름. 설치 파일의 옵션은 `tools/package-config.ts`(2.5.0과 같은 안내형 NSIS: `oneClick: false`, 사용자별, 폴더 선택 없음, 권한 상승 없음, 한국어, 시작 메뉴 바로 가기만, 마침 화면의 지금 실행하기, 왼쪽 띠 그림; 블록맵·elevate.exe 없음; N-23, D-148, D-155). `--version`·`--out`·`--win` |
 | `packaging/installer.nsh` | `electron/packaging/installer.nsh` | derived | 설치 폴더 이름을 이 프로그램 이름으로, 이 사용자만(묻는 화면 없음), 진행 화면 머리 문구, 마침 화면("설치가 완료되었습니다", "Hallym Circuit Studio 설치를 마쳤습니다…", 지금 실행하기), 진행 막대를 앱 파랑 #0055A5로(`PBM_SETBARCOLOR`), 제거 화면(진행, "제거가 끝났습니다"), 업데이터 사본 지우기(여기까지 upstream 2.5.0, 함수 이름 `Hcs…`). v1.0.x MSI를 UpgradeCode로 찾아 조용히 지우기, `%TEMP%`의 제거 프로그램 사본 지우기, 설치 파일의 나머지 한국어 문구(이름 뒤 조사 없음)는 이 앱의 것(N-23, D-148, D-155) |
@@ -77,7 +77,7 @@ Hallym MIPS `electron/`에는 SPIM의 `CPU/op.h`에서 만든 `src/core/op-table
 
 ## v2.6.0에서 가져온 것(A-07 2단계, D-169)
 
-1단계(D-167)가 .hmx 참조·필드 색·스크린샷 시계를 맞춘 뒤, 2단계는 창 껍데기의 디자인을 v2.6.0에서 다시 가져왔다(upstream `app.css`·`app.ts`·`panels/welcome.ts`·`logic/overlay.ts`·`api.ts`·`main.ts`·`tests/e2e/backdrop-measure.ts`의 2.5.0 → 2.6.0 변경).
+`node tools/import-hmips.ts --tag v2.6.0`이 알린 것: `copy` 2개를 바꿈(`src/renderer/shared/overlay.ts`, `tests/e2e/backdrop-measure.ts`: 둘 다 더하기만이고 지금 화면의 동작은 그대로), `derived` 11개 "MERGE". v2.5.0 → v2.6.0에서 바뀐 upstream 파일은 `app.css`, `app.ts`, `api.ts`, `panels/welcome.ts`, `logic/overlay.ts`, `main.ts`, `preload.cjs`, `capture-screens.ts`, `mutants.ts`, `backdrop-measure.ts`, `start.e2e.ts`, `window.e2e.ts`, `overlay.test.ts`와 문서·그림·CI뿐이다(`docs/design/`의 토큰 문서, Registers·Data·Inspector 패널, 글꼴, 아이콘, 영상은 그대로). 들인 것은 위 표의 `capture-screens.ts`(고정 시계)와 `overlay.test.ts`다.
 
 - **시작 화면:** 영상이 창 전체 아래에 깔리고(`.wback` `position: fixed`), 제목 줄과 상태 표시줄은 그 위의 어두운 유리(`rgba(0,20,56,.3)` + `blur(16px)`, 흰 글자·흰 아이콘, 나눔선 없음), 가운데 카드는 반투명 유리(흰색 .82, `blur(18px) saturate(1.2)`, 가벼운 그림자, 캐릭터 168 px, 부제 `--text-2-glass`). `shared/shared.css`, `shared/welcome.ts`.
 - **Windows 캡션 단추:** 시작 화면에서는 단추 뒤 조각이 투명(`#00000000`)이고 기호가 흰색이라 유리 위에 바로 앉는다(흰 조각 없음). 그 밖에서는 전처럼 흰색, 또는 대화상자·튜토리얼이 덮으면 그 아래 흰색의 색이고 기호는 남색. `shared/overlay.ts`(copy: `captionPatch`, `FIRST_SCREEN_PATCH`), `app/captions.ts`, `src/main/main.ts`의 `win:overlay`(조각과 기호 둘 다).
