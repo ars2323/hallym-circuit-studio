@@ -2284,17 +2284,21 @@
 
 - **날짜:** 2026-09-29
 - **결정(사용자 지시 "[CI 속도 — 지금 바로]"):**
-  1. **PR 게이트:** `linux`, `electron`(Linux e2e), `runtime`(Linux), `track-a-java8`. Windows 작업(`setup-exe`, `setup-e2e`, `setup-upgrade`, `runtime` Windows)은 main push, `v*` 태그, `workflow_dispatch`에서 돈다.
-     - 판정은 ci.yml 첫 작업 `changes`가 한다. PR의 바뀐 파일(`base...HEAD`)이 다음 중 하나에 닿으면 Windows 작업도 돈다:
-       - `.github/workflows/*`
-       - `electron/packaging/*`, `electron/tools/package*`, `electron/tools/windows/*`
-       - `electron/tools/installer-art.py`, `release-assets.ts`, `stage-engine.ts`
-       - `electron/src/main/*`: 주 프로세스, 곧 설치 폴더·실행 폴더·엔진 찾기·수명과 Windows 변화 0 검사의 대상
-       - `electron/package.json`, `package-lock.json`: Electron·electron-builder 판
-       - `engine/build.gradle.kts`, `gradle/*`: jlink 런타임
-       - `tools/package-windows.ps1`
-     - 결과는 작업 요약에 한 줄로 남는다. `setup-e2e`·`setup-upgrade`·`release`는 `setup-exe`에 딸려 함께 건너뛴다. 건너뛴 작업은 실행 결론을 실패로 만들지 않는다.
-  2. **concurrency:** `group: ci-${{ github.ref }}`, `cancel-in-progress`는 PR일 때만 참이다. rebase·새 push가 같은 PR의 옛 실행을 취소한다. main과 태그는 ref마다 한 줄로 서지만 취소하지 않는다.
+  1. **PR 게이트:** `linux`, `linux-checks`, `electron`(Linux e2e), `runtime`(Linux), `track-a-java8`, `release`.
+     - Windows 작업(`setup-exe`, `setup-e2e`, `setup-upgrade`, `runtime` Windows)은 main push, `v*` 태그, `workflow_dispatch`에서 돈다.
+     - PR에서는 ci.yml 첫 작업 `changes`가 판정한다. 바뀐 파일(`base...HEAD`)이 **모두** 허용 목록 안이면 Windows 작업을 건너뛰고, 하나라도 밖이면 돈다. 빠뜨린 경로는 Windows 쪽으로 기운다.
+     - 허용 목록은 Windows 작업이 Linux와 다르게 포장하거나 시험하지 않는 것이다:
+       - 화면 renderer, `electron/tests/{unit,e2e,fixtures,fake-engine}`, `electron/docs`, 측정·촬영 도구
+       - 엔진·앱·lib-mips 소스, `tests/{circ,parity,hmx,mips,disasm,spim-oracle}`, `docs/`, `*.md`
+     - 허용 목록 안이라도 Windows 작업이 도는 것:
+       - `electron/src/renderer/app/index.html`: 포장이 이 줄을 고쳐 쓴다.
+       - `installed*`·`windows-*`·`real-engine*` e2e와 `harness.ts`
+       - 엔진 `Main.java`와 `prefs/`: Windows 레지스트리 변화 0의 대상
+       - 모든 `.gitattributes`
+     - 주 프로세스, 포장, 설치 시험, jlink 런타임·Gradle 설정, CI 자체, 트랙 A 포장 스크립트는 목록 밖이라 Windows 작업이 돈다.
+     - 판정 이유(처음 걸린 파일)는 로그와 작업 요약에 남는다. `setup-e2e`·`setup-upgrade`는 `setup-exe`에 딸려 함께 건너뛴다.
+     - `release`는 PR마다 돈다. Windows 작업이 없는 PR에서는 setup exe 이름의 빈 대역을 두고 트랙 A 포장(`package-track-a.sh`)과 배포 파일 규칙(`release-assets.ts check`)을 그대로 확인한다. 그 밖에는 Windows 작업이 모두 통과해야 돈다.
+  2. **concurrency:** PR은 `group: ci-${{ github.ref }}`, `cancel-in-progress: true`다. rebase·새 push가 같은 PR의 옛 실행을 취소한다. main·태그·수동 실행은 실행마다 자기 group(`ci-run-<run_id>`)이다. ref로 묶으면 GitHub가 같은 group에서 기다리는 실행을 새 실행으로 바꿔 치우므로(취소를 꺼도), 연달아 머지할 때 가운데 main 커밋의 Windows 작업이 돌지 않는다. 그래서 main 커밋마다 모든 작업이 돈다.
   3. **main의 Windows 실패:** main의 Windows 작업이 실패하면 고치는 PR을 가장 먼저 한다. alpha·v2.0.0 태그 전에는 그 main 커밋의 Windows 작업이 초록이어야 한다(D-154의 태그 규칙에 더함).
   4. **공용 파일:** `docs/PROGRESS.md`와 DECISIONS 번호는 지휘 세션만 고치고, 번호는 지휘 세션이 나눠 준다. 에이전트 PR은 받은 D 번호로 자기 항목만 쓰고 PROGRESS를 고치지 않는다. PROGRESS는 지휘 세션이 모아서 한 PR로 갱신한다.
   5. **linux 나누기(잰 뒤 더함):** 재 보니 PR 실행의 가장 긴 줄은 Windows만이 아니라 `linux`(20–24분)였다. #454 run 36503209450의 단계:
@@ -2303,7 +2307,7 @@
      - app identity hash 재실행 5.9분
      - 엔진 테스트 identity hash 재실행 8.2분
 
-     긴 셋을 `linux-checks` 행렬(`linux-pit`, `linux-app-constant-hash`, `linux-engine-constant-hash`)로 떼어 나란히 돌린다. `linux`는 원본·자산·엔진 불변 검사와 `build`(엔진 테스트 포함), 캔버스 시험 자료, 산출물만 맡는다. 같은 검사를 모두 그대로 돌리고, 줄인 것은 차례뿐이다. 전에 있던 두 번째 `:engine:test`(보통 JVM)는 `build`가 이미 돌아 뺐다. PR 게이트는 `linux`·`linux-checks`·`electron`·`runtime`(Linux)·`track-a-java8`이고 `release`는 `linux-checks`도 기다린다.
+     긴 셋을 `linux-checks` 행렬(`linux-pit`, `linux-app-constant-hash`, `linux-engine-constant-hash`)로 떼어 나란히 돌린다. `linux`는 원본·자산·엔진 불변 검사와 `build`(엔진 테스트 포함), 캔버스 시험 자료, 산출물만 맡는다. 같은 검사를 모두 그대로 돌리고, 줄인 것은 차례뿐이다. 전에 있던 두 번째 `:engine:test`(보통 JVM)는 `build`가 이미 돌아 뺐다. `release`는 `linux-checks`도 기다린다.
   6. **흔들리는 검사:** 원인을 고칠 때까지 격리해 머지를 막지 않는다. 격리하려면 테스트나 단계에 이슈 번호를 달고 `docs/OPEN-ISSUES.md` "격리한 검사" 표에 적는다. v2.0.0 전까지 모두 되돌린다(그 표가 비어야 한다).
 - **이유:**
   - PR 하나의 머지까지 40~50분이 걸렸고, rebase마다 처음부터 다시 돌았다. 대부분이 Windows 러너의 setup-exe → setup-e2e·setup-upgrade 사슬과 runtime Windows다.
@@ -2316,4 +2320,5 @@
   - 병합 큐: 저장소에 보호 규칙이 없고 지휘 세션이 직접 머지한다.
 - **시험:**
   - 이 PR은 `.github/workflows/`에 닿으므로 Windows 작업까지 돈다(판정 확인).
-  - 다음 화면 PR에서 Windows 작업이 건너뛰어지는 것과 머지까지 걸린 시간을 잰다. 전·후 값은 아래 "측정"에 적는다.
+  - 다음 화면 PR에서 Windows 작업이 건너뛰어지는 것과 머지까지 걸린 시간을 잰다. 후 값은 지휘 세션의 PROGRESS 묶음 PR에서 이 항목의 "측정(후)"로 더한다.
+  - 검토(compat-reviewer)의 확인 필요 4건을 반영했다: 목록 방식을 허용 목록으로 바꿈, main group, PR의 release 확인, 없는 파일 항목.
