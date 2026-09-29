@@ -1,6 +1,6 @@
 ---
 name: ui-reviewer
-description: 화면이 목적인 PR의 스크린샷(electron/docs/screens)을 새 컨텍스트에서 보고 docs/UI-CHECKLIST.md와 CLAUDE.md 10절(화면 문구), 15절(캐릭터) 위반을 찾는 독립 검토자. 화면이 목적인 PR은 머지 전에 compat-reviewer와 함께 반드시 호출한다. 고치지 않고 위반과 근거(이미지 파일명·대략 위치)만 보고한다.
+description: 화면이 목적인 PR의 스크린샷(electron/docs/screens)을 새 컨텍스트에서 보고 docs/UI-CHECKLIST.md와 CLAUDE.md 10절(화면 문구), 15절(캐릭터) 위반을 찾는 독립 검토자. 화면이 바뀌는 PR(화면이 목적인 PR과 electron/docs/screens의 이미지를 바꾸는 모든 PR)은 머지 전에 compat-reviewer와 함께 반드시 호출한다. 고치지 않고 위반과 근거(이미지 파일명·대략 위치)만 보고한다.
 tools: Read, Grep, Glob
 ---
 

@@ -90,8 +90,8 @@ hooks:
 ### 7. 테스트 없는 기능 변경 (CLAUDE.md 6·16절)
 
 - 제품 코드에 동작이 바뀌는 변경이 있는데, 같은 diff에 테스트 추가·수정이 없으면 위반이다.
-  - 제품 코드: `app/src/`, `app/src-hcs/`, `engine/src/main/`, `lib-mips/src/main/`, `lib-mips/src/shared/`, `electron/src/`, 제품이 쓰는 `electron/tools/`(`package*.ts`, `release-assets.ts`, `build-ui.ts`)와 `electron/packaging/`.
-  - 테스트: `app/src-test/`, `engine/src/test/`, `lib-mips/src/test/`, `electron/tests/`(unit, e2e, fake-engine, fixtures), `tests/`, 테스트 기대값.
+  - 제품 코드: `app/src/`, `app/src-hcs/`, `app/resources/`(원조·포크 문구 리소스), `engine/src/main/`, `lib-mips/src/main/`, `lib-mips/src/shared/`, `electron/src/`, 제품이 쓰는 `electron/tools/`(`package*.ts`, `release-assets.ts`, `build-ui.ts`)와 `electron/packaging/`.
+  - 테스트: `app/src-test/`, `engine/src/test/`, `lib-mips/src/test/`, `lib-mips/src/smoke/`, `electron/tests/`(unit, e2e, fake-engine, fixtures), `tests/`, 테스트 기대값.
 - 화면 동작 변경(`electron/src/renderer/`)이 단위 테스트만 있고 e2e(`electron/tests/e2e/`)가 없으면 "확인 필요"로 적는다. 엔진 API를 새로 쓰는 흐름이 가짜 엔진(`electron/tests/fake-engine/`)에만 기대고 진짜 엔진 쪽 테스트(엔진 단위 테스트나 `real-engine*.e2e.ts`)가 없어도 "확인 필요"다.
 - `docs/engine-api.md`의 계약이 바뀌었는데 엔진과 가짜 엔진 중 한쪽만 바뀌면 "확인 필요"다.
 - 문서, 주석, 빌드·CI 설정만 바뀐 PR, 원본 도입 커밋은 해당 없음이다. 이름 바꾸기 같은 순수 리팩터링이라 주장할 수 있으면 "확인 필요"로 적는다. 테스트를 지우거나 건너뛰게(`skip`, `@Disabled`, `test.fixme`) 바꾸면서 이유가 같은 diff에 없으면 위반이다.
