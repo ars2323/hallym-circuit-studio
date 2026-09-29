@@ -183,6 +183,7 @@ Component = {
 | `edit.keyConfig` | `key, alt?, chain?` + (`lib, name`: 놓기 도구에) | 숫자·Alt+숫자·Alt+방향 키(원조 KeyConfigurator: 게이트 입력 수, 비트 폭, Select Bits, 핀 라벨 자리…). `lib, name`이 없으면 고른 부품에(`SelectTool.processKeyEvent`, 한 단계), 있으면 그 놓기 도구에(`AddTool.processKeyEvent`, ToolAttributeAction). 도구에 방향 키(`ArrowUp` 등, Alt 없이)는 설정기가 받지 않으면 도구의 방향(`AddTool.setFacing`). `chain`: 앞 키의 설정기를 이어 쓴다(원조처럼 0.8초 안의 숫자를 여러 자리 수로, 시간은 화면이 잰다) |
 | `edit.text` | `id?` 또는 `loc`, `text` | 글자 도구(`TextTool`): `id`면 그 부품의 글 칸(라벨, Label 글)을 원조 `TextEditable.getCommitAction`으로, 아니면 `loc`에 새 Label(글자 도구 속성으로, 빈 글이면 하지 않음). result `id`: 새 Label |
 | `edit.undo`, `edit.redo` | `circuitId?`: 화면이 보던 회로(화면은 늘 보낸다) | Logisim 되돌리기 기록 그대로(다시 실행은 포크의 RedoStack). `circuitId`를 주면 먼저 그 회로를 편집하는 회로로 둔다(다른 회로의 선택은 원조처럼 그 회로에 내려놓고 비운다): 저널에 적혀 되살리기 재생이 저널에 없는 `sim.watch`·`record.view`와 상관없이 같다(D-146 12항). 없으면(의도 파일) 지금 회로 그대로 |
+| `edit.history` | `moves, circuitId?` | Undo History의 한 줄(N-21, v1 E-05): `moves`가 음수면 그만큼 `edit.undo`, 양수면 그만큼 `edit.redo`를 한 의도로(저널 한 줄, `-10000..10000` 밖은 -32602). 기록보다 많으면 있는 만큼. 바뀐 것이 없으면 `changed:false, outcome:"nothing"` |
 | `edit.setToolAttr` | `lib, name, attr, value` | 도구 속성 바꾸기(부품 목록에서 고른 도구의 속성 표, ToolAttributeAction). 도구에 남아 다음 놓기에 쓰이고 `<lib><tool>`에 저장된다. 이미 같은 값이면 `changed:false, outcome:"same"` |
 | `edit.copy`, `edit.cut`, `edit.duplicate` | `ids?` | Edit 메뉴(LayoutEditHandler). 클립보드는 엔진 프로세스 안(열린 파일끼리 붙여넣기 됨, 시스템 클립보드 아님). 복제는 v1 SafeDuplicate: 사본이 옛 포트·선에 닿으면 나선으로 더 옮겨 내려놓는다(W-05) |
 | `edit.paste` | — | Edit › Paste: 사본을 떠 있는 선택으로 둔다(다음 고르기·다른 회로·저장 때 내려놓는다) |
@@ -527,6 +528,21 @@ FlowPath = {circuitId, backward, total, click?:[x,y],
 - **`flow.activePath`**(v1 C-08, V-04, D-079, D-099): 화면이 보고 있는 회로 상태(`sim.watch`, 지난 사이클을 보이면 `record.view`가 바꿔 끼운 그 사이클의 상태)에서 MUX마다 선택 값이 정해졌으면 고른 데이터 입력(`input`)까지 오는 가지의 선분들. 그 넷을 내는 포트에서 그 입력까지의 가장 짧은 선 경로만이고(`Netlist.branch`), 내는 포트를 모르면 넷 전체다. 그 회로를 보고 있지 않으면 `watched:false`와 빈 목록이다.
 - 필드 색(C-07)의 선은 `record.fieldPaths`(위 record 절)가 준다.
 - **화면:** 캔버스 덧그림(`electron/src/renderer/canvas/overlays/`)이 이 답을 그린다. 선택은 캔버스의 `hcs:selection` 사건(`canvas/events.ts`), 도구는 `hcs:tool` 사건 또는 도구 모음에서 읽는다.
+
+### project(Undo History·Analyze Circuit·Get Circuit Statistics·Create Submission, N-21, D-162)
+
+| 메서드 | params | result |
+| --- | --- | --- |
+| `model.history` | `{fileId}` | `{fileId, rows:[{kind:"start"\|"undo"\|"now"\|"redo", name?, moves}]}` |
+| `model.analyze` | `{fileId, circuitId}` | `Analysis`(아래) |
+| `model.statistics` | `{fileId, circuitId}` | `{circuit, rows:[{component, library, simple, unique, recursive}], without, with}` |
+| `file.submission` | `{fileId, path?}` | `{saved, dirty, messages, probes, bundledJar, missing:[글], files:[zip 안 경로], suggested, written?:{path, name, bytes, count}}` |
+
+- **`model.history`**(v1 `UndoHistory`): 원조 되돌리기 기록(`Project.getUndoActions`, 오래된 것부터, 선택 동작도 원조 기록 그대로 든다)과 포크의 다시 실행 기록(`RedoStack`, 바로 다음 것부터)을 읽기만 한다. `name`은 원조 동작 이름(`Add AND Gate`), `moves`는 그 줄을 눌렀을 때 `edit.history`에 줄 수(맨 위 `start`는 모두 되돌림, `undo` 줄은 그 동작을 마친 상태까지, `redo` 줄은 그 동작까지 다시).
+- **`model.analyze`**(Project › Analyze Circuit, 원조 `ProjectCircuitActions.doAnalyze`): 읽기만 한다. 핀 이름은 원조 `Analyze.getPinLabels`(위→아래, 왼쪽→오른쪽). 원조가 오류 창으로 멈추던 것은 `problem`: `multibitInput`·`multibitOutput`(`pin`: 그 핀), `tooManyInputs`·`tooManyOutputs`(`maxInputs`·`maxOutputs` = 12), 원조가 Inputs·Outputs 탭에 멈추던 `noInputs`·`noOutputs`. 없으면 원조 `Analyze.computeExpression`, 원조가 식을 따라가지 못하면(`expressionFailure`: 원조 문장, 영어) 원조처럼 입력 조합마다 시뮬레이션한 진리표(`Analyze.computeTable`, 따로 만든 회로 상태라 학생의 시뮬레이션은 그대로). `source`: `"expression"`·`"table"`. `table.rows`는 줄마다 `[입력 비트 글("01"), 출력 칸…]`이고 칸은 원조 Entry `"0"`, `"1"`, `"x"`(상관없음), `"E"`(출력 충돌), `"!!"`(진동). `expressions`는 출력마다 원조 식 글(`~a b + a ~b`)과 원조 AnalyzerModel의 최소식 `sop`·`pos`.
+- **`model.statistics`**(Project › Get Circuit Statistics): 원조 `FileStatistics`의 표 그대로(Simple: 이 회로에 바로, Unique: 정의마다 한 번, Recursive: 인스턴스를 모두 펼친 수). `library`는 라이브러리의 보이는 이름(이 파일의 회로는 파일 이름, 없으면 `-`), `without`·`with`는 원조의 두 합계 줄.
+- **`file.submission`**(File › Create Submission…, v1 `Submission`): 디스크에 저장된 .circ와 그 파일이 가리키는 것(`file#`·`jar#` 라이브러리, 메모리 부품의 `source` 속성 = 불러온 실행 이미지)을 .circ 폴더 기준 상대 경로 그대로 묶는다. MIPS jar가 .circ가 가리키는 자리에 없으면 번들 `hcs-mips.jar`를 그 이름으로 넣는다(`bundledJar`). 폴더 밖(`../`, 절대 경로)이나 없는 파일은 `missing`. `messages`는 지금 Messages 수(화면에 보낸 목록을 건드리지 않는다), `probes`는 남은 Probe·Radix Probe 수. 점검은 사실만이고 막지 않는다. `path`를 주면 그 zip을 쓴다(옆의 임시 파일에 다 쓴 뒤 옮긴다, `.zip`이 없으면 붙인다). 한 번도 저장하지 않은 파일에 `path`는 -32602. `path`를 받는 이 메서드는 창이 부를 수 없고 main이 저장 창 뒤에 부른다(`electron/src/main/pictures.ts`).
+- 그림 내보내기(SVG·PDF·PNG)와 인쇄는 엔진을 거치지 않는다: 화면이 캔버스의 벡터 정의로 SVG를 만들고(D-137, `CircuitCanvas.exportSvg`), main이 글꼴을 넣어 쓰거나 Chromium으로 PDF·PNG·인쇄로 바꾼다(D-162).
 
 ## 6. 확장
 
