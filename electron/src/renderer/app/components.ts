@@ -110,8 +110,14 @@ export function componentsPanel(o: {
     return b;
   }
 
+  // The list as last built: the same list again is not built again -- a part being dragged from it would be taken
+  // out of the page and the drag would end with nothing dropped (and a group opened or closed would snap back).
+  let built = '';
   function renderTree(libs: LibraryGroup[]): void {
     const st = state!;
+    const key = JSON.stringify([libs, st.fileName, st.circuit, st.openFiles ?? []]);
+    if (key === built && tree.childElementCount > 0) { mark(); return; }
+    built = key;
     tree.replaceChildren(...libs.map((g, i) => {
       const summary = h('summary', {}, g.lib === null ? st.fileName : g.display ?? g.lib,
         g.pending ? h('span', { class: 'dim', title: '처음 놓으면 이 파일에 들어갑니다' }, 'not in the file yet') : null,

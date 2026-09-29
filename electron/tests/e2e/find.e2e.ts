@@ -136,6 +136,42 @@ test('a part dragged from Components to the Canvas is placed where it is dropped
   }
 });
 
+test('the same Components list again is not built again: its buttons stay, a group opened stays open, and a part dragged while the window renders the same state is placed (N-17, D-172)', async () => {
+  const r = await launch();
+  const { page } = r;
+  try {
+    await newCircuit(r);
+    await page.locator('.upper .libgroup', { hasText: 'Gates' }).locator('summary').click();
+    // a render of the same file, circuit and library: the circuit tab on show clicked (render(), nothing changed)
+    await page.evaluate(() => { (window as unknown as { kept: Element[] }).kept = [...document.querySelectorAll('.comptree [data-tool]')]; });
+    await page.evaluate(() => (document.querySelector('.circuitbar .ptab.on') as HTMLElement).click());
+    const after = await page.evaluate(() => {
+      const kept = (window as unknown as { kept: Element[] }).kept;
+      const now = [...document.querySelectorAll('.comptree [data-tool]')];
+      return { n: now.length, same: kept.length === now.length && kept.every((b, i) => b === now[i] && b.isConnected) };
+    });
+    expect(after.n).toBeGreaterThan(10);
+    expect(after.same).toBe(true);
+    await expect(page.locator('.upper .libgroup', { hasText: 'Gates' })).toHaveAttribute('open', '');
+    // the runtime job's flake: a Hallym MIPS part dragged onto the Canvas while the window keeps rendering the same
+    // state -- the drag begins on the button and drops the part (a list built again at every render replaces the
+    // button under the pointer: no drag begins on a button that stays, nothing is placed)
+    await page.evaluate(() => {
+      const w = window as unknown as { again: number };
+      w.again = window.setInterval(() => (document.querySelector('.circuitbar .ptab.on') as HTMLElement).click(), 3);
+    });
+    await page.locator('.upper .libgroup.pending .list li', { hasText: 'Console' }).getByRole('button')
+      .dragTo(page.locator('.pbody.canvas'), { targetPosition: { x: 303, y: 197 }, timeout: 10_000 });
+    await page.evaluate(() => window.clearInterval((window as unknown as { again: number }).again));
+    await expect(page.locator('.status')).toContainText('1 component');
+    await drawn(page);
+    expect((await comps(page))[0]).toMatchObject({ name: 'Console', loc: [300, 200] });
+    await expect(page.locator('.upper .libgroup.pending')).toHaveCount(0);
+  } finally {
+    await r.close();
+  }
+});
+
 test('the search palette: Ctrl+K by the pointer, parts with the number, Enter places one there; tunnels, commands, favourites; Esc and a press outside close it', async () => {
   const r = await launch();
   const { page } = r;
