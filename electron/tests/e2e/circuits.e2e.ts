@@ -238,6 +238,9 @@ test('file tabs: two files of one name show their folders; Detach Tab makes a wi
     await expect(page.locator('.filebar .ptab .tabnote')).toHaveText(['— hw1', '— hw2']);
     // Detach Tab: the second file in its own window
     await page.locator('.filebar .ptab').nth(1).click({ button: 'right' });
+    // the menu opens under the tab row, the tab it is for left in sight (UI review of file-tabs.png)
+    const tabBox = (await page.locator('.filebar .ptab').nth(1).boundingBox())!;
+    expect((await page.locator('.ovmenu').first().boundingBox())!.y).toBeGreaterThanOrEqual(tabBox.y + tabBox.height);
     await page.locator('.ovmenu button', { hasText: 'Detach Tab' }).click();
     await expect.poll(() => app.windows().length).toBe(2);
     await expect(page.locator('.filebar .ptab')).toHaveCount(1);

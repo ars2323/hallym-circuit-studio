@@ -20,7 +20,7 @@ import { KEYED, onMagnifier, pokeKey, pokePoint, pokeTarget, wireValueText } fro
 import { EditTool, editLabel, floatingOverlay, type Held, PlaceTool, TextTool, type ToolsHost, type Where, WireTool } from './edit-tools.ts';
 
 export type { Held, Where } from './edit-tools.ts';
-export type ToolName = 'Edit' | 'Poke' | 'Wire' | 'Text' | 'Place';
+export type ToolName = 'Edit' | 'Poke' | 'Wire' | 'Text' | 'Place' | 'Menu';
 
 // The menu's editing commands (Edit › …, their keys: the window's, I-137..I-143).
 export type MenuCommand = 'copy' | 'cut' | 'paste' | 'duplicate' | 'selectAll' | 'delete';
@@ -35,6 +35,7 @@ export interface EditorHost {
   toolChanged?(tool: string): void;            // the tool in hand (the toolbar's name, or the part held)
   selectionChanged?(ids: string[]): void;      // the engine's selection in the circuit on show
   pinValue?(c: Component): void;               // a double click on an input pin (I-78)
+  menuAt?(p: CanvasPointer): void;              // the Menu Tool's press: the right-click menu there (I-84)
 }
 
 export class Editor {
@@ -45,6 +46,7 @@ export class Editor {
   readonly wire: WireTool;
   readonly place: PlaceTool;
   readonly text: TextTool;
+  readonly menuTool: CanvasTool;
   private sel: EditSelection | null = null;
   private told = '';
   private readonly tools: ToolsHost;                     // the selection last told (hcs:selection), not told again
@@ -80,6 +82,9 @@ export class Editor {
     this.wire = new WireTool(tools);
     this.place = new PlaceTool(tools);
     this.text = new TextTool(tools);
+    // The original's Menu Tool (MenuTool.mousePressed): any press opens the menu of what is under it, the selection
+    // kept (Edit › Tool, the .circ's toolbar with Ctrl+2..9; D-158)
+    this.menuTool = { down: (e) => host.menuAt?.(e), cursor: () => 'context-menu' };
     host.board.tool = this.edit;
   }
 
@@ -110,7 +115,7 @@ export class Editor {
     this.wire.cancel();
     this.tool = t;
     const b = this.host.board;
-    b.tool = { Edit: this.edit, Poke: this.poke, Wire: this.wire, Text: this.text, Place: this.place }[t] as CanvasTool;
+    b.tool = { Edit: this.edit, Poke: this.poke, Wire: this.wire, Text: this.text, Place: this.place, Menu: this.menuTool }[t] as CanvasTool;
     if (t === 'Poke') b.setOverlay({ magnifiers: true });
     else if (t === 'Edit') this.edit.show();
     else b.setOverlay({});

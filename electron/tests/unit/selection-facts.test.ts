@@ -21,9 +21,10 @@ test('one part: its label and kind, its place and facing', () => {
     { title: 'Adder', lines: ['Location (200, 120)'] });
 });
 
-test('several: how many parts and wires, their names', () => {
+test('several: how many parts and wires, their names in name order (the engine\'s selection has no order, D-158)', () => {
   assert.deepEqual(selectionFacts([part('c1', 'Register', 'PC'), part('c2', 'Adder')]),
-    { title: '2 components', lines: ['PC · Register', 'Adder'] });
+    { title: '2 components', lines: ['Adder', 'PC · Register'] });
+  assert.deepEqual(selectionFacts([part('c2', 'Adder'), part('c1', 'Register', 'PC')])?.lines, ['Adder', 'PC · Register']);
   assert.deepEqual(selectionFacts([part('c1', 'Adder'), wire('w1'), wire('w2')]),
     { title: '1 component, 2 wires', lines: ['Adder'] });
   assert.deepEqual(selectionFacts([wire('w1')]), { title: '1 wire', lines: [] });

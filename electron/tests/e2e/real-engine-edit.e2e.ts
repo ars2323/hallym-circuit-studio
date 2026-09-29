@@ -15,7 +15,7 @@ import { expect, type Page, test } from '@playwright/test';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { answerSave, DATAPATH, launch, type LaunchOptions, newCircuit, openFile, recordCalls, repo, sample, sentCalls, visibleCharacters } from './harness.ts';
+import { answerSave, command, DATAPATH, launch, type LaunchOptions, newCircuit, openFile, recordCalls, repo, sample, sentCalls, visibleCharacters } from './harness.ts';
 import { drag, hover, overlay, parts, placeTool, sameNet, segments, selected, tool, where, wires } from './edit-points.ts';
 import { call, fileModel, killEngine, openFileIds } from './model.ts';
 
@@ -42,7 +42,7 @@ test('the core flows: parts placed, wires drawn, a part moved with its wires, Un
     await newCircuit(r);
     await recordCalls(r.app);
     // Pin from the toolbar: its ghost follows the pointer (model.tool), a click places it, then the Edit tool with it selected
-    await tool(page, 'Pin').click();
+    await command(page, 'Pin');
     await page.locator('.canvas-view canvas').waitFor();
     await hover(page, [104, 97]);
     await expect.poll(async () => ((await overlay(page)).ghost as { parts?: { name: string }[] } | undefined)?.parts?.[0]?.name).toBe('Pin');
@@ -54,7 +54,7 @@ test('the core flows: parts placed, wires drawn, a part moved with its wires, Un
     const pin1 = (await parts(page, 'Pin'))[0];
     expect(pin1.loc).toEqual([100, 100]);
     await expect.poll(() => selected(page)).toEqual([pin1.id]);
-    await tool(page, 'Pin').click();
+    await command(page, 'Pin');
     await hover(page, [100, 200]);
     await page.mouse.down();
     await page.mouse.up();
@@ -71,13 +71,13 @@ test('the core flows: parts placed, wires drawn, a part moved with its wires, Un
     const inputs = and.ports.filter((q) => q.dir === 'in').sort((a, b) => a.loc[1] - b.loc[1]);
     const top = inputs[0].loc, bottom = inputs[inputs.length - 1].loc;
     // the Wire tool: first move to the right, so the bend is at the start's height (horizontal first, I-47)
-    await tool(page, 'Wire').click();
+    await command(page, 'Wire');
     await drag(page, [100, 100], [[150, 100], [top[0], top[1]]]);
     await expect.poll(async () => segments(await wires(page))).toEqual(segments([
       { id: '', a: [100, 100], b: [top[0], 100] }, { id: '', a: [top[0], 100], b: [top[0], top[1]] },
     ]));
     // from the second pin with the Edit tool on its port (a wiring point, I-44): first move down, so vertical first
-    await tool(page, 'Edit').click();
+    await command(page, 'Edit');
     await drag(page, [100, 200], [[100, 190], [bottom[0], bottom[1]]]);
     await expect.poll(async () => (await wires(page)).length).toBe(4);
     expect(segments(await wires(page))).toContain(segments([{ id: '', a: [100, bottom[1]], b: [100, 200] }])[0]);
@@ -144,7 +144,7 @@ test('the Edit tool\'s gestures and keys, the Wire and Text tools, a label in pl
       await page.mouse.down();
       await page.mouse.up();
     };
-    await tool(page, 'Pin').click();
+    await command(page, 'Pin');
     await page.locator('.canvas-view canvas').waitFor();
     // a placing tool's keys (I-58, I-59): an arrow turns the ghost, a digit goes to its configurator
     await hover(page, [300, 300]);
@@ -201,7 +201,7 @@ test('the Edit tool\'s gestures and keys, the Wire and Text tools, a label in pl
     await expect.poll(async () => (await parts(page, 'AND Gate')).length).toBe(1);
     expect((await parts(page, 'OR Gate')).length).toBe(1);
     // the Wire tool: a press and a release without moving draws nothing (I-46); a drag draws; Backspace takes it back (I-31)
-    await tool(page, 'Wire').click();
+    await command(page, 'Wire');
     await drag(page, [100, 600], [[100, 600]]);
     await drag(page, [100, 600], [[200, 600]]);
     await expect.poll(async () => (await wires(page)).length).toBe(1);
@@ -213,11 +213,11 @@ test('the Edit tool\'s gestures and keys, the Wire and Text tools, a label in pl
     await drag(page, [250, 600], [[200, 600]]);
     await expect.poll(async () => segments(await wires(page))).toEqual(['100,600-200,600']);
     // the Edit tool: a click on the wire selects it (I-15), a drag across it moves it with no wire pulled from it
-    await tool(page, 'Edit').click();
+    await command(page, 'Edit');
     await drag(page, [150, 600], [[150, 600]]);
     await expect.poll(async () => (await selected(page)).length).toBe(1);
     // the Text tool: a click on nothing opens a field for a new Label (I-80), Enter adds it
-    await tool(page, 'Text').click();
+    await command(page, 'Text');
     await drag(page, [300, 400], [[300, 400]]);
     const field = page.locator('.canvas-view .inline-field');
     await expect(field).toBeVisible();
@@ -225,7 +225,7 @@ test('the Edit tool\'s gestures and keys, the Wire and Text tools, a label in pl
     await field.press('Enter');
     await expect.poll(async () => (await parts(page, 'Text'))[0]?.attrs.text).toBe('hello');
     // F2 on the selected pin: its label in place (I-42, I-105); Esc closes it without a change, Enter applies
-    await tool(page, 'Edit').click();
+    await command(page, 'Edit');
     await drag(page, mid(pin), [mid(pin)]);
     await expect.poll(() => selected(page)).toEqual([pin.id]);
     await page.locator('.canvas-view canvas').focus();
@@ -288,7 +288,7 @@ test('a paste still floating when another circuit is shown: dropped where it was
     const byName = async () => fileModel(page, fileId) as Promise<Record<string, { comps: string[] }>>;
     const adders = (m: Record<string, { comps: string[] }>, circuit: string) => m[circuit].comps.filter((c) => c.includes('Adder')).length;
     const before = await byName();
-    await tool(page, 'Edit').click();
+    await command(page, 'Edit');
     const adder = (await parts(page, 'Adder'))[0];
     await drag(page, mid(adder), [mid(adder)]);
     await expect.poll(() => selected(page)).toEqual([adder.id]);

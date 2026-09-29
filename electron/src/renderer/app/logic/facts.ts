@@ -3,7 +3,7 @@
    English (Ready, 35 components, Engine starting); a sentence to the
    student is Korean (엔진을 시작하지 못했습니다) -- D-135. */
 
-import type { EngineStatus, Snapshot } from '../../../main/protocol.ts';
+import type { EngineStatus, RegisterRow, Snapshot } from '../../../main/protocol.ts';
 
 export interface CircuitFacts {
   components: number;
@@ -41,3 +41,10 @@ export function engineFact(s: EngineStatus): { cls: '' | 'err' | 'warn'; text: s
 export const count = (n: number): string => n.toLocaleString('en-US');
 // "1 wire", "41 wires".
 export const counted = (n: number, what: string): string => `${count(n)} ${what}${n === 1 ? '' : 's'}`;
+
+// The status bar's "Changed" chip (Hallym MIPS's 방금 바뀜): the registers the cycle on show changed -- PC moves every
+// cycle and is never one -- three names at most, then how many more.  Null: none changed.
+export function changedChip(rows: readonly RegisterRow[]): { shown: string[]; more: number } | null {
+  const names = rows.filter((r) => r.changed && r.key !== 'PC').map((r) => r.name);
+  return names.length ? { shown: names.slice(0, 3), more: Math.max(0, names.length - 3) } : null;
+}

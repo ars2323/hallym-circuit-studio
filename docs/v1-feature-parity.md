@@ -16,7 +16,7 @@ v1(Swing, `swing-final`)의 기능을 v2(Electron 화면 + Java 엔진)로 모�
 | B-03 | 우클릭 메뉴(부품·선·빈 곳·서브회로, 요약 줄) | N-10 | #449 | `attributes.e2e.ts` "the Canvas's right-click menu…", "the Components list's and the circuit tabs' menus…", "RAM and ROM…" · `real-engine-attributes.e2e.ts` "the right-click menu from the engine's facts…" · 단위 `menus.test.ts`(부품·게이트·핀·터널·레지스터·서브회로·RAM/ROM·Splitter·MIPS 메모리·선·여럿·빈 곳) · 엔진 `MenuEditTest` | D-157. 메뉴 등록표 하나(`app/menus/registry.ts`: canvas·components·circuitTab)와 엔진 `model.menu`(v1 `MenuLayout.summary`·`SelectionOrder`), v1 차례(부품 자체 → EditMenus → SplitterMenu → ProbeMenu → Influence → Signal Flow → 메모, 공통, Delete). N-11의 회로 항목(circuitItems: Circuits 패널·회로 탭·부품 목록 공통), Unload Library, 서브회로의 Edit Appearance·Auto Appearance·Port Order…·Edit Original File도 같은 등록표로 |
 | B-04 | Quick Attributes(빠른 속성 창)과 속성 표 | N-10 | #449 | `attributes.e2e.ts` "the Attributes panel…", "Quick Attributes…" · `real-engine-attributes.e2e.ts` "Data Bits of a register…" · 단위 `attributes.test.ts` · 엔진 `MenuEditTest.theAttributeTableIsTheOriginals`, `.registerDataBitsSaveAsTheOriginalTableDoes` | D-157. 엔진 `model.attributes`(원조 AttrTableSelectionModel·CircuitModel·ToolModel), Hallym MIPS Inspector 모양, 편집기 종류별, 틀린 값은 원조 parse의 badValue와 한국어 문장. 빠른 속성 창은 v1 QuickBar 규칙(등록표 차례 다섯, 숨은 키, 자리) |
 | B-05 | 검색 팔레트(Ctrl+K), 부품 목록 검색 | N-12 | #433 | find.e2e "the search palette: …", "a letter typed on the Canvas…", "Components search: …"; unit search.test; real-engine.e2e "…finding and placing (N-12)" | D-150. 명령·부품·이 파일 회로·보는 회로의 터널, 뒤 숫자(`tool-args.ts`는 엔진 `ToolArgsTest`가 v1 규칙으로 확인), 글자 순서 일치(3글자부터). 즐겨찾기·최근은 이번 실행에만(실습실 규칙) |
-| B-06 | 도구 모음·상태 표시줄·도구 조작(Edit·Poke·Wire·Text…) | N-17·N-08 | #439 | `edit.e2e.ts` "placing…", "the Edit tool selects…", "wires…", "the Text tool…", "an input pin…" · `tool-events.e2e.ts` hcs:tool · `real-engine-edit.e2e.ts` "the Edit tool's gestures and keys…" | D-146. 도구 조작(Edit·Poke·Wire·Text·부품 놓기)은 원조 도구 코드가 엔진에서 판정. 도구 모음·상태 표시줄 모양은 N-17 |
+| B-06 | 도구 모음·상태 표시줄·도구 조작(Edit·Poke·Wire·Text…) | N-17·N-08 | #439 · #450 | `edit.e2e.ts` "placing…", "the Edit tool selects…", "wires…", "the Text tool…", "an input pin…" · `tool-events.e2e.ts` hcs:tool · `real-engine-edit.e2e.ts` "the Edit tool's gestures and keys…" · `shell.e2e.ts`(» 규칙, 상태 표시줄 » 목록, Changed 칩, Colors, Ctrl+2…9) · `layout.e2e.ts` | D-146. 도구 조작(Edit·Poke·Wire·Text·부품 놓기)은 원조 도구 코드가 엔진에서 판정. 도구 모음·상태 표시줄 모양은 N-17. 도구 모음·상태 표시줄 모양은 D-158(N-17) |
 | B-07 | 라벨 칩, 터널 색 칩, 포트 이름, 마우스 오버 정보 | N-05 | #425 | canvas.e2e "hover, selection…", "the drawing rules"; unit canvas-labels |  |
 | B-08 | 터널 이동(짝 터널로), 찾기(Ctrl+F) | N-12 | #433 | find.e2e "Find (Ctrl+F): …", "Tunnels: … each press the next tunnel…"; 엔진 `FindTest` | D-150. 엔진 `find.query`(v1 NameIndex + 핀·부품 이름). 터널 우클릭 Go to Next "x" Tunnel·Select All "x" Tunnels는 N-10(#449, 단위 `menus.test.ts` "a pin, a tunnel…") |
 | B-09 | 넷 강조(Highlight Net), 넷 정보 | N-15 | #432 | overlays.e2e "a wire's right click: Net Information…"(v1 글, Highlight Net·Clear Net Highlight, 읽기만) · 엔진 `FlowTest` 넷 정보 | D-151. `trace.net`. Select Whole Net·Delete Net Wires·Replace Wire with Tunnels… 등 나머지 선 우클릭 항목은 N-10(#449, `attributes.e2e.ts` "the Canvas's right-click menu…", `real-engine-attributes.e2e.ts`) |
@@ -30,7 +30,7 @@ v1(Swing, `swing-final`)의 기능을 v2(Electron 화면 + Java 엔진)로 모�
 | B-17 | hcs-mips.jar 복사 알림, 새 파일에서 Hallym MIPS 부품 바로 사용 | N-21 |  |  |  |
 | B-18 | Mark as PC, Register Mapping | N-14 | #423 | `cycle.e2e.ts` "Mark as PC from the Registers panel; the register file and its mapping" · 엔진 `RecordTest.markAsPcRegisterFileAndMappingAreSavedAsV1Did` | 캔버스 우클릭 Mark as PC·Mark as Register File·Register Mapping…(N-10, #449)도 같은 `record.*`(`attributes.e2e.ts` "the Canvas's right-click menu…") |
 | B-19 | Create Submission, 그림 내보내기(SVG·PDF·고해상도 PNG) | N-21 |  |  |  |
-| B-20 | About, 예제 메뉴(Help › Examples) | N-20·N-17 |  |  |  |
+| B-20 | About, 예제 메뉴(Help › Examples) | N-20·N-17 | #450 | `window.e2e.ts` "About: …"(Preferences › About · Licenses) · `shell.e2e.ts` "Preferences: …"(About · Licenses), "the menu: … Help › Examples…" | D-158. About은 Hallym MIPS처럼 Preferences의 About · Licenses와 메뉴의 Help › About…(제목 줄 ⓘ 단추 대신). 예제는 Help › Examples. About 문구는 N-20 |
 
 ## v1 항목(PROGRESS)
 
@@ -46,10 +46,10 @@ v1(Swing, `swing-final`)의 기능을 v2(Electron 화면 + Java 엔진)로 모�
 | S-08 | 기본 모양 서브회로의 포트 이름 | N-05 | #425 | unit canvas-labels "port names"(기본 모양만) |  |
 | S-09 | 찾기 결과의 내부 포트 이름 | N-12 | #433 | 엔진 `FindTest.placesNameTheAttachedPortReadablyNeverAnInternalName`; unit find-panels.test "Find: places are named by the port…" | D-150. v1 `NameIndex.place` 그대로 |
 | S-10 | 화면 맞춤 여백 | N-05 | #425 | canvas.e2e "zoom and pan"(맞춤 가운데·여백); unit canvas-scene "zoom and pan" |  |
-| S-11 | 왼쪽 패널 빈 공간 | N-17 |  |  |  |
+| S-11 | 왼쪽 패널 빈 공간 | N-17 | #450 | `find.e2e.ts` "Tunnels: …", "the Minimap: …" · `layout.e2e.ts` "the empty panels say what fills them…"(Tunnels·Minimap의 빈 상태) · `shell.e2e.ts` "the Canvas keeps half the height…"(아래 칸이 좁으면 머리만, 탭을 누르면 펼침) | D-158. 왼쪽 아래 칸 Tunnels·Minimap(N-12, D-150)이 왼쪽 열의 빈 공간을 채우고, 창이 낮으면 v1 Y-01처럼 머리만 남는다 |
 | S-12 | 제어 핀 라벨 중복 | N-05 | #425 | unit canvas-labels "a pin whose port has a tunnel of its own name" |  |
 | S-13 | 400% 굵기 | N-05 | #425 | unit canvas-draw "widths on screen"(25·100·400 %) |  |
-| S-20 | 회귀 확인: 원조 도구 모음·탐색기 아이콘 줄 숨김, 위쪽 네 줄 | N-17 |  |  |  |
+| S-20 | 회귀 확인: 원조 도구 모음·탐색기 아이콘 줄 숨김, 위쪽 네 줄 | N-17 | #450 | `shell.e2e.ts` "the window's title names the file and the circuit on show (E-12); the top rows…"(도구 모음 줄 없음, 제목 줄 → 파일 탭 → 회로 탭 → Canvas) | D-158. 원조 도구 모음·탐색기 아이콘 줄은 v2에 처음부터 없다(엔진만 원조). 위쪽은 제목 줄(도구 모음 포함, » 규칙) · 파일 탭 · 회로 탭 · Canvas |
 | S-21 | 회귀 확인: 배율 표시 하나와 실제 배율 동기화 | N-05 | #425 | canvas.e2e "zoom and pan"(상태 표시줄 배율 하나) |  |
 | S-22 | 회귀 확인: 스플리터 원조 "0-7" 표시와 팔 라벨 이중 표시 없음 | N-12 | #433 | unit canvas-labels "an arm the student named… (S-22: no original "0-7" beside it)" | D-150. 스플리터 몸체는 비트 번호를 쓰지 않고 팔 칩만 |
 | S-23 | 회귀 확인: MIPS 부품 포트 이름 안쪽 14px, 콘솔 출력 영역 | N-05 | #425 | unit canvas-registry "the MIPS bodies"(포트 이름 안쪽 14); canvas-geometry |  |
@@ -99,27 +99,27 @@ v1(Swing, `swing-final`)의 기능을 v2(Electron 화면 + Java 엔진)로 모�
 | E-09 | 단축키 설정 창 | N-21 |  |  |  |
 | E-10 | 첫 실행 튜토리얼 | N-18 |  |  |  |
 | E-11 | About 창 | N-20 |  |  |  |
-| E-12 | 앱 아이콘과 창 제목 | N-17 |  |  |  |
+| E-12 | 앱 아이콘과 창 제목 | N-17 | #450 | `shell.e2e.ts` "the window's title names the file and the circuit on show (E-12)…"(페이지와 창 제목) · unit `package-config.test.ts`(설치본 아이콘 `app.ico`) | D-158. 창 제목 `파일 › 회로 — Hallym Circuit Studio`(main이 아닌 회로일 때, v1 D-082), 바뀐 파일은 •. 앱 아이콘은 N-23의 `app.ico`, 소스 실행은 `assets/hallym/logo/app-256.png` |
 | V-01 | 새 파일에서도 Hallym MIPS가 보이고 바로 쓰임 | N-12 | #433 | find.e2e "Components: … Hallym MIPS before the file has it…", "a part dragged … puts the library in the file"; real-engine.e2e "…finding and placing (N-12)" | D-150. 엔진 `model.library`의 `pending`(D-096) |
 | V-02 | 진단 문구 정확성(E 원인 종류, 내부 포트 이름 숨김) | N-13 |  | 엔진 `DiagTest.everyFaultCircuitGivesOneMessageInBothLanguages`, `DiagTextTest` | D-143. 내부 포트 이름 없음, "충돌"은 충돌에만, 한국어 틀에서 이름 뒤 조사 없음 |
 | V-03 | 메시지를 누르면 원인이 사이클 표에 | N-14 | #423 | messages.e2e.ts "the clock runs…"(임시 줄 `MemWrite`, 그 사이클 테두리, Reset이면 걷힘) · 엔진 `RecordTest.resetStartsTheRecordingAgainAndTakesThePinnedRowsAway` (`record.pin`) · `cycle.test.ts` `pinGone` | 원인(`location`)과 E·X가 보인 자리(`appeared`), 메시지가 사라지면 `record.unpin`(D-114) |
 | V-04 | 활성 경로는 가지만 칠함 | N-15 | #432 | overlays.e2e "with the Cycle View: the active path around the selected MUX input…"(띠가 고른 입력의 가지에만) · 엔진 `FlowTest` 활성 경로 선분 · v1 `ActivePathOverlayTest` | D-151 |
 | V-05 | 같은 이름 파일 탭 구분 | N-11 | #444 | `circuits.e2e.ts` "file tabs: two files of one name show their folders…" · 단위 `circuits-logic.test.ts` "same names…" | D-153 |
 | V-06 | Signal Flow 터널 호가 부품·라벨을 피함 | N-15 | #432 | unit overlays "a tunnel jump's arc: eight shapes…" · overlays.e2e "Signal Flow on a click (I-188)…" | D-151 |
-| V-07 | 빈 캔버스 안내와 예제 메뉴 | N-17 |  |  |  |
+| V-07 | 빈 캔버스 안내와 예제 메뉴 | N-17 | #450 | `layout.e2e.ts` "the empty panels say what fills them…"(빈 Canvas 안내가 Help › Examples를 말함) · `shell.e2e.ts` "the menu: … Help › Examples opens one read-only and Save asks where…" · `real-engine.e2e.ts` "the real engine and the shell (N-17, D-158)…" · unit `shell.test.ts` "Help › Examples…" | D-158. 예제 셋(demo-datapath, console-demo, stack-demo)을 읽기 전용으로 열고, 저장은 Save As. 설치본은 `resources/examples/` |
 | V-08 | 상태 표시줄 PC·Mark as PC, Tunnels 외톨이 표시 | N-14·N-12 | #423, #433 | `cycle.e2e.ts` "the table follows the clock…"(상태 표시줄 PC), "Mark as PC…" · 엔진 `RecordTest.theHeadOfTheTableAndTheStatusBarReadTheDatapath`; find.e2e "Tunnels: … a lone one in amber…"(외톨이 표시) | D-144(상태 표시줄 PC·Mark as PC, N-14), D-150(Tunnels 외톨이 표시, N-12) |
 | V-09 | 스크린샷 실행기 위생과 데모 값 | 과정 |  |  | v1 검토·릴리스 과정이라 옮길 기능이 아님 |
 | V-10 | v1.0.1 공개 릴리스 | 과정 |  |  | v1 검토·릴리스 과정이라 옮길 기능이 아님 |
-| X-01 | 첫 실행 창 크기, 포크 전용 창 설정 | N-19·N-17 | #434 | `labpc.e2e.ts` "nothing written…"(다음 시작은 작업 영역 전체·최대화, 첫 화면), "every setting is for this run only…"(배율·분할선·칸·탭·Show Bus Widths·클럭 속도를 바꾸고 끄고 다시 켜면 기본값) · `real-engine.e2e.ts` "the settings (N-19)…" · unit `run-settings.test.ts` | D-152. 창·설정은 실행마다 기본값(실습실 규칙, D-135 11). 창 설정 화면은 N-17 |
-| X-02 | 도구 모음 넘침(Icons Only 자동 → » 메뉴) | N-17 |  |  |  |
-| X-03 | 좁은 창의 패널 비율(캔버스 최소 폭) | N-17 |  |  |  |
+| X-01 | 첫 실행 창 크기, 포크 전용 창 설정 | N-19·N-17 | #434 · #450 | `labpc.e2e.ts` "nothing written…", "every setting is for this run only…"(Preferences의 키 바꾸기와 Show Grid 포함) · `real-engine.e2e.ts` "the settings (N-19)…" · `shell.e2e.ts` "Preferences: this run only…" · unit `run-settings.test.ts` | D-152, D-158. 창·설정은 실행마다 기본값(실습실 규칙, D-135 11). 창 설정 화면 = Preferences(맨 위에 "이번 실행에만 적용됩니다", General·Keyboard). 창 최소 폭 640(1280 화면의 절반, v1 D-105) |
+| X-02 | 도구 모음 넘침(Icons Only 자동 → » 메뉴) | N-17 | #450 | `shell.e2e.ts` "the » rule on the toolbar…", "the lab PCs at 125 % and 150 %…" · `layout.e2e.ts` "1920x1080 at …", "half a 1920 screen…" · unit `shell.test.ts` "the » rule…" · 돌연변이 shell | D-158. 단계(키 힌트 → 도구 이름 → 단추 아이콘 → 간격 → 파일 이름) 뒤 » 메뉴(덜 쓰는 것부터, 오른쪽부터; Run·1 Cycle·Reset·Load Program보다 프로그램 이름이 먼저 빠짐). 메뉴는 키·체크·속도 하위 메뉴와 함께 단추와 같이 실행. D-135 3의 "도구 모음 제 줄"을 대신함 |
+| X-03 | 좁은 창의 패널 비율(캔버스 최소 폭) | N-17 | #450 | `shell.e2e.ts` "a tight window (683 px)…" · `layout.e2e.ts` "1920x1080 at …"(Canvas가 가장 넓음), "half a 1920 screen…" · unit `layout.test.ts` "the Canvas keeps half the width…", "tight…" | D-158. Canvas는 폭의 절반 이상(최소 360); 오른쪽 열이 먼저, 그다음 왼쪽이 양보. 1100 px 아래는 Attributes가 왼쪽 탭(D-135), 800 px 아래는 Hallym MIPS처럼 한쪽씩(제목 줄의 Canvas / Panels) |
 | X-04 | Registers PC 줄 이름·안내 조건·칩과 강조 선 간격 | N-14 | #423 | `cycle.e2e.ts` "Mark as PC…", "a narrow window…"(안내) · 엔진 `RecordTest.theRegisterRowsAgreeWithV1MachineState` | 칩과 강조 선 간격은 N-05/N-15 |
 | X-05 | windows-smoke 보강·Xvfb 첫 실행 장면·v1.0.2 릴리스 | 과정 |  |  | v1 검토·릴리스 과정이라 옮길 기능이 아님 |
-| Y-01 | 세로 공간 배분(캔버스 높이 ≥ 50%, 아래 칸·왼쪽 칸 줄이기·접기, 배지) | N-17 |  |  |  |
+| Y-01 | 세로 공간 배분(캔버스 높이 ≥ 50%, 아래 칸·왼쪽 칸 줄이기·접기, 배지) | N-17 | #450 | `shell.e2e.ts` "the Canvas keeps half the height (v1 Y-01)…" · unit `layout.test.ts` "the Canvas keeps half the height…", "the left column's lower panel folds…" · 돌연변이 shell | D-158. 아래 칸·왼쪽 아래 칸은 Canvas(와 위 칸)의 절반을 넘지 않고, 그러면 130 px·70 px 아래로 줄 때 머리만(창이 한 것: 학생의 Collapse와 다름). 탭을 누르면 창 크기가 바뀔 때까지 펼침. 배지는 Messages 탭의 수(D-143) |
 | Y-02 | 사이클 표 폭(≥ 3열, Registers 칸 좁히기·접기, 이름 열 상한) | N-14 | #423 | `cycle.e2e.ts` "a circuit with no clock run yet…; a narrow window puts the table in a Cycles tab" (1920·1280·960 폭) · `cycle.test.ts` "widths" |  |
 | Y-03 | 고정 줄 수명 | N-14 | #423 | 엔진 `RecordTest.resetStartsTheRecordingAgainAndTakesThePinnedRowsAway` | 메시지가 사라지면 N-13이 `record.unpin` |
 | Y-04 | 진짜 첫 실행(장면 48, windows-smoke 튜토리얼) | N-18 |  |  |  |
-| Y-05 | 작은 것(빈 Attributes 칸, 아이콘만 모드 글자 단추) | N-10·N-17 | #449 | `attributes.e2e.ts` "the Attributes panel…"(빈 곳: 회로 속성) · layout.e2e "the empty panels say what fills them…"(Attributes는 회로 속성, 빈 칸 없음) | D-157. 빈 Attributes 칸은 N-10(원조·v1대로 회로 속성). 아이콘만 모드 글자 단추는 N-17 |
+| Y-05 | 작은 것(빈 Attributes 칸, 아이콘만 모드 글자 단추) | N-10·N-17 | #449 · #450 | `attributes.e2e.ts` "the Attributes panel…"(빈 곳: 회로 속성) · layout.e2e "the empty panels say what fills them…"(Attributes는 회로 속성, 빈 칸 없음) · `shell.e2e.ts` "the » rule on the toolbar…"(좁으면 도구 이름이 숨고 아이콘·툴팁·» 메뉴의 이름) | D-157, D-158. 빈 Attributes 칸은 N-10(원조·v1대로 회로 속성). v2에는 Icons Only 설정이 없다: 좁을 때만 저절로 도구 이름을 숨기고(Signal Flow도 아이콘이 있어 같다), 이름은 툴팁과 » 메뉴에 남는다 |
 | Y-06 | 확인과 릴리스(review-shots v103, v1.0.3, needs-human) | 과정 |  |  | v1 검토·릴리스 과정이라 옮길 기능이 아님 |
 | Y-07 | MSI 배포 중단(zip만), setup exe 결정(v1.1.0, #334) | N-23 |  |  |  |
 | Y-08 | 틱 누락 확인(N Cycles 고침, Run Until·기록·연속 실행은 해당 없음) | N-07 | #431 | `real-engine-sim.e2e.ts` "a counter -- 1 Cycle, N Cycles 100 exactly…", "N Cycles 1000 on ref-mips…" · `sim.e2e.ts` "N Cycles: …" · 엔진 `SimTest.cyclesTickACounterAndStreamTheValue`, `cyclesStopTheRunningClockAndCountEveryTick`, `NCyclesSpeedTest` | D-123 한도 그대로, D-145: 빠른 틱으로 ref-mips 1000 사이클 1.4초(v1 25초) |

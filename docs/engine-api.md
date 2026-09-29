@@ -231,8 +231,9 @@ Component = {
 | --- | --- | --- |
 | `model.tool` | `fileId, lib, name, loc?, attrs?` | `{component}`: 그 놓기 도구가 지금 속성(과 `attrs`)으로 `loc`에 놓을 부품의 모습(id `"ghost"`). 원조 AddTool이 끄는 동안 그리는 유령 |
 | `model.movePreview` | `fileId, circuitId, dx, dy, connect?` | `{dx, dy, added:[[a,b]], removed:[id], unconnected:[[x,y]]}`: 고른 것을 그만큼 끌 때 원조 `MoveGesture`가 더할 선·뺄 선·잇지 못한 점(`SelectTool.handleMoveDrag`), `dx`·`dy`는 `edit.move`와 같이 자르고 맞춘 값 |
-| `model.attributes` | `fileId, circuitId, ids?, circuit?` 또는 `fileId, lib, name` | 속성 표(N-10, 아래 `AttrTable`): 고른 것(`ids`, 없으면 엔진의 선택; 없으면 회로), `circuit:true`면 회로, `name`이면 든 도구 |
+| `model.attributes` | `fileId, circuitId, ids?, circuit?` 또는 `fileId, lib, name, attrs?` | 속성 표(N-10, 아래 `AttrTable`): 고른 것(`ids`, 없으면 엔진의 선택; 없으면 회로), `circuit:true`면 회로, `name`이면 든 도구; `attrs`(원조 문자열)면 그 값을 도구 속성 복사본에 얹은 든 부품의 표(줄 목록도 그 값을 따름: 입력 3인 게이트는 Negate 셋, N-17 D-158 18; 도구·파일은 그대로, 읽을 수 없는 값은 -32602) |
 | `model.menu` | `fileId, circuitId, at, id?` | 우클릭 메뉴의 사실(N-10, 아래 `MenuFacts`). `id`는 화면이 누른 곳에서 찾은 부품·선(없으면 엔진이 찾는다) |
+| `model.toolbar` | `fileId` | `[{name, lib, attrs?} \| {name, tool}]`(N-17, D-158, I-112): 파일의 `<toolbar>`(원조 Project › Options › Toolbar, 기본 틀: Poke·Edit·Text Tool, 입력 핀, 출력 핀, NOT·AND·OR Gate) 차례, 구분선은 뺌. 놓는 도구는 `lib`(파일의 회로면 null)·`name`과 라이브러리 도구와 다른 속성만 `attrs`(원조 문자열: `model.tool`·`edit.addComponent`의 `attrs`로 그대로), 기본 도구는 `tool`(`Poke Tool` …). 창의 Ctrl+2…9가 둘째…아홉째를 든다(Ctrl+1은 v1대로 100 %). 모델은 바꾸지 않는다 |
 | `model.textAt` | `fileId, circuitId, loc` | 글자 도구가 `loc`을 누르면 원조 `TextTool.mousePressed`가 여는 칸: 고른 것 먼저, 그다음 회로 전체에서 그 점을 포함하고 칸을 주는 부품(라벨이 비었으면 몸체 어디든, 있으면 라벨 위) → `{id, text, box:[x,y,w,h]}`; 없으면 새 Label → `{id:null, text:"", box}`; 음수 자리면 `{id:null, none:true}` |
 
 **속성 표와 우클릭 메뉴(N-10, D-157).**

@@ -1,5 +1,6 @@
 /* The zoom in the status bar (N-05; v1 S-21): one display, always the
-   Canvas's zoom; pressed, a menu of the steps and Fit (Ctrl+0). */
+   Canvas's zoom; pressed, a menu of the steps and Fit (Ctrl+0), and Show
+   Grid (v1 I-119, D-158: for this run only). */
 
 import { h } from '../shared/dom.ts';
 import { percent, STEPS } from './view.ts';
@@ -9,6 +10,8 @@ export interface ZoomTarget {
   zoomTo(z: number): void;
   fit(): void;
   step(dir: 1 | -1): void;
+  grid?(): boolean;             // Show Grid (v1 I-119, D-158): on now
+  setGrid?(on: boolean): void;
 }
 
 export function zoomControl(t: ZoomTarget): { button: HTMLButtonElement; menu: HTMLElement; update(zoom?: number): void } {
@@ -20,6 +23,11 @@ export function zoomControl(t: ZoomTarget): { button: HTMLButtonElement; menu: H
     return b;
   };
   const hide = () => { menu.hidden = true; button.setAttribute('aria-expanded', 'false'); };
+  const gridItem = (on: boolean, set: (on: boolean) => void) => {
+    const b = h('button', { type: 'button', role: 'menuitemcheckbox', 'aria-checked': String(on), class: on ? 'on' : undefined }, h('span', {}, 'Show Grid'));
+    b.addEventListener('click', () => { hide(); set(!on); });
+    return b;
+  };
   const show = () => {
     const z = t.zoom();
     menu.replaceChildren(
@@ -27,7 +35,8 @@ export function zoomControl(t: ZoomTarget): { button: HTMLButtonElement; menu: H
       item('Zoom in', 'Ctrl++', () => t.step(1)),
       item('Zoom out', 'Ctrl+−', () => t.step(-1)),
       h('hr'),
-      ...[...STEPS].reverse().map((s) => item(percent(s), '', () => t.zoomTo(s), Math.abs(s - z) < 0.005)));
+      ...[...STEPS].reverse().map((s) => item(percent(s), '', () => t.zoomTo(s), Math.abs(s - z) < 0.005)),
+      ...(t.grid && t.setGrid ? [h('hr'), gridItem(t.grid(), t.setGrid)] : []));
     menu.hidden = false;
     button.setAttribute('aria-expanded', 'true');
     const r = button.getBoundingClientRect();

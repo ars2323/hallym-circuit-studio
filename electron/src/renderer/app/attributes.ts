@@ -21,7 +21,7 @@ import type { AttrRow, AttrTable, WindowMethod } from '../../main/protocol.ts';
 import { h } from '../shared/dom.ts';
 import type { NoticeHost } from '../shared/notice.ts';
 import type { CallError } from './api.ts';
-import { type AttrRequest, badValueSentence, circuitNameProblem, colorField, colorValue, editorOf, fontParts, fontValue, heading, requestKey } from './logic/attributes.ts';
+import { type AttrRequest, badValueSentence, circuitNameProblem, colorField, colorValue, editorOf, fontParts, fontValue, heading, requestKey, withHeld } from './logic/attributes.ts';
 import type { SelectionFacts } from './logic/selection-facts.ts';
 
 export interface AttributesHost {
@@ -31,6 +31,7 @@ export interface AttributesHost {
   circuitNames(fileId: string, except: string): string[];   // the other circuits' names (a new name must differ)
   contents(componentId: string): void;                  // a ROM's Contents row: the hex editor
   toolChanged(): void;                                  // the tool's attributes changed: its ghost again
+  heldChanged?(attr: string, value: string): void;      // a value of the part held changed (its own values, withHeld)
   quickToggled(on: boolean): void;                      // the foot's Quick Attributes
 }
 
@@ -68,12 +69,13 @@ export class AttributesPanel {
     let t: AttrTable | null = null;
     try {
       t = req.kind === 'tool'
-        ? await this.host.call<AttrTable>('model.attributes', { fileId: req.fileId, lib: req.lib, name: req.name })
+        ? await this.host.call<AttrTable>('model.attributes', { fileId: req.fileId, lib: req.lib, name: req.name, ...(req.attrs ? { attrs: req.attrs } : {}) })
         : await this.host.call<AttrTable>('model.attributes', { fileId: req.fileId, circuitId: req.circuitId });
     } catch {
       t = null;                                         // the engine is not there (restarting): the facts only
     }
     if (n !== this.asked) return;
+    if (t && req.kind === 'tool' && req.attrs) t = withHeld(t, req.attrs);
     this.set(t, force);
   }
 
@@ -113,6 +115,25 @@ export class AttributesPanel {
       t && !t.editable && t.target !== 'tool' ? h('p', { class: 'ahint' }, '이 회로는 바꿀 수 없습니다(읽기 전용 파일이거나 불러온 라이브러리의 회로).') : null,
       this.foot());
     this.body.fill(box);
+    this.fitNames();
+  }
+
+  // Names whole (D-158 18): when one does not fit its half of the table, every name goes on its own line over its
+  // value; measured again when the panel's width changes.
+  private fitted: ResizeObserver | null = null;
+  private fitNames(): void {
+    const table = this.body.root.querySelector<HTMLTableElement>('.atable');
+    if (!table) return;
+    const fit = () => {
+      table.classList.remove('stacked');
+      const cut = [...table.querySelectorAll<HTMLElement>('tbody th')].some((th) => th.scrollWidth > th.clientWidth + 0.5);
+      table.classList.toggle('stacked', cut);
+    };
+    fit();
+    this.fitted?.disconnect();
+    let width = this.body.root.clientWidth;
+    this.fitted = new ResizeObserver(() => { if (this.body.root.clientWidth !== width) { width = this.body.root.clientWidth; fit(); } });
+    this.fitted.observe(this.body.root);
   }
 
   private tableOf(t: AttrTable): HTMLElement {
@@ -139,7 +160,7 @@ export class AttributesPanel {
     const label = r.display;
     switch (kind) {
       case 'text':
-        return h('span', { class: 'aval', title: r.text }, r.text);
+        return h('span', { class: `aval${monoValue(r.attr, r.text) ? ' mono' : ''}`, title: r.text }, r.text);
       case 'contents': {
         const b = h('button', { type: 'button', class: 'alink', 'aria-label': label }, r.text || '(click to edit)');
         const ids = t.target === 'selection' ? this.selectionIds() : [];
@@ -148,7 +169,9 @@ export class AttributesPanel {
         return b;
       }
       case 'select': {
-        const s = h('select', { 'aria-label': label }) as HTMLSelectElement;
+        // numbers (Data Bits 1…32, Number Of Inputs) in D2Coding like every value; words (East, Yes) in Pretendard (D-158)
+        const numbers = (r.options ?? []).length > 0 && (r.options ?? []).every((o) => numericValue(o.display));
+        const s = h('select', { 'aria-label': label, class: numbers ? 'mono' : undefined }) as HTMLSelectElement;
         if (r.mixed || r.value === null) s.append(h('option', { value: '', selected: true, disabled: true }, ''));
         for (const o of r.options ?? []) s.append(h('option', { value: o.value, selected: o.value === r.value }, o.display));
         s.addEventListener('change', () => void this.apply(t, r, s.value));
@@ -177,7 +200,7 @@ export class AttributesPanel {
       }
       default: {
         const input = h('input', {
-          type: 'text', class: kind === 'number' ? 'mono' : undefined, 'aria-label': label, value: r.value === null ? '' : r.text,
+          type: 'text', class: kind === 'number' || NAME_ATTRS.has(r.attr) ? 'mono' : undefined, 'aria-label': label, value: r.value === null ? '' : r.text,
           spellcheck: 'false', autocomplete: 'off', placeholder: r.mixed ? '(various)' : undefined,
           title: kind === 'number' && r.radix === 16 ? '16진수(0x1F) 또는 10진수(31)' : undefined,
         }) as HTMLInputElement;
@@ -231,6 +254,14 @@ export class AttributesPanel {
       const why = circuitNameProblem(value, this.host.circuitNames(req.fileId, t.circuitId ?? ''));
       if (why) { this.fail(r, why, value); return false; }
     }
+    // a value the part held carries of its own (the palette's "and 3", Ctrl+2..9's toolbar tool): that part's value
+    // only -- the library's tool is not changed and the file stays as it was (D-158 18 ⑦); the ghost and the table
+    // follow.  A row it does not carry is the tool's, as ever (edit.setToolAttr).
+    if (t.target === 'tool' && req.kind === 'tool' && req.attrs?.[r.attr] !== undefined && this.host.heldChanged) {
+      this.error = null;
+      this.host.heldChanged(r.attr, value);
+      return true;
+    }
     const method: WindowMethod = t.target === 'tool' ? 'edit.setToolAttr' : t.target === 'circuit' ? 'edit.setCircuitAttr' : 'edit.setAttr';
     const params: Record<string, unknown> = t.target === 'tool'
       ? { fileId: req.fileId, lib: t.lib ?? null, name: t.name, attr: r.attr, value }
@@ -253,3 +284,11 @@ export class AttributesPanel {
     }
   }
 }
+
+// A value that is a number (32, -3, 0x1F, 0/1): set in D2Coding like the Canvas's values and the tables' (0 and O
+// apart; D-158, the coordinator's note on #449 and the UI review).  Words (East, Rising Edge) stay in the sentences' font.
+export const numericValue = (text: string): boolean => /^[-+]?(0x[0-9a-f]+|\d+)$/i.test(text.trim());
+// A name the student gives (a label, a circuit's name, a shared label): in D2Coding like names everywhere else in the
+// window (the Tunnels panel, the lists, the dialogs' names).
+export const NAME_ATTRS: ReadonlySet<string> = new Set(['label', 'circuit', 'clabel']);
+export const monoValue = (attr: string, text: string): boolean => NAME_ATTRS.has(attr) || numericValue(text);

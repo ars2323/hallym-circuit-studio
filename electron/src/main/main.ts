@@ -36,10 +36,11 @@
 
 import { app, BrowserWindow, dialog, ipcMain, Menu, screen, shell } from 'electron';
 import { spawn } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { EngineClient, EngineError, type EngineProcess } from './engine.ts';
+import { EXAMPLES, examplesDir, isExample } from './examples.ts';
 import { locateEngine } from './engine-locate.ts';
 import { Supervisor, WINDOW } from './recovery.ts';
 import { recoveryBeside, RecoveryWriter } from './recovery-files.ts';
@@ -156,14 +157,27 @@ export interface Opened extends OpenResult {
   path: string;
   already: boolean;     // it was open: the window goes to its tab
   recovered?: boolean;  // opened from its recovery file: unsaved edits (N-19)
+  readOnly?: boolean;   // an example, opened read-only: Save asks where (D-158)
 }
 
 // Files with a recovery file beside them, waiting for the window's answer (file:openRecovery), by id.
 const asked = new Map<string, string>();
 let nextAsk = 1;
 
+// The files opened read-only (Help › Examples, D-158): Save asks where (Save As), and never writes over them.
+const readOnlyFiles = new Set<string>();
+// File › Open Recent (I-130): the files opened or saved in this run, the latest first -- this run only (N-19).
+const recent: { id: string; path: string }[] = [];
+let nextRecent = 1;
+function remember(p: string): void {
+  const at = recent.findIndex((r) => path.resolve(r.path) === path.resolve(p));
+  const id = at >= 0 ? recent.splice(at, 1)[0].id : `f${nextRecent++}`;
+  recent.unshift({ id, path: p });
+  recent.length = Math.min(recent.length, 8);
+}
+
 // Opens a file: first, if it has a recovery file beside it (N-19, D-152), the window asks.
-async function openPath(p: string, recovery?: 'recover' | 'discard'): Promise<Opened | RecoveryAsk> {
+async function openPath(p: string, recovery?: 'recover' | 'discard', readOnly = false): Promise<Opened | RecoveryAsk> {
   for (const [fileId, open] of openFiles) {
     if (open !== null && path.resolve(open) === path.resolve(p)) {
       return { fileId, path: p, name: path.basename(p), circuits: [], main: '', libraries: [], already: true };
@@ -175,10 +189,11 @@ async function openPath(p: string, recovery?: 'recover' | 'discard'): Promise<Op
     asked.set(id, p);
     return { ask: { id, name: path.basename(p), recovery: path.basename(beside.path), modified: beside.modified } };
   }
-  const r = await windowCall<OpenResult>('file.open', { path: path.resolve(p), ...(recovery ? { recovery } : {}) });
+  const r = await windowCall<OpenResult>('file.open', { path: path.resolve(p), ...(recovery ? { recovery } : {}), ...(readOnly ? { readOnly: true } : {}) });
   openFiles.set(r.fileId, p);
+  if (readOnly) readOnlyFiles.add(r.fileId); else remember(p);
   // The tab shows the file's own name (with .circ), not Logisim's project name.
-  return { ...r, name: path.basename(p), path: p, already: r.alreadyOpen === true, ...(recovery === 'recover' ? { recovered: true } : {}) };
+  return { ...r, name: path.basename(p), path: p, already: r.alreadyOpen === true, ...(recovery === 'recover' ? { recovered: true } : {}), ...(readOnly ? { readOnly: true } : {}) };
 }
 
 async function main(): Promise<void> {
@@ -227,7 +242,7 @@ let WINDOW_OF: (e: Electron.IpcMainInvokeEvent) => BrowserWindow = () => mainWin
 function makeWindow(bounds: { x: number; y: number; width: number; height: number }): BrowserWindow {
   const w = new BrowserWindow({
     x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height,
-    minWidth: 760,
+    minWidth: 640,   // half a 1280 screen (v1 D-105); 683 px (half a 1366 one) is the tight layout (D-158)
     minHeight: 480,
     show: false,
     title: APP_NAME,
@@ -313,7 +328,7 @@ function registerHandlers(): void {
     if (!allowed.has(method)) throw new Error(`not a method the window may call: ${method}`);
     const result = await windowCall(method, params);
     if (method === 'file.new') openFiles.set((result as { fileId: string }).fileId, null);
-    if (method === 'file.close') openFiles.delete((params as { fileId: string }).fileId);
+    if (method === 'file.close') { openFiles.delete((params as { fileId: string }).fileId); readOnlyFiles.delete((params as { fileId: string }).fileId); }
     return result;
   }));
   ipcMain.handle('engine:status', () => recovery.view(engine.status()));
@@ -348,13 +363,16 @@ function registerHandlers(): void {
   ipcMain.handle('file:save', (e, fileId: string, file: { name: string; saveAs?: boolean }) => answer(async () => {
     if (!openFiles.has(fileId)) throw new Error(`no open file ${fileId}`);
     let target = openFiles.get(fileId) ?? null;
-    if (target === null || file.saveAs) {
+    // A file opened read-only (an example) is saved somewhere else: Save As (v1 D-102).
+    if (target === null || file.saveAs || readOnlyFiles.has(fileId)) {
       const r = await dialog.showSaveDialog(from(e), { defaultPath: file.name, filters: [{ name: 'Logisim circuit', extensions: ['circ'] }] });
       if (r.canceled || !r.filePath) return null;
       target = r.filePath;
     }
     const saved = await windowCall<SaveResult>('file.save', { fileId, path: target });
     openFiles.set(fileId, saved.path || target);
+    readOnlyFiles.delete(fileId);   // saving to a path makes it writable (docs/engine-api.md file.save)
+    remember(saved.path || target);
     return { path: saved.path || target, name: path.basename(saved.path || target), bytes: saved.bytes, needsMipsJar: saved.needsMipsJar === true };
   }));
 
@@ -406,6 +424,22 @@ function registerHandlers(): void {
     if (o.kind === 'ram') return windowCall('mem.loadImage', { ...base, file });
     return windowCall('edit.memContents', { fileId, circuitId: o.circuitId, id: o.componentId, file });
   }));
+  // Help › Examples (V-07, D-158): opened read-only from the program's own folder.
+  const exampleFolder = examplesDir(app.isPackaged ? process.resourcesPath : null, paths.repoRoot);
+  ipcMain.handle('examples:list', () => (exampleFolder ? EXAMPLES.filter((n) => existsSync(path.join(exampleFolder, n))).map((n) => ({ id: n, name: n })) : []));
+  ipcMain.handle('examples:open', (_e, id: string) => answer(async () => {
+    if (!exampleFolder || !isExample(id)) return null;
+    return openPath(path.join(exampleFolder, id), undefined, true);
+  }));
+  // File › Open Recent (I-130): names only for the window; the path stays here.
+  ipcMain.handle('file:recent', () => recent.map((r) => ({ id: r.id, name: path.basename(r.path) })));
+  ipcMain.handle('file:openRecent', (_e, id: string) => answer(async () => {
+    const r = recent.find((x) => x.id === id);
+    return r ? openPath(r.path) : null;
+  }));
+  // Window › Minimize (Ctrl+M), Maximize (I-155, I-157).
+  ipcMain.handle('win:minimize', (e) => { from(e).minimize(); });
+  ipcMain.handle('win:maximize', (e) => { const w = from(e); if (w.isMaximized()) w.unmaximize(); else w.maximize(); });
 
   ipcMain.handle('about:info', () => ({
     version, electron: process.versions.electron, chrome: process.versions.chrome, node: process.versions.node,

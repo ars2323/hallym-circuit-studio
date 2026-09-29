@@ -73,17 +73,21 @@ body.error-dialog img.char, body.band-shown img.char { visibility: hidden; }
 .titlebar .file b { color: var(--text); font-weight: 400; }
 .titlebar .dirty { color: var(--amber-text); }
 .titlebar .toolbar-slot { display: flex; flex: none; margin-left: 6px; }
-.titlebar .drag { flex: 1; min-width: 12px; align-self: stretch; }
+.titlebar .drag { flex: 1; min-width: 6px; align-self: stretch; }
 .titlebar .tools { display: flex; gap: 2px; flex: none; }
 .titlebar.tighter { gap: 3px; }
 .titlebar.tighter .iconbtn { width: 24px; }
 .titlebar.tighter .drag { min-width: 4px; }
 .titlebar.noapp .appname { display: none; }
-/* The toolbar in groups; its own row under the bar when the bar cannot hold it (titlebar.ts). */
-.toolbar { display: flex; align-items: center; gap: 6px; flex: none; }
+/* The toolbar in groups; a command the bar has no room for is on the » menu (titlebar.ts, D-158). */
+.toolbar { display: flex; align-items: center; gap: 5px; flex: none; }
 .toolbar .tgroup { display: flex; align-items: center; gap: 4px; flex: none; }
-.toolbar .tgroup + .tgroup { padding-left: 6px; border-left: 1px solid var(--border); }
-.toolrow { display: flex; align-items: center; height: 40px; padding: 0 12px; background: var(--white); border-bottom: 1px solid var(--border); overflow: hidden; }
+.toolbar .tgroup:not([data-over]) ~ .tgroup:not([data-over]) { padding-left: 5px; border-left: 1px solid var(--border); }
+.toolbar [data-over] { display: none !important; }
+.toolbar .btn.more { padding: 0 9px; font-weight: 600; }
+/* A tight window's Canvas / Panels (Hallym MIPS's Editor / Run) */
+.titlebar .viewswitch { margin-left: 6px; }
+.titlebar.tighter .viewswitch button { padding: 2px 6px; }
 .toolbar.nokeys .btn kbd { display: none; }
 .toolbar.nolabels .seg .label { display: none; }
 .toolbar.nolabels .seg button { padding: 2px 6px; }
@@ -91,7 +95,7 @@ body.error-dialog img.char, body.band-shown img.char { visibility: hidden; }
 .toolbar.noicons .btn { padding: 0 9px; }
 .toolbar.tighter { gap: 3px; }
 .toolbar.tighter .tgroup { gap: 2px; }
-.toolbar.tighter .tgroup + .tgroup { padding-left: 3px; }
+.toolbar.tighter .tgroup:not([data-over]) ~ .tgroup:not([data-over]) { padding-left: 3px; }
 .toolbar.tighter .btn { padding: 0 7px; }
 .btn { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--white); color: var(--navy); font-weight: 500; white-space: nowrap; flex: none; }
 .btn:hover:not(:disabled) { background: var(--hover); }
@@ -101,6 +105,9 @@ body.error-dialog img.char, body.band-shown img.char { visibility: hidden; }
 .btn.primary img { filter: invert(1); opacity: 1; }
 .btn:disabled { color: var(--gray); cursor: default; }
 .btn:disabled img { opacity: .35; }
+/* Off is plain to see (D-158): no colour, no hover, no pointer -- a primary button too */
+.btn.primary:disabled { background: var(--window); border-color: var(--border); color: var(--gray); }
+.btn.primary:disabled img { filter: none; opacity: .35; }
 .btn kbd { font: 11px var(--code); color: inherit; opacity: .7; }
 /* A label that swaps words (Run / Stop): as wide as the wider one in either state */
 .btn .label.swap { display: inline-grid; }
@@ -120,6 +127,7 @@ body.error-dialog img.char, body.band-shown img.char { visibility: hidden; }
 .seg button.on { background: var(--white); color: var(--navy); font-weight: 600; box-shadow: 0 1px 2px rgba(0,32,91,.12); }
 .seg button:disabled { color: var(--gray); cursor: default; }
 .seg button:disabled img { opacity: .35; }
+.seg button.on:disabled { background: none; box-shadow: none; color: var(--gray); font-weight: 500; }
 .selectbox { display: inline-flex; align-items: center; gap: 4px; flex: none; }
 .selectbox img { width: 16px; height: 16px; opacity: .7; }
 .selectbox select { height: 28px; padding: 0 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--white); color: var(--navy); font-weight: 500; }
@@ -148,7 +156,8 @@ body.error-dialog img.char, body.band-shown img.char { visibility: hidden; }
 .paside:empty { display: none; }
 .pmeta:not([hidden]) + .paside { padding-left: 10px; border-left: 1px solid var(--border); }
 .hbtn { height: 24px; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--white); color: var(--text-2); font-size: 12px; white-space: nowrap; }
-.hbtn:hover { background: var(--hover); color: var(--navy); }
+.hbtn:hover:not(:disabled) { background: var(--hover); color: var(--navy); }
+.hbtn:disabled { color: var(--gray); cursor: default; }   /* off looks off (D-158) */
 .pbody { flex: 1; min-height: 0; position: relative; overflow: auto; }
 
 /* ---- splitters (splitter.ts) --------------------------------------------- */
@@ -163,6 +172,8 @@ body.error-dialog img.char, body.band-shown img.char { visibility: hidden; }
 .band { margin: 8px 8px 0; padding: 3px 10px; border-radius: 6px; background: var(--amber-tint); color: var(--amber-text);
   box-shadow: inset 3px 0 0 var(--amber-text); font-size: 12px; line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .band[data-kind=error] { background: var(--error-tint); color: var(--error-text); box-shadow: inset 3px 0 0 var(--error); }
+/* A band's one command (Try Again, Turn On, Reset: band.ts), after its sentence */
+[data-band] .bandaction { margin-left: 10px; font-size: 12px; font-weight: 600; color: inherit; text-decoration: underline; }
 
 /* ---- notices (notice.ts): an empty panel's word -- one shape, in the middle
    of its panel, the character (where there is one) at the far end, on white -- */
@@ -199,7 +210,10 @@ body.error-dialog img.char, body.band-shown img.char { visibility: hidden; }
 .wcard p.lead { margin: 0 0 20px; color: var(--text-2); font-size: 14px; white-space: nowrap; }
 .actions { display: grid; grid-template-columns: 220px 220px; gap: 12px; }
 .action { display: flex; gap: 12px; align-items: flex-start; width: 220px; height: 84px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--white); text-align: left; }
-.action:hover { border-color: var(--blue); }
+.action:hover:not(:disabled) { border-color: var(--blue); }
+.action:disabled, .action.main:disabled { cursor: default; background: var(--window); border-color: var(--border); }
+.action:disabled b, .action:disabled .sub { color: var(--gray); }
+.action:disabled img { opacity: .3; }
 .action img { width: 20px; height: 20px; margin-top: 2px; opacity: .8; flex: none; }
 .action b { display: block; color: var(--navy); font-weight: 600; margin-bottom: 2px; }
 .action .sub { display: block; color: var(--text-2); font-size: 12px; line-height: 1.45; white-space: nowrap; }
@@ -220,6 +234,8 @@ body.error-dialog img.char, body.band-shown img.char { visibility: hidden; }
 .asktext p.askfile { margin-bottom: 4px; color: var(--muted); font-size: 12px; }
 .asktext p.askfile .mono { color: var(--text); }
 .asktext pre.askdetail { margin: 10px 0 0; padding: 8px 10px; max-height: 160px; overflow: auto; white-space: pre-wrap; font-size: 11.5px; color: var(--text-2); background: var(--window); border-radius: 6px; }
+/* A sentence in the detail box is Pretendard; only paths and code are D2Coding (ask.ts detailLines, D-158) */
+.asktext .askdetail .say { font-family: var(--ui); font-size: 12px; }
 .btn.danger { background: var(--error); border-color: var(--error); color: var(--white); }
 .btn.danger:hover:not(:disabled) { background: #a93226; }
 .modal h2 { margin: 0 0 12px; font-size: 18px; color: var(--navy); }

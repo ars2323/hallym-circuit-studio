@@ -53,6 +53,7 @@ export function labelled(e: FlowEndpoint, name: string): boolean {
   return true;
 }
 
+const segBox = (a: Point, b: Point, pad: number): Box => ({ x0: Math.min(a[0], b[0]) - pad, y0: Math.min(a[1], b[1]) - pad, x1: Math.max(a[0], b[0]) + pad, y1: Math.max(a[1], b[1]) + pad });
 export class FlowOverlay implements CanvasOverlay {
   path: FlowPath | null = null;
   t = 0;
@@ -87,6 +88,28 @@ export class FlowOverlay implements CanvasOverlay {
   }
 
   get running(): boolean { return this.path !== null; }
+
+  // What the flow shows over the circuit, as boxes (circuit units): the wires it lights, each jump's arc in short
+  // pieces, the ends' labels.  Quick Attributes keeps off them (D-158, UI review of signal-flow.png).
+  obstacles(fileId: string, circuitId: string): Box[] {
+    const p = this.path;
+    if (!p || p.circuitId !== circuitId || this.fileId !== fileId) return [];
+    const out: Box[] = [];
+    const pad = 4;
+    for (const g of p.segments) if (!g.path.length) out.push(segBox(g.from, g.to, pad + 2));
+    p.jumps.forEach((j, i) => {
+      if (j.path.length) return;
+      const c: Point = this.cache?.arcs[i] ?? [(j.from[0] + j.to[0]) / 2, (j.from[1] + j.to[1]) / 2];
+      let prev = j.from;
+      for (let k = 1; k <= 16; k++) {
+        const q = quad(j.from, c, j.to, k / 16);
+        out.push({ x0: Math.min(prev[0], q[0]) - pad, y0: Math.min(prev[1], q[1]) - pad, x1: Math.max(prev[0], q[0]) + pad, y1: Math.max(prev[1], q[1]) + pad });
+        prev = q;
+      }
+    });
+    if (this.cache) out.push(...this.cache.labels.values());
+    return out;
+  }
 
   // Keep drawing while it flows: every frame when Smooth (60 fps), else about 30 a second.
   animating(): boolean {

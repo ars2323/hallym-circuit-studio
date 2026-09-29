@@ -12,7 +12,7 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } 
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { answerSave, canvasSettled, DATAPATH, launch, openFile, sample } from './harness.ts';
+import { answerSave, canvasSettled, DATAPATH, launch, openAbout, openFile, sample } from './harness.ts';
 import { call, circuitsOf, openFileIds } from './model.ts';
 import { RUN_DEFAULTS } from '../../src/renderer/app/logic/run-settings.ts';
 import { changeEverySetting, settingsNow } from './settings.ts';
@@ -49,7 +49,7 @@ test('nothing written: after quit no run folder, an empty HOME, the opened file 
     await r.page.mouse.down();
     await r.page.mouse.move(split.x + 120, split.y + 100);
     await r.page.mouse.up();
-    await r.page.getByTitle('About').click();
+    await openAbout(r.page);
     await r.page.keyboard.press('Escape');
     await r.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setContentSize(1000, 700));
     expect(readdirSync(runs)).toHaveLength(1); // this run's folder, while it runs

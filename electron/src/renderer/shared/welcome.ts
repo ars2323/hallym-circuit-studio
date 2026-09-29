@@ -36,10 +36,11 @@ export interface Welcome {
   go(step: string): void;
   step(): string;
   show(on: boolean): void;      // the first screen on show or not: the video plays only while it is
+  enable(on: boolean): void;    // the choices that do something can be pressed (off: the engine is down, D-158)
 }
 
-function action(c: Choice, onClick: () => void): HTMLElement {
-  const b = h('button', { class: `action${c.main ? ' main' : ''}`, type: 'button' }, icon(c.icon),
+function action(c: Choice, onClick: () => void, enabled: boolean): HTMLElement {
+  const b = h('button', { class: `action${c.main ? ' main' : ''}`, type: 'button', disabled: !enabled && !c.go }, icon(c.icon),
     h('span', {}, h('b', {}, c.label), h('span', { class: 'sub' }, c.lines[0], h('br'), c.lines[1])));
   b.addEventListener('click', onClick);
   return b;
@@ -49,9 +50,10 @@ export function welcome(spec: WelcomeSpec): Welcome {
   const actions = h('div', { class: 'actions' });
   const back = h('button', { class: 'linkbtn back', type: 'button' }, '← 처음으로');
   let current = spec.first;
+  let enabled = true;
   const go = (step: string) => {
     current = step;
-    actions.replaceChildren(...spec.steps[step].map((c) => action(c, () => (c.go ? go(c.go) : c.onClick?.()))));
+    actions.replaceChildren(...spec.steps[step].map((c) => action(c, () => (c.go ? go(c.go) : c.onClick?.()), enabled)));
     back.style.visibility = step === spec.first ? 'hidden' : 'visible';
     actions.dataset.step = step;
     if (step !== spec.first) (actions.firstElementChild as HTMLElement).focus();
@@ -65,5 +67,6 @@ export function welcome(spec: WelcomeSpec): Welcome {
       h('p', { class: 'lead' }, spec.lead[0], h('br'), spec.lead[1]),
       actions, back));
   const root = h('div', { class: 'welcome' }, start.root, card);
-  return { root, go, step: () => current, show: start.show };
+  const enable = (on: boolean) => { if (on !== enabled) { enabled = on; go(current); } };
+  return { root, go, step: () => current, show: start.show, enable };
 }

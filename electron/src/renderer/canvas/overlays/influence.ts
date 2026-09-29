@@ -27,11 +27,22 @@ export class InfluenceOverlay implements CanvasOverlay {
   faded = (): boolean => false;                 // a Signal Flow runs (the controller says)
   moreChips = (_d: OverlayDraw): Box[] => [];    // other chips on the circuit (the bus values)
   drawChips = (_d: OverlayDraw, _nets: Set<string>): void => {};   // the bus values of these nets, again over the dimming
+  // What the last frame drew over the circuit, as boxes (circuit units): the chips and the tunnels' dotted lines in
+  // short pieces.  Quick Attributes keeps off them (D-158, UI review of influence.png).
+  private drawnBoxes: Box[] = [];
+  obstacles(): Box[] { return this.result ? this.drawnBoxes : []; }
 
   over(d: OverlayDraw): void {
     const r = this.result;
     if (!r) return;
+    const boxes: Box[] = [];
+    this.drawnBoxes = boxes;
     const { ctx, scene, zoom: z, shown, canvas } = d;
+    // the wires it reached (their bands)
+    for (const id of [...r.forward.wires, ...r.backward.wires]) {
+      const w = scene.wires.get(id);
+      if (w) boxes.push({ x0: Math.min(w.a[0], w.b[0]) - 6, y0: Math.min(w.a[1], w.b[1]) - 6, x1: Math.max(w.a[0], w.b[0]) + 6, y1: Math.max(w.a[1], w.b[1]) + 6 });
+    }
     const px = (v: number) => v / z;
     ctx.save();
     // the rest dimmed (the dimming itself is not faded)
@@ -67,7 +78,17 @@ export class InfluenceOverlay implements CanvasOverlay {
     ctx.lineWidth = Math.max(px(1.5), px(2));
     ctx.setLineDash([px(6), px(5)]);
     ctx.lineCap = 'round';
-    for (const link of r.links) for (let i = 1; i < link.length; i++) this.freeLine(d, link[i - 1], link[i], [...blockers, ...chips, ...wires]);
+    for (const link of r.links) {
+      for (let i = 1; i < link.length; i++) {
+        this.freeLine(d, link[i - 1], link[i], [...blockers, ...chips, ...wires]);
+        const a = link[i - 1], b = link[i];
+        for (let k = 0; k < 8; k++) {
+          const p0: Point = [a[0] + ((b[0] - a[0]) * k) / 8, a[1] + ((b[1] - a[1]) * k) / 8];
+          const p1: Point = [a[0] + ((b[0] - a[0]) * (k + 1)) / 8, a[1] + ((b[1] - a[1]) * (k + 1)) / 8];
+          boxes.push({ x0: Math.min(p0[0], p1[0]) - 3, y0: Math.min(p0[1], p1[1]) - 3, x1: Math.max(p0[0], p1[0]) + 3, y1: Math.max(p0[1], p1[1]) + 3 });
+        }
+      }
+    }
     ctx.setLineDash([]);
     const outline = (id: string, color: string, width: number, dash?: number[]) => {
       const c = scene.components.get(id);
@@ -106,6 +127,7 @@ export class InfluenceOverlay implements CanvasOverlay {
       ctx.fillStyle = INFLUENCE_FORWARD; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
       ctx.fillText(text, at.x0 + px(5), (at.y0 + at.y1) / 2);
       avoid.push({ box: at, weight: 10 });
+      boxes.push(at);
     }
     ctx.restore();
   }

@@ -59,4 +59,10 @@ contextBridge.exposeInMainWorld('app', {
   closeCancelled: () => ipcRenderer.send('win:closeCancelled'),
   onCloseRequest: (listener) => ipcRenderer.on('win:closeRequest', () => listener()),
   onAdopt: (listener) => ipcRenderer.on('win:adopt', (_e, handover) => listener(handover)),
+  examples: () => ipcRenderer.invoke('examples:list'),
+  openExample: (id) => ipcRenderer.invoke('examples:open', id).then(unwrap),
+  recentFiles: () => ipcRenderer.invoke('file:recent'),
+  openRecent: (id) => ipcRenderer.invoke('file:openRecent', id).then(unwrap),
+  minimize: () => ipcRenderer.invoke('win:minimize'),
+  maximize: () => ipcRenderer.invoke('win:maximize'),
 });

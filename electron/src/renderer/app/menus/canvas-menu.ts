@@ -44,6 +44,8 @@ export interface CanvasMenuDeps {
   registerMapping(): void;
   memoryImage(fileId: string, o: MemoryImageOptions): Promise<unknown>;
   quietQuick(): void;                             // Quick Attributes stays away (a program's selection)
+  // A menu shown for something else than the selection (D-158): Quick Attributes away until it closes.
+  otherTarget?(): void;
   tool(): string;                                 // the tool in hand (the P key is not the Text tool's)
 }
 
@@ -213,7 +215,11 @@ export function installCanvasMenu(d: CanvasMenuDeps): CanvasMenu {
     const t: CanvasTarget = { fileId: w.fileId, circuitId: w.circuitId, root: w.root, path: w.path, at, facts };
     last = t;
     const entries = menuFor('canvas', t, facts.summary);
-    if (entries.length) showMenu(entries, client.x, client.y);
+    if (!entries.length) return;
+    showMenu(entries, client.x, client.y);
+    // the original keeps the selection whatever is right-clicked (MenuTool.mousePressed); the bar by the selection
+    // is not the menu's target then
+    if (!id || !b.selection().includes(id)) d.otherTarget?.();
   }
 
   const c = b.canvas;

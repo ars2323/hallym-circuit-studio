@@ -6,7 +6,7 @@
 
 import { expect, test } from '@playwright/test';
 
-import { DATAPATH, launch, newCircuit, openFile, sample, visibleCharacters } from './harness.ts';
+import { clockSpeed, DATAPATH, launch, newCircuit, openFile, sample, visibleCharacters } from './harness.ts';
 
 test('no engine: the dialog says the engine could not start, with what was tried; no character; a band', async () => {
   const r = await launch(undefined, { env: { HCS_ENGINE_CMD: '', HCS_ENGINE_JAR: '/nowhere/hcs-engine.jar' } });
@@ -16,18 +16,36 @@ test('no engine: the dialog says the engine could not start, with what was tried
     await expect(dialog).toContainText('엔진을 시작하지 못했습니다');
     // The sentence names the file that was looked for, the line under it where.
     await expect(dialog.locator('.askdetail')).toHaveText('엔진 파일이 없습니다: hcs-engine.jar\n  /nowhere/hcs-engine.jar');
+    // The sentence in the sentences' font, the file's name and the path in the mono one (D-158: #413's UI review).
+    const font = (sel: string) => dialog.locator(sel).first().evaluate((e) => getComputedStyle(e).fontFamily);
+    expect(await font('.askdetail .say')).toMatch(/^Pretendard/);
+    expect(await dialog.locator('.askdetail .mono').allInnerTexts()).toEqual(['hcs-engine.jar', '  /nowhere/hcs-engine.jar']);
+    expect(await font('.askdetail .mono')).toMatch(/^D2Coding/);
     await expect(dialog.getByRole('button')).toHaveText(['Close', 'Try Again']);
     expect(await visibleCharacters(page)).toBe(0);
     await dialog.getByRole('button', { name: 'Close' }).click();
     // The band stays while there is no engine: no character on screen all that time.
     expect(await visibleCharacters(page)).toBe(0);
-    await expect(page.locator('.band')).toHaveText('엔진을 시작하지 못했습니다 · 회로를 만들거나 열 수 없습니다');
+    await expect(page.locator('.band .bandtext')).toHaveText('엔진을 시작하지 못했습니다 · 회로를 만들거나 열 수 없습니다');
     await expect(page.locator('.band')).toHaveAttribute('data-kind', 'error');
     await expect(page.locator('.status .err')).toHaveText('엔진을 시작하지 못했습니다');
-    // A way in: the dialog again, nothing opened.
+    // Nothing that needs the engine can be pressed, and it looks so (D-158: #413's UI review): the first screen's
+    // choices, New and Open.
     await page.getByRole('button', { name: /바로 시작/ }).click();
-    await page.getByRole('button', { name: /새 회로/ }).click();
+    for (const name of [/새 회로/, /파일 열기/]) {
+      const b = page.getByRole('button', { name });
+      await expect(b).toBeDisabled();
+      expect(await b.evaluate((e) => getComputedStyle(e).cursor)).toBe('default');
+      expect(await b.locator('b').evaluate((e) => getComputedStyle(e).color)).toBe('rgb(188, 190, 192)');   // --gray
+    }
+    await expect(page.getByTitle('New circuit (Ctrl+N)')).toBeDisabled();
+    await expect(page.getByTitle('Open file (Ctrl+O)')).toBeDisabled();
+    await page.keyboard.press('Control+n');   // the key waits for the engine, which is not coming: the dialog again
     await expect(dialog).toBeVisible();
+    await page.keyboard.press('Escape');
+    // The band's Try Again: still no engine, asked again; nothing opened.
+    await page.locator('.band').getByRole('button', { name: 'Try Again' }).click();
+    await expect(page.locator('dialog.ask')).toBeVisible();
     await dialog.getByRole('button', { name: 'Try Again' }).click();
     await expect(page.locator('dialog.ask')).toBeVisible(); // still no engine: asked again
     await page.keyboard.press('Escape');
@@ -61,7 +79,7 @@ test('the engine\'s notifications reach the window: 1 Cycle, Run, Reset in the s
     await expect(page.locator('.status .run')).toHaveText('Running (1 Hz)');
     await expect(page.getByRole('button', { name: /^Stop/ })).toBeVisible();
     // A new speed while it runs goes to the engine at once.
-    await page.getByRole('combobox', { name: 'Clock speed' }).selectOption('64');
+    await clockSpeed(page, '64 Hz');
     await expect(page.locator('.status .run')).toHaveText('Running (64 Hz)');
     await page.keyboard.press('F5');
     await expect(page.locator('.status .run')).toHaveCount(0);

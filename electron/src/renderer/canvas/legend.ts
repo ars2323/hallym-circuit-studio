@@ -14,7 +14,7 @@ export interface LegendOptions {
   extra?: HTMLElement;      // more rows (N-15: Colors, Bus Values, Active Path; overlays/controller.ts)
 }
 
-export function legend(o: LegendOptions): { button: HTMLButtonElement; panel: HTMLElement } {
+export function legend(o: LegendOptions): { button: HTMLButtonElement; panel: HTMLElement; setBusWidths(on: boolean): void } {
   const rows = LEGEND.map((r) => h('li', { 'data-token': r.token },
     h('span', { class: `swatch${r.token === 'vBus' ? ' bus' : ''}`, style: `background: var(${VALUE_VARS[r.token as keyof typeof VALUE_VARS]})` }),
     h('span', { class: 'mono name' }, r.name),
@@ -49,5 +49,6 @@ export function legend(o: LegendOptions): { button: HTMLButtonElement; panel: HT
   });
   document.addEventListener('pointerdown', close, true);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !panel.hidden) { panel.hidden = true; button.setAttribute('aria-expanded', 'false'); } });
-  return { button, panel };
+  // Set from elsewhere too (Preferences, D-158): the box shows it.
+  return { button, panel, setBusWidths: (on) => { box.checked = on; } };
 }

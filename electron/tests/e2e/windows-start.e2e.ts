@@ -24,7 +24,7 @@ import { copyFileSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { compare, groundRect, rawPixels, screenPixels } from './backdrop-measure.ts';
-import { answerOpen, canvasSettled, DATAPATH, repo, resize, type Running } from './harness.ts';
+import { answerOpen, canvasSettled, DATAPATH, openAbout, repo, resize, type Running } from './harness.ts';
 import { engineHello } from './model.ts';
 
 const exe = process.env.HCS_E2E_EXE;
@@ -120,7 +120,7 @@ test('installed: pictures with the real engine -- the first screen, About (hcs-e
     }));
     await picture(page, dir, 'installed-start');
     // About: the engine's line says the real engine and the bundled Java.
-    await page.getByTitle('About').click();
+    await openAbout(page);
     const line = page.locator('dialog.about p.hint', { hasText: /^Engine / });
     await expect(line).toHaveText(/^Engine hcs-engine \S+ · Logisim 2\.7\.1 · Java 21\b/, { timeout: 30_000 });
     await picture(page, dir, 'installed-about');

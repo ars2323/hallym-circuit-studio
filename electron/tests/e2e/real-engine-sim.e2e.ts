@@ -14,7 +14,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 
 import { centerOn, clickAt, partBy, portValue } from './canvas-points.ts';
-import { DATAPATH, launch, type LaunchOptions, openFile, repo, type Running, sample } from './harness.ts';
+import { command, DATAPATH, launch, type LaunchOptions, openFile, repo, type Running, sample } from './harness.ts';
 
 const JAR = path.join(repo, 'engine/build/stage/hcs-engine.jar');
 const real: LaunchOptions['env'] = { HCS_ENGINE_CMD: '', HCS_ENGINE_JAR: JAR };
@@ -45,7 +45,7 @@ test('the real engine: a counter -- 1 Cycle, N Cycles 100 exactly, Run and Stop,
     await page.keyboard.press('F10');
     await expect(page.locator('.status')).toContainText('Cycle 1');
     await expect.poll(() => portValue(page, q.id)).toBe(bits8(3));
-    await page.getByRole('button', { name: /N Cycles/ }).click();
+    await command(page, /N Cycles/);
     await page.locator('dialog.cycles').getByRole('textbox').fill('100');
     await page.keyboard.press('Enter');
     await expect(page.locator('.status')).toContainText('Cycle 101');
@@ -100,7 +100,7 @@ test('the real engine: N Cycles 1000 on ref-mips from the window, faster than v1
   try {
     await openFile(r, sample(r.dir, 'tests/mips/ref-mips.circ'));
     await drawn(r);
-    await page.getByRole('button', { name: /N Cycles/ }).click();
+    await command(page, /N Cycles/);
     await page.locator('dialog.cycles').getByRole('textbox').fill('1000');
     const t0 = Date.now();
     await page.keyboard.press('Enter');

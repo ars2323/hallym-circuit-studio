@@ -19,17 +19,31 @@
    shots stop it at a fixed second, 3.0 s as Hallym MIPS 2.5.0's start.jpg
    (videoAt), so every round gives the same picture.
 
-   SCREENS_OUT: write somewhere else. */
+   The same code gives the same pixels (D-158), and --twice proves it: every
+   scene is taken again into a temporary folder and each PNG must be the
+   same bytes as the first time.  To that end every window of this tool
+   (start()) emulates prefers-reduced-motion (no Signal Flow motion, no
+   video but where a scene is about it: the first screen's, held at a
+   second) and carries a capture style with no transition, animation or
+   caret; and a shot waits on explicit signals, never on a guess of time
+   (settle()): the fonts and images loaded, no engine call of the window's
+   outstanding, the Canvas settled (canvas.ts settled()), two frames drawn.
+   The one scene about a running clock (sim-running) holds the clock at a
+   known cycle (holdClock()).
 
-import { copyFileSync, existsSync, mkdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
+   SCREENS_OUT: write somewhere else.  --twice: take them all again and compare. */
+
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import type { Page } from '@playwright/test';
+import os from 'node:os';
 import path from 'node:path';
 import { crc32, deflateSync } from 'node:zlib';
 
-import { answerOpen, canvasSettled, DATAPATH, launch, openFile, repo, root, sample, type Running } from '../tests/e2e/harness.ts';
+import { answerOpen, canvasSettled, DATAPATH, launch, type LaunchOptions, openAbout, openFile, repo, root, sample, type Running } from '../tests/e2e/harness.ts';
 import { click, menu, partMiddle, rightClick, wireAtPort } from '../tests/e2e/overlay-helpers.ts';
 import { decodePng } from '../tests/e2e/png.ts';
 
-const out = process.env.SCREENS_OUT ? path.resolve(process.env.SCREENS_OUT) : path.join(root, 'docs/screens');
+let out = process.env.SCREENS_OUT ? path.resolve(process.env.SCREENS_OUT) : path.join(root, 'docs/screens');
 mkdirSync(out, { recursive: true });
 const MAX_BYTES = 1536 * 1024;
 const FHD = { width: 1920, height: 1032 };
@@ -57,19 +71,84 @@ function written(name: string): void {
   if (bytes > MAX_BYTES) throw new Error(`${name}.png is ${bytes} bytes, over ${MAX_BYTES}: crop it`);
 }
 
+// Every window of this tool: no motion (prefers-reduced-motion, as a PC with Windows' animation effects off),
+// no transition, animation or blinking caret (D-158: the same code, the same pixels).  motion: the scene is
+// about the first screen's video (held at a second by videoAt()).
+const CAPTURE_CSS = '*, *::before, *::after { transition: none !important; animation: none !important; caret-color: transparent !important; }'
+  // the first screen's video frame held in a canvas (videoAt): the video's own look (shared.css .wback video)
+  + ' .wback canvas.capture-frame { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(3px) saturate(.85); transform: scale(1.03); }';
+// Chromium rasterising on the CPU, whole tiles, one thread: its GPU path (SwiftShader under Xvfb) and partial raster
+// left a pixel of anti-aliasing at a rounded corner or a button's edge different from one run to the next.
+export const CAPTURE_SWITCHES = ['--disable-gpu', '--disable-gpu-compositing', '--disable-partial-raster', '--num-raster-threads=1'];
+async function start(size: { width: number; height: number } | null, o: LaunchOptions & { motion?: boolean } = {}): Promise<Running> {
+  const r = await launch(size, { ...o, switches: [...CAPTURE_SWITCHES, ...(o.switches ?? [])] });
+  if (!o.motion) await r.page.emulateMedia({ reducedMotion: 'reduce' });
+  await r.page.addStyleTag({ content: CAPTURE_CSS });
+  await r.page.evaluate(() => document.documentElement.classList.add('capture'));
+  return r;
+}
+
+// Nothing more to come (D-158): the fonts and images loaded, no engine call of the window's outstanding (the main
+// process's client), the Canvas settled when it is on the page, two frames drawn -- and all of it still so.
+async function settle(r: Running): Promise<void> {
+  const { page } = r;
+  // the window's engine calls outstanding, and whether the engine is between states (starting, restarting: the status
+  // bar and the bands are still to change)
+  const idle = () => r.app.evaluate(() => {
+    const g = (globalThis as unknown as { __hcs: { engine: { pending: Map<number, unknown>; status(): { state: string } }; recovery: { view(s: unknown): { state: string } } } }).__hcs;
+    const state = g.recovery.view(g.engine.status()).state;
+    return g.engine.pending.size + (state === 'starting' || state === 'restarting' ? 1 : 0);
+  });
+  for (let round = 0; round < 50; round += 1) {
+    await page.evaluate(() => document.fonts.ready);
+    await page.waitForFunction(() => [...document.images].every((i) => i.complete));
+    await page.waitForFunction(() => {
+      const c = (window as unknown as { __hcsCanvas?: { root: HTMLElement; settled(): boolean } }).__hcsCanvas;
+      return !c || !c.root.isConnected || !c.root.checkVisibility() || c.settled();
+    });
+    const before = await idle();
+    await page.evaluate(() => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
+    if (before === 0 && (await idle()) === 0) return;
+    await page.waitForTimeout(20);
+  }
+  throw new Error('settle: the window kept asking the engine');
+}
+
+// Every tile drawn afresh: a tile drawn again after a popup or a hover over it came out a shade apart from one drawn
+// once (the same page, one level of one channel); hidden for two frames and shown, the page is drawn whole.
+// A scene about the focus or the pointer keeps both: the page is moved into a layer of its own and back instead (drawn
+// whole twice, nothing hidden).
+async function repaint(page: Page, keep = false): Promise<void> {
+  await page.evaluate(async (k) => {
+    const frames = () => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done())));
+    const st = document.documentElement.style;
+    if (k) st.willChange = 'transform'; else st.visibility = 'hidden';
+    await frames();
+    if (k) st.willChange = ''; else st.visibility = '';
+    await frames();
+  }, keep);
+}
+
 // keepFocus: the scene is about a box that has the keys (the search palette closes when it loses them);
-// its caret is hidden so the pixels do not depend on when it blinks.
+// the capture style hides its caret so the pixels do not depend on when it blinks.
 async function shot(r: Running, name: string, o: { keepFocus?: boolean; keepPointer?: boolean } = {}): Promise<void> {
   const { page } = r;
   // out of the window: no hover, no tooltip -- but a gesture going on (a drag, a part held) keeps the pointer where it is
   if (!o.keepPointer) await page.mouse.move(-10, -10);
-  if (o.keepFocus) await page.addStyleTag({ content: '* { caret-color: transparent !important; }' });
-  else await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
-  await page.evaluate(() => document.fonts.ready);
-  await page.waitForFunction(() => [...document.images].every((i) => i.complete));
-  await page.waitForTimeout(400);
-  const hovered = await page.evaluate(() => document.querySelectorAll(':hover').length);
-  if (hovered && !o.keepPointer) throw new Error(`${name}: ${hovered} elements still hovered`);
+  if (!o.keepFocus) await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  await settle(r);
+  // (a hidden page would lose the focus and the pointer -- the palette closes, the ghost goes: those scenes keep them)
+  await repaint(page, !!(o.keepFocus || o.keepPointer));
+  const hovers = () => page.evaluate(() => [...document.querySelectorAll(':hover')].map((e) => e.tagName.toLowerCase() + (e.className ? `.${String(e.className).split(' ')[0]}` : '')));
+  let hovered = await hovers();
+  // a modal dialog opened under the pointer may miss the move out of the window: in and out again, then look once more
+  for (let i = 0; i < 3 && hovered.length && !o.keepPointer; i++) {
+    await page.mouse.move(1, 1);
+    await page.mouse.move(-10, -10);
+    await settle(r);
+    hovered = await hovers();
+  }
+  if (hovered.length && !o.keepPointer) throw new Error(`${name}: still hovered: ${hovered.join(' ')}`);
   await page.screenshot({ path: path.join(out, `${name}.png`) });
   written(name);
 }
@@ -79,10 +158,24 @@ const START_AT = 3.0;
 async function videoAt(r: Running, t = START_AT): Promise<void> {
   if (await r.page.locator('.stage-welcome').isHidden()) throw new Error('videoAt: the first screen is not on show');
   await r.page.waitForSelector('.wback.playing');
+  // That frame decoded (requestVideoFrameCallback at its time), then drawn into a canvas that takes the video's place
+  // with the same look (D-158): a paused video's frame reached the software compositor late now and then (the first
+  // frame's still showed through in one round of two), a canvas's bitmap never does.
   await r.page.evaluate((t) => new Promise<void>((done) => {
     const v = document.querySelector('.wback video') as HTMLVideoElement;
     v.pause();
-    v.addEventListener('seeked', () => requestAnimationFrame(() => requestAnimationFrame(() => done())), { once: true });
+    const hold = () => {
+      const c = document.createElement('canvas');
+      c.width = v.videoWidth;
+      c.height = v.videoHeight;
+      c.getContext('2d')!.drawImage(v, 0, 0);
+      c.className = 'capture-frame';
+      v.after(c);
+      v.style.visibility = 'hidden';
+      requestAnimationFrame(() => requestAnimationFrame(() => done()));
+    };
+    const presented = () => v.requestVideoFrameCallback((_now, meta) => { if (Math.abs(meta.mediaTime - t) < 0.02) hold(); else presented(); });
+    presented();
     v.currentTime = t;
   }), t);
 }
@@ -100,8 +193,29 @@ async function drawn(r: Running): Promise<void> {
 
 const kill = (r: Running) => r.app.evaluate(() => (globalThis as unknown as { __hcs: { engine: { kill(): void } } }).__hcs.engine.kill());
 
+// The running clock held at a known cycle for its picture (D-158): the engine's clock never starts; the engine goes
+// back to the start and runs `cycles` cycles, while the window is told (its sim.state, rewritten on the way in the
+// main process) that the clock runs at `hz` -- the same cycle, the same values, every round.  release() ends it.
+async function holdClock(r: Running, cycles: number, hz: number): Promise<{ release(): Promise<void> }> {
+  const fileId = await r.page.evaluate(() => (window as unknown as { __hcsCanvas: { scene: { fileId: string } } }).__hcsCanvas.scene.fileId);
+  await r.app.evaluate(async (_e, a) => {
+    type E = { call(m: string, p: unknown): Promise<unknown>; prependListener(ev: string, f: (m: string, p: Record<string, unknown>) => void): void };
+    const g = globalThis as unknown as { __hcs: { engine: E }; __held?: { hz: number } | null; __holding?: boolean };
+    if (!g.__holding) {
+      g.__holding = true;
+      g.__hcs.engine.prependListener('notification', (m, p) => { if (g.__held && m === 'sim.state') Object.assign(p, { ticking: true, hz: g.__held.hz, cyclesLeft: 0 }); });
+    }
+    g.__held = { hz: a.hz };
+    await g.__hcs.engine.call('sim.reset', { fileId: a.fileId });
+    await g.__hcs.engine.call('sim.cycles', { fileId: a.fileId, n: a.cycles });
+  }, { fileId, cycles, hz });
+  return { release: () => r.app.evaluate(() => { (globalThis as unknown as { __held?: unknown }).__held = null; }) };
+}
+
+async function captureAll(): Promise<void> {
+
 {
-  const r = await launch(FHD);
+  const r = await start(FHD, { motion: true });
   const { page } = r;
   await videoAt(r);
   await shot(r, 'start');
@@ -122,7 +236,7 @@ const kill = (r: Running) => r.app.evaluate(() => (globalThis as unknown as { __
   await page.getByRole('button', { name: /1 Cycle/ }).click();
   await page.locator('.status', { hasText: 'Cycle 2' }).waitFor();
   await shot(r, 'circuit-tabs');
-  await page.getByTitle('About').click();
+  await openAbout(page);
   await page.locator('dialog.about[open]').waitFor();
   await shot(r, 'about');
   await page.locator('dialog.about').getByRole('tab', { name: 'Licenses' }).click();
@@ -130,13 +244,14 @@ const kill = (r: Running) => r.app.evaluate(() => (globalThis as unknown as { __
   await page.locator('dialog.about details').nth(2).locator('pre', { hasText: 'BSD' }).waitFor();
   await shot(r, 'about-licenses');
   await page.keyboard.press('Escape');
-  await answerOpen(r.app, path.join(r.dir, 'lab3.circ'));
+  await answerOpen(r.app, path.join(r.dir, 'week3', 'lab3.circ'));   // a folder with a fixed name (the dialog names it)
   await page.keyboard.press('Control+o');
   await page.locator('dialog.ask').waitFor();
   await shot(r, 'dialog-error');
   await page.keyboard.press('Escape');
   await kill(r);
   await page.locator('.band', { hasText: '다시 시작했습니다' }).waitFor();
+  await page.locator('.status', { hasText: 'PC 0x' }).waitFor();   // the registers asked again after the restart
   await shot(r, 'engine-restarted');
   await r.close();
 }
@@ -144,7 +259,7 @@ const kill = (r: Running) => r.app.evaluate(() => (globalThis as unknown as { __
 // Messages (N-13): a broken circuit after one cycle, a message chosen, then the one with a cycle (the Cycle View
 // comes forward, N-14); a circuit with nothing to say.
 {
-  const r = await launch(FHD);
+  const r = await start(FHD);
   const { page } = r;
   await openFile(r, sample(r.dir, 'electron/tests/fixtures/broken-datapath.circ'));
   await page.locator('.msg').nth(1).waitFor();
@@ -175,7 +290,7 @@ async function view(r: Running, v: { x: number; y: number; zoom: number }): Prom
   await canvasSettled(r.page);
 }
 {
-  const r = await launch(FHD);
+  const r = await start(FHD);
   const { page } = r;
   await openFile(r, sample(r.dir, DATAPATH));
   await drawn(r);
@@ -216,7 +331,7 @@ async function view(r: Running, v: { x: number; y: number; zoom: number }): Prom
 {
   const jar = path.join(repo, 'engine/build/stage/hcs-engine.jar');
   if (!existsSync(jar)) throw new Error(`${jar}: ./gradlew :engine:stage (the simulation's screens use the real engine)`);
-  const r = await launch(FHD, { env: { HCS_ENGINE_CMD: '', HCS_ENGINE_JAR: jar } });
+  const r = await start(FHD, { env: { HCS_ENGINE_CMD: '', HCS_ENGINE_JAR: jar } });
   const { page } = r;
   await openFile(r, sample(r.dir, DATAPATH));
   await drawn(r);
@@ -237,9 +352,20 @@ async function view(r: Running, v: { x: number; y: number; zoom: number }): Prom
   });
   await page.mouse.click(wire.x, wire.y);
   await page.getByRole('combobox', { name: 'Clock speed' }).selectOption('64');
-  await page.keyboard.press('F5');
+  // the clock held at cycle 3 (the window is told it runs at 64 Hz; the engine's clock never starts, so no tick of
+  // it can land after the reset): the same picture every round
+  let held = await holdClock(r, 3, 64);
   await page.locator('.status .run', { hasText: 'Running (64 Hz)' }).waitFor();
-  // shot when the status bar's PC and the PC register on the Canvas show the same cycle (the clock runs on meanwhile)
+  await page.locator('.status', { hasText: 'Cycle 3' }).waitFor();
+  // three cycles from Reset show PC 0x00000008 (the first cycle's edge loads the reset PC).  A reset that met a tick
+  // already under way gives one PC further (0x0000000c, once in a few rounds): held again until the picture is the usual one.
+  for (let i = 0; i < 5 && !(await page.locator('.status', { hasText: 'PC 0x00000008' }).isVisible()); i += 1) {
+    await held.release();
+    held = await holdClock(r, 3, 64);
+    await page.waitForTimeout(200);
+  }
+  await page.locator('.status', { hasText: 'PC 0x00000008' }).waitFor();
+  // shot when the status bar's PC and the PC register on the Canvas show the same cycle
   await page.waitForFunction(() => {
     const c = (window as unknown as { __hcsCanvas: { scene: { components: Map<string, { id: string; name: string; attrs: Record<string, string> }>; portValue(id: string, i: number): string | undefined } } }).__hcsCanvas;
     const pc = [...c.scene.components.values()].find((k) => k.name === 'Register' && k.attrs.label === 'PC');
@@ -248,6 +374,7 @@ async function view(r: Running, v: { x: number; y: number; zoom: number }): Prom
     return !!v && /^[01]{32}$/.test(v) && !!m && parseInt(v, 2) === parseInt(m[1], 16);
   }, undefined, { polling: 5, timeout: 20_000 });
   await shot(r, 'sim-running');
+  await held.release();
   await page.keyboard.press('F5');
   await page.getByRole('button', { name: /Reset/ }).click();
   await page.locator('.status', { hasText: 'Cycle 0' }).waitFor();
@@ -267,7 +394,7 @@ async function view(r: Running, v: { x: number; y: number; zoom: number }): Prom
 // bending where the first move went); a part held from the Components list (its ghost on the grid under the pointer).
 {
   const jar = path.join(repo, 'engine/build/stage/hcs-engine.jar');
-  const r = await launch(FHD, { env: { HCS_ENGINE_CMD: '', HCS_ENGINE_JAR: jar } });
+  const r = await start(FHD, { env: { HCS_ENGINE_CMD: '', HCS_ENGINE_JAR: jar } });
   const { page } = r;
   await openFile(r, sample(r.dir, DATAPATH));
   await drawn(r);
@@ -331,7 +458,7 @@ async function view(r: Running, v: { x: number; y: number; zoom: number }): Prom
   await r.close();
 }
 {
-  const r = await launch(FHD);
+  const r = await start(FHD);
   await openFile(r, sample(r.dir, 'tests/mips/ref-mips.circ'));
   await drawn(r);
   await shot(r, 'ref-mips-fhd');
@@ -344,7 +471,7 @@ async function view(r: Running, v: { x: number; y: number; zoom: number }): Prom
 // the program ran to its exit, the band after the .hmx was exported again cut off.  The fake engine answers
 // with the real engine's words (tests/fixtures/programs.json); its clock is fixed and the zone is Seoul's.
 {
-  const r = await launch(FHD, { env: { TZ: 'Asia/Seoul' } });
+  const r = await start(FHD, { env: { TZ: 'Asia/Seoul' } });
   const { page } = r;
   const circ = sample(r.dir, 'tests/mips/ref-mips.circ');
   sample(r.dir, 'tests/hmx/hallym-mips-v2.4.0/data.s');
@@ -370,7 +497,7 @@ async function view(r: Running, v: { x: number; y: number; zoom: number }): Prom
 // Instruction Memory (tests/fake-engine/fake-record.ts).  The bottom panel dragged taller; rows added with the
 // engine call the Canvas's right-click (Add to Cycle View, N-05/N-10) will make.
 {
-  const r = await launch(FHD);
+  const r = await start(FHD);
   const { page } = r;
   await openFile(r, sample(r.dir, DATAPATH));
   await drawn(r);
@@ -410,7 +537,7 @@ async function view(r: Running, v: { x: number; y: number; zoom: number }): Prom
 // right click with Colors: Groups (the Wire Colors panel open), and area memos around the stages (the engine
 // call Add Area Memo… makes with the parts chosen).
 {
-  const r = await launch(FHD);
+  const r = await start(FHD);
   const { page } = r;
   await openFile(r, sample(r.dir, DATAPATH));
   await drawn(r);
@@ -473,7 +600,7 @@ async function view(r: Running, v: { x: number; y: number; zoom: number }): Prom
 // Registers with ten-digit and negative values (the fake's wide-registers: $s6 = -1, $s7 = 0x80000000; $sp, $fp, $ra
 // as a program leaves them): the Saved, Pointers and Return address bands whole in Hex, Dec and Bin.
 {
-  const r = await launch(FHD, { env: { FAKE_ENGINE_MODE: 'wide-registers' } });
+  const r = await start(FHD, { env: { FAKE_ENGINE_MODE: 'wide-registers' } });
   const { page } = r;
   await openFile(r, sample(r.dir, DATAPATH));
   await drawn(r);
@@ -500,7 +627,7 @@ const canvasPoint = (r: Running, p: [number, number]) => r.page.evaluate((q) => 
   return { x: rr.left + (q[0] - c.view.x) * c.view.zoom, y: rr.top + (q[1] - c.view.y) * c.view.zoom };
 }, p);
 {
-  const r = await launch(FHD);
+  const r = await start(FHD);
   const { page } = r;
   await openFile(r, sample(r.dir, DATAPATH));
   await drawn(r);
@@ -534,6 +661,10 @@ const canvasPoint = (r: Running, p: [number, number]) => r.page.evaluate((q) => 
   });
   const spAt = await canvasPoint(r, sp);
   await page.mouse.click(spAt.x, spAt.y);
+  // the click also starts Signal Flow (on Click, 150 ms later): wait for it and stop it, so the shot has none either way
+  await page.locator('.status', { hasText: 'Signal Flow: Forward' }).waitFor();
+  await page.keyboard.press('Escape');
+  await page.locator('.status', { hasText: 'Signal Flow: Forward' }).waitFor({ state: 'detached' });
   await page.keyboard.press('Control+k');
   await page.keyboard.type('edit splitter');
   await page.keyboard.press('Enter');
@@ -543,7 +674,7 @@ const canvasPoint = (r: Running, p: [number, number]) => r.page.evaluate((q) => 
   await r.close();
 }
 {
-  const r = await launch(FHD);
+  const r = await start(FHD);
   const { page } = r;
   await openFile(r, sample(r.dir, 'electron/tests/fixtures/broken-datapath.circ'));
   await drawn(r);
@@ -557,7 +688,7 @@ const canvasPoint = (r: Running, p: [number, number]) => r.page.evaluate((q) => 
   await r.close();
 }
 {
-  const r = await launch(FHD);
+  const r = await start(FHD);
   const { page } = r;
   await openFile(r, sample(r.dir, DATAPATH));
   await drawn(r);
@@ -594,6 +725,11 @@ const canvasPoint = (r: Running, p: [number, number]) => r.page.evaluate((q) => 
   await page.locator('.ovmenu .mhead').waitFor();
   await shot(r, 'menu-part', { keepFocus: true });
   await page.keyboard.press('Escape');
+  // nothing chosen first (a click on an empty place): the menu is the wire's alone, the Attributes panel the circuit's
+  // (a right click keeps the selection, as the original's -- a kept PC beside a wire's menu read as the menu's)
+  const corner = await page.evaluate(() => { const v = (window as unknown as { __hcsCanvas: { view: { x: number; y: number } } }).__hcsCanvas.view; return [v.x + 12, v.y + 12] as [number, number]; });
+  await click(page, corner);
+  await page.locator('.pbody.attributes .ahead .badge', { hasText: 'Circuit' }).waitFor();
   const w = await wireAtPort(page, 'Register', 'Q');
   await rightClick(page, w.quarter);
   await page.locator('.ovmenu .mhead', { hasText: 'Net' }).waitFor();
@@ -607,7 +743,7 @@ for (const [name, size, scale] of [
   ['lab-150', { width: 1280, height: 672 }, '1.5'],
   ['narrow', { width: 960, height: 1032 }, '1'],
 ] as const) {
-  const r = await launch(size, { switches: [`--force-device-scale-factor=${scale}`] });
+  const r = await start(size, { switches: [`--force-device-scale-factor=${scale}`] });
   await openFile(r, sample(r.dir, DATAPATH));
   await drawn(r);
   if (name === 'narrow') await r.page.locator('.upper').getByRole('tab', { name: 'Attributes' }).click();
@@ -618,7 +754,7 @@ for (const [name, size, scale] of [
 // A recovery file beside the file being opened (N-19, D-152): the question before it opens, over the file on
 // show.  The recovery file's time is fixed (2026-09-28 14:05, Seoul) so the same code gives the same pixels.
 {
-  const r = await launch(FHD, { env: { TZ: 'Asia/Seoul' } });
+  const r = await start(FHD, { env: { TZ: 'Asia/Seoul' } });
   const { page } = r;
   await openFile(r, sample(r.dir, DATAPATH));
   await drawn(r);
@@ -636,7 +772,7 @@ for (const [name, size, scale] of [
 
 // Leaving with unsaved changes (N-19): the close button asks for each file first -- Save / Discard / Cancel, plain.
 {
-  const r = await launch(FHD);
+  const r = await start(FHD);
   const { page } = r;
   await openFile(r, sample(r.dir, DATAPATH));
   await drawn(r);
@@ -645,6 +781,8 @@ for (const [name, size, scale] of [
     await app.call('edit.addComponent', { fileId: 'f1', circuitId: 'c1', lib: 'Gates', name: 'NOT Gate', loc: [700, 640] });
   });
   await page.locator('.filebar .ptab', { hasText: 'demo-datapath.circ•' }).waitFor();
+  // out of the window before the modal question: the page under it is inert and keeps its hover
+  await page.mouse.move(-10, -10);
   await r.app.evaluate(({ BrowserWindow }) => { BrowserWindow.getAllWindows()[0].close(); });
   await page.locator('dialog.ask', { hasText: '저장하지 않고 끝내면' }).waitFor();
   await shot(r, 'leave-dialog');
@@ -766,16 +904,81 @@ function sideBySide(name: string, left: Buffer, right: Buffer): void {
     await p.evaluate(() => document.fonts.ready);
   }
   await page.waitForTimeout(800);
+  for (const p of [page, own]) await repaint(p);
   sideBySide('side-by-side', await page.screenshot(), await own.screenshot());
   await r.close();
 }
 
 // No engine: the dialog (no character: an error) over the first screen and its band.
 {
-  const r = await launch(FHD, { env: { HCS_ENGINE_CMD: '', HCS_ENGINE_JAR: '/opt/hcs/hcs-engine.jar' } });
+  const r = await start(FHD, { motion: true, env: { HCS_ENGINE_CMD: '', HCS_ENGINE_JAR: '/opt/hcs/hcs-engine.jar' } });
   await r.page.locator('dialog.ask').waitFor();
   await videoAt(r);
   await shot(r, 'engine-failed');
   await r.close();
 }
 
+// The shell (N-17, D-158): Preferences (General and Keyboard), the menu (Simulate open), the » menu of half a screen's
+// toolbar, the status bar's » list and the Canvas / Panels switch at 683 px (half a 1366 screen).
+{
+  const r = await start(FHD);
+  const { page } = r;
+  await openFile(r, sample(r.dir, DATAPATH));
+  await drawn(r);
+  await page.getByTitle('Preferences').click();
+  await page.locator('dialog.prefs').waitFor();
+  await shot(r, 'preferences');
+  await page.locator('dialog.prefs').getByRole('tab', { name: 'Keyboard' }).click();
+  await shot(r, 'preferences-keys');
+  await page.keyboard.press('Escape');
+  await page.getByTitle('Menu').click();
+  await page.locator('.ovmenu.barmenu').getByRole('menuitem', { name: /^Simulate/ }).click();
+  await page.locator('.ovmenu').nth(1).waitFor();
+  await shot(r, 'menu');
+  await page.keyboard.press('Escape');
+  await r.close();
+}
+{
+  const r = await start({ width: 960, height: 1032 });
+  const { page } = r;
+  await openFile(r, sample(r.dir, DATAPATH));
+  await drawn(r);
+  await page.locator('.toolbar .more').click();
+  await page.locator('.ovmenu.barmenu').waitFor();
+  await shot(r, 'toolbar-overflow');
+  await r.close();
+}
+{
+  const r = await start({ width: 683, height: 700 });
+  const { page } = r;
+  await openFile(r, sample(r.dir, DATAPATH));
+  await drawn(r);
+  await page.keyboard.press('F10');
+  await page.locator('.status', { hasText: 'Cycle 1' }).waitFor();
+  await page.locator('.status .moreb').click();
+  await page.locator('.statusmore').waitFor();
+  await shot(r, 'status-overflow');
+  await page.keyboard.press('Escape');
+  await page.locator('.titlebar .viewswitch').getByRole('tab', { name: 'Panels' }).click();
+  await page.locator('.leftcol').waitFor();
+  await shot(r, 'narrow-tabs');
+  await r.close();
+}
+}
+
+await captureAll();
+// --twice (D-158): all of them again into a temporary folder; each must be the same bytes.
+if (process.argv.includes('--twice')) {
+  const first = out;
+  out = mkdtempSync(path.join(os.tmpdir(), 'hcs-screens-'));
+  await captureAll();
+  const names = readdirSync(out).filter((n) => n.endsWith('.png')).sort();
+  const differ = names.filter((n) => !readFileSync(path.join(first, n)).equals(readFileSync(path.join(out, n))));
+  if (differ.length) {
+    console.log(`\nNOT the same pixels twice (the second set is in ${out}): ${differ.join(', ')}`);
+    process.exitCode = 1;
+  } else {
+    console.log(`\nall ${names.length} screens the same bytes twice`);
+    rmSync(out, { recursive: true, force: true });
+  }
+}

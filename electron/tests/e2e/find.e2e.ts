@@ -9,7 +9,8 @@
 
 import { expect, test, type Page } from '@playwright/test';
 
-import { canvasSettled, DATAPATH, launch, newCircuit, openFile, sample } from './harness.ts';
+import { canvasSettled, DATAPATH, launch, newCircuit, openFile, recordCalls, sample, sentCalls } from './harness.ts';
+import { call } from './model.ts';
 
 const BROKEN = 'electron/tests/fixtures/broken-datapath.circ';
 
@@ -96,6 +97,9 @@ test('Components search: the palette\'s ranking without commands, ↓ to the lis
     await expect(rows.nth(1).getByRole('option')).toBeFocused();
     await page.keyboard.press('Enter');
     expect((await placedEvents(page)).at(-1)).toMatchObject({ lib: 'Gates', name: 'NAND Gate', attrs: { inputs: '3' } });
+    // the Attributes panel: the held part's own values over the tool's (D-158, UI review of edit-ghost.png)
+    await expect(page.locator('.pbody.attributes .aname')).toHaveText('NAND Gate');
+    await expect(page.locator('.pbody.attributes').getByLabel('Number Of Inputs')).toHaveValue('3');
     await box.fill('reset');
     await expect(page.locator('.compnone')).toContainText('맞는 부품이 없습니다');
     await box.fill('main');
@@ -423,6 +427,11 @@ test('the Splitter editor: from the palette for the selected splitter -- its arm
     await expect(dlg.locator('.sarmtag')).toHaveText(['Arm 0 [31:26]', 'Arm 1 [25:21]', 'Arm 2 [20:16]', 'Arm 3 [15:11]', 'Arm 4 [10:6]', 'Arm 5 [5:0]']);
     await expect(dlg.getByRole('textbox', { name: 'Arm 5 name' })).toHaveValue('funct');
     await expect(dlg.locator('.scell')).toHaveCount(32);
+    // The strip as wide as the Ranges field, its numbers never under 10 px (D-158: #433's UI review)
+    const [stripBox, fieldBox] = [(await dlg.locator('.sstrip').boundingBox())!, (await ranges.boundingBox())!];
+    expect(Math.abs(stripBox.width - fieldBox.width)).toBeLessThanOrEqual(2);
+    expect(Math.abs(stripBox.x - fieldBox.x)).toBeLessThanOrEqual(2);
+    expect(await dlg.locator('.scell .sbit').first().evaluate((e) => parseFloat(getComputedStyle(e).fontSize))).toBeGreaterThanOrEqual(10);
     // a text that cannot be read: said, and no Apply
     await ranges.fill('31:26, 26:0');
     await expect(dlg.locator('.sproblems')).toContainText('한 비트를 두 팔에 둘 수 없습니다: 26');
@@ -531,3 +540,45 @@ test('the events: a part a listener takes (N-08\'s placement flow) is not placed
     await r.close();
   }
 });
+
+test('a part held with values of its own (the palette\'s "and 3"): changing one in Attributes changes that part only -- no engine call, the file clean, the library\'s tool as it was; placed with the new value (D-158 18 ⑦)', async () => {
+  const r = await launch();
+  const { page } = r;
+  try {
+    await openFile(r, sample(r.dir, DATAPATH));
+    await drawn(page);
+    const fileId = await page.evaluate(() => (window as unknown as { __hcsCanvas: { scene: { fileId: string } } }).__hcsCanvas.scene.fileId);
+    const toolInputs = async () => (await call<{ rows: { attr: string; value: string | null }[] }>(page, 'model.attributes', { fileId, lib: 'Gates', name: 'AND Gate' })).rows.find((x) => x.attr === 'inputs')?.value;
+    const before = await toolInputs();
+    const box = page.getByRole('searchbox', { name: 'Search parts' });
+    await box.fill('and 3');
+    await page.locator('.compresults li', { hasText: 'AND Gate' }).first().getByRole('option').click();
+    const inputs = page.locator('.pbody.attributes').getByLabel('Number Of Inputs');
+    await expect(inputs).toHaveValue('3');
+    // the rows are the held part's (the engine's table for its values): three Negate rows, the last (Bottom)
+    const negates = () => page.locator('.pbody.attributes .atable tbody th').filter({ hasText: /^Negate/ }).allInnerTexts();
+    expect(await negates()).toEqual(['Negate 1 (Top)', 'Negate 2', 'Negate 3 (Bottom)']);
+    await recordCalls(r.app);
+    await inputs.selectOption('4');
+    await expect(inputs).toHaveValue('4');
+    await expect.poll(negates).toEqual(['Negate 1 (Top)', 'Negate 2', 'Negate 3', 'Negate 4 (Bottom)']);
+    await page.waitForTimeout(200);
+    expect((await sentCalls(r.app)).filter((c) => c.method.startsWith('edit.')).map((c) => c.method)).toEqual([]);
+    await expect(page.locator('.filebar .ptab.on .dirty')).toHaveCount(0);
+    expect(await toolInputs()).toBe(before);
+    // placed: a four-input AND gate
+    const q = await page.evaluate(() => {
+      const c = (window as unknown as { __hcsCanvas: { canvas: HTMLCanvasElement; view: { x: number; y: number; zoom: number } } }).__hcsCanvas;
+      const rr = c.canvas.getBoundingClientRect();
+      return { x: rr.left + (300 - c.view.x) * c.view.zoom, y: rr.top + (640 - c.view.y) * c.view.zoom };
+    });
+    await page.mouse.move(q.x, q.y, { steps: 4 });
+    await page.mouse.down();
+    await page.mouse.up();
+    await expect.poll(async () => (await sentCalls(r.app, 'edit.addComponent')).map((c) => (c.params.attrs as Record<string, string> | undefined)?.inputs)).toEqual(['4']);
+    expect(await toolInputs()).toBe(before);
+  } finally {
+    await r.close();
+  }
+});
+

@@ -22,7 +22,9 @@ test('open: every reason in Korean, "File:" with the name only, never the engine
       assert.ok(!s.includes('/home/student') && !s.includes('lab3.circ') && !/cannot|no such/.test(s), `${reason}: ${s}`);
     }
   }
-  assert.match(fileError('open', fileErr('notFound', '')).body, /Open으로 다시 골라 여세요/);
+  // The folder by its name (never the whole path), the Open button by its key (D-158: #413's UI review).
+  assert.equal(fileError('open', fileErr('notFound', '')).body, '`과제` 폴더에 그 이름의 파일이 없습니다. 파일을 옮기거나 이름을 바꿨다면 제목 줄의 Open 단추(Ctrl+O)로 다시 골라 여세요.');
+  assert.match(fileError('open', { name: 'EngineError', code: 2, message: '', data: { path: 'lab3.circ', reason: 'notFound' } }).body, /^그 자리에 그 이름의 파일이 없습니다/);
 });
 
 test('open: a loader failure keeps the loader\'s words as the detail; missing libraries are listed', () => {

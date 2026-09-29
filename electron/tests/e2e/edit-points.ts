@@ -68,5 +68,7 @@ export const segments = (ws: W[]): string[] => ws.map((w) => {
 export const placeTool = (page: Page, detail: Record<string, unknown>): Promise<boolean> => page.evaluate((d) =>
   !window.dispatchEvent(new CustomEvent('hcs:place-tool', { detail: d, cancelable: true })), detail);
 
-export const tool = (page: Page, name: string) => page.getByRole('radio', { name, exact: true });
+// A tool's toolbar button (on the bar or, at half a screen, gone to the » menu: its state still here, D-158); press it
+// with command() (harness.ts).
+export const tool = (page: Page, name: string) => page.getByRole('radio', { name, exact: true, includeHidden: true });
 

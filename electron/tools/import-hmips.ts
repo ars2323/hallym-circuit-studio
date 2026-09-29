@@ -106,7 +106,7 @@ export const TAKEN: Taken[] = [
   { from: 'electron/src/renderer/assets/fonts/D2Coding.woff2', to: 'src/renderer/assets/fonts/D2Coding.woff2', how: 'copy', note: 'D2Coding (OFL)' },
   { from: 'electron/src/renderer/assets/fonts/OFL-D2Coding.txt', to: 'src/renderer/assets/fonts/OFL-D2Coding.txt', how: 'copy', note: 'D2Coding\'s license' },
   { from: 'electron/src/renderer/assets/icons/lucide/LICENSE.txt', to: 'src/renderer/assets/icons/lucide/LICENSE.txt', how: 'copy', note: 'Lucide\'s license (ISC; MIT for the Feather-derived icons)' },
-  ...['circle-question-mark', 'file-plus', 'folder-open', 'save', 'play', 'square', 'step-forward', 'rotate-ccw'].map((n): Taken => (
+  ...['circle-question-mark', 'file-plus', 'folder-open', 'save', 'play', 'square', 'step-forward', 'rotate-ccw', 'settings'].map((n): Taken => (
     { from: `electron/src/renderer/assets/icons/lucide/${n}.svg`, to: `src/renderer/assets/icons/lucide/${n}.svg`, how: 'copy', note: 'Lucide icon' })),
   { from: 'electron/src/renderer/assets/hallym/README.md', to: 'hallym-assets.md', how: 'derived',
     note: 'The university\'s marks, characters and the first screen\'s video: whose they are, the rules, how they are kept. Rewritten for this repository\'s assets/hallym/ file names.' },
@@ -153,7 +153,9 @@ export const LUCIDE_EXTRA = ['undo-2', 'redo-2', 'mouse-pointer-2', 'pointer', '
   'crosshair', 'activity', 'fast-forward', 'gauge', 'file-code', 'info', 'x', 'cpu', 'circuit-board', 'house',
   // N-11: the appearance editor's drawing tools, the Circuits panel
   'slash', 'spline', 'waypoints', 'rectangle-horizontal', 'square-round-corner', 'circle', 'pentagon', 'plus', 'import',
-  'library', 'arrow-up', 'arrow-down'];
+  'library', 'arrow-up', 'arrow-down',
+  // N-17: the title bar's Menu
+  'menu'];
 
 // Never taken (D-133 point 5): SPIM's tables and what leans on them.
 export const NEVER = ['src/core/', 'src/sim/', 'native/', 'op-table', 'decoder', 'instruction-text', 'explain',

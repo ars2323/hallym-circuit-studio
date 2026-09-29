@@ -3,7 +3,8 @@
    there, no title or button cut, nothing past the window's edge; the
    toolbar in the bar or in its own row, whole; panels that are empty say
    what fills them (one character: the Canvas's); the splitters and the
-   bottom panel's fold. */
+   bottom panel's fold.  (The » rule, the tight window and the folds for the
+   room: shell.e2e.ts, D-158.) */
 
 import { expect, test, type Page } from '@playwright/test';
 
@@ -70,13 +71,15 @@ for (const { scale, size } of SCREENS) {
         const end = bar.getBoundingClientRect().right - parseFloat(getComputedStyle(bar).paddingRight);
         return document.querySelector('.titlebar .tools')!.getBoundingClientRect().right <= end + 0.5;
       })).toBe(true);
-      const buttons = page.locator('.toolbar button, .toolbar select');
+      // At the lab PCs' three scales every command is on the bar (none on the » menu, D-158).
+      const buttons = page.locator('.toolbar [data-unit]');
       expect(await buttons.count()).toBe(17); // Save Undo Redo, 8 tools, Run 1 Cycle N Cycles Reset, speed, Load Program
       for (const b of await buttons.all()) {
         await expect(b).toBeVisible();
         const box = (await b.boundingBox())!;
         expect(box.x + box.width).toBeLessThanOrEqual(size.width + 0.5);
       }
+      await expect(page.locator('.toolbar .more')).toBeHidden();
       // The Canvas the widest.
       const canvas = (await page.locator('.canvaspanel').boundingBox())!;
       expect(canvas.width).toBeGreaterThan(size.width * 0.5);
@@ -101,8 +104,15 @@ test('half a 1920 screen: no right column, Attributes a tab of the left panel; b
     await expect(page.locator('.upper .pbody:visible .aname')).toHaveText('main');
     expect(await clipped(page)).toEqual([]);
     expect(await brokenNames(page)).toEqual([]);
-    await expect(page.locator('.toolbar button, .toolbar select')).toHaveCount(17);
-    for (const b of await page.locator('.toolbar button, .toolbar select').all()) await expect(b).toBeVisible();
+    // Every command on the bar or on its » menu (D-158: the » rule), none cut.
+    await expect(page.locator('.toolbar [data-unit]')).toHaveCount(17);
+    const over = await page.locator('.toolbar [data-unit][data-over]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.unit));
+    for (const b of await page.locator('.toolbar [data-unit]:not([data-over])').all()) await expect(b).toBeVisible();
+    if (over.length) {
+      await page.locator('.toolbar .more').click();
+      await expect(page.locator('.ovmenu.barmenu > button .label')).toHaveText(over as string[]);
+      await page.keyboard.press('Escape');
+    }
     // Wide again: Attributes in its own column, the left panel back on Components.
     await resize(1600, 1000);
     await expect(page.locator('.shell')).not.toHaveClass(/narrow/);
@@ -142,7 +152,7 @@ test('the empty panels say what fills them; only the Canvas has a character', as
     await read('bottom', 'Cycle View');
     await read('bottom', 'Console');
     expect(says).toEqual({
-      canvaspanel: '빈 회로입니다 / 부품과 선을 놓으면 여기 Canvas에 그려집니다. 부품은 왼쪽 Components 목록에서 끌어 오거나 Ctrl+K 검색 창에서 찾아 놓습니다.',
+      canvaspanel: '빈 회로입니다 / 부품과 선을 놓으면 여기 Canvas에 그려집니다. 부품은 왼쪽 Components 목록에서 끌어 오거나 Ctrl+K 검색 창에서 찾아 놓습니다. 완성된 회로를 먼저 보려면 제목 줄 Menu 단추의 Help › Examples 메뉴에서 예제를 엽니다.',
       Tunnels: '터널이 없습니다 / 이 회로에 Tunnel을 놓으면 이름별로 여기에 모입니다.',
       Minimap: '회로 전체가 작게 나옵니다 / Canvas에 그린 회로의 전체 모습과 지금 보는 곳이 여기에 나옵니다.',
       Messages: '메시지가 없습니다 / 동작할 수 없는 연결(떠 있는 입력, 짝 없는 터널, 폭이 다른 선 …)이 있으면 여기에 나옵니다. 시뮬레이션 중에 생긴 E·X 값과 발진은 그 사이클과 함께 나옵니다.',

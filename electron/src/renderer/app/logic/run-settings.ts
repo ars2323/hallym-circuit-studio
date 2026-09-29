@@ -22,14 +22,18 @@
      N Cycles count     the count given last (the N Cycles dialog's field; app.ts lastCycles)
      circuit tabs       each file's open circuits (logic/files.ts)
      Load Program…      the .hmx picked last for a file (main.ts programs)
+     keys               the fourteen keys the student can change (logic/keys.ts,
+                        Preferences › Keyboard, D-158)
+     recent files       File › Open Recent: this run's files (main.ts recent, I-130)
+     folds              a panel the window folded for the room, opened by hand
+                        until the window's size changes (logic/layout.ts)
 
-   Not there yet: shortcut customisation, a recent-files list (I-130: this
-   run's files only when it comes), radix choices (the Radix Probe's radix is
-   an attribute of the student's circuit, saved in the .circ -- not a
-   setting).  A new setting keeps to this: memory only, a default here, and
-   RUN_ONLY where it is set (tests/unit/run-settings.test.ts looks for web
-   storage in src/; tests/e2e/labpc.e2e.ts sets every one, quits and starts
-   again). */
+   Preferences (preferences.ts, D-158) shows them in one place and says
+   RUN_ONLY at its top.  Radix choices are not settings (the Radix Probe's
+   radix is an attribute of the student's circuit, saved in the .circ).  A
+   new setting keeps to this: memory only, a default here, and RUN_ONLY where
+   it is set (tests/unit/run-settings.test.ts looks for web storage in src/;
+   tests/e2e/labpc.e2e.ts sets every one, quits and starts again). */
 
 export const RUN_ONLY = '이번 실행에만 적용됩니다';
 

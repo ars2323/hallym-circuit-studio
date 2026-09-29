@@ -317,6 +317,27 @@ const LIBRARY = [
 ];
 const stem = (name: string) => name.replace(/\.circ$/i, '');
 
+type ToolbarItem = { name: string; tool: string } | { name: string; lib: string | null; attrs?: Record<string, string> };
+const DEFAULT_TOOLBAR: ToolbarItem[] = [
+  { name: 'Poke Tool', tool: 'Poke Tool' }, { name: 'Edit Tool', tool: 'Edit Tool' }, { name: 'Text Tool', tool: 'Text Tool' },
+  { name: 'Pin', lib: 'Wiring', attrs: { tristate: 'false' } }, { name: 'Pin', lib: 'Wiring', attrs: { facing: 'west', output: 'true', labelloc: 'east' } },
+  { name: 'NOT Gate', lib: 'Gates' }, { name: 'AND Gate', lib: 'Gates' }, { name: 'OR Gate', lib: 'Gates' },
+];
+function toolbarOf(f: { bytes: Buffer | null }): ToolbarItem[] {
+  const text = f.bytes?.toString('utf8') ?? '';
+  const bar = /<toolbar>([\s\S]*?)<\/toolbar>/.exec(text);
+  if (!bar) return DEFAULT_TOOLBAR;
+  const libs = new Map([...text.matchAll(/<lib desc="#?([^"]*)" name="([^"]*)"/g)].map((m) => [m[2], m[1].startsWith('jar#') ? 'Hallym MIPS' : m[1]]));
+  const out: ToolbarItem[] = [];
+  for (const m of bar[1].matchAll(/<tool(?: lib="([^"]*)")? name="([^"]*)"\s*(\/>|>([\s\S]*?)<\/tool>)/g)) {
+    const lib = m[1] === undefined ? null : libs.get(m[1]) ?? null;
+    if (lib === 'Base') { out.push({ name: m[2], tool: m[2] }); continue; }
+    const attrs = Object.fromEntries([...(m[4] ?? '').matchAll(/<a name="([^"]*)" val="([^"]*)"\/>/g)].map((a) => [a[1], a[2]]));
+    out.push({ name: m[2], lib, ...(Object.keys(attrs).length ? { attrs } : {}) });
+  }
+  return out;
+}
+
 const methods: Record<string, (p: Params) => unknown> = {
   'engine.hello': (p) => {
     if (typeof p.recoveryFiles === 'boolean') recoveryFiles = p.recoveryFiles;
@@ -440,6 +461,10 @@ const methods: Record<string, (p: Params) => unknown> = {
       ...LIBRARY.map((g) => ({ lib: g.lib, display: g.lib === 'I/O' ? 'Input/Output' : g.lib, tools: g.tools.map((name) => ({ name, display: name })) })),
     ];
   },
+  // The toolbar (N-17, D-158: Ctrl+2…9): the .circ's <toolbar> as the real engine lists it (a library by its name, a
+  // base tool by `tool`; the real engine gives only the attributes unlike the library's, this fake the file's own),
+  // the default template's for a new file.
+  'model.toolbar': (p) => toolbarOf(fileOf(p)),
   'find.query': (p) => { const f = fileOf(p); return find.findQuery(f.fileId, f, String(p.text ?? '')); },
   'edit.tunnelColor': (p) => {
     const c = circuitOf(p);
@@ -954,7 +979,9 @@ const methods: Record<string, (p: Params) => unknown> = {
     const f = fileOf(p);
     if (typeof p.name === 'string') {
       const lib = (p.lib as string | null | undefined) ?? null;
-      return failing(() => attrs.toolTable(lib, p.name as string, toolAttrs.get(`${lib ?? 'circuit'}/${p.name}`) ?? {}));
+      // a part held with values of its own (N-17, D-158 18): those over the tool's, the tool untouched
+      const held = p.attrs && typeof p.attrs === 'object' ? p.attrs as Record<string, string> : {};
+      return failing(() => attrs.toolTable(lib, p.name as string, { ...toolAttrs.get(`${lib ?? 'circuit'}/${p.name}`) ?? {}, ...held }));
     }
     const c = circuitOf(p);
     if (p.circuit === true) return attrs.circuitTable(c, true);

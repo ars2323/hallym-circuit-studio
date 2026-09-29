@@ -329,6 +329,36 @@ class MenuEditTest {
     }
 
 
+    /**
+     * 든 부품만의 값(N-17, D-158 18): model.attributes의 attrs는 그 값을 얹은 표를 읽기만으로 준다. 줄의 목록도 그 값을 따르고
+     * (원조 GateAttributeList: 입력 3이면 Negate 1 (Top), Negate 2, Negate 3 (Bottom)), 도구와 파일은 그대로다.
+     */
+    @Test
+    void aHeldPartsOwnValuesMakeItsTableAndChangeNothing() throws Exception {
+        open();
+        JsonObject attrs = new JsonObject();
+        attrs.addProperty("inputs", "3");
+        JsonObject held = e.client.callObject("model.attributes", params("fileId", fileId, "lib", "Gates", "name",
+                "AND Gate", "attrs", attrs));
+        assertEquals("3", row(held, "inputs").get("value").getAsString());
+        List<String> negates = new java.util.ArrayList<>();
+        for (JsonElement x : held.getAsJsonArray("rows")) {
+            JsonObject o = x.getAsJsonObject();
+            if (o.get("attr").getAsString().startsWith("negate")) {
+                negates.add(o.get("display").getAsString());
+            }
+        }
+        assertEquals(List.of("Negate 1 (Top)", "Negate 2", "Negate 3 (Bottom)"), negates);
+        JsonObject tool = e.client.callObject("model.attributes", params("fileId", fileId, "lib", "Gates", "name",
+                "AND Gate"));
+        assertEquals("5", row(tool, "inputs").get("value").getAsString());
+        assertFalse(e.client.callObject("file.dirty", params("fileId", fileId)).get("dirty").getAsBoolean());
+        // a value the attribute does not take: refused as edit.setToolAttr refuses it
+        attrs.addProperty("inputs", "99");
+        Client.Failure f = fail("model.attributes", "lib", "Gates", "name", "AND Gate", "attrs", attrs);
+        assertEquals(-32602, f.code);
+    }
+
     @Test
     void aBadValueIsRefusedByTheOriginalParse() throws Exception {
         open();

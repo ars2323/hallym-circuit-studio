@@ -7,7 +7,7 @@ import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { answerOpen, launch, newCircuit, type Running } from './harness.ts';
+import { answerOpen, launch, newCircuit, openAbout, type Running } from './harness.ts';
 
 const overlay = (r: Running) => r.app.evaluate(({ BrowserWindow }) => (BrowserWindow.getAllWindows()[0] as unknown as { overlayColor?: string }).overlayColor ?? '#ffffff');
 
@@ -33,7 +33,7 @@ test('security: context isolation, no Node in the page; the page may call only t
     expect(await page.evaluate(() => ['require', 'process', 'module', 'ipcRenderer', 'contextBridge']
       .map((n) => typeof (globalThis as Record<string, unknown>)[n]))).toEqual(['undefined', 'undefined', 'undefined', 'undefined', 'undefined']);
     expect(await page.evaluate(() => Object.isFrozen(window.app) || Object.getOwnPropertyDescriptor(window, 'app')?.writable === false)).toBe(true);
-    expect(await page.evaluate(() => Object.keys(window.app).sort())).toEqual(['about', 'attach', 'call', 'closeCancelled', 'detach', 'editOriginal', 'engineStatus', 'importApply', 'importChoose', 'importPlan', 'leave', 'license', 'loadLibrary', 'loadProgram', 'memoryImage', 'onAdopt', 'onCloseRequest', 'onEngineRecovered', 'onEngineStatus', 'onFilesChanged', 'onLeave', 'onNotify', 'openCredits', 'openDropped', 'openFile', 'openFilesAll', 'openRecovery', 'openStartupFile', 'reportDirty', 'retryEngine', 'saveFile', 'setOverlay', 'startupFile', 'useOpenFile', 'windowClosed', 'windowRole']);
+    expect(await page.evaluate(() => Object.keys(window.app).sort())).toEqual([...['about', 'attach', 'call', 'closeCancelled', 'detach', 'editOriginal', 'engineStatus', 'importApply', 'importChoose', 'importPlan', 'leave', 'license', 'loadLibrary', 'loadProgram', 'memoryImage', 'onAdopt', 'onCloseRequest', 'onEngineRecovered', 'onEngineStatus', 'onFilesChanged', 'onLeave', 'onNotify', 'openCredits', 'openDropped', 'openFile', 'openFilesAll', 'openRecovery', 'openStartupFile', 'reportDirty', 'retryEngine', 'saveFile', 'setOverlay', 'startupFile', 'useOpenFile', 'windowClosed', 'windowRole'], 'examples', 'maximize', 'minimize', 'openExample', 'openRecent', 'recentFiles'].sort());
     for (const method of ['file.open', 'file.save', 'engine.shutdown', 'engine.hello', 'mips.load', 'file.recoverWrite', 'edit.importCircuits', 'edit.loadLibrary', 'file.peek', 'model.importPlan', 'file.originOf', 'edit.reloadLibrary', 'mem.loadImage', 'mem.saveImage']) {
       const answer = await page.evaluate((m) => window.app.call(m as never, { path: '/etc/passwd' }).then(() => 'answered', (e: { message: string }) => e.message), method);
       expect(answer, method).toBe(`not a method the window may call: ${method}`);
@@ -41,6 +41,11 @@ test('security: context isolation, no Node in the page; the page may call only t
     expect(await page.evaluate(() => window.app.call('file.new').then((f) => typeof (f as { fileId: string }).fileId))).toBe('string');
     // A recovery file's answer names only the question the main process asked (N-19): never a path.
     expect(await page.evaluate(() => window.app.openRecovery('/etc/passwd', 'recover'))).toBe(null);
+    // An example and a recent file by the main process's names only (D-158): never a path.
+    expect(await page.evaluate(() => window.app.openExample('/etc/passwd'))).toBe(null);
+    expect(await page.evaluate(() => window.app.openExample('../../../../etc/passwd'))).toBe(null);
+    expect(await page.evaluate(() => window.app.openRecent('/etc/passwd'))).toBe(null);
+    expect(await page.evaluate(() => window.app.examples())).toEqual(['demo-datapath.circ', 'console-demo.circ', 'stack-demo.circ'].map((n) => ({ id: n, name: n })));
   } finally {
     await r.close();
   }
@@ -119,7 +124,7 @@ test('About: the version, Logisim 2.7.1 by Carl Burch, the marks\' owner, not of
   const r = await launch();
   const { page } = r;
   try {
-    await page.getByTitle('About').click();
+    await openAbout(page);
     const about = page.locator('dialog.about');
     await expect(about).toBeVisible();
     await expect(about.getByRole('tab')).toHaveText(['About', 'Licenses']);

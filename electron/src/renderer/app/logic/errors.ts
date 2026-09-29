@@ -29,6 +29,8 @@ export interface FailedCall {
 export const ERR_FILE = 2;
 
 const baseName = (p: string): string => p.split(/[\\/]/).filter(Boolean).pop() ?? p;
+// The folder a file was looked for in: its own name only (never the whole path, D-135 14), for a sentence to name it.
+const folderName = (p: string): string | null => { const parts = p.split(/[\\/]/).filter(Boolean); return parts.length > 1 ? parts[parts.length - 2] : null; };
 
 export function fileError(action: 'open' | 'save' | 'new', e: FailedCall, name?: string): FileErrorDialog {
   const data = (typeof e.data === 'object' && e.data !== null ? e.data : {}) as { path?: string; reason?: string; missing?: string[] };
@@ -41,8 +43,12 @@ export function fileError(action: 'open' | 'save' | 'new', e: FailedCall, name?:
     return { title, file, body: '엔진이 이 일을 끝내지 못했습니다. 한 번 더 해 보고, 그래도 안 되면 조교에게 알려 주세요.', detail: e.message };
   }
   switch (data.reason) {
-    case 'notFound':
-      return { title, file, body: '그 자리에 파일이 없습니다. 파일을 옮기거나 이름을 바꿨다면 Open으로 다시 골라 여세요.' };
+    case 'notFound': {
+      // The folder by its name (UI review of #413: "그 자리" named nothing the dialog showed), the Open button by its key.
+      const folder = data.path ? folderName(data.path) : null;
+      const where = folder && !folder.includes('`') ? `\`${folder}\` 폴더에` : '그 자리에';
+      return { title, file, body: `${where} 그 이름의 파일이 없습니다. 파일을 옮기거나 이름을 바꿨다면 제목 줄의 Open 단추(Ctrl+O)로 다시 골라 여세요.` };
+    }
     case 'unreadable':
       return { title, file, body: '파일을 읽을 수 없습니다. 읽을 권한이 있는지, 다른 프로그램이 파일을 잠그고 있지 않은지 확인하세요.' };
     case 'libraryMissing':

@@ -90,10 +90,20 @@ export function toolTable(lib: string | null, name: string, own: Record<string, 
   const key = `${lib ?? ''}/${name}`;
   const kind = FIXTURE.tools[key] ?? FIXTURE.kinds[key];
   if (!kind) throw Object.assign(new Error(`no tool ${key}`), { code: 1 });
-  return {
-    target: 'tool', lib, name, title: `Tool: ${shortTitle(kind)}`, editable: true,
-    rows: kind.rows.map((r) => valued(r, r.attr in own ? own[r.attr] : r.value)),
-  };
+  let rows = kind.rows.map((r) => valued(r, r.attr in own ? own[r.attr] : r.value));
+  // a gate: one Negate row per input, the last "(Bottom)" (the original's GateAttributeList)
+  const inputs = rows.find((r) => r.attr === 'inputs');
+  const negate = rows.find((r) => r.attr === 'negate1');
+  if (inputs?.value && negate) {
+    const n = Number(inputs.value);
+    const at = rows.findIndex((r) => /^negate\d+$/.test(r.attr));
+    const negates = Array.from({ length: n }, (_, i) => ({
+      ...negate, attr: `negate${i}`, display: i === 0 ? 'Negate 1 (Top)' : i === n - 1 ? `Negate ${n} (Bottom)` : `Negate ${i + 1}`,
+      ...(own[`negate${i}`] !== undefined ? { value: own[`negate${i}`], text: own[`negate${i}`] === 'true' ? 'Yes' : 'No' } : {}),
+    }));
+    rows = [...rows.filter((r) => !/^negate\d+$/.test(r.attr)).slice(0, at), ...negates, ...rows.filter((r) => !/^negate\d+$/.test(r.attr)).slice(at)];
+  }
+  return { target: 'tool', lib, name, title: `Tool: ${shortTitle(kind)}`, editable: true, rows };
 }
 
 // The original's parse, as far as the rows say: a list takes one of its choices, a number a number.

@@ -372,3 +372,86 @@ test('a wire\'s right click: Net Information… (v1\'s words), Highlight Net and
     await r.close();
   }
 });
+
+// The Quick Attributes bar and the circuit's own things, in page pixels: the parts (but the chosen ones) and label
+// chips it meets, and the wires it crosses.
+async function barOverCircuit(page: import('@playwright/test').Page): Promise<{ parts: string[]; wires: number }> {
+  return page.evaluate(() => {
+    type B = { x0: number; y0: number; x1: number; y1: number };
+    type C = { canvas: HTMLCanvasElement; view: { x: number; y: number; zoom: number }; selection(): string[]; chipBoxes(): B[];
+      scene: { components: Map<string, { id: string; name: string; attrs: Record<string, string>; bounds: number[] }>; wires: Map<string, { a: number[]; b: number[] }> } };
+    const c = (window as unknown as { __hcsCanvas: C }).__hcsCanvas;
+    const r = (document.querySelector('.quickbar') as HTMLElement).getBoundingClientRect(), cr = c.canvas.getBoundingClientRect(), v = c.view;
+    const meets = (b: B) => {
+      const x0 = cr.left + (b.x0 - v.x) * v.zoom, x1 = cr.left + (b.x1 - v.x) * v.zoom;
+      const y0 = cr.top + (b.y0 - v.y) * v.zoom, y1 = cr.top + (b.y1 - v.y) * v.zoom;
+      return x0 < r.right && r.left < x1 && y0 < r.bottom && r.top < y1;
+    };
+    const chosen = new Set(c.selection());
+    const parts = [...c.scene.components.values()].filter((k) => !chosen.has(k.id) && meets({ x0: k.bounds[0], y0: k.bounds[1], x1: k.bounds[0] + k.bounds[2], y1: k.bounds[1] + k.bounds[3] }))
+      .map((k) => `${k.name}${k.attrs.label ? ` ${k.attrs.label}` : ''}`);
+    const chips = c.chipBoxes().filter(meets).length;
+    const wires = [...c.scene.wires.values()].filter((w) => meets({ x0: Math.min(w.a[0], w.b[0]), y0: Math.min(w.a[1], w.b[1]), x1: Math.max(w.a[0], w.b[0]), y1: Math.max(w.a[1], w.b[1]) })).length;
+    return { parts: chips ? [...parts, `${chips} label chips`] : parts, wires };
+  });
+}
+
+// The Quick Attributes bar and what an overlay draws over the circuit, in page pixels: the boxes it meets.
+async function barOverOverlays(page: import('@playwright/test').Page): Promise<number> {
+  return page.evaluate(() => {
+    type B = { x0: number; y0: number; x1: number; y1: number };
+    const o = (window as unknown as { __hcsOverlays: { obstacles(): B[] } }).__hcsOverlays;
+    const c = (window as unknown as { __hcsCanvas: { canvas: HTMLCanvasElement; view: { x: number; y: number; zoom: number } } }).__hcsCanvas;
+    const bar = document.querySelector('.quickbar') as HTMLElement;
+    const r = bar.getBoundingClientRect(), cr = c.canvas.getBoundingClientRect(), v = c.view;
+    return o.obstacles().filter((b) => {
+      const x0 = cr.left + (b.x0 - v.x) * v.zoom, x1 = cr.left + (b.x1 - v.x) * v.zoom;
+      const y0 = cr.top + (b.y0 - v.y) * v.zoom, y1 = cr.top + (b.y1 - v.y) * v.zoom;
+      return x0 < r.right && r.left < x1 && y0 < r.bottom && r.top < y1;
+    }).length;
+  });
+}
+
+test('Quick Attributes keeps off what the overlays draw: Signal Flow\'s arcs and labels, the influence\'s chips and lines (D-158, UI review)', async () => {
+  const r = await launch();
+  const { page } = r;
+  try {
+    await opened(r);
+    // fitted, as signal-flow.png and influence.png: the pc tunnels' arc runs where the bar would go by the PC
+    await page.locator('.canvas-view canvas').hover();
+    await page.keyboard.press('Control+0');
+    await page.waitForTimeout(300);
+    const pc = await partMiddle(page, 'Register', 'PC');
+    await click(page, pc.at);      // the PC chosen, and a flow from it
+    const bar = page.locator('.quickbar');
+    await expect(bar).toBeVisible();
+    await page.waitForFunction(() => { const f = (window as unknown as { __hcsOverlays: { shown(): { flow: { t: number; total: number; running: boolean } } } }).__hcsOverlays.shown().flow; return f.running && f.t >= f.total; });
+    // among them every wire the flow lit (UI review: the bar cut the wire from the pc tunnel into the PC)
+    const lit = await page.evaluate(() => {
+      type B = { x0: number; y0: number; x1: number; y1: number };
+      const o = (window as unknown as { __hcsOverlays: { obstacles(): B[]; flow: { path: { segments: { from: number[]; to: number[]; path: string[] }[] } | null } } }).__hcsOverlays;
+      const boxes = o.obstacles();
+      const segs = (o.flow.path?.segments ?? []).filter((g) => !g.path.length);
+      const inside = (p: number[]) => boxes.some((b) => p[0] >= b.x0 && p[0] <= b.x1 && p[1] >= b.y0 && p[1] <= b.y1);
+      return { segs: segs.length, covered: segs.filter((g) => inside(g.from) && inside(g.to) && inside([(g.from[0] + g.to[0]) / 2, (g.from[1] + g.to[1]) / 2])).length };
+    });
+    expect(lit.segs).toBeGreaterThan(0);
+    expect(lit.covered).toBe(lit.segs);
+    await expect(bar).toBeVisible();
+    await expect.poll(() => barOverOverlays(page)).toBe(0);
+    // and, as everywhere, no part, label or wire of the circuit (UI review: the RegWrite tunnel and the WD wire)
+    await expect.poll(() => barOverCircuit(page)).toEqual({ parts: [], wires: 0 });
+    // the register file's influence both ways (Esc stops the flow first; Signal Flow off: a click only chooses)
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Signal Flow', exact: true }).click();
+    const rf = await partMiddle(page, 'regfile');
+    await click(page, rf.at);
+    await rightClick(page, rf.at);
+    await menu(page, 'Influence', 'Show Influence (Both)');
+    await page.waitForFunction(() => (window as unknown as { __hcsOverlays: { shown(): { influence: unknown } } }).__hcsOverlays.shown().influence !== null);
+    await expect(bar).toBeVisible();
+    await expect.poll(() => barOverOverlays(page)).toBe(0);
+  } finally {
+    await r.close();
+  }
+});
