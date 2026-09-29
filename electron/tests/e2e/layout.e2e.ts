@@ -128,6 +128,7 @@ test('the empty panels say what fills them; only the Canvas has a character', as
   const r = await launch();
   const { page } = r;
   try {
+    await page.getByRole('button', { name: /컴퓨터구조/ }).click();
     await page.getByRole('button', { name: /바로 시작/ }).click();
     await page.getByRole('button', { name: /새 회로/ }).click();
     const says: Record<string, string> = {};

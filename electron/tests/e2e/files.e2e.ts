@@ -41,7 +41,7 @@ test('new circuits: untitled.circ, untitled-2.circ (Ctrl+N); closing shows the l
     await expect(page.locator('.filebar .ptab.on')).toHaveText('untitled-3.circ');
     await page.getByRole('button', { name: 'Close untitled-3.circ' }).click();
     await expect(page.locator('.wcard')).toBeVisible();
-    await expect(page.locator('.action').first()).toContainText('튜토리얼 보기');
+    await expect(page.locator('.action').first()).toContainText('논리설계 및 실험');
     await expect(page).toHaveTitle('Hallym Circuit Studio');
   } finally {
     await r.close();

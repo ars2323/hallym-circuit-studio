@@ -12,7 +12,18 @@
 
 처음 실행하면 창을 한 바퀴 돌며 어디에 무엇이 있는지 보여 주는 **Tutorial**이 뜹니다. Help › Tutorial에서 언제든 다시 볼 수 있고, Help › Getting Started에는 부품 놓기·선 잇기·값 바꾸기 카드가 있습니다.
 
-## 2. 창
+## 2. 교과목
+
+켤 때마다 시작 카드가 먼저 교과목을 묻습니다: **논리설계 및 실험** 또는 **컴퓨터구조**. 고른 것은 기억하지 않으므로 다음에 켜면 다시 묻습니다. 그다음 **튜토리얼 보기**(고른 교과목의 튜토리얼) 또는 **바로 시작**(새 회로·파일 열기)을 고릅니다. 카드 아래 **← 이전**은 한 단계 뒤로 갑니다.
+
+- **논리설계 및 실험:** 게이트와 선, 서브회로, 클럭과 레지스터에 쓰는 것만 보입니다. 부품 목록의 Hallym MIPS 묶음에는 **Radix Probe**(값을 16·10·2진수로 함께 보는 부품)만 있고, Load Program…, Cycle View의 Registers·Memory·Instruction 탭, Mark as PC·Mark as Register File·Register Mapping 메뉴, 상태 표시줄의 PC가 없습니다. Cycle View의 사이클 표와 파형은 그대로 있습니다.
+- **컴퓨터구조:** 모두 보입니다(Instruction Memory, Data Memory, Console, 프로그램 불러오기, 레지스터·메모리·명령어 탭).
+- 제목 줄의 교과목 칩을 누르면 다른 교과목으로 바꿉니다. 보이는 것만 바뀌고 회로와 시뮬레이션은 그대로입니다.
+- .circ 파일을 더블클릭하거나 시작 카드에서 바로 Ctrl+O로 열면, 파일에 Instruction Memory·Data Memory·Console이 있으면 컴퓨터구조, 없으면 논리설계 및 실험으로 열립니다.
+- 논리설계 및 실험에서 컴퓨터구조 부품이 든 파일을 열면 부품은 그대로 보이고 동작합니다. 위쪽 띠에 "이 파일은 컴퓨터구조 부품(Hallym MIPS)을 씁니다"와 **컴퓨터구조로 바꾸기** 단추가 나옵니다.
+- 저장하는 파일은 교과목과 상관없습니다. MIPS 부품을 놓지 않은 파일은 원조 Logisim 2.7.1과 똑같이 저장됩니다.
+
+## 3. 창
 
 | 자리 | 하는 일 |
 | --- | --- |
@@ -29,9 +40,9 @@
 
 파일은 **탭**으로 엽니다. 탭을 오른쪽 클릭하면 Detach Tab(제 창으로), View Side by Side(두 창을 나란히)가 있고, 다시 실행하면 열려 있던 탭이 돌아옵니다.
 
-## 3. 회로 그리기
+## 4. 회로 그리기
 
-빈 회로에는 캔버스 가운데에 할 일 셋이 흐리게 보입니다: Ctrl+K로 부품 검색, 왼쪽 목록에서 끌어 놓기, **Help › Examples**로 예제(demo-datapath, console-demo, stack-demo) 열기. 예제는 읽기 전용이라 저장하면 Save As…로 새 이름을 묻습니다.
+빈 회로에는 캔버스 가운데에 할 일 셋이 흐리게 보입니다: Ctrl+K로 부품 검색, 왼쪽 목록에서 끌어 놓기, **Help › Examples**로 예제 열기(논리설계 및 실험: adder-1bit, ripple-carry-4bit, counter-4bit / 컴퓨터구조: demo-datapath, console-demo, stack-demo. 다른 교과목의 예제는 칩으로 교과목을 바꾸면 보입니다). 예제는 읽기 전용이라 저장하면 Save As…로 새 이름을 묻습니다.
 
 - **선 색은 값입니다.** 밝은 초록 1, 어두운 초록 0, 파랑 떠 있음(X, 값을 내는 곳이 없음), 빨강 오류(E, 서로 다른 값이 부딪힘), 주황 비트 폭 불일치, 검정 여러 비트(버스). 상태 표시줄 Wire Colors를 누르면 범례가 뜹니다.
 - 버스는 굵게 보이고, Show Bus Widths를 켜면 비트 수(`/32`)가 붙습니다. 시뮬레이션 중에는 버스 옆에 지금 값(Bus Values: Hex/Dec/Signed)이 보입니다.
@@ -43,7 +54,7 @@
 - 캔버스 빈 자리를 오른쪽 클릭: Add Area Memo…(IF/ID/EX 같은 영역 상자와 메모).
 - Edit › Undo History…에서 무엇을 되돌릴지 보고 고릅니다. 단축키는 Help › Keyboard Shortcuts(? 키)에서 보고 Customize…로 바꿉니다.
 
-## 4. MIPS 프로그램 올리기와 돌리기
+## 5. MIPS 프로그램 올리기와 돌리기
 
 1. Hallym MIPS에서 .s 파일을 열고 **Ctrl+S**로 어셈블한 뒤, 제목 줄 오른쪽 아이콘 묶음의 **Export executable image (.hmx)** 단추로 실행 이미지를 내보냅니다. Instruction Memory를 놓고(왼쪽 목록 Hallym MIPS, 또는 Ctrl+K에서 `instruction memory`) 오른쪽 클릭 **Load Program…** 또는 도구 모음 **Load Program**으로 그 실행 이미지(`.hmx`)를 고릅니다. `.s` 파일은 불러오지 않습니다. 기계어와 주소는 Hallym MIPS Simulator와 같습니다: 시작 코드 9워드가 `0x00400000`부터, `main`(entry)은 `0x00400024`, `.data`는 `0x10010000`부터입니다. `.data`가 있으면 Data Memory에도 함께 올라갑니다. 회로의 PC는 entry 값 `0x00400024`에서 시작하게 합니다(D-126).
 2. .s를 고쳤으면 Hallym MIPS에서 다시 어셈블하고 내보낸 뒤 다시 불러옵니다. 예전에 .s를 불러온 .circ는 그대로 열리고 동작하며, 부품 메뉴의 **Load .hmx for 이름.s...**로 실행 이미지로 바꿉니다.
@@ -51,7 +62,7 @@
 4. **Cycle View**에서 사이클 표를 보고, 열을 누르면 그 사이클의 회로가 보입니다. Run Until…로 조건(PC 값, 사이클 수, halt)까지 돌립니다. Registers·Memory·Instruction 탭에 레지스터 파일(오른쪽 클릭 Mark as Register File로 지정)과 메모리, 지금 명령어의 필드가 보입니다.
 5. Console 부품은 `syscall`(print_int 1, print_string 4, read 5/8, exit 10)을 흉내 냅니다. 아래 Console 탭에 출력이 모입니다.
 
-## 5. 회로가 안 돌 때
+## 6. 회로가 안 돌 때
 
 Messages 탭은 **동작할 수 없는 연결**만 알립니다. 결과가 맞는지는 판단하지 않습니다(그건 여러분 몫입니다).
 
@@ -60,7 +71,7 @@ Messages 탭은 **동작할 수 없는 연결**만 알립니다. 결과가 맞�
 - 메시지를 누르면 그 자리로 가고, 동적 메시지는 그 사이클로 갑니다. 선을 오른쪽 클릭 **Find E/X Origin**으로 파랑·빨강이 처음 생긴 곳을 찾습니다.
 - 파일을 연 직후 값이 파랑(x)이면 Simulate › Reset Simulation(Ctrl+R)을 누릅니다. 발진으로 시뮬레이션이 꺼지면(위 띠) 회로를 고친 뒤 Turn On을 누릅니다.
 
-## 6. 저장과 제출
+## 7. 저장과 제출
 
 - Ctrl+S로 저장합니다. 원조 Logisim 2.7.1에서도 열립니다. MIPS 부품을 쓴 파일은 .circ 옆에 `hcs-mips.jar`가 있어야 원조에서 열립니다. 저장할 때 jar가 없으면 상태 표시줄에 한 번 알리고 **Copy hcs-mips.jar Here** 단추로 복사할 수 있습니다(누르기 전에는 복사하지 않습니다). 몇 분마다 자동 저장되고, 프로그램이 갑자기 끝났으면 다음 실행 때 복구를 제안합니다.
 - **File › Create Submission…**은 .circ와 불러온 프로그램(.hmx), 라이브러리를 zip 하나로 묶습니다. 묶기 전에 저장했는지, Messages가 0건인지, Probe가 남았는지, 원조 2.7.1에서 열리는지 알려 줍니다(막지는 않습니다).

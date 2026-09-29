@@ -99,7 +99,7 @@ test('every step of the first screen: one background, which runs on from one to 
       loads: (window as unknown as { loads: number }).loads,
     }));
     let before = (await clip(page)).time;
-    for (const go of [/튜토리얼 보기/, /처음으로/, /바로 시작/, /처음으로/]) {
+    for (const go of [/논리설계 및 실험/, /바로 시작/, /이전/, /이전/]) {
       await page.getByRole('button', { name: go }).click();
       await page.waitForTimeout(700);
       expect(await same()).toEqual({ mark: 'first', backs: 1, loads: 0 });
@@ -111,7 +111,7 @@ test('every step of the first screen: one background, which runs on from one to 
       expect(moved).toBeLessThan(3);
       before = now.time;
     }
-    await expect(page.getByRole('button', { name: /바로 시작/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /논리설계 및 실험/ })).toBeVisible();
   } finally {
     await r.close();
   }

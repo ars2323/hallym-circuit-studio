@@ -116,6 +116,7 @@ import { settleUnsaved, type Leaving } from './logic/unsaved.ts';
 import { RUN_DEFAULTS, RUN_ONLY } from './logic/run-settings.ts';
 import { startScreen } from './start.ts';
 import { keepTabInModal } from '../shared/modal-tab.ts';
+import { type Course, COURSE_NAMES, COURSES, examplesFor, type Feature, inferredCourse, MIPS_NOTICE, mipsNoticeShown, shows, usesMipsOnly, visibleLibraries } from './logic/course.ts';
 
 const api = window.app;
 const APP_NAME = 'Hallym Circuit Studio';
@@ -156,6 +157,12 @@ const bottomFolded = (): boolean => arranged?.bottomFolded ?? folds.collapsed;
 let startSeen = false;
 let untitled = 0;
 let cycleFile: string | null = null;                     // the file the Cycle View shows
+// The course on show (A-08, D-168, logic/course.ts): asked on the first screen every launch, never kept; null until
+// chosen (a file opened before then chooses it: inferredCourse).  Which circuits of each file use a MIPS-only part.
+let course: Course | null = null;
+const courseNow = (): Course => course ?? 'logic';
+const showing = (f: Feature): boolean => shows(courseNow(), f);
+const mipsUse = new Map<string, Map<string, boolean>>();   // fileId → circuitId → uses a MIPS-only part
 let lastCycles: number | null = null;                  // the N Cycles count given last (this run only)
 
 const key = (fileId: string, circuitId: string) => `${fileId} ${circuitId}`;
@@ -192,6 +199,7 @@ const overlays = new Overlays({
   call: (method, params) => api.call(method, params),
   ready: () => engine.state === 'ready',
   cycleViewShown: () => bottomHead.selected() === 1 && !bottomFolded() && files.active() !== null,
+  fieldsShown: () => showing('fieldColors'),
   note: (cls, text) => { note = text ? { cls, text } : null; renderStatus(); },
   failed: (name, e) => { note = { cls: 'err', text: commandError(name, e as CallError) }; renderStatus(); },
   changed: () => { renderStatus(); flowToggle.setAttribute('aria-pressed', String(overlays.settings.onClick)); },
@@ -339,11 +347,13 @@ frequency.addEventListener('change', () => { if (files.active()?.sim?.ticking) v
 const speedBox = unit(h('span', { class: 'selectbox' }, frequency), 'Clock Speed', 3);
 // Load Program… (N-16): an executable image (.hmx) into the circuit's memories (program.ts).
 const bLoad = unit(button('Load Program…', 'file-code', '', () => { const f = files.active(); if (f) void programs.load(f.fileId); }), 'Load Program…', 7);
+// (컴퓨터구조 only, logic/course.ts: in 논리설계 its group is not on the bar at all, nor in the » menu)
+const loadGroup = h('span', { class: 'tgroup' }, bLoad);
 const toolbar = h('span', { class: 'toolbar', role: 'toolbar', 'aria-label': 'Toolbar' },
   h('span', { class: 'tgroup' }, bSave, bUndo, bRedo),
   h('span', { class: 'tgroup' }, h('span', { class: 'seg tools-seg', role: 'radiogroup', 'aria-label': 'Tools' }, ...toolButtons)),
   h('span', { class: 'tgroup' }, bRun, bCycle, bCycles, bReset, speedBox),
-  h('span', { class: 'tgroup' }, bLoad));
+  loadGroup);
 // A tight window (logic/layout.ts): one side at a time, as Hallym MIPS's Editor / Run switch.
 let side: 'canvas' | 'panels' = 'canvas';
 const viewCanvas = h('button', { type: 'button', role: 'tab', 'aria-selected': 'true', class: 'on' }, 'Canvas');
@@ -367,10 +377,17 @@ const bMenu = iconButton('Menu', 'menu', () => void openMenu());
 const bNew = iconButton('New circuit (Ctrl+N)', 'file-plus', () => void newCircuit());
 const bOpen = iconButton('Open file (Ctrl+O)', 'folder-open', () => void openFile());
 const bPrefs = iconButton('Preferences', 'settings', () => prefs.open());
+// The course on show (A-08): a chip after the name; pressed, the two courses to switch to (only what is shown changes).
+const courseChip = h('button', { type: 'button', class: 'coursechip', hidden: true, 'aria-haspopup': 'menu', title: '교과목을 바꿉니다. 화면에 보이는 것만 바뀌고 회로와 시뮬레이션은 그대로입니다.' });
+courseChip.addEventListener('click', () => {
+  const r = courseChip.getBoundingClientRect();
+  showMenu(COURSES.map((c) => ({ label: COURSE_NAMES[c], radio: true, checked: c === course, run: () => setCourse(c) })), r.left, r.bottom + 2);
+});
 const bar = titleBar({
   appName: APP_NAME,
   toolbar,
   views: viewSwitch,
+  course: courseChip,
   // About is Hallym MIPS's: in Preferences (About · Licenses) and the menu's Help › About….
   tools: [bMenu, bNew, bOpen, bPrefs],
   onMore: (units, at) => void moreMenu(units, at),
@@ -380,6 +397,8 @@ const notices = band();
 const programBand = band('progband');
 // While the simulation is off (an oscillation, or Ctrl+E): values do not change (N-07, logic/sim.ts).
 const simOffBand = band('simband');
+// While the file on show uses a MIPS-only part in 논리설계 (A-08): the fact and its one action.
+const courseBand = band('courseband');
 // The status bar (status.ts): facts, and the » list when it is too narrow for them.
 const statusView = statusBar();
 const status = statusView.root;
@@ -387,10 +406,42 @@ const status = statusView.root;
 // ---- the first screen -----------------------------------------------------------
 
 const start = startScreen({
-  course: () => void newCircuit(),       // the tracks are N-18's (D-135)
+  course: (c) => setCourse(c),
+  tutorial: () => void startTutorial(courseNow()),
   newCircuit: () => void newCircuit(),
   openFile: () => void openFile(),
 });
+
+// The course's tutorial (step 2 of the first screen, straight to the chosen course's track: A-08).  The one adapter
+// (D-168): N-18 (#466) sets `tutorialTrack = startCourse` -- its startCourse(track) takes 'logic' | 'architecture'; until
+// then, a new circuit in that course, as 바로 시작 › 새 회로 (D-135).
+let tutorialTrack = null as ((track: Course) => void | Promise<void>) | null;
+async function startTutorial(track: Course): Promise<void> {
+  setCourse(track);
+  if (tutorialTrack) { await tutorialTrack(track); return; }
+  await newCircuit();
+}
+
+// A course chosen (the first screen, the chip, a file opened before one was): what the window shows follows the
+// table (logic/course.ts); the circuits, their simulation and every file stay as they are.
+function setCourse(c: Course): void {
+  const changed = c !== course;
+  course = c;
+  courseChip.replaceChildren(icon(c === 'logic' ? 'circuit-board' : 'cpu'), h('span', { class: 'label' }, COURSE_NAMES[c]));
+  courseChip.setAttribute('aria-label', COURSE_NAMES[c]);
+  courseChip.dataset.course = c;
+  document.documentElement.dataset.course = c;
+  const load = showing('loadProgram');
+  if (load && !loadGroup.isConnected) toolbar.insertBefore(loadGroup, bar.more);
+  else if (!load && loadGroup.isConnected) loadGroup.remove();
+  toolbar.dataset.fit = c;   // the bar fits itself again (its commands changed)
+  cycleView.setSideShown(showing('cycleSide'));
+  if (!changed) return;
+  void overlays.refreshCycle(true);
+  const f = files.active();
+  if (f) void refreshChanged(f.fileId);   // the registers the cycle changed (컴퓨터구조's status bar)
+  render();
+}
 const stage = h('div', { class: 'stage-welcome' }, start.root);
 
 // ---- the panels -----------------------------------------------------------------
@@ -512,6 +563,7 @@ const canvasMenu = installCanvasMenu({
   tunnelColor: (id, color) => void setTunnelColor(id, color),
   loadProgram: (fileId, target, forSource) => void programs.load(fileId, { target, ...(forSource ? { forSource } : {}) }),
   registerMapping: () => void cycleView.mapping(),
+  shows: (feature) => showing(feature),
   memoryImage: (fileId, o) => api.memoryImage(fileId, o),
   quietQuick: () => quickBar?.hush(),
   // Quick Attributes away while a menu for another target is open (D-158: #449's review, menu-wire.png)
@@ -547,7 +599,7 @@ const circuitCtl = new CircuitControl({
   active: () => files.active(),
   note: (cls, text) => { note = text ? { cls, text } : null; renderStatus(); },
   show: (fileId, circuitId, appear) => showCircuit(fileId, circuitId, appear),
-  opened: async (r) => { const o = await recoveryAnswered(r); openedOrError(o); return o; },
+  opened: async (r) => { const o = await recoveryAnswered(r); await openedOrError(o); return o; },
   label: (fileId, name) => fileLabel(fileId, name),
   librariesChanged: (fileId) => { libraries.delete(fileId); libInfo.delete(fileId); if (files.active()?.fileId === fileId) renderComponents(files.active()!); },
 });
@@ -616,7 +668,7 @@ const pal = palette({
     const lib = libraries.get(f.fileId);
     const s = shownSnapshot(f);
     return {
-      libraries: Array.isArray(lib) ? lib : null, fileName: fileLabel(f.fileId, f.name), current: shown(f).circuit,
+      libraries: Array.isArray(lib) ? visibleLibraries(lib, courseNow()) : null, fileName: fileLabel(f.fileId, f.name), current: shown(f).circuit,
       tunnels: tunnels.entries().map((e) => ({ name: e.name, count: e.ids.length })),
       commands: commandsNow(s),
     };
@@ -711,7 +763,7 @@ async function dropFileTab(fileId: string, at: Point): Promise<void> {
 
 // The commands the palette offers now.
 function commandsNow(s: Snapshot | null): CommandId[] {
-  const out: CommandId[] = ['reset', 'cycle', 'run', 'enable', 'load', 'find'];
+  const out: CommandId[] = ['reset', 'cycle', 'run', 'enable', ...(showing('loadProgram') ? ['load' as const] : []), 'find'];
   if (board.root.isConnected && board.scene) out.push('fit');
   if (selectedSplitter(s)) out.push('editSplitter');
   const f = files.active();
@@ -746,7 +798,7 @@ function runCommand(id: CommandId): void {
     case 'cycle': void cycles(1); break;
     case 'run': void run(); break;
     case 'enable': void simCall('sim.enable', { on: !(f.sim?.running ?? true) }, 'Simulation Enabled'); break;
-    case 'load': void programs.load(f.fileId); break;
+    case 'load': if (showing('loadProgram')) void programs.load(f.fileId); break;
     case 'fit': board.fitView(); break;
     case 'revertAppearance': void appearance.revertToDefault(); break;
     case 'find': finder.open(); break;
@@ -912,7 +964,7 @@ center.append(canvasPanel, bottomGrip, bottomPanel);
 shell.append(leftCol, leftSplit, center, rightSplit, rightCol);
 const work = h('main', { class: 'work' }, stage, shell);
 
-document.body.append(h('div', { class: 'app' }, bar.root, h('div', { class: 'bands' }, notices.root, simOffBand.root, programBand.root), work, status), zoomCtl.menu, wireLegend.panel);
+document.body.append(h('div', { class: 'app' }, bar.root, h('div', { class: 'bands' }, notices.root, simOffBand.root, programBand.root, courseBand.root), work, status), zoomCtl.menu, wireLegend.panel);
 
 // The bottom panel's Collapse / Expand: the student's fold (a fold the window made opens, until the size changes).
 function toggleBottom(): void {
@@ -933,6 +985,7 @@ function layout(): void {
   const open = files.count() > 0;
   stage.hidden = !decided || open || opening;
   start.show(!stage.hidden); // the video plays on the first screen only (D-155)
+  courseChip.hidden = course === null || !stage.hidden;   // the course is the card's question there (A-08)
   shell.hidden = !open;
   if (!stage.hidden && !startSeen) { startSeen = true; document.documentElement.dataset.startSeen = 'true'; }
   if (open) {
@@ -1055,8 +1108,37 @@ function render(): void {
   consoleView.show(f?.fileId ?? null);
   renderProgramBand();
   renderSimBand();
+  renderCourseBand();
   renderStatus();
   layout();
+}
+
+// The strip while the file on show uses a MIPS-only part in 논리설계 (A-08): the parts draw and run as always.
+function renderCourseBand(): void {
+  const f = files.active();
+  if (f && mipsNoticeShown(courseNow(), fileUsesMips(f.fileId))) courseBand.show(MIPS_NOTICE.text, 'warn', MIPS_NOTICE.text, { label: MIPS_NOTICE.action, run: () => setCourse('architecture') });
+  else if (courseBand.text() !== null) courseBand.hide();
+}
+const fileUsesMips = (fileId: string): boolean => [...(mipsUse.get(fileId)?.values() ?? [])].some(Boolean);
+
+// Which circuits of a file use a MIPS-only part (model.circuit of each; a scene drawn already answers for its circuit).
+async function mipsOnlyOf(fileId: string, circuits: readonly CircuitRef[]): Promise<boolean> {
+  const use = mipsUse.get(fileId) ?? new Map<string, boolean>();
+  mipsUse.set(fileId, use);
+  await Promise.all(circuits.map(async (c) => {
+    const s = scenes.get(key(fileId, c.circuitId))?.snapshot()
+      ?? await api.call<Snapshot>('model.circuit', { fileId, circuitId: c.circuitId }).catch(() => null);
+    if (s) use.set(c.circuitId, usesMipsOnly(s.components));
+  }));
+  return [...use.values()].some(Boolean);
+}
+// A circuit changed (a part added, pasted, deleted): asked again, the strip follows.
+async function mipsCircuitChanged(fileId: string, circuitId: string): Promise<void> {
+  const f = files.get(fileId);
+  if (!f) return;
+  const before = fileUsesMips(fileId);
+  await mipsOnlyOf(fileId, f.circuits.filter((c) => c.circuitId === circuitId));
+  if (fileUsesMips(fileId) !== before && files.active()?.fileId === fileId) renderCourseBand();
 }
 
 // The band while the active file's simulation is off (N-07).
@@ -1072,7 +1154,7 @@ function renderSimBand(): void {
 // The band over the work while the active file's program could not be loaded again (N-16).
 function renderProgramBand(): void {
   const f = files.active();
-  const b = f ? programs.band(f.fileId) : null;
+  const b = f && showing('programNotices') ? programs.band(f.fileId) : null;
   if (b) programBand.show(b.text, 'warn', b.title);
   else if (programBand.text() !== null) programBand.hide();
 }
@@ -1217,7 +1299,7 @@ function renderComponents(f: OpenFile): void {
   // The first group is this file's circuits (lib null); the bundled Hallym MIPS is listed before it is in the file (pending).
   const info = libInfo.get(f.fileId);
   const openFiles = info?.openFiles.map((o) => ({ fileId: o.fileId, name: fileLabel(o.fileId, files.get(o.fileId)?.name ?? o.name), state: o.state, circuits: o.circuits })) ?? [];
-  components.set({ fileId: f.fileId, fileName: fileLabel(f.fileId, f.name), circuit: shown(f).circuit, libraries: lib, openFiles });
+  components.set({ fileId: f.fileId, fileName: fileLabel(f.fileId, f.name), circuit: shown(f).circuit, libraries: Array.isArray(lib) ? visibleLibraries(lib, courseNow()) : lib, openFiles });
   if (lib === undefined) void loadLibrary(f.fileId);
   // the other open files may be in windows of their own (N-11): asked whatever this window holds
   if (!info && engine.state === 'ready') void loadLibInfo(f.fileId);
@@ -1430,11 +1512,11 @@ function renderStatus(): void {
     const rec = cycleView.state(f.fileId) ?? null;
     const cf = cycleFacts(rec, f.sim ? f.sim.cycle : null);
     if (cf.cycle) fact(KEEP.cycle, span(`sim ${cf.past ? 'warn' : ''}`.trim(), cf.cycle));
-    if (cf.pc) fact(KEEP.pc, span('', code(cf.pc)));
+    if (cf.pc && showing('statusPc')) fact(KEEP.pc, span('', code(cf.pc)));
     if (rec?.runUntil) fact(KEEP.running, span('run', 'Running (Run Until)'));
     for (const x of sf.slice(1)) fact(x.cls === '' ? KEEP.speed : KEEP.running, span(`sim ${x.cls}`.trim(), x.text));
     // The program: its name, PC ≠ entry at cycle 0, an old Stack, a .s path (facts, not messages; N-16).
-    for (const n of programs.statusNodes(f.fileId)) fact(KEEP.program, n as HTMLElement);
+    if (showing('statusProgram')) for (const n of programs.statusNodes(f.fileId)) fact(KEEP.program, n as HTMLElement);
     for (const n of overlays.statusNodes()) fact((n as HTMLElement).classList.contains('ovhint') ? KEEP.hint : KEEP.overlay, n as HTMLElement);
   }
   if (note) {
@@ -1448,7 +1530,7 @@ function renderStatus(): void {
     // The registers the cycle on show changed (Hallym MIPS's 방금 바뀜), while the clock does not run.
     const ch = changedNow.get(f.fileId);
     const rec = cycleView.state(f.fileId);
-    if (ch && rec && ch.cycle === rec.cycle && !f.sim?.ticking && ch.chip) {
+    if (ch && rec && ch.cycle === rec.cycle && !f.sim?.ticking && ch.chip && showing('statusChanged')) {
       fact(KEEP.changed, span('changed', 'Changed ', ...ch.chip.shown.flatMap((n, i) => (i ? [', ', code(n)] : [code(n)])), ch.chip.more ? ` +${ch.chip.more}` : ''), true);
     }
   }
@@ -1477,7 +1559,7 @@ let askingChanged: string | null = null;
 async function refreshChanged(fileId: string): Promise<void> {
   const rec = cycleView.state(fileId);
   const f = files.get(fileId);
-  if (!rec || !f || rec.empty || !rec.cpu || f.sim?.ticking || engine.state !== 'ready') return;
+  if (!rec || !f || rec.empty || !rec.cpu || f.sim?.ticking || engine.state !== 'ready' || !showing('statusChanged')) return;
   if (changedNow.get(fileId)?.cycle === rec.cycle || askingChanged === fileId) return;
   askingChanged = fileId;
   try {
@@ -1539,6 +1621,8 @@ async function newCircuit(): Promise<void> {
   if (!(await engineReady())) return;
   try {
     const r = await api.call<NewResult>('file.new');
+    if (course === null) setCourse('logic');   // Ctrl+N before a course was chosen (logic/course.ts)
+    mipsUse.set(r.fileId, new Map());
     untitled += 1;
     added({ fileId: r.fileId, name: untitled === 1 ? 'untitled.circ' : `untitled-${untitled}.circ`, path: null, circuits: r.circuits, main: r.main });
   } catch (e) {
@@ -1552,13 +1636,16 @@ function fileErrorDialog(action: 'open' | 'save' | 'new', e: unknown, name?: str
   void ask({ title: d.title, file: d.file, body: d.body, detail: d.detail, ok: 'Close', cancel: null, character: false });
 }
 
-function openedOrError(r: Opened | null, e?: unknown): void {
+async function openedOrError(r: Opened | null, e?: unknown): Promise<void> {
   if (e) {
     fileErrorDialog('open', e);
     return;
   }
   if (!r) return;
   if (r.already && files.get(r.fileId)) { showFile(r.fileId); return; }
+  // which circuits use a MIPS-only part (the strip, A-08); a file opened before a course was chosen chooses it
+  const mips = await mipsOnlyOf(r.fileId, r.circuits);
+  if (course === null) setCourse(inferredCourse(mips));
   added({ fileId: r.fileId, name: r.name, path: r.path, circuits: r.circuits, main: r.main, ...(r.readOnly ? { readOnly: true } : {}) });
   // An example (Help › Examples): read-only, and Save asks where (v1 D-102).
   if (r.readOnly) { note = { cls: '', text: `예제를 읽기 전용으로 열었습니다 · ${r.name} · 저장하면 새 이름으로 저장합니다` }; renderStatus(); }
@@ -1581,9 +1668,9 @@ const recoveryAnswered = (r: Opened | RecoveryAsk | null) => answerRecovery(r, (
 async function openFile(): Promise<void> {
   if (!(await engineReady())) return;
   try {
-    openedOrError(await recoveryAnswered(await api.openFile()));
+    await openedOrError(await recoveryAnswered(await api.openFile()));
   } catch (e) {
-    openedOrError(null, e);
+    void openedOrError(null, e);
   }
 }
 
@@ -1603,9 +1690,9 @@ window.addEventListener('drop', (e) => {
   void (async () => {
     if (!(await engineReady())) return;
     try {
-      for (const r of await api.openDropped([...list])) openedOrError(await recoveryAnswered(r));   // an array: a FileList does not cross the bridge
+      for (const r of await api.openDropped([...list])) await openedOrError(await recoveryAnswered(r));   // an array: a FileList does not cross the bridge
     } catch (err) {
-      openedOrError(null, err);
+      void openedOrError(null, err);
     }
   })();
 });
@@ -1695,13 +1782,14 @@ function dropFile(fileId: string): void {
   if (board.scene?.fileId === fileId) { board.setScene(null); boardKey = ''; }
   cycleView.forget(fileId);
   libraries.delete(fileId);
+  mipsUse.delete(fileId);
   toolbars.delete(fileId);
   diags.delete(fileId);
   programs.drop(fileId);
   consoleView.drop(fileId);
   overlays.fileClosed(fileId);
   note = null;
-  if (files.count() === 0) start.go('first');
+  if (files.count() === 0) start.go('course');
   render();
 }
 
@@ -1802,7 +1890,7 @@ function instanceMenu(part: string | null): MenuEntry[] {
 // ---- file tabs: their menu, a window of their own (N-11; v1 P-06, I-179, I-180) -------------------
 
 function handoverOf(f: OpenFile): Handover {
-  return { fileId: f.fileId, name: f.name, path: f.path, tabs: [...f.tabs], circuit: f.circuit };
+  return { fileId: f.fileId, name: f.name, path: f.path, tabs: [...f.tabs], circuit: f.circuit, course: courseNow() };
 }
 
 function fileTabMenu(fileId: string, x: number, y: number): void {
@@ -1845,6 +1933,9 @@ async function adopt(h0: Handover): Promise<void> {
   if (files.get(h0.fileId)) { showFile(h0.fileId); return; }
   let info: FileInfo;
   try { info = await api.call<FileInfo>('file.info', { fileId: h0.fileId }); } catch { return; }
+  // the window it came from shows its course; a window of its own shows the same (A-08)
+  const mips = await mipsOnlyOf(h0.fileId, info.circuits);
+  if (course === null) setCourse(h0.course ?? inferredCourse(mips));
   added({ fileId: h0.fileId, name: h0.name, path: h0.path, circuits: info.circuits, main: info.main });
   files.setDirty(h0.fileId, info.dirty);
   for (const t of h0.tabs) files.openCircuit(h0.fileId, t);
@@ -1917,7 +2008,8 @@ async function resetSimulation(): Promise<void> {
 const programs = programController({
   loadProgram: (fileId, options) => api.loadProgram(fileId, options),
   call: (method, params) => api.call(method, params),
-  note: (cls, text) => { note = text ? { cls, text } : null; renderStatus(); },
+  // (the execution image's notices: 컴퓨터구조 only, logic/course.ts)
+  note: (cls, text) => { if (!showing('programNotices')) return; note = text ? { cls, text } : null; renderStatus(); },
   changed: (fileId) => { if (files.active()?.fileId === fileId) { renderProgramBand(); renderStatus(); } },
 });
 
@@ -2023,13 +2115,15 @@ function onRecovered(r: Recovered): void {
   for (const f of r.closed) { files.close(f.fileId); programs.drop(f.fileId); consoleView.drop(f.fileId); }
   for (const f of r.restored) files.reopened(f.fileId, f.dirty);
   for (const f of r.lost) files.reopened(f.fileId, false);
-  if (files.count() === 0) start.go('first');
+  if (files.count() === 0) start.go('course');
   note = null;
   notices.show(text.band, 'warn');
   render();
   // the new engine's record.state may have come before this (and was forgotten above): asked for again (D-158 16)
   cycleView.fileChanged();
   for (const f of files.list()) void loadDiags(f.fileId);   // their messages name parts by the new ids
+  mipsUse.clear();
+  for (const f of files.list()) void mipsOnlyOf(f.fileId, f.circuits).then(() => renderCourseBand());
   // The program's facts and the Console: the new engine's (N-16; the simulation starts from Reset)
   for (const f of files.list()) { consoleView.drop(f.fileId); void programs.refresh(f.fileId); void loadConsole(f.fileId); void loadSimState(f.fileId); }
   void ask({ title: text.title, body: text.body, detail: text.detail || undefined, ok: 'Close', cancel: null, character: false });
@@ -2067,6 +2161,7 @@ api.onNotify((method, params) => {
     render();
     finder.refresh();   // its index is the model now (I-171 정함)
     if (c.fileId === files.active()?.fileId) void attrsPanel.refresh();   // values changed in place (N-10)
+    void mipsCircuitChanged(c.fileId, c.circuitId);   // a MIPS-only part in or out: the strip (A-08)
   } else if (method === 'mips.facts') {
     if (files.get(String(p.fileId))) programs.facts(p as unknown as MipsFacts);
   } else if (method === 'mips.reloaded') {
@@ -2193,7 +2288,7 @@ onKeysChanged(() => {
 });
 
 // The title bar's Menu: File › Edit › Project › Simulate › Window › Help › (logic/menus.ts).
-let examples: { id: string; name: string }[] | null = null;
+let examples: { id: string; name: string; course: Course }[] | null = null;
 async function openMenu(): Promise<void> {
   examples ??= await api.examples().catch(() => []);
   const recent = await api.recentFiles().catch(() => []);
@@ -2201,7 +2296,7 @@ async function openMenu(): Promise<void> {
   const specs = appMenu({
     file: f !== null, ready: engine.state === 'ready',
     simOn: f?.sim?.running ?? true, ticking: f?.sim?.ticking ?? false, hz: Number(frequency.value), frequencies: FREQUENCIES,
-    recent, examples,
+    recent, examples: examplesFor(examples, courseNow()),
     files: files.list().map((x) => ({ id: x.fileId, name: x.name, active: x.fileId === f?.fileId })),
     project: f ? { editable: editableFile(), index: f.circuits.findIndex((c) => c.circuitId === f.circuit), count: f.circuits.length, main: f.circuit === f.main } : null,
     tool: editor.tool,
@@ -2296,17 +2391,17 @@ async function toolbarTool(i: number): Promise<void> {
 async function openExample(id: string): Promise<void> {
   if (!(await engineReady())) return;
   try {
-    openedOrError(await recoveryAnswered(await api.openExample(id)));
+    await openedOrError(await recoveryAnswered(await api.openExample(id)));
   } catch (e) {
-    openedOrError(null, e);
+    void openedOrError(null, e);
   }
 }
 async function openRecent(id: string): Promise<void> {
   if (!(await engineReady())) return;
   try {
-    openedOrError(await recoveryAnswered(await api.openRecent(id)));
+    await openedOrError(await recoveryAnswered(await api.openRecent(id)));
   } catch (e) {
-    openedOrError(null, e);
+    void openedOrError(null, e);
   }
 }
 
@@ -2431,8 +2526,8 @@ async function begin(): Promise<void> {
     let r: Opened | null = null;
     let err: unknown;
     try { r = await recoveryAnswered(await api.openStartupFile()); } catch (e) { err = e; }
+    await openedOrError(r, err);
     opening = false;
-    openedOrError(r, err);
     render();
   }
 }

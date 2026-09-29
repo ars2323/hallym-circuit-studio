@@ -117,8 +117,9 @@ export async function openFile(r: Running, file: string): Promise<void> {
   }
 }
 
-// A new circuit from the first screen (바로 시작 → 새 회로).
-export async function newCircuit(r: Running): Promise<void> {
+// A new circuit from the first screen (the course → 바로 시작 → 새 회로; A-08). 컴퓨터구조 unless said: it shows everything.
+export async function newCircuit(r: Running, course: '논리설계 및 실험' | '컴퓨터구조' = '컴퓨터구조'): Promise<void> {
+  await r.page.getByRole('button', { name: new RegExp(course) }).click();
   await r.page.getByRole('button', { name: /바로 시작/ }).click();
   await r.page.getByRole('button', { name: /새 회로/ }).click();
   await r.page.locator('.filebar .ptab').first().waitFor();

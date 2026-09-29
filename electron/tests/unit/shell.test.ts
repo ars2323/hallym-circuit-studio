@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { test } from 'node:test';
 
-import { EXAMPLES, exampleResources, examplesDir, isExample } from '../../src/main/examples.ts';
+import { EXAMPLE_COURSE, EXAMPLES, exampleResources, examplesDir, isExample } from '../../src/main/examples.ts';
 import { changedChip } from '../../src/renderer/app/logic/facts.ts';
 import {
   COMMANDS, FIXED, fixedTable, isChanged, keyText, onKeysChanged, pressStroke, refusal, resetAll, resetKey, route, sameStroke, setKey, strokes, strokeText,
@@ -152,8 +152,9 @@ test('the Changed chip: the registers the cycle changed, PC never one, three nam
   assert.deepEqual(changedChip(['$t0', '$t1', '$t2', '$t3', '$t4'].map((k) => row(k, true))), { shown: ['$t0', '$t1', '$t2'], more: 2 });
 });
 
-test('Help › Examples: the three circuits by name only, in the package\'s resources or the repository\'s tests/circ', () => {
-  assert.deepEqual([...EXAMPLES], ['demo-datapath.circ', 'console-demo.circ', 'stack-demo.circ']);
+test('Help › Examples: the six circuits by name only (three a course, A-08), in the package\'s resources or the repository\'s tests/circ', () => {
+  assert.deepEqual([...EXAMPLES], ['adder-1bit.circ', 'ripple-carry-4bit.circ', 'counter-4bit.circ', 'demo-datapath.circ', 'console-demo.circ', 'stack-demo.circ']);
+  assert.deepEqual(EXAMPLES.map((n) => EXAMPLE_COURSE[n]), ['logic', 'logic', 'logic', 'architecture', 'architecture', 'architecture']);
   assert.equal(isExample('demo-datapath.circ'), true);
   for (const bad of ['../demo-datapath.circ', '/etc/passwd', 'gates.circ', '']) assert.equal(isExample(bad), false, bad);
   assert.equal(examplesDir('/r', '/repo'), path.join('/r', 'examples'));

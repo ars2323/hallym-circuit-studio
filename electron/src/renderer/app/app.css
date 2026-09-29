@@ -180,3 +180,16 @@ table.summary tr.warn td { background: var(--amber-tint); color: var(--amber-tex
 .prefs .hint.err { color: var(--error-text); }
 .prefs > .row .grow { flex: 1; }
 .status .notewrap { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+
+/* ---- the course (A-08, logic/course.ts) -----------------------------------------------------
+   The title bar's chip: the course on show, pressed to switch (a menu of the two). */
+.titlebar .coursechip { flex: none; display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border: 1px solid var(--blue-tint2); border-radius: 11px;
+  background: var(--blue-tint); color: var(--navy); font-size: 12px; font-weight: 600; line-height: 20px; white-space: nowrap; }
+.titlebar .coursechip:hover { background: var(--blue-tint2); }
+.titlebar .coursechip img.icon { width: 14px; height: 14px; flex: none; }
+/* a tight bar: the chip's icon alone (its name in the tooltip and to screen readers) */
+.titlebar.nocoursename .coursechip { padding: 0 5px; }
+.titlebar.nocoursename .coursechip .label { display: none; }
+/* The strip while the file uses a MIPS-only part in 논리설계: a fact, not a warning (the band's shape, blue). */
+.courseband { margin: 8px 8px 0; padding: 3px 10px; border-radius: 6px; background: var(--blue-tint); color: var(--navy);
+  box-shadow: inset 3px 0 0 var(--blue); font-size: 12px; line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

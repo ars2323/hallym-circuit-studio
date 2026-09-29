@@ -178,6 +178,8 @@ const point = (s: string): [number, number] => {
 function readCirc(text: string): { circuits: Circuit[]; main: string; libs: string[] } {
   const libs = new Map<string, string>();
   for (const m of text.matchAll(/<lib desc="#([^"]+)" name="([^"]+)"/g)) libs.set(m[2], m[1]);
+  // a JAR library by its class, as the real engine names it (the bundled Hallym MIPS: kr.ac.hallym.hcs.mips.MipsLibrary)
+  for (const m of text.matchAll(/<lib desc="jar#[^"]*#([^"#]+)" name="([^"]+)"/g)) libs.set(m[2], m[1]);
   const circuits: Circuit[] = [];
   for (const m of text.matchAll(/<circuit name="([^"]*)">([\s\S]*?)<\/circuit>/g)) {
     const c: Circuit = { circuitId: `c${nextCircuit++}`, name: m[1], comps: [], wires: [] };

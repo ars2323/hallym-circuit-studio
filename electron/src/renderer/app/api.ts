@@ -85,7 +85,7 @@ export interface AppApi {
   onCloseRequest(listener: () => void): void;
   onAdopt(listener: (handover: Handover) => void): void;
   // Help › Examples (D-158): the program's circuits by name; one opened read-only.
-  examples(): Promise<{ id: string; name: string }[]>;
+  examples(): Promise<{ id: string; name: string; course: 'logic' | 'architecture' }[]>;
   openExample(id: string): Promise<Opened | RecoveryAsk | null>;
   // File › Open Recent (I-130): this run's files by name (the paths stay in the main process).
   recentFiles(): Promise<{ id: string; name: string }[]>;

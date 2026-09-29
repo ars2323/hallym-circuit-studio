@@ -219,11 +219,11 @@ async function captureAll(): Promise<void> {
   const { page } = r;
   await videoAt(r);
   await shot(r, 'start');
-  await page.getByRole('button', { name: /튜토리얼 보기/ }).click();
-  await shot(r, 'start-tutorial');
-  await page.getByRole('button', { name: '← 처음으로' }).click();
-  await page.getByRole('button', { name: /바로 시작/ }).click();
+  // the three steps on one card (A-08): the course, then 튜토리얼 보기 / 바로 시작, then 새 회로 / 파일 열기
+  await page.getByRole('button', { name: /컴퓨터구조/ }).click();
   await shot(r, 'start-2');
+  await page.getByRole('button', { name: /바로 시작/ }).click();
+  await shot(r, 'start-3');
   await page.getByRole('button', { name: /새 회로/ }).click();
   await page.locator('.canvas h3').waitFor();
   await shot(r, 'new-circuit');
@@ -846,6 +846,34 @@ function sideBySide(name: string, left: Buffer, right: Buffer): void {
   await page.mouse.click(rb.x + 2, rb.y + rb.height / 2);
   await page.locator('.appover .apphandle').first().waitFor();
   await shot(r, 'appearance-editor');
+  await r.close();
+}
+
+// The courses (A-08): 논리설계 및 실험's new circuit (Hallym MIPS lists Radix Probe only, no Load Program…, the chip),
+// a file with MIPS-only parts opened in 논리설계 (the strip; the Cycle View's table alone), the chip's menu.
+{
+  const r = await start(FHD);
+  const { page } = r;
+  await page.getByRole('button', { name: /논리설계 및 실험/ }).click();
+  await page.getByRole('button', { name: /바로 시작/ }).click();
+  await page.getByRole('button', { name: /새 회로/ }).click();
+  await page.locator('.canvas h3').waitFor();
+  // the Hallym MIPS group in view (it is under the built-in libraries)
+  await page.locator('.upper .libgroup', { hasText: 'Hallym MIPS' }).locator('.list li', { hasText: 'Radix Probe' }).scrollIntoViewIfNeeded();
+  await shot(r, 'course-logic');
+  await openFile(r, sample(r.dir, DATAPATH));
+  await drawn(r);
+  await page.locator('.courseband').waitFor();
+  await page.getByRole('button', { name: /1 Cycle/ }).click();
+  await page.getByRole('button', { name: /1 Cycle/ }).click();
+  await page.locator('.status', { hasText: 'Cycle 2' }).waitFor();
+  await page.getByRole('tab', { name: 'Cycle View' }).click();
+  await page.locator('.cycleview .ctable').waitFor();
+  await shot(r, 'course-mips-in-logic');
+  await page.locator('.titlebar .coursechip').click();
+  await page.locator('.ovmenu').waitFor();
+  await shot(r, 'course-chip', { keepFocus: true });
+  await page.keyboard.press('Escape');
   await r.close();
 }
 

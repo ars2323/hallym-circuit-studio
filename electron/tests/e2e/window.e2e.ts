@@ -45,7 +45,10 @@ test('security: context isolation, no Node in the page; the page may call only t
     expect(await page.evaluate(() => window.app.openExample('/etc/passwd'))).toBe(null);
     expect(await page.evaluate(() => window.app.openExample('../../../../etc/passwd'))).toBe(null);
     expect(await page.evaluate(() => window.app.openRecent('/etc/passwd'))).toBe(null);
-    expect(await page.evaluate(() => window.app.examples())).toEqual(['demo-datapath.circ', 'console-demo.circ', 'stack-demo.circ'].map((n) => ({ id: n, name: n })));
+    expect(await page.evaluate(() => window.app.examples())).toEqual([
+      ...['adder-1bit.circ', 'ripple-carry-4bit.circ', 'counter-4bit.circ'].map((n) => ({ id: n, name: n, course: 'logic' })),
+      ...['demo-datapath.circ', 'console-demo.circ', 'stack-demo.circ'].map((n) => ({ id: n, name: n, course: 'architecture' })),
+    ]);
   } finally {
     await r.close();
   }
@@ -93,7 +96,7 @@ test('a dialog: modal, a click outside (backdrop, toolbar, New) does nothing, Ta
     await page.waitForTimeout(300);
     await expect(dialog).toBeVisible();
     await expect(page.locator('.filebar .ptab')).toHaveCount(0);
-    await expect(page.locator('.action').first()).toContainText('튜토리얼 보기');
+    await expect(page.locator('.action').first()).toContainText('논리설계 및 실험');
     // Tab and Shift+Tab go round inside (D-164): the focus never leaves the dialog, not even for a moment (Chromium
     // let Tab go past the last control: the window lost the focus and got it back a little later).
     await page.evaluate(() => {

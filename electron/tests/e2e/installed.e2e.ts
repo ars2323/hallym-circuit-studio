@@ -146,8 +146,8 @@ test('installed: the first screen, the engine on the bundled runtime, a circuit 
   console.log(`first start after install: window ${times.windowMs} ms, first screen ${times.startScreenMs} ms, engine ready ${times.engineReadyMs} ms`);
   try {
     await expect(page.locator('.wcard h1')).toHaveText('안녕하세요!');
-    await expect(page.locator('.action').nth(0)).toContainText('튜토리얼 보기');
-    await expect(page.locator('.action').nth(1)).toContainText('바로 시작');
+    await expect(page.locator('.action').nth(0)).toContainText('논리설계 및 실험');
+    await expect(page.locator('.action').nth(1)).toContainText('컴퓨터구조');
     // The real engine on the bundled Java 21 (D-154): the hello and About say so, the status bar does not.
     expect(await engineHello(app)).toMatchObject({ engine: 'hcs-engine', logisim: '2.7.1', java: expect.stringMatching(/^21\b/) });
     expect(await aboutEngineLine(page)).toMatch(/^Engine hcs-engine \S+ · Logisim 2\.7\.1 · Java 21\b/);
@@ -157,6 +157,7 @@ test('installed: the first screen, the engine on the bundled runtime, a circuit 
     const java = imagePath((await enginePid(app))!);
     expect(java.toLowerCase()).toBe(path.join(resources, 'runtime', 'bin', 'java.exe').toLowerCase());
     // A new circuit (the engine's file.new), then a file with the MIPS library (hcs-mips.jar beside the engine).
+    await page.getByRole('button', { name: /컴퓨터구조/ }).click();
     await page.getByRole('button', { name: /바로 시작/ }).click();
     await page.getByRole('button', { name: /새 회로/ }).click();
     await expect(page.locator('.filebar .ptab')).toHaveText(['untitled.circ']);

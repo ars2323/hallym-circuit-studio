@@ -65,7 +65,7 @@ test('nothing written: after quit no run folder, an empty HOME, the opened file 
   const next = await launch(null, { userData: runs, keepSize: true });
   try {
     await expect(next.page.locator('.wcard')).toBeVisible();
-    await expect(next.page.locator('.action').first()).toContainText('튜토리얼 보기');
+    await expect(next.page.locator('.action').first()).toContainText('논리설계 및 실험');
     const w = await next.app.evaluate(({ BrowserWindow, screen }) => {
       const b = BrowserWindow.getAllWindows()[0];
       return { maximized: b.isMaximized(), bounds: b.getBounds(), area: screen.getPrimaryDisplay().workArea };

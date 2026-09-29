@@ -255,6 +255,7 @@ test('Mark as PC from the Registers panel; the register file and its mapping; th
 test('a circuit with no clock run yet keeps the tab\'s word; a narrow window puts the table in a Cycles tab', async () => {
   const r = await launch({ width: 960, height: 1032 });
   try {
+    await r.page.getByRole('button', { name: /컴퓨터구조/ }).click();   // Registers | Memory | Instruction are 컴퓨터구조's (A-08)
     await openFile(r, sample(r.dir, GATES));
     const page = r.page;
     await page.locator('section.bottom').getByRole('tab', { name: 'Cycle View' }).click();

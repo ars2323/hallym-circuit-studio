@@ -33,11 +33,12 @@ class ExampleLayoutTest {
     static final Path REPO = new File(System.getProperty("hcs.circDir")).toPath().getParent().getParent();
 
     /**
-     * 검사하는 회로: 학생에게 가는 예제(v1 Help › Examples의 셋), 참조 CPU(화면 스크린샷·진짜 엔진 e2e가 연다),
+     * 검사하는 회로: 학생에게 가는 예제(Help › Examples: 논리설계 셋(A-08)과 v1의 MIPS 셋), 참조 CPU(화면 스크린샷·진짜 엔진 e2e가 연다),
      * demo-datapath에서 만든 고장 회로(Messages 스크린샷). tests/mips/ref-mips-v1-stack.circ는 옛 파일 회귀용으로
      * 그대로 둔 파일이라, tests/circ의 작은 회귀 회로·고장·흐름 회로는 학생에게 가지 않는 시험 입력이라 뺀다.
      */
-    static final List<String> CHECKED = List.of("tests/circ/demo-datapath.circ", "tests/circ/console-demo.circ",
+    static final List<String> CHECKED = List.of("tests/circ/adder-1bit.circ", "tests/circ/ripple-carry-4bit.circ",
+            "tests/circ/counter-4bit.circ", "tests/circ/demo-datapath.circ", "tests/circ/console-demo.circ",
             "tests/circ/stack-demo.circ", "tests/mips/ref-mips.circ", "electron/tests/fixtures/broken-datapath.circ");
 
     @TempDir

@@ -12,6 +12,7 @@ import type { MenuEntry } from '../../src/renderer/canvas/overlays/menu.ts';
 import { tidy } from '../../src/renderer/canvas/overlays/menu.ts';
 import { caretMove, digits, hexOf, PAGE, parseWords, wordsText } from '../../src/renderer/app/hex-editor.ts';
 import { arrange, changeN, combineN, count, editLabelsN, gateShort, undefinedValue } from '../../src/renderer/app/logic/menu-layout.ts';
+import { type Course, shows } from '../../src/renderer/app/logic/course.ts';
 import { type CanvasActions, registerCanvasItems } from '../../src/renderer/app/menus/canvas-items.ts';
 import { defaultSpacing, nextLabel } from '../../src/renderer/app/menus/dialogs.ts';
 import { type CanvasTarget, menuFor, registered, registerMenu } from '../../src/renderer/app/menus/registry.ts';
@@ -117,6 +118,7 @@ interface Sent { method: WindowMethod | string; params: Record<string, unknown> 
 const sent: Sent[] = [];
 const notes: (string | null)[] = [];
 let overlayItems: MenuEntry[] = [];
+let course: Course = 'architecture';   // the course on show (A-08): 컴퓨터구조 shows everything
 const actions: CanvasActions = {
   edit: async (_t, method, params) => { sent.push({ method, params }); return { changed: true } as EditResult; },
   overlayItems: () => overlayItems,
@@ -133,6 +135,7 @@ const actions: CanvasActions = {
   markPc: (_t, id, on) => sent.push({ method: 'markPc', params: { id, on } }),
   markRegisterFile: (_t, circuitId, on) => sent.push({ method: 'markRegisterFile', params: { circuitId, on } }),
   registerMapping: () => sent.push({ method: 'registerMapping', params: {} }),
+  shows: (f) => shows(course, f),
   loadProgram: (_t, id, forSource) => sent.push({ method: 'loadProgram', params: { id, forSource } }),
   reloadProgram: () => sent.push({ method: 'reloadProgram', params: {} }),
   findOrigin: (_t, w) => sent.push({ method: 'findOrigin', params: { w } }),
@@ -272,6 +275,31 @@ test('the original\'s component items: RAM and ROM (MemMenu), a Splitter\'s Dist
   sent.length = 0;
   await run(find(old, 'Load .hmx for sum.s…'));
   assert.deepEqual(sent, [{ method: 'loadProgram', params: { id: 'k8', forSource: 'prog\\sum.s' } }]);
+});
+
+test('논리설계 및 실험 (A-08, logic/course.ts): no Load Program…, Mark as PC, Mark as Register File or Register Mapping; the rest as in 컴퓨터구조', () => {
+  const part = (over: Record<string, unknown>) => ({ name: 'RAM', display: 'RAM', labelAttr: true, facing: false, width: false, inputs: false, gate: false, options: {}, ...over });
+  const menus = () => ({
+    im: labels(menuFor('canvas', target({ id: 'k8', part: part({ name: 'Instruction Memory', memory: 'program', source: 'prog/sum.hmx' }) as MenuFacts['part'] }), 'S')),
+    reg: labels(menuFor('canvas', target({ id: 'k3', part: { name: 'Register', display: 'Register', labelAttr: true, facing: false, width: true, inputs: false, gate: false, pcMarked: false, options: {} } }), 'S')),
+    sub: labels(menuFor('canvas', target({ id: 'k4', part: { name: 'alu', display: 'alu', labelAttr: true, facing: true, width: false, inputs: false, gate: false, subcircuit: { circuitId: 'c2', name: 'alu', defaultAppearance: false, registerFile: true }, options: {} } }), 'S')),
+    ram: labels(menuFor('canvas', target({ id: 'k5', part: part({ memory: 'ram' }) as MenuFacts['part'] }), 'S')),
+  });
+  const arch = menus();
+  course = 'logic';
+  try {
+    const logic = menus();
+    for (const gone of ['Load Program…', 'Reload sum.hmx']) { assert.ok(arch.im.includes(gone)); assert.ok(!logic.im.includes(gone), gone); }
+    assert.ok(arch.reg.includes('Mark as PC') && !logic.reg.includes('Mark as PC'));
+    for (const gone of ['Unmark Register File', 'Register Mapping…']) { assert.ok(arch.sub.includes(gone)); assert.ok(!logic.sub.includes(gone), gone); }
+    // what is not the course's stays
+    assert.deepEqual(logic.ram, arch.ram);
+    const rest = (ls: string[]) => ls.filter((l) => l !== 'Mark as PC' && l !== '-');
+    assert.deepEqual(rest(logic.reg), rest(arch.reg));
+    assert.ok(logic.sub.includes('View alu'));
+  } finally {
+    course = 'architecture';
+  }
 });
 
 test('a wire (v1 EditMenus.wire, SplitterMenu, ProbeMenu): its items in v1\'s order with the overlays\' in their places', async () => {

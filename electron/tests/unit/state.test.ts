@@ -457,6 +457,24 @@ test('Explorer\'s caches and counters (D-164): through only when the audit trail
   assert.match(r.lines[1], /^FAIL .*\[written by .*HallymCircuitStudio\.exe\]/);
 });
 
+test('Explorer\'s session record with its use counter for this program (D-168): through in a run check only when that counter changed in the same check', () => {
+  const session = ch('registry', 'changed', `${COUNT} :: HRZR_PGYFRFFVBA`, 'REG_BINARY 000000001000000019000000');
+  const counter = ch('registry', 'added', `${COUNT} :: xe.np.unyylz.pvephvg-fghqvb`, 'REG_BINARY 0000000000000000');
+  // as seen in setup-e2e's first and recovery runs: both together, the trail having only the counter
+  assert.deepEqual(unexpected([counter, session], 'none'), []);
+  assert.deepEqual(report('t', [counter, session], 'none').bad, []);
+  // alone (no use of this program counted), or beside another value, it counts as before
+  assert.deepEqual(unexpected([session], 'none'), [session]);
+  const other = ch('registry', 'added', `${COUNT} :: HRZR_PGYPHNPbhag:pgbe`, 'REG_BINARY 00');
+  assert.deepEqual(unexpected([other, session], 'none'), [other, session]);
+  // only a change, only binary data, only that GUID's value
+  assert.equal(counts({ ...session, what: 'added' }, 'none', undefined, undefined, [counter]), true);
+  assert.equal(counts({ ...session, after: 'REG_SZ x' }, 'none', undefined, undefined, [counter]), true);
+  assert.equal(counts({ ...session, path: session.path.replace('CEBFF5CD', 'F4E57C4B') }, 'none', undefined, undefined, [counter]), true);
+  // naming this program in its data: never Windows' own
+  assert.equal(counts({ ...session, after: 'REG_BINARY 00 Unyylz' }, 'none', undefined, undefined, [counter]), true);
+});
+
 test('the audit trail read: file writes and deletes (4663), registry values set (4657), with their programs, as the snapshots\' places', () => {
   const env = { LOCALAPPDATA: 'C:\\Users\\runneradmin\\AppData\\Local', APPDATA: 'C:\\Users\\runneradmin\\AppData\\Roaming' };
   const ev = (id: number, data: Record<string, string>, at = '2026-09-28T12:29:05.1000000Z') =>
@@ -516,4 +534,30 @@ test('the audit trail must hold the whole window: its oldest event no newer than
   assert.throws(() => auditCoverage(from, '2026-09-28T11:00:00Z', 250 << 20, 256 << 20), /full/);
   assert.throws(() => auditCoverage(from, '2026-09-28T11:00:00Z', NaN, 256 << 20), /size unknown/);
   assert.throws(() => auditCoverage(from, '2026-09-28T11:00:00Z', 1, NaN), /size unknown/);
+});
+
+test('Explorer\'s session record beside the counter (D-168 11): only Windows\' own writers, the counter added or changed as binary, a run check only', () => {
+  const session = ch('registry', 'changed', `${COUNT} :: HRZR_PGYFRFFVBA`, 'REG_BINARY 000000001000000019000000');
+  const counter = ch('registry', 'added', `${COUNT} :: xe.np.unyylz.pvephvg-fghqvb`, 'REG_BINARY 0000000000000000');
+  const pair = [counter, session];
+  const wrote = (who: Record<string, string[]>) => written(Object.fromEntries(Object.entries(who).map(([k, v]) => [k === 's' ? noiseKey(session) : noiseKey(counter), v])));
+  // through: no writer recorded, or Explorer / a named service only
+  assert.deepEqual(unexpected(pair, 'none'), []);
+  assert.deepEqual(unexpected(pair, 'none', undefined, wrote({ c: [EXPLORER_EXE] })), []);
+  assert.deepEqual(unexpected(pair, 'none', undefined, wrote({ s: [EXPLORER_EXE], c: [WPN] })), []);
+  // any other writer of either value: counts
+  for (const other of [OURS_EXE, 'C:\\Users\\u\\AppData\\Local\\Temp\\~nsu1.tmp\\Un_A.exe', 'C:\\Windows\\System32\\msiexec.exe',
+    'C:\\Users\\u\\Downloads\\HallymCircuitStudio-2.0.0-win-x64-setup.exe', `${SVCHOST} [pid 12 not named]`, `${SVCHOST} [ended]`]) {
+    assert.deepEqual(unexpected(pair, 'none', undefined, wrote({ s: [EXPLORER_EXE, other] })), [session], `session record by ${other}`);
+    const bad = unexpected(pair, 'none', undefined, wrote({ c: [other] }));
+    assert.ok(bad.includes(session) && bad.includes(counter), `counter by ${other}: ${bad.map((c) => c.path).join(', ')}`);
+  }
+  // the counter removed, or not binary: no pair
+  assert.deepEqual(unexpected([{ ...counter, what: 'removed', before: 'REG_BINARY 00' }, session], 'none').includes(session), true);
+  assert.deepEqual(unexpected([{ ...counter, after: 'REG_SZ 1' }, session], 'none').includes(session), true);
+  // an install or an uninstall check does not use this rule (its Windows-store rule is its own: D-148 12)
+  for (const e of ['install', 'uninstalled'] as const) {
+    const r = judge(session, e, undefined, undefined, pair);
+    assert.ok(r.kind !== 'allowed' || !/D-168/.test(r.why), `${e}: ${JSON.stringify(r)}`);
+  }
 });

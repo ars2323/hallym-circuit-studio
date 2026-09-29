@@ -48,6 +48,7 @@ export interface OverlayHost {
   call<T>(method: WindowMethod, params: Record<string, unknown>): Promise<T>;
   ready(): boolean;                              // the engine answers
   cycleViewShown(): boolean;                     // the Cycle View tab is on show
+  fieldsShown?(): boolean;                       // the instruction's field colours shown (컴퓨터구조 only, A-08); all without
   note(cls: '' | 'err' | 'ok', text: string | null): void;   // the status bar's fact about the last action
   failed(name: string, e: unknown): void;        // a command failed: the window's words for it
   changed(): void;                               // the status bar again
@@ -261,7 +262,8 @@ export class Overlays {
         if (this.scene === s) this.bands.activePath = r.muxes.flatMap((m) => m.segments);
       } else this.bands.activePath = [];
       const key = `${s.fileId} ${s.circuitId} ${s.modelVersion}`;
-      if (!this.fieldsUnsupported && (cycleChanged || this.fieldsCycle !== key)) {
+      if (this.host.fieldsShown?.() === false) { this.bands.fields = []; this.fieldsCycle = ''; }
+      else if (!this.fieldsUnsupported && (cycleChanged || this.fieldsCycle !== key)) {
         try {
           const f = await this.host.call<FieldPaths>('record.fieldPaths', { fileId: s.fileId, circuitId: s.circuitId });
           if (this.scene === s) {
