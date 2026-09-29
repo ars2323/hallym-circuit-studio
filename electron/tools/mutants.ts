@@ -290,6 +290,10 @@ export const MUTANTS: Mutant[] = [
     find: "    this.autoFit = false;   // moved: the student's (or a place shown), kept at any size\n", replace: '', tests: ['tests/e2e/shell.e2e.ts'] },
   { module: 'shell', file: 'src/renderer/app/logic/selection-facts.ts', what: 'the selection\'s names in the engine\'s (no) order',
     find: ".sort((a, b) => a.localeCompare(b, 'en'))", replace: '', tests: ['tests/unit/selection-facts.test.ts'] },
+  { module: 'shell', file: 'src/renderer/app/components.ts', what: 'the same Components list built again (a drag from it drops nothing)',
+    find: '    if (key === built && tree.childElementCount > 0) { mark(); return; }\n', replace: '', tests: ['tests/e2e/shell.e2e.ts'] },
+  { module: 'shell', file: 'src/renderer/app/preferences.ts', what: 'the waiting key\'s hint in Korean words for Esc',
+    find: "'새 키를 누르세요 · Esc: Cancel'", replace: "'새 키를 누르세요 · Esc 취소'", tests: ['tests/e2e/shell.e2e.ts'] },
   // ---- the program: Load Program, the summary, the band, the Console (N-16, D-147)
   { module: 'program', file: 'src/renderer/app/logic/program.ts', what: 'no band while a reload has failed',
     find: 'if (!f) return null;', replace: 'return null;', tests: ['tests/unit/program.test.ts'] },

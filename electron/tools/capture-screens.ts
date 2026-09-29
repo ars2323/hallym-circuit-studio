@@ -350,9 +350,17 @@ async function view(r: Running, v: { x: number; y: number; zoom: number }): Prom
   await page.getByRole('combobox', { name: 'Clock speed' }).selectOption('64');
   // the clock held at cycle 3 (the window is told it runs at 64 Hz; the engine's clock never starts, so no tick of
   // it can land after the reset): the same picture every round
-  const held = await holdClock(r, 3, 64);
+  let held = await holdClock(r, 3, 64);
   await page.locator('.status .run', { hasText: 'Running (64 Hz)' }).waitFor();
   await page.locator('.status', { hasText: 'Cycle 3' }).waitFor();
+  // three cycles from Reset show PC 0x00000008 (the first cycle's edge loads the reset PC).  A reset that met a tick
+  // already under way gives one PC further (0x0000000c, once in a few rounds): held again until the picture is the usual one.
+  for (let i = 0; i < 5 && !(await page.locator('.status', { hasText: 'PC 0x00000008' }).isVisible()); i += 1) {
+    await held.release();
+    held = await holdClock(r, 3, 64);
+    await page.waitForTimeout(200);
+  }
+  await page.locator('.status', { hasText: 'PC 0x00000008' }).waitFor();
   // shot when the status bar's PC and the PC register on the Canvas show the same cycle
   await page.waitForFunction(() => {
     const c = (window as unknown as { __hcsCanvas: { scene: { components: Map<string, { id: string; name: string; attrs: Record<string, string> }>; portValue(id: string, i: number): string | undefined } } }).__hcsCanvas;

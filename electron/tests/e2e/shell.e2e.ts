@@ -10,7 +10,7 @@ import { expect, test, type Page } from '@playwright/test';
 import path from 'node:path';
 
 import { overlayColor } from '../../src/renderer/shared/overlay.ts';
-import { answerSave, DATAPATH, launch, openFile, recordCalls, resize, sample, sentCalls, type Running } from './harness.ts';
+import { answerSave, DATAPATH, launch, newCircuit, openFile, recordCalls, resize, sample, sentCalls, type Running } from './harness.ts';
 import { click, partMiddle } from './overlay-helpers.ts';
 
 const HALF = { width: 960, height: 1032 };
@@ -318,6 +318,7 @@ test('the keys (v1 E-09, I-43, I-183): every key in Preferences › Keyboard; Fi
     await page.getByTitle('Preferences').click();
     await prefs.getByRole('tab', { name: 'Keyboard' }).click();
     await row('rotate').getByRole('button', { name: 'Change Rotate' }).click();
+    await expect(row('rotate').locator('.kwait')).toHaveText('새 키를 누르세요 · Esc: Cancel');   // the key's name in English (D-135 14)
     await page.keyboard.press('t');
     await expect(row('rotate').locator('kbd')).toHaveText('T');
     await page.keyboard.press('Escape');
@@ -563,6 +564,39 @@ test('a file just opened keeps the Canvas\'s own fit while the window settles; a
     await page.waitForFunction(() => window.innerWidth === 1500);
     await page.waitForTimeout(200);
     expect((await view()).zoom).toBe(1);
+  } finally {
+    await r.close();
+  }
+});
+
+test('the Components list is not built again when it has not changed: a part being dragged stays on the page and drops (D-158 16)', async () => {
+  const r = await launch();
+  const { page } = r;
+  try {
+    await newCircuit(r);
+    const button = page.locator('.upper .libgroup.pending .list li', { hasText: 'Console' }).getByRole('button');
+    await button.waitFor();
+    // the drag starts; the button is marked to tell it from a new one
+    const dt = await page.evaluateHandle(() => new DataTransfer());
+    await button.evaluate((b) => { (b as unknown as { __kept: boolean }).__kept = true; });
+    await button.dispatchEvent('dragstart', { dataTransfer: dt });
+    // the window renders again with the same list (a status change, the panels laid out again)
+    await page.keyboard.press('Control+e');
+    await expect(page.locator('.status')).toContainText('Simulation Off');
+    await page.keyboard.press('Control+e');
+    await expect(page.locator('.status')).toContainText('Simulation On');
+    await resize(r, { width: 1500, height: 900 });
+    await page.waitForFunction(() => window.innerWidth === 1500);
+    // the same element: still in the page, so the drag it started can end with a drop
+    expect(await button.evaluate((b) => b.isConnected && (b as unknown as { __kept?: boolean }).__kept === true)).toBe(true);
+    await recordCalls(r.app);
+    const box = (await page.locator('.pbody.canvas').boundingBox())!;
+    const at = { clientX: box.x + 300, clientY: box.y + 200 };
+    await page.locator('.pbody.canvas').dispatchEvent('dragover', { dataTransfer: dt, ...at });
+    await page.locator('.pbody.canvas').dispatchEvent('drop', { dataTransfer: dt, ...at });
+    await expect.poll(async () => (await sentCalls(r.app, 'edit.addComponent')).map((c) => c.params.name)).toEqual(['Console']);
+    // a list that did change is built again (the Console's library is in the file now)
+    await expect(page.locator('.upper .libgroup.pending')).toHaveCount(0);
   } finally {
     await r.close();
   }

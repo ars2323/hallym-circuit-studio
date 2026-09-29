@@ -112,7 +112,7 @@ export function preferences(host: PrefsHost): Preferences {
       return h('tr', { class: `${waiting ? 'waiting' : ''}${isChanged(c.id) ? ' changed' : ''}`.trim(), 'data-command': c.id },
         h('td', { class: 'kname' }, c.name, h('small', { class: 'hint' }, codeText(c.say)),
           refused?.id === c.id ? h('small', { class: 'hint err' }, refused.why) : null),
-        h('td', { class: 'kkey' }, waiting ? h('span', { class: 'kwait' }, '새 키를 누르세요 · Esc 취소') : h('kbd', {}, keyText(c.id))),
+        h('td', { class: 'kkey' }, waiting ? h('span', { class: 'kwait' }, '새 키를 누르세요 · Esc: Cancel') : h('kbd', {}, keyText(c.id))),
         h('td', { class: 'kbtns' }, change, reset));
     });
     const fixedRows = fixedTable().map((f) =>
