@@ -2279,3 +2279,34 @@
 - **이유:** v2.0.0 전에 Swing 화면을 걷는다(D-132). 이름과 자리를 바꾸지 않으면 엔진 코드·문서·결정 기록의 v1 참조가 그대로 맞고, 옮기며 동작이 바뀔 틈이 없다. 원조 GUI 파일은 엔진이 Canvas·Selection·도구를 쓰므로 지울 수 없고(목록 검사), 화면 연결 줄을 원조대로 되돌리면 포크의 원조 차이가 엔진에 필요한 것만 남는다.
 - **대안(버림):** GUI 없는 코드를 `engine/`의 `kr.ac.hallym.hcs.engine.*`로 옮기기(67개 클래스와 테스트의 패키지·import가 바뀌고 v1 참조가 모두 틀어진다. 얻는 것은 모듈 하나 줄기뿐). 원조 GUI 파일을 지우기(엔진이 Canvas·Selection·SelectTool·AppearanceView를 쓴다). 화면 연결 줄을 둔 채 비어 있는 Swing 클래스 껍데기 남기기(죽은 코드). 문구 키 정리(엔진·Messages 골든과 함께 볼 일, 이번 범위 밖).
 - **테스트:** `:app:test` 272(남은 GUI 없는 코드: 넷·진단·기록·확장 정보·편집 계산·동등성 골든·엔진 회귀·저장 호환), `:app:testConstantIdentityHash`, `:engine:test` 542(보통·상수 identity hash JVM, `OpenSaveParityTest` 102, `EngineParityReplayTest` 19, `EditParityTest` 11, `SubprocessTest`의 jar 내용), `:engine:canvasFixtures` 다시 만들어도 같음, `:lib-mips:test`, `regress`, `tools/check-engine-unchanged.sh`, `tools/check-upstream-markers.sh`(app/doc이 다시 생기면 실패). CI의 electron·runtime·setup-exe·setup-e2e·setup-upgrade·track-a-java8·release 작업은 그대로 돈다.
+
+## D-166 CI 속도: PR 게이트는 Linux 넷, Windows 작업은 main·태그·수동과 Windows에 닿는 PR만, 새 push는 옛 실행 취소, 공용 파일은 지휘 세션만, 흔들리는 검사는 격리
+
+- **날짜:** 2026-09-29
+- **결정(사용자 지시 "[CI 속도 — 지금 바로]"):**
+  1. **PR 게이트:** `linux`, `electron`(Linux e2e), `runtime`(Linux), `track-a-java8`. Windows 작업(`setup-exe`, `setup-e2e`, `setup-upgrade`, `runtime` Windows)은 main push, `v*` 태그, `workflow_dispatch`에서 돈다.
+     - 판정은 ci.yml 첫 작업 `changes`가 한다. PR의 바뀐 파일(`base...HEAD`)이 다음 중 하나에 닿으면 Windows 작업도 돈다:
+       - `.github/workflows/*`
+       - `electron/packaging/*`, `electron/tools/package*`, `electron/tools/windows/*`
+       - `electron/tools/installer-art.py`, `release-assets.ts`, `stage-engine.ts`
+       - `electron/src/main/*`: 주 프로세스, 곧 설치 폴더·실행 폴더·엔진 찾기·수명과 Windows 변화 0 검사의 대상
+       - `electron/package.json`, `package-lock.json`: Electron·electron-builder 판
+       - `engine/build.gradle.kts`, `gradle/*`: jlink 런타임
+       - `tools/package-windows.ps1`
+     - 결과는 작업 요약에 한 줄로 남는다. `setup-e2e`·`setup-upgrade`·`release`는 `setup-exe`에 딸려 함께 건너뛴다. 건너뛴 작업은 실행 결론을 실패로 만들지 않는다.
+  2. **concurrency:** `group: ci-${{ github.ref }}`, `cancel-in-progress`는 PR일 때만 참이다. rebase·새 push가 같은 PR의 옛 실행을 취소한다. main과 태그는 ref마다 한 줄로 서지만 취소하지 않는다.
+  3. **main의 Windows 실패:** main의 Windows 작업이 실패하면 고치는 PR을 가장 먼저 한다. alpha·v2.0.0 태그 전에는 그 main 커밋의 Windows 작업이 초록이어야 한다(D-154의 태그 규칙에 더함).
+  4. **공용 파일:** `docs/PROGRESS.md`와 DECISIONS 번호는 지휘 세션만 고치고, 번호는 지휘 세션이 나눠 준다. 에이전트 PR은 받은 D 번호로 자기 항목만 쓰고 PROGRESS를 고치지 않는다. PROGRESS는 지휘 세션이 모아서 한 PR로 갱신한다.
+  5. **흔들리는 검사:** 원인을 고칠 때까지 격리해 머지를 막지 않는다. 격리하려면 테스트나 단계에 이슈 번호를 달고 `docs/OPEN-ISSUES.md` "격리한 검사" 표에 적는다. v2.0.0 전까지 모두 되돌린다(그 표가 비어야 한다).
+- **이유:**
+  - PR 하나의 머지까지 40~50분이 걸렸고, rebase마다 처음부터 다시 돌았다. 대부분이 Windows 러너의 setup-exe → setup-e2e·setup-upgrade 사슬과 runtime Windows다.
+  - 화면(renderer)·엔진 Java 변경은 Linux 작업이 같은 코드를 모두 돌린다. Windows에서만 드러나는 것은 포장·설치·주 프로세스·런타임이고, 그것에 닿는 PR은 여전히 PR에서 돈다.
+  - 나머지는 main에서 잡고 태그 전에 초록을 요구한다.
+  - 공용 파일 충돌은 rebase를 부르고, rebase는 CI를 처음부터 다시 돌린다.
+- **대안(버림):**
+  - `paths` 필터로 워크플로를 둘로 나누기: 작업 사이의 needs와 산출물(release가 setup-exe를 받음)이 끊긴다.
+  - Windows를 밤마다만 돌리기: 설치에 닿는 PR이 게이트 없이 들어간다.
+  - 병합 큐: 저장소에 보호 규칙이 없고 지휘 세션이 직접 머지한다.
+- **시험:**
+  - 이 PR은 `.github/workflows/`에 닿으므로 Windows 작업까지 돈다(판정 확인).
+  - 다음 화면 PR에서 Windows 작업이 건너뛰어지는 것과 머지까지 걸린 시간을 잰다. 전·후 값은 아래 "측정"에 적는다.

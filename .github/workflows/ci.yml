@@ -7,7 +7,50 @@ on:
   pull_request:
   workflow_dispatch:
 
+# D-166: a new push or rebase of a PR cancels its older run; main and tags are never cancelled.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  # D-166: the PR gate is linux, electron, runtime (Linux) and track-a-java8. The Windows jobs (setup-exe, setup-e2e,
+  # setup-upgrade, runtime on Windows) run on main pushes, v* tags and workflow_dispatch -- and on a PR only when it
+  # touches the packaging, the installer, Windows-only code, the engine runtime build or CI itself (the list below).
+  changes:
+    runs-on: ubuntu-24.04
+    outputs:
+      windows: ${{ steps.decide.outputs.windows }}
+      runtime_os: ${{ steps.decide.outputs.runtime_os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Windows jobs on this run?
+        id: decide
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          windows=true
+          if [ "$EVENT" = pull_request ]; then
+            windows=false
+            changed=$(git diff --name-only "$BASE"...HEAD)
+            printf '%s\n' "$changed"
+            while IFS= read -r f; do
+              case "$f" in
+                .github/workflows/*|electron/packaging/*|electron/tools/package*|electron/tools/windows/*|\
+                electron/tools/installer-art.py|electron/tools/release-assets.ts|electron/tools/stage-engine.ts|\
+                electron/src/main/*|electron/package.json|electron/package-lock.json|\
+                engine/build.gradle.kts|gradle/*|tools/package-windows.ps1)
+                  echo "Windows jobs: $f"; windows=true ;;
+              esac
+            done <<< "$changed"
+          fi
+          if [ "$windows" = true ]; then os='["ubuntu-24.04","windows-2022"]'; else os='["ubuntu-24.04"]'; fi
+          echo "windows=$windows" >> "$GITHUB_OUTPUT"
+          echo "runtime_os=$os" >> "$GITHUB_OUTPUT"
+          echo "windows=$windows runtime=$os" | tee -a "$GITHUB_STEP_SUMMARY"
+
   linux:
     runs-on: ubuntu-24.04
     steps:
@@ -105,10 +148,11 @@ jobs:
   # N-04(D-142): 엔진만 돌리는 jlink 런타임(Java 21, AppCDS). OS마다 따로 만든다. 크기·시작 시간·메모리를 재서
   # 로그와 요약에 남기고, 그 런타임으로 진짜 엔진 e2e(충돌 뒤 되살리기, 고아 java 없음)를 돌린다.
   runtime:
+    needs: changes
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, windows-2022]
+        os: ${{ fromJSON(needs.changes.outputs.runtime_os) }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
     steps:
@@ -194,6 +238,8 @@ jobs:
   # 엔진 jar 둘과 번들 런타임(N-04)이 들어간다. 설치 검사(setup-e2e, setup-upgrade)와 release가 이 파일을 쓴다.
   # "earlier"는 같은 코드를 1.99.0으로 만든 설치 파일이다(예전 버전 위에 덮어 설치하는 검사용, 배포하지 않음).
   setup-exe:
+    needs: changes
+    if: needs.changes.outputs.windows == 'true'
     runs-on: windows-2022
     timeout-minutes: 45
     env:
