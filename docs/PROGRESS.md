@@ -224,17 +224,17 @@ Swing판 v1.1.0은 내지 않는다(D-132). 엔진 쪽 항목은 v2의 N-00에�
 | N-14 | Cycle View, Run Until, Registers·Memory·Instruction(Hallym MIPS 패널), Mark as PC, Register Mapping | #390 | 완료 | #423 | record.* 메서드 19개(RecordTest 20개), Cycle View·Run Until, Hallym MIPS Registers·Data·Inspector 패널(SPIM 유래 제외), Mark as PC·Register Mapping(hcs:ext), 지난 사이클 경합 수정, D-144 |
 | N-15 | Signal Flow, 영향 경로, 활성 경로, 버스 값 칩, 신호 그룹, 영역 메모 | #391 | 완료 | #432 | Signal Flow, 영향 경로, 활성 경로, 필드 색 띠, 버스 값 칩, 신호 그룹, 영역 메모(hcs:ext), D-151 |
 | N-16 | MIPS: Load Program(.hmx·.s), 요약, entry·시작 값, 디스어셈블, Console, 자동 재로드, 실패 시 유지 띠 | #392 | 완료 | #428 | mips.load·facts·disasm·console·reload, Load Program…(.hmx만), 요약, Console 탭, 다시 불러오기 실패 유지 띠, D-147 |
-| N-17 | 창(frameless)·배치·도구 모음·상태 표시줄·시작 화면·대화상자·빈 상태·알림 띠 | #393 | 대기 |  |  |
-| N-18 | 튜토리얼 엔진 + 논리설계 트랙 + 컴퓨터구조 트랙 | #394 | 대기 |  |  |
+| N-17 | 창(frameless)·배치·도구 모음·상태 표시줄·시작 화면·대화상자·빈 상태·알림 띠 | #393 | 완료 | #450, #463 | 창 껍데기(» 넘침 규칙, 캔버스 절반과 한쪽씩), Preferences·키 설정(이번 실행에만), 제목 줄 메뉴(Project 포함), 예제, Ctrl+2…9, Menu Tool, 든 부품 자신의 값(엔진에서 표, 놓기 전 편집·dirty 없음), Quick Attributes가 부품·선·덧그림을 피함, 스크린샷 68장 두 번 찍어 바이트 같음, Components 끌기 흔들림은 #463(D-172)로 먼저, D-158 |
+| N-18 | 튜토리얼 엔진 + 논리설계 트랙 + 컴퓨터구조 트랙 | #394 | 진행 | #466 | L1~L16·C1~C14, 연습 단계는 엔진 자료로 넘어감, 예제 사본을 실행 폴더에서 엶, 시작 카드 2단계·제목 줄 Tutorial 아이콘에서 교과목 트랙으로, 검토 중. 사용자 지시로 alpha.2 뒤 머지, D-161 |
 | N-19 | 실습실 PC 규칙(화면·엔진)과 자동 검사 | #395 | 완료 | #434 | 학생 파일 옆 복구 파일(앱이 죽을 때), 끝내기·탭 닫기 저장 질문, 설정은 이번 실행에만, 엔진 디스크 환경설정 검사(LabPcRuleTest), 부모가 사라지면 엔진 제한 시간 뒤 종료, D-152 |
 | N-20 | 화면 문구 규칙, 문구 리소스, About·NOTICE | #396 | 대기 |  |  |
-| N-21 | 그 밖의 v1 기능 전부, v1 기능 대조표 완료 | #397 | 대기 |  |  |
+| N-21 | 그 밖의 v1 기능 전부, v1 기능 대조표 완료 | #397 | 진행 | #453 | Undo History·Create Submission·그림 내보내기·인쇄·Analyze Circuit·Statistics, 검토 고침 중, D-162 |
 | N-22 | 성능 목표 측정과 달성 | #398 | 완료 | #451 | 첫 시작 0.8~1.3 s, ref-mips 열기 0.7~1.3 s, 이동·확대 60fps(100·150%), N Cycles 1000 2.7~4.3 s(v1 10.2 s), Run 4 kHz 끊김 0, setup exe 118 MB, CI 측정 단계, D-160 |
 | N-23 | setup exe(electron-builder NSIS), 예전 설치본 처리, zip·MSI 금지 CI, Windows 설치본 e2e | #399 | 완료 | #429, #435 | setup exe(NSIS, 사용자별, 약 117MB), 옛 MSI 자동 제거, 설치·실행·제거 변화 0 검사(대조 구간으로 잰 잡음), 릴리스 파일 규칙, D-148 |
-| N-24 | 사전 릴리스 alpha들 | #400 | 진행 | #440, #448 | v2.0.0-alpha.0(보기 전용, facb3cbd, setup sha de7b1370…), v2.0.0-alpha.1(편집, 83e4f7c1, setup sha 73aacd95…), 공개 주소 해시 일치 |
-| N-25 | OPEN-ISSUES 전부 해소 | #401 | 대기 |  |  |
-| N-26 | PLAN 개정, CLAUDE.md, 안내서·PDF, README | #402 | 대기 |  |  |
-| N-27 | Swing 화면 코드 삭제, 빌드·CI 정리 | #403 | 대기 |  |  |
+| N-24 | 사전 릴리스 alpha들 | #400 | 진행 | #440, #448 | v2.0.0-alpha.0(보기 전용, facb3cbd, setup sha de7b1370…), v2.0.0-alpha.1(편집, 83e4f7c1, setup sha 73aacd95…), 공개 주소 해시 일치. alpha.2는 A-09(#459) |
+| N-25 | OPEN-ISSUES 전부 해소 | #401 | 진행 | #456, #462, #463 | 흔들림 고침: Windows 변화 0 검사를 감사 기록으로(D-164), 모달 Tab(D-164), 기록 보기 경합(D-171), Components 끌기(D-172). 남은 것: OPEN-ISSUES "v2 검토에서 넘긴 것", 이슈 #464·#465 |
+| N-26 | PLAN 개정, CLAUDE.md, 안내서·PDF, README | #402 | 진행 | #455 | 1단계: PLAN·CLAUDE.md·검토자·README(D-165). 2단계(안내서·PDF)는 화면 PR 뒤 |
+| N-27 | Swing 화면 코드 삭제, 빌드·CI 정리 | #403 | 완료 | #454 | Swing 91개 클래스·도구·CI 작업 삭제, 원조 GUI 파일 21개 원조와 바이트 같게, 엔진 불변, D-163 |
 | N-28 | v2.0.0 릴리스, 배포 후 검증, needs-human 갱신, 최종 보고 | #404 | 대기 |  |  |
 
 ### 사용자 추가 지시(2026-09-28)
@@ -249,3 +249,7 @@ Swing판 v1.1.0은 내지 않는다(D-132). 엔진 쪽 항목은 v2의 N-00에�
 | A-04 | 부품 모양을 벡터 정의로(화면 Canvas, 내보내기 같은 정의), Canvas·SVG 측정 | #381 | 완료 | #425 | 등록표의 벡터 정의를 Canvas로 그리고 SVG 내보내기가 같은 정의를 씀, ref-mips에서 Canvas·SVG 측정 후 Canvas 결정(D-137) |
 | A-05 | Hallym MIPS 2.5.0 기준 맞추기(시작 화면 배경 영상, 안내형 설치: oneClick false·마침 화면 지금 실행하기·남색 띠·파란 진행 막대, ORIGIN 출처 v2.5.0, .gitattributes, 릴리스 규칙) | #438 | 완료 | #442 | Hallym MIPS v2.5.0 기준, 시작 화면 배경 영상(측정 검사), 안내형 설치(진행 막대·띠 색 측정, 안내형 경로 변화 0 비교), D-155 |
 | A-06 | 보기 전용 사전 릴리스 v2.0.0-alpha.0 | #400 | 완료 | #440 | v2.0.0-alpha.0 사전 릴리스 게시(보기 전용), D-154 |
+| A-07 | Hallym MIPS v2.6.0 맞추기(.hmx 참조, ORIGIN, 시작 화면 유리, 제목 줄 아이콘, 튜토리얼 규칙, 필드 색, 스크린샷 시계·영상 고정, CLAUDE.md 규칙) | #457 | 진행 | #469, #461 | 2단계 머지(#469, D-169: 유리 시작 화면, 캡션 단추가 유리 위, 아이콘 다섯, About 자리). 1단계(#461, D-167) 검토 전. 튜토리얼 규칙은 N-18(#466), CLAUDE.md 규칙은 #455 |
+| A-08 | 교과목별 화면(시작 3단계 카드, 논리설계 모드에서 MIPS 전용 부품·기능 숨김, 제목 줄 교과목 칩, .circ 인자 추론, 교과목별 예제) | #458 | 완료 | #467 | 가리는 것은 표 하나(course.ts), 엔진 불변, Radix Probe는 두 모드 모두, 논리 예제 3개, O-08 뒤집음(사용자 결정 2026-09-29), D-168 |
+| A-09 | 사전 릴리스 v2.0.0-alpha.2(N-17·N-21·A-07·A-08 뒤) | #459 | 대기 |  | 사용자 지시: 머지 순서 #450 → #453·A-07·A-08 → alpha.2 → N-18 … |
+| A-10 | CI 속도(PR 게이트는 Linux, Windows 작업은 main·태그·Windows에 닿는 PR, 옛 실행 취소, linux 나누기, 공용 파일은 지휘 세션, 흔들리는 검사 격리) | — | 완료 | #460 | 전: PR 마지막 CI 중앙 24분, 연 뒤 머지 중앙 48분. 후: 화면만 바꾼 PR 9분 9초(#463, Windows 건너뜀), 설치본 attributes.css 빠짐도 고침, D-166 |

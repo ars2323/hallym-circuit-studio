@@ -91,3 +91,25 @@
 
 | 검사 | 격리 방법 | 이슈 | 격리한 PR | 되돌린 PR |
 |---|---|---|---|---|
+
+## v2 검토에서 넘긴 것 (지휘 세션, 2026-09-29)
+
+머지를 막지 않는다고 판단해 넘긴 검토 항목과 흔들림이다(사용자 지시: 막는 것만 고치고 나머지는 여기로). v2.0.0 전에 모두 고치거나 근거를 적어 닫는다.
+
+| ID | 어디 | 내용 | 할 일 | 맡음 | 상태 |
+|---|---|---|---|---|---|
+| V-01 | 엔진 | Logisim 원조가 4096 Hz로 쉬지 않고 도는 중에 부품을 지우면 편집 스레드에서 ConcurrentModificationException을 낼 수 있다(요청 속도에서는 보지 못함, #427·D-143) | 지울 때 엔진이 틱을 잠시 멈출지, 알려진 한계로 적을지 정한다 | N-25 | 열림 |
+| V-02 | 엔진 | RecordSession의 doAction(Mark as PC·Register File·Register Mapping)이 SimGate 밖에 있다(#430 검토) | quiet()로 감싸고 시험 | N-25 | 열림 |
+| V-03 | 화면 | canvas-100: Comparator 몸체 글자가 .circ가 그 안에 둔 `pc` 터널 태그와 닿는다. canvas-inside: 레지스터 값 칩 자리가 들쭉날쭉(#425 검토) | 우리가 더한 글자가 겹친 부품에 자리를 내준다. 값 칩 자리 규칙 하나 | N-25 | 열림 |
+| V-04 | 화면 | 960 px 좁은 e2e 실행에서 canvas.e2e:116, overlays, labpc가 실패한다(#450 전부터 main) | 좁은 폭에서 고치거나 시험 조건을 정한다 | N-25 | 열림 |
+| V-05 | 화면 | 글자 하나 단축키(R, F, I, [, ])를 다른 키로 바꾸면 그 글자로 Canvas에서 검색을 열 수 없다(D-158 7). 편집 거절(I-08)이 Canvas 아래가 아니라 상태 표시줄에 뜬다. Minimap 빈 자리(D-158 14) | 정하거나 고친다 | N-25 | 열림 |
+| V-06 | 화면 | Components 검색 결과(renderResults)는 set()마다 다시 만든다. 검색 결과에서 끄는 부품도 #463과 같은 경합을 겪을 수 있다 | #463처럼 같은 목록이면 두기, 시험 | N-25 | 열림 |
+| V-07 | 화면 | #450 최종 UI 검토 넘김: influence.png MemtoReg 점선이 칩 가까이(y≈490), file-tabs의 Open Files 묶음이 보이는 범위 밖, edit-wire 그리는 중인 선이 값 칩을 지남, cycle-pinned `pc[31:0]` 칩이 스크롤 뒤 Canvas 위 끝에 잘림, 가짜 엔진 장면의 상태 표시줄 PC와 캔버스 PC 칩 불일치, 덧그림 피하기 시험에 활성 경로·버스 칩 없음 | 하나씩 고치거나 근거를 적어 닫는다 | N-25 | 열림 |
+| V-08 | 화면 | real-engine.e2e:28: 'Cycle 1'(오르는 가장자리) 바로 뒤 F5는 내리는 가장자리까지 Stop으로 동작한다(#466은 시험만 'Run F5'를 기다리게 고침) | 학생에게 보이는 문제인지 보고 제품을 정한다 | N-25 | 열림 |
+| V-09 | 문구 | engine-restarted 대화상자 세부 칸에 엔진의 개발자 문구(`엔진: signal SIGKILL`, `fake engine ready`). Messages 묶음 제목이 문장형(Title Case 아님) | 학생용 문구로 | N-20 | 열림 |
+| V-10 | NOTICE | Logisim 2.7.1에 딸린 서드파티(ColorPicker com.bric, FontChooser connectina, JavaHelp, MRJAdapter net.roydesign)가 엔진 jar에 있으나 NOTICE에 따로 없다(#454 검토) | N-27 뒤 쓰이지 않으면 jar에서 빼고, 쓰이면 NOTICE에 적는다 | N-20 | 열림 |
+| V-11 | 시험 | Windows 변화 0 검사: AppX 재등록 중 `RegisteredApplications`, 설치 뒤 작업 `PostAppInstallTasksCompleted`·`PackageListVersion` 흔들림 | 감사 기록으로 쓴 이 증명 또는 재기 바꾸기. 증거 없이 넓히지 않는다 | #464 | 열림 |
+| V-12 | 시험 | 변화 0 검사의 감사 경로 대소문자·8.3 정규화, D-164 문구(CI는 권한 상승), D-168 11 UEME_CTLSESSION 쓴 이가 감사에 안 잡히는 이유 | 정규화·fail closed, 증거로 바꾸거나 예외 없앰 | #465 | 열림 |
+| V-13 | 시험 | 돌연변이 부족: D-168 11의 REG_BINARY after 조건과 in: ['none'] 넓히기(#467), 시작 캐릭터 168 px와 유리 부제 색(#469) | 돌연변이·시험 더하기, D-169·시험 주석의 towardNavy 실측값(0.415–0.429)과 ci.yml Windows 요약 머리('> 0.4') 고치기 | N-25 | 열림 |
+| V-14 | 시험 | 한 번씩 본 흔들림: overlays.e2e:114(#455), CanvasFixturesTest 상수 해시(#456), find.e2e 'Components search'·circuits-editing 'a subcircuit instance'(#466 로컬) | 원인을 찾거나 D-166 6대로 격리 | N-25 | 열림 |
+| V-15 | 시험 | NOTICE의 OpenJDK 모듈 목록을 runtime/release MODULES와 대조하는 시험 없음(#422 검토) | notice.test.ts에 더한다 | N-25 | 열림 |

@@ -2337,6 +2337,9 @@
     - e2e 도우미
     - 옮기기와 .md
   - `package-stage.test.ts` 5개
+- **받아들인 위험(검토 3회차):** Windows에서만 도는 설치 시험(`installed.e2e.ts`, `windows-start.e2e.ts`)은 허용 목록 안의 화면 선택자·문구와 `tests/circ` 예제에 기댄다. 화면만 바꾼 PR이 그것을 깨면 main에서야 드러난다. 사용자 지시가 이 교환이므로 받아들이고, 3항(main의 Windows 실패를 먼저 고침, 태그 전 초록)으로 막는다. ci.yml `changes` 작업 주석의 "test differently from Linux"는 이 위험을 밝히게 다음에 CI를 고치는 PR에서 바꾼다.
+- **측정(후):** 화면만 바꾼 PR #463의 CI 실행은 9분 9초(run 36520607945, Windows 작업 건너뜀)였다. 전(최근 PR 7개 중앙 24분)의 약 38%다. `linux`는 4.1–4.6분으로 줄었다(전 20–24분).
+
 ## D-165 PLAN.md·CLAUDE.md·검토자·README를 v2 기준으로(N-26 1단계): 옛 결정은 "대체됨"으로 남기고, 규칙은 지금 트리와 결정에서만
 
 - **날짜:** 2026-09-28
