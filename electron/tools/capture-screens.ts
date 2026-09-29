@@ -116,14 +116,17 @@ async function settle(r: Running): Promise<void> {
 
 // Every tile drawn afresh: a tile drawn again after a popup or a hover over it came out a shade apart from one drawn
 // once (the same page, one level of one channel); hidden for two frames and shown, the page is drawn whole.
-async function repaint(page: Page): Promise<void> {
-  await page.evaluate(async () => {
+// A scene about the focus or the pointer keeps both: the page is moved into a layer of its own and back instead (drawn
+// whole twice, nothing hidden).
+async function repaint(page: Page, keep = false): Promise<void> {
+  await page.evaluate(async (k) => {
     const frames = () => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done())));
-    document.documentElement.style.visibility = 'hidden';
+    const st = document.documentElement.style;
+    if (k) st.willChange = 'transform'; else st.visibility = 'hidden';
     await frames();
-    document.documentElement.style.visibility = '';
+    if (k) st.willChange = ''; else st.visibility = '';
     await frames();
-  });
+  }, keep);
 }
 
 // keepFocus: the scene is about a box that has the keys (the search palette closes when it loses them);
@@ -134,8 +137,8 @@ async function shot(r: Running, name: string, o: { keepFocus?: boolean; keepPoin
   if (!o.keepPointer) await page.mouse.move(-10, -10);
   if (!o.keepFocus) await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await settle(r);
-  // (not when the scene is about the focus or the pointer: a hidden page loses both -- the palette closes, the ghost goes)
-  if (!o.keepFocus && !o.keepPointer) await repaint(page);
+  // (a hidden page would lose the focus and the pointer -- the palette closes, the ghost goes: those scenes keep them)
+  await repaint(page, !!(o.keepFocus || o.keepPointer));
   const hovers = () => page.evaluate(() => [...document.querySelectorAll(':hover')].map((e) => e.tagName.toLowerCase() + (e.className ? `.${String(e.className).split(' ')[0]}` : '')));
   let hovered = await hovers();
   // a modal dialog opened under the pointer may miss the move out of the window: in and out again, then look once more
@@ -724,7 +727,8 @@ const canvasPoint = (r: Running, p: [number, number]) => r.page.evaluate((q) => 
   await page.keyboard.press('Escape');
   // nothing chosen first (a click on an empty place): the menu is the wire's alone, the Attributes panel the circuit's
   // (a right click keeps the selection, as the original's -- a kept PC beside a wire's menu read as the menu's)
-  await click(page, [pc.at[0], pc.at[1] + 400]);
+  const corner = await page.evaluate(() => { const v = (window as unknown as { __hcsCanvas: { view: { x: number; y: number } } }).__hcsCanvas.view; return [v.x + 12, v.y + 12] as [number, number]; });
+  await click(page, corner);
   await page.locator('.pbody.attributes .ahead .badge', { hasText: 'Circuit' }).waitFor();
   const w = await wireAtPort(page, 'Register', 'Q');
   await rightClick(page, w.quarter);

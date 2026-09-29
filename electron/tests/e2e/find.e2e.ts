@@ -96,6 +96,9 @@ test('Components search: the palette\'s ranking without commands, ↓ to the lis
     await expect(rows.nth(1).getByRole('option')).toBeFocused();
     await page.keyboard.press('Enter');
     expect((await placedEvents(page)).at(-1)).toMatchObject({ lib: 'Gates', name: 'NAND Gate', attrs: { inputs: '3' } });
+    // the Attributes panel: the held part's own values over the tool's (D-158, UI review of edit-ghost.png)
+    await expect(page.locator('.pbody.attributes .aname')).toHaveText('NAND Gate');
+    await expect(page.locator('.pbody.attributes').getByLabel('Number Of Inputs')).toHaveValue('3');
     await box.fill('reset');
     await expect(page.locator('.compnone')).toContainText('맞는 부품이 없습니다');
     await box.fill('main');

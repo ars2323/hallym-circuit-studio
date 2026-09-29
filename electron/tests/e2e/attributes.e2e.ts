@@ -61,6 +61,14 @@ test('the Attributes panel (I-99..I-101, I-20, I-53, I-54, I-83; B-04, Y-05): th
     await expect(panel.locator('.afacts li')).toHaveText(['Location (300, 200)', 'Facing east']);
     await expect(panel.locator('.atable tbody th')).toHaveText(['Facing', 'Data Bits', 'Gate Size', 'Number Of Inputs', 'Output Value', 'Label', 'Label Font',
       'Negate 1 (Top)', 'Negate 2', 'Negate 3', 'Negate 4', 'Negate 5 (Bottom)']);
+    // every name whole at 1920 × 100 % (not cut with …: D-158 18)
+    expect(await panel.locator('.atable tbody th').evaluateAll((ths) => ths.filter((th) => th.scrollWidth > th.clientWidth).map((th) => th.textContent))).toEqual([]);
+    // and the font's style list wide enough for its longest choice, Bold Italic
+    expect(await panel.locator('.afont select').nth(1).evaluate((style) => {
+      const ctx = document.createElement('canvas').getContext('2d')!;
+      ctx.font = getComputedStyle(style).font;
+      return (style as HTMLSelectElement).clientWidth - 12 - 18 - Math.max(...[...(style as HTMLSelectElement).options].map((o) => ctx.measureText(o.text).width));
+    })).toBeGreaterThanOrEqual(0);
     // a list: at once, on the selection (edit.setAttr without ids: the engine's selection, AttrTableSelectionModel)
     await panel.getByLabel('Number Of Inputs').selectOption('3');
     await expect.poll(async () => (await sent(r, 'edit.setAttr')).at(-1)).toMatchObject({ attr: 'inputs', value: '3' });

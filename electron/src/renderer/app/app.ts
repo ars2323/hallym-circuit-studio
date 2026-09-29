@@ -454,6 +454,10 @@ const attrsPanel = new AttributesPanel(attributesBody, {
   circuitNames: (fileId, except) => (files.get(fileId)?.circuits ?? []).filter((c) => c.circuitId !== except).map((c) => c.name),
   contents: (id) => openContents(id),
   toolChanged: () => { if (editor.tool === 'Place') void editor.place.refresh(); },
+  heldChanged: (attr, value) => {
+    const held = editor.tool === 'Place' ? editor.place.held : null;
+    if (held?.attrs && attr in held.attrs) { held.attrs = { ...held.attrs, [attr]: value }; renderAttributes(); }
+  },
   quickToggled: () => quickBar?.update(),
 });
 attrsPanel.selected = () => editor.selection()?.ids ?? [];

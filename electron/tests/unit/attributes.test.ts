@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import type { AttrRow, AttrTable } from '../../src/main/protocol.ts';
-import { badValueSentence, circuitNameProblem, colorField, colorValue, editorOf, fontParts, fontValue, heading, hintLine, placement, QUICK_MAX, quickButtons, type Rect, requestFor, requestKey } from '../../src/renderer/app/logic/attributes.ts';
+import { badValueSentence, circuitNameProblem, colorField, colorValue, editorOf, fontParts, fontValue, heading, hintLine, placement, QUICK_MAX, quickButtons, type Rect, requestFor, requestKey, withHeld } from '../../src/renderer/app/logic/attributes.ts';
 
 const row = (attr: string, over: Partial<AttrRow> = {}): AttrRow =>
   ({ attr, display: attr, value: '1', text: '1', type: 'text', readOnly: false, mixed: false, ...over });
@@ -128,3 +128,17 @@ test('placement (v1 QuickBar.placement): above left first; then the order above-
   const r2 = placement(target, bar, [hard], [soft, { x: 360, y: 0, w: 640, h: 800 }, { x: 0, y: 0, w: 300, h: 800 }], view);
   assert.ok(r2.y > 340 && !(r2.y + r2.h > 250 && r2.y < 300), JSON.stringify(r2));
 });
+
+test('withHeld: a part held with values of its own shows them over the tool\'s; requestFor carries them, requestKey tells them apart', () => {
+  const row = (attr: string, value: string, options?: { value: string; display: string }[]): AttrRow =>
+    ({ attr, display: attr, value, text: options?.find((o) => o.value === value)?.display ?? value, type: options ? 'option' : 'string', readOnly: false, mixed: false, ...(options ? { options } : {}) } as AttrRow);
+  const t = { target: 'tool', title: 'Tool: AND Gate', lib: 'Gates', name: 'AND Gate', editable: true,
+    rows: [row('inputs', '5', [{ value: '3', display: '3' }, { value: '5', display: '5' }]), row('facing', 'east', [{ value: 'east', display: 'East' }, { value: 'west', display: 'West' }])] } as unknown as AttrTable;
+  const h = withHeld(t, { inputs: '3', facing: 'west' });
+  assert.deepEqual(h.rows.map((r) => [r.value, r.text]), [['3', '3'], ['west', 'West']]);
+  assert.equal(t.rows[0].value, '5');   // the tool's own table untouched
+  const req = requestFor('f', 'c', 'Place', { lib: 'Gates', name: 'AND Gate', attrs: { inputs: '3' } });
+  assert.deepEqual(req, { kind: 'tool', fileId: 'f', lib: 'Gates', name: 'AND Gate', attrs: { inputs: '3' } });
+  assert.notEqual(requestKey(req), requestKey(requestFor('f', 'c', 'Place', { lib: 'Gates', name: 'AND Gate' })));
+});
+

@@ -13,17 +13,31 @@ import type { AttrOption, AttrRow, AttrTable, QuickFacts } from '../../../main/p
 // (the circuit's attributes when nothing is selected: the engine answers so).
 export type AttrRequest =
   | { kind: 'selection'; fileId: string; circuitId: string }
-  | { kind: 'tool'; fileId: string; lib: string | null; name: string };
+  | { kind: 'tool'; fileId: string; lib: string | null; name: string; attrs?: Record<string, string> };
 
 // The tool in hand (the toolbar's name, the part held) → what the table is of.
-export function requestFor(fileId: string, circuitId: string, tool: string, held: { lib: string | null; name: string } | null): AttrRequest {
-  if (tool === 'Place' && held) return { kind: 'tool', fileId, lib: held.lib, name: held.name };
+export function requestFor(fileId: string, circuitId: string, tool: string, held: { lib: string | null; name: string; attrs?: Record<string, string> } | null): AttrRequest {
+  if (tool === 'Place' && held) return { kind: 'tool', fileId, lib: held.lib, name: held.name, ...(held.attrs && Object.keys(held.attrs).length ? { attrs: { ...held.attrs } } : {}) };
   if (tool === 'Text') return { kind: 'tool', fileId, lib: 'Base', name: 'Text Tool' };
   return { kind: 'selection', fileId, circuitId };
 }
 
 export const requestKey = (r: AttrRequest | null): string =>
-  !r ? '' : r.kind === 'tool' ? `tool ${r.fileId} ${r.lib ?? ''} ${r.name}` : `sel ${r.fileId} ${r.circuitId}`;
+  !r ? '' : r.kind === 'tool' ? `tool ${r.fileId} ${r.lib ?? ''} ${r.name} ${JSON.stringify(r.attrs ?? {})}` : `sel ${r.fileId} ${r.circuitId}`;
+
+// A part held with values of its own (the search palette's "and 3", Ctrl+2..9's toolbar tool): the tool's table shows
+// what will be placed -- those values over the tool's (D-158, UI review of edit-ghost.png).
+export function withHeld(t: AttrTable, attrs: Record<string, string>): AttrTable {
+  return {
+    ...t,
+    rows: t.rows.map((r) => {
+      const v = attrs[r.attr];
+      if (v === undefined) return r;
+      const text = r.options?.find((o) => o.value === v)?.display ?? v;
+      return { ...r, value: v, text, mixed: false };
+    }),
+  };
+}
 
 // The original title "Selection: AND Gate × 2" as the Inspector's head: the name, and what it is of in a badge.
 export function heading(t: AttrTable): { name: string; badge: string } {

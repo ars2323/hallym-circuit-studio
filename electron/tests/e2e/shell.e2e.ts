@@ -466,12 +466,12 @@ test('the lab PCs at 125 % and 150 %: the whole bar and every fact at once, noth
       expect(await units(r.page, '[data-over]'), scale).toEqual([]);
       expect((await facts(r.page)).more, scale).toEqual([]);
       expect(await fitsWindow(r.page)).toEqual({ status: true, title: true });
-      // the Attributes panel (the circuit's table): names on one line, the font's style list wide enough for its
+      // the Attributes panel (the circuit's table): names whole on one line (over their values when narrow), the font's style list wide enough for its
       // longest choice (UI review of lab-125/150.png: "Plai", "Shared / Label / Facing")
       const table = r.page.locator('.pbody.attributes .atable');
       await expect(table.locator('tbody th', { hasText: 'Shared Label Font' })).toBeVisible();
       const fit = await table.evaluate((t) => {
-        const names = [...t.querySelectorAll('tbody th')].map((th) => { const range = document.createRange(); range.selectNodeContents(th); return new Set([...range.getClientRects()].map((q) => Math.round(q.top))).size === 1; });
+        const names = [...t.querySelectorAll('tbody th')].map((th) => { const range = document.createRange(); range.selectNodeContents(th); return new Set([...range.getClientRects()].map((q) => Math.round(q.top))).size === 1 && th.scrollWidth <= th.clientWidth; });
         const style = t.querySelectorAll('.afont select')[1] as HTMLSelectElement;
         const ctx = document.createElement('canvas').getContext('2d')!;
         ctx.font = getComputedStyle(style).font;

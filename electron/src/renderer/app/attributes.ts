@@ -21,7 +21,7 @@ import type { AttrRow, AttrTable, WindowMethod } from '../../main/protocol.ts';
 import { h } from '../shared/dom.ts';
 import type { NoticeHost } from '../shared/notice.ts';
 import type { CallError } from './api.ts';
-import { type AttrRequest, badValueSentence, circuitNameProblem, colorField, colorValue, editorOf, fontParts, fontValue, heading, requestKey } from './logic/attributes.ts';
+import { type AttrRequest, badValueSentence, circuitNameProblem, colorField, colorValue, editorOf, fontParts, fontValue, heading, requestKey, withHeld } from './logic/attributes.ts';
 import type { SelectionFacts } from './logic/selection-facts.ts';
 
 export interface AttributesHost {
@@ -31,6 +31,7 @@ export interface AttributesHost {
   circuitNames(fileId: string, except: string): string[];   // the other circuits' names (a new name must differ)
   contents(componentId: string): void;                  // a ROM's Contents row: the hex editor
   toolChanged(): void;                                  // the tool's attributes changed: its ghost again
+  heldChanged?(attr: string, value: string): void;      // a value of the part held changed (its own values, withHeld)
   quickToggled(on: boolean): void;                      // the foot's Quick Attributes
 }
 
@@ -74,6 +75,7 @@ export class AttributesPanel {
       t = null;                                         // the engine is not there (restarting): the facts only
     }
     if (n !== this.asked) return;
+    if (t && req.kind === 'tool' && req.attrs) t = withHeld(t, req.attrs);
     this.set(t, force);
   }
 
@@ -240,6 +242,8 @@ export class AttributesPanel {
     try {
       await this.host.call(method, params);
       this.error = null;
+      // the part held has this value of its own: that one changes too (else the ghost and the table keep the old one)
+      if (t.target === 'tool' && req.kind === 'tool' && req.attrs?.[r.attr] !== undefined) this.host.heldChanged?.(r.attr, value);
       if (t.target === 'tool') this.host.toolChanged();
       await this.refresh(true);
       return true;
