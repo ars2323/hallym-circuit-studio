@@ -10,9 +10,12 @@
 
 import { h } from './dom.ts';
 
+// A band's one command (the engine's Try Again, the simulation's Turn On: v1 I-160, D-158).
+export interface BandAction { label: string; run(): void }
+
 export interface Band {
   root: HTMLElement;
-  show(text: string, kind?: 'warn' | 'error', title?: string): void;   // title: the whole story, on hover
+  show(text: string, kind?: 'warn' | 'error', title?: string, action?: BandAction): void;   // title: the whole story, on hover
   hide(): void;
   text(): string | null;
 }
@@ -20,21 +23,32 @@ export interface Band {
 // cls: the band's class ('band', shared.css; another band styles its own).
 export function band(cls = 'band'): Band {
   const root = h('div', { class: cls, 'data-band': '', role: 'status', hidden: true });
+  const words = h('span', { class: 'bandtext' });
+  const button = h('button', { class: 'linkbtn bandaction', type: 'button', hidden: true });
+  let run: (() => void) | null = null;
+  button.addEventListener('click', () => run?.());
+  root.append(words, button);
   return {
     root,
-    show: (text, kind = 'warn', title = text) => {
+    show: (text, kind = 'warn', title = text, action) => {
       root.hidden = false;
       document.body.classList.add('band-shown');
       root.dataset.kind = kind;
-      if (root.textContent !== text) root.textContent = text;
+      if (words.textContent !== text) words.textContent = text;
       if (root.title !== title) root.title = title;
+      run = action?.run ?? null;
+      button.hidden = !action;
+      if (button.textContent !== (action?.label ?? '')) button.textContent = action?.label ?? '';
     },
     hide: () => {
       root.hidden = true;
-      root.textContent = '';
+      words.textContent = '';
+      button.hidden = true;
+      button.textContent = '';
+      run = null;
       root.title = '';
       if (!document.querySelector('[data-band]:not([hidden])')) document.body.classList.remove('band-shown');
     },
-    text: () => (root.hidden ? null : root.textContent),
+    text: () => (root.hidden ? null : words.textContent),
   };
 }

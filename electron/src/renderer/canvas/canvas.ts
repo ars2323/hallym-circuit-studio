@@ -69,6 +69,10 @@ export class CircuitCanvas {
   view: View = { x: 0, y: 0, zoom: 1 };
   theme: Theme = { ...THEME };
   busWidths = true;
+  showGrid = true;                             // the zoom menu's Show Grid (v1 I-119; this run only)
+  // The width (CSS px) a window over the Canvas's right side covers now (Find, D-158): "show this place" centres a
+  // place in what is left, so the window never hides what it found (#433's UI review).
+  coveredRight: () => number = () => 0;
   private width = 0;
   private height = 0;
   private dpr = 1;
@@ -91,6 +95,9 @@ export class CircuitCanvas {
   private drag: { x: number; y: number; view: View } | null = null;
   private spaceDown = false;
   private fitted = false;
+  // The view is the fit the Canvas chose itself (a circuit shown with no view of its own) and nobody has moved it since:
+  // while so, a new size fits again -- the panels settling round a file just opened give the same view every time (D-158).
+  private autoFit = false;
   // The tool in hand (app/editor.ts, N-07/N-08): every pointer event but panning, and the keys. None: N-05's own click and double click.
   tool: CanvasTool | null = null;
   private pressed = -1;                       // the pointer id of a button the tool got (down .. up)
@@ -128,9 +135,9 @@ export class CircuitCanvas {
     this.selected.clear();
     this.marked = null;
     this.tip.hidden = true;
-    if (view) { this.view = view; this.fitted = true; } else this.fitted = false;
+    if (view) { this.view = view; this.fitted = true; this.autoFit = false; } else this.fitted = false;
     this.readTheme();
-    if (!view && this.width > 0) this.fitView(false);
+    if (!view && this.width > 0) this.autoFitView();
     if (other) {
       for (const o of this.overlays) o.sceneChanged?.(scene);
       this.selectionChanged();
@@ -192,6 +199,7 @@ export class CircuitCanvas {
   // ---- zoom and pan -------------------------------------------------------------------------------
 
   setView(v: View, animate = false, about?: [number, number]): void {
+    this.autoFit = false;   // moved: the student's (or a place shown), kept at any size
     const to = { ...v, zoom: clampZoom(v.zoom) };
     if (animate) {
       this.anim = { from: { ...this.view }, to, start: performance.now(), ms: 140, about };
@@ -224,6 +232,11 @@ export class CircuitCanvas {
     this.setView(fit(b, this.width, this.height), animate);
   }
 
+  private autoFitView(): void {
+    this.fitView(false);
+    this.autoFit = true;
+  }
+
   private resize(): void {
     const r = this.root.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
@@ -236,7 +249,7 @@ export class CircuitCanvas {
     this.canvas.style.width = `${r.width}px`;
     this.canvas.style.height = `${r.height}px`;
     this.grid = null;
-    if (!this.fitted && this.scene && this.width > 0) this.fitView(false);
+    if ((!this.fitted || this.autoFit) && this.scene && this.width > 0) this.autoFitView();
     this.invalidate();
   }
 
@@ -559,7 +572,7 @@ export class CircuitCanvas {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = this.theme.paper;
     ctx.fillRect(0, 0, this.width, this.height);
-    if (!print) this.drawGrid();
+    if (!print && this.showGrid) this.drawGrid();
     const s = this.scene;
     if (!s) return;
     this.layout();
@@ -1114,9 +1127,11 @@ export class CircuitCanvas {
     if (b && this.width > 0) {
       const box: Box = b;
       const pad = 40 / this.view.zoom;
-      const fits = (box.x1 - box.x0) + 2 * pad <= this.width / this.view.zoom && (box.y1 - box.y0) + 2 * pad <= this.height / this.view.zoom;
+      // the part of the Canvas no window covers (at least half of it)
+      const free = Math.max(this.width / 2, this.width - Math.max(0, this.coveredRight()));
+      const fits = (box.x1 - box.x0) + 2 * pad <= free / this.view.zoom && (box.y1 - box.y0) + 2 * pad <= this.height / this.view.zoom;
       const cx = (box.x0 + box.x1) / 2, cy = (box.y0 + box.y1) / 2;
-      this.setView(fits ? { zoom: this.view.zoom, x: cx - this.width / 2 / this.view.zoom, y: cy - this.height / 2 / this.view.zoom } : fit(box, this.width, this.height), true);
+      this.setView(fits ? { zoom: this.view.zoom, x: cx - free / 2 / this.view.zoom, y: cy - this.height / 2 / this.view.zoom } : fit(box, free, this.height), true);
     }
     this.invalidate();
   }
@@ -1135,6 +1150,16 @@ export class CircuitCanvas {
       ctx.beginPath();
       ctx.rect(x + i, y + i, Math.max(0, w - 2 * i), Math.max(0, hh - 2 * i));
       if (behind) { ctx.fillStyle = tint; ctx.fill(); } else { ctx.strokeStyle = line; ctx.lineWidth = 2 / z; ctx.stroke(); }
+      // A part found by its name also gets a halo around it: its own blue tint is weak on a light-blue tunnel
+      // (#433's UI review).  Only for 'find': an error's mark stays inside the part (#425's).
+      if (!behind && m.tone === 'find') {
+        const o = 4 / z;
+        ctx.beginPath();
+        ctx.roundRect(x - o, y - o, w + 2 * o, hh + 2 * o, 4 / z);
+        ctx.strokeStyle = 'rgba(0,85,165,0.45)';
+        ctx.lineWidth = 3 / z;
+        ctx.stroke();
+      }
     }
     if (behind) return;
     const wires = new Set(m.wires);

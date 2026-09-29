@@ -50,7 +50,7 @@ Hallym MIPS `electron/`에는 SPIM의 `CPU/op.h`에서 만든 `src/core/op-table
 | `src/renderer/assets/fonts/D2Coding.woff2` | `electron/src/renderer/assets/fonts/D2Coding.woff2` | copy | — |
 | `src/renderer/assets/fonts/OFL-D2Coding.txt` | `electron/src/renderer/assets/fonts/OFL-D2Coding.txt` | copy | — |
 | `src/renderer/assets/icons/lucide/LICENSE.txt` | `electron/src/renderer/assets/icons/lucide/LICENSE.txt` | copy | — |
-| `src/renderer/assets/icons/lucide/{circle-question-mark, file-plus, folder-open, save, play, square, step-forward, rotate-ccw}.svg` | `electron/src/renderer/assets/icons/lucide/` 같은 이름 | copy | — |
+| `src/renderer/assets/icons/lucide/{circle-question-mark, file-plus, folder-open, save, play, square, step-forward, rotate-ccw, settings}.svg` | `electron/src/renderer/assets/icons/lucide/` 같은 이름 | copy | — (`settings`: D-158 Preferences, Hallym MIPS의 Settings와 같은 톱니) |
 | `LICENSE.hallym-mips.txt` | `LICENSE` | copy | — |
 | `hallym-assets.md` | `electron/src/renderer/assets/hallym/README.md` | derived | 이 저장소 `assets/hallym/`의 파일 이름으로 다시 씀(About › Licenses에 나옴) |
 | `tsconfig.json` | `electron/tsconfig.json` | derived | 같은 컴파일러 설정. 이 트리의 폴더 |
@@ -88,6 +88,6 @@ Hallym MIPS `electron/`에는 SPIM의 `CPU/op.h`에서 만든 `src/core/op-table
 
 ## Hallym MIPS가 아닌 곳에서 온 것
 
-- **Lucide 아이콘(더한 것, 30개):** `src/renderer/assets/icons/lucide/`의 `undo-2`, `redo-2`, `mouse-pointer-2`, `pointer`, `workflow`, `type`, `square-dot`, `tag`, `crosshair`, `activity`, `fast-forward`, `gauge`, `file-code`, `info`, `x`, `cpu`, `circuit-board`, `house`, 그리고 N-11(모양 편집 도구, Circuits 패널)의 `slash`, `spline`, `waypoints`, `rectangle-horizontal`, `square-round-corner`, `circle`, `pentagon`, `plus`, `import`, `library`, `arrow-up`, `arrow-down`. npm 패키지 `lucide-static` **1.48.0**의 `icons/`에서 가져와 Hallym MIPS의 아이콘과 같은 모양으로 만들었다(첫 줄 라이선스 주석과 `class` 속성만 뺌, 그림은 그대로: `tools/import-hmips.ts --lucide`). 라이선스는 같은 `LICENSE.txt`(ISC, Feather 유래는 MIT).
+- **Lucide 아이콘(더한 것, 31개):** `src/renderer/assets/icons/lucide/`의 `undo-2`, `redo-2`, `mouse-pointer-2`, `pointer`, `workflow`, `type`, `square-dot`, `tag`, `crosshair`, `activity`, `fast-forward`, `gauge`, `file-code`, `info`, `x`, `cpu`, `circuit-board`, `house`, 그리고 N-11(모양 편집 도구, Circuits 패널)의 `slash`, `spline`, `waypoints`, `rectangle-horizontal`, `square-round-corner`, `circle`, `pentagon`, `plus`, `import`, `library`, `arrow-up`, `arrow-down`, N-17(D-158) 제목 줄의 `menu`. npm 패키지 `lucide-static` **1.48.0**의 `icons/`에서 가져와 Hallym MIPS의 아이콘과 같은 모양으로 만들었다(첫 줄 라이선스 주석과 `class` 속성만 뺌, 그림은 그대로: `tools/import-hmips.ts --lucide`). 라이선스는 같은 `LICENSE.txt`(ISC, Feather 유래는 MIT).
 - **학교 식별요소:** 로고와 캐릭터는 복사하지 않는다. 화면은 이 저장소의 원본 `assets/hallym/`(Hallym MIPS가 쓰는 것과 바이트까지 같은 파일, `assets/MANIFEST.sha256`)을 그대로 불러 크기만 줄인다. 시작 화면 영상과 정지 그림(`src/renderer/assets/hallym/start/`)은 이 저장소에 원본이 없어 Hallym MIPS v2.5.0의 파일을 바이트 그대로 가져왔다(`copy`, D-155; 고지는 NOTICE와 `hallym-assets.md`).
 - **나머지(`src/main/engine.ts`, `rpc.ts`, `engine-locate.ts`, `run-folder.ts`, `protocol.ts`, `src/renderer/app/*`, `src/renderer/shared/band.ts`, `tests/fake-engine/`, 설치 파일의 옵션과 검사 `tools/package-config.ts`·`tools/release-assets.ts`·`tools/windows/state.ts`·`tools/windows/check-install.ps1`, 나머지 테스트):** 이 앱을 위해 새로 썼다.

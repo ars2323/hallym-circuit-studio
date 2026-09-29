@@ -42,7 +42,9 @@
 /* ---- Find (find.ts): a window over the Canvas's top right corner ------------------ */
 .canvaspanel { position: relative; }
 .findwin {
-  position: absolute; z-index: 30; top: 72px; right: 12px; width: min(460px, calc(100% - 24px)); max-height: min(440px, calc(100% - 84px));
+  position: absolute; z-index: 30; top: 72px; right: 12px; max-height: min(440px, calc(100% - 84px));
+  /* never more than half a narrow Canvas: what it finds is shown in the other half (D-158, #433's UI review) */
+  width: min(460px, max(300px, calc(50% - 24px)), calc(100% - 24px));
   display: flex; flex-direction: column; background: var(--white); border: 1px solid var(--border); border-radius: 10px;
   box-shadow: 0 12px 36px rgba(0,32,91,.20); overflow: hidden;
 }
@@ -98,12 +100,14 @@
 .spreset { height: 30px; padding: 0 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--white); color: var(--navy); }
 .sdir { display: flex; gap: 16px; }
 .sdir label { display: inline-flex; align-items: center; gap: 5px; }
-.sstrip { display: grid; grid-template-columns: repeat(var(--cells), 16px); width: max-content; max-width: 100%; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; cursor: pointer; user-select: none; }
+/* As wide as the Ranges field above it, the cells sharing it (#433's UI review: the strip was narrower) */
+.sstrip { display: grid; grid-template-columns: repeat(var(--cells), minmax(0, 1fr)); width: calc(100% - 102px); margin-left: 102px; /* under the field: .sform's 90 px label and 12 px gap */
+  border: 1px solid var(--border); border-radius: 4px; overflow: hidden; cursor: pointer; user-select: none; }
 .scell { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 38px; background: var(--c, var(--white)); border-left: 1px solid rgba(0,32,91,.12); font-family: var(--code); }
 .scell:first-child { border-left: 0; }
 .scell.edge { border-left: 2px solid var(--navy); }
-.scell .sbit { font-size: 9px; color: var(--text-2); line-height: 1.2; }
-.scell .sarmno { font-size: 10px; color: var(--text); line-height: 1.4; }
+.scell .sbit { font-size: 10px; color: var(--text-2); line-height: 1.2; }   /* never under 8 px on screen (#433's UI review) */
+.scell .sarmno { font-size: 11px; color: var(--text); line-height: 1.4; }
 .scell.none { background: var(--white); }
 .sarms { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; max-height: 260px; overflow: auto; }
 .sarm { display: grid; grid-template-columns: 170px minmax(0, 1fr) 64px; align-items: center; gap: 10px; }

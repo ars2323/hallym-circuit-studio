@@ -7,6 +7,7 @@
 import type { ElectronApplication, Page } from '@playwright/test';
 
 import type { LibraryGroup, Snapshot } from '../../src/main/protocol.ts';
+import { openAbout } from './harness.ts';
 
 type AppWindow = { app: { call(method: string, params: unknown): Promise<unknown> } };
 
@@ -41,7 +42,7 @@ export const engineHello = (app: ElectronApplication): Promise<EngineHello | nul
 
 // About's engine line ("Engine hcs-engine 2 · Logisim 2.7.1 · Java 21.0.12"): About opened, read, closed.
 export async function aboutEngineLine(page: Page): Promise<string> {
-  await page.getByTitle('About').click();
+  await openAbout(page);
   const about = page.locator('dialog.about');
   const line = about.locator('p.hint', { hasText: /^Engine / });
   await line.waitFor();

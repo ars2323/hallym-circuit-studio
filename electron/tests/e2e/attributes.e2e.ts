@@ -119,6 +119,9 @@ test('the Attributes panel (I-99..I-101, I-20, I-53, I-54, I-83; B-04, Y-05): th
     await expect.poll(async () => (await sent(r, 'edit.setToolAttr')).at(-1)).toMatchObject({ lib: 'Wiring', name: 'Pin', attr: 'width', value: '4' });
     await expect.poll(async () => (await sent(r, 'model.tool')).length).toBeGreaterThan(ghosts);
     await expect(panel.getByLabel('Data Bits')).toHaveValue('4');
+    // numbers in D2Coding as every value (0 and O apart, D-158); words (Facing's East) in the sentences' font
+    expect(await panel.getByLabel('Data Bits').evaluate((e) => getComputedStyle(e).fontFamily)).toMatch(/D2Coding/);
+    expect(await panel.getByLabel('Facing').evaluate((e) => getComputedStyle(e).fontFamily)).not.toMatch(/D2Coding/);
     // the Text tool: a Label's attributes (I-83)
     await tool(page, 'Text').click();
     await expect(panel.locator('.aname')).toHaveText('Text Tool');
@@ -204,6 +207,20 @@ test('Quick Attributes (I-103, I-104, S-04): by one kind of part chosen with the
     await expect(bar).toBeHidden();
     await page.locator('.pbody.attributes .afoot input').check();
     await expect(bar).toBeVisible();
+    // a right click on another part: its menu, the selection kept (the original's MenuTool.mousePressed); the bar
+    // (the selection's) away while that menu is open, back when it closes (D-158)
+    await rightClick(page, mid(two));
+    await expect(menu(page)).toBeVisible();
+    await expect(bar).toBeHidden();
+    expect(await selected(page)).toEqual([p['OR Gate'].id]);
+    await page.keyboard.press('Escape');
+    await expect(menu(page)).toBeHidden();
+    await expect(bar).toBeVisible();
+    // on the selection itself: the bar stays
+    await rightClick(page, mid(p['OR Gate']));
+    await expect(menu(page)).toBeVisible();
+    await expect(bar).toBeVisible();
+    await page.keyboard.press('Escape');
     // another tool: none
     await tool(page, 'Wire').click();
     await expect(bar).toBeHidden();

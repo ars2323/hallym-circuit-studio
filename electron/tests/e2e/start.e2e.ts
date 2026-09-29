@@ -133,7 +133,7 @@ test('바로 시작 → 새 회로: an empty circuit from the engine, its main c
     await page.getByRole('button', { name: /새 회로/ }).click();
     await expect(page.locator('.filebar .ptab')).toHaveText(['untitled.circ']);
     await expect(page.locator('.circuitbar .ptab')).toHaveText(['main']);
-    await expect(page.locator('.titlebar .file')).toHaveText('untitled.circ');
+    await expect(page.locator('.titlebar .file')).toHaveAttribute('title', 'untitled.circ');   // the whole name (a narrow bar shortens the text, D-158)
     await expect(page.locator('.status')).toContainText('main · 0 components · 0 wires');
     await expect(page.locator('.upper .pbody:visible .list > li')).not.toHaveCount(0); // Components: the engine's library
     await expect(page).toHaveTitle('untitled.circ — Hallym Circuit Studio');
@@ -195,12 +195,14 @@ test('a file that cannot be opened: the window\'s own words, the file\'s name al
   const { page } = r;
   try {
     expect(await visibleCharacters(page)).toBe(1); // the greeting
-    await answerOpen(r.app, path.join(r.dir, 'lab3.circ'));
+    await answerOpen(r.app, path.join(r.dir, 'week3', 'lab3.circ'));
     await page.keyboard.press('Control+o');
     const dialog = page.locator('dialog.ask');
     await expect(dialog.locator('h2')).toHaveText('파일을 열지 못했습니다');
     await expect(dialog.locator('.askfile')).toHaveText('File: lab3.circ');
-    await expect(dialog.locator('.asktext > p').last()).toHaveText('그 자리에 파일이 없습니다. 파일을 옮기거나 이름을 바꿨다면 Open으로 다시 골라 여세요.');
+    // The folder by its name (never the whole path), the Open button by its key (D-158: #413's UI review).
+    expect((await dialog.locator('.asktext > p').last().innerText()).replace(/\u2060/g, ''))
+      .toBe('week3 폴더에 그 이름의 파일이 없습니다. 파일을 옮기거나 이름을 바꿨다면 제목 줄의 Open 단추(Ctrl+O)로 다시 골라 여세요.');
     // The engine's own words (English, with the whole path) are not the student's.
     const text = await dialog.innerText();
     expect(text).not.toContain('no such file');

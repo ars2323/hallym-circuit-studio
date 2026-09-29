@@ -139,7 +139,7 @@ export class AttributesPanel {
     const label = r.display;
     switch (kind) {
       case 'text':
-        return h('span', { class: 'aval', title: r.text }, r.text);
+        return h('span', { class: `aval${numericValue(r.text) ? ' mono' : ''}`, title: r.text }, r.text);
       case 'contents': {
         const b = h('button', { type: 'button', class: 'alink', 'aria-label': label }, r.text || '(click to edit)');
         const ids = t.target === 'selection' ? this.selectionIds() : [];
@@ -148,7 +148,9 @@ export class AttributesPanel {
         return b;
       }
       case 'select': {
-        const s = h('select', { 'aria-label': label }) as HTMLSelectElement;
+        // numbers (Data Bits 1…32, Number Of Inputs) in D2Coding like every value; words (East, Yes) in Pretendard (D-158)
+        const numbers = (r.options ?? []).length > 0 && (r.options ?? []).every((o) => numericValue(o.display));
+        const s = h('select', { 'aria-label': label, class: numbers ? 'mono' : undefined }) as HTMLSelectElement;
         if (r.mixed || r.value === null) s.append(h('option', { value: '', selected: true, disabled: true }, ''));
         for (const o of r.options ?? []) s.append(h('option', { value: o.value, selected: o.value === r.value }, o.display));
         s.addEventListener('change', () => void this.apply(t, r, s.value));
@@ -253,3 +255,7 @@ export class AttributesPanel {
     }
   }
 }
+
+// A value that is a number (32, -3, 0x1F): set in D2Coding like the Canvas's values and the tables' (0 and O
+// apart; D-158, the coordinator's note on #449).  Words and names stay in the sentences' font.
+export const numericValue = (text: string): boolean => /^[-+]?(0x[0-9a-f]+|\d+)$/i.test(text.trim());

@@ -32,7 +32,8 @@ export function selectionFacts(chosen: (Component | Wire)[]): SelectionFacts | n
     return { title: partName(c), lines };
   }
   const title = [parts.length ? plural(parts.length, 'component') : '', wires ? plural(wires, 'wire') : ''].filter(Boolean).join(', ');
-  const names = parts.map(partName);
+  // in name order: the engine's selection is a set with no order of its own, and the same selection reads the same (D-158)
+  const names = parts.map(partName).sort((a, b) => a.localeCompare(b, 'en'));
   const lines = names.slice(0, MAX_NAMES);
   if (names.length > MAX_NAMES) lines.push(`and ${names.length - MAX_NAMES} more`);
   return { title, lines };

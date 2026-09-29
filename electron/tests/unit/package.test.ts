@@ -86,7 +86,7 @@ test('electron-builder takes the staged engine/ and runtime/ into resources/ (wh
   });
   const pkg = readFileSync(path.join(repo, 'electron/tools/package.ts'), 'utf8');
   const config = readFileSync(path.join(repo, 'electron/tools/package-config.ts'), 'utf8');
-  assert.match(config, /extraResources: extraResources\(p\.engineOut\)/);
+  assert.match(config, /extraResources: \[\.\.\.extraResources\(p\.engineOut\), \.\.\.exampleResources\(p\.repo\)\]/);
   assert.match(pkg, /packageConfig\(\{ root, repo, stage, engineOut: DEFAULT_STAGE_PATHS\.out, output, electronVersion \}\)/);
   assert.match(pkg, /\n {2}stageEngine\(crossWindows \? \{ \.\.\.DEFAULT_STAGE_PATHS, platform: 'win32' \} : DEFAULT_STAGE_PATHS\);\n {2}await stageApp\(\);/);
 });

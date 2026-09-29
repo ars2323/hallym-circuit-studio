@@ -624,6 +624,7 @@ public final class Engine {
             return ToolParts.ghost(d, p.optStr("lib", null), p.str("name"), at == null ? Location.create(0, 0)
                     : Location.create(at[0], at[1]), p.optStringMap("attrs"));
         });
+        server.register("model.toolbar", (p, call) -> ToolParts.toolbar(files.get(p.str("fileId"))));
         server.register("model.textAt", (p, call) -> {
             Doc d = files.get(p.str("fileId"));
             Circuit c = d.circuit(p.str("circuitId"));

@@ -5,7 +5,7 @@
 
 import { expect, test } from '@playwright/test';
 
-import { DATAPATH, GATES, launch, newCircuit, openFile, sample } from './harness.ts';
+import { DATAPATH, GATES, launch, newCircuit, openAbout, openFile, sample } from './harness.ts';
 
 test('the same file opened twice: one tab, the second open goes to it', async () => {
   const r = await launch();
@@ -19,7 +19,7 @@ test('the same file opened twice: one tab, the second open goes to it', async ()
     await expect(page.locator('.filebar .ptab')).toHaveText(['demo-datapath.circ', 'gates.circ']);
     await expect(page.locator('.filebar .ptab.on')).toHaveText('demo-datapath.circ');
     await expect(page).toHaveTitle('demo-datapath.circ — Hallym Circuit Studio');
-    await expect(page.locator('.titlebar .file')).toHaveText('demo-datapath.circ');
+    await expect(page.locator('.titlebar .file')).toHaveAttribute('title', 'demo-datapath.circ');   // the whole name (a narrow bar shortens the text, D-158)
   } finally {
     await r.close();
   }
@@ -58,11 +58,11 @@ test('Undo and Redo go to the engine (a new circuit has nothing to undo: nothing
     await page.keyboard.press('Control+z');
     await expect(page.locator('.status .err')).toHaveCount(0);
     // The Canvas tools: Edit and Poke (N-07), Wire, Text, Pin, Tunnel, Probe (N-08) are on
-    for (const name of ['Edit', 'Poke', 'Wire', 'Text', 'Pin', 'Tunnel', 'Probe']) await expect(page.getByRole('radio', { name, exact: true })).toBeEnabled();
+    for (const name of ['Edit', 'Poke', 'Wire', 'Text', 'Pin', 'Tunnel', 'Probe']) await expect(page.getByRole('radio', { name, exact: true, includeHidden: true })).toBeEnabled();
     // Signal Flow is a switch (Signal Flow on Click, N-15), on with a Canvas and pressed (v1's default)
-    await expect(page.getByRole('button', { name: 'Signal Flow', exact: true })).toBeEnabled();
-    await expect(page.getByRole('button', { name: 'Signal Flow', exact: true })).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.getByRole('button', { name: /N Cycles/ })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Signal Flow', exact: true, includeHidden: true })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Signal Flow', exact: true, includeHidden: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('button', { name: /N Cycles/, includeHidden: true })).toBeEnabled();
     await expect(page.getByRole('button', { name: /Load Program/ })).toBeEnabled();
     await expect(page.getByRole('button', { name: /1 Cycle/ })).toBeEnabled();
   } finally {
@@ -79,11 +79,11 @@ test('a file open and drawn (D-154 alpha.0 was view only; N-08 turns the editing
     await expect(page.locator('.status')).toContainText('35 components');
     // The editing tools (N-08, D-146): all on with a Canvas drawn.
     for (const name of ['Edit', 'Poke', 'Wire', 'Text', 'Pin', 'Tunnel', 'Probe']) {
-      await expect(page.getByRole('radio', { name, exact: true })).toBeEnabled();
+      await expect(page.getByRole('radio', { name, exact: true, includeHidden: true })).toBeEnabled();
     }
     // What alpha.0 offers: the clock, Load Program, the Messages and the Cycle View.
-    for (const name of [/^Run/, /^1 Cycle/, /^N Cycles/, /^Reset/, /^Load Program/]) await expect(page.getByRole('button', { name })).toBeEnabled();
-    await expect(page.getByRole('combobox', { name: 'Clock speed' })).toBeEnabled();
+    for (const name of [/^Run/, /^1 Cycle/, /^N Cycles/, /^Reset/, /^Load Program/]) await expect(page.locator('.toolbar').getByRole('button', { name, includeHidden: true })).toBeEnabled();
+    await expect(page.getByRole('combobox', { name: 'Clock speed', includeHidden: true })).toBeEnabled();
     const bottom = page.locator('section.bottom');
     for (const name of ['Messages', 'Cycle View']) {
       await bottom.getByRole('tab', { name }).click();
@@ -93,7 +93,7 @@ test('a file open and drawn (D-154 alpha.0 was view only; N-08 turns the editing
     await expect(page.locator('.status')).toContainText('Cycle 1');
     // The versions are About's: the status bar has none of them (the fake engine's "none (fake engine, Node)" either).
     await expect(page.locator('.status')).not.toContainText(/Logisim|Java|engine/);
-    await page.getByTitle('About').click();
+    await openAbout(page);
     await expect(page.locator('dialog.about')).toContainText('Logisim 2.7.1 · Java none (fake engine, Node)');
   } finally {
     await r.close();

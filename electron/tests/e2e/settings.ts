@@ -6,6 +6,8 @@
 
 import { expect, type Page } from '@playwright/test';
 
+import { clockSpeed } from './harness.ts';
+
 export interface Settings {
   zoom: string;                 // the Canvas's zoom (the status bar)
   hz: string;                   // the clock speed
@@ -19,6 +21,8 @@ export interface Settings {
   busValues: string;
   activePath: boolean;
   flow: Record<string, unknown>;
+  keys: string;                 // Preferences › Keyboard (D-158): a changed key shows in its command's tooltip
+  grid: boolean;                // the zoom menu's Show Grid (v1 I-119, D-158)
 }
 
 export function settingsNow(page: Page): Promise<Settings> {
@@ -39,13 +43,17 @@ export function settingsNow(page: Page): Promise<Settings> {
       busValues: document.querySelector<HTMLSelectElement>('.legend-panel select[aria-label="Bus Values"]')?.value ?? '',
       activePath: document.querySelector<HTMLInputElement>('.legend-panel .ovlegend label.ovrow.legend-opt input')?.checked ?? false,
       flow: { ...ov.settings },
+      keys: document.querySelector<HTMLElement>('.toolbar .flowtoggle')?.title ?? '',
+      grid: (window as unknown as { __hcsCanvas: { showGrid: boolean } }).__hcsCanvas.showGrid,
     };
   });
 }
 
 // Drags a splitter by (dx, dy): .splitter between columns, .vgrip between rows (shared/splitter.ts).
 async function drag(page: Page, selector: string, dx: number, dy: number): Promise<void> {
-  const s = (await page.locator(selector).boundingBox())!;
+  const found = await page.locator(selector).boundingBox();
+  if (!found) return;   // not in this layout (a narrow window has no right column)
+  const s = found;
   await page.mouse.move(s.x + s.width / 2, s.y + s.height / 2);
   await page.mouse.down();
   await page.mouse.move(s.x + s.width / 2 + dx, s.y + s.height / 2 + dy, { steps: 4 });
@@ -59,7 +67,9 @@ export async function changeEverySetting(page: Page, other: string): Promise<voi
   await page.keyboard.press('Control+=');
   await page.keyboard.press('Control+=');
   await expect(page.locator('.zoom-button')).not.toHaveText(zoom ?? '');
-  await page.locator('select[aria-label="Clock speed"]').selectOption({ label: '64 Hz' });
+  await clockSpeed(page, '64 Hz');
+  await page.locator('.zoom-button').click();
+  await page.locator('.zoom-menu').getByRole('menuitemcheckbox', { name: 'Show Grid' }).click();
   await page.locator('.legend-button').click();
   const panel = page.locator('.legend-panel');
   await expect(panel).toBeVisible();
@@ -86,4 +96,14 @@ export async function changeEverySetting(page: Page, other: string): Promise<voi
     o.setFlow('speed', 'fast');
     for (const k of ['throughRegisters', 'activePathOnly', 'reduceMotion', 'smooth']) o.setFlow(k, !o.settings[k]);
   });
+  // A key (Preferences › Keyboard, D-158): Signal Flow on Click given Ctrl+Shift+G
+  await page.getByTitle('Preferences').click();
+  const prefs = page.locator('dialog.prefs');
+  await expect(prefs.locator('.prefnote')).toContainText('이번 실행에만 적용됩니다');
+  await prefs.getByRole('tab', { name: 'Keyboard' }).click();
+  await prefs.getByRole('button', { name: 'Change Signal Flow on Click' }).click();
+  await page.keyboard.press('Control+Shift+G');
+  await expect(prefs.locator('tr[data-command="flowToggle"] kbd')).toHaveText('Ctrl+Shift+G');
+  await page.keyboard.press('Escape');
+  await expect(prefs).toBeHidden();
 }

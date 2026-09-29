@@ -34,6 +34,7 @@
 import type { Configuration } from 'electron-builder';
 import path from 'node:path';
 
+import { exampleResources } from '../src/main/examples.ts';
 import { extraResources } from './stage-engine.ts';
 
 export const APP_ID = 'kr.ac.hallym.circuit-studio';
@@ -74,8 +75,8 @@ export function packageConfig(p: ConfigPaths): Configuration {
     electronLanguages: ['ko', 'en-US'],   // Chromium's own strings: Korean, and its fallback
     npmRebuild: false,
     nodeGypRebuild: false,
-    // The engine and its runtime (N-03, N-04; tools/stage-engine.ts).
-    extraResources: extraResources(p.engineOut),
+    // The engine and its runtime (N-03, N-04; tools/stage-engine.ts); Help › Examples' circuits (D-158).
+    extraResources: [...extraResources(p.engineOut), ...exampleResources(p.repo)],
     // The notices next to the executable as well as in About.
     extraFiles: [{ from: path.join(p.repo, 'LICENSE'), to: 'LICENSE.txt' }, { from: path.join(p.repo, 'NOTICE'), to: 'NOTICE.txt' }],
     win: {

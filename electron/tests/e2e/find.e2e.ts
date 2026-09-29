@@ -423,6 +423,11 @@ test('the Splitter editor: from the palette for the selected splitter -- its arm
     await expect(dlg.locator('.sarmtag')).toHaveText(['Arm 0 [31:26]', 'Arm 1 [25:21]', 'Arm 2 [20:16]', 'Arm 3 [15:11]', 'Arm 4 [10:6]', 'Arm 5 [5:0]']);
     await expect(dlg.getByRole('textbox', { name: 'Arm 5 name' })).toHaveValue('funct');
     await expect(dlg.locator('.scell')).toHaveCount(32);
+    // The strip as wide as the Ranges field, its numbers never under 10 px (D-158: #433's UI review)
+    const [stripBox, fieldBox] = [(await dlg.locator('.sstrip').boundingBox())!, (await ranges.boundingBox())!];
+    expect(Math.abs(stripBox.width - fieldBox.width)).toBeLessThanOrEqual(2);
+    expect(Math.abs(stripBox.x - fieldBox.x)).toBeLessThanOrEqual(2);
+    expect(await dlg.locator('.scell .sbit').first().evaluate((e) => parseFloat(getComputedStyle(e).fontSize))).toBeGreaterThanOrEqual(10);
     // a text that cannot be read: said, and no Apply
     await ranges.fill('31:26, 26:0');
     await expect(dlg.locator('.sproblems')).toContainText('한 비트를 두 팔에 둘 수 없습니다: 26');

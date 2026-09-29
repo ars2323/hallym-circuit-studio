@@ -43,7 +43,7 @@
 | Multiplexer, Demultiplexer, Decoder, Adder, Register, RAM, ROM | |
 | Data Bits, Facing, Label, Label Font | |
 | Simulate › Reset Simulation, Tick Once, Step Simulation, Simulation Enabled | |
-| Project › Edit Circuit Appearance, Revert To Default Appearance | |
+| Project › Add Circuit, Load Library, Unload Libraries, Move Circuit Up, Move Circuit Down, Set As Main Circuit, Remove Circuit, Edit Circuit Layout, Edit Circuit Appearance, Revert To Default Appearance | |
 
 ### Hallym Circuit Studio가 더한 이름
 
@@ -58,7 +58,7 @@
 | 1 Cycle, N Cycles, Reset, Run | |
 | Quick Attributes, All Attributes | 빠른 속성 |
 | Find, Tunnels | |
-| Show in Attribute Panel | |
+| Show in Attribute Panel | 속성 패널에서 보기 |
 | Fit to Window, Show Grid | 화면 맞춤 |
 | Labels: All, Labels: Pins, Tunnels, Subcircuits, Labels: Under Pointer | |
 | Edit Splitter…, Split Bits…, Take One Bit, Arm | |
@@ -77,6 +77,9 @@
 | Duplicate, Undo, Redo | |
 | Recover, Discard | |
 | Getting Started, Shortcuts | |
+| Menu, Preferences, General, Keyboard, Change…, Reset All, Reset Panel Sizes, About · Licenses, Keys That Do Not Change | 환경설정, 단축키 설정 |
+| More commands, More facts, Canvas, Panels, Changed, Read-only, Turn On, Try Again | 방금 바뀜 |
+| Open Recent, Close, Save As…, Exit, Minimize, Maximize, Examples, Keyboard Shortcuts, Ticks Enabled, Tick Frequency, Simulation Enabled, Reset Simulation, Step Simulation, Tick Once | 최근 파일 |
 
 "문장 안에서 쓰지 않는 번역" 칸의 말은 한국어 설명 문장에 나오면 안 된다. 쉼표로 나누고, 빈 칸은 확인하지 않는다. `UiLanguageTest`가 원조 한국어 번들, 앱 `messages_ko.properties`, lib-mips `Text.of`의 한국어 문장을 확인한다.
 

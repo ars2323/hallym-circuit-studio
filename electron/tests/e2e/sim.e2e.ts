@@ -7,7 +7,7 @@
 import { expect, test } from '@playwright/test';
 
 import { centerOn, clickAt, overlayOf, pagePoint, partBy, portValue } from './canvas-points.ts';
-import { DATAPATH, launch, newCircuit, openFile, recordCalls, type Running, sample, sentCalls, visibleCharacters } from './harness.ts';
+import { clockSpeed, command, DATAPATH, launch, newCircuit, openFile, recordCalls, type Running, sample, sentCalls, visibleCharacters } from './harness.ts';
 import { call, openFileIds } from './model.ts';
 
 async function drawn(r: Running): Promise<void> {
@@ -27,7 +27,7 @@ test('N Cycles: the dialog asks how many (10 at first), refuses 0, runs 100; Esc
     await newCircuit(r);
     await recordCalls(r.app);
     const dialog = page.locator('dialog.cycles');
-    await page.getByRole('button', { name: /N Cycles/ }).click();
+    await command(page, /N Cycles/);
     await expect(dialog).toBeVisible();
     await expect(dialog.locator('h2')).toHaveText('N Cycles');
     await expect(dialog.getByRole('textbox', { name: 'Cycles' })).toHaveValue('10');
@@ -42,13 +42,13 @@ test('N Cycles: the dialog asks how many (10 at first), refuses 0, runs 100; Esc
     await expect(status(r)).toContainText('Cycle 100');
     expect((await sentCalls(r.app, 'sim.cycles')).map((c) => c.params.n)).toEqual([100]);
     // The count given last comes back; Esc is Cancel
-    await page.getByRole('button', { name: /N Cycles/ }).click();
+    await command(page, /N Cycles/);
     await expect(dialog.getByRole('textbox')).toHaveValue('100');
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
     expect((await sentCalls(r.app, 'sim.cycles')).length).toBe(1);
     // A long run: the status bar says what is left, Run is Stop, and Stop ends it (the engine stops asking for ticks)
-    await page.getByRole('button', { name: /N Cycles/ }).click();
+    await command(page, /N Cycles/);
     await dialog.getByRole('textbox').fill('100000');
     await dialog.getByRole('button', { name: 'Run' }).click();
     await expect(status(r)).toContainText(/N Cycles · [\d,]+ left/);
@@ -75,20 +75,21 @@ test('Run and Stop, 1 Cycle, Reset, the Tick Frequency\'s seven speeds: facts in
     await expect(status(r)).toContainText('Simulation On');
     await expect(status(r)).toContainText('Cycle 0');
     await expect(page.locator('.status .sim').last()).toHaveText('1 Hz');
-    const speed = page.getByRole('combobox', { name: 'Clock speed' });
+    const speed = page.getByRole('combobox', { name: 'Clock speed', includeHidden: true });
     expect(await speed.locator('option').allTextContents()).toEqual(['1 Hz', '4 Hz', '16 Hz', '64 Hz', '256 Hz', '1 kHz', '4 kHz']);
-    await speed.selectOption('256');
+    await clockSpeed(page, '256 Hz');
     // the toolbar's key hints and the Run button's width are the same running as stopped (UI review of #431)
     const bar = () => page.evaluate(() => ({
       keys: [...document.querySelectorAll('.toolbar .btn kbd')].filter((k) => (k as HTMLElement).offsetWidth > 0).map((k) => k.textContent),
       run: (document.querySelector('.toolbar .btn .label.swap') as HTMLElement).closest('button')!.getBoundingClientRect().width,
     }));
     const stopped = await bar();
-    expect(stopped.keys).toEqual(expect.arrayContaining(['F5', 'F10']));
+    // (the key hints are the first thing a narrow bar gives up: D-158)
+    if (!(await page.locator('.toolbar.nokeys').count())) expect(stopped.keys).toEqual(expect.arrayContaining(['F5', 'F10']));
     await page.keyboard.press('F5');
     await expect(page.locator('.status .run')).toHaveText('Running (256 Hz)');
     expect((await sentCalls(r.app, 'sim.run')).at(-1)!.params).toMatchObject({ on: true, hz: 256 });
-    await expect(page.getByRole('button', { name: /^Stop\s*F5$/ })).toBeVisible();   // the hidden Run is no part of its name
+    await expect(page.getByRole('button', { name: /^Stop(\s*F5)?$/ })).toBeVisible();   // the hidden Run is no part of its name
     expect(await bar()).toEqual(stopped);
     await page.getByRole('button', { name: /^Stop/ }).click();
     await expect(page.locator('.status .sim').last()).toHaveText('256 Hz');
@@ -146,9 +147,15 @@ test('Simulate keys: Ctrl+E off and on with the band, Ctrl+T half a cycle, Ctrl+
     await newCircuit(r);
     await recordCalls(r.app);
     await page.keyboard.press('Control+e');
-    await expect(page.locator('.simband')).toHaveText('시뮬레이션이 꺼져 있어 값이 바뀌지 않습니다 · Ctrl+E 키로 다시 켭니다');
+    await expect(page.locator('.simband .bandtext')).toHaveText('시뮬레이션이 꺼져 있어 값이 바뀌지 않습니다 · Ctrl+E 키로 다시 켭니다');
     await expect(page.locator('.status .sim.err')).toHaveText('Simulation Off');
     expect(await visibleCharacters(page)).toBe(0);
+    // The band's Turn On (v1 I-160, D-158): on again; Ctrl+E off again for what follows.
+    await page.locator('.simband').getByRole('button', { name: 'Turn On' }).click();
+    await expect(page.locator('.simband')).toBeHidden();
+    await expect(page.locator('.status')).toContainText('Simulation On');
+    await page.keyboard.press('Control+e');
+    await expect(page.locator('.simband')).toBeVisible();
     await page.keyboard.press('Control+i');
     expect((await sentCalls(r.app, 'sim.step')).length).toBe(1);
     await page.keyboard.press('Control+e');
@@ -181,7 +188,7 @@ test('Poke: a press and a release apart -- a button held down gets its release o
     await call(page, 'edit.addComponent', { fileId, circuitId, lib: 'I/O', name: 'Button', loc: [200, 200] });
     await page.locator('.canvas-view canvas').waitFor();
     await recordCalls(r.app);
-    await page.getByRole('radio', { name: 'Poke' }).click();
+    await command(page, 'Poke');
     const button = (await partBy(page, '', 'Button'))!;
     await centerOn(page, [button.loc[0], button.loc[1]], 2);
     const at = await pagePoint(page, [button.bounds[0] + 10, button.bounds[1] + 10]);
@@ -205,8 +212,8 @@ test('Poke: an input pin flips the bit under the pointer, a clock flips, a wire 
     await openFile(r, sample(r.dir, DATAPATH));
     await drawn(r);
     await recordCalls(r.app);
-    await page.getByRole('radio', { name: 'Poke' }).click();
-    await expect(page.getByRole('radio', { name: 'Poke' })).toHaveAttribute('aria-checked', 'true');
+    await command(page, 'Poke');
+    await expect(page.getByRole('radio', { name: 'Poke', includeHidden: true })).toHaveAttribute('aria-checked', 'true');
     expect((await overlayOf(page)).magnifiers).toBe(true);
     // RegWrite: a 1-bit input pin
     const regWrite = (await partBy(page, 'RegWrite', 'Pin'))!;
@@ -258,7 +265,7 @@ test('Poke: an input pin flips the bit under the pointer, a clock flips, a wire 
     await clickAt(page, [cx, cy], { count: 2 });
     await expect(page.locator('.canvas-crumbs')).toContainText('regfile');
     // Edit again: no lens, no caret
-    await page.getByRole('radio', { name: 'Edit' }).click();
+    await command(page, 'Edit');
     expect((await overlayOf(page)).magnifiers).toBeFalsy();
     expect(await pagePoint(page, [0, 0])).toBeTruthy();
   } finally {

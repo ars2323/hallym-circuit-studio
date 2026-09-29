@@ -21,6 +21,7 @@ export interface OpenFile {
   circuit: string;             // the one on show
   dirty: boolean;
   sim: SimState | null;
+  readOnly?: boolean;          // an example (Help › Examples, D-158): Save asks where
 }
 
 export class Files {
@@ -33,7 +34,7 @@ export class Files {
   byPath(path: string): OpenFile | undefined { return this.files.find((f) => f.path !== null && f.path === path); }
   count(): number { return this.files.length; }
 
-  add(f: { fileId: string; name: string; path: string | null; circuits: CircuitRef[]; main: string }): OpenFile {
+  add(f: { fileId: string; name: string; path: string | null; circuits: CircuitRef[]; main: string; readOnly?: boolean }): OpenFile {
     const main = f.circuits.some((c) => c.circuitId === f.main) ? f.main : f.circuits[0]?.circuitId ?? '';
     const file: OpenFile = { ...f, main, tabs: main ? [main] : [], circuit: main, dirty: false, sim: null };
     this.files.push(file);
@@ -97,6 +98,7 @@ export class Files {
     f.name = name;
     f.path = path;
     f.dirty = false;
+    delete f.readOnly;           // saved somewhere: an ordinary file now
   }
 
   setDirty(fileId: string, dirty: boolean): void { const f = this.get(fileId); if (f) f.dirty = dirty; }

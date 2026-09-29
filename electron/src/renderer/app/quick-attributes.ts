@@ -82,6 +82,14 @@ export class QuickBar {
     window.addEventListener('hcs:reveal', () => { this.quiet = true; this.hide(); });
   }
 
+  // A right-click menu open for something else than the selection (a wire, an empty spot, another part: the
+  // original keeps the selection, MenuTool.mousePressed): the bar stays away while it is open (D-158).
+  private blocked = false;
+  block(on: boolean): void {
+    this.blocked = on;
+    if (on) this.hide(); else this.update();
+  }
+
   // The program chose these (Find E/X Origin, a message): the bar stays away until the next press.
   hush(): void {
     this.quiet = true;
@@ -107,7 +115,7 @@ export class QuickBar {
   update(): void {
     const t = this.host.table();
     const parts = this.parts();
-    if (this.pressed || this.quiet || !this.host.on() || !this.host.toolIsEdit() || !t || t.target !== 'selection' || !t.quick || !t.editable
+    if (this.pressed || this.quiet || this.blocked || !this.host.on() || !this.host.toolIsEdit() || !t || t.target !== 'selection' || !t.quick || !t.editable
       || !parts.length || parts.length !== t.quick.count) {
       this.hide();
       return;

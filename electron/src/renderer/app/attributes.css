@@ -21,7 +21,7 @@
   width: 100%; height: 26px; padding: 0 6px; border: 1px solid var(--border); border-radius: 5px;
   font: inherit; font-size: var(--fs); color: var(--text); background: var(--white); min-width: 0;
 }
-.atable input.mono { font-family: var(--code); }
+.atable :is(input, select, .aval).mono { font-family: var(--code); }
 .atable input:focus, .atable select:focus { outline: 2px solid var(--teal); outline-offset: -1px; border-color: var(--teal); }
 .atable input[aria-invalid="true"], .atable tr.bad select { border-color: var(--error); background: var(--error-tint); }
 .atable .aval { display: block; padding: 0 1px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

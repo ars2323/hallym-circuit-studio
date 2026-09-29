@@ -26,6 +26,7 @@ export interface Opened extends OpenResult {
   path: string;
   already: boolean;     // it was open: go to its tab
   recovered?: boolean;  // opened from its recovery file: unsaved edits (N-19)
+  readOnly?: boolean;   // an example, opened read-only: Save asks where (D-158)
 }
 
 // A failed call (preload.cjs): the engine's code and data when the engine answered with an error.
@@ -83,6 +84,14 @@ export interface AppApi {
   closeCancelled(): void;
   onCloseRequest(listener: () => void): void;
   onAdopt(listener: (handover: Handover) => void): void;
+  // Help › Examples (D-158): the program's circuits by name; one opened read-only.
+  examples(): Promise<{ id: string; name: string }[]>;
+  openExample(id: string): Promise<Opened | RecoveryAsk | null>;
+  // File › Open Recent (I-130): this run's files by name (the paths stay in the main process).
+  recentFiles(): Promise<{ id: string; name: string }[]>;
+  openRecent(id: string): Promise<Opened | RecoveryAsk | null>;
+  minimize(): Promise<void>;
+  maximize(): Promise<void>;
 }
 
 export interface AboutInfo {

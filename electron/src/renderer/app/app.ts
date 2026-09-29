@@ -45,12 +45,14 @@
    (logic/recovery-ask.ts, N-19).  Every setting is for this run only
    (logic/run-settings.ts). */
 
-import type { AppearanceEdit, CircuitRef, Component, ConsoleUpdate, DiagList, DiagMessage, EditSelection, EngineStatus, FileInfo, FindResult, InstancesInfo, LibrariesInfo, LibraryGroup, LibraryUpdated, MipsFacts, ModelChanged, NewResult, Point, PortImpact, RecordState, Recovered, RecoveryAsk, Reloaded, RunUntilDone, SimState, SimValues, Snapshot, Wire } from '../../main/protocol.ts';
+// The changed keys (Preferences › Keyboard) see every key press first: imported before anything that listens to keys.
+import './keymap.ts';
+import type { AppearanceEdit, CircuitRef, Component, ConsoleUpdate, DiagList, DiagMessage, EditSelection, EngineStatus, FileInfo, FindResult, InstancesInfo, LibrariesInfo, LibraryGroup, LibraryUpdated, MipsFacts, ModelChanged, NewResult, Point, PortImpact, RecordState, Recovered, RecoveryAsk, RegisterData, Reloaded, RunUntilDone, SimState, SimValues, Snapshot, Wire } from '../../main/protocol.ts';
 import type { Handover } from '../../main/windows.ts';
-import { type MenuEntry, SEPARATOR, showMenu } from '../canvas/overlays/menu.ts';
+import { type MenuEntry, menuOpen, SEPARATOR, showMenu } from '../canvas/overlays/menu.ts';
 import { AppearanceEditor } from './appearance-editor.ts';
 import { CircuitControl } from './circuit-control.ts';
-import { circuitItems, circuitsPanel } from './circuits.ts';
+import { type CircuitCommand, circuitItems, circuitsPanel, type FileCommand } from './circuits.ts';
 import { distinguishers, libraryUpdatedText, pinAddText, pinPreviewText, portImpactText, frozenPinText, newStateNote, newStateQuestion, type SimNode, type SimPart, simTree, standaloneText } from './logic/circuits.ts';
 import { CircuitCanvas } from '../canvas/canvas.ts';
 import { emitTool } from '../canvas/events.ts';
@@ -64,9 +66,14 @@ import { ask, choose } from '../shared/ask.ts';
 import { band } from '../shared/band.ts';
 import { code, codeText, h, icon } from '../shared/dom.ts';
 import { noticeHost } from '../shared/notice.ts';
-import { overlayColor } from '../shared/overlay.ts';
 import { splitter } from '../shared/splitter.ts';
 import { button, iconButton, titleBar } from '../shared/titlebar.ts';
+import { captionPatch } from './captions.ts';
+import { entries as menuEntries, menuUnder } from './menubar.ts';
+import { appMenu, type MenuSpec } from './logic/menus.ts';
+import { keyText, onKeysChanged } from './logic/keys.ts';
+import { preferences } from './preferences.ts';
+import { KEEP, statusBar, type Fact } from './status.ts';
 import { headButton, panelHead, tabStrip, tabsHead } from '../shared/ui.ts';
 import type { CallError, Opened } from './api.ts';
 import { componentsPanel, type Pick, TOOL_MIME } from './components.ts';
@@ -96,9 +103,9 @@ import { tunnelsPanel } from './tunnels.ts';
 import { askPinValue, valueText } from './value-dialog.ts';
 import { commandError, fileError } from './logic/errors.ts';
 import { countOnly, FREQUENCIES, going, resetTurnsOn, runLabel, simBand, simFacts } from './logic/sim.ts';
-import { circuitFacts, count, counted, engineFact } from './logic/facts.ts';
+import { changedChip, circuitFacts, count, counted, engineFact } from './logic/facts.ts';
 import { Files, type OpenFile } from './logic/files.ts';
-import { arrange, nothingDragged, PAD, SPLITTER } from './logic/layout.ts';
+import { arrange, type Arrangement, noFolds, nothingDragged, PAD, SPLITTER } from './logic/layout.ts';
 import { messageCount } from './logic/messages.ts';
 import { messagesPanel } from './messages.ts';
 import { programs as programController } from './program.ts';
@@ -141,7 +148,11 @@ let role: { main: boolean; handover: Handover | null } = { main: true, handover:
 const libInfo = new Map<string, LibrariesInfo>();     // model.libraries by fileId (the Open Files group)
 const FILE_MIME = 'application/x-hcs-file';
 let dragged = nothingDragged();
-let bottomCollapsed = false;
+// The folds (logic/layout.ts): the bottom panel's Collapse, and a panel the window folded for the room, opened again.
+const folds = noFolds();
+let arranged: Arrangement | null = null;
+let arrangedAt = '';                                    // the work area's size the folds were opened at
+const bottomFolded = (): boolean => arranged?.bottomFolded ?? folds.collapsed;
 let startSeen = false;
 let untitled = 0;
 let cycleFile: string | null = null;                     // the file the Cycle View shows
@@ -171,14 +182,16 @@ function selected(ids: string[]): void {
 }
 const zoomCtl = zoomControl({
   zoom: () => board.view.zoom, zoomTo: (z) => board.zoomTo(z), fit: () => board.fitView(), step: (d) => board.zoomStep(d),
+  grid: () => board.showGrid, setGrid: (on) => setGrid(on),
 });
+function setGrid(on: boolean): void { board.showGrid = on; board.invalidate(); }
 // The Canvas's overlays (N-15, D-151, ../canvas/overlays/): influence, Signal Flow, the active path and the
 // field colours while the Cycle View is shown, bus values, signal groups, area memos, a net's highlight.
 const overlays = new Overlays({
   board,
   call: (method, params) => api.call(method, params),
   ready: () => engine.state === 'ready',
-  cycleViewShown: () => bottomHead.selected() === 1 && !bottomCollapsed && files.active() !== null,
+  cycleViewShown: () => bottomHead.selected() === 1 && !bottomFolded() && files.active() !== null,
   note: (cls, text) => { note = text ? { cls, text } : null; renderStatus(); },
   failed: (name, e) => { note = { cls: 'err', text: commandError(name, e as CallError) }; renderStatus(); },
   changed: () => { renderStatus(); flowToggle.setAttribute('aria-pressed', String(overlays.settings.onClick)); },
@@ -195,6 +208,11 @@ const editor = new Editor({
   },
   ready: () => engine.state === 'ready',
   enter: (id) => enterInstance(id),
+  // the Menu Tool (I-84): a press opens the right-click menu there
+  menuAt: (p) => {
+    const r = board.canvas.getBoundingClientRect();
+    void canvasMenu.open(p.at, { x: r.left + p.screen[0], y: r.top + p.screen[1] }, board.partAt(p.at) ?? board.wireAt(p.at));
+  },
   failed: (command, e) => {
     // an input pin inside an instance (I-64): the original's "Create a new circuit state?"
     if (command === 'Poke' && ((e as CallError).data as { reason?: string } | undefined)?.reason === 'frozenPin') { void newStateFor(); return; }
@@ -242,7 +260,7 @@ onPlaceTool((p: PlaceTool, e) => {
   const f = files.active();
   if (!f || p.fileId !== f.fileId || e.defaultPrevented) return;
   e.preventDefault();
-  if (!p.at) { editor.hold({ lib: p.lib, name: p.name, ...(p.attrs ? { attrs: p.attrs } : {}) }); return; }
+  if (!p.at) { editor.hold({ lib: p.lib, name: p.name, ...(p.attrs ? { attrs: p.attrs } : {}) }); toCanvas(); return; }
   void (async () => {
     if (engine.state !== 'ready') return;
     try {
@@ -259,20 +277,29 @@ onPlaceTool((p: PlaceTool, e) => {
 // ---- the title bar ------------------------------------------------------------
 
 // Tools of the Canvas (N-05, N-08, N-15): shown, and off until there is a Canvas to use them on.
-const TOOLS: [string, string, string][] = [
-  ['Edit', 'mouse-pointer-2', 'Edit: 고르기·옮기기'], ['Poke', 'pointer', 'Poke: 값 바꾸기'], ['Wire', 'workflow', 'Wire'],
-  ['Text', 'type', 'Text'], ['Pin', 'square-dot', 'Pin'], ['Tunnel', 'tag', 'Tunnel'], ['Probe', 'crosshair', 'Probe'],
-  ['Signal Flow', 'activity', 'Signal Flow'],
+// [name, icon, tooltip, how long it stays on a narrow bar (D-158: the » rule, higher stays longer)]
+const TOOLS: [string, string, string, number][] = [
+  ['Edit', 'mouse-pointer-2', 'Edit: 고르기·옮기기', 5], ['Poke', 'pointer', 'Poke: 값 바꾸기', 5], ['Wire', 'workflow', 'Wire', 4],
+  ['Text', 'type', 'Text', 2], ['Pin', 'square-dot', 'Pin', 2], ['Tunnel', 'tag', 'Tunnel', 2], ['Probe', 'crosshair', 'Probe', 2],
+  ['Signal Flow', 'activity', 'Signal Flow', 1],
 ];
-const toolButtons = TOOLS.map(([name, ic, title], i) => h('button', {
+// A command of the toolbar: what the » menu shows for it when the bar has no room (logic in ../shared/titlebar.ts).
+function unit<T extends HTMLElement>(el: T, name: string, keep: number, key = ''): T {
+  el.dataset.unit = name;
+  el.dataset.keep = String(keep);
+  if (key) el.dataset.key = key;
+  return el;
+}
+const toolButtons = TOOLS.map(([name, ic, title, keep], i) => unit(h('button', {
   type: 'button', role: 'radio', title, 'aria-label': name, 'aria-checked': String(i === 0), class: i === 0 ? 'on' : undefined, disabled: true,
-}, icon(ic), h('span', { class: 'label' }, name)));
+}, icon(ic), h('span', { class: 'label' }, name)), name, keep));
 // Signal Flow is a switch (Signal Flow on Click, Ctrl+Shift+F; v1 I-188), not a tool: it stays with the tools.
 const flowToggle = toolButtons[TOOLS.length - 1];
 flowToggle.setAttribute('role', 'button');
 flowToggle.removeAttribute('aria-checked');
 flowToggle.classList.add('flowtoggle');
-flowToggle.title = 'Signal Flow on Click (Ctrl+Shift+F)';
+const flowTitle = () => { flowToggle.title = `Signal Flow on Click (${keyText('flowToggle')})`; flowToggle.dataset.key = keyText('flowToggle'); };
+flowTitle();
 flowToggle.addEventListener('click', () => overlays.toggleOnClick());
 // The tools in hand (editor.ts, edit-tools.ts): Edit, Poke, Wire, Text, and Pin, Tunnel, Probe (a Wiring part held,
 // as the Components list holds one); Signal Flow is N-15's.
@@ -294,39 +321,68 @@ function showTool(t: string): void {
     b.setAttribute('aria-checked', String(on));
   });
 }
-const bSave = iconButton('Save (Ctrl+S)', 'save', () => void save(false));
-const bUndo = iconButton('Undo (Ctrl+Z)', 'undo-2', () => void edit('edit.undo', 'Undo'));
-const bRedo = iconButton('Redo (Ctrl+Y)', 'redo-2', () => void edit('edit.redo', 'Redo'));
-const bRun = button('Run', 'play', 'F5', () => void run());
-const bCycle = button('1 Cycle', 'step-forward', 'F10', () => void cycles(1));
-const bCycles = button('N Cycles', 'fast-forward', '', () => void nCycles());
-const bReset = button('Reset', 'rotate-ccw', '', () => void reset());
+// Run and 1 Cycle show their keys (as Hallym MIPS's Run and Step), in every state (Run and Stop both F5), until the bar
+// is too narrow for any; every command's tooltip and » menu line has its key.
+const bSave = unit(iconButton('Save (Ctrl+S)', 'save', () => void save(false)), 'Save', 6, 'Ctrl+S');
+const bUndo = unit(iconButton('Undo (Ctrl+Z)', 'undo-2', () => void edit('edit.undo', 'Undo')), 'Undo', 6, 'Ctrl+Z');
+const bRedo = unit(iconButton(`Redo (${keyText('redo')})`, 'redo-2', () => void edit('edit.redo', 'Redo')), 'Redo', 6, keyText('redo'));
+const bRun = unit(button('Run', 'play', 'F5', () => void run()), 'Run', 9, 'F5');
+const bCycle = unit(button('1 Cycle', 'step-forward', 'F10', () => void cycles(1)), '1 Cycle', 9, 'F10');
+const bCycles = unit(button('N Cycles', 'fast-forward', '', () => void nCycles()), 'N Cycles…', 3);
+// Reset's key is Simulate's (Ctrl+R): in its tooltip and the menus, not on the button (Hallym MIPS's Reset shows none).
+const bReset = unit(button('Reset', 'rotate-ccw', '', () => void reset()), 'Reset', 8, 'Ctrl+R');
+bReset.title = 'Reset (Ctrl+R)';
 const frequency = h('select', { title: `Clock speed · ${RUN_ONLY}`, 'aria-label': 'Clock speed' },
   ...FREQUENCIES.map(([label, hz]) => h('option', { value: String(hz), selected: hz === RUN_DEFAULTS.hz }, label)));
 // A new speed while the clock runs applies at once (as v1's menu did).
 frequency.addEventListener('change', () => { if (files.active()?.sim?.ticking) void simCall('sim.run', { on: true, hz: Number(frequency.value) }, 'Run'); });
+const speedBox = unit(h('span', { class: 'selectbox' }, frequency), 'Clock Speed', 3);
 // Load Program… (N-16): an executable image (.hmx) into the circuit's memories (program.ts).
-const bLoad = button('Load Program…', 'file-code', '', () => { const f = files.active(); if (f) void programs.load(f.fileId); });
+const bLoad = unit(button('Load Program…', 'file-code', '', () => { const f = files.active(); if (f) void programs.load(f.fileId); }), 'Load Program…', 7);
 const toolbar = h('span', { class: 'toolbar', role: 'toolbar', 'aria-label': 'Toolbar' },
   h('span', { class: 'tgroup' }, bSave, bUndo, bRedo),
   h('span', { class: 'tgroup' }, h('span', { class: 'seg tools-seg', role: 'radiogroup', 'aria-label': 'Tools' }, ...toolButtons)),
-  h('span', { class: 'tgroup' }, bRun, bCycle, bCycles, bReset, h('span', { class: 'selectbox' }, icon('gauge'), frequency)),
+  h('span', { class: 'tgroup' }, bRun, bCycle, bCycles, bReset, speedBox),
   h('span', { class: 'tgroup' }, bLoad));
+// A tight window (logic/layout.ts): one side at a time, as Hallym MIPS's Editor / Run switch.
+let side: 'canvas' | 'panels' = 'canvas';
+const viewCanvas = h('button', { type: 'button', role: 'tab', 'aria-selected': 'true', class: 'on' }, 'Canvas');
+const viewPanels = h('button', { type: 'button', role: 'tab', 'aria-selected': 'false' }, 'Panels');
+viewCanvas.addEventListener('click', () => showSide('canvas'));
+viewPanels.addEventListener('click', () => showSide('panels'));
+const viewSwitch = h('span', { class: 'seg viewswitch', role: 'tablist', 'aria-label': 'View', hidden: true }, viewCanvas, viewPanels);
+function showSide(s: 'canvas' | 'panels'): void {
+  side = s;
+  viewCanvas.classList.toggle('on', s === 'canvas');
+  viewPanels.classList.toggle('on', s === 'panels');
+  viewCanvas.setAttribute('aria-selected', String(s === 'canvas'));
+  viewPanels.setAttribute('aria-selected', String(s === 'panels'));
+  layout();
+}
+// A tight window on its panels: whatever leads to the Canvas (a part picked, a circuit, a tunnel) shows it.
+function toCanvas(): void {
+  if (arranged?.tight && side !== 'canvas') showSide('canvas');
+}
+const bMenu = iconButton('Menu', 'menu', () => void openMenu());
+const bNew = iconButton('New circuit (Ctrl+N)', 'file-plus', () => void newCircuit());
+const bOpen = iconButton('Open file (Ctrl+O)', 'folder-open', () => void openFile());
+const bPrefs = iconButton('Preferences', 'settings', () => prefs.open());
 const bar = titleBar({
   appName: APP_NAME,
   toolbar,
-  tools: [
-    iconButton('New circuit (Ctrl+N)', 'file-plus', () => void newCircuit()),
-    iconButton('Open file (Ctrl+O)', 'folder-open', () => void openFile()),
-    iconButton('About', 'info', () => void about.open()),
-  ],
+  views: viewSwitch,
+  // About is Hallym MIPS's: in Preferences (About · Licenses) and the menu's Help › About….
+  tools: [bMenu, bNew, bOpen, bPrefs],
+  onMore: (units, at) => void moreMenu(units, at),
 });
 const notices = band();
 // While a reload of the program has failed: what is on show and since when (N-16, program.ts).
 const programBand = band('progband');
 // While the simulation is off (an oscillation, or Ctrl+E): values do not change (N-07, logic/sim.ts).
 const simOffBand = band('simband');
-const status = h('footer', { class: 'status' });
+// The status bar (status.ts): facts, and the » list when it is too narrow for them.
+const statusView = statusBar();
+const status = statusView.root;
 
 // ---- the first screen -----------------------------------------------------------
 
@@ -350,7 +406,7 @@ const upperPanel = h('section', { class: 'panel upper', 'aria-label': 'Component
 const tunnelsBody = noticeHost('side');
 const minimapBody = noticeHost('side');
 const lowerBodies = [tunnelsBody.root, minimapBody.root];
-const lowerHead = tabsHead(['Tunnels', 'Minimap'], (i) => { showBody(lowerBodies, i); minimap.show(i === 1); });
+const lowerHead = tabsHead(['Tunnels', 'Minimap'], (i) => { showBody(lowerBodies, i); minimap.show(i === 1); if (arranged?.lowerFolded) { folds.lowerOpened = true; layout(); } });
 const lowerPanel = h('section', { class: 'panel lower', 'aria-label': 'Tunnels' }, lowerHead.root, ...lowerBodies);
 // Right: Attributes
 const rightHead = panelHead('Attributes');
@@ -450,6 +506,12 @@ const canvasMenu = installCanvasMenu({
   registerMapping: () => void cycleView.mapping(),
   memoryImage: (fileId, o) => api.memoryImage(fileId, o),
   quietQuick: () => quickBar?.hush(),
+  // Quick Attributes away while a menu for another target is open (D-158: #449's review, menu-wire.png)
+  otherTarget: () => {
+    quickBar?.block(true);
+    const wait = () => { if (menuOpen()) requestAnimationFrame(wait); else quickBar?.block(false); };
+    requestAnimationFrame(wait);
+  },
   tool: () => editor.tool,
 });
 
@@ -459,7 +521,7 @@ const canvasMenu = installCanvasMenu({
 const components = componentsPanel({
   host: componentsBody,
   onPick: (p) => pickTool(p, 'components'),
-  onOpenCircuit: (id) => { const f = files.active(); if (f) { files.openCircuit(f.fileId, id); render(); } },
+  onOpenCircuit: (id) => { const f = files.active(); if (f) { files.openCircuit(f.fileId, id); toCanvas(); render(); } },
   // N-11 (P-03): another open file's circuit -- its file as a library first, then the part in hand
   onOpenFileCircuit: (fileId, circuit) => void (async () => {
     const lib = await circuitCtl.useOpenFile(fileId);
@@ -483,10 +545,11 @@ const circuitCtl = new CircuitControl({
 });
 const circuitsList = circuitsPanel({
   host: circuitsBody,
-  circuit: (cmd, id) => void circuitCtl.command(cmd, id),
+  // (a tight window on its Panels side: what shows a circuit brings the Canvas back, D-158)
+  circuit: (cmd, id) => { if (cmd === 'open' || cmd === 'layout' || cmd === 'appearance') toCanvas(); void circuitCtl.command(cmd, id); },
   file: (cmd) => void circuitCtl.fileCommand(cmd),
   moveTo: (id, to) => void circuitCtl.moveTo(id, to),
-  enter: (n) => { const f = files.active(); if (f) enterPath(f.fileId, n.ids, n.names, n.circuits); },
+  enter: (n) => { const f = files.active(); if (f) { toCanvas(); enterPath(f.fileId, n.ids, n.names, n.circuits); } },
 });
 // The appearance editor (N-11): a circuit tab switched to Appearance shows it instead of the Canvas.
 const appearance = new AppearanceEditor({
@@ -515,7 +578,7 @@ registerMenu('canvas', { id: 'subcircuit', order: 11, items: (t) => (t.facts.kin
 // Tunnels: by name; a name goes to its next tunnel, the chip sets Tunnel Color.
 const tunnels = tunnelsPanel({
   host: tunnelsBody,
-  go: (id) => revealPart(id),
+  go: (id) => { toCanvas(); revealPart(id); },
   setColor: (id, color) => void setTunnelColor(id, color),
   editable: () => engine.state === 'ready',
 });
@@ -531,6 +594,12 @@ const finder = findWindow({
   go: (p) => { const f = files.active(); if (f) emitReveal(revealOfPlace(f.fileId, p)); },
 });
 canvasPanel.append(finder.root);
+// A place Find goes to is shown beside the Find window, not under it (D-158, #433's UI review).
+board.coveredRight = () => {
+  if (!finder.isOpen() || !board.root.isConnected) return 0;
+  const f = finder.root.getBoundingClientRect(), c = board.canvas.getBoundingClientRect();
+  return Math.max(0, c.right - f.left + 12);
+};
 // The search palette (Ctrl+K, a letter on the Canvas).
 const pal = palette({
   sources: () => {
@@ -750,7 +819,7 @@ const consoleBody = noticeHost('bottom');
 const bottomBodies = [messagesBody.root, cycleBody.root, consoleBody.root];
 // The Console tab (N-16, console.ts): every Console part's output, streamed by the engine.
 const consoleView = consolePanel(consoleBody);
-const bottomHead = tabsHead(['Messages', 'Cycle View', 'Console'], (i) => { showBody(bottomBodies, i); if (bottomCollapsed) toggleBottom(); cycleShown(); });
+const bottomHead = tabsHead(['Messages', 'Cycle View', 'Console'], (i) => { showBody(bottomBodies, i); if (bottomFolded()) unfoldBottom(); cycleShown(); });
 // The Cycle View (N-14): the table, Registers | Memory | Instruction, Run Until (cycleview.ts).
 const cycleView = new CycleView({
   call: (method, params) => api.call(method, params),
@@ -776,7 +845,7 @@ function renderCycleBody(): void {
 }
 // Whether the Cycle View is on screen (its tab chosen, the panel open, a file open): it asks the engine only then.
 function cycleShown(): void {
-  cycleView.setVisible(bottomHead.selected() === 1 && !bottomCollapsed && files.active() !== null && cycleBody.root.firstChild === cycleView.root);
+  cycleView.setVisible(bottomHead.selected() === 1 && !bottomFolded() && files.active() !== null && cycleBody.root.firstChild === cycleView.root);
   void overlays.refreshCycle(true);   // the active path and the field colours show with the Cycle View (N-15)
 }
 const bCollapse = headButton('Collapse', 'Collapse the panel', () => toggleBottom());
@@ -826,7 +895,7 @@ const lowerGrip = splitter({
 });
 const bottomGrip = splitter({
   between: 'rows', label: 'Messages',
-  onDrag: ({ y }) => { if (bottomCollapsed) toggleBottom(); dragged.bottom = center.getBoundingClientRect().bottom - y - SPLITTER / 2; layout(); },
+  onDrag: ({ y }) => { if (bottomFolded()) unfoldBottom(); dragged.bottom = center.getBoundingClientRect().bottom - y - SPLITTER / 2; layout(); },
   onReset: () => { dragged.bottom = null; layout(); },
 });
 rightSplit.classList.add('rightsplit');
@@ -835,15 +904,19 @@ center.append(canvasPanel, bottomGrip, bottomPanel);
 shell.append(leftCol, leftSplit, center, rightSplit, rightCol);
 const work = h('main', { class: 'work' }, stage, shell);
 
-document.body.append(h('div', { class: 'app' }, bar.root, bar.row, h('div', { class: 'bands' }, notices.root, simOffBand.root, programBand.root), work, status), zoomCtl.menu, wireLegend.panel);
+document.body.append(h('div', { class: 'app' }, bar.root, h('div', { class: 'bands' }, notices.root, simOffBand.root, programBand.root), work, status), zoomCtl.menu, wireLegend.panel);
 
+// The bottom panel's Collapse / Expand: the student's fold (a fold the window made opens, until the size changes).
 function toggleBottom(): void {
-  bottomCollapsed = !bottomCollapsed;
-  bottomPanel.classList.toggle('collapsed', bottomCollapsed);
-  bCollapse.textContent = bottomCollapsed ? 'Expand' : 'Collapse';
-  bCollapse.title = bottomCollapsed ? 'Expand the panel' : 'Collapse the panel';
-  cycleShown();
+  if (bottomFolded()) { unfoldBottom(); return; }
+  folds.collapsed = true;
   layout();
+  cycleShown();
+}
+function unfoldBottom(): void {
+  if (folds.collapsed) folds.collapsed = false; else folds.bottomOpened = true;
+  layout();
+  cycleShown();
 }
 
 // ---- layout --------------------------------------------------------------------------
@@ -855,8 +928,21 @@ function layout(): void {
   shell.hidden = !open;
   if (!stage.hidden && !startSeen) { startSeen = true; document.documentElement.dataset.startSeen = 'true'; }
   if (open) {
-    const a = arrange(work.clientWidth, work.clientHeight, dragged, bottomCollapsed);
+    // A panel opened by hand after the window folded it stays open until the window's size changes (v1 Y-01).
+    const size = `${work.clientWidth}x${work.clientHeight}`;
+    if (size !== arrangedAt) { arrangedAt = size; folds.bottomOpened = false; folds.lowerOpened = false; }
+    const a = arrange(work.clientWidth, work.clientHeight, dragged, folds);
+    const wasFolded = bottomFolded();
+    arranged = a;
     shell.classList.toggle('narrow', a.narrow);
+    shell.classList.toggle('tight', a.tight);
+    shell.dataset.side = side;
+    viewSwitch.hidden = !a.tight;
+    bottomPanel.classList.toggle('collapsed', a.bottomFolded);
+    bCollapse.textContent = a.bottomFolded ? 'Expand' : 'Collapse';
+    bCollapse.title = a.bottomFolded ? 'Expand the panel' : 'Collapse the panel';
+    lowerPanel.classList.toggle('collapsed', a.lowerFolded);
+    if (wasFolded !== a.bottomFolded) queueMicrotask(() => cycleShown());
     shell.style.setProperty('--left-w', `${a.left}px`);
     shell.style.setProperty('--right-w', `${a.right}px`);
     shell.style.setProperty('--bottom-h', `${a.bottom}px`);
@@ -871,8 +957,9 @@ function layout(): void {
       showUpper(upperHead.selected());
     }
   }
+  if (!open) viewSwitch.hidden = true;
   bar.fit();
-  fitStatus();
+  statusView.fit();
 }
 
 // ---- rendering ----------------------------------------------------------------------
@@ -906,7 +993,8 @@ function render(): void {
   reportDirty();
   const f = files.active();
   const title = f ? fileLabel(f.fileId, f.name) : null;
-  document.title = f ? `${title}${f.dirty ? ' •' : ''} — ${APP_NAME}` : APP_NAME;
+  // The window's title (the taskbar's, v1 E-12, D-082): the file, and the circuit when it is not the main one
+  document.title = f ? `${title}${f.circuit !== f.main ? ` › ${files.circuitName(f, f.circuit)}` : ''}${f.dirty ? ' •' : ''} — ${APP_NAME}` : APP_NAME;
   bar.setFile(title, f?.dirty ?? false);
   bar.showToolbar(f !== null);
   const ready = engine.state === 'ready';
@@ -924,13 +1012,20 @@ function render(): void {
   const word = (w: 'Run' | 'Stop') => h('span', w === label ? {} : { class: 'off', 'aria-hidden': 'true' }, w);
   bRun.replaceChildren(icon(label === 'Stop' ? 'square' : 'play'), h('span', { class: 'label swap' }, word('Run'), word('Stop')), h('kbd', {}, 'F5'));
   bRun.title = `${label} (F5)`;
+  bRun.dataset.unit = label;
   bRun.classList.toggle('primary', label === 'Stop');
+  // The engine down (it could not start, or stopped): nothing that needs it can be pressed -- the first
+  // screen's choices, New and Open look it and are it (D-158); the band's Try Again starts it again.
+  const down = engine.state === 'failed' || engine.state === 'stopped';
+  start.enable(!down);
+  bNew.disabled = down;
+  bOpen.disabled = down;
   if (f) {
     // files of one name show the folder that tells them apart (v1 V-05); a library that came in new, " · Updated"
     const folders = folderMap();
     fileStrip.set(files.list().map((x) => {
       const bits = [folders.get(x.fileId) ? `— ${folders.get(x.fileId)}` : '', updatedFiles.has(x.fileId) ? '· Updated' : '', role.handover ? '· Window' : ''].filter(Boolean);
-      return { id: x.fileId, label: x.name, title: x.path ?? 'Not saved yet', dirty: x.dirty, ...(bits.length ? { note: bits.join(' ') } : {}) };
+      return { id: x.fileId, label: x.name, title: x.readOnly ? `${x.name} (read-only: Save asks where)` : x.path ?? 'Not saved yet', dirty: x.dirty, ...(bits.length ? { note: bits.join(' ') } : {}) };
     }), f.fileId);
     circuitStrip.set(f.tabs.map((c) => ({ id: c, label: files.circuitName(f, c), ...(appearanceTabs.has(key(f.fileId, c)) ? { note: '· Appearance' } : {}) })), f.circuit);
     const appear = appearanceShown(f);
@@ -957,9 +1052,12 @@ function render(): void {
 }
 
 // The band while the active file's simulation is off (N-07).
+// Switched off (Ctrl+E), its one command Turn On (v1 I-160); after an oscillation none -- the circuit is to be fixed
+// first, then Reset (the band says so; Messages has Reset Simulation).
 function renderSimBand(): void {
-  const text = simBand(files.active()?.sim);
-  if (text) simOffBand.show(text, 'error');
+  const sim = files.active()?.sim;
+  const text = simBand(sim);
+  if (text) simOffBand.show(text, 'error', text, sim?.oscillating ? undefined : { label: 'Turn On', run: () => void simCall('sim.enable', { on: true }, 'Turn On') });
   else if (simOffBand.text() !== null) simOffBand.hide();
 }
 
@@ -994,7 +1092,7 @@ async function loadDiags(fileId: string): Promise<void> {
 function showMessages(): void {
   bottomHead.select(0);
   showBody(bottomBodies, 0);
-  if (bottomCollapsed) toggleBottom();
+  if (bottomFolded()) unfoldBottom();
 }
 
 // A message with a cycle (v1 D-05, V-03): the Cycle View comes forward at that cycle, with the
@@ -1008,7 +1106,7 @@ function pinMessage(r: Reveal): void {
   if (spots.length === 0) return;
   bottomHead.select(1);
   showBody(bottomBodies, 1);
-  if (bottomCollapsed) toggleBottom();
+  if (bottomFolded()) unfoldBottom();
   cycleShown();
   void cycleView.pinMessage(r.fileId, r.messageId, r.cycle, spots);
 }
@@ -1188,7 +1286,8 @@ function renderCanvas(f: OpenFile): void {
   const drawing = editor.tool === 'Place' || editor.tool === 'Wire' || editor.tool === 'Text'
     || (board.scene === scene && board.root.parentElement === canvasBody.root && !canvasBody.isEmpty());
   if (facts.components === 0 && facts.wires === 0 && !w.path.length && !drawing) {
-    canvasBody.empty({ title: '빈 회로입니다', body: '부품과 선을 놓으면 여기 Canvas에 그려집니다. 부품은 왼쪽 Components 목록에서 끌어 오거나 Ctrl+K 검색 창에서 찾아 놓습니다.', pose: 'haram-hari-guide' });
+    // What fills it, and (v1 V-07) where a finished circuit is to look at first: Help › Examples.
+    canvasBody.empty({ title: '빈 회로입니다', body: '부품과 선을 놓으면 여기 Canvas에 그려집니다. 부품은 왼쪽 Components 목록에서 끌어 오거나 Ctrl+K 검색 창에서 찾아 놓습니다. 완성된 회로를 먼저 보려면 제목 줄 Menu 단추의 Help › Examples 메뉴에서 예제를 엽니다.', pose: 'haram-hari-guide' });
     minimap.set(null);
   } else {
     if (canvasBody.isEmpty() || board.root.parentElement !== canvasBody.root) canvasBody.fill(board.root);
@@ -1296,68 +1395,91 @@ function renderAttributes(): void {
 }
 
 function renderStatus(): void {
-  const parts: Node[] = [];
+  const facts: Fact[] = [];
   const span = (cls: string, ...c: (Node | string)[]) => h('span', { class: cls }, ...c);
+  const fact = (keep: number, node: HTMLElement, right = false) => facts.push({ node, keep, ...(right ? { right } : {}) });
   const ef = engineFact(engine);
-  if (ef) parts.push(span(ef.cls, ef.text));
+  if (ef) fact(KEEP.engine, span(ef.cls, ef.text));
   const f = files.active();
   // Facts are names, in English (Ready, 35 components, Cycle 2, Running); a sentence to the student is Korean.
-  if (opening) parts.push(span('', 'Opening file'));
-  if (!f && engine.state === 'ready' && !opening) parts.push(span('', 'Ready'));
+  if (opening) fact(KEEP.engine, span('', 'Opening file'));
+  if (!f && engine.state === 'ready' && !opening) fact(KEEP.engine, span('', 'Ready'));
   if (f) {
     const s = shownSnapshot(f);
-    parts.push(span('', code([files.circuitName(f, f.circuit), ...shown(f).names].join(' › ')),
+    fact(KEEP.circuit, span('', code([files.circuitName(f, f.circuit), ...shown(f).names].join(' › ')),
       s ? ` · ${counted(s.components.length, 'component')} · ${counted(s.wires.length, 'wire')}` : ''));
+    if (f.readOnly) fact(KEEP.circuit, span('warn', 'Read-only'));
     const list = diags.get(f.fileId);
     if (list) {
       const b = h('button', { type: 'button', class: `msgcount${list.length ? ' err' : ''}`, title: 'Messages' }, messageCount(list.length));
       b.addEventListener('click', () => showMessages());
-      parts.push(b);
+      fact(KEEP.messages, b);
     }
     // Simulation On/Off, then the cycle on show and PC (N-14: the recording's, "Cycle 5 / 12" on a past
     // cycle; the clock's count before it is known), then the clock -- 1 Hz, Running (64 Hz), N Cycles · n left (N-07)
     const sf = simFacts(f.sim, { cycle: false });
-    if (sf[0]) parts.push(dropFirst(span(`sim ${sf[0].cls}`.trim(), sf[0].text), sf[0].cls === '' ? 3 : 0));
+    if (sf[0]) fact(sf[0].cls === '' ? KEEP.simOn : KEEP.simOff, span(`sim ${sf[0].cls}`.trim(), sf[0].text));
     const rec = cycleView.state(f.fileId) ?? null;
-    const facts = cycleFacts(rec, f.sim ? f.sim.cycle : null);
-    if (facts.cycle) parts.push(span(`sim ${facts.past ? 'warn' : ''}`.trim(), facts.cycle));
-    if (facts.pc) parts.push(span('', code(facts.pc)));
-    if (rec?.runUntil) parts.push(span('run', 'Running (Run Until)'));
-    for (const x of sf.slice(1)) parts.push(dropFirst(span(`sim ${x.cls}`.trim(), x.text), x.cls === '' ? 1 : 0));
+    const cf = cycleFacts(rec, f.sim ? f.sim.cycle : null);
+    if (cf.cycle) fact(KEEP.cycle, span(`sim ${cf.past ? 'warn' : ''}`.trim(), cf.cycle));
+    if (cf.pc) fact(KEEP.pc, span('', code(cf.pc)));
+    if (rec?.runUntil) fact(KEEP.running, span('run', 'Running (Run Until)'));
+    for (const x of sf.slice(1)) fact(x.cls === '' ? KEEP.speed : KEEP.running, span(`sim ${x.cls}`.trim(), x.text));
     // The program: its name, PC ≠ entry at cycle 0, an old Stack, a .s path (facts, not messages; N-16).
-    parts.push(...programs.statusNodes(f.fileId));
-    parts.push(...overlays.statusNodes());
+    for (const n of programs.statusNodes(f.fileId)) fact(KEEP.program, n as HTMLElement);
+    for (const n of overlays.statusNodes()) fact((n as HTMLElement).classList.contains('ovhint') ? KEEP.hint : KEEP.overlay, n as HTMLElement);
   }
   if (note) {
-    parts.push(span(note.cls, note.text));
-    if (note.action) {
-      const a = note.action;
-      const b = h('button', { type: 'button', class: 'linkbtn notebtn' }, a.label);
-      b.addEventListener('click', () => a.run());
-      parts.push(b);
+    // the last action's word, with its one command when it has one (N-11: e.g. a pin's new state)
+    const a = note.action;
+    const b = a ? h('button', { type: 'button', class: 'linkbtn notebtn' }, a.label) : null;
+    if (a && b) b.addEventListener('click', () => a.run());
+    fact(note.cls === 'err' ? KEEP.error : KEEP.note, h('span', { class: 'notewrap' }, span(note.cls, note.text), b));
+  }
+  if (f) {
+    // The registers the cycle on show changed (Hallym MIPS's 방금 바뀜), while the clock does not run.
+    const ch = changedNow.get(f.fileId);
+    const rec = cycleView.state(f.fileId);
+    if (ch && rec && ch.cycle === rec.cycle && !f.sim?.ticking && ch.chip) {
+      fact(KEEP.changed, span('changed', 'Changed ', ...ch.chip.shown.flatMap((n, i) => (i ? [', ', code(n)] : [code(n)])), ch.chip.more ? ` +${ch.chip.more}` : ''), true);
     }
   }
-  parts.push(span('grow'));
-  if (f && board.scene && board.root.isConnected) parts.push(wireLegend.button, zoomCtl.button);
+  if (f && board.scene && board.root.isConnected) {
+    fact(KEEP.colors, colorsButton(), true);
+    fact(KEEP.legend, wireLegend.button, true);
+    fact(KEEP.zoom, zoomCtl.button, true);
+  }
   // The engine's and Java's versions are About's only, not the student's status bar (D-154).
-  status.replaceChildren(...parts);
-  fitStatus();
+  statusView.set(facts);
 }
 
-/* A status bar too narrow for its facts (half a screen) leaves out the ones that say least, in this order
-   (N-07): the clock's speed while it does not run (the toolbar shows it), then Simulation On (Off always
-   stays).  The engine's versions are not here at all (About only, D-154).  0: never left out. */
-function dropFirst(el: HTMLElement, order: number): HTMLElement {
-  if (order > 0) el.dataset.drop = String(order);
-  return el;
+// The status bar's wire colours' mode (v1 I-161 "Colors: Values / Groups"): a press switches it.
+function colorsButton(): HTMLElement {
+  const groups = overlays.bands.showGroups;
+  const b = h('button', { type: 'button', class: 'colorsb', title: '선 색 모드를 바꿉니다(Values: 값, Groups: 값 + 신호 그룹 테두리)', 'aria-pressed': String(groups) },
+    `Colors: ${groups ? 'Groups' : 'Values'}`);
+  b.addEventListener('click', () => overlays.setGroupsShown(!overlays.bands.showGroups));
+  return b;
 }
-function fitStatus(): void {
-  const drop = [...status.querySelectorAll<HTMLElement>('[data-drop]')].sort((a, b) => Number(a.dataset.drop) - Number(b.dataset.drop));
-  for (const el of drop) el.hidden = false;
-  for (const el of drop) {
-    if (status.scrollWidth <= status.clientWidth + 1) break;
-    el.hidden = true;
-  }
+
+// The registers the cycle on show changed, by file (asked of the recording when the cycle on show moves and the
+// clock does not run: record.registers, one request at a time).
+const changedNow = new Map<string, { cycle: number; chip: ReturnType<typeof changedChip> }>();
+let askingChanged: string | null = null;
+async function refreshChanged(fileId: string): Promise<void> {
+  const rec = cycleView.state(fileId);
+  const f = files.get(fileId);
+  if (!rec || !f || rec.empty || !rec.cpu || f.sim?.ticking || engine.state !== 'ready') return;
+  if (changedNow.get(fileId)?.cycle === rec.cycle || askingChanged === fileId) return;
+  askingChanged = fileId;
+  try {
+    const r = await api.call<RegisterData>('record.registers', { fileId });
+    changedNow.set(fileId, { cycle: r.cycle ?? rec.cycle, chip: changedChip(r.rows) });
+  } catch { /* the next state asks again */ }
+  askingChanged = null;
+  if (files.active()?.fileId === fileId) renderStatus();
+  const now = cycleView.state(fileId);
+  if (now && now.cycle !== changedNow.get(fileId)?.cycle) void refreshChanged(fileId);
 }
 
 // ---- files ------------------------------------------------------------------------------
@@ -1382,7 +1504,7 @@ async function engineReady(): Promise<boolean> {
   return false;
 }
 
-function added(f: { fileId: string; name: string; path: string | null; circuits: CircuitRef[]; main: string }): void {
+function added(f: { fileId: string; name: string; path: string | null; circuits: CircuitRef[]; main: string; readOnly?: boolean }): void {
   files.add(f);
   notices.hide();
   note = null;
@@ -1429,7 +1551,9 @@ function openedOrError(r: Opened | null, e?: unknown): void {
   }
   if (!r) return;
   if (r.already && files.get(r.fileId)) { showFile(r.fileId); return; }
-  added({ fileId: r.fileId, name: r.name, path: r.path, circuits: r.circuits, main: r.main });
+  added({ fileId: r.fileId, name: r.name, path: r.path, circuits: r.circuits, main: r.main, ...(r.readOnly ? { readOnly: true } : {}) });
+  // An example (Help › Examples): read-only, and Save asks where (v1 D-102).
+  if (r.readOnly) { note = { cls: '', text: `예제를 읽기 전용으로 열었습니다 · ${r.name} · 저장하면 새 이름으로 저장합니다` }; renderStatus(); }
   // Opened from its recovery file (N-19): unsaved edits.
   if (r.recovered) {
     files.setDirty(r.fileId, true);
@@ -1563,6 +1687,7 @@ function dropFile(fileId: string): void {
   if (board.scene?.fileId === fileId) { board.setScene(null); boardKey = ''; }
   cycleView.forget(fileId);
   libraries.delete(fileId);
+  toolbars.delete(fileId);
   diags.delete(fileId);
   programs.drop(fileId);
   consoleView.drop(fileId);
@@ -1802,16 +1927,20 @@ async function loadConsole(fileId: string): Promise<void> {
 
 let failureOpen = false;
 async function engineFailed(): Promise<void> {
-  notices.show('엔진을 시작하지 못했습니다 · 회로를 만들거나 열 수 없습니다', 'error');
+  // The band keeps Try Again once the dialog is closed (the choices and New / Open are off meanwhile: render()).
+  notices.show('엔진을 시작하지 못했습니다 · 회로를 만들거나 열 수 없습니다', 'error', undefined, { label: 'Try Again', run: () => void retryEngine() });
   if (failureOpen) return;
   failureOpen = true;
   const retry = await ask({
     title: '엔진을 시작하지 못했습니다',
-    body: '회로를 열고 돌리는 엔진(Java)이 시작되지 않았습니다. 엔진 없이는 회로를 만들거나 열 수 없습니다. 아래에 적힌 파일이 있는지 확인한 뒤 Try Again을 누르세요.',
+    body: '회로를 열고 돌리는 엔진(Java)이 시작되지 않았습니다. 엔진 없이는 회로를 만들거나 열 수 없습니다. 아래에 적힌 파일이 있는지 확인한 뒤 Try Again 단추를 누르세요.',
     detail: engine.detail ?? undefined, ok: 'Try Again', cancel: 'Close', character: false,
   });
   failureOpen = false;
-  if (retry) onEngine(await api.retryEngine());
+  if (retry) await retryEngine();
+}
+async function retryEngine(): Promise<void> {
+  onEngine(await api.retryEngine());
 }
 
 function onEngine(s: EngineStatus): void {
@@ -1879,6 +2008,7 @@ function onRecovered(r: Recovered): void {
   board.setScene(null);
   boardKey = '';
   libraries.clear();
+  toolbars.clear();
   diags.clear();
   cycleView.forget(null);   // the recordings were the old engine's (the engine sends record.state again)
   wanted = '';
@@ -1889,6 +2019,8 @@ function onRecovered(r: Recovered): void {
   note = null;
   notices.show(text.band, 'warn');
   render();
+  // the new engine's record.state may have come before this (and was forgotten above): asked for again (D-158 16)
+  cycleView.fileChanged();
   for (const f of files.list()) void loadDiags(f.fileId);   // their messages name parts by the new ids
   // The program's facts and the Console: the new engine's (N-16; the simulation starts from Reset)
   for (const f of files.list()) { consoleView.drop(f.fileId); void programs.refresh(f.fileId); void loadConsole(f.fileId); void loadSimState(f.fileId); }
@@ -1904,6 +2036,7 @@ api.onNotify((method, params) => {
     const before = files.get(st.fileId)?.sim;
     files.setSim(st);
     if (st.fileId === files.active()?.fileId && FREQUENCIES.some(([, hz]) => hz === st.hz)) frequency.value = String(st.hz);
+    if (!st.ticking && st.fileId === files.active()?.fileId) queueMicrotask(() => void refreshChanged(st.fileId));
     // only the count went on (up to once a frame while the clock runs): the status bar, not every panel (N-22, D-160)
     if (countOnly(before, st)) renderStatus(); else render();
     overlays.cycleChanged(st.fileId);
@@ -1946,6 +2079,7 @@ api.onNotify((method, params) => {
       if (board.scene === sc) { board.invalidate(); overlays.values(v); }
     }
   } else if (method === 'record.state') {
+    if (String(p.fileId) === files.active()?.fileId) queueMicrotask(() => void refreshChanged(String(p.fileId)));
     cycleView.onState(p as unknown as RecordState);
     overlays.cycleChanged(String(p.fileId));
   } else if (method === 'record.runUntil') {
@@ -2012,18 +2146,161 @@ const about = aboutDialog({
 });
 document.body.append(about.root);
 
-// ---- the caption buttons' patch ------------------------------------------------------------
-// The system draws the minimise / maximise / close buttons on a patch the
-// page cannot paint (titleBarOverlay).  While a dialog's backdrop covers the
-// page, the patch takes the colour white has under it (overlay.ts); white again after.
-let overlayNow = '#ffffff';
-function updateOverlay(): void {
-  const c = overlayColor(false, document.querySelector('dialog[open]') !== null);
-  if (c === overlayNow) return;
-  overlayNow = c;
-  void api.setOverlay(c === '#ffffff' ? null : c);
+// ---- the caption buttons' patch (captions.ts: a dialog's backdrop, the tutorial's dimming) ------------------------
+
+captionPatch((c) => void api.setOverlay(c));
+
+// ---- Preferences, the menu, the » menu (D-158) ------------------------------------------------------------------
+
+const prefs = preferences({
+  frequencies: FREQUENCIES,
+  hz: () => Number(frequency.value),
+  setHz: (hz) => { frequency.value = String(hz); frequency.dispatchEvent(new Event('change')); },
+  showGrid: () => board.showGrid,
+  setShowGrid: (on) => setGrid(on),
+  busWidths: () => board.busWidths,
+  setBusWidths: (on) => { wireLegend.setBusWidths(on); board.busWidths = on; board.invalidate(); },
+  groups: () => overlays.bands.showGroups,
+  setGroups: (on) => overlays.setGroupsShown(on),
+  busMode: () => overlays.bus.mode,
+  setBusMode: (m) => overlays.setBusMode(m),
+  activePath: () => overlays.activePathOn,
+  setActivePath: (on) => overlays.setActivePath(on),
+  flowOnClick: () => overlays.settings.onClick,
+  setFlowOnClick: (on) => { if (overlays.settings.onClick !== on) overlays.toggleOnClick(); },
+  flowSpeed: () => overlays.settings.speed,
+  setFlowSpeed: (v) => overlays.setFlow('speed', v),
+  reduceMotion: () => overlays.settings.reduceMotion,
+  setReduceMotion: (on) => overlays.setFlow('reduceMotion', on),
+  resetPanels: () => { dragged = nothingDragged(); Object.assign(folds, noFolds()); layout(); cycleShown(); },
+  about: () => void about.open(),
+});
+document.body.append(prefs.root);
+// A key given to a command shows wherever its key is shown (the toolbar's tooltips, the menu).
+onKeysChanged(() => {
+  flowTitle();
+  bRedo.title = `Redo (${keyText('redo')})`;
+  bRedo.setAttribute('aria-label', bRedo.title);
+  bRedo.dataset.key = keyText('redo');
+});
+
+// The title bar's Menu: File › Edit › Project › Simulate › Window › Help › (logic/menus.ts).
+let examples: { id: string; name: string }[] | null = null;
+async function openMenu(): Promise<void> {
+  examples ??= await api.examples().catch(() => []);
+  const recent = await api.recentFiles().catch(() => []);
+  const f = files.active();
+  const specs = appMenu({
+    file: f !== null, ready: engine.state === 'ready',
+    simOn: f?.sim?.running ?? true, ticking: f?.sim?.ticking ?? false, hz: Number(frequency.value), frequencies: FREQUENCIES,
+    recent, examples,
+    files: files.list().map((x) => ({ id: x.fileId, name: x.name, active: x.fileId === f?.fileId })),
+    project: f ? { editable: editableFile(), index: f.circuits.findIndex((c) => c.circuitId === f.circuit), count: f.circuits.length, main: f.circuit === f.main } : null,
+    tool: editor.tool,
+  });
+  menuUnder(bMenu.getBoundingClientRect(), menuEntries(specs, (id) => void runMenu(id)));
 }
-new MutationObserver(updateOverlay).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'open'] });
+
+// The » menu: the toolbar's commands the bar had no room for, as their buttons are now (on, ticked, their keys).
+function moreMenu(units: HTMLElement[], at: DOMRect): void {
+  const specs: MenuSpec[] = units.map((u): MenuSpec => {
+    if (u === speedBox) {
+      return { label: 'Clock Speed', disabled: frequency.disabled, items: FREQUENCIES.map(([label, hz]) => ({ label, id: `sim.hz:${hz}`, checked: String(hz) === frequency.value, radio: true })) };
+    }
+    const b = u as HTMLButtonElement;
+    const checked = b.getAttribute('aria-checked') ?? b.getAttribute('aria-pressed');
+    return {
+      label: u.dataset.unit ?? '', id: `more:${units.indexOf(u)}`, disabled: b.disabled,
+      ...(u.dataset.key ? { key: u.dataset.key } : {}), ...(checked !== null ? { checked: checked === 'true', radio: b.getAttribute('role') === 'radio' } : {}),
+    };
+  });
+  menuUnder(at, menuEntries(specs, (id) => {
+    if (id.startsWith('more:')) units[Number(id.slice(5))]?.click();
+    else void runMenu(id);
+  }));
+}
+
+async function runMenu(id: string): Promise<void> {
+  const [what, arg] = id.split(/:(.*)/s);
+  const f = files.active();
+  switch (what) {
+    case 'file.new': return newCircuit();
+    case 'file.open': return openFile();
+    case 'file.recent': return openRecent(arg);
+    case 'file.close': if (f) await closeFile(f.fileId); return;
+    case 'file.save': return save(false);
+    case 'file.saveAs': return save(true);
+    case 'file.preferences': case 'window.preferences': prefs.open(); return;
+    case 'file.exit': return leave();
+    case 'edit.undo': return edit('edit.undo', 'Undo');
+    case 'edit.redo': return edit('edit.redo', 'Redo');
+    case 'edit.cut': case 'edit.copy': case 'edit.paste': case 'edit.delete': case 'edit.duplicate': case 'edit.selectAll':
+      if (f) editor.menu(what.slice(5) as MenuCommand);
+      return;
+    case 'edit.find': if (f) finder.open(); return;
+    case 'edit.palette': if (f) pal.open(''); return;
+    case 'edit.tool': if (f) { toCanvas(); editor.setTool(arg as ToolName); } return;
+    // Project (the Circuits panel's commands, N-11) on the circuit on show
+    case 'project.add': case 'project.import': case 'project.loadBuiltin': case 'project.loadCirc': case 'project.loadJar': case 'project.unload':
+      if (f) await circuitCtl.fileCommand(what.slice(8) as FileCommand);
+      return;
+    case 'project.up': case 'project.down': case 'project.main': case 'project.remove': case 'project.layout': case 'project.appearance':
+      if (!f) return;
+      if (what === 'project.layout' || what === 'project.appearance') toCanvas();
+      await circuitCtl.command(what.slice(8) as CircuitCommand, f.circuit);
+      return;
+    case 'sim.enabled': return toggleSimulation();
+    case 'sim.reset': return reset();
+    case 'sim.step': return stepSimulation();
+    case 'sim.tick': return tickOnce();
+    case 'sim.ticks': return run();
+    case 'sim.hz': frequency.value = arg; frequency.dispatchEvent(new Event('change')); return;
+    case 'sim.cycle': return cycles(1);
+    case 'sim.cycles': return nCycles();
+    case 'window.minimize': return api.minimize();
+    case 'window.maximize': return api.maximize();
+    case 'window.file': showFile(arg); return;
+    case 'help.example': return openExample(arg);
+    case 'help.keys': prefs.open('keyboard'); return;
+    case 'help.about': return about.open();
+  }
+}
+
+// The file's toolbar (model.toolbar, the .circ's <toolbar>), asked once a file: Ctrl+2 … Ctrl+9 hold its tools.
+type ToolbarItem = { name: string; tool?: string; lib?: string | null; attrs?: Record<string, string> };
+const toolbars = new Map<string, ToolbarItem[]>();
+const BASE_TOOLS: Record<string, ToolName> = { 'Poke Tool': 'Poke', 'Edit Tool': 'Edit', 'Select Tool': 'Edit', 'Wiring Tool': 'Wire', 'Text Tool': 'Text', 'Menu Tool': 'Menu' };
+async function toolbarTool(i: number): Promise<void> {
+  const f = files.active();
+  if (!f || engine.state !== 'ready') return;
+  let bar = toolbars.get(f.fileId);
+  if (!bar) {
+    try { bar = await api.call<ToolbarItem[]>('model.toolbar', { fileId: f.fileId }); } catch { return; }
+    toolbars.set(f.fileId, bar);
+  }
+  const t = bar[i];
+  if (!t || files.active()?.fileId !== f.fileId) return;
+  if (t.tool !== undefined) { const name = BASE_TOOLS[t.tool]; if (name) editor.setTool(name); return; }
+  editor.hold({ lib: t.lib ?? null, name: t.name, ...(t.attrs ? { attrs: t.attrs } : {}) });
+}
+
+// Help › Examples (V-07): read-only; the status bar says so, and Save asks where (the main process).
+async function openExample(id: string): Promise<void> {
+  if (!(await engineReady())) return;
+  try {
+    openedOrError(await recoveryAnswered(await api.openExample(id)));
+  } catch (e) {
+    openedOrError(null, e);
+  }
+}
+async function openRecent(id: string): Promise<void> {
+  if (!(await engineReady())) return;
+  try {
+    openedOrError(await recoveryAnswered(await api.openRecent(id)));
+  } catch (e) {
+    openedOrError(null, e);
+  }
+}
 
 // ---- keys ---------------------------------------------------------------------------------
 
@@ -2051,6 +2328,8 @@ window.addEventListener('keydown', (e) => {
   }
   if (e.key === 'F5') { e.preventDefault(); void run(); return; }
   if (e.key === 'F10') { e.preventDefault(); void cycles(1); return; }
+  // ? : the keys (Help › Keyboard Shortcuts, v1 I-43), where nothing is being typed
+  if (e.key === '?' && !mod && !e.altKey && !typing(e.target) && !e.isComposing) { e.preventDefault(); prefs.open('keyboard'); return; }
   if (!mod) return;
   if (board.scene && board.root.isConnected && board.zoomKey(e)) { e.preventDefault(); return; }
   const k = e.key.toLowerCase();
@@ -2073,6 +2352,15 @@ window.addEventListener('keydown', (e) => {
     editor.menu(menuKeys[e.code]);
     return;
   }
+  // Ctrl+2 … Ctrl+9: the file's toolbar's second … ninth tool (the original's KeyboardToolSelection, .circ <toolbar>;
+  // Ctrl+1 is 100 % as v1's: I-112, D-158)
+  if (/^Digit[2-9]$/.test(e.code) && !e.shiftKey && !e.altKey && files.active() && !typing(e.target)) {
+    e.preventDefault();
+    void toolbarTool(Number(e.code.slice(5)) - 1);
+    return;
+  }
+  // Window › Minimize (Ctrl+M, I-155)
+  if (e.code === 'KeyM' && !e.shiftKey && !e.altKey) { e.preventDefault(); void api.minimize(); return; }
   if (k === 'n') { e.preventDefault(); if (role.main) void newCircuit(); }
   else if (k === 'o') { e.preventDefault(); if (role.main) void openFile(); }
   else if (k === 'q') { e.preventDefault(); if (role.main) void leave(); else void api.leave(); }
@@ -2099,15 +2387,21 @@ function typing(target: EventTarget | null): boolean {
 
 // ---- start ----------------------------------------------------------------------------------
 
+// The fonts, loaded before anything is measured with them (D2Coding is otherwise loaded only when first used, and a
+// table measured before then keeps the fallback's widths): the same layout every start (D-158).
+const FONTS = ['400 13px Pretendard', '500 13px Pretendard', '600 13px Pretendard', '700 13px Pretendard', '13px D2Coding'];
+
 async function begin(): Promise<void> {
+  await Promise.race([Promise.all(FONTS.map((f) => document.fonts.load(f))).catch(() => []), new Promise((done) => setTimeout(done, 2000))]);
   // a window of its own (N-11): its file, as the tab stood; no first screen, no New or Open
   role = await api.windowRole().catch(() => ({ main: true, handover: null }));
   everyFile = await api.openFilesAll().catch(() => []);
   if (role.handover) document.body.classList.add('ownwindow');
   new ResizeObserver(() => layout()).observe(document.body);
+  // The room kept for the caption buttons is known after the resize, and the fonts' widths after they load: fit again.
   (navigator as unknown as { windowControlsOverlay?: EventTarget }).windowControlsOverlay
-    ?.addEventListener('geometrychange', () => layout());
-  void document.fonts.ready.then(() => layout());
+    ?.addEventListener('geometrychange', () => { bar.fit(true); layout(); });
+  void document.fonts.ready.then(() => { bar.fit(true); layout(); });
   engine = await statusKeeper.ask(() => api.engineStatus());
   if (role.handover) {
     decided = true;

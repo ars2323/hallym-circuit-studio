@@ -225,7 +225,7 @@ test('the real engine: its file errors in the window\'s words (a file that is no
     await answerOpen(r.app, path.join(r.dir, 'lab3.circ'));
     await page.keyboard.press('Control+o');
     await expect(dialog.locator('.askfile')).toHaveText('File: lab3.circ');
-    await expect(dialog).toContainText('그 자리에 파일이 없습니다.');
+    await expect(dialog).toContainText('폴더에 그 이름의 파일이 없습니다.');
     expect(await dialog.innerText()).not.toContain(r.dir);
     await dialog.getByRole('button', { name: 'Close' }).click();
     const notCirc = path.join(r.dir, 'notes.circ');
@@ -624,6 +624,51 @@ test('the real engine and the overlays (N-15): the PC\'s Signal Flow is v1\'s, I
     await page.waitForFunction(() => (window as unknown as { __hcsOverlays: { shown(): { memos: unknown[] } } }).__hcsOverlays.shown().memos.length === 0);
     await page.keyboard.press('Control+z');
     await page.waitForFunction((net) => !(window as unknown as { __hcsCanvas: { scene: { groups: Map<string, unknown> } } }).__hcsCanvas.scene.groups.has(net), w.net);
+  } finally {
+    await r.close();
+  }
+});
+
+test('the real engine and the shell (N-17, D-158): Ctrl+5 holds the toolbar\'s output pin and it is placed as one; Help › Examples read-only, Save asks where; the » rule at 683 px', async () => {
+  const r = await launch(undefined, { env: real });
+  const { page } = r;
+  try {
+    await openFile(r, sample(r.dir, DATAPATH));
+    await canvasSettled(page);
+    const fileId = (await openFileIds(r.app))[0];
+    const mainId = (await circuitsOf(page, fileId)).main;
+    const outputPins = async () => (await call<Snapshot>(page, 'model.circuit', { fileId, circuitId: mainId })).components
+      .filter((k) => k.name === 'Pin' && k.attrs.output === 'true').length;
+    const before = await outputPins();
+    // Ctrl+5: the fifth tool of demo-datapath's <toolbar> (the output pin), placed where the Canvas is pressed
+    await page.locator('.canvas-view canvas').hover();
+    await page.keyboard.press('Control+5');
+    await expect(page.locator('.toolbar [data-unit="Pin"]')).toHaveAttribute('aria-checked', 'true');
+    const box = (await page.locator('.canvas-view canvas').boundingBox())!;
+    await page.mouse.move(box.x + 60, box.y + box.height - 60);
+    await page.mouse.down();
+    await page.mouse.up();
+    await expect.poll(outputPins).toBe(before + 1);
+    // Help › Examples › console-demo.circ: the engine opens it read-only; Ctrl+S asks where
+    await page.getByTitle('Menu').click();
+    await page.locator('.ovmenu.barmenu').getByRole('menuitem', { name: /^Help/ }).click();
+    await page.locator('.ovmenu').last().getByRole('menuitem', { name: /^Examples/ }).click();
+    await page.locator('.ovmenu').last().getByRole('menuitem', { name: 'console-demo.circ' }).click();
+    await expect(page.locator('.filebar .ptab', { hasText: 'console-demo.circ' })).toBeVisible();
+    await expect(page.locator('.status')).toContainText('Read-only');
+    const example = readFileSync(path.join(repo, 'tests/circ/console-demo.circ'));
+    const copy = path.join(r.dir, 'mine-console.circ');
+    await answerSave(r.app, copy);
+    await page.keyboard.press('Control+s');
+    await expect(page.locator('.filebar .ptab', { hasText: 'mine-console.circ' })).toBeVisible();
+    expect(existsSync(copy)).toBe(true);
+    expect(readFileSync(path.join(repo, 'tests/circ/console-demo.circ')).equals(example)).toBe(true);   // the example itself untouched
+    // 683 px: every command on the bar or on its » menu, every fact on the bar or in its » list, one side at a time
+    await r.app.evaluate(({ BrowserWindow }) => { const w = BrowserWindow.getAllWindows()[0]; if (w.isMaximized()) w.unmaximize(); w.setContentSize(683, 700); });
+    await page.waitForFunction(() => window.innerWidth <= 684);
+    await expect(page.locator('.toolbar .more')).toBeVisible();
+    await expect(page.locator('.status .moreb')).toBeVisible();
+    await expect(page.locator('.titlebar .viewswitch')).toBeVisible();
   } finally {
     await r.close();
   }

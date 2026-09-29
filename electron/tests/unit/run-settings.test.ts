@@ -30,6 +30,9 @@ test('the note and the defaults', () => {
   assert.match(app, /hz === RUN_DEFAULTS\.hz/);
   assert.match(app, /Clock speed · \$\{RUN_ONLY\}/);   // the toolbar's clock speed says it is for this run (N-07)
   assert.match(app, /busWidths: RUN_DEFAULTS\.busWidths/);
+  // Preferences (D-158) says it at its top, and the keys the student changes live in memory only
+  assert.match(code(path.join(SRC, 'renderer/app/preferences.ts')), /\$\{RUN_ONLY\}\. 다음에 켜면 모두 기본값으로 돌아옵니다\./);
+  assert.match(code(path.join(SRC, 'renderer/app/logic/keys.ts')), /const changed = new Map<string, Stroke>\(\);/);
 });
 
 test('the window keeps nothing that could outlive the run: no web storage, IndexedDB, cookies or Cache Storage', () => {

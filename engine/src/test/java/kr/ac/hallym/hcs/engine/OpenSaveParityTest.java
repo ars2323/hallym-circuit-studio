@@ -353,6 +353,14 @@ class OpenSaveParityTest {
             }
         }
         e.client.call("model.library", params("fileId", fileId));
+        // N-17(D-158): 도구 모음의 도구(Ctrl+2…9)와 그 도구를 든 모습(읽기만)
+        for (JsonElement t : e.client.call("model.toolbar", params("fileId", fileId)).getAsJsonArray()) {
+            JsonObject o = t.getAsJsonObject();
+            if (!o.has("tool")) {
+                e.client.callObject("model.tool", params("fileId", fileId, "lib", o.get("lib"), "name", o.get("name"),
+                        "attrs", o.has("attrs") ? o.get("attrs") : new JsonObject()));
+            }
+        }
         e.client.callObject("diag.list", params("fileId", fileId));
         e.client.callObject("mips.facts", params("fileId", fileId));
         // Find와 검색 창(N-12): 이름 색인을 만들고 붙은 포트로 자리 글을 짓는다(읽기만)

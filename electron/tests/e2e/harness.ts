@@ -126,6 +126,30 @@ export async function newCircuit(r: Running): Promise<void> {
 
 export const statusText = (page: Page) => page.locator('.status').innerText();
 
+// A toolbar command pressed the way a student does at this window's width (D-158): its button, or on the title bar's
+// » menu when the bar had no room for it (tools/e2e-widths.ts runs every test at half a screen too).
+export async function command(page: Page, name: string | RegExp): Promise<void> {
+  const own = typeof name === 'string' ? page.locator(`.toolbar [data-unit="${name}"]`) : page.locator('.toolbar [data-unit]').filter({ hasText: name });
+  if (await own.first().isVisible()) { await own.first().click(); return; }
+  await page.locator('.toolbar .more').click();
+  await page.locator('.ovmenu.barmenu > button').filter({ has: page.locator('.label', { hasText: name }) }).first().click();
+}
+// The toolbar's clock speed set to `label` (1 Hz … 4 kHz): its select, or the » menu's Clock Speed ›.
+export async function clockSpeed(page: Page, label: string): Promise<void> {
+  const select = page.locator('select[aria-label="Clock speed"]');
+  if (await select.isVisible()) { await select.selectOption({ label }); return; }
+  await page.locator('.toolbar .more').click();
+  await page.locator('.ovmenu.barmenu').getByRole('menuitem', { name: /Clock Speed/ }).click();
+  await page.locator('.ovmenu').last().getByRole('menuitemradio', { name: label, exact: true }).click();
+}
+
+// About, as Hallym MIPS opens it (D-158): the title bar's Preferences, then its About · Licenses.
+export async function openAbout(page: Page): Promise<void> {
+  await page.getByTitle('Preferences').click();
+  await page.locator('dialog.prefs').getByRole('button', { name: 'About · Licenses' }).click();
+  await page.locator('dialog.about[open]').waitFor();
+}
+
 /* The engine calls the window makes from now on, as the main process sends them (its EngineClient's
    call, wrapped): what an intent carried, e.g. a poke's point and press/release (N-07, N-08). */
 export interface SentCall { method: string; params: Record<string, unknown> }

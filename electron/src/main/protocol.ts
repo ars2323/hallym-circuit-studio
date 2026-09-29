@@ -655,7 +655,7 @@ export const ERR_NO_METHOD = -32601;
    the main process (its file dialogs, the command line), never from the page. */
 export const WINDOW_METHODS = [
   'file.new', 'file.close', 'file.dirty',
-  'model.circuit', 'model.library',
+  'model.circuit', 'model.library', 'model.toolbar',
   'edit.addComponent', 'edit.addWire', 'edit.move', 'edit.delete', 'edit.setAttr', 'edit.undo', 'edit.redo',
   'edit.tunnelColor', 'edit.splitterEdit', 'edit.splitterSplit', 'find.query',
   'edit.select', 'edit.copy', 'edit.cut', 'edit.paste', 'edit.duplicate', 'edit.rotate', 'edit.keyConfig', 'edit.setToolAttr', 'edit.text',

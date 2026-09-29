@@ -11,6 +11,8 @@ import com.cburch.logisim.data.AttributeSet;
 import com.cburch.logisim.data.Location;
 import com.cburch.logisim.tools.AddTool;
 import com.cburch.logisim.tools.Tool;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 
 import kr.ac.hallym.hcs.engine.doc.Doc;
@@ -29,6 +31,73 @@ public final class ToolParts {
 
     public static JsonObject ghost(Doc d, String lib, String name, Location loc) throws RpcError {
         return ghost(d, lib, name, loc, java.util.Collections.<String, String>emptyMap());
+    }
+
+    /**
+     * model.toolbar(N-17, D-158, docs/interaction-parity.md I-112): 파일의 {@code <toolbar>}(원조 Project › Options ›
+     * Toolbar, 기본 틀: Poke·Edit·Text, 입력 핀, 출력 핀, NOT·AND·OR)를 차례대로, 구분선은 빼고. 원조에서 Ctrl+1…9가 이
+     * 차례로 도구를 고른다({@code KeyboardToolSelection}); v1과 v2는 Ctrl+1이 100%라 Ctrl+2…9가 둘째…아홉째다.
+     * 놓는 도구는 {@code lib}(파일의 회로면 null)·{@code name}과, 라이브러리 도구와 다른 속성만 {@code attrs}(원조 문자열)로
+     * 준다: 화면은 부품 목록의 도구처럼 들고(model.tool, edit.addComponent의 attrs), 같은 부품이 놓인다. 기본 도구(Poke
+     * Tool, Edit Tool …)는 {@code tool}로 이름만. 모델은 바꾸지 않는다(읽기만: OpenSaveParityTest.screenOpens).
+     */
+    public static JsonArray toolbar(Doc d) {
+        JsonArray out = new JsonArray();
+        for (Tool t : d.file().getOptions().getToolbarData().getContents()) {
+            if (t == null) {
+                continue;   // a separator
+            }
+            JsonObject o = new JsonObject();
+            o.addProperty("name", t.getName());
+            if (t instanceof AddTool) {
+                Tool own = null;
+                String lib = null;
+                for (Tool x : d.file().getTools()) {
+                    if (x.sharesSource(t)) {
+                        own = x;
+                    }
+                }
+                if (own == null) {
+                    for (com.cburch.logisim.tools.Library l : kr.ac.hallym.hcs.app.libs.MipsShadow.libraries(d.file())) {
+                        Tool x = l.getTool(t.getName());
+                        if (x != null && x.sharesSource(t)) {
+                            own = x;
+                            lib = l.getName();
+                            break;
+                        }
+                    }
+                }
+                if (own == null) {
+                    continue;   // a tool of a library no longer loaded: nothing to hold
+                }
+                if (lib == null) {
+                    o.add("lib", JsonNull.INSTANCE);
+                } else {
+                    o.addProperty("lib", lib);
+                }
+                JsonObject attrs = new JsonObject();
+                AttributeSet mine = t.getAttributeSet();
+                AttributeSet theirs = own.getAttributeSet();
+                if (mine != null) {
+                    for (com.cburch.logisim.data.Attribute<?> a : mine.getAttributes()) {
+                        @SuppressWarnings("unchecked")
+                        com.cburch.logisim.data.Attribute<Object> ao = (com.cburch.logisim.data.Attribute<Object>) a;
+                        Object v = mine.getValue(ao);
+                        Object w = theirs == null || !theirs.containsAttribute(ao) ? null : theirs.getValue(ao);
+                        if (v != null && !v.equals(w)) {
+                            attrs.addProperty(a.getName(), ao.toStandardString(v));
+                        }
+                    }
+                }
+                if (attrs.size() > 0) {
+                    o.add("attrs", attrs);
+                }
+            } else {
+                o.addProperty("tool", t.getName());
+            }
+            out.add(o);
+        }
+        return out;
     }
 
     /** attrs: 놓을 부품에만 줄 값(edit.addComponent의 attrs와 같다, 검색창 "and 3"). 도구 속성은 그대로 둔다. */

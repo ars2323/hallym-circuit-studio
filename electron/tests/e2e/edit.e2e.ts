@@ -9,7 +9,7 @@ import { expect, type Page, test } from '@playwright/test';
 
 import { pagePoint } from './canvas-points.ts';
 import { drag, hover, overlay, parts, placeTool, selected, tool, where, wires } from './edit-points.ts';
-import { DATAPATH, launch, newCircuit, openFile, recordCalls, type Running, sample, sentCalls, visibleCharacters } from './harness.ts';
+import { command, DATAPATH, launch, newCircuit, openFile, recordCalls, type Running, sample, sentCalls, visibleCharacters } from './harness.ts';
 
 type P = [number, number];
 const mid = (k: { bounds: number[] }): P => [k.bounds[0] + k.bounds[2] / 2, k.bounds[1] + k.bounds[3] / 2];
@@ -20,7 +20,7 @@ async function twoGates(r: Running): Promise<{ and: { id: string; bounds: number
   await newCircuit(r);
   await recordCalls(r.app);
   const { page } = r;
-  await tool(page, 'Pin').click();
+  await command(page, 'Pin');
   await page.locator('.canvas-view canvas').waitFor();
   const w = await where(page);
   for (const [name, at] of [['AND Gate', [300, 200]], ['OR Gate', [300, 400]]] as const) {
@@ -47,7 +47,7 @@ test('placing (I-53..I-57, I-01): the toolbar\'s Pin and hcs:place-tool hold a p
       window.addEventListener('hcs:tool', (e) => w.tools.push((e as CustomEvent<{ tool: string }>).detail.tool));
     });
     await expect(page.locator('.canvas h3')).toHaveText('빈 회로입니다');
-    await tool(page, 'Pin').click();
+    await command(page, 'Pin');
     await expect(tool(page, 'Pin')).toBeChecked();
     // an empty circuit shows the Canvas while a part is held, its origin at the top-left
     await page.locator('.canvas-view canvas').waitFor();
@@ -73,14 +73,14 @@ test('placing (I-53..I-57, I-01): the toolbar\'s Pin and hcs:place-tool hold a p
     expect(await placeTool(page, { ...w, lib: 'Gates', name: 'OR Gate', at: [500, 500], source: 'drop' })).toBe(true);
     await expect.poll(async () => (await parts(page, 'OR Gate'))[0]?.loc).toEqual([500, 500]);
     // leaving the Canvas takes the ghost away (I-55)
-    await tool(page, 'Probe').click();
+    await command(page, 'Probe');
     await hover(page, [200, 200]);
     await expect.poll(async () => (await overlay(page)).ghost).toBeTruthy();
     await page.mouse.move(2, 2);
     await expect.poll(async () => (await overlay(page)).ghost).toBeUndefined();
-    await tool(page, 'Wire').click();
-    await tool(page, 'Text').click();
-    await tool(page, 'Edit').click();
+    await command(page, 'Wire');
+    await command(page, 'Text');
+    await command(page, 'Edit');
     const tools = await page.evaluate(() => (window as unknown as { tools: string[] }).tools);
     expect(tools).toEqual(['Pin', 'Edit', 'AND Gate', 'Edit', 'Probe', 'Wire', 'Text', 'Edit']);   // the drop kept the Edit tool: no event
   } finally {
@@ -94,7 +94,7 @@ test('a held part\'s keys (I-58, I-59): an arrow turns it, a digit and Alt+digit
   try {
     await newCircuit(r);
     await recordCalls(r.app);
-    await tool(page, 'Pin').click();
+    await command(page, 'Pin');
     await page.locator('.canvas-view canvas').waitFor();
     await hover(page, [200, 200]);
     await page.keyboard.press('ArrowUp');
@@ -115,7 +115,7 @@ test('the Edit tool selects (I-09..I-15, I-18, I-19): a click, Shift+click, a cl
   const { page } = r;
   try {
     const { and, or } = await twoGates(r);
-    await tool(page, 'Edit').click();
+    await command(page, 'Edit');
     await click(page, mid(and));
     await expect.poll(() => selected(page)).toEqual([and.id]);
     expect((await sent(r, 'edit.select')).at(-1)).toMatchObject({ at: [285, 200], toggle: false });
@@ -155,7 +155,7 @@ test('the Attributes panel follows the selection with its facts (D-146): one par
   try {
     const { and, or } = await twoGates(r);
     const panel = page.locator('.pbody.attributes');
-    await tool(page, 'Edit').click();
+    await command(page, 'Edit');
     await click(page, [600, 100]);
     await expect(panel.locator('.aname')).toHaveText('main');
     await expect(panel.locator('.ahead .badge')).toHaveText('Circuit');
@@ -183,7 +183,7 @@ test('the Edit tool moves (I-23..I-25): the parts dragged drawn where they go, t
   const { page } = r;
   try {
     const { and } = await twoGates(r);
-    await tool(page, 'Edit').click();
+    await command(page, 'Edit');
     await click(page, mid(and));
     await expect.poll(() => selected(page)).toEqual([and.id]);
     const a = await pagePoint(page, mid(and)), b = await pagePoint(page, [mid(and)[0] + 44, mid(and)[1] + 17]);
@@ -214,7 +214,7 @@ test('keys on the selection (I-28..I-32, I-38..I-40, I-42): arrows, R, Shift+R, 
   const { page } = r;
   try {
     const { and } = await twoGates(r);
-    await tool(page, 'Edit').click();
+    await command(page, 'Edit');
     await click(page, mid(and));
     await expect.poll(() => selected(page)).toEqual([and.id]);
     for (const k of ['ArrowRight', 'ArrowUp', 'KeyR', 'Shift+KeyR', 'Digit1', 'Digit2', 'Alt+Digit8', 'Alt+ArrowLeft', 'Insert']) await page.keyboard.press(k);
@@ -250,7 +250,7 @@ test('keys on the selection (I-28..I-32, I-38..I-40, I-42): arrows, R, Shift+R, 
     // Backspace with nothing selected: nothing, unless the last edit was a wire the tool drew
     await page.keyboard.press('Backspace');
     expect((await sent(r, 'edit.undo')).length).toBe(0);
-    await tool(page, 'Wire').click();
+    await command(page, 'Wire');
     await drag(page, [100, 600], [[200, 600]]);
     await expect.poll(async () => (await wires(page)).length).toBe(1);
     await page.keyboard.press('Backspace');
@@ -296,7 +296,7 @@ test('wires (I-44..I-51, I-15, I-17): the green circle on a port or a wire, Alt 
     await expect.poll(async () => (await sent(r, 'edit.select')).length).toBe(1);
     expect((await sent(r, 'edit.select'))[0]).toMatchObject({ at: q });
     // the Wire tool: the grey dot at the snapped pointer; vertical first; from a wire's end back along it: shortened
-    await tool(page, 'Wire').click();
+    await command(page, 'Wire');
     await hover(page, [q[0] - 104, q[1] + 3]);
     await expect.poll(async () => (await overlay(page)).cursorDot).toEqual([q[0] - 100, q[1]]);
     // the wire just drawn from the port: its right end (where the L bends) dragged back 20 along it
@@ -326,7 +326,7 @@ test('the Text tool (I-79..I-82) and a label in place (I-42, I-105): the field w
   const { page } = r;
   try {
     const { and, or } = await twoGates(r);
-    await tool(page, 'Text').click();
+    await command(page, 'Text');
     await click(page, [120, 520]);
     const field = page.locator('.canvas-view .inline-field');
     await expect(field).toBeVisible();
@@ -350,7 +350,7 @@ test('the Text tool (I-79..I-82) and a label in place (I-42, I-105): the field w
     expect((await sent(r, 'edit.text'))[1]).toMatchObject({ id: and.id, text: 'g1' });
     // the Edit tool's double click: the label field at the part's middle; Enter applies (edit.setAttr label)
     await page.keyboard.press('Escape');
-    await tool(page, 'Edit').click();
+    await command(page, 'Edit');
     const s = await pagePoint(page, mid(or));
     await page.mouse.dblclick(s.x, s.y);
     await expect(field).toBeVisible();
@@ -403,7 +403,7 @@ test('Electron\'s own keys and mouse do nothing (I-206..I-213): no reload, no de
   const { page, app } = r;
   try {
     const { and } = await twoGates(r);
-    await tool(page, 'Edit').click();
+    await command(page, 'Edit');
     await click(page, mid(and));
     await expect.poll(() => selected(page)).toEqual([and.id]);
     await page.evaluate(() => { (window as unknown as { marker: number }).marker = 42; });
@@ -458,7 +458,7 @@ test('the view\'s keys (I-122..I-125): Ctrl+1 is 100 %, Ctrl+0 fits, F fits the 
   const { page } = r;
   try {
     const { and } = await twoGates(r);
-    await tool(page, 'Edit').click();
+    await command(page, 'Edit');
     const view = () => page.evaluate(() => ({ ...(window as unknown as { __hcsCanvas: { view: { x: number; y: number; zoom: number } } }).__hcsCanvas.view }));
     await page.keyboard.press('Control+0');
     await expect.poll(async () => (await view()).zoom).not.toBe(1);

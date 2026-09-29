@@ -3,15 +3,13 @@
    states, first screen, dialogs, status bar, band -- is in
    ../shared/shared.css (Hallym MIPS's). */
 
-/* Rows: the title bar, the toolbar's own row (titlebar.ts, only when the bar
-   cannot hold it), the band, the work area, the status bar.  Placed by row:
-   a hidden one leaves its row empty. */
-.app { display: grid; height: 100vh; grid-template-rows: var(--titlebar) auto auto minmax(0, 1fr) 24px; }
+/* Rows: the title bar (the toolbar in it, the » rule when it has no room:
+   ../shared/titlebar.ts, D-158), the bands, the work area, the status bar. */
+.app { display: grid; height: 100vh; grid-template-rows: var(--titlebar) auto minmax(0, 1fr) 24px; }
 .app > .titlebar { grid-row: 1; }
-.app > .toolrow { grid-row: 2; }
-.app > .bands { grid-row: 3; } /* the engine's band, the program's band (N-16) */
-.app > .work { grid-row: 4; }
-.app > .status { grid-row: 5; }
+.app > .bands { grid-row: 2; } /* the engine's band, the simulation's, the program's (N-16) */
+.app > .work { grid-row: 3; }
+.app > .status { grid-row: 4; }
 
 .work { min-height: 0; min-width: 0; display: grid; }
 .stage-welcome { display: flex; align-items: center; justify-content: center; padding: 24px; overflow: auto; position: relative; isolation: isolate; } /* the video behind the card (.wback, D-155) */
@@ -21,6 +19,11 @@
   grid-template-columns: var(--left-w, 260px) 8px minmax(0, 1fr) 8px var(--right-w, 280px); grid-template-rows: minmax(0, 1fr); }
 .shell.narrow { grid-template-columns: var(--left-w, 260px) 8px minmax(0, 1fr); }
 .shell.narrow > .rightcol, .shell.narrow > .rightsplit { display: none; }
+/* Tight (logic/layout.ts): one side at a time, the title bar's Canvas / Panels switch choosing it (D-158) */
+.shell.tight { grid-template-columns: minmax(0, 1fr); }
+.shell.tight > .splitter { display: none; }
+.shell.tight[data-side=canvas] > .leftcol { display: none; }
+.shell.tight[data-side=panels] > .center { display: none; }
 .leftcol { display: grid; min-height: 0; min-width: 0; grid-template-rows: minmax(0, 1fr) 8px var(--lower-h, 240px); }
 .center { display: grid; min-height: 0; min-width: 0; grid-template-rows: minmax(0, 1fr) 8px var(--bottom-h, 220px); }
 .rightcol { display: grid; min-height: 0; min-width: 0; }
@@ -44,9 +47,10 @@
 .circuitbar .tabclose { width: 18px; height: 18px; margin-right: 4px; }
 .canvas { background: var(--white); }
 
-/* ---- the bottom panel -------------------------------------------------------- */
-.panel.bottom.collapsed > .pbody { display: none; }
-.panel.bottom.collapsed > .phead { border-bottom: 0; }
+/* ---- the bottom panel, the lower left one: folded to the head (the student's
+   Collapse, or the window's for the room: logic/layout.ts) ----------------- */
+.panel.bottom.collapsed > .pbody, .panel.lower.collapsed > .pbody { display: none; }
+.panel.bottom.collapsed > .phead, .panel.lower.collapsed > .phead { border-bottom: 0; }
 
 /* ---- lists in the side panels (Components, Circuits, Tunnels) ---------------- */
 .list { list-style: none; margin: 0; padding: 4px 0; }
@@ -129,3 +133,49 @@ table.summary tr.warn td { background: var(--amber-tint); color: var(--amber-tex
 .modal.ask:is(.cycles, .pinvalue) .field:focus { outline: 2px solid var(--teal); outline-offset: -1px; border-color: var(--teal); }
 .modal.ask:is(.cycles, .pinvalue) .field[aria-invalid="true"] { border-color: var(--error); }
 .modal.ask:is(.cycles, .pinvalue) .hint.err { min-height: 18px; color: var(--error-text); }
+
+/* ---- the status bar's » list and its right-hand facts (status.ts, D-158) ------------------------ */
+.status .moreb { height: 20px; padding: 0 7px; border: 1px solid var(--border); border-radius: 4px; background: var(--white); color: var(--navy); font: inherit; font-weight: 600; flex: none; }
+.status .moreb:hover, .status .moreb[aria-expanded="true"] { background: var(--hover); }
+.statusmore { position: fixed; z-index: 45; display: flex; flex-direction: column; gap: 2px; max-width: min(520px, calc(100vw - 16px)); max-height: 60vh; overflow: auto;
+  padding: 6px; background: var(--white); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 6px 24px rgba(0, 32, 91, .16); font-size: 12px; color: var(--text-2); white-space: nowrap; }
+.statusmore .statusrow { display: flex; align-items: center; min-height: 24px; padding: 0 6px; }
+.statusmore .err { color: var(--error-text); font-weight: 600; }
+.statusmore .run { color: var(--blue); font-weight: 600; }
+.statusmore .ok { color: var(--teal-text); font-weight: 600; }
+.statusmore .warn { color: var(--amber-text); }
+/* "Changed $t0, $t1": the registers the cycle on show changed, in the Registers panel's yellow (Hallym MIPS's 방금 바뀜) */
+:is(.status, .statusmore) .changed { color: var(--changed-text); background: var(--changed); box-shadow: inset 3px 0 0 var(--changed-bar); padding: 1px 7px 1px 9px; border-radius: 3px; line-height: 16px; }
+:is(.status, .statusmore) .changed .mono { font-weight: 700; }
+:is(.status, .statusmore) .colorsb { height: 20px; padding: 0 6px; margin: 0 -6px; border: 0; border-radius: 4px; background: none; font: inherit; color: var(--text-2); }
+:is(.status, .statusmore) .colorsb:hover { background: var(--hover); }
+
+/* ---- Preferences (preferences.ts, D-158) ------------------------------------------------------ */
+.modal.prefs { width: min(640px, calc(100vw - 32px)); }
+.prefs .prefnote { margin: -6px 0 10px; color: var(--muted); font-size: 12px; }
+.prefs .tabs { display: flex; gap: 2px; height: 34px; border-bottom: 1px solid var(--border); margin-bottom: 6px; }
+.prefs .tab { display: flex; align-items: center; padding: 0 12px; border: 0; background: none; color: var(--text-2); font-weight: 500; border-bottom: 2px solid transparent; }
+.prefs .tab.on { color: var(--navy); border-bottom-color: var(--blue); font-weight: 600; }
+.prefs .prefbody { max-height: min(560px, calc(100vh - 220px)); overflow: auto; padding-right: 4px; }
+.prefs h4 { margin: 14px 0 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.prefs .prefrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.prefs .prefrow .prefname { font-weight: 600; color: var(--navy); }
+.prefs .prefrow .grow { display: none; }
+.prefs .prefrow .hint { grid-column: 1 / -1; margin-top: 2px; }
+.prefs .prefrow select { height: 28px; padding: 0 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--white); color: var(--navy); font-weight: 500; }
+.prefs .prefrow input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--blue); }
+.prefs .keytable { width: 100%; border-collapse: collapse; }
+.prefs .keytable td { padding: 6px 4px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.prefs .keytable .kname { color: var(--navy); font-weight: 600; }
+.prefs .keytable .kname .hint { font-weight: 400; }
+.prefs .keytable .kkey { width: 150px; white-space: nowrap; }
+.prefs .keytable .kbtns { width: 140px; text-align: right; white-space: nowrap; }
+.prefs .keytable .kbtns .hbtn + .hbtn { margin-left: 4px; }
+.prefs .keytable kbd { font: 12px var(--code); color: var(--text); background: var(--window); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; }
+.prefs .keytable tr.changed kbd { background: var(--blue-tint); border-color: var(--blue-tint2); color: var(--navy); }
+.prefs .keytable tr.waiting { background: var(--blue-tint); }
+.prefs .keytable .kwait { color: var(--blue); font-weight: 600; }
+.prefs .keytable tr.fixed .kname { color: var(--text-2); font-weight: 500; }
+.prefs .hint.err { color: var(--error-text); }
+.prefs > .row .grow { flex: 1; }
+.status .notewrap { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }

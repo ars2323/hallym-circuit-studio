@@ -39,6 +39,21 @@ export interface Question {
   character?: boolean;      // default true; false for errors
 }
 
+// The detail box's lines: paths, code and the engine's words in the mono font; a Korean sentence among them
+// ("엔진 파일이 없습니다: hcs-engine.jar") in the sentences' font, the name after its colon in the mono one (D-158).
+export function detailLines(detail: string): Node[] {
+  const out: Node[] = [];
+  detail.split('\n').forEach((line, i) => {
+    if (i) out.push(document.createTextNode('\n'));
+    if (!/[가-힣]/.test(line)) { out.push(code(line)); return; }
+    const at = line.lastIndexOf(': ');
+    const sentence = at >= 0 && !/[가-힣]/.test(line.slice(at + 2)) ? line.slice(0, at + 1) : line;
+    out.push(h('span', { class: 'say' }, sentence));
+    if (sentence !== line) out.push(h('span', { class: 'say' }, ' '), code(line.slice(at + 2)));
+  });
+  return out;
+}
+
 export function ask(q: Question): Promise<boolean> {
   return choose(q).then((r) => r === 'ok');
 }
@@ -55,7 +70,7 @@ export function choose(q: Question): Promise<'ok' | 'extra' | 'cancel' | null> {
           q.file ? h('p', { class: 'askfile' }, 'File: ', code(q.file)) : null,
           ...(q.names ?? []).map(([label, name]) => h('p', { class: 'askfile' }, `${label}: `, code(name))),
           h('p', {}, prose(q.body)),
-          q.detail ? h('pre', { class: 'askdetail mono' }, q.detail) : null,
+          q.detail ? h('pre', { class: 'askdetail' }, ...detailLines(q.detail)) : null,
           h('div', { class: 'row end' }, cancel, extra, ok))));
     let result: 'ok' | 'extra' | 'cancel' | null = null;
     ok.addEventListener('click', () => { result = 'ok'; dialog.close(); });
