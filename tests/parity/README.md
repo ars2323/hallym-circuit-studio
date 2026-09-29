@@ -70,16 +70,17 @@ Hallym Circuit Studio 2는 화면을 Electron으로 새로 만들고, 편집은 
 
 ## 확인과 다시 만들기
 
+골든은 v1 Swing판(태그 `swing-final`)이 의도 파일을 실제 창에서 재생해 만든 기준이다. v1 Swing판과 그 재생기
+(`EditParityGuiTest`, `SwingReplayer`)는 N-27(D-163)에서 지웠고 골든은 그대로 둔다: 엔진이 같은 의도로 같은 결과를 내는지는
+`EngineParityReplayTest`(엔진 18장면, D-159)와 화면 e2e(7장면)가 본다. 골든을 다시 만들 일이 생기면 `swing-final`에서
+`xvfb-run -a ./gradlew :app:guiTest --tests kr.ac.hallym.hcs.app.parity.EditParityGuiTest -Dparity.update=true`로 만든다.
+
 ```
-# GUI 검사(CI의 guiTest에 들어 있다): 장면마다 Swing 앱으로 실행해 골든과 비교
-xvfb-run -a ./gradlew :app:guiTest --tests kr.ac.hallym.hcs.app.parity.EditParityGuiTest
-# 골든 다시 쓰기(일부만: -Dparity.only=02-wires,03-move-following)
-xvfb-run -a ./gradlew :app:guiTest --tests kr.ac.hallym.hcs.app.parity.EditParityGuiTest -Dparity.update=true
 # 화면 없는 검사(:app:test): 의도 읽기, 장면마다 골든, 원조 2.7.1로 열기, 이 표, engine-api.md의 메서드
 ./gradlew :app:test --tests kr.ac.hallym.hcs.app.parity.ParityGoldensTest
+# 엔진이 골든을 바이트 그대로 내는지
+./gradlew :engine:test --tests kr.ac.hallym.hcs.engine.EngineParityReplayTest
 ```
-
-실행한 .circ와 기록(의도마다 새로 생긴 되돌리기 단계, 놓은 부품의 포트 자리, 답한 대화상자, 캔버스 알림)은 `app/build/parity/<장면>.circ`, `.trace`에 남는다. 장면을 쓸 때 포트 좌표는 이 기록에서 고른다.
 
 ## 장면
 
