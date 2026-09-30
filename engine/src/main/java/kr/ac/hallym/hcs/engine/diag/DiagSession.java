@@ -53,41 +53,15 @@ public final class DiagSession {
     /** 메시지 열쇠 → 안정된 id("d…"). 목록에서 사라진 열쇠는 잊는다. */
     private final Map<String, String> ids = new HashMap<>();
 
-    /** 파일을 연 뒤 기록 엔진이 처음 상태(스텝 0)를 적기를 기다리는 한도(ms). */
-    static final long FIRST_RECORD_MS = 2000;
-
+    /**
+     * 전파를 요청하지 않는다(V-16, D-173): 파일을 연 첫 전파는 모든 시뮬레이터 청취자가 붙은 뒤 {@code
+     * RecordSession.ready}가 요청하고 스텝 0이 적힐 때까지 기다린다(Engine.attach). 그 전에 요청하면 뒤에 붙는
+     * 청취자의 더하기가 원조 청취자 목록의 복사와 겹칠 수 있다.
+     */
     DiagSession(Doc doc, Server server) {
         this.doc = doc;
         this.server = server;
         this.set = new DiagnosticSet(doc.project(), () -> dynamicChanged = true);
-        awaitFirstRecord();
-    }
-
-    /**
-     * 기록 엔진(동적 진단이 읽는다)은 여기서 붙는데, 파일을 연 첫 전파는 그 전에 끝났을 수 있다. 그러면 다음 사건(첫
-     * 틱)의 상태가 스텝 0이 되어 사이클 번호가 하나 밀린다. 한 번 더 전파를 요청하고 처음 상태가 적힐 때까지 짧게
-     * 기다린다(파일을 여는 요청 안에서, v1은 창이 뜰 때 이미 붙어 있었다).
-     */
-    private void awaitFirstRecord() {
-        com.cburch.logisim.circuit.Simulator sim = doc.project().getSimulator();
-        kr.ac.hallym.hcs.app.record.Recorder rec = kr.ac.hallym.hcs.app.record.Recorder.of(doc.project());
-        if (sim == null || !sim.isRunning()) {
-            return;
-        }
-        sim.requestPropagate();
-        long end = System.nanoTime() + FIRST_RECORD_MS * 1_000_000L;
-        while (System.nanoTime() < end) {
-            kr.ac.hallym.hcs.app.record.Recording r = rec.current();
-            if (r != null && !r.isEmpty()) {
-                return;
-            }
-            try {
-                Thread.sleep(1);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return;
-            }
-        }
     }
 
     void close() {

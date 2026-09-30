@@ -12,9 +12,12 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.io.File;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import com.cburch.logisim.circuit.Simulator;
+import com.cburch.logisim.circuit.SimulatorEvent;
 import com.cburch.logisim.circuit.SimulatorListener;
 import com.cburch.logisim.comp.Component;
 import com.cburch.logisim.data.Value;
@@ -35,8 +39,8 @@ import kr.ac.hallym.hcs.engine.doc.Doc;
  * every propagationCompleted. A listener added on the engine thread while that copy is made can come out as null, and
  * the NullPointerException ends the simulator thread (CI run 36584750323: {@code "l" is null} at
  * Simulator.firePropagationCompleted, then file.open answered with an empty recording after the 5 s wait). The engine
- * therefore adds every simulator listener while the simulator has not run yet: no propagation before attaching, and
- * nothing added after file.open answers. The race itself cannot be forced; these tests pin the order that removes it.
+ * therefore adds every simulator listener before the first propagation is requested: nothing requests one before
+ * RecordSession.ready at the end of Engine.attach, and nothing adds a listener after file.open answers. The race itself cannot be forced; these tests pin the order that removes it.
  */
 class SimulatorListenersTest {
     @TempDir
@@ -81,6 +85,46 @@ class SimulatorListenersTest {
     }
 
     @Test
+    void theFirstPropagationComesAfterEveryListenerIsAttached() throws Exception {
+        File f = Fixtures.counter(tmp);
+        Doc d = e.onEngine(() -> e.engine.files().open(f, false, new ArrayList<>()));
+        Simulator sim = d.project().getSimulator();
+        // A probe that sees the list as the simulator thread copies it for the first propagationCompleted
+        CompletableFuture<List<SimulatorListener>> atFirst = new CompletableFuture<>();
+        SimulatorListener probe = new SimulatorListener() {
+            public void propagationCompleted(SimulatorEvent ev) {
+                try {
+                    atFirst.complete(new ArrayList<>(listOf(sim)));
+                } catch (ReflectiveOperationException x) {
+                    atFirst.completeExceptionally(x);
+                }
+            }
+
+            public void tickCompleted(SimulatorEvent ev) {
+            }
+
+            public void simulatorStateChanged(SimulatorEvent ev) {
+            }
+        };
+        e.onEngine(() -> {
+            sim.addSimulatorListener(probe);
+            // file.open's own attaching (Engine.attach is private; called as file.open calls it)
+            Method attach = Engine.class.getDeclaredMethod("attach", Doc.class);
+            attach.setAccessible(true);
+            attach.invoke(e.engine, d);
+            return null;
+        });
+        List<SimulatorListener> first = atFirst.get(Client.TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        List<SimulatorListener> attached = e.onEngine(() -> new ArrayList<>(listOf(sim)));
+        assertEquals(attached, first, "the first propagation came before every simulator listener was attached");
+        for (String kind : new String[] {"TickCounter", "Recorder$1", "SimSession", "SimGate", "DiagnosticSet$1"}) {
+            assertEquals(1, first.stream().filter(l -> l.getClass().getName().endsWith(kind)).count(),
+                    kind + " is attached at the first propagation: " + first);
+        }
+        e.client.call("file.close", params("fileId", d.id()));
+    }
+
+    @Test
     void noSimulatorListenerIsAddedAfterFileOpenAnswers() throws Exception {
         JsonObject r = e.client.callObject("file.open", params("path", Fixtures.counter(tmp).getPath()));
         String fileId = r.get("fileId").getAsString();
@@ -101,12 +145,15 @@ class SimulatorListenersTest {
     /** The simulator's listener list, read on the engine thread (the only thread that changes it). */
     private List<SimulatorListener> listeners(String fileId) throws Exception {
         return e.onEngine(() -> {
-            Simulator sim = e.engine.files().get(fileId).project().getSimulator();
-            Field f = Simulator.class.getDeclaredField("listeners");
-            f.setAccessible(true);
-            @SuppressWarnings("unchecked")
-            List<SimulatorListener> list = (List<SimulatorListener>) f.get(sim);
-            return new ArrayList<>(list);
+            return new ArrayList<>(listOf(e.engine.files().get(fileId).project().getSimulator()));
         });
+    }
+
+    /** The original simulator's listener list itself (reflection, read only). */
+    @SuppressWarnings("unchecked")
+    static List<SimulatorListener> listOf(Simulator sim) throws ReflectiveOperationException {
+        Field f = Simulator.class.getDeclaredField("listeners");
+        f.setAccessible(true);
+        return (List<SimulatorListener>) f.get(sim);
     }
 }

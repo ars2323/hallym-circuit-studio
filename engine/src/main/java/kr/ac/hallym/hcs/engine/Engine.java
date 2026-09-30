@@ -301,6 +301,11 @@ public final class Engine {
     }
 
     private void attach(Doc d) {
+        // 시뮬레이터 청취자는 모두 첫 전파 요청 전에 붙인다(V-16, D-173): 원조 Simulator의 청취자 목록(ArrayList)은
+        // 전파 완료 알림의 복사와 엔진 스레드의 더하기가 겹치면 null을 내어 시뮬레이터 스레드가 끝난다. 그래서 Doc
+        // 생성자도, 여기서 붙는 것들(기록기, SimSession, SimGate, 진단)도 전파를 요청하지 않고, 첫 전파는 맨 끝의
+        // ready 하나가 요청한다. 원조 Canvas도 청취자(TickCounter, 프로젝트 청취자)를 더하므로 가장 먼저 만든다
+        d.canvas();
         // 기록기가 먼저 붙어 틱을 먼저 적는다(N-14): 세션이 사이클을 세거나 N Cycles를 끝낼 때 그 틱이 기록에 있다
         RecordSession r = records.attach(d);
         SimSession s = new SimSession(d, server);
@@ -309,11 +314,7 @@ public final class Engine {
         diags.attach(d);
         programs.attach(d);
         circuits.attach(d);
-        // 원조 Canvas도 시뮬레이터 청취자를 더한다: 시뮬레이터가 아직 한 번도 돌지 않은 지금 만든다(V-16, D-173).
-        // 원조 Simulator의 청취자 목록(ArrayList)은 전파 완료 알림의 복사와 더하기가 겹치면 null을 내어 시뮬레이터
-        // 스레드가 끝난다. 첫 전파는 모든 청취자가 붙은 뒤 아래 ready가 요청한다(Doc 생성자는 요청하지 않는다)
-        d.canvas();
-        records.ready(r); // 진단도 붙은 뒤 스텝 0(진단이 스텝 0을 본다, D-143)
+        records.ready(r); // 첫 전파: 모든 청취자가 붙은 뒤 스텝 0(진단이 스텝 0을 본다, D-143)
     }
 
     // ---- model ----
