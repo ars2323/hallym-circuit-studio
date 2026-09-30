@@ -1,0 +1,24 @@
+{
+  "about": "What the tutorial's [건너뛰기] does for a practice step, on the tutorial examples (tests/tutorial/). One source for the window (tutorial/*-steps.ts) and the engine's test (TutorialExamplesTest), which does the same intents on the real engine. Points are circuit units.",
+  "logic": {
+    "and": { "lib": "Gates", "name": "AND Gate", "loc": [320, 140] },
+    "andWires": [
+      [[120, 120], [270, 120]],
+      [[120, 200], [240, 200], [240, 160]],
+      [[240, 160], [270, 160]],
+      [[320, 140], [400, 140], [400, 160]],
+      [[400, 160], [440, 160]]
+    ],
+    "label": "g1",
+    "zoom": 1.5,
+    "halfAdder": { "name": "half_adder", "loc": [290, 360] },
+    "clockWires": [
+      [[700, 380], [740, 380], [740, 320]]
+    ]
+  },
+  "mips": {
+    "typo": "RegWirte",
+    "fixed": "RegWrite",
+    "program": "tutorial.hmx"
+  }
+}

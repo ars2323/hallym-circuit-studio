@@ -49,6 +49,8 @@
 
 // The changed keys (Preferences › Keyboard) see every key press first: imported before anything that listens to keys.
 import './keymap.ts';
+// The tutorial's keys first of all (N-18): a key its step does not ask for stops there.
+import { tutorialKeys } from './tutorial/keys.ts';
 import type { AppearanceEdit, CircuitRef, Component, ConsoleUpdate, DiagList, DiagMessage, EditSelection, EngineStatus, FileInfo, FindResult, InstancesInfo, LibrariesInfo, LibraryGroup, LibraryUpdated, MipsFacts, ModelChanged, NewResult, Point, PortImpact, RecordState, Recovered, RecoveryAsk, RegisterData, Reloaded, RunUntilDone, SimState, SimValues, Snapshot, Wire } from '../../main/protocol.ts';
 import type { Handover } from '../../main/windows.ts';
 import { type MenuEntry, menuOpen, SEPARATOR, showMenu } from '../canvas/overlays/menu.ts';
@@ -61,7 +63,7 @@ import { emitTool } from '../canvas/events.ts';
 import { legend } from '../canvas/legend.ts';
 import { Overlays } from '../canvas/overlays/controller.ts';
 import { Scene } from '../canvas/scene.ts';
-import { toCircuit, type View, visible } from '../canvas/view.ts';
+import { toCircuit, toScreen, type View, visible } from '../canvas/view.ts';
 import { zoomControl } from '../canvas/zoom.ts';
 import { aboutDialog } from '../shared/about.ts';
 import { ask, choose } from '../shared/ask.ts';
@@ -70,7 +72,7 @@ import { code, codeText, h, icon } from '../shared/dom.ts';
 import { noticeHost } from '../shared/notice.ts';
 import { splitter } from '../shared/splitter.ts';
 import { button, iconButton, titleBar } from '../shared/titlebar.ts';
-import { captionPatch } from './captions.ts';
+import { captionPatch, shadeCaptions } from './captions.ts';
 import { entries as menuEntries, menuUnder } from './menubar.ts';
 import { appMenu, type MenuSpec } from './logic/menus.ts';
 import { keyText, onKeysChanged } from './logic/keys.ts';
@@ -120,6 +122,11 @@ import { RUN_DEFAULTS, RUN_ONLY } from './logic/run-settings.ts';
 import { startScreen } from './start.ts';
 import { keepTabInModal } from '../shared/modal-tab.ts';
 import { type Course, COURSE_NAMES, COURSES, examplesFor, type Feature, inferredCourse, MIPS_NOTICE, mipsNoticeShown, shows, usesMipsOnly, visibleLibraries } from './logic/course.ts';
+import { Tutorial } from '../shared/tutorial.ts';
+import type { Box } from './tutorial/facts.ts';
+import type { CourseHost, Track } from './tutorial/host.ts';
+import { LOGIC_STEPS } from './tutorial/logic-steps.ts';
+import { MIPS_STEPS } from './tutorial/mips-steps.ts';
 
 const api = window.app;
 const APP_NAME = 'Hallym Circuit Studio';
@@ -167,6 +174,14 @@ const courseNow = (): Course => course ?? 'logic';
 const showing = (f: Feature): boolean => shows(courseNow(), f);
 const mipsUse = new Map<string, Map<string, boolean>>();   // fileId → circuitId → uses a MIPS-only part
 let lastCycles: number | null = null;                  // the N Cycles count given last (this run only)
+// The courses' tutorials (N-18, the section before the keys): the example's copy on show, the tab before it,
+// the message chosen last in Messages, the Canvas's zoom (the animation's target), the tutorial running.
+let courseFile: string | null = null;
+let beforeCourse: string | null = null;
+let chosenMessage: string | null = null;
+let zoomNow = 1;
+let tour: Tutorial<CourseHost> | null = null;
+let courseAsk = false;
 
 const key = (fileId: string, circuitId: string) => `${fileId} ${circuitId}`;
 const sceneKey = (fileId: string, circuitId: string, path: string[] = []) => (path.length ? `${key(fileId, circuitId)} ${path.join('/')}` : key(fileId, circuitId));
@@ -174,7 +189,7 @@ const sceneKey = (fileId: string, circuitId: string, path: string[] = []) => (pa
 // ---- the Canvas ------------------------------------------------------------------------
 
 const board = new CircuitCanvas({
-  onView: (v) => { zoomCtl.update(v.zoom); quickBar?.place(); },
+  onView: (v) => { zoomCtl.update(v.zoom); quickBar?.place(); zoomNow = v.zoom; tutorialChanged(); },
   onEnter: (id) => enterInstance(id),
   onSelect: (ids) => selected(ids),
 });
@@ -189,6 +204,7 @@ function selected(ids: string[]): void {
   emitSelection({ fileId: f.fileId, circuitId: w.circuit, path: w.path, ids });
   renderAttributes();
   void attrsPanel.refresh();
+  tutorialChanged();
 }
 const zoomCtl = zoomControl({
   zoom: () => board.view.zoom, zoomTo: (z) => board.zoomTo(z), fit: () => board.fitView(), step: (d) => board.zoomStep(d),
@@ -205,7 +221,7 @@ const overlays = new Overlays({
   fieldsShown: () => showing('fieldColors'),
   note: (cls, text) => { note = text ? { cls, text } : null; renderStatus(); },
   failed: (name, e) => { note = { cls: 'err', text: commandError(name, e as CallError) }; renderStatus(); },
-  changed: () => { renderStatus(); flowToggle.setAttribute('aria-pressed', String(overlays.settings.onClick)); },
+  changed: () => { renderStatus(); flowToggle.setAttribute('aria-pressed', String(overlays.settings.onClick)); tutorialChanged(); },
 });
 const wireLegend = legend({ busWidths: RUN_DEFAULTS.busWidths, onBusWidths: (on) => { board.busWidths = on; board.invalidate(); }, extra: overlays.legendRows() });
 let boardKey = '';
@@ -238,6 +254,7 @@ const editor = new Editor({
     quickBar?.update();
     const f = files.active();
     if (f) renderCanvas(f);   // an empty circuit shows the Canvas while a part, a wire or a text is being put in
+    tutorialChanged();         // a part in hand (N-18)
   },
   selectionChanged: (ids) => selected(ids),
   pinValue: (c) => void pinValue(c),
@@ -378,9 +395,10 @@ function toCanvas(): void {
 }
 const bMenu = iconButton('Menu', 'menu', () => void openMenu());
 // Hallym MIPS v2.6.0's title bar icons, in its places and shapes (D-169): Tutorial, New, Open, the export, Settings.
-// Tutorial: the course's (the card's step 1 asks it first when none is chosen yet).
+// Tutorial: on the first screen, the card's own way to it -- step 2 with the course from step 1 (its 튜토리얼 보기), or
+// step 1 when none is chosen yet; elsewhere the course's tutorial at once (N-18: startCourse through the adapter).
 const bTutorial = iconButton('Tutorial', 'circle-question-mark', () => {
-  if (course === null) { start.go('course'); return; }
+  if (!stage.hidden || course === null) { start.go(course === null ? 'course' : 'way'); return; }
   void startTutorial(course);
 });
 const bNew = iconButton('New circuit (Ctrl+N)', 'file-plus', () => void newCircuit());
@@ -430,8 +448,8 @@ const start = startScreen({
 });
 
 // The course's tutorial (step 2 of the first screen, straight to the chosen course's track: A-08).  The one adapter
-// (D-168): N-18 (#466) sets `tutorialTrack = startCourse` -- its startCourse(track) takes 'logic' | 'architecture'; until
-// then, a new circuit in that course, as 바로 시작 › 새 회로 (D-135).
+// (D-168): the courses' tutorials (N-18, D-161) set `tutorialTrack = startCourse` below; with none, a new circuit in
+// that course, as 바로 시작 › 새 회로 (D-135).
 let tutorialTrack = null as ((track: Course) => void | Promise<void>) | null;
 async function startTutorial(track: Course): Promise<void> {
   setCourse(track);
@@ -1161,6 +1179,7 @@ function render(): void {
   renderCourseBand();
   renderStatus();
   layout();
+  tutorialChanged();
 }
 
 // The strip while the file on show uses a MIPS-only part in 논리설계 (A-08): the parts draw and run as always.
@@ -2061,7 +2080,7 @@ const programs = programController({
   call: (method, params) => api.call(method, params),
   // (the execution image's notices: 컴퓨터구조 only, logic/course.ts)
   note: (cls, text) => { if (!showing('programNotices')) return; note = text ? { cls, text } : null; renderStatus(); },
-  changed: (fileId) => { if (files.active()?.fileId === fileId) { renderProgramBand(); renderStatus(); } },
+  changed: (fileId) => { if (files.active()?.fileId === fileId) { renderProgramBand(); renderStatus(); } tutorialChanged(); },
 });
 
 // The Console's output so far (then the engine streams it: mips.console).
@@ -2424,6 +2443,7 @@ async function runMenu(id: string): Promise<void> {
     case 'window.maximize': return api.maximize();
     case 'window.file': showFile(arg); return;
     case 'help.example': return openExample(arg);
+    case 'help.tutorial': return startCourse(arg === 'architecture' ? 'architecture' : 'logic');
     case 'help.keys': prefs.open('keyboard'); return;
     case 'help.about': return about.open();
   }
@@ -2463,6 +2483,226 @@ async function openRecent(id: string): Promise<void> {
   } catch (e) {
     void openedOrError(null, e);
   }
+}
+
+// ---- the courses' tutorials (N-18, D-161) -------------------------------------------------------
+// The first screen's 논리설계 및 실험 / 컴퓨터구조 start a course's tutorial (shared/tutorial.ts, the steps in
+// tutorial/): a copy of its example opens as a file tab of its own (the student's tabs stay as they were), and
+// closes when the tutorial ends; the tab on show before comes back.  The steps read the engine's facts through
+// the host below and act through the window's own handlers.  Where a course stopped is kept for this run only.
+
+onReveal((r) => { if (r.messageId) { chosenMessage = r.messageId; tutorialChanged(); } });
+api.onNotify(() => tutorialChanged());   // after the window's own listener: the facts are the engine's new ones
+
+const courseOf = (): OpenFile | null => (courseFile ? files.get(courseFile) ?? null : null);
+function courseCircuit(name?: string): string | null {
+  const f = courseOf();
+  if (!f) return null;
+  return name ? f.circuits.find((c) => c.name === name)?.circuitId ?? null : f.main;
+}
+function waitUntil(ok: () => boolean, ms = 20_000): Promise<boolean> {
+  return new Promise((done) => {
+    const end = performance.now() + ms;
+    const t = setInterval(() => { if (ok() || performance.now() > end) { clearInterval(t); done(ok()); } }, 30);
+  });
+}
+
+function courseHost(track: Track): CourseHost {
+  const bottomTabs = ['Messages', 'Cycle View', 'Console'];
+  const upperTabs = ['Components', 'Circuits'];
+  return {
+    track,
+    async begin() {
+      if (!(await engineReady())) throw new Error('the engine is not running');
+      beforeCourse = files.active()?.fileId ?? null;
+      const r = await recoveryAnswered(await api.openTutorial(track === 'logic' ? 'logic' : 'architecture'));
+      if (!r) throw new Error('no tutorial example');
+      openedOrError(r);
+      courseFile = r.fileId;
+      chosenMessage = null;
+      // what the first steps look at: the main circuit drawn, its messages known
+      await waitUntil(() => { const f = courseOf(); return !!f && !!scenes.get(key(f.fileId, f.main)) && diags.has(f.fileId) && board.scene?.fileId === f.fileId; });
+    },
+    async finish() {
+      const id = courseFile;
+      courseFile = null;
+      if (id && files.get(id)) {
+        if (engine.state === 'ready') await api.call('file.close', { fileId: id }).catch(() => {});
+        dropFile(id);
+      }
+      if (beforeCourse && files.get(beforeCourse)) showFile(beforeCourse);
+      beforeCourse = null;
+      note = null;
+      render();
+    },
+    running: () => going(courseOf()?.sim),
+    async stop() { if (going(courseOf()?.sim)) await simCall('sim.run', { on: false }, 'Stop'); },
+    // Esc's own jobs first, as without the tutorial: the clock (Stop), then a Signal Flow on show
+    async escape() {
+      if (going(courseOf()?.sim)) { await simCall('sim.run', { on: false }, 'Stop'); return true; }
+      if (overlays.flowSource()) { overlays.stopFlow(); return true; }
+      return false;
+    },
+    shade: (on) => shadeCaptions(on),
+    fileId: () => courseFile,
+    snapshot(name) {
+      const f = courseOf();
+      const id = courseCircuit(name);
+      return f && id ? scenes.get(key(f.fileId, id))?.snapshot() ?? null : null;
+    },
+    shownCircuit() {
+      const f = courseOf();
+      if (!f || files.active()?.fileId !== f.fileId) return null;
+      const w = shown(f);
+      return { circuit: files.circuitName(f, w.circuit), path: w.names };
+    },
+    messages: () => (courseFile ? diags.get(courseFile) ?? null : null),
+    chosenMessage: () => chosenMessage,
+    sim: () => courseOf()?.sim ?? null,
+    record: () => (courseFile ? cycleView.state(courseFile) ?? null : null),
+    zoom: () => zoomNow,
+    held: () => (editor.tool === 'Place' ? editor.place.held ?? null : null),
+    tool: () => editor.tool,
+    selected: () => (selection && selection.fileId === courseFile ? selection.ids : []),
+    flow: () => { const s = overlays.shown().flow; return { running: s.running, from: overlays.flowSource(), ends: s.ends }; },
+    console: () => {
+      if (!courseFile) return null;
+      const text = consoleView.text(courseFile);
+      return { text, exited: /(^|\n)-- exit --\n?$/.test(text) };
+    },
+    program: () => (courseFile ? programs.info(courseFile) : null),
+    value(componentId, port) {
+      const f = courseOf();
+      return f ? scenes.get(key(f.fileId, f.main))?.portValue(componentId, port) : undefined;
+    },
+    box(b: Box | null) {
+      const f = courseOf();
+      if (!b || !f || !board.scene || board.scene.fileId !== f.fileId || !board.root.isConnected) return null;
+      const r = board.canvas.getBoundingClientRect();
+      const [x0, y0] = toScreen(board.view, [b[0], b[1]]);
+      const [x1, y1] = toScreen(board.view, [b[2], b[3]]);
+      return { rect: new DOMRect(r.left + x0, r.top + y0, x1 - x0, y1 - y0), within: board.canvas };
+    },
+    shownExtent() {
+      const f = courseOf();
+      if (!f || !board.scene || board.scene.fileId !== f.fileId) return null;
+      const e = board.scene.extent();
+      return [e.x0 - 10, e.y0 - 10, e.x1 + 10, e.y1 + 10];
+    },
+    el: (sel) => document.querySelector(sel),
+    els: (sel) => [...document.querySelectorAll(sel)],
+    showBottom(tab) {
+      const i = bottomTabs.indexOf(tab);
+      if (arranged?.tight && side !== 'canvas') showSide('canvas');
+      if (bottomHead.selected() === i && !bottomFolded()) return false;
+      bottomHead.select(i);
+      showBody(bottomBodies, i);
+      if (bottomFolded()) unfoldBottom();
+      cycleShown();
+      return true;
+    },
+    showUpper(tab) {
+      const i = upperTabs.indexOf(tab);
+      if (arranged?.tight && side !== 'panels') showSide('panels');
+      if (upperHead.selected() === i) return false;
+      upperHead.select(i);
+      showUpper(i);
+      return true;
+    },
+    clearPartSearch() {
+      const input = document.querySelector<HTMLInputElement>('.upper .compsearch-input');
+      if (!input || input.value === '') return false;
+      input.value = '';
+      input.dispatchEvent(new Event('input'));
+      return true;
+    },
+    showCycleSide: (tab) => cycleView.showTab(tab),
+    showMain() {
+      const f = courseOf();
+      if (!f) return false;
+      let did = false;
+      if (files.active()?.fileId !== f.fileId) { showFile(f.fileId); did = true; }
+      if (f.circuit !== f.main || inside.get(key(f.fileId, f.main)) || appearanceShown(f)) {
+        inside.delete(key(f.fileId, f.main));
+        showCircuit(f.fileId, f.main, false);
+        did = true;
+      }
+      if (arranged?.tight && side !== 'canvas') { showSide('canvas'); did = true; }
+      return did;
+    },
+    fit(b) {
+      const f = courseOf();
+      if (!b || !f || board.scene?.fileId !== f.fileId || !board.root.isConnected) return;
+      board.fitBox({ x0: b[0], y0: b[1], x1: b[2], y1: b[3] });
+    },
+    call: (method, params) => api.call(method, params),
+    hold: (lib, name) => { editor.hold({ lib, name }); toCanvas(); },
+    setTool: (name) => editor.setTool(name),
+    async loadProgram() {
+      if (!courseFile) return false;
+      await programs.load(courseFile, { tutorial: true });
+      return !!programs.info(courseFile)?.entry;
+    },
+    cycles: (n) => cycles(n),
+    reset: () => reset(),
+    run: (on) => simCall('sim.run', { on, hz: Number(frequency.value) }, on ? 'Run' : 'Stop'),
+    previousCycle: () => cycleView.previous(),
+    async startFlow(wireId) {
+      const s = board.scene;
+      const w = s?.wires.get(wireId);
+      if (!w) return;
+      if (!overlays.settings.onClick) overlays.toggleOnClick();
+      await overlays.startFlow({ wire: wireId, at: [(w.a[0] + w.b[0]) / 2, (w.a[1] + w.b[1]) / 2] }, false);
+    },
+    enter: (id) => enterInstance(id),
+    chooseMessage(id) { (document.querySelector(`.msglist button.msg[data-id="${CSS.escape(id)}"]`) as HTMLElement | null)?.click(); },
+    setZoom: (z) => board.zoomTo(z),
+    flowOnClick(on) {
+      if (overlays.settings.onClick === on) return false;
+      overlays.toggleOnClick();
+      return true;
+    },
+    // the select and the engine's clock speed (sim.run keeps it for the next Run: the select follows sim.state)
+    async setHz(hz) {
+      const f = courseOf();
+      if (!f || !FREQUENCIES.some(([, x]) => x === hz) || f.sim?.hz === hz) return false;
+      frequency.value = String(hz);
+      await simCall('sim.run', { on: going(f.sim), hz }, 'Clock Speed');
+      return true;
+    },
+  };
+}
+
+// One tutorial per course, each keeping where it stopped (this run only: nothing of it is written anywhere).
+const courses: Record<Track, Tutorial<CourseHost>> = {
+  logic: new Tutorial(LOGIC_STEPS, courseHost('logic')),
+  architecture: new Tutorial(MIPS_STEPS, courseHost('architecture')),
+};
+(window as unknown as { __tutorials: typeof courses }).__tutorials = courses;   // for the tests
+// The one way into a course's tutorial (N-18, D-161): the first screen's step 2 (startTutorial, A-08's adapter) and
+// Help › Tutorial › (course).  The window shows that course from now on (A-08, logic/course.ts).
+export async function startCourse(track: Track): Promise<void> {
+  if (tour?.active) return;
+  setCourse(track);
+  const t = courses[track];
+  tour = t;
+  tutorialKeys((e) => t.handleKey(e));
+  // ended: the keys back to the window
+  t.ended = () => { if (tour === t) { tour = null; tutorialKeys(null); } };
+  try {
+    await t.start();
+  } catch (e) {
+    t.ended();
+    note = { cls: 'err', text: commandError('Tutorial', e as CallError) };
+    render();
+  }
+}
+tutorialTrack = startCourse;   // the first screen's step 2 (A-08's adapter, D-168)
+// Something happened (a render, the engine's word, the view): the practice step looks at the facts again.
+function tutorialChanged(): void {
+  if (!tour?.active || courseAsk) return;
+  courseAsk = true;
+  queueMicrotask(() => { courseAsk = false; tour?.changed(); });
 }
 
 // ---- keys ---------------------------------------------------------------------------------

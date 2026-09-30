@@ -55,6 +55,8 @@ test('the main process writes to disk only this run\'s folder: the student\'s fi
   assert.deepEqual(found.sort(), [
     'main/main.ts mkdirSync',            // the run's folder
     'main/main.ts writeFileSync',        // its Chromium preferences (no spell checker)
+    'main/main.ts mkdtempSync',          // a tutorial's folder in it (N-18) ...
+    'main/main.ts copyFileSync',         // ... and the copy of its example there
     'main/run-folder.ts rmSync',         // an earlier run's folder
     'main/run-folder.ts rmSync',         // (the script that removes this one after quit)
     'main/run-folder.ts rmdirSync',
@@ -64,6 +66,8 @@ test('the main process writes to disk only this run\'s folder: the student\'s fi
   // a picture goes only where the save dialog answered (or the tests' file): never a path the page names
   assert.match(code(path.join(SRC, 'main/pictures.ts')), /writeFileSync\(target, bytes\)/);
   assert.match(code(path.join(SRC, 'main/pictures.ts')), /let target = r\.filePath;/);
+  // the tutorial's copies go into this run's folder (removed after quit), never beside the student's files
+  assert.match(code(path.join(SRC, 'main/main.ts')), /mkdtempSync\(path\.join\(runDir, 'tutorial-'\)\)/);
   // Windows: the engine outside libuv's kill-on-close job, so a killed app's engine still writes the recovery files
   assert.match(code(path.join(SRC, 'main/main.ts')), /detached: process\.platform === 'win32'/);
   // recovery-files.ts only looks (stat): the engine writes and removes them

@@ -36,11 +36,11 @@
 
 import { app, BrowserWindow, dialog, ipcMain, Menu, screen, shell } from 'electron';
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { EngineClient, EngineError, type EngineProcess } from './engine.ts';
-import { EXAMPLE_COURSE, EXAMPLES, examplesDir, isExample } from './examples.ts';
+import { EXAMPLE_COURSE, EXAMPLES, examplesDir, isCourse, isExample, TUTORIAL_PROGRAM, TUTORIALS, tutorialDir } from './examples.ts';
 import { locateEngine } from './engine-locate.ts';
 import { Supervisor, WINDOW } from './recovery.ts';
 import { recoveryBeside, RecoveryWriter } from './recovery-files.ts';
@@ -167,6 +167,8 @@ let nextAsk = 1;
 
 // The files opened read-only (Help › Examples, D-158): Save asks where (Save As), and never writes over them.
 const readOnlyFiles = new Set<string>();
+// The tutorials' copies of their examples (N-18): Load Program's tutorial.hmx is beside them.
+const tutorialCopies = new Set<string>();
 // File › Open Recent (I-130): the files opened or saved in this run, the latest first -- this run only (N-19).
 const recent: { id: string; path: string }[] = [];
 let nextRecent = 1;
@@ -178,7 +180,9 @@ function remember(p: string): void {
 }
 
 // Opens a file: first, if it has a recovery file beside it (N-19, D-152), the window asks.
-async function openPath(p: string, recovery?: 'recover' | 'discard', readOnly = false): Promise<Opened | RecoveryAsk> {
+// `copy`: a tutorial's copy of its example (N-18, D-161): the engine edits it, Save asks where (as an example's),
+// and it is not a recent file.
+async function openPath(p: string, recovery?: 'recover' | 'discard', readOnly = false, copy = false): Promise<Opened | RecoveryAsk> {
   for (const [fileId, open] of openFiles) {
     if (open !== null && path.resolve(open) === path.resolve(p)) {
       return { fileId, path: p, name: path.basename(p), circuits: [], main: '', libraries: [], already: true };
@@ -192,7 +196,8 @@ async function openPath(p: string, recovery?: 'recover' | 'discard', readOnly = 
   }
   const r = await windowCall<OpenResult>('file.open', { path: path.resolve(p), ...(recovery ? { recovery } : {}), ...(readOnly ? { readOnly: true } : {}) });
   openFiles.set(r.fileId, p);
-  if (readOnly) readOnlyFiles.add(r.fileId); else remember(p);
+  if (readOnly || copy) readOnlyFiles.add(r.fileId); else remember(p);
+  if (copy) tutorialCopies.add(r.fileId);
   // The tab shows the file's own name (with .circ), not Logisim's project name.
   return { ...r, name: path.basename(p), path: p, already: r.alreadyOpen === true, ...(recovery === 'recover' ? { recovered: true } : {}), ...(readOnly ? { readOnly: true } : {}) };
 }
@@ -329,7 +334,7 @@ function registerHandlers(): void {
     if (!allowed.has(method)) throw new Error(`not a method the window may call: ${method}`);
     const result = await windowCall(method, params);
     if (method === 'file.new') openFiles.set((result as { fileId: string }).fileId, null);
-    if (method === 'file.close') { openFiles.delete((params as { fileId: string }).fileId); readOnlyFiles.delete((params as { fileId: string }).fileId); }
+    if (method === 'file.close') { openFiles.delete((params as { fileId: string }).fileId); readOnlyFiles.delete((params as { fileId: string }).fileId); tutorialCopies.delete((params as { fileId: string }).fileId); }
     return result;
   }));
   ipcMain.handle('engine:status', () => recovery.view(engine.status()));
@@ -373,6 +378,7 @@ function registerHandlers(): void {
     const saved = await windowCall<SaveResult>('file.save', { fileId, path: target });
     openFiles.set(fileId, saved.path || target);
     readOnlyFiles.delete(fileId);   // saving to a path makes it writable (docs/engine-api.md file.save)
+    tutorialCopies.delete(fileId);  // (and a tutorial's copy the student's own file)
     remember(saved.path || target);
     return { path: saved.path || target, name: path.basename(saved.path || target), bytes: saved.bytes, needsMipsJar: saved.needsMipsJar === true };
   }));
@@ -381,9 +387,14 @@ function registerHandlers(): void {
   // mips.load.  `again` loads the file picked last for this circuit (the
   // answer to "which memory?": `picks`); `forSource` opens next to an old .s.
   const programs = new Map<string, string>();
-  ipcMain.handle('program:load', (e, fileId: string, o: { target?: string; picks?: Record<string, string>; again?: boolean; forSource?: string } = {}) => answer(async () => {
+  ipcMain.handle('program:load', (e, fileId: string, o: { target?: string; picks?: Record<string, string>; again?: boolean; forSource?: string; tutorial?: boolean } = {}) => answer(async () => {
     if (!openFiles.has(fileId)) throw new Error(`no open file ${fileId}`);
     let file = o.again ? programs.get(fileId) : undefined;
+    // A tutorial's [건너뛰기] (N-18): the program beside the tutorial's copy, without the dialog.
+    if (!file && o.tutorial && tutorialCopies.has(fileId)) {
+      file = path.join(path.dirname(openFiles.get(fileId)!), TUTORIAL_PROGRAM);
+      programs.set(fileId, file);
+    }
     if (!file) {
       const r = await dialog.showOpenDialog(from(e), {
         title: 'Load Program', defaultPath: programDialogPath(openFiles.get(fileId) ?? null, o.forSource ?? null),
@@ -431,6 +442,15 @@ function registerHandlers(): void {
   ipcMain.handle('examples:open', (_e, id: string) => answer(async () => {
     if (!exampleFolder || !isExample(id)) return null;
     return openPath(path.join(exampleFolder, id), undefined, true);
+  }));
+  // A course's tutorial (N-18, D-161): a copy of its example in a folder of this run (removed after quit, with
+  // the program beside it), opened for editing; the example itself stays as it is on disk.
+  const tutorialFolder = tutorialDir(app.isPackaged ? process.resourcesPath : null, paths.repoRoot);
+  ipcMain.handle('tutorial:open', (_e, course: unknown) => answer(async () => {
+    if (!tutorialFolder || !isCourse(course)) return null;
+    const dir = mkdtempSync(path.join(runDir, 'tutorial-'));
+    for (const n of TUTORIALS[course]) copyFileSync(path.join(tutorialFolder, n), path.join(dir, n));
+    return openPath(path.join(dir, TUTORIALS[course][0]), undefined, false, true);
   }));
   // File › Open Recent (I-130): names only for the window; the path stays here.
   ipcMain.handle('file:recent', () => recent.map((r) => ({ id: r.id, name: path.basename(r.path) })));

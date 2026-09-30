@@ -11,8 +11,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.AfterEach;
@@ -34,12 +39,13 @@ class ExampleLayoutTest {
 
     /**
      * 검사하는 회로: 학생에게 가는 예제(Help › Examples: 논리설계 셋(A-08)과 v1의 MIPS 셋), 참조 CPU(화면 스크린샷·진짜 엔진 e2e가 연다),
-     * demo-datapath에서 만든 고장 회로(Messages 스크린샷), Analyze Circuit 스크린샷의 반가산기(N-21). tests/mips/ref-mips-v1-stack.circ는 옛 파일 회귀용으로
+     * demo-datapath에서 만든 고장 회로(Messages 스크린샷), Analyze Circuit 스크린샷의 반가산기(N-21), 튜토리얼 두 트랙의 예제(N-18, D-161). tests/mips/ref-mips-v1-stack.circ는 옛 파일 회귀용으로
      * 그대로 둔 파일이라, tests/circ의 작은 회귀 회로·고장·흐름 회로는 학생에게 가지 않는 시험 입력이라 뺀다.
      */
     static final List<String> CHECKED = List.of("tests/circ/adder-1bit.circ", "tests/circ/ripple-carry-4bit.circ",
             "tests/circ/counter-4bit.circ", "tests/circ/demo-datapath.circ", "tests/circ/console-demo.circ",
-            "tests/circ/stack-demo.circ", "tests/circ/half-adder.circ", "tests/mips/ref-mips.circ", "electron/tests/fixtures/broken-datapath.circ");
+            "tests/circ/stack-demo.circ", "tests/circ/half-adder.circ", "tests/mips/ref-mips.circ", "electron/tests/fixtures/broken-datapath.circ",
+            "tests/tutorial/tutorial-logic.circ", "tests/tutorial/tutorial-mips.circ");
 
     @TempDir
     Path tmp;
@@ -61,10 +67,38 @@ class ExampleLayoutTest {
     @TestFactory
     Stream<DynamicTest> examplesHaveNoOverlappingParts() {
         return CHECKED.stream().map(name -> DynamicTest.dynamicTest(name, () -> {
-            List<LayoutOverlaps.Overlap> found = LayoutOverlaps.scan(e, REPO.resolve(name).toFile(), tmp);
+            // the tutorials' examples strictly where the tutorial shows them (every circuit of the logic one, the
+            // architecture one's main): no tunnel's chip over another, fan neighbours too (N-18, UI review)
+            List<LayoutOverlaps.Overlap> found = LayoutOverlaps.scan(e, REPO.resolve(name).toFile(), tmp,
+                    name.equals("tests/tutorial/tutorial-logic.circ") ? c -> true
+                            : name.equals("tests/tutorial/tutorial-mips.circ") ? c -> c.equals("main") : c -> false);
             assertEquals(List.of(), found.stream().map(Object::toString).toList(),
                     name + ": parts overlap (move them apart, D-156)");
         }));
+    }
+
+    /**
+     * 화면(electron)이 학생에게 주는 예제 회로는 모두 이 검사에 들어 있어야 한다: Help › Examples의 셋(examples.ts
+     * {@code EXAMPLES}, tests/circ)과 두 교과목 튜토리얼의 예제(examples.ts {@code TUTORIALS}, tests/tutorial, N-18).
+     */
+    @Test
+    void everyExampleTheWindowShipsIsChecked() throws Exception {
+        String ts = Files.readString(REPO.resolve("electron/src/main/examples.ts"), StandardCharsets.UTF_8);
+        List<String> shipped = new ArrayList<>();
+        Matcher ex = Pattern.compile("export const EXAMPLES = \\[([^\\]]*)\\]").matcher(ts);
+        assertTrue(ex.find(), "EXAMPLES in electron/src/main/examples.ts");
+        Matcher n = Pattern.compile("'([^']+\\.circ)'").matcher(ex.group(1));
+        while (n.find()) {
+            shipped.add("tests/circ/" + n.group(1));
+        }
+        Matcher tu = Pattern.compile("export const TUTORIALS = \\{([^}]*)\\}").matcher(ts);
+        assertTrue(tu.find(), "TUTORIALS in electron/src/main/examples.ts");
+        Matcher t = Pattern.compile("'([^']+\\.circ)'").matcher(tu.group(1));
+        while (t.find()) {
+            shipped.add("tests/tutorial/" + t.group(1));
+        }
+        assertEquals(8, shipped.size(), shipped.toString());
+        assertTrue(CHECKED.containsAll(shipped), shipped.toString());
     }
 
     // ---- 규칙 ----

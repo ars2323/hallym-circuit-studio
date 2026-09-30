@@ -60,7 +60,7 @@ export const TAKEN: Taken[] = [
   { from: 'electron/src/renderer/app/notice.ts', to: 'src/renderer/shared/notice.ts', how: 'derived',
     note: 'The empty-state word of a panel. The character is optional (most panels show the words alone; errors never have one).' },
   { from: 'electron/src/renderer/app/panels/ask.ts', to: 'src/renderer/shared/ask.ts', how: 'derived',
-    note: 'The window\'s own question dialog. Adds `character: false` and one-button use for errors (the engine could not start): no character next to an error; `choose()`, where Esc is neither answer (a recovery file: Recover / Discard), with an optional third answer (Save / Discard / Cancel); `names`, more label: name lines like the File line.' },
+    note: 'The window\'s own question dialog. Adds `character: false` and one-button use for errors (the engine could not start): no character next to an error; `choose()`, where Esc is neither answer (a recovery file: Recover / Discard), with an optional third answer (Save / Discard / Cancel); `names`, more label: name lines like the File line; `outsideCancels`, a click outside is the cancel (the tutorial\'s "stop?", N-18).' },
   { from: 'electron/src/renderer/app/panels/welcome.ts', to: 'src/renderer/shared/welcome.ts', how: 'derived',
     note: 'The first screen\'s card and its two steps, and behind it the university\'s video (backdrop.ts, 2.5.0), one for every step, shown while the first screen is (show()). The words and the choices come from the caller (src/renderer/app/start.ts); the second step can be one of several.' },
   { from: 'electron/src/renderer/app/panels/backdrop.ts', to: 'src/renderer/shared/backdrop.ts', how: 'derived',
@@ -76,7 +76,7 @@ export const TAKEN: Taken[] = [
   { from: 'electron/src/renderer/app/app.ts', to: 'src/renderer/shared/splitter.ts', how: 'derived',
     note: 'The splitter and the grip (drag to share, double-click for the default) taken out of app.ts into one component for both directions.' },
   { from: 'electron/src/renderer/app/app.css', to: 'src/renderer/shared/shared.css', how: 'derived',
-    note: 'Tokens, fonts, title bar, buttons, panel heads, splitters, empty states, first screen (with 2.5.0\'s video behind the card: .wback, the card\'s shadow), dialogs, About, status bar, band. The SPIM panels\' rules (Editor, Assemble, Text, Data, Registers, Inspector, Console) and the tutorial\'s are left out; 2.4.0\'s narrower icon buttons (for its fifth icon, Export) are not taken.' },
+    note: 'Tokens, fonts, title bar, buttons, panel heads, splitters, empty states, first screen (with 2.5.0\'s video behind the card: .wback, the card\'s shadow), dialogs, About, status bar, band. The SPIM panels\' rules (Editor, Assemble, Text, Data, Registers, Inspector, Console) are left out; the tutorial\'s are taken (N-18: under the pop-ups, z-index 35); 2.4.0\'s narrower icon buttons (for its fifth icon, Export) are not taken.' },
   { from: 'electron/src/renderer/app/index.html', to: 'src/renderer/app/index.html', how: 'derived',
     note: 'The same Content-Security-Policy (media-src \'self\' for the first screen\'s video, 2.5.0); this app\'s title and style sheets.' },
   // ---- the main process
@@ -145,6 +145,14 @@ export const TAKEN: Taken[] = [
     note: 'The video file: one VP9 track, no sound, its size; start-video.ts\'s arguments' },
   { from: 'electron/tests/renderer/overlay.test.ts', to: 'tests/unit/overlay.test.ts', how: 'derived', note: 'The same tests; the import path.' },
   { from: 'electron/tests/renderer/names.test.ts', to: 'tests/unit/names.test.ts', how: 'derived', note: 'The same tests; the import path.' },
+  // ---- the tutorial's engine (N-18, D-155, D-161): its steps over an assembly program are not taken (they lean on SPIM)
+  { from: 'electron/src/renderer/app/tutorial.ts', to: 'src/renderer/shared/tutorial.ts', how: 'derived',
+    note: 'The tutorial\'s engine: a card, two layers (a panel lit whole, a box on each target, the rest dimmed; lit is not clickable), the card never over a box, [건너뛰기] after a few seconds, a result beat, → ← Esc, where it stopped kept for this run. The steps and the host come from the caller (the upstream\'s twenty steps over an assembly program are not taken); done() reads facts; pass(); the caption buttons darken (shade); Esc\'s own jobs first (escape); a key a step does not name does nothing; a click outside the "stop?" question continues.' },
+  { from: 'electron/src/renderer/app/logic/placement.ts', to: 'src/renderer/shared/placement.ts', how: 'copy',
+    note: 'Where the tutorial\'s card goes: beside what a step points at, never over it.' },
+  { from: 'electron/tests/renderer/placement.test.ts', to: 'tests/unit/placement.test.ts', how: 'derived', note: 'The same tests; the import path.' },
+  { from: 'electron/tests/e2e/tutorial.e2e.ts', to: 'tests/e2e/tutorial.e2e.ts', how: 'derived',
+    note: 'The tutorial\'s checks at every step (a panel lit whole, dimmed exactly outside, a box on each target, lit not clickable, the card off the boxes, Haram), the walk with [건너뛰기], keys, a new start: this app\'s two courses at the lab PCs\' three scales, the example\'s copy unchanged on disk.' },
 ];
 
 // Lucide icons Hallym MIPS does not have, from lucide-static (the npm package).
@@ -158,9 +166,10 @@ export const LUCIDE_EXTRA = ['undo-2', 'redo-2', 'mouse-pointer-2', 'pointer', '
   'menu', 'image-down'];
 
 // Never taken (D-133 point 5): SPIM's tables and what leans on them.
+// The tutorial's engine (app/tutorial.ts) is taken for N-18 (D-155): its twenty steps over an assembly program stay
+// behind -- they lean on SPIM's words -- and the per-file check (origin.test.ts) holds the derived file to it.
 export const NEVER = ['src/core/', 'src/sim/', 'native/', 'op-table', 'decoder', 'instruction-text', 'explain',
-  'asm-errors', 'mips-syntax', 'panels/text', 'panels/console', 'logic/machine', 'editor.ts',
-  'tutorial.ts'];
+  'asm-errors', 'mips-syntax', 'panels/text', 'panels/console', 'logic/machine', 'editor.ts'];
 
 export const sha256 = (b: Uint8Array | string): string => createHash('sha256').update(b).digest('hex');
 

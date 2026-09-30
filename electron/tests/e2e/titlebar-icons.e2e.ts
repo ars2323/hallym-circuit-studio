@@ -6,7 +6,7 @@
 
 import { expect, test } from '@playwright/test';
 
-import { launch, newCircuit } from './harness.ts';
+import { launch } from './harness.ts';
 
 const names = (r: { page: import('@playwright/test').Page }) =>
   r.page.locator('.titlebar .tools .iconbtn:visible').evaluateAll((els) => els.map((e) => (e as HTMLElement).title));
@@ -27,15 +27,27 @@ test('the icons: Menu, Tutorial, New, Open, Export Image (with a circuit on show
     // Tutorial with no course yet: the card asks the course (step 1)
     await page.getByTitle('Tutorial').click();
     await expect(page.locator('.action').first()).toContainText('논리설계 및 실험');
-    await newCircuit(r, '논리설계 및 실험');
+    // a course chosen, still on the first screen: step 2 (튜토리얼 보기 / 바로 시작), from anywhere on the card
+    await page.getByRole('button', { name: /논리설계/ }).click();
+    await page.getByRole('button', { name: /바로 시작/ }).click();
+    await page.getByTitle('Tutorial').click();
+    await expect(page.getByRole('button', { name: /튜토리얼 보기/ })).toBeVisible();
+    await expect(page.locator('.filebar .ptab')).toHaveCount(0);
+    await page.getByRole('button', { name: /바로 시작/ }).click();
+    await page.getByRole('button', { name: /새 회로/ }).click();
+    await page.locator('.filebar .ptab').first().waitFor();
     await expect(page.locator('body')).not.toHaveClass(/first-screen/);
     await expect(page.locator('.titlebar')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
     await expect(page.locator('.titlebar .iconbtn img').first()).toHaveCSS('filter', 'none');
     expect(await names(r)).toEqual(['Menu', 'Tutorial', 'New circuit (Ctrl+N)', 'Open file (Ctrl+O)', 'Export Image…', 'Preferences']);
-    // Tutorial with a course: that course's (N-18's; until then a new circuit in it)
+    // Tutorial with a course, off the first screen: that course's tutorial at once (N-18), on a copy of its example
     await page.getByTitle('Tutorial').click();
-    await expect(page.locator('.filebar .ptab')).toHaveCount(2);
+    await expect(page.locator('.filebar .ptab')).toHaveText(['untitled.circ', 'tutorial-logic.circ']);
+    await expect(page.locator('.tut-card .tut-count')).toHaveText('1 / 16');
     await expect(page.locator('.titlebar .coursechip')).toHaveText('논리설계 및 실험');
+    await page.keyboard.press('Escape');
+    await page.locator('dialog.ask[open]').getByRole('button', { name: 'Quit Tutorial' }).click();
+    await expect(page.locator('.tut-card')).toHaveCount(0);
     // About: in Preferences, as Hallym MIPS has it
     await page.getByTitle('Preferences').click();
     await expect(page.locator('dialog.prefs').getByRole('button', { name: 'About · Licenses' })).toBeVisible();

@@ -403,6 +403,13 @@ const methods: Record<string, (p: Params) => unknown> = {
     f.rec = rec.newRecordFile(fileId, cpu, names, modes.has('wide-registers'));
     adopt(f, p);
     if (f.fixture) f.fixtureIds = new Map(f.circuits.map((c, i) => [c.circuitId, f.fixture!.circuits[i].circuitId]));
+    // the fixture's area memos (hcs:ext, N-15), the fake's own from here on (the tutorials' examples have them, N-18)
+    if (f.fixture) {
+      f.circuits.forEach((c, i) => {
+        const memos = (f.fixture!.circuits[i] as { memos?: flow.Ext['memos'] }).memos;
+        if (memos?.length) f.ext.set(c.circuitId, { groups: [], memos: structuredClone(memos) });
+      });
+    }
     f.flow = flow.load(path.basename(file));
     if (recovery === 'recover') { f.dirty = true; f.recovered = true; }
     files.set(f.fileId, f);

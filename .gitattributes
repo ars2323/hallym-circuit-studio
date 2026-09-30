@@ -19,6 +19,8 @@ tests/parity/** -text
 tests/circ/** -text
 tests/mips/*.circ -text
 tests/jarlib/** -text
+# 튜토리얼 예제(N-18): 실행 이미지의 source-sha256이 tutorial.s 바이트와 맞아야 하고, 예제는 바이트 그대로 불변이다.
+tests/tutorial/** -text
 # 시험이 읽는 명세 문서(엔진 API 표, 캔버스 렌더러 표, 용어집, .hmx 명세).
 docs/engine-api.md -text
 docs/canvas-renderers.md -text

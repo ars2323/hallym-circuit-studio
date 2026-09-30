@@ -44,6 +44,8 @@ class ProgramFixtureTest {
         {"hmx/hallym-mips-v2.4.0/no-handler.hmx", "0"},
         {"hmx/truncated.hmx", "0"},
         {"hmx/source-changed.hmx", "0"},
+        // 튜토리얼의 프로그램(N-18): 튜토리얼 예제에 불러오는 가짜 엔진 답
+        {"tutorial/tutorial.hmx", "80"},
     };
 
     @TempDir

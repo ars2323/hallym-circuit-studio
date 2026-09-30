@@ -5,7 +5,8 @@
    time.  Its backdrop darkens everything behind it, and while it is up only
    its buttons can be reached (showModal: the rest of the page is inert).
    Esc is the cancel button -- the safe side; the other answer is only ever
-   given by its button.  A click outside the dialog does nothing at all.
+   given by its button.  A click outside the dialog does nothing at all
+   (with outsideCancels, as the tutorial's "stop?": it is the cancel).
 
    A file's name is never part of the sentence (no particle after a name:
    "lab04.circ 은" reads wrong whatever the name); it stands on a line of
@@ -37,6 +38,7 @@ export interface Question {
   extra?: string;           // a third answer, between cancel and ok (choose() only)
   danger?: boolean;   // the ok button discards something
   character?: boolean;      // default true; false for errors
+  outsideCancels?: boolean; // a click outside the dialog answers cancel (the tutorial's "stop?", N-18); otherwise it does nothing
 }
 
 // The detail box's lines: paths, code and the engine's words in the mono font; a Korean sentence among them
@@ -76,6 +78,14 @@ export function choose(q: Question): Promise<'ok' | 'extra' | 'cancel' | null> {
     ok.addEventListener('click', () => { result = 'ok'; dialog.close(); });
     cancel?.addEventListener('click', () => { result = 'cancel'; dialog.close(); });
     extra?.addEventListener('click', () => { result = 'extra'; dialog.close(); });
+    // (N-18) a question that a click outside puts away as its cancel: the tutorial's "stop?" goes on
+    if (q.outsideCancels) {
+      dialog.addEventListener('click', (e) => {
+        const r = dialog.getBoundingClientRect();
+        const outside = e.target === dialog && (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom);
+        if (outside) { result = 'cancel'; dialog.close(); }
+      });
+    }
     dialog.addEventListener('close', () => {
       dialog.remove();
       document.body.classList.remove('dialog-open', 'error-dialog');

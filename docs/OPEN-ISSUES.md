@@ -16,7 +16,7 @@
 | O-02 | 100% 배율에서 PC 레지스터의 "en"·"0" 포트 이름이 clk 터널 옆에 보인다(S-07 회귀 여부) | 원인 확인 뒤 고친다 | Z-19 | v2에서 다시 만듦 |
 | O-03 | About의 한국어 "한림대학교" | "Hallym University …"로 바꾼다(화면 문구에 "한림"을 쓰지 않는다) | Z-17, Z-22 | v2에서 다시 만듦 |
 | O-04 | 실습실 PC 규칙 | Hallym MIPS와 같다: 껐다 켜면 모두 기본값, 앱은 설정을 기억하지 않는다(2026-09-27, D-118) | Z-07 | v2: N-19 |
-| O-05 | 튜토리얼 | 교과목별 실습형으로 새로 만든다(2026-09-27, D-118) | Z-14~Z-16 | v2에서 다시 만듦 |
+| O-05 | 튜토리얼 | 교과목별 실습형으로 새로 만든다(2026-09-27, D-118) | Z-14~Z-16 | v2에서 다시 만듦: N-18(D-161) 두 교과목 트랙 |
 | O-06 | 가까운 이름 짚기("혹시 RegWrite?") | 확신이 있을 때만 짚는다 | Z-18 | v2: N-13 |
 | O-07 | 주소·기계어·레지스터 값 글꼴에서 0과 O 구분 | D2Coding으로 해결되는지 확인한다(Z-12b) | Z-17, Z-12b | v2에서 다시 만듦 |
 | O-08 | 교과목별 화면 정리 | ~~하지 않는다: 교과목 선택은 튜토리얼에만 쓰고 화면 구성은 같다(사용자 결정, 2026-09-27)~~ 대체됨. **다시 엶(사용자 결정 2026-09-29, v2 추가 지시 3):** 교과목마다 화면을 나눈다 — 시작 카드가 교과목부터 묻고, 논리설계 및 실험은 MIPS 전용 부품과 MIPS 기능을 가린다(D-168, PLAN.md 12.5) | A-08(#458) | 고침(#467) |
@@ -51,7 +51,7 @@
 
 | ID | 내용 | 결정 | 할 곳 | 상태 |
 | --- | --- | --- | --- | --- |
-| M-01 | demo-datapath(Help › Examples, `tests/circ/demo-datapath.circ`)의 Instruction Memory가 주소 0에서 시작해 0x00400000의 `.text`를 담지 못한다. 그래서 실행 이미지를 불러오면 Load Program이 "no memory covers it"(구간을 담는 Instruction Memory 부품이 없음)으로 실패한다(전부 아니면 전무, D-126). | v2 예제와 튜토리얼 회로는 MIPS 예제를 0x00400000에 두고 PC 시작 = entry로 만든다. demo-datapath를 편집 전용 예제로 남길지(실행 이미지를 불러오지 않는 예제라고 밝힘) 새로 만들지 정한다. | N-16, N-18 | 대기 |
+| M-01 | demo-datapath(Help › Examples, `tests/circ/demo-datapath.circ`)의 Instruction Memory가 주소 0에서 시작해 0x00400000의 `.text`를 담지 못한다. 그래서 실행 이미지를 불러오면 Load Program이 "no memory covers it"(구간을 담는 Instruction Memory 부품이 없음)으로 실패한다(전부 아니면 전무, D-126). | v2 예제와 튜토리얼 회로는 MIPS 예제를 0x00400000에 두고 PC 시작 = entry로 만든다. demo-datapath를 편집 전용 예제로 남길지(실행 이미지를 불러오지 않는 예제라고 밝힘) 새로 만들지 정한다. | N-16, N-18 | 튜토리얼 쪽 끝남(N-18, D-161: tutorial-mips는 Instruction Memory 0x00400000부터, PC 시작 = entry, tutorial.hmx가 끝까지 돎). demo-datapath는 편집 전용 예제로 남는지 N-21·N-25의 몫 |
 
 ## 넘긴 모양 다듬기(v1.0.3 최종 세트 세 범위 검토에서, 2026-09-27)
 
@@ -82,8 +82,8 @@
 
 | ID | 내용 | 결정 | 할 곳 | 상태 |
 | --- | --- | --- | --- | --- |
-| T-01 | 튜토리얼 C2·C3(데이터 메모리·스택 단계)는 아직 v2에 없다 | 만들 때 합친 Data Memory 하나(데이터+스택, 사용자 결정, D-140)를 쓴다: `lw`/`sw`와 `$sp` 접근을 같은 부품에 잇고, 따로 된 Stack을 놓게 하지 않는다. 설명의 주소는 데이터 `0x10000000`~`0x100FFFFF`(`.data`는 `0x10010000`부터), 스택 `0x7FFC0000`~`0x7FFFFFFF`이고, 몸체의 쓰임 줄(`data N words, stack peak N B`)과 Memory 표(데이터·스택 한 표)를 가리킨다 | N-18 | 열림 |
-| T-02 | 튜토리얼 C6(프로그램 불러오기 단계)는 v1에서 .s 불러오기를 설명했다. .s 불러오기와 hcs-asm은 사용자 결정으로 지웠다(D-141) | C6는 실행 이미지(.hmx) 불러오기로 쓴다: Hallym MIPS에서 Ctrl+S로 어셈블한 뒤 제목 줄 오른쪽 아이콘 묶음의 Export executable image (.hmx) 단추로 내보내고, Load Program으로 그 `.hmx`를 고르게 한다(파일 고르기 창에는 `.hmx`만 보인다). 옛 .circ가 `.s`를 가리키면 나오는 사실 줄("이 파일은 .s 파일을 가리킵니다. …", 엔진 `mips.facts`의 `assemblySource`)도 한 문장으로 알린다 | N-18 | 열림 |
+| T-01 | 튜토리얼 C2·C3(데이터 메모리·스택 단계)는 아직 v2에 없다 | 만들 때 합친 Data Memory 하나(데이터+스택, 사용자 결정, D-140)를 쓴다: `lw`/`sw`와 `$sp` 접근을 같은 부품에 잇고, 따로 된 Stack을 놓게 하지 않는다. 설명의 주소는 데이터 `0x10000000`~`0x100FFFFF`(`.data`는 `0x10010000`부터), 스택 `0x7FFC0000`~`0x7FFFFFFF`이고, 몸체의 쓰임 줄(`data N words, stack peak N B`)과 Memory 표(데이터·스택 한 표)를 가리킨다 | N-18 | 고침(N-18, D-161): C2가 합친 Data Memory 하나(데이터 `0x10000000`~`0x100FFFFF`, 스택 `0x7FFC0000`~`0x7FFFFFFF`)를 짚고, tutorial-mips의 lw/sw와 스택은 그 한 부품으로 간다. 따로 된 Stack은 없다 |
+| T-02 | 튜토리얼 C6(프로그램 불러오기 단계)는 v1에서 .s 불러오기를 설명했다. .s 불러오기와 hcs-asm은 사용자 결정으로 지웠다(D-141) | C6는 실행 이미지(.hmx) 불러오기로 쓴다: Hallym MIPS에서 Ctrl+S로 어셈블한 뒤 제목 줄 오른쪽 아이콘 묶음의 Export executable image (.hmx) 단추로 내보내고, Load Program으로 그 `.hmx`를 고르게 한다(파일 고르기 창에는 `.hmx`만 보인다). 옛 .circ가 `.s`를 가리키면 나오는 사실 줄("이 파일은 .s 파일을 가리킵니다. …", 엔진 `mips.facts`의 `assemblySource`)도 한 문장으로 알린다 | N-18 | 고침(N-18, D-161): C6는 Load Program…으로 `tutorial.hmx`(Hallym MIPS가 `tutorial.s`에서 내보낸 이미지)를 불러오고, 본문이 Hallym MIPS의 Ctrl+S 어셈블과 제목 줄 오른쪽 아이콘 묶음의 Export executable image (.hmx) 단추를, 결과가 옛 .s 경로의 사실 줄을 한 문장으로 말한다 |
 
 ## 격리한 검사 (D-166)
 

@@ -271,5 +271,72 @@
         }
       }
     ]
+  },
+  "tutorial-logic.circ": {
+    "from": "tests/tutorial/tutorial-logic.circ",
+    "static": [
+      {
+        "code": "CLOCK_UNCONNECTED",
+        "kind": "static",
+        "severity": "error",
+        "text": {
+          "ko": "main › count (Register) 부품은 클럭 입력 clk 포트가 연결되지 않아 값이 바뀌지 않습니다.",
+          "en": "main › count (Register): the clock input clk is not connected, so the value never changes."
+        },
+        "location": {
+          "circuit": "main",
+          "root": "main",
+          "path": [],
+          "components": [
+            {
+              "name": "Register",
+              "loc": [
+                760,
+                300
+              ]
+            }
+          ],
+          "wires": [],
+          "at": [
+            740,
+            320
+          ]
+        }
+      }
+    ]
+  },
+  "tutorial-mips.circ": {
+    "from": "tests/tutorial/tutorial-mips.circ",
+    "static": [
+      {
+        "code": "TUNNEL_UNPAIRED",
+        "kind": "static",
+        "severity": "error",
+        "text": {
+          "ko": "main 회로에는 RegWirte 터널과 이름이 같은 다른 터널이 없습니다. 혹시 RegWrite?",
+          "en": "In main, no other tunnel is named RegWirte. Did you mean RegWrite?"
+        },
+        "location": {
+          "circuit": "main",
+          "root": "main",
+          "path": [],
+          "components": [
+            {
+              "name": "Tunnel",
+              "loc": [
+                900,
+                560
+              ]
+            }
+          ],
+          "wires": [],
+          "at": [
+            900,
+            560
+          ]
+        },
+        "near": "RegWrite"
+      }
+    ]
   }
 }

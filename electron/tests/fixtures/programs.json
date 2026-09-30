@@ -1191,6 +1191,252 @@
           }
         ]
       }
+    },
+    "0c3bd533b2d6b5d5e713ce4ebbe63daf8a6f6784592f7cbbcc38745576a2fee8": {
+      "file": "tutorial.hmx",
+      "load": {
+        "file": "tutorial.hmx",
+        "loaded": true,
+        "source": "tutorial.hmx",
+        "summary": {
+          "entry": "0x00400000",
+          "entryLine": "entry 0x00400000 (main)",
+          "regs": [
+            {
+              "name": "$sp",
+              "value": "0x7fffffe4"
+            },
+            {
+              "name": "$gp",
+              "value": "0x10008000"
+            }
+          ],
+          "segments": [
+            {
+              "kind": "text",
+              "start": "0x00400000",
+              "last": "0x00400044",
+              "range": "0x00400000–0x00400044",
+              "units": 18,
+              "unit": "word",
+              "bytes": 72,
+              "words": 18,
+              "text": "18 words (0x00400000–0x00400044)",
+              "componentId": "@Instruction Memory",
+              "circuitId": "@main",
+              "target": "main › Instruction Memory (00400000-004fffff)"
+            },
+            {
+              "kind": "data",
+              "start": "0x10010000",
+              "last": "0x1001001b",
+              "range": "0x10010000–0x1001001b",
+              "units": 28,
+              "unit": "byte",
+              "bytes": 28,
+              "words": 7,
+              "text": "28 bytes = 7 words (0x10010000–0x1001001b)",
+              "componentId": "@Data Memory",
+              "circuitId": "@main",
+              "target": "main › Data Memory (10000000-100fffff)"
+            }
+          ],
+          "stackBase": [
+            {
+              "componentId": "@Data Memory",
+              "target": "main › Data Memory (10000000-100fffff)",
+              "part": "main › Data Memory",
+              "stack": "7ffc0000-7fffffff",
+              "sp": "0x7fffffe4"
+            }
+          ],
+          "instructions": [
+            "add",
+            "addi",
+            "addu",
+            "bne",
+            "lui",
+            "lw",
+            "ori",
+            "syscall"
+          ],
+          "source": {
+            "status": "same",
+            "name": "tutorial.s",
+            "text": {
+              "en": "Source file tutorial.s: same as when exported.",
+              "ko": "원본 파일 tutorial.s: 내보낸 때와 같음."
+            },
+            "warn": false
+          },
+          "facts": [],
+          "producedBy": "Hallym MIPS 2.6.0",
+          "assembled": "2026-09-29T21:45+09:00",
+          "notes": [
+            "entry 0x00400000 (main)",
+            "reg $sp 0x7fffffe4",
+            "reg $gp 0x10008000",
+            "Executable image tutorial.hmx, Hallym MIPS 2.6.0, 2026-09-29T21:45+09:00",
+            ".text: 18 words (0x00400000–0x00400044), entry 0x00400000 → main › Instruction Memory (00400000-004fffff)",
+            ".data: 28 bytes = 7 words (0x10010000–0x1001001b) → main › Data Memory (10000000-100fffff)",
+            "$sp 0x7fffffe4: Stack depth base of main › Data Memory (10000000-100fffff), stack 7ffc0000-7fffffff",
+            "Instructions used: add, addi, addu, bne, lui, lw, ori, syscall"
+          ]
+        }
+      },
+      "facts": [
+        {
+          "id": "pcEntry",
+          "en": "PC 0x00400024 · executable image entry 0x00400000",
+          "ko": "PC 0x00400024 · 실행 이미지 진입점 0x00400000",
+          "components": [
+            "@Instruction Memory"
+          ],
+          "pc": "0x00400024",
+          "entry": "0x00400000"
+        }
+      ],
+      "program": {
+        "name": "tutorial.hmx",
+        "source": "tutorial.hmx",
+        "entry": "0x00400000",
+        "memories": [
+          {
+            "componentId": "@Instruction Memory",
+            "circuitId": "@main",
+            "kind": "text",
+            "source": "tutorial.hmx",
+            "words": 18,
+            "entry": "0x00400000",
+            "text": "18 words (0x00400000–0x00400044), entry 0x00400000"
+          },
+          {
+            "componentId": "@Data Memory",
+            "circuitId": "@main",
+            "kind": "data",
+            "source": "tutorial.hmx",
+            "words": 7,
+            "text": "7 words (0x10010000–0x10010018)"
+          }
+        ]
+      },
+      "disasm": {
+        "componentId": "@Instruction Memory",
+        "words": 18,
+        "first": "0x00400000",
+        "last": "0x00400044",
+        "entry": "0x00400000",
+        "symbols": true,
+        "lines": [
+          {
+            "addr": "0x00400000",
+            "word": "0x3c011001",
+            "text": "lui $1, 4097",
+            "labels": [
+              "main"
+            ],
+            "entry": true
+          },
+          {
+            "addr": "0x00400004",
+            "word": "0x34300008",
+            "text": "ori $16, $1, 8"
+          },
+          {
+            "addr": "0x00400008",
+            "word": "0x3c011001",
+            "text": "lui $1, 4097"
+          },
+          {
+            "addr": "0x0040000c",
+            "word": "0x8c310018",
+            "text": "lw $17, 24($1)"
+          },
+          {
+            "addr": "0x00400010",
+            "word": "0x34080000",
+            "text": "ori $8, $0, 0"
+          },
+          {
+            "addr": "0x00400014",
+            "word": "0x8e090000",
+            "text": "lw $9, 0($16)",
+            "labels": [
+              "next"
+            ]
+          },
+          {
+            "addr": "0x00400018",
+            "word": "0x01094020",
+            "text": "add $8, $8, $9"
+          },
+          {
+            "addr": "0x0040001c",
+            "word": "0x22100004",
+            "text": "addi $16, $16, 4"
+          },
+          {
+            "addr": "0x00400020",
+            "word": "0x2231ffff",
+            "text": "addi $17, $17, -1"
+          },
+          {
+            "addr": "0x00400024",
+            "word": "0x1620fffc",
+            "text": "bne $17, $0, -16 [next-0x00400024]"
+          },
+          {
+            "addr": "0x00400028",
+            "word": "0x3c041001",
+            "text": "lui $4, 4097"
+          },
+          {
+            "addr": "0x0040002c",
+            "word": "0x34020004",
+            "text": "ori $2, $0, 4"
+          },
+          {
+            "addr": "0x00400030",
+            "word": "0x0000000c",
+            "text": "syscall"
+          },
+          {
+            "addr": "0x00400034",
+            "word": "0x00082021",
+            "text": "addu $4, $0, $8"
+          },
+          {
+            "addr": "0x00400038",
+            "word": "0x34020001",
+            "text": "ori $2, $0, 1"
+          },
+          {
+            "addr": "0x0040003c",
+            "word": "0x0000000c",
+            "text": "syscall"
+          },
+          {
+            "addr": "0x00400040",
+            "word": "0x3402000a",
+            "text": "ori $2, $0, 10"
+          },
+          {
+            "addr": "0x00400044",
+            "word": "0x0000000c",
+            "text": "syscall"
+          }
+        ]
+      },
+      "cycles": 80,
+      "console": {
+        "consoles": [
+          {
+            "name": "Console",
+            "text": "sum = 0",
+            "exited": true
+          }
+        ]
+      }
     }
   }
 }

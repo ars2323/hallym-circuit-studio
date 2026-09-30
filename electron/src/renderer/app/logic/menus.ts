@@ -123,6 +123,8 @@ export function appMenu(st: MenuState): MenuSpec[] {
   ];
   const help: MenuSpec[] = [
     { label: 'Examples', disabled: st.examples.length === 0 || !st.ready, items: st.examples.map((x) => item(x.name, `help.example:${x.id}`)) },
+    // the courses' tutorials (N-18): the first screen's two courses, by their names there
+    { label: 'Tutorial', disabled: !st.ready, items: [item('논리설계 및 실험', 'help.tutorial:logic'), item('컴퓨터구조', 'help.tutorial:architecture')] },
     item('Keyboard Shortcuts', 'help.keys', '?'),
     SEP,
     item('About…', 'help.about'),

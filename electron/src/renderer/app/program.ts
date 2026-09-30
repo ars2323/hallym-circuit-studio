@@ -21,7 +21,7 @@
    engine says (mips.facts, mips.reloaded).  The dialogs are the window's own
    (the shared ask dialog's look); an error has no character. */
 
-import type { LoadChoice, LoadResult, MipsFacts, Reloaded } from '../../main/protocol.ts';
+import type { LoadChoice, LoadResult, MipsFacts, ProgramInfo, Reloaded } from '../../main/protocol.ts';
 import { character, code, codeText, h, prose } from '../shared/dom.ts';
 import type { CallError, LoadProgramOptions } from './api.ts';
 import { commandError } from './logic/errors.ts';
@@ -42,6 +42,7 @@ export interface Programs {
   drop(fileId: string): void;
   statusNodes(fileId: string): Node[];
   band(fileId: string): { text: string; title: string } | null;
+  info(fileId: string): ProgramInfo | null;   // the program on the memories now (the tutorial reads it, N-18)
 }
 
 // ---- the dialogs (the shared ask dialog's shape: character left, backdrop, Esc = cancel) ----
@@ -182,5 +183,6 @@ export function programs(d: ProgramDeps): Programs {
       return h('span', { class: 'progfact-wrap' }, span, b);
     }),
     band: (fileId) => keptBand(facts.get(fileId)?.program),
+    info: (fileId) => facts.get(fileId)?.program ?? null,
   };
 }

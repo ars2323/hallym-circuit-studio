@@ -31,6 +31,9 @@ import com.google.gson.JsonObject;
  * 잇는 줄과 직각이다. 스플리터 팔(10 단위 간격)이나 멀티플렉서 입력에 나란히 붙은 터널은 몸체 높이(18)가 간격보다
  * 커 옆 터널과 조금 겹치지만 모두 부모에서 같은 쪽으로 뻗는다.</li>
  * </ol>
+ *
+ * <p><b>엄격하게</b>({@code strict}): 부채꼴 이웃도 겹침이다. 튜토리얼 예제(N-18)는 확대해서 보고 박스로 짚는
+ * 회로라 터널·라벨 칩이 서로 조금도 덮지 않아야 한다(UI 검토: 스플리터 팔 터널 `rd`가 `shamt`를 덮음).
  */
 public final class LayoutOverlaps {
     /** 맞닿음으로 보는 겹친 폭·높이의 상한(회로 단위). */
@@ -51,6 +54,11 @@ public final class LayoutOverlaps {
 
     /** 스냅숏({@code model.circuit}의 답) 하나의 겹침. */
     static List<Overlap> find(JsonObject snapshot) {
+        return find(snapshot, false);
+    }
+
+    /** 같은 것, {@code strict}면 부채꼴 이웃도 겹침으로. */
+    static List<Overlap> find(JsonObject snapshot, boolean strict) {
         String circuit = snapshot.get("name").getAsString();
         List<JsonObject> cs = new ArrayList<>();
         for (JsonElement x : snapshot.getAsJsonArray("components")) {
@@ -71,7 +79,7 @@ public final class LayoutOverlaps {
                 if (ox <= TOUCH || oy <= TOUCH) {
                     continue;
                 }
-                if (outward(p, q) || outward(q, p) || fanNeighbours(p, q, cs)) {
+                if (outward(p, q) || outward(q, p) || (!strict && fanNeighbours(p, q, cs))) {
                     continue;
                 }
                 ret.add(new Overlap(circuit, describe(p), describe(q), ox, oy));
@@ -175,6 +183,12 @@ public final class LayoutOverlaps {
 
     /** 파일 하나의 모든 회로를 엔진으로 열어 겹침을 모은다(파일은 tmp로 복사해 연다). */
     static List<Overlap> scan(InProcess e, File circ, Path tmp) throws Exception {
+        return scan(e, circ, tmp, name -> false);
+    }
+
+    /** 같은 것, 이름이 strict를 만족하는 회로는 엄격하게. */
+    static List<Overlap> scan(InProcess e, File circ, Path tmp, java.util.function.Predicate<String> strict)
+            throws Exception {
         File copy = tmp.resolve(circ.getName()).toFile();
         Files.copy(circ.toPath(), copy.toPath(), StandardCopyOption.REPLACE_EXISTING);
         JsonObject r = e.client.callObject("file.open", params("path", copy.getPath()));
@@ -182,7 +196,8 @@ public final class LayoutOverlaps {
         List<Overlap> ret = new ArrayList<>();
         for (JsonElement ce : r.getAsJsonArray("circuits")) {
             String cid = ce.getAsJsonObject().get("circuitId").getAsString();
-            ret.addAll(find(e.client.callObject("model.circuit", params("fileId", fileId, "circuitId", cid))));
+            JsonObject snap = e.client.callObject("model.circuit", params("fileId", fileId, "circuitId", cid));
+            ret.addAll(find(snap, strict.test(snap.get("name").getAsString())));
         }
         e.client.callObject("file.close", params("fileId", fileId));
         return ret;
@@ -193,8 +208,9 @@ public final class LayoutOverlaps {
         Path tmp = Files.createTempDirectory("hcs-overlaps");
         int total = 0;
         try (InProcess e = new InProcess()) {
+            boolean strict = System.getProperty("strict") != null;
             for (String a : args) {
-                List<Overlap> found = scan(e, new File(a), tmp);
+                List<Overlap> found = scan(e, new File(a), tmp, name -> strict);
                 System.out.println(a + ": " + found.size());
                 for (Overlap o : found) {
                     System.out.println("  " + o);
