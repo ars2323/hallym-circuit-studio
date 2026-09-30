@@ -31,6 +31,9 @@ export const FIXTURES: { file: string; cycles: number }[] = [
   { file: 'electron/tests/fixtures/broken-datapath.circ', cycles: 1 },
   { file: 'tests/circ/faults/dynamic-x-write-data.circ', cycles: 1 },
   { file: 'tests/circ/faults/dynamic-oscillation.circ', cycles: 1 },
+  // the tutorials' examples (N-18, D-161): the count register's clock, the misspelt tunnel
+  { file: 'tests/tutorial/tutorial-logic.circ', cycles: 0 },
+  { file: 'tests/tutorial/tutorial-mips.circ', cycles: 0 },
 ];
 
 type Json = Record<string, unknown>;

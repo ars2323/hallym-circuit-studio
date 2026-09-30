@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { test } from 'node:test';
 
-import { EXAMPLE_COURSE, EXAMPLES, exampleResources, examplesDir, isExample } from '../../src/main/examples.ts';
+import { EXAMPLE_COURSE, EXAMPLES, exampleResources, examplesDir, isCourse, isExample, TUTORIALS, tutorialDir } from '../../src/main/examples.ts';
 import { changedChip } from '../../src/renderer/app/logic/facts.ts';
 import {
   COMMANDS, FIXED, fixedTable, isChanged, keyText, onKeysChanged, pressStroke, refusal, resetAll, resetKey, route, sameStroke, setKey, strokes, strokeText,
@@ -160,5 +160,14 @@ test('Help › Examples: the six circuits by name only (three a course, A-08), i
   assert.equal(examplesDir('/r', '/repo'), path.join('/r', 'examples'));
   assert.equal(examplesDir(null, '/repo'), path.join('/repo', 'tests/circ'));
   assert.equal(examplesDir(null, null), null);
-  assert.deepEqual(exampleResources('/repo').map((r) => r.to), EXAMPLES.map((n) => `examples/${n}`));
+  assert.deepEqual(exampleResources('/repo').map((r) => r.to), [...EXAMPLES.map((n) => `examples/${n}`),
+    // and the tutorials' examples (N-18): each course's, the architecture's program beside it
+    'tutorial/tutorial-logic.circ', 'tutorial/tutorial-mips.circ', 'tutorial/tutorial.hmx', 'tutorial/tutorial.s']);
+  assert.deepEqual(TUTORIALS, { logic: ['tutorial-logic.circ'], architecture: ['tutorial-mips.circ', 'tutorial.hmx', 'tutorial.s'] });
+  assert.equal(isCourse('logic'), true);
+  assert.equal(isCourse('architecture'), true);
+  for (const bad of ['../logic', 'mips', '', null]) assert.equal(isCourse(bad), false, String(bad));
+  assert.equal(tutorialDir('/r', '/repo'), path.join('/r', 'tutorial'));
+  assert.equal(tutorialDir(null, '/repo'), path.join('/repo', 'tests/tutorial'));
+  assert.equal(tutorialDir(null, null), null);
 });

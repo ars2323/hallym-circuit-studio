@@ -1,0 +1,40 @@
+HALLYM-EXEC 1
+source        tutorial.s
+source-sha256 e090a127228d541b152745340b340332101c2b4a0abc7553eaaeda2bd1fdd325
+produced-by   Hallym MIPS 2.6.0
+assembled     2026-09-29T21:45+09:00
+endian        little
+
+entry         0x00400000
+reg $sp       0x7fffffe4
+reg $gp       0x10008000
+
+symbol main   0x00400000
+symbol next   0x00400014
+symbol msg    0x10010000
+symbol nums   0x10010008
+symbol count  0x10010018
+
+.text 0x00400000 words 18
+3c011001
+34300008
+3c011001
+8c310018
+34080000
+8e090000
+01094020
+22100004
+2231ffff
+1620fffc
+3c041001
+34020004
+0000000c
+00082021
+34020001
+0000000c
+3402000a
+0000000c
+
+.data 0x10010000 bytes 28
+73 75 6d 20 3d 20 00 00 03 00 00 00 05 00 00 00
+07 00 00 00 ff ff ff ff 04 00 00 00

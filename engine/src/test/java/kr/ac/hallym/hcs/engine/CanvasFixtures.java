@@ -69,7 +69,14 @@ public final class CanvasFixtures {
         FlowFixtures.write(demo, FlowFixtures.target(out, demo));
         // 모양 편집·Port Order·인스턴스 안내(N-11, D-153): 같은 id로 회로마다 모양·포트·인스턴스 경로
         AppearanceFixtures.write(demo, AppearanceFixtures.target(out, demo));
-        System.out.println("canvas fixtures: " + cases + " geometry cases, 3 circuits, library, find, splitter ranges, "
+        // 튜토리얼 두 트랙의 예제(N-18, D-161): 가짜 엔진이 튜토리얼 e2e·스크린숏에 그대로 그린다(맨 끝: 앞의 자료의 id가 그대로)
+        for (String[] f : new String[][] {{"tests/tutorial/tutorial-logic.circ", "tutorial-logic"},
+            {"tests/tutorial/tutorial-mips.circ", "tutorial-mips"}}) {
+            try (InProcess e = new InProcess()) {
+                circuit(e, repo.resolve(f[0]).toFile(), out.resolve("circuits/" + f[1] + ".json"));
+            }
+        }
+        System.out.println("canvas fixtures: " + cases + " geometry cases, 5 circuits, library, find, splitter ranges, "
                 + "overlays, appearances, attributes -> " + out);
         System.exit(0);
     }
@@ -534,10 +541,17 @@ public final class CanvasFixtures {
             JsonArray na = new JsonArray();
             ns.forEach(na::add);
             o.add("nets", na);
-            if (o.has("groups")) { // 신호 그룹(N-15)의 넷도 새 번호로
+            if (o.has("groups")) { // 신호 그룹(N-15)의 넷도 새 번호로, 새 번호 순(엔진의 차례는 엔진 넷 번호를 따른다)
+                List<JsonObject> gl = new ArrayList<>();
                 for (JsonElement g : o.getAsJsonArray("groups")) {
                     g.getAsJsonObject().addProperty("net", netMap.get(g.getAsJsonObject().get("net").getAsString()));
+                    gl.add(g.getAsJsonObject());
                 }
+                gl.sort((a, b) -> Integer.compare(Integer.parseInt(a.get("net").getAsString().substring(1)),
+                        Integer.parseInt(b.get("net").getAsString().substring(1))));
+                JsonArray ga = new JsonArray();
+                gl.forEach(ga::add);
+                o.add("groups", ga);
             }
             return o;
         }

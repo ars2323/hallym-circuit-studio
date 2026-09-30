@@ -1,0 +1,8891 @@
+{
+  "about": "The real engine\u0027s snapshots and messages at the tutorial\u0027s steps (engine TutorialExamplesTest; ./gradlew :engine:test --tests \u0027*TutorialExamplesTest\u0027 -Phcs.update\u003dtrue)",
+  "initial": {
+    "snapshot": {
+      "circuitId": "c1",
+      "name": "main",
+      "components": [
+        {
+          "id": "k4",
+          "lib": "Wiring",
+          "name": "Pin",
+          "loc": [
+            120,
+            120
+          ],
+          "bounds": [
+            100,
+            110,
+            20,
+            20
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "output": "false",
+            "width": "1",
+            "tristate": "false",
+            "pull": "none",
+            "label": "A",
+            "labelloc": "west",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                120,
+                120
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "A"
+            }
+          ]
+        },
+        {
+          "id": "k7",
+          "lib": "Wiring",
+          "name": "Pin",
+          "loc": [
+            440,
+            160
+          ],
+          "bounds": [
+            440,
+            150,
+            20,
+            20
+          ],
+          "facing": "west",
+          "attrs": {
+            "facing": "west",
+            "output": "true",
+            "width": "1",
+            "tristate": "true",
+            "pull": "none",
+            "label": "Y",
+            "labelloc": "east",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                440,
+                160
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "Y"
+            }
+          ]
+        },
+        {
+          "id": "k1",
+          "lib": "Wiring",
+          "name": "Pin",
+          "loc": [
+            120,
+            200
+          ],
+          "bounds": [
+            100,
+            190,
+            20,
+            20
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "output": "false",
+            "width": "1",
+            "tristate": "false",
+            "pull": "none",
+            "label": "B",
+            "labelloc": "west",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                120,
+                200
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "B"
+            }
+          ]
+        },
+        {
+          "id": "k2",
+          "lib": "I/O",
+          "name": "LED",
+          "loc": [
+            890,
+            210
+          ],
+          "bounds": [
+            880,
+            190,
+            20,
+            20
+          ],
+          "facing": "south",
+          "attrs": {
+            "facing": "south",
+            "color": "#f00000",
+            "offcolor": "#404040",
+            "active": "true",
+            "label": "",
+            "labelloc": "center",
+            "labelfont": "SansSerif plain 12",
+            "labelcolor": "#000000"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                890,
+                210
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "led"
+            }
+          ]
+        },
+        {
+          "id": "k10",
+          "lib": "I/O",
+          "name": "LED",
+          "loc": [
+            920,
+            210
+          ],
+          "bounds": [
+            910,
+            190,
+            20,
+            20
+          ],
+          "facing": "south",
+          "attrs": {
+            "facing": "south",
+            "color": "#f00000",
+            "offcolor": "#404040",
+            "active": "true",
+            "label": "",
+            "labelloc": "center",
+            "labelfont": "SansSerif plain 12",
+            "labelcolor": "#000000"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                920,
+                210
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "led"
+            }
+          ]
+        },
+        {
+          "id": "k9",
+          "lib": "I/O",
+          "name": "LED",
+          "loc": [
+            950,
+            210
+          ],
+          "bounds": [
+            940,
+            190,
+            20,
+            20
+          ],
+          "facing": "south",
+          "attrs": {
+            "facing": "south",
+            "color": "#f00000",
+            "offcolor": "#404040",
+            "active": "true",
+            "label": "",
+            "labelloc": "center",
+            "labelfont": "SansSerif plain 12",
+            "labelcolor": "#000000"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                950,
+                210
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "led"
+            }
+          ]
+        },
+        {
+          "id": "k15",
+          "lib": "I/O",
+          "name": "LED",
+          "loc": [
+            980,
+            210
+          ],
+          "bounds": [
+            970,
+            190,
+            20,
+            20
+          ],
+          "facing": "south",
+          "attrs": {
+            "facing": "south",
+            "color": "#f00000",
+            "offcolor": "#404040",
+            "active": "true",
+            "label": "",
+            "labelloc": "center",
+            "labelfont": "SansSerif plain 12",
+            "labelcolor": "#000000"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                980,
+                210
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "led"
+            }
+          ]
+        },
+        {
+          "id": "k6",
+          "lib": "Arithmetic",
+          "name": "Adder",
+          "loc": [
+            700,
+            300
+          ],
+          "bounds": [
+            660,
+            280,
+            40,
+            40
+          ],
+          "facing": null,
+          "attrs": {
+            "width": "4"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                660,
+                290
+              ],
+              "width": 4,
+              "dir": "in",
+              "name": "a"
+            },
+            {
+              "i": 1,
+              "loc": [
+                660,
+                310
+              ],
+              "width": 4,
+              "dir": "in",
+              "name": "b"
+            },
+            {
+              "i": 2,
+              "loc": [
+                700,
+                300
+              ],
+              "width": 4,
+              "dir": "out",
+              "name": "sum"
+            },
+            {
+              "i": 3,
+              "loc": [
+                680,
+                280
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "cin"
+            },
+            {
+              "i": 4,
+              "loc": [
+                680,
+                320
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "cout"
+            }
+          ]
+        },
+        {
+          "id": "k5",
+          "lib": "Memory",
+          "name": "Register",
+          "loc": [
+            760,
+            300
+          ],
+          "bounds": [
+            730,
+            280,
+            30,
+            40
+          ],
+          "facing": null,
+          "attrs": {
+            "width": "4",
+            "trigger": "rising",
+            "label": "count",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                760,
+                300
+              ],
+              "width": 4,
+              "dir": "out",
+              "name": "Q"
+            },
+            {
+              "i": 1,
+              "loc": [
+                730,
+                300
+              ],
+              "width": 4,
+              "dir": "in",
+              "name": "D"
+            },
+            {
+              "i": 2,
+              "loc": [
+                740,
+                320
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "clk"
+            },
+            {
+              "i": 3,
+              "loc": [
+                750,
+                320
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "clr"
+            },
+            {
+              "i": 4,
+              "loc": [
+                730,
+                310
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "en"
+            }
+          ]
+        },
+        {
+          "id": "k12",
+          "lib": "Wiring",
+          "name": "Splitter",
+          "loc": [
+            840,
+            300
+          ],
+          "bounds": [
+            840,
+            260,
+            21,
+            41
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "fanout": "4",
+            "incoming": "4",
+            "appear": "left",
+            "bit0": "0",
+            "bit1": "1",
+            "bit2": "2",
+            "bit3": "3"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                840,
+                300
+              ],
+              "width": 4,
+              "dir": "inout",
+              "name": "combined"
+            },
+            {
+              "i": 1,
+              "loc": [
+                860,
+                260
+              ],
+              "width": 1,
+              "dir": "inout",
+              "name": "arm0"
+            },
+            {
+              "i": 2,
+              "loc": [
+                860,
+                270
+              ],
+              "width": 1,
+              "dir": "inout",
+              "name": "arm1"
+            },
+            {
+              "i": 3,
+              "loc": [
+                860,
+                280
+              ],
+              "width": 1,
+              "dir": "inout",
+              "name": "arm2"
+            },
+            {
+              "i": 4,
+              "loc": [
+                860,
+                290
+              ],
+              "width": 1,
+              "dir": "inout",
+              "name": "arm3"
+            }
+          ],
+          "ext": {
+            "arms": [
+              "q0",
+              "q1",
+              "q2",
+              "q3"
+            ]
+          }
+        },
+        {
+          "id": "k13",
+          "lib": "Wiring",
+          "name": "Constant",
+          "loc": [
+            640,
+            310
+          ],
+          "bounds": [
+            624,
+            302,
+            16,
+            16
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "width": "4",
+            "value": "0x1"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                640,
+                310
+              ],
+              "width": 4,
+              "dir": "out",
+              "name": "out"
+            }
+          ]
+        },
+        {
+          "id": "k14",
+          "lib": "Wiring",
+          "name": "Pin",
+          "loc": [
+            120,
+            360
+          ],
+          "bounds": [
+            100,
+            350,
+            20,
+            20
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "output": "false",
+            "width": "1",
+            "tristate": "false",
+            "pull": "none",
+            "label": "P",
+            "labelloc": "west",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                120,
+                360
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "P"
+            }
+          ]
+        },
+        {
+          "id": "k11",
+          "lib": "kr.ac.hallym.hcs.mips.MipsLibrary",
+          "name": "Radix Probe",
+          "loc": [
+            800,
+            360
+          ],
+          "bounds": [
+            800,
+            335,
+            80,
+            50
+          ],
+          "facing": null,
+          "attrs": {
+            "width": "4",
+            "radix": "hex",
+            "signed": "true",
+            "label": "",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                800,
+                360
+              ],
+              "width": 4,
+              "dir": "in",
+              "name": "probe"
+            }
+          ]
+        },
+        {
+          "id": "k8",
+          "lib": "Wiring",
+          "name": "Pin",
+          "loc": [
+            120,
+            380
+          ],
+          "bounds": [
+            100,
+            370,
+            20,
+            20
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "output": "false",
+            "width": "1",
+            "tristate": "false",
+            "pull": "none",
+            "label": "Q",
+            "labelloc": "west",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                120,
+                380
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "Q"
+            }
+          ]
+        },
+        {
+          "id": "k3",
+          "lib": "Wiring",
+          "name": "Clock",
+          "loc": [
+            700,
+            380
+          ],
+          "bounds": [
+            680,
+            370,
+            20,
+            20
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "highDuration": "1",
+            "lowDuration": "1",
+            "label": "",
+            "labelloc": "west",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                700,
+                380
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "clk"
+            }
+          ]
+        }
+      ],
+      "wires": [
+        {
+          "id": "w20",
+          "a": [
+            890,
+            210
+          ],
+          "b": [
+            890,
+            260
+          ]
+        },
+        {
+          "id": "w14",
+          "a": [
+            920,
+            210
+          ],
+          "b": [
+            920,
+            270
+          ]
+        },
+        {
+          "id": "w7",
+          "a": [
+            950,
+            210
+          ],
+          "b": [
+            950,
+            280
+          ]
+        },
+        {
+          "id": "w19",
+          "a": [
+            980,
+            210
+          ],
+          "b": [
+            980,
+            290
+          ]
+        },
+        {
+          "id": "w1",
+          "a": [
+            640,
+            250
+          ],
+          "b": [
+            640,
+            290
+          ]
+        },
+        {
+          "id": "w16",
+          "a": [
+            640,
+            250
+          ],
+          "b": [
+            770,
+            250
+          ]
+        },
+        {
+          "id": "w17",
+          "a": [
+            770,
+            250
+          ],
+          "b": [
+            770,
+            300
+          ]
+        },
+        {
+          "id": "w12",
+          "a": [
+            860,
+            260
+          ],
+          "b": [
+            890,
+            260
+          ]
+        },
+        {
+          "id": "w9",
+          "a": [
+            860,
+            270
+          ],
+          "b": [
+            920,
+            270
+          ]
+        },
+        {
+          "id": "w11",
+          "a": [
+            860,
+            280
+          ],
+          "b": [
+            950,
+            280
+          ]
+        },
+        {
+          "id": "w6",
+          "a": [
+            640,
+            290
+          ],
+          "b": [
+            660,
+            290
+          ]
+        },
+        {
+          "id": "w4",
+          "a": [
+            860,
+            290
+          ],
+          "b": [
+            980,
+            290
+          ]
+        },
+        {
+          "id": "w8",
+          "a": [
+            700,
+            300
+          ],
+          "b": [
+            730,
+            300
+          ]
+        },
+        {
+          "id": "w18",
+          "a": [
+            760,
+            300
+          ],
+          "b": [
+            770,
+            300
+          ]
+        },
+        {
+          "id": "w10",
+          "a": [
+            770,
+            300
+          ],
+          "b": [
+            800,
+            300
+          ]
+        },
+        {
+          "id": "w13",
+          "a": [
+            800,
+            300
+          ],
+          "b": [
+            800,
+            360
+          ]
+        },
+        {
+          "id": "w15",
+          "a": [
+            800,
+            300
+          ],
+          "b": [
+            840,
+            300
+          ]
+        },
+        {
+          "id": "w5",
+          "a": [
+            640,
+            310
+          ],
+          "b": [
+            660,
+            310
+          ]
+        },
+        {
+          "id": "w2",
+          "a": [
+            120,
+            360
+          ],
+          "b": [
+            210,
+            360
+          ]
+        },
+        {
+          "id": "w3",
+          "a": [
+            120,
+            380
+          ],
+          "b": [
+            210,
+            380
+          ]
+        }
+      ],
+      "nets": [
+        {
+          "id": "n0",
+          "width": 4,
+          "wires": [
+            "w1",
+            "w6",
+            "w10",
+            "w13",
+            "w15",
+            "w16",
+            "w17",
+            "w18"
+          ],
+          "ports": [
+            [
+              "k5",
+              0
+            ],
+            [
+              "k6",
+              0
+            ],
+            [
+              "k11",
+              0
+            ],
+            [
+              "k12",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n1",
+          "width": 1,
+          "wires": [
+            "w2"
+          ],
+          "ports": [
+            [
+              "k14",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n2",
+          "width": 1,
+          "wires": [
+            "w3"
+          ],
+          "ports": [
+            [
+              "k8",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n3",
+          "width": 1,
+          "wires": [
+            "w4",
+            "w19"
+          ],
+          "ports": [
+            [
+              "k12",
+              4
+            ],
+            [
+              "k15",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n4",
+          "width": 4,
+          "wires": [
+            "w5"
+          ],
+          "ports": [
+            [
+              "k6",
+              1
+            ],
+            [
+              "k13",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n5",
+          "width": 1,
+          "wires": [
+            "w7",
+            "w11"
+          ],
+          "ports": [
+            [
+              "k9",
+              0
+            ],
+            [
+              "k12",
+              3
+            ]
+          ]
+        },
+        {
+          "id": "n6",
+          "width": 4,
+          "wires": [
+            "w8"
+          ],
+          "ports": [
+            [
+              "k5",
+              1
+            ],
+            [
+              "k6",
+              2
+            ]
+          ]
+        },
+        {
+          "id": "n7",
+          "width": 1,
+          "wires": [
+            "w9",
+            "w14"
+          ],
+          "ports": [
+            [
+              "k10",
+              0
+            ],
+            [
+              "k12",
+              2
+            ]
+          ]
+        },
+        {
+          "id": "n8",
+          "width": 1,
+          "wires": [
+            "w12",
+            "w20"
+          ],
+          "ports": [
+            [
+              "k2",
+              0
+            ],
+            [
+              "k12",
+              1
+            ]
+          ]
+        },
+        {
+          "id": "n9",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k1",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n10",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k3",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n11",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k4",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n12",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k5",
+              2
+            ]
+          ]
+        },
+        {
+          "id": "n13",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k5",
+              3
+            ]
+          ]
+        },
+        {
+          "id": "n14",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k5",
+              4
+            ]
+          ]
+        },
+        {
+          "id": "n15",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k6",
+              3
+            ]
+          ]
+        },
+        {
+          "id": "n16",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k6",
+              4
+            ]
+          ]
+        },
+        {
+          "id": "n17",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k7",
+              0
+            ]
+          ]
+        }
+      ],
+      "junctions": [
+        [
+          770,
+          300
+        ],
+        [
+          800,
+          300
+        ]
+      ],
+      "memos": [
+        {
+          "x": 200,
+          "y": 90,
+          "w": 180,
+          "h": 140,
+          "color": 0,
+          "text": "AND Gate"
+        },
+        {
+          "x": 180,
+          "y": 300,
+          "w": 140,
+          "h": 120,
+          "color": 3,
+          "text": "half_adder"
+        }
+      ]
+    },
+    "messages": [
+      {
+        "id": "d1",
+        "code": "CLOCK_UNCONNECTED",
+        "kind": "static",
+        "severity": "error",
+        "text": {
+          "ko": "main › count (Register) 부품은 클럭 입력 clk 포트가 연결되지 않아 값이 바뀌지 않습니다.",
+          "en": "main › count (Register): the clock input clk is not connected, so the value never changes."
+        },
+        "location": {
+          "circuitId": "c1",
+          "root": "c1",
+          "path": [],
+          "components": [
+            "k5"
+          ],
+          "wires": [],
+          "nets": [
+            "n12"
+          ],
+          "at": [
+            740,
+            320
+          ]
+        }
+      }
+    ]
+  },
+  "andPlaced": {
+    "snapshot": {
+      "circuitId": "c1",
+      "name": "main",
+      "components": [
+        {
+          "id": "k4",
+          "lib": "Wiring",
+          "name": "Pin",
+          "loc": [
+            120,
+            120
+          ],
+          "bounds": [
+            100,
+            110,
+            20,
+            20
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "output": "false",
+            "width": "1",
+            "tristate": "false",
+            "pull": "none",
+            "label": "A",
+            "labelloc": "west",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                120,
+                120
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "A"
+            }
+          ]
+        },
+        {
+          "id": "k22",
+          "lib": "Gates",
+          "name": "AND Gate",
+          "loc": [
+            320,
+            140
+          ],
+          "bounds": [
+            270,
+            115,
+            50,
+            50
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "width": "1",
+            "size": "50",
+            "inputs": "5",
+            "out": "01",
+            "label": "",
+            "labelfont": "SansSerif plain 12",
+            "negate0": "false",
+            "negate1": "false",
+            "negate2": "false",
+            "negate3": "false",
+            "negate4": "false"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                320,
+                140
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "out"
+            },
+            {
+              "i": 1,
+              "loc": [
+                270,
+                120
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "in0"
+            },
+            {
+              "i": 2,
+              "loc": [
+                270,
+                130
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "in1"
+            },
+            {
+              "i": 3,
+              "loc": [
+                270,
+                140
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "in2"
+            },
+            {
+              "i": 4,
+              "loc": [
+                270,
+                150
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "in3"
+            },
+            {
+              "i": 5,
+              "loc": [
+                270,
+                160
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "in4"
+            }
+          ]
+        },
+        {
+          "id": "k7",
+          "lib": "Wiring",
+          "name": "Pin",
+          "loc": [
+            440,
+            160
+          ],
+          "bounds": [
+            440,
+            150,
+            20,
+            20
+          ],
+          "facing": "west",
+          "attrs": {
+            "facing": "west",
+            "output": "true",
+            "width": "1",
+            "tristate": "true",
+            "pull": "none",
+            "label": "Y",
+            "labelloc": "east",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                440,
+                160
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "Y"
+            }
+          ]
+        },
+        {
+          "id": "k1",
+          "lib": "Wiring",
+          "name": "Pin",
+          "loc": [
+            120,
+            200
+          ],
+          "bounds": [
+            100,
+            190,
+            20,
+            20
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "output": "false",
+            "width": "1",
+            "tristate": "false",
+            "pull": "none",
+            "label": "B",
+            "labelloc": "west",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                120,
+                200
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "B"
+            }
+          ]
+        },
+        {
+          "id": "k2",
+          "lib": "I/O",
+          "name": "LED",
+          "loc": [
+            890,
+            210
+          ],
+          "bounds": [
+            880,
+            190,
+            20,
+            20
+          ],
+          "facing": "south",
+          "attrs": {
+            "facing": "south",
+            "color": "#f00000",
+            "offcolor": "#404040",
+            "active": "true",
+            "label": "",
+            "labelloc": "center",
+            "labelfont": "SansSerif plain 12",
+            "labelcolor": "#000000"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                890,
+                210
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "led"
+            }
+          ]
+        },
+        {
+          "id": "k10",
+          "lib": "I/O",
+          "name": "LED",
+          "loc": [
+            920,
+            210
+          ],
+          "bounds": [
+            910,
+            190,
+            20,
+            20
+          ],
+          "facing": "south",
+          "attrs": {
+            "facing": "south",
+            "color": "#f00000",
+            "offcolor": "#404040",
+            "active": "true",
+            "label": "",
+            "labelloc": "center",
+            "labelfont": "SansSerif plain 12",
+            "labelcolor": "#000000"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                920,
+                210
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "led"
+            }
+          ]
+        },
+        {
+          "id": "k9",
+          "lib": "I/O",
+          "name": "LED",
+          "loc": [
+            950,
+            210
+          ],
+          "bounds": [
+            940,
+            190,
+            20,
+            20
+          ],
+          "facing": "south",
+          "attrs": {
+            "facing": "south",
+            "color": "#f00000",
+            "offcolor": "#404040",
+            "active": "true",
+            "label": "",
+            "labelloc": "center",
+            "labelfont": "SansSerif plain 12",
+            "labelcolor": "#000000"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                950,
+                210
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "led"
+            }
+          ]
+        },
+        {
+          "id": "k15",
+          "lib": "I/O",
+          "name": "LED",
+          "loc": [
+            980,
+            210
+          ],
+          "bounds": [
+            970,
+            190,
+            20,
+            20
+          ],
+          "facing": "south",
+          "attrs": {
+            "facing": "south",
+            "color": "#f00000",
+            "offcolor": "#404040",
+            "active": "true",
+            "label": "",
+            "labelloc": "center",
+            "labelfont": "SansSerif plain 12",
+            "labelcolor": "#000000"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                980,
+                210
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "led"
+            }
+          ]
+        },
+        {
+          "id": "k6",
+          "lib": "Arithmetic",
+          "name": "Adder",
+          "loc": [
+            700,
+            300
+          ],
+          "bounds": [
+            660,
+            280,
+            40,
+            40
+          ],
+          "facing": null,
+          "attrs": {
+            "width": "4"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                660,
+                290
+              ],
+              "width": 4,
+              "dir": "in",
+              "name": "a"
+            },
+            {
+              "i": 1,
+              "loc": [
+                660,
+                310
+              ],
+              "width": 4,
+              "dir": "in",
+              "name": "b"
+            },
+            {
+              "i": 2,
+              "loc": [
+                700,
+                300
+              ],
+              "width": 4,
+              "dir": "out",
+              "name": "sum"
+            },
+            {
+              "i": 3,
+              "loc": [
+                680,
+                280
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "cin"
+            },
+            {
+              "i": 4,
+              "loc": [
+                680,
+                320
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "cout"
+            }
+          ]
+        },
+        {
+          "id": "k5",
+          "lib": "Memory",
+          "name": "Register",
+          "loc": [
+            760,
+            300
+          ],
+          "bounds": [
+            730,
+            280,
+            30,
+            40
+          ],
+          "facing": null,
+          "attrs": {
+            "width": "4",
+            "trigger": "rising",
+            "label": "count",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                760,
+                300
+              ],
+              "width": 4,
+              "dir": "out",
+              "name": "Q"
+            },
+            {
+              "i": 1,
+              "loc": [
+                730,
+                300
+              ],
+              "width": 4,
+              "dir": "in",
+              "name": "D"
+            },
+            {
+              "i": 2,
+              "loc": [
+                740,
+                320
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "clk"
+            },
+            {
+              "i": 3,
+              "loc": [
+                750,
+                320
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "clr"
+            },
+            {
+              "i": 4,
+              "loc": [
+                730,
+                310
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "en"
+            }
+          ]
+        },
+        {
+          "id": "k12",
+          "lib": "Wiring",
+          "name": "Splitter",
+          "loc": [
+            840,
+            300
+          ],
+          "bounds": [
+            840,
+            260,
+            21,
+            41
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "fanout": "4",
+            "incoming": "4",
+            "appear": "left",
+            "bit0": "0",
+            "bit1": "1",
+            "bit2": "2",
+            "bit3": "3"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                840,
+                300
+              ],
+              "width": 4,
+              "dir": "inout",
+              "name": "combined"
+            },
+            {
+              "i": 1,
+              "loc": [
+                860,
+                260
+              ],
+              "width": 1,
+              "dir": "inout",
+              "name": "arm0"
+            },
+            {
+              "i": 2,
+              "loc": [
+                860,
+                270
+              ],
+              "width": 1,
+              "dir": "inout",
+              "name": "arm1"
+            },
+            {
+              "i": 3,
+              "loc": [
+                860,
+                280
+              ],
+              "width": 1,
+              "dir": "inout",
+              "name": "arm2"
+            },
+            {
+              "i": 4,
+              "loc": [
+                860,
+                290
+              ],
+              "width": 1,
+              "dir": "inout",
+              "name": "arm3"
+            }
+          ],
+          "ext": {
+            "arms": [
+              "q0",
+              "q1",
+              "q2",
+              "q3"
+            ]
+          }
+        },
+        {
+          "id": "k13",
+          "lib": "Wiring",
+          "name": "Constant",
+          "loc": [
+            640,
+            310
+          ],
+          "bounds": [
+            624,
+            302,
+            16,
+            16
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "width": "4",
+            "value": "0x1"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                640,
+                310
+              ],
+              "width": 4,
+              "dir": "out",
+              "name": "out"
+            }
+          ]
+        },
+        {
+          "id": "k14",
+          "lib": "Wiring",
+          "name": "Pin",
+          "loc": [
+            120,
+            360
+          ],
+          "bounds": [
+            100,
+            350,
+            20,
+            20
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "output": "false",
+            "width": "1",
+            "tristate": "false",
+            "pull": "none",
+            "label": "P",
+            "labelloc": "west",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                120,
+                360
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "P"
+            }
+          ]
+        },
+        {
+          "id": "k11",
+          "lib": "kr.ac.hallym.hcs.mips.MipsLibrary",
+          "name": "Radix Probe",
+          "loc": [
+            800,
+            360
+          ],
+          "bounds": [
+            800,
+            335,
+            80,
+            50
+          ],
+          "facing": null,
+          "attrs": {
+            "width": "4",
+            "radix": "hex",
+            "signed": "true",
+            "label": "",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                800,
+                360
+              ],
+              "width": 4,
+              "dir": "in",
+              "name": "probe"
+            }
+          ]
+        },
+        {
+          "id": "k8",
+          "lib": "Wiring",
+          "name": "Pin",
+          "loc": [
+            120,
+            380
+          ],
+          "bounds": [
+            100,
+            370,
+            20,
+            20
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "output": "false",
+            "width": "1",
+            "tristate": "false",
+            "pull": "none",
+            "label": "Q",
+            "labelloc": "west",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                120,
+                380
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "Q"
+            }
+          ]
+        },
+        {
+          "id": "k3",
+          "lib": "Wiring",
+          "name": "Clock",
+          "loc": [
+            700,
+            380
+          ],
+          "bounds": [
+            680,
+            370,
+            20,
+            20
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "highDuration": "1",
+            "lowDuration": "1",
+            "label": "",
+            "labelloc": "west",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                700,
+                380
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "clk"
+            }
+          ]
+        }
+      ],
+      "wires": [
+        {
+          "id": "w20",
+          "a": [
+            890,
+            210
+          ],
+          "b": [
+            890,
+            260
+          ]
+        },
+        {
+          "id": "w14",
+          "a": [
+            920,
+            210
+          ],
+          "b": [
+            920,
+            270
+          ]
+        },
+        {
+          "id": "w7",
+          "a": [
+            950,
+            210
+          ],
+          "b": [
+            950,
+            280
+          ]
+        },
+        {
+          "id": "w19",
+          "a": [
+            980,
+            210
+          ],
+          "b": [
+            980,
+            290
+          ]
+        },
+        {
+          "id": "w1",
+          "a": [
+            640,
+            250
+          ],
+          "b": [
+            640,
+            290
+          ]
+        },
+        {
+          "id": "w16",
+          "a": [
+            640,
+            250
+          ],
+          "b": [
+            770,
+            250
+          ]
+        },
+        {
+          "id": "w17",
+          "a": [
+            770,
+            250
+          ],
+          "b": [
+            770,
+            300
+          ]
+        },
+        {
+          "id": "w12",
+          "a": [
+            860,
+            260
+          ],
+          "b": [
+            890,
+            260
+          ]
+        },
+        {
+          "id": "w9",
+          "a": [
+            860,
+            270
+          ],
+          "b": [
+            920,
+            270
+          ]
+        },
+        {
+          "id": "w11",
+          "a": [
+            860,
+            280
+          ],
+          "b": [
+            950,
+            280
+          ]
+        },
+        {
+          "id": "w6",
+          "a": [
+            640,
+            290
+          ],
+          "b": [
+            660,
+            290
+          ]
+        },
+        {
+          "id": "w4",
+          "a": [
+            860,
+            290
+          ],
+          "b": [
+            980,
+            290
+          ]
+        },
+        {
+          "id": "w8",
+          "a": [
+            700,
+            300
+          ],
+          "b": [
+            730,
+            300
+          ]
+        },
+        {
+          "id": "w18",
+          "a": [
+            760,
+            300
+          ],
+          "b": [
+            770,
+            300
+          ]
+        },
+        {
+          "id": "w10",
+          "a": [
+            770,
+            300
+          ],
+          "b": [
+            800,
+            300
+          ]
+        },
+        {
+          "id": "w13",
+          "a": [
+            800,
+            300
+          ],
+          "b": [
+            800,
+            360
+          ]
+        },
+        {
+          "id": "w15",
+          "a": [
+            800,
+            300
+          ],
+          "b": [
+            840,
+            300
+          ]
+        },
+        {
+          "id": "w5",
+          "a": [
+            640,
+            310
+          ],
+          "b": [
+            660,
+            310
+          ]
+        },
+        {
+          "id": "w2",
+          "a": [
+            120,
+            360
+          ],
+          "b": [
+            210,
+            360
+          ]
+        },
+        {
+          "id": "w3",
+          "a": [
+            120,
+            380
+          ],
+          "b": [
+            210,
+            380
+          ]
+        }
+      ],
+      "nets": [
+        {
+          "id": "n0",
+          "width": 4,
+          "wires": [
+            "w1",
+            "w6",
+            "w10",
+            "w13",
+            "w15",
+            "w16",
+            "w17",
+            "w18"
+          ],
+          "ports": [
+            [
+              "k5",
+              0
+            ],
+            [
+              "k6",
+              0
+            ],
+            [
+              "k11",
+              0
+            ],
+            [
+              "k12",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n1",
+          "width": 1,
+          "wires": [
+            "w2"
+          ],
+          "ports": [
+            [
+              "k14",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n2",
+          "width": 1,
+          "wires": [
+            "w3"
+          ],
+          "ports": [
+            [
+              "k8",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n3",
+          "width": 1,
+          "wires": [
+            "w4",
+            "w19"
+          ],
+          "ports": [
+            [
+              "k12",
+              4
+            ],
+            [
+              "k15",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n4",
+          "width": 4,
+          "wires": [
+            "w5"
+          ],
+          "ports": [
+            [
+              "k6",
+              1
+            ],
+            [
+              "k13",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n5",
+          "width": 1,
+          "wires": [
+            "w7",
+            "w11"
+          ],
+          "ports": [
+            [
+              "k9",
+              0
+            ],
+            [
+              "k12",
+              3
+            ]
+          ]
+        },
+        {
+          "id": "n6",
+          "width": 4,
+          "wires": [
+            "w8"
+          ],
+          "ports": [
+            [
+              "k5",
+              1
+            ],
+            [
+              "k6",
+              2
+            ]
+          ]
+        },
+        {
+          "id": "n7",
+          "width": 1,
+          "wires": [
+            "w9",
+            "w14"
+          ],
+          "ports": [
+            [
+              "k10",
+              0
+            ],
+            [
+              "k12",
+              2
+            ]
+          ]
+        },
+        {
+          "id": "n8",
+          "width": 1,
+          "wires": [
+            "w12",
+            "w20"
+          ],
+          "ports": [
+            [
+              "k2",
+              0
+            ],
+            [
+              "k12",
+              1
+            ]
+          ]
+        },
+        {
+          "id": "n9",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k1",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n10",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k3",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n11",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k4",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n12",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k5",
+              2
+            ]
+          ]
+        },
+        {
+          "id": "n13",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k5",
+              3
+            ]
+          ]
+        },
+        {
+          "id": "n14",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k5",
+              4
+            ]
+          ]
+        },
+        {
+          "id": "n15",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k6",
+              3
+            ]
+          ]
+        },
+        {
+          "id": "n16",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k6",
+              4
+            ]
+          ]
+        },
+        {
+          "id": "n17",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k7",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n18",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k22",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n19",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k22",
+              1
+            ]
+          ]
+        },
+        {
+          "id": "n20",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k22",
+              2
+            ]
+          ]
+        },
+        {
+          "id": "n21",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k22",
+              3
+            ]
+          ]
+        },
+        {
+          "id": "n22",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k22",
+              4
+            ]
+          ]
+        },
+        {
+          "id": "n23",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k22",
+              5
+            ]
+          ]
+        }
+      ],
+      "junctions": [
+        [
+          770,
+          300
+        ],
+        [
+          800,
+          300
+        ]
+      ],
+      "memos": [
+        {
+          "x": 200,
+          "y": 90,
+          "w": 180,
+          "h": 140,
+          "color": 0,
+          "text": "AND Gate"
+        },
+        {
+          "x": 180,
+          "y": 300,
+          "w": 140,
+          "h": 120,
+          "color": 3,
+          "text": "half_adder"
+        }
+      ]
+    },
+    "messages": [
+      {
+        "id": "d1",
+        "code": "CLOCK_UNCONNECTED",
+        "kind": "static",
+        "severity": "error",
+        "text": {
+          "ko": "main › count (Register) 부품은 클럭 입력 clk 포트가 연결되지 않아 값이 바뀌지 않습니다.",
+          "en": "main › count (Register): the clock input clk is not connected, so the value never changes."
+        },
+        "location": {
+          "circuitId": "c1",
+          "root": "c1",
+          "path": [],
+          "components": [
+            "k5"
+          ],
+          "wires": [],
+          "nets": [
+            "n12"
+          ],
+          "at": [
+            740,
+            320
+          ]
+        }
+      },
+      {
+        "id": "d2",
+        "code": "E_APPEARED",
+        "kind": "dynamic",
+        "severity": "error",
+        "text": {
+          "ko": "사이클 0에 main › AND #1 output 자리에서 E(오류) 값이 생겼습니다. 원인: main › AND #1 input 1 포트가 이어진 선에 값을 내는 부품이 없습니다.",
+          "en": "Cycle 0: E (error value) appeared at main › AND #1 output. Cause: main › AND #1 input 1: connected to a wire that nothing drives."
+        },
+        "location": {
+          "circuitId": "c1",
+          "root": "c1",
+          "path": [],
+          "components": [
+            "k22"
+          ],
+          "wires": [],
+          "nets": [
+            "n19"
+          ],
+          "at": [
+            270,
+            120
+          ],
+          "cycle": 0
+        },
+        "appeared": {
+          "circuitId": "c1",
+          "root": "c1",
+          "path": [],
+          "at": [
+            320,
+            140
+          ],
+          "netId": "n18"
+        }
+      }
+    ]
+  },
+  "andWired": {
+    "snapshot": {
+      "circuitId": "c1",
+      "name": "main",
+      "components": [
+        {
+          "id": "k4",
+          "lib": "Wiring",
+          "name": "Pin",
+          "loc": [
+            120,
+            120
+          ],
+          "bounds": [
+            100,
+            110,
+            20,
+            20
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "output": "false",
+            "width": "1",
+            "tristate": "false",
+            "pull": "none",
+            "label": "A",
+            "labelloc": "west",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                120,
+                120
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "A"
+            }
+          ]
+        },
+        {
+          "id": "k22",
+          "lib": "Gates",
+          "name": "AND Gate",
+          "loc": [
+            320,
+            140
+          ],
+          "bounds": [
+            270,
+            115,
+            50,
+            50
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "width": "1",
+            "size": "50",
+            "inputs": "5",
+            "out": "01",
+            "label": "",
+            "labelfont": "SansSerif plain 12",
+            "negate0": "false",
+            "negate1": "false",
+            "negate2": "false",
+            "negate3": "false",
+            "negate4": "false"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                320,
+                140
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "out"
+            },
+            {
+              "i": 1,
+              "loc": [
+                270,
+                120
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "in0"
+            },
+            {
+              "i": 2,
+              "loc": [
+                270,
+                130
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "in1"
+            },
+            {
+              "i": 3,
+              "loc": [
+                270,
+                140
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "in2"
+            },
+            {
+              "i": 4,
+              "loc": [
+                270,
+                150
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "in3"
+            },
+            {
+              "i": 5,
+              "loc": [
+                270,
+                160
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "in4"
+            }
+          ]
+        },
+        {
+          "id": "k7",
+          "lib": "Wiring",
+          "name": "Pin",
+          "loc": [
+            440,
+            160
+          ],
+          "bounds": [
+            440,
+            150,
+            20,
+            20
+          ],
+          "facing": "west",
+          "attrs": {
+            "facing": "west",
+            "output": "true",
+            "width": "1",
+            "tristate": "true",
+            "pull": "none",
+            "label": "Y",
+            "labelloc": "east",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                440,
+                160
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "Y"
+            }
+          ]
+        },
+        {
+          "id": "k1",
+          "lib": "Wiring",
+          "name": "Pin",
+          "loc": [
+            120,
+            200
+          ],
+          "bounds": [
+            100,
+            190,
+            20,
+            20
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "output": "false",
+            "width": "1",
+            "tristate": "false",
+            "pull": "none",
+            "label": "B",
+            "labelloc": "west",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                120,
+                200
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "B"
+            }
+          ]
+        },
+        {
+          "id": "k2",
+          "lib": "I/O",
+          "name": "LED",
+          "loc": [
+            890,
+            210
+          ],
+          "bounds": [
+            880,
+            190,
+            20,
+            20
+          ],
+          "facing": "south",
+          "attrs": {
+            "facing": "south",
+            "color": "#f00000",
+            "offcolor": "#404040",
+            "active": "true",
+            "label": "",
+            "labelloc": "center",
+            "labelfont": "SansSerif plain 12",
+            "labelcolor": "#000000"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                890,
+                210
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "led"
+            }
+          ]
+        },
+        {
+          "id": "k10",
+          "lib": "I/O",
+          "name": "LED",
+          "loc": [
+            920,
+            210
+          ],
+          "bounds": [
+            910,
+            190,
+            20,
+            20
+          ],
+          "facing": "south",
+          "attrs": {
+            "facing": "south",
+            "color": "#f00000",
+            "offcolor": "#404040",
+            "active": "true",
+            "label": "",
+            "labelloc": "center",
+            "labelfont": "SansSerif plain 12",
+            "labelcolor": "#000000"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                920,
+                210
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "led"
+            }
+          ]
+        },
+        {
+          "id": "k9",
+          "lib": "I/O",
+          "name": "LED",
+          "loc": [
+            950,
+            210
+          ],
+          "bounds": [
+            940,
+            190,
+            20,
+            20
+          ],
+          "facing": "south",
+          "attrs": {
+            "facing": "south",
+            "color": "#f00000",
+            "offcolor": "#404040",
+            "active": "true",
+            "label": "",
+            "labelloc": "center",
+            "labelfont": "SansSerif plain 12",
+            "labelcolor": "#000000"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                950,
+                210
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "led"
+            }
+          ]
+        },
+        {
+          "id": "k15",
+          "lib": "I/O",
+          "name": "LED",
+          "loc": [
+            980,
+            210
+          ],
+          "bounds": [
+            970,
+            190,
+            20,
+            20
+          ],
+          "facing": "south",
+          "attrs": {
+            "facing": "south",
+            "color": "#f00000",
+            "offcolor": "#404040",
+            "active": "true",
+            "label": "",
+            "labelloc": "center",
+            "labelfont": "SansSerif plain 12",
+            "labelcolor": "#000000"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                980,
+                210
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "led"
+            }
+          ]
+        },
+        {
+          "id": "k6",
+          "lib": "Arithmetic",
+          "name": "Adder",
+          "loc": [
+            700,
+            300
+          ],
+          "bounds": [
+            660,
+            280,
+            40,
+            40
+          ],
+          "facing": null,
+          "attrs": {
+            "width": "4"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                660,
+                290
+              ],
+              "width": 4,
+              "dir": "in",
+              "name": "a"
+            },
+            {
+              "i": 1,
+              "loc": [
+                660,
+                310
+              ],
+              "width": 4,
+              "dir": "in",
+              "name": "b"
+            },
+            {
+              "i": 2,
+              "loc": [
+                700,
+                300
+              ],
+              "width": 4,
+              "dir": "out",
+              "name": "sum"
+            },
+            {
+              "i": 3,
+              "loc": [
+                680,
+                280
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "cin"
+            },
+            {
+              "i": 4,
+              "loc": [
+                680,
+                320
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "cout"
+            }
+          ]
+        },
+        {
+          "id": "k5",
+          "lib": "Memory",
+          "name": "Register",
+          "loc": [
+            760,
+            300
+          ],
+          "bounds": [
+            730,
+            280,
+            30,
+            40
+          ],
+          "facing": null,
+          "attrs": {
+            "width": "4",
+            "trigger": "rising",
+            "label": "count",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                760,
+                300
+              ],
+              "width": 4,
+              "dir": "out",
+              "name": "Q"
+            },
+            {
+              "i": 1,
+              "loc": [
+                730,
+                300
+              ],
+              "width": 4,
+              "dir": "in",
+              "name": "D"
+            },
+            {
+              "i": 2,
+              "loc": [
+                740,
+                320
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "clk"
+            },
+            {
+              "i": 3,
+              "loc": [
+                750,
+                320
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "clr"
+            },
+            {
+              "i": 4,
+              "loc": [
+                730,
+                310
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "en"
+            }
+          ]
+        },
+        {
+          "id": "k12",
+          "lib": "Wiring",
+          "name": "Splitter",
+          "loc": [
+            840,
+            300
+          ],
+          "bounds": [
+            840,
+            260,
+            21,
+            41
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "fanout": "4",
+            "incoming": "4",
+            "appear": "left",
+            "bit0": "0",
+            "bit1": "1",
+            "bit2": "2",
+            "bit3": "3"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                840,
+                300
+              ],
+              "width": 4,
+              "dir": "inout",
+              "name": "combined"
+            },
+            {
+              "i": 1,
+              "loc": [
+                860,
+                260
+              ],
+              "width": 1,
+              "dir": "inout",
+              "name": "arm0"
+            },
+            {
+              "i": 2,
+              "loc": [
+                860,
+                270
+              ],
+              "width": 1,
+              "dir": "inout",
+              "name": "arm1"
+            },
+            {
+              "i": 3,
+              "loc": [
+                860,
+                280
+              ],
+              "width": 1,
+              "dir": "inout",
+              "name": "arm2"
+            },
+            {
+              "i": 4,
+              "loc": [
+                860,
+                290
+              ],
+              "width": 1,
+              "dir": "inout",
+              "name": "arm3"
+            }
+          ],
+          "ext": {
+            "arms": [
+              "q0",
+              "q1",
+              "q2",
+              "q3"
+            ]
+          }
+        },
+        {
+          "id": "k13",
+          "lib": "Wiring",
+          "name": "Constant",
+          "loc": [
+            640,
+            310
+          ],
+          "bounds": [
+            624,
+            302,
+            16,
+            16
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "width": "4",
+            "value": "0x1"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                640,
+                310
+              ],
+              "width": 4,
+              "dir": "out",
+              "name": "out"
+            }
+          ]
+        },
+        {
+          "id": "k14",
+          "lib": "Wiring",
+          "name": "Pin",
+          "loc": [
+            120,
+            360
+          ],
+          "bounds": [
+            100,
+            350,
+            20,
+            20
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "output": "false",
+            "width": "1",
+            "tristate": "false",
+            "pull": "none",
+            "label": "P",
+            "labelloc": "west",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                120,
+                360
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "P"
+            }
+          ]
+        },
+        {
+          "id": "k11",
+          "lib": "kr.ac.hallym.hcs.mips.MipsLibrary",
+          "name": "Radix Probe",
+          "loc": [
+            800,
+            360
+          ],
+          "bounds": [
+            800,
+            335,
+            80,
+            50
+          ],
+          "facing": null,
+          "attrs": {
+            "width": "4",
+            "radix": "hex",
+            "signed": "true",
+            "label": "",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                800,
+                360
+              ],
+              "width": 4,
+              "dir": "in",
+              "name": "probe"
+            }
+          ]
+        },
+        {
+          "id": "k8",
+          "lib": "Wiring",
+          "name": "Pin",
+          "loc": [
+            120,
+            380
+          ],
+          "bounds": [
+            100,
+            370,
+            20,
+            20
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "output": "false",
+            "width": "1",
+            "tristate": "false",
+            "pull": "none",
+            "label": "Q",
+            "labelloc": "west",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                120,
+                380
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "Q"
+            }
+          ]
+        },
+        {
+          "id": "k3",
+          "lib": "Wiring",
+          "name": "Clock",
+          "loc": [
+            700,
+            380
+          ],
+          "bounds": [
+            680,
+            370,
+            20,
+            20
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "highDuration": "1",
+            "lowDuration": "1",
+            "label": "",
+            "labelloc": "west",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                700,
+                380
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "clk"
+            }
+          ]
+        }
+      ],
+      "wires": [
+        {
+          "id": "w32",
+          "a": [
+            120,
+            120
+          ],
+          "b": [
+            270,
+            120
+          ]
+        },
+        {
+          "id": "w37",
+          "a": [
+            320,
+            140
+          ],
+          "b": [
+            400,
+            140
+          ]
+        },
+        {
+          "id": "w36",
+          "a": [
+            400,
+            140
+          ],
+          "b": [
+            400,
+            160
+          ]
+        },
+        {
+          "id": "w34",
+          "a": [
+            240,
+            160
+          ],
+          "b": [
+            240,
+            200
+          ]
+        },
+        {
+          "id": "w35",
+          "a": [
+            240,
+            160
+          ],
+          "b": [
+            270,
+            160
+          ]
+        },
+        {
+          "id": "w38",
+          "a": [
+            400,
+            160
+          ],
+          "b": [
+            440,
+            160
+          ]
+        },
+        {
+          "id": "w33",
+          "a": [
+            120,
+            200
+          ],
+          "b": [
+            240,
+            200
+          ]
+        },
+        {
+          "id": "w20",
+          "a": [
+            890,
+            210
+          ],
+          "b": [
+            890,
+            260
+          ]
+        },
+        {
+          "id": "w14",
+          "a": [
+            920,
+            210
+          ],
+          "b": [
+            920,
+            270
+          ]
+        },
+        {
+          "id": "w7",
+          "a": [
+            950,
+            210
+          ],
+          "b": [
+            950,
+            280
+          ]
+        },
+        {
+          "id": "w19",
+          "a": [
+            980,
+            210
+          ],
+          "b": [
+            980,
+            290
+          ]
+        },
+        {
+          "id": "w1",
+          "a": [
+            640,
+            250
+          ],
+          "b": [
+            640,
+            290
+          ]
+        },
+        {
+          "id": "w16",
+          "a": [
+            640,
+            250
+          ],
+          "b": [
+            770,
+            250
+          ]
+        },
+        {
+          "id": "w17",
+          "a": [
+            770,
+            250
+          ],
+          "b": [
+            770,
+            300
+          ]
+        },
+        {
+          "id": "w12",
+          "a": [
+            860,
+            260
+          ],
+          "b": [
+            890,
+            260
+          ]
+        },
+        {
+          "id": "w9",
+          "a": [
+            860,
+            270
+          ],
+          "b": [
+            920,
+            270
+          ]
+        },
+        {
+          "id": "w11",
+          "a": [
+            860,
+            280
+          ],
+          "b": [
+            950,
+            280
+          ]
+        },
+        {
+          "id": "w6",
+          "a": [
+            640,
+            290
+          ],
+          "b": [
+            660,
+            290
+          ]
+        },
+        {
+          "id": "w4",
+          "a": [
+            860,
+            290
+          ],
+          "b": [
+            980,
+            290
+          ]
+        },
+        {
+          "id": "w8",
+          "a": [
+            700,
+            300
+          ],
+          "b": [
+            730,
+            300
+          ]
+        },
+        {
+          "id": "w18",
+          "a": [
+            760,
+            300
+          ],
+          "b": [
+            770,
+            300
+          ]
+        },
+        {
+          "id": "w10",
+          "a": [
+            770,
+            300
+          ],
+          "b": [
+            800,
+            300
+          ]
+        },
+        {
+          "id": "w13",
+          "a": [
+            800,
+            300
+          ],
+          "b": [
+            800,
+            360
+          ]
+        },
+        {
+          "id": "w15",
+          "a": [
+            800,
+            300
+          ],
+          "b": [
+            840,
+            300
+          ]
+        },
+        {
+          "id": "w5",
+          "a": [
+            640,
+            310
+          ],
+          "b": [
+            660,
+            310
+          ]
+        },
+        {
+          "id": "w2",
+          "a": [
+            120,
+            360
+          ],
+          "b": [
+            210,
+            360
+          ]
+        },
+        {
+          "id": "w3",
+          "a": [
+            120,
+            380
+          ],
+          "b": [
+            210,
+            380
+          ]
+        }
+      ],
+      "nets": [
+        {
+          "id": "n0",
+          "width": 1,
+          "wires": [
+            "w4",
+            "w19"
+          ],
+          "ports": [
+            [
+              "k12",
+              4
+            ],
+            [
+              "k15",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n1",
+          "width": 1,
+          "wires": [
+            "w7",
+            "w11"
+          ],
+          "ports": [
+            [
+              "k9",
+              0
+            ],
+            [
+              "k12",
+              3
+            ]
+          ]
+        },
+        {
+          "id": "n2",
+          "width": 1,
+          "wires": [
+            "w9",
+            "w14"
+          ],
+          "ports": [
+            [
+              "k10",
+              0
+            ],
+            [
+              "k12",
+              2
+            ]
+          ]
+        },
+        {
+          "id": "n3",
+          "width": 1,
+          "wires": [
+            "w33",
+            "w35",
+            "w34"
+          ],
+          "ports": [
+            [
+              "k1",
+              0
+            ],
+            [
+              "k22",
+              5
+            ]
+          ]
+        },
+        {
+          "id": "n4",
+          "width": 1,
+          "wires": [
+            "w36",
+            "w38",
+            "w37"
+          ],
+          "ports": [
+            [
+              "k7",
+              0
+            ],
+            [
+              "k22",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n5",
+          "width": 4,
+          "wires": [
+            "w15",
+            "w1",
+            "w6",
+            "w10",
+            "w13",
+            "w16",
+            "w17",
+            "w18"
+          ],
+          "ports": [
+            [
+              "k5",
+              0
+            ],
+            [
+              "k6",
+              0
+            ],
+            [
+              "k11",
+              0
+            ],
+            [
+              "k12",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n6",
+          "width": 1,
+          "wires": [
+            "w2"
+          ],
+          "ports": [
+            [
+              "k14",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n7",
+          "width": 1,
+          "wires": [
+            "w3"
+          ],
+          "ports": [
+            [
+              "k8",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n8",
+          "width": 4,
+          "wires": [
+            "w5"
+          ],
+          "ports": [
+            [
+              "k6",
+              1
+            ],
+            [
+              "k13",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n9",
+          "width": 4,
+          "wires": [
+            "w8"
+          ],
+          "ports": [
+            [
+              "k5",
+              1
+            ],
+            [
+              "k6",
+              2
+            ]
+          ]
+        },
+        {
+          "id": "n10",
+          "width": 1,
+          "wires": [
+            "w32"
+          ],
+          "ports": [
+            [
+              "k4",
+              0
+            ],
+            [
+              "k22",
+              1
+            ]
+          ]
+        },
+        {
+          "id": "n11",
+          "width": 1,
+          "wires": [
+            "w12",
+            "w20"
+          ],
+          "ports": [
+            [
+              "k2",
+              0
+            ],
+            [
+              "k12",
+              1
+            ]
+          ]
+        },
+        {
+          "id": "n12",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k3",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n13",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k5",
+              2
+            ]
+          ]
+        },
+        {
+          "id": "n14",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k5",
+              3
+            ]
+          ]
+        },
+        {
+          "id": "n15",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k5",
+              4
+            ]
+          ]
+        },
+        {
+          "id": "n16",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k6",
+              3
+            ]
+          ]
+        },
+        {
+          "id": "n17",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k6",
+              4
+            ]
+          ]
+        },
+        {
+          "id": "n18",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k22",
+              2
+            ]
+          ]
+        },
+        {
+          "id": "n19",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k22",
+              3
+            ]
+          ]
+        },
+        {
+          "id": "n20",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k22",
+              4
+            ]
+          ]
+        }
+      ],
+      "junctions": [
+        [
+          770,
+          300
+        ],
+        [
+          800,
+          300
+        ]
+      ],
+      "memos": [
+        {
+          "x": 200,
+          "y": 90,
+          "w": 180,
+          "h": 140,
+          "color": 0,
+          "text": "AND Gate"
+        },
+        {
+          "x": 180,
+          "y": 300,
+          "w": 140,
+          "h": 120,
+          "color": 3,
+          "text": "half_adder"
+        }
+      ]
+    },
+    "messages": [
+      {
+        "id": "d1",
+        "code": "CLOCK_UNCONNECTED",
+        "kind": "static",
+        "severity": "error",
+        "text": {
+          "ko": "main › count (Register) 부품은 클럭 입력 clk 포트가 연결되지 않아 값이 바뀌지 않습니다.",
+          "en": "main › count (Register): the clock input clk is not connected, so the value never changes."
+        },
+        "location": {
+          "circuitId": "c1",
+          "root": "c1",
+          "path": [],
+          "components": [
+            "k5"
+          ],
+          "wires": [],
+          "nets": [
+            "n13"
+          ],
+          "at": [
+            740,
+            320
+          ]
+        }
+      }
+    ]
+  },
+  "labelled": {
+    "snapshot": {
+      "circuitId": "c1",
+      "name": "main",
+      "components": [
+        {
+          "id": "k4",
+          "lib": "Wiring",
+          "name": "Pin",
+          "loc": [
+            120,
+            120
+          ],
+          "bounds": [
+            100,
+            110,
+            20,
+            20
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "output": "false",
+            "width": "1",
+            "tristate": "false",
+            "pull": "none",
+            "label": "A",
+            "labelloc": "west",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                120,
+                120
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "A"
+            }
+          ]
+        },
+        {
+          "id": "k22",
+          "lib": "Gates",
+          "name": "AND Gate",
+          "loc": [
+            320,
+            140
+          ],
+          "bounds": [
+            270,
+            115,
+            50,
+            50
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "width": "1",
+            "size": "50",
+            "inputs": "5",
+            "out": "01",
+            "label": "g1",
+            "labelfont": "SansSerif plain 12",
+            "negate0": "false",
+            "negate1": "false",
+            "negate2": "false",
+            "negate3": "false",
+            "negate4": "false"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                320,
+                140
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "out"
+            },
+            {
+              "i": 1,
+              "loc": [
+                270,
+                120
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "in0"
+            },
+            {
+              "i": 2,
+              "loc": [
+                270,
+                130
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "in1"
+            },
+            {
+              "i": 3,
+              "loc": [
+                270,
+                140
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "in2"
+            },
+            {
+              "i": 4,
+              "loc": [
+                270,
+                150
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "in3"
+            },
+            {
+              "i": 5,
+              "loc": [
+                270,
+                160
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "in4"
+            }
+          ]
+        },
+        {
+          "id": "k7",
+          "lib": "Wiring",
+          "name": "Pin",
+          "loc": [
+            440,
+            160
+          ],
+          "bounds": [
+            440,
+            150,
+            20,
+            20
+          ],
+          "facing": "west",
+          "attrs": {
+            "facing": "west",
+            "output": "true",
+            "width": "1",
+            "tristate": "true",
+            "pull": "none",
+            "label": "Y",
+            "labelloc": "east",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                440,
+                160
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "Y"
+            }
+          ]
+        },
+        {
+          "id": "k1",
+          "lib": "Wiring",
+          "name": "Pin",
+          "loc": [
+            120,
+            200
+          ],
+          "bounds": [
+            100,
+            190,
+            20,
+            20
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "output": "false",
+            "width": "1",
+            "tristate": "false",
+            "pull": "none",
+            "label": "B",
+            "labelloc": "west",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                120,
+                200
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "B"
+            }
+          ]
+        },
+        {
+          "id": "k2",
+          "lib": "I/O",
+          "name": "LED",
+          "loc": [
+            890,
+            210
+          ],
+          "bounds": [
+            880,
+            190,
+            20,
+            20
+          ],
+          "facing": "south",
+          "attrs": {
+            "facing": "south",
+            "color": "#f00000",
+            "offcolor": "#404040",
+            "active": "true",
+            "label": "",
+            "labelloc": "center",
+            "labelfont": "SansSerif plain 12",
+            "labelcolor": "#000000"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                890,
+                210
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "led"
+            }
+          ]
+        },
+        {
+          "id": "k10",
+          "lib": "I/O",
+          "name": "LED",
+          "loc": [
+            920,
+            210
+          ],
+          "bounds": [
+            910,
+            190,
+            20,
+            20
+          ],
+          "facing": "south",
+          "attrs": {
+            "facing": "south",
+            "color": "#f00000",
+            "offcolor": "#404040",
+            "active": "true",
+            "label": "",
+            "labelloc": "center",
+            "labelfont": "SansSerif plain 12",
+            "labelcolor": "#000000"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                920,
+                210
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "led"
+            }
+          ]
+        },
+        {
+          "id": "k9",
+          "lib": "I/O",
+          "name": "LED",
+          "loc": [
+            950,
+            210
+          ],
+          "bounds": [
+            940,
+            190,
+            20,
+            20
+          ],
+          "facing": "south",
+          "attrs": {
+            "facing": "south",
+            "color": "#f00000",
+            "offcolor": "#404040",
+            "active": "true",
+            "label": "",
+            "labelloc": "center",
+            "labelfont": "SansSerif plain 12",
+            "labelcolor": "#000000"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                950,
+                210
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "led"
+            }
+          ]
+        },
+        {
+          "id": "k15",
+          "lib": "I/O",
+          "name": "LED",
+          "loc": [
+            980,
+            210
+          ],
+          "bounds": [
+            970,
+            190,
+            20,
+            20
+          ],
+          "facing": "south",
+          "attrs": {
+            "facing": "south",
+            "color": "#f00000",
+            "offcolor": "#404040",
+            "active": "true",
+            "label": "",
+            "labelloc": "center",
+            "labelfont": "SansSerif plain 12",
+            "labelcolor": "#000000"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                980,
+                210
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "led"
+            }
+          ]
+        },
+        {
+          "id": "k6",
+          "lib": "Arithmetic",
+          "name": "Adder",
+          "loc": [
+            700,
+            300
+          ],
+          "bounds": [
+            660,
+            280,
+            40,
+            40
+          ],
+          "facing": null,
+          "attrs": {
+            "width": "4"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                660,
+                290
+              ],
+              "width": 4,
+              "dir": "in",
+              "name": "a"
+            },
+            {
+              "i": 1,
+              "loc": [
+                660,
+                310
+              ],
+              "width": 4,
+              "dir": "in",
+              "name": "b"
+            },
+            {
+              "i": 2,
+              "loc": [
+                700,
+                300
+              ],
+              "width": 4,
+              "dir": "out",
+              "name": "sum"
+            },
+            {
+              "i": 3,
+              "loc": [
+                680,
+                280
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "cin"
+            },
+            {
+              "i": 4,
+              "loc": [
+                680,
+                320
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "cout"
+            }
+          ]
+        },
+        {
+          "id": "k5",
+          "lib": "Memory",
+          "name": "Register",
+          "loc": [
+            760,
+            300
+          ],
+          "bounds": [
+            730,
+            280,
+            30,
+            40
+          ],
+          "facing": null,
+          "attrs": {
+            "width": "4",
+            "trigger": "rising",
+            "label": "count",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                760,
+                300
+              ],
+              "width": 4,
+              "dir": "out",
+              "name": "Q"
+            },
+            {
+              "i": 1,
+              "loc": [
+                730,
+                300
+              ],
+              "width": 4,
+              "dir": "in",
+              "name": "D"
+            },
+            {
+              "i": 2,
+              "loc": [
+                740,
+                320
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "clk"
+            },
+            {
+              "i": 3,
+              "loc": [
+                750,
+                320
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "clr"
+            },
+            {
+              "i": 4,
+              "loc": [
+                730,
+                310
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "en"
+            }
+          ]
+        },
+        {
+          "id": "k12",
+          "lib": "Wiring",
+          "name": "Splitter",
+          "loc": [
+            840,
+            300
+          ],
+          "bounds": [
+            840,
+            260,
+            21,
+            41
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "fanout": "4",
+            "incoming": "4",
+            "appear": "left",
+            "bit0": "0",
+            "bit1": "1",
+            "bit2": "2",
+            "bit3": "3"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                840,
+                300
+              ],
+              "width": 4,
+              "dir": "inout",
+              "name": "combined"
+            },
+            {
+              "i": 1,
+              "loc": [
+                860,
+                260
+              ],
+              "width": 1,
+              "dir": "inout",
+              "name": "arm0"
+            },
+            {
+              "i": 2,
+              "loc": [
+                860,
+                270
+              ],
+              "width": 1,
+              "dir": "inout",
+              "name": "arm1"
+            },
+            {
+              "i": 3,
+              "loc": [
+                860,
+                280
+              ],
+              "width": 1,
+              "dir": "inout",
+              "name": "arm2"
+            },
+            {
+              "i": 4,
+              "loc": [
+                860,
+                290
+              ],
+              "width": 1,
+              "dir": "inout",
+              "name": "arm3"
+            }
+          ],
+          "ext": {
+            "arms": [
+              "q0",
+              "q1",
+              "q2",
+              "q3"
+            ]
+          }
+        },
+        {
+          "id": "k13",
+          "lib": "Wiring",
+          "name": "Constant",
+          "loc": [
+            640,
+            310
+          ],
+          "bounds": [
+            624,
+            302,
+            16,
+            16
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "width": "4",
+            "value": "0x1"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                640,
+                310
+              ],
+              "width": 4,
+              "dir": "out",
+              "name": "out"
+            }
+          ]
+        },
+        {
+          "id": "k14",
+          "lib": "Wiring",
+          "name": "Pin",
+          "loc": [
+            120,
+            360
+          ],
+          "bounds": [
+            100,
+            350,
+            20,
+            20
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "output": "false",
+            "width": "1",
+            "tristate": "false",
+            "pull": "none",
+            "label": "P",
+            "labelloc": "west",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                120,
+                360
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "P"
+            }
+          ]
+        },
+        {
+          "id": "k11",
+          "lib": "kr.ac.hallym.hcs.mips.MipsLibrary",
+          "name": "Radix Probe",
+          "loc": [
+            800,
+            360
+          ],
+          "bounds": [
+            800,
+            335,
+            80,
+            50
+          ],
+          "facing": null,
+          "attrs": {
+            "width": "4",
+            "radix": "hex",
+            "signed": "true",
+            "label": "",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                800,
+                360
+              ],
+              "width": 4,
+              "dir": "in",
+              "name": "probe"
+            }
+          ]
+        },
+        {
+          "id": "k8",
+          "lib": "Wiring",
+          "name": "Pin",
+          "loc": [
+            120,
+            380
+          ],
+          "bounds": [
+            100,
+            370,
+            20,
+            20
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "output": "false",
+            "width": "1",
+            "tristate": "false",
+            "pull": "none",
+            "label": "Q",
+            "labelloc": "west",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                120,
+                380
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "Q"
+            }
+          ]
+        },
+        {
+          "id": "k3",
+          "lib": "Wiring",
+          "name": "Clock",
+          "loc": [
+            700,
+            380
+          ],
+          "bounds": [
+            680,
+            370,
+            20,
+            20
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "highDuration": "1",
+            "lowDuration": "1",
+            "label": "",
+            "labelloc": "west",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                700,
+                380
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "clk"
+            }
+          ]
+        }
+      ],
+      "wires": [
+        {
+          "id": "w32",
+          "a": [
+            120,
+            120
+          ],
+          "b": [
+            270,
+            120
+          ]
+        },
+        {
+          "id": "w37",
+          "a": [
+            320,
+            140
+          ],
+          "b": [
+            400,
+            140
+          ]
+        },
+        {
+          "id": "w36",
+          "a": [
+            400,
+            140
+          ],
+          "b": [
+            400,
+            160
+          ]
+        },
+        {
+          "id": "w34",
+          "a": [
+            240,
+            160
+          ],
+          "b": [
+            240,
+            200
+          ]
+        },
+        {
+          "id": "w35",
+          "a": [
+            240,
+            160
+          ],
+          "b": [
+            270,
+            160
+          ]
+        },
+        {
+          "id": "w38",
+          "a": [
+            400,
+            160
+          ],
+          "b": [
+            440,
+            160
+          ]
+        },
+        {
+          "id": "w33",
+          "a": [
+            120,
+            200
+          ],
+          "b": [
+            240,
+            200
+          ]
+        },
+        {
+          "id": "w20",
+          "a": [
+            890,
+            210
+          ],
+          "b": [
+            890,
+            260
+          ]
+        },
+        {
+          "id": "w14",
+          "a": [
+            920,
+            210
+          ],
+          "b": [
+            920,
+            270
+          ]
+        },
+        {
+          "id": "w7",
+          "a": [
+            950,
+            210
+          ],
+          "b": [
+            950,
+            280
+          ]
+        },
+        {
+          "id": "w19",
+          "a": [
+            980,
+            210
+          ],
+          "b": [
+            980,
+            290
+          ]
+        },
+        {
+          "id": "w1",
+          "a": [
+            640,
+            250
+          ],
+          "b": [
+            640,
+            290
+          ]
+        },
+        {
+          "id": "w16",
+          "a": [
+            640,
+            250
+          ],
+          "b": [
+            770,
+            250
+          ]
+        },
+        {
+          "id": "w17",
+          "a": [
+            770,
+            250
+          ],
+          "b": [
+            770,
+            300
+          ]
+        },
+        {
+          "id": "w12",
+          "a": [
+            860,
+            260
+          ],
+          "b": [
+            890,
+            260
+          ]
+        },
+        {
+          "id": "w9",
+          "a": [
+            860,
+            270
+          ],
+          "b": [
+            920,
+            270
+          ]
+        },
+        {
+          "id": "w11",
+          "a": [
+            860,
+            280
+          ],
+          "b": [
+            950,
+            280
+          ]
+        },
+        {
+          "id": "w6",
+          "a": [
+            640,
+            290
+          ],
+          "b": [
+            660,
+            290
+          ]
+        },
+        {
+          "id": "w4",
+          "a": [
+            860,
+            290
+          ],
+          "b": [
+            980,
+            290
+          ]
+        },
+        {
+          "id": "w8",
+          "a": [
+            700,
+            300
+          ],
+          "b": [
+            730,
+            300
+          ]
+        },
+        {
+          "id": "w18",
+          "a": [
+            760,
+            300
+          ],
+          "b": [
+            770,
+            300
+          ]
+        },
+        {
+          "id": "w10",
+          "a": [
+            770,
+            300
+          ],
+          "b": [
+            800,
+            300
+          ]
+        },
+        {
+          "id": "w13",
+          "a": [
+            800,
+            300
+          ],
+          "b": [
+            800,
+            360
+          ]
+        },
+        {
+          "id": "w15",
+          "a": [
+            800,
+            300
+          ],
+          "b": [
+            840,
+            300
+          ]
+        },
+        {
+          "id": "w5",
+          "a": [
+            640,
+            310
+          ],
+          "b": [
+            660,
+            310
+          ]
+        },
+        {
+          "id": "w2",
+          "a": [
+            120,
+            360
+          ],
+          "b": [
+            210,
+            360
+          ]
+        },
+        {
+          "id": "w3",
+          "a": [
+            120,
+            380
+          ],
+          "b": [
+            210,
+            380
+          ]
+        }
+      ],
+      "nets": [
+        {
+          "id": "n0",
+          "width": 1,
+          "wires": [
+            "w4",
+            "w19"
+          ],
+          "ports": [
+            [
+              "k12",
+              4
+            ],
+            [
+              "k15",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n1",
+          "width": 1,
+          "wires": [
+            "w7",
+            "w11"
+          ],
+          "ports": [
+            [
+              "k9",
+              0
+            ],
+            [
+              "k12",
+              3
+            ]
+          ]
+        },
+        {
+          "id": "n2",
+          "width": 1,
+          "wires": [
+            "w9",
+            "w14"
+          ],
+          "ports": [
+            [
+              "k10",
+              0
+            ],
+            [
+              "k12",
+              2
+            ]
+          ]
+        },
+        {
+          "id": "n3",
+          "width": 1,
+          "wires": [
+            "w33",
+            "w35",
+            "w34"
+          ],
+          "ports": [
+            [
+              "k1",
+              0
+            ],
+            [
+              "k22",
+              5
+            ]
+          ]
+        },
+        {
+          "id": "n4",
+          "width": 1,
+          "wires": [
+            "w36",
+            "w38",
+            "w37"
+          ],
+          "ports": [
+            [
+              "k7",
+              0
+            ],
+            [
+              "k22",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n5",
+          "width": 4,
+          "wires": [
+            "w15",
+            "w1",
+            "w6",
+            "w10",
+            "w13",
+            "w16",
+            "w17",
+            "w18"
+          ],
+          "ports": [
+            [
+              "k5",
+              0
+            ],
+            [
+              "k6",
+              0
+            ],
+            [
+              "k11",
+              0
+            ],
+            [
+              "k12",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n6",
+          "width": 1,
+          "wires": [
+            "w2"
+          ],
+          "ports": [
+            [
+              "k14",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n7",
+          "width": 1,
+          "wires": [
+            "w3"
+          ],
+          "ports": [
+            [
+              "k8",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n8",
+          "width": 4,
+          "wires": [
+            "w5"
+          ],
+          "ports": [
+            [
+              "k6",
+              1
+            ],
+            [
+              "k13",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n9",
+          "width": 4,
+          "wires": [
+            "w8"
+          ],
+          "ports": [
+            [
+              "k5",
+              1
+            ],
+            [
+              "k6",
+              2
+            ]
+          ]
+        },
+        {
+          "id": "n10",
+          "width": 1,
+          "wires": [
+            "w32"
+          ],
+          "ports": [
+            [
+              "k4",
+              0
+            ],
+            [
+              "k22",
+              1
+            ]
+          ]
+        },
+        {
+          "id": "n11",
+          "width": 1,
+          "wires": [
+            "w12",
+            "w20"
+          ],
+          "ports": [
+            [
+              "k2",
+              0
+            ],
+            [
+              "k12",
+              1
+            ]
+          ]
+        },
+        {
+          "id": "n12",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k3",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n13",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k5",
+              2
+            ]
+          ]
+        },
+        {
+          "id": "n14",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k5",
+              3
+            ]
+          ]
+        },
+        {
+          "id": "n15",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k5",
+              4
+            ]
+          ]
+        },
+        {
+          "id": "n16",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k6",
+              3
+            ]
+          ]
+        },
+        {
+          "id": "n17",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k6",
+              4
+            ]
+          ]
+        },
+        {
+          "id": "n18",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k22",
+              2
+            ]
+          ]
+        },
+        {
+          "id": "n19",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k22",
+              3
+            ]
+          ]
+        },
+        {
+          "id": "n20",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k22",
+              4
+            ]
+          ]
+        }
+      ],
+      "junctions": [
+        [
+          770,
+          300
+        ],
+        [
+          800,
+          300
+        ]
+      ],
+      "memos": [
+        {
+          "x": 200,
+          "y": 90,
+          "w": 180,
+          "h": 140,
+          "color": 0,
+          "text": "AND Gate"
+        },
+        {
+          "x": 180,
+          "y": 300,
+          "w": 140,
+          "h": 120,
+          "color": 3,
+          "text": "half_adder"
+        }
+      ]
+    },
+    "messages": [
+      {
+        "id": "d1",
+        "code": "CLOCK_UNCONNECTED",
+        "kind": "static",
+        "severity": "error",
+        "text": {
+          "ko": "main › count (Register) 부품은 클럭 입력 clk 포트가 연결되지 않아 값이 바뀌지 않습니다.",
+          "en": "main › count (Register): the clock input clk is not connected, so the value never changes."
+        },
+        "location": {
+          "circuitId": "c1",
+          "root": "c1",
+          "path": [],
+          "components": [
+            "k5"
+          ],
+          "wires": [],
+          "nets": [
+            "n13"
+          ],
+          "at": [
+            740,
+            320
+          ]
+        }
+      }
+    ]
+  },
+  "halfAdder": {
+    "snapshot": {
+      "circuitId": "c1",
+      "name": "main",
+      "components": [
+        {
+          "id": "k4",
+          "lib": "Wiring",
+          "name": "Pin",
+          "loc": [
+            120,
+            120
+          ],
+          "bounds": [
+            100,
+            110,
+            20,
+            20
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "output": "false",
+            "width": "1",
+            "tristate": "false",
+            "pull": "none",
+            "label": "A",
+            "labelloc": "west",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                120,
+                120
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "A"
+            }
+          ]
+        },
+        {
+          "id": "k22",
+          "lib": "Gates",
+          "name": "AND Gate",
+          "loc": [
+            320,
+            140
+          ],
+          "bounds": [
+            270,
+            115,
+            50,
+            50
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "width": "1",
+            "size": "50",
+            "inputs": "5",
+            "out": "01",
+            "label": "g1",
+            "labelfont": "SansSerif plain 12",
+            "negate0": "false",
+            "negate1": "false",
+            "negate2": "false",
+            "negate3": "false",
+            "negate4": "false"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                320,
+                140
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "out"
+            },
+            {
+              "i": 1,
+              "loc": [
+                270,
+                120
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "in0"
+            },
+            {
+              "i": 2,
+              "loc": [
+                270,
+                130
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "in1"
+            },
+            {
+              "i": 3,
+              "loc": [
+                270,
+                140
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "in2"
+            },
+            {
+              "i": 4,
+              "loc": [
+                270,
+                150
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "in3"
+            },
+            {
+              "i": 5,
+              "loc": [
+                270,
+                160
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "in4"
+            }
+          ]
+        },
+        {
+          "id": "k7",
+          "lib": "Wiring",
+          "name": "Pin",
+          "loc": [
+            440,
+            160
+          ],
+          "bounds": [
+            440,
+            150,
+            20,
+            20
+          ],
+          "facing": "west",
+          "attrs": {
+            "facing": "west",
+            "output": "true",
+            "width": "1",
+            "tristate": "true",
+            "pull": "none",
+            "label": "Y",
+            "labelloc": "east",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                440,
+                160
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "Y"
+            }
+          ]
+        },
+        {
+          "id": "k1",
+          "lib": "Wiring",
+          "name": "Pin",
+          "loc": [
+            120,
+            200
+          ],
+          "bounds": [
+            100,
+            190,
+            20,
+            20
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "output": "false",
+            "width": "1",
+            "tristate": "false",
+            "pull": "none",
+            "label": "B",
+            "labelloc": "west",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                120,
+                200
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "B"
+            }
+          ]
+        },
+        {
+          "id": "k2",
+          "lib": "I/O",
+          "name": "LED",
+          "loc": [
+            890,
+            210
+          ],
+          "bounds": [
+            880,
+            190,
+            20,
+            20
+          ],
+          "facing": "south",
+          "attrs": {
+            "facing": "south",
+            "color": "#f00000",
+            "offcolor": "#404040",
+            "active": "true",
+            "label": "",
+            "labelloc": "center",
+            "labelfont": "SansSerif plain 12",
+            "labelcolor": "#000000"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                890,
+                210
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "led"
+            }
+          ]
+        },
+        {
+          "id": "k10",
+          "lib": "I/O",
+          "name": "LED",
+          "loc": [
+            920,
+            210
+          ],
+          "bounds": [
+            910,
+            190,
+            20,
+            20
+          ],
+          "facing": "south",
+          "attrs": {
+            "facing": "south",
+            "color": "#f00000",
+            "offcolor": "#404040",
+            "active": "true",
+            "label": "",
+            "labelloc": "center",
+            "labelfont": "SansSerif plain 12",
+            "labelcolor": "#000000"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                920,
+                210
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "led"
+            }
+          ]
+        },
+        {
+          "id": "k9",
+          "lib": "I/O",
+          "name": "LED",
+          "loc": [
+            950,
+            210
+          ],
+          "bounds": [
+            940,
+            190,
+            20,
+            20
+          ],
+          "facing": "south",
+          "attrs": {
+            "facing": "south",
+            "color": "#f00000",
+            "offcolor": "#404040",
+            "active": "true",
+            "label": "",
+            "labelloc": "center",
+            "labelfont": "SansSerif plain 12",
+            "labelcolor": "#000000"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                950,
+                210
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "led"
+            }
+          ]
+        },
+        {
+          "id": "k15",
+          "lib": "I/O",
+          "name": "LED",
+          "loc": [
+            980,
+            210
+          ],
+          "bounds": [
+            970,
+            190,
+            20,
+            20
+          ],
+          "facing": "south",
+          "attrs": {
+            "facing": "south",
+            "color": "#f00000",
+            "offcolor": "#404040",
+            "active": "true",
+            "label": "",
+            "labelloc": "center",
+            "labelfont": "SansSerif plain 12",
+            "labelcolor": "#000000"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                980,
+                210
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "led"
+            }
+          ]
+        },
+        {
+          "id": "k6",
+          "lib": "Arithmetic",
+          "name": "Adder",
+          "loc": [
+            700,
+            300
+          ],
+          "bounds": [
+            660,
+            280,
+            40,
+            40
+          ],
+          "facing": null,
+          "attrs": {
+            "width": "4"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                660,
+                290
+              ],
+              "width": 4,
+              "dir": "in",
+              "name": "a"
+            },
+            {
+              "i": 1,
+              "loc": [
+                660,
+                310
+              ],
+              "width": 4,
+              "dir": "in",
+              "name": "b"
+            },
+            {
+              "i": 2,
+              "loc": [
+                700,
+                300
+              ],
+              "width": 4,
+              "dir": "out",
+              "name": "sum"
+            },
+            {
+              "i": 3,
+              "loc": [
+                680,
+                280
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "cin"
+            },
+            {
+              "i": 4,
+              "loc": [
+                680,
+                320
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "cout"
+            }
+          ]
+        },
+        {
+          "id": "k5",
+          "lib": "Memory",
+          "name": "Register",
+          "loc": [
+            760,
+            300
+          ],
+          "bounds": [
+            730,
+            280,
+            30,
+            40
+          ],
+          "facing": null,
+          "attrs": {
+            "width": "4",
+            "trigger": "rising",
+            "label": "count",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                760,
+                300
+              ],
+              "width": 4,
+              "dir": "out",
+              "name": "Q"
+            },
+            {
+              "i": 1,
+              "loc": [
+                730,
+                300
+              ],
+              "width": 4,
+              "dir": "in",
+              "name": "D"
+            },
+            {
+              "i": 2,
+              "loc": [
+                740,
+                320
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "clk"
+            },
+            {
+              "i": 3,
+              "loc": [
+                750,
+                320
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "clr"
+            },
+            {
+              "i": 4,
+              "loc": [
+                730,
+                310
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "en"
+            }
+          ]
+        },
+        {
+          "id": "k12",
+          "lib": "Wiring",
+          "name": "Splitter",
+          "loc": [
+            840,
+            300
+          ],
+          "bounds": [
+            840,
+            260,
+            21,
+            41
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "fanout": "4",
+            "incoming": "4",
+            "appear": "left",
+            "bit0": "0",
+            "bit1": "1",
+            "bit2": "2",
+            "bit3": "3"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                840,
+                300
+              ],
+              "width": 4,
+              "dir": "inout",
+              "name": "combined"
+            },
+            {
+              "i": 1,
+              "loc": [
+                860,
+                260
+              ],
+              "width": 1,
+              "dir": "inout",
+              "name": "arm0"
+            },
+            {
+              "i": 2,
+              "loc": [
+                860,
+                270
+              ],
+              "width": 1,
+              "dir": "inout",
+              "name": "arm1"
+            },
+            {
+              "i": 3,
+              "loc": [
+                860,
+                280
+              ],
+              "width": 1,
+              "dir": "inout",
+              "name": "arm2"
+            },
+            {
+              "i": 4,
+              "loc": [
+                860,
+                290
+              ],
+              "width": 1,
+              "dir": "inout",
+              "name": "arm3"
+            }
+          ],
+          "ext": {
+            "arms": [
+              "q0",
+              "q1",
+              "q2",
+              "q3"
+            ]
+          }
+        },
+        {
+          "id": "k13",
+          "lib": "Wiring",
+          "name": "Constant",
+          "loc": [
+            640,
+            310
+          ],
+          "bounds": [
+            624,
+            302,
+            16,
+            16
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "width": "4",
+            "value": "0x1"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                640,
+                310
+              ],
+              "width": 4,
+              "dir": "out",
+              "name": "out"
+            }
+          ]
+        },
+        {
+          "id": "k14",
+          "lib": "Wiring",
+          "name": "Pin",
+          "loc": [
+            120,
+            360
+          ],
+          "bounds": [
+            100,
+            350,
+            20,
+            20
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "output": "false",
+            "width": "1",
+            "tristate": "false",
+            "pull": "none",
+            "label": "P",
+            "labelloc": "west",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                120,
+                360
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "P"
+            }
+          ]
+        },
+        {
+          "id": "k23",
+          "lib": null,
+          "name": "half_adder",
+          "loc": [
+            290,
+            360
+          ],
+          "bounds": [
+            209,
+            329,
+            82,
+            62
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "label": "",
+            "labelloc": "north",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                210,
+                360
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "a"
+            },
+            {
+              "i": 1,
+              "loc": [
+                210,
+                380
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "b"
+            },
+            {
+              "i": 2,
+              "loc": [
+                290,
+                360
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "s"
+            },
+            {
+              "i": 3,
+              "loc": [
+                290,
+                380
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "c"
+            }
+          ],
+          "subcircuit": "c2",
+          "appearance": {
+            "default": false,
+            "anchor": [
+              130,
+              80
+            ],
+            "facing": "east",
+            "shapes": [
+              {
+                "tag": "rect",
+                "attrs": {
+                  "fill": "none",
+                  "height": "60",
+                  "stroke": "#000000",
+                  "stroke-width": "2",
+                  "width": "80",
+                  "x": "50",
+                  "y": "50"
+                }
+              },
+              {
+                "tag": "text",
+                "attrs": {
+                  "font-family": "SansSerif",
+                  "font-size": "10",
+                  "font-weight": "bold",
+                  "text-anchor": "middle",
+                  "x": "90",
+                  "y": "64"
+                },
+                "text": "half_adder"
+              },
+              {
+                "tag": "text",
+                "attrs": {
+                  "font-family": "SansSerif",
+                  "font-size": "10",
+                  "text-anchor": "start",
+                  "x": "55",
+                  "y": "84"
+                },
+                "text": "a"
+              },
+              {
+                "tag": "text",
+                "attrs": {
+                  "font-family": "SansSerif",
+                  "font-size": "10",
+                  "text-anchor": "start",
+                  "x": "55",
+                  "y": "104"
+                },
+                "text": "b"
+              },
+              {
+                "tag": "text",
+                "attrs": {
+                  "font-family": "SansSerif",
+                  "font-size": "10",
+                  "text-anchor": "end",
+                  "x": "125",
+                  "y": "84"
+                },
+                "text": "s"
+              },
+              {
+                "tag": "text",
+                "attrs": {
+                  "font-family": "SansSerif",
+                  "font-size": "10",
+                  "text-anchor": "end",
+                  "x": "125",
+                  "y": "104"
+                },
+                "text": "c"
+              }
+            ],
+            "ports": [
+              {
+                "at": [
+                  50,
+                  80
+                ],
+                "pin": [
+                  100,
+                  100
+                ],
+                "input": true
+              },
+              {
+                "at": [
+                  50,
+                  100
+                ],
+                "pin": [
+                  100,
+                  200
+                ],
+                "input": true
+              },
+              {
+                "at": [
+                  130,
+                  80
+                ],
+                "pin": [
+                  400,
+                  120
+                ],
+                "input": false
+              },
+              {
+                "at": [
+                  130,
+                  100
+                ],
+                "pin": [
+                  400,
+                  240
+                ],
+                "input": false
+              }
+            ]
+          }
+        },
+        {
+          "id": "k11",
+          "lib": "kr.ac.hallym.hcs.mips.MipsLibrary",
+          "name": "Radix Probe",
+          "loc": [
+            800,
+            360
+          ],
+          "bounds": [
+            800,
+            335,
+            80,
+            50
+          ],
+          "facing": null,
+          "attrs": {
+            "width": "4",
+            "radix": "hex",
+            "signed": "true",
+            "label": "",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                800,
+                360
+              ],
+              "width": 4,
+              "dir": "in",
+              "name": "probe"
+            }
+          ]
+        },
+        {
+          "id": "k8",
+          "lib": "Wiring",
+          "name": "Pin",
+          "loc": [
+            120,
+            380
+          ],
+          "bounds": [
+            100,
+            370,
+            20,
+            20
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "output": "false",
+            "width": "1",
+            "tristate": "false",
+            "pull": "none",
+            "label": "Q",
+            "labelloc": "west",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                120,
+                380
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "Q"
+            }
+          ]
+        },
+        {
+          "id": "k3",
+          "lib": "Wiring",
+          "name": "Clock",
+          "loc": [
+            700,
+            380
+          ],
+          "bounds": [
+            680,
+            370,
+            20,
+            20
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "highDuration": "1",
+            "lowDuration": "1",
+            "label": "",
+            "labelloc": "west",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                700,
+                380
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "clk"
+            }
+          ]
+        }
+      ],
+      "wires": [
+        {
+          "id": "w32",
+          "a": [
+            120,
+            120
+          ],
+          "b": [
+            270,
+            120
+          ]
+        },
+        {
+          "id": "w37",
+          "a": [
+            320,
+            140
+          ],
+          "b": [
+            400,
+            140
+          ]
+        },
+        {
+          "id": "w36",
+          "a": [
+            400,
+            140
+          ],
+          "b": [
+            400,
+            160
+          ]
+        },
+        {
+          "id": "w34",
+          "a": [
+            240,
+            160
+          ],
+          "b": [
+            240,
+            200
+          ]
+        },
+        {
+          "id": "w35",
+          "a": [
+            240,
+            160
+          ],
+          "b": [
+            270,
+            160
+          ]
+        },
+        {
+          "id": "w38",
+          "a": [
+            400,
+            160
+          ],
+          "b": [
+            440,
+            160
+          ]
+        },
+        {
+          "id": "w33",
+          "a": [
+            120,
+            200
+          ],
+          "b": [
+            240,
+            200
+          ]
+        },
+        {
+          "id": "w20",
+          "a": [
+            890,
+            210
+          ],
+          "b": [
+            890,
+            260
+          ]
+        },
+        {
+          "id": "w14",
+          "a": [
+            920,
+            210
+          ],
+          "b": [
+            920,
+            270
+          ]
+        },
+        {
+          "id": "w7",
+          "a": [
+            950,
+            210
+          ],
+          "b": [
+            950,
+            280
+          ]
+        },
+        {
+          "id": "w19",
+          "a": [
+            980,
+            210
+          ],
+          "b": [
+            980,
+            290
+          ]
+        },
+        {
+          "id": "w1",
+          "a": [
+            640,
+            250
+          ],
+          "b": [
+            640,
+            290
+          ]
+        },
+        {
+          "id": "w16",
+          "a": [
+            640,
+            250
+          ],
+          "b": [
+            770,
+            250
+          ]
+        },
+        {
+          "id": "w17",
+          "a": [
+            770,
+            250
+          ],
+          "b": [
+            770,
+            300
+          ]
+        },
+        {
+          "id": "w12",
+          "a": [
+            860,
+            260
+          ],
+          "b": [
+            890,
+            260
+          ]
+        },
+        {
+          "id": "w9",
+          "a": [
+            860,
+            270
+          ],
+          "b": [
+            920,
+            270
+          ]
+        },
+        {
+          "id": "w11",
+          "a": [
+            860,
+            280
+          ],
+          "b": [
+            950,
+            280
+          ]
+        },
+        {
+          "id": "w6",
+          "a": [
+            640,
+            290
+          ],
+          "b": [
+            660,
+            290
+          ]
+        },
+        {
+          "id": "w4",
+          "a": [
+            860,
+            290
+          ],
+          "b": [
+            980,
+            290
+          ]
+        },
+        {
+          "id": "w8",
+          "a": [
+            700,
+            300
+          ],
+          "b": [
+            730,
+            300
+          ]
+        },
+        {
+          "id": "w18",
+          "a": [
+            760,
+            300
+          ],
+          "b": [
+            770,
+            300
+          ]
+        },
+        {
+          "id": "w10",
+          "a": [
+            770,
+            300
+          ],
+          "b": [
+            800,
+            300
+          ]
+        },
+        {
+          "id": "w13",
+          "a": [
+            800,
+            300
+          ],
+          "b": [
+            800,
+            360
+          ]
+        },
+        {
+          "id": "w15",
+          "a": [
+            800,
+            300
+          ],
+          "b": [
+            840,
+            300
+          ]
+        },
+        {
+          "id": "w5",
+          "a": [
+            640,
+            310
+          ],
+          "b": [
+            660,
+            310
+          ]
+        },
+        {
+          "id": "w2",
+          "a": [
+            120,
+            360
+          ],
+          "b": [
+            210,
+            360
+          ]
+        },
+        {
+          "id": "w3",
+          "a": [
+            120,
+            380
+          ],
+          "b": [
+            210,
+            380
+          ]
+        }
+      ],
+      "nets": [
+        {
+          "id": "n0",
+          "width": 1,
+          "wires": [
+            "w4",
+            "w19"
+          ],
+          "ports": [
+            [
+              "k12",
+              4
+            ],
+            [
+              "k15",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n1",
+          "width": 1,
+          "wires": [
+            "w7",
+            "w11"
+          ],
+          "ports": [
+            [
+              "k9",
+              0
+            ],
+            [
+              "k12",
+              3
+            ]
+          ]
+        },
+        {
+          "id": "n2",
+          "width": 1,
+          "wires": [
+            "w9",
+            "w14"
+          ],
+          "ports": [
+            [
+              "k10",
+              0
+            ],
+            [
+              "k12",
+              2
+            ]
+          ]
+        },
+        {
+          "id": "n3",
+          "width": 1,
+          "wires": [
+            "w33",
+            "w35",
+            "w34"
+          ],
+          "ports": [
+            [
+              "k1",
+              0
+            ],
+            [
+              "k22",
+              5
+            ]
+          ]
+        },
+        {
+          "id": "n4",
+          "width": 1,
+          "wires": [
+            "w36",
+            "w38",
+            "w37"
+          ],
+          "ports": [
+            [
+              "k7",
+              0
+            ],
+            [
+              "k22",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n5",
+          "width": 4,
+          "wires": [
+            "w15",
+            "w1",
+            "w6",
+            "w10",
+            "w13",
+            "w16",
+            "w17",
+            "w18"
+          ],
+          "ports": [
+            [
+              "k5",
+              0
+            ],
+            [
+              "k6",
+              0
+            ],
+            [
+              "k11",
+              0
+            ],
+            [
+              "k12",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n6",
+          "width": 1,
+          "wires": [
+            "w2"
+          ],
+          "ports": [
+            [
+              "k23",
+              0
+            ],
+            [
+              "k14",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n7",
+          "width": 1,
+          "wires": [
+            "w3"
+          ],
+          "ports": [
+            [
+              "k8",
+              0
+            ],
+            [
+              "k23",
+              1
+            ]
+          ]
+        },
+        {
+          "id": "n8",
+          "width": 4,
+          "wires": [
+            "w5"
+          ],
+          "ports": [
+            [
+              "k6",
+              1
+            ],
+            [
+              "k13",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n9",
+          "width": 4,
+          "wires": [
+            "w8"
+          ],
+          "ports": [
+            [
+              "k5",
+              1
+            ],
+            [
+              "k6",
+              2
+            ]
+          ]
+        },
+        {
+          "id": "n10",
+          "width": 1,
+          "wires": [
+            "w32"
+          ],
+          "ports": [
+            [
+              "k4",
+              0
+            ],
+            [
+              "k22",
+              1
+            ]
+          ]
+        },
+        {
+          "id": "n11",
+          "width": 1,
+          "wires": [
+            "w12",
+            "w20"
+          ],
+          "ports": [
+            [
+              "k2",
+              0
+            ],
+            [
+              "k12",
+              1
+            ]
+          ]
+        },
+        {
+          "id": "n12",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k3",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n13",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k5",
+              2
+            ]
+          ]
+        },
+        {
+          "id": "n14",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k5",
+              3
+            ]
+          ]
+        },
+        {
+          "id": "n15",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k5",
+              4
+            ]
+          ]
+        },
+        {
+          "id": "n16",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k6",
+              3
+            ]
+          ]
+        },
+        {
+          "id": "n17",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k6",
+              4
+            ]
+          ]
+        },
+        {
+          "id": "n18",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k22",
+              2
+            ]
+          ]
+        },
+        {
+          "id": "n19",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k22",
+              3
+            ]
+          ]
+        },
+        {
+          "id": "n20",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k22",
+              4
+            ]
+          ]
+        },
+        {
+          "id": "n21",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k23",
+              2
+            ]
+          ]
+        },
+        {
+          "id": "n22",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k23",
+              3
+            ]
+          ]
+        }
+      ],
+      "junctions": [
+        [
+          770,
+          300
+        ],
+        [
+          800,
+          300
+        ]
+      ],
+      "memos": [
+        {
+          "x": 200,
+          "y": 90,
+          "w": 180,
+          "h": 140,
+          "color": 0,
+          "text": "AND Gate"
+        },
+        {
+          "x": 180,
+          "y": 300,
+          "w": 140,
+          "h": 120,
+          "color": 3,
+          "text": "half_adder"
+        }
+      ]
+    },
+    "messages": [
+      {
+        "id": "d1",
+        "code": "CLOCK_UNCONNECTED",
+        "kind": "static",
+        "severity": "error",
+        "text": {
+          "ko": "main › count (Register) 부품은 클럭 입력 clk 포트가 연결되지 않아 값이 바뀌지 않습니다.",
+          "en": "main › count (Register): the clock input clk is not connected, so the value never changes."
+        },
+        "location": {
+          "circuitId": "c1",
+          "root": "c1",
+          "path": [],
+          "components": [
+            "k5"
+          ],
+          "wires": [],
+          "nets": [
+            "n13"
+          ],
+          "at": [
+            740,
+            320
+          ]
+        }
+      }
+    ]
+  },
+  "clockWired": {
+    "snapshot": {
+      "circuitId": "c1",
+      "name": "main",
+      "components": [
+        {
+          "id": "k4",
+          "lib": "Wiring",
+          "name": "Pin",
+          "loc": [
+            120,
+            120
+          ],
+          "bounds": [
+            100,
+            110,
+            20,
+            20
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "output": "false",
+            "width": "1",
+            "tristate": "false",
+            "pull": "none",
+            "label": "A",
+            "labelloc": "west",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                120,
+                120
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "A"
+            }
+          ]
+        },
+        {
+          "id": "k22",
+          "lib": "Gates",
+          "name": "AND Gate",
+          "loc": [
+            320,
+            140
+          ],
+          "bounds": [
+            270,
+            115,
+            50,
+            50
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "width": "1",
+            "size": "50",
+            "inputs": "5",
+            "out": "01",
+            "label": "g1",
+            "labelfont": "SansSerif plain 12",
+            "negate0": "false",
+            "negate1": "false",
+            "negate2": "false",
+            "negate3": "false",
+            "negate4": "false"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                320,
+                140
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "out"
+            },
+            {
+              "i": 1,
+              "loc": [
+                270,
+                120
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "in0"
+            },
+            {
+              "i": 2,
+              "loc": [
+                270,
+                130
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "in1"
+            },
+            {
+              "i": 3,
+              "loc": [
+                270,
+                140
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "in2"
+            },
+            {
+              "i": 4,
+              "loc": [
+                270,
+                150
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "in3"
+            },
+            {
+              "i": 5,
+              "loc": [
+                270,
+                160
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "in4"
+            }
+          ]
+        },
+        {
+          "id": "k7",
+          "lib": "Wiring",
+          "name": "Pin",
+          "loc": [
+            440,
+            160
+          ],
+          "bounds": [
+            440,
+            150,
+            20,
+            20
+          ],
+          "facing": "west",
+          "attrs": {
+            "facing": "west",
+            "output": "true",
+            "width": "1",
+            "tristate": "true",
+            "pull": "none",
+            "label": "Y",
+            "labelloc": "east",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                440,
+                160
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "Y"
+            }
+          ]
+        },
+        {
+          "id": "k1",
+          "lib": "Wiring",
+          "name": "Pin",
+          "loc": [
+            120,
+            200
+          ],
+          "bounds": [
+            100,
+            190,
+            20,
+            20
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "output": "false",
+            "width": "1",
+            "tristate": "false",
+            "pull": "none",
+            "label": "B",
+            "labelloc": "west",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                120,
+                200
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "B"
+            }
+          ]
+        },
+        {
+          "id": "k2",
+          "lib": "I/O",
+          "name": "LED",
+          "loc": [
+            890,
+            210
+          ],
+          "bounds": [
+            880,
+            190,
+            20,
+            20
+          ],
+          "facing": "south",
+          "attrs": {
+            "facing": "south",
+            "color": "#f00000",
+            "offcolor": "#404040",
+            "active": "true",
+            "label": "",
+            "labelloc": "center",
+            "labelfont": "SansSerif plain 12",
+            "labelcolor": "#000000"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                890,
+                210
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "led"
+            }
+          ]
+        },
+        {
+          "id": "k10",
+          "lib": "I/O",
+          "name": "LED",
+          "loc": [
+            920,
+            210
+          ],
+          "bounds": [
+            910,
+            190,
+            20,
+            20
+          ],
+          "facing": "south",
+          "attrs": {
+            "facing": "south",
+            "color": "#f00000",
+            "offcolor": "#404040",
+            "active": "true",
+            "label": "",
+            "labelloc": "center",
+            "labelfont": "SansSerif plain 12",
+            "labelcolor": "#000000"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                920,
+                210
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "led"
+            }
+          ]
+        },
+        {
+          "id": "k9",
+          "lib": "I/O",
+          "name": "LED",
+          "loc": [
+            950,
+            210
+          ],
+          "bounds": [
+            940,
+            190,
+            20,
+            20
+          ],
+          "facing": "south",
+          "attrs": {
+            "facing": "south",
+            "color": "#f00000",
+            "offcolor": "#404040",
+            "active": "true",
+            "label": "",
+            "labelloc": "center",
+            "labelfont": "SansSerif plain 12",
+            "labelcolor": "#000000"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                950,
+                210
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "led"
+            }
+          ]
+        },
+        {
+          "id": "k15",
+          "lib": "I/O",
+          "name": "LED",
+          "loc": [
+            980,
+            210
+          ],
+          "bounds": [
+            970,
+            190,
+            20,
+            20
+          ],
+          "facing": "south",
+          "attrs": {
+            "facing": "south",
+            "color": "#f00000",
+            "offcolor": "#404040",
+            "active": "true",
+            "label": "",
+            "labelloc": "center",
+            "labelfont": "SansSerif plain 12",
+            "labelcolor": "#000000"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                980,
+                210
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "led"
+            }
+          ]
+        },
+        {
+          "id": "k6",
+          "lib": "Arithmetic",
+          "name": "Adder",
+          "loc": [
+            700,
+            300
+          ],
+          "bounds": [
+            660,
+            280,
+            40,
+            40
+          ],
+          "facing": null,
+          "attrs": {
+            "width": "4"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                660,
+                290
+              ],
+              "width": 4,
+              "dir": "in",
+              "name": "a"
+            },
+            {
+              "i": 1,
+              "loc": [
+                660,
+                310
+              ],
+              "width": 4,
+              "dir": "in",
+              "name": "b"
+            },
+            {
+              "i": 2,
+              "loc": [
+                700,
+                300
+              ],
+              "width": 4,
+              "dir": "out",
+              "name": "sum"
+            },
+            {
+              "i": 3,
+              "loc": [
+                680,
+                280
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "cin"
+            },
+            {
+              "i": 4,
+              "loc": [
+                680,
+                320
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "cout"
+            }
+          ]
+        },
+        {
+          "id": "k5",
+          "lib": "Memory",
+          "name": "Register",
+          "loc": [
+            760,
+            300
+          ],
+          "bounds": [
+            730,
+            280,
+            30,
+            40
+          ],
+          "facing": null,
+          "attrs": {
+            "width": "4",
+            "trigger": "rising",
+            "label": "count",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                760,
+                300
+              ],
+              "width": 4,
+              "dir": "out",
+              "name": "Q"
+            },
+            {
+              "i": 1,
+              "loc": [
+                730,
+                300
+              ],
+              "width": 4,
+              "dir": "in",
+              "name": "D"
+            },
+            {
+              "i": 2,
+              "loc": [
+                740,
+                320
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "clk"
+            },
+            {
+              "i": 3,
+              "loc": [
+                750,
+                320
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "clr"
+            },
+            {
+              "i": 4,
+              "loc": [
+                730,
+                310
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "en"
+            }
+          ]
+        },
+        {
+          "id": "k12",
+          "lib": "Wiring",
+          "name": "Splitter",
+          "loc": [
+            840,
+            300
+          ],
+          "bounds": [
+            840,
+            260,
+            21,
+            41
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "fanout": "4",
+            "incoming": "4",
+            "appear": "left",
+            "bit0": "0",
+            "bit1": "1",
+            "bit2": "2",
+            "bit3": "3"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                840,
+                300
+              ],
+              "width": 4,
+              "dir": "inout",
+              "name": "combined"
+            },
+            {
+              "i": 1,
+              "loc": [
+                860,
+                260
+              ],
+              "width": 1,
+              "dir": "inout",
+              "name": "arm0"
+            },
+            {
+              "i": 2,
+              "loc": [
+                860,
+                270
+              ],
+              "width": 1,
+              "dir": "inout",
+              "name": "arm1"
+            },
+            {
+              "i": 3,
+              "loc": [
+                860,
+                280
+              ],
+              "width": 1,
+              "dir": "inout",
+              "name": "arm2"
+            },
+            {
+              "i": 4,
+              "loc": [
+                860,
+                290
+              ],
+              "width": 1,
+              "dir": "inout",
+              "name": "arm3"
+            }
+          ],
+          "ext": {
+            "arms": [
+              "q0",
+              "q1",
+              "q2",
+              "q3"
+            ]
+          }
+        },
+        {
+          "id": "k13",
+          "lib": "Wiring",
+          "name": "Constant",
+          "loc": [
+            640,
+            310
+          ],
+          "bounds": [
+            624,
+            302,
+            16,
+            16
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "width": "4",
+            "value": "0x1"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                640,
+                310
+              ],
+              "width": 4,
+              "dir": "out",
+              "name": "out"
+            }
+          ]
+        },
+        {
+          "id": "k14",
+          "lib": "Wiring",
+          "name": "Pin",
+          "loc": [
+            120,
+            360
+          ],
+          "bounds": [
+            100,
+            350,
+            20,
+            20
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "output": "false",
+            "width": "1",
+            "tristate": "false",
+            "pull": "none",
+            "label": "P",
+            "labelloc": "west",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                120,
+                360
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "P"
+            }
+          ]
+        },
+        {
+          "id": "k23",
+          "lib": null,
+          "name": "half_adder",
+          "loc": [
+            290,
+            360
+          ],
+          "bounds": [
+            209,
+            329,
+            82,
+            62
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "label": "",
+            "labelloc": "north",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                210,
+                360
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "a"
+            },
+            {
+              "i": 1,
+              "loc": [
+                210,
+                380
+              ],
+              "width": 1,
+              "dir": "in",
+              "name": "b"
+            },
+            {
+              "i": 2,
+              "loc": [
+                290,
+                360
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "s"
+            },
+            {
+              "i": 3,
+              "loc": [
+                290,
+                380
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "c"
+            }
+          ],
+          "subcircuit": "c2",
+          "appearance": {
+            "default": false,
+            "anchor": [
+              130,
+              80
+            ],
+            "facing": "east",
+            "shapes": [
+              {
+                "tag": "rect",
+                "attrs": {
+                  "fill": "none",
+                  "height": "60",
+                  "stroke": "#000000",
+                  "stroke-width": "2",
+                  "width": "80",
+                  "x": "50",
+                  "y": "50"
+                }
+              },
+              {
+                "tag": "text",
+                "attrs": {
+                  "font-family": "SansSerif",
+                  "font-size": "10",
+                  "font-weight": "bold",
+                  "text-anchor": "middle",
+                  "x": "90",
+                  "y": "64"
+                },
+                "text": "half_adder"
+              },
+              {
+                "tag": "text",
+                "attrs": {
+                  "font-family": "SansSerif",
+                  "font-size": "10",
+                  "text-anchor": "start",
+                  "x": "55",
+                  "y": "84"
+                },
+                "text": "a"
+              },
+              {
+                "tag": "text",
+                "attrs": {
+                  "font-family": "SansSerif",
+                  "font-size": "10",
+                  "text-anchor": "start",
+                  "x": "55",
+                  "y": "104"
+                },
+                "text": "b"
+              },
+              {
+                "tag": "text",
+                "attrs": {
+                  "font-family": "SansSerif",
+                  "font-size": "10",
+                  "text-anchor": "end",
+                  "x": "125",
+                  "y": "84"
+                },
+                "text": "s"
+              },
+              {
+                "tag": "text",
+                "attrs": {
+                  "font-family": "SansSerif",
+                  "font-size": "10",
+                  "text-anchor": "end",
+                  "x": "125",
+                  "y": "104"
+                },
+                "text": "c"
+              }
+            ],
+            "ports": [
+              {
+                "at": [
+                  50,
+                  80
+                ],
+                "pin": [
+                  100,
+                  100
+                ],
+                "input": true
+              },
+              {
+                "at": [
+                  50,
+                  100
+                ],
+                "pin": [
+                  100,
+                  200
+                ],
+                "input": true
+              },
+              {
+                "at": [
+                  130,
+                  80
+                ],
+                "pin": [
+                  400,
+                  120
+                ],
+                "input": false
+              },
+              {
+                "at": [
+                  130,
+                  100
+                ],
+                "pin": [
+                  400,
+                  240
+                ],
+                "input": false
+              }
+            ]
+          }
+        },
+        {
+          "id": "k11",
+          "lib": "kr.ac.hallym.hcs.mips.MipsLibrary",
+          "name": "Radix Probe",
+          "loc": [
+            800,
+            360
+          ],
+          "bounds": [
+            800,
+            335,
+            80,
+            50
+          ],
+          "facing": null,
+          "attrs": {
+            "width": "4",
+            "radix": "hex",
+            "signed": "true",
+            "label": "",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                800,
+                360
+              ],
+              "width": 4,
+              "dir": "in",
+              "name": "probe"
+            }
+          ]
+        },
+        {
+          "id": "k8",
+          "lib": "Wiring",
+          "name": "Pin",
+          "loc": [
+            120,
+            380
+          ],
+          "bounds": [
+            100,
+            370,
+            20,
+            20
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "output": "false",
+            "width": "1",
+            "tristate": "false",
+            "pull": "none",
+            "label": "Q",
+            "labelloc": "west",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                120,
+                380
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "Q"
+            }
+          ]
+        },
+        {
+          "id": "k3",
+          "lib": "Wiring",
+          "name": "Clock",
+          "loc": [
+            700,
+            380
+          ],
+          "bounds": [
+            680,
+            370,
+            20,
+            20
+          ],
+          "facing": "east",
+          "attrs": {
+            "facing": "east",
+            "highDuration": "1",
+            "lowDuration": "1",
+            "label": "",
+            "labelloc": "west",
+            "labelfont": "SansSerif plain 12"
+          },
+          "ports": [
+            {
+              "i": 0,
+              "loc": [
+                700,
+                380
+              ],
+              "width": 1,
+              "dir": "out",
+              "name": "clk"
+            }
+          ]
+        }
+      ],
+      "wires": [
+        {
+          "id": "w32",
+          "a": [
+            120,
+            120
+          ],
+          "b": [
+            270,
+            120
+          ]
+        },
+        {
+          "id": "w37",
+          "a": [
+            320,
+            140
+          ],
+          "b": [
+            400,
+            140
+          ]
+        },
+        {
+          "id": "w36",
+          "a": [
+            400,
+            140
+          ],
+          "b": [
+            400,
+            160
+          ]
+        },
+        {
+          "id": "w34",
+          "a": [
+            240,
+            160
+          ],
+          "b": [
+            240,
+            200
+          ]
+        },
+        {
+          "id": "w35",
+          "a": [
+            240,
+            160
+          ],
+          "b": [
+            270,
+            160
+          ]
+        },
+        {
+          "id": "w38",
+          "a": [
+            400,
+            160
+          ],
+          "b": [
+            440,
+            160
+          ]
+        },
+        {
+          "id": "w33",
+          "a": [
+            120,
+            200
+          ],
+          "b": [
+            240,
+            200
+          ]
+        },
+        {
+          "id": "w20",
+          "a": [
+            890,
+            210
+          ],
+          "b": [
+            890,
+            260
+          ]
+        },
+        {
+          "id": "w14",
+          "a": [
+            920,
+            210
+          ],
+          "b": [
+            920,
+            270
+          ]
+        },
+        {
+          "id": "w7",
+          "a": [
+            950,
+            210
+          ],
+          "b": [
+            950,
+            280
+          ]
+        },
+        {
+          "id": "w19",
+          "a": [
+            980,
+            210
+          ],
+          "b": [
+            980,
+            290
+          ]
+        },
+        {
+          "id": "w1",
+          "a": [
+            640,
+            250
+          ],
+          "b": [
+            640,
+            290
+          ]
+        },
+        {
+          "id": "w16",
+          "a": [
+            640,
+            250
+          ],
+          "b": [
+            770,
+            250
+          ]
+        },
+        {
+          "id": "w17",
+          "a": [
+            770,
+            250
+          ],
+          "b": [
+            770,
+            300
+          ]
+        },
+        {
+          "id": "w12",
+          "a": [
+            860,
+            260
+          ],
+          "b": [
+            890,
+            260
+          ]
+        },
+        {
+          "id": "w9",
+          "a": [
+            860,
+            270
+          ],
+          "b": [
+            920,
+            270
+          ]
+        },
+        {
+          "id": "w11",
+          "a": [
+            860,
+            280
+          ],
+          "b": [
+            950,
+            280
+          ]
+        },
+        {
+          "id": "w6",
+          "a": [
+            640,
+            290
+          ],
+          "b": [
+            660,
+            290
+          ]
+        },
+        {
+          "id": "w4",
+          "a": [
+            860,
+            290
+          ],
+          "b": [
+            980,
+            290
+          ]
+        },
+        {
+          "id": "w8",
+          "a": [
+            700,
+            300
+          ],
+          "b": [
+            730,
+            300
+          ]
+        },
+        {
+          "id": "w18",
+          "a": [
+            760,
+            300
+          ],
+          "b": [
+            770,
+            300
+          ]
+        },
+        {
+          "id": "w10",
+          "a": [
+            770,
+            300
+          ],
+          "b": [
+            800,
+            300
+          ]
+        },
+        {
+          "id": "w13",
+          "a": [
+            800,
+            300
+          ],
+          "b": [
+            800,
+            360
+          ]
+        },
+        {
+          "id": "w15",
+          "a": [
+            800,
+            300
+          ],
+          "b": [
+            840,
+            300
+          ]
+        },
+        {
+          "id": "w5",
+          "a": [
+            640,
+            310
+          ],
+          "b": [
+            660,
+            310
+          ]
+        },
+        {
+          "id": "w40",
+          "a": [
+            740,
+            320
+          ],
+          "b": [
+            740,
+            380
+          ]
+        },
+        {
+          "id": "w2",
+          "a": [
+            120,
+            360
+          ],
+          "b": [
+            210,
+            360
+          ]
+        },
+        {
+          "id": "w3",
+          "a": [
+            120,
+            380
+          ],
+          "b": [
+            210,
+            380
+          ]
+        },
+        {
+          "id": "w39",
+          "a": [
+            700,
+            380
+          ],
+          "b": [
+            740,
+            380
+          ]
+        }
+      ],
+      "nets": [
+        {
+          "id": "n0",
+          "width": 1,
+          "wires": [
+            "w4",
+            "w19"
+          ],
+          "ports": [
+            [
+              "k12",
+              4
+            ],
+            [
+              "k15",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n1",
+          "width": 1,
+          "wires": [
+            "w7",
+            "w11"
+          ],
+          "ports": [
+            [
+              "k9",
+              0
+            ],
+            [
+              "k12",
+              3
+            ]
+          ]
+        },
+        {
+          "id": "n2",
+          "width": 1,
+          "wires": [
+            "w9",
+            "w14"
+          ],
+          "ports": [
+            [
+              "k10",
+              0
+            ],
+            [
+              "k12",
+              2
+            ]
+          ]
+        },
+        {
+          "id": "n3",
+          "width": 1,
+          "wires": [
+            "w33",
+            "w35",
+            "w34"
+          ],
+          "ports": [
+            [
+              "k1",
+              0
+            ],
+            [
+              "k22",
+              5
+            ]
+          ]
+        },
+        {
+          "id": "n4",
+          "width": 1,
+          "wires": [
+            "w36",
+            "w38",
+            "w37"
+          ],
+          "ports": [
+            [
+              "k7",
+              0
+            ],
+            [
+              "k22",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n5",
+          "width": 1,
+          "wires": [
+            "w39",
+            "w40"
+          ],
+          "ports": [
+            [
+              "k3",
+              0
+            ],
+            [
+              "k5",
+              2
+            ]
+          ]
+        },
+        {
+          "id": "n6",
+          "width": 4,
+          "wires": [
+            "w15",
+            "w1",
+            "w6",
+            "w10",
+            "w13",
+            "w16",
+            "w17",
+            "w18"
+          ],
+          "ports": [
+            [
+              "k5",
+              0
+            ],
+            [
+              "k6",
+              0
+            ],
+            [
+              "k11",
+              0
+            ],
+            [
+              "k12",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n7",
+          "width": 1,
+          "wires": [
+            "w2"
+          ],
+          "ports": [
+            [
+              "k23",
+              0
+            ],
+            [
+              "k14",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n8",
+          "width": 1,
+          "wires": [
+            "w3"
+          ],
+          "ports": [
+            [
+              "k8",
+              0
+            ],
+            [
+              "k23",
+              1
+            ]
+          ]
+        },
+        {
+          "id": "n9",
+          "width": 4,
+          "wires": [
+            "w5"
+          ],
+          "ports": [
+            [
+              "k6",
+              1
+            ],
+            [
+              "k13",
+              0
+            ]
+          ]
+        },
+        {
+          "id": "n10",
+          "width": 4,
+          "wires": [
+            "w8"
+          ],
+          "ports": [
+            [
+              "k5",
+              1
+            ],
+            [
+              "k6",
+              2
+            ]
+          ]
+        },
+        {
+          "id": "n11",
+          "width": 1,
+          "wires": [
+            "w32"
+          ],
+          "ports": [
+            [
+              "k4",
+              0
+            ],
+            [
+              "k22",
+              1
+            ]
+          ]
+        },
+        {
+          "id": "n12",
+          "width": 1,
+          "wires": [
+            "w12",
+            "w20"
+          ],
+          "ports": [
+            [
+              "k2",
+              0
+            ],
+            [
+              "k12",
+              1
+            ]
+          ]
+        },
+        {
+          "id": "n13",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k5",
+              3
+            ]
+          ]
+        },
+        {
+          "id": "n14",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k5",
+              4
+            ]
+          ]
+        },
+        {
+          "id": "n15",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k6",
+              3
+            ]
+          ]
+        },
+        {
+          "id": "n16",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k6",
+              4
+            ]
+          ]
+        },
+        {
+          "id": "n17",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k22",
+              2
+            ]
+          ]
+        },
+        {
+          "id": "n18",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k22",
+              3
+            ]
+          ]
+        },
+        {
+          "id": "n19",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k22",
+              4
+            ]
+          ]
+        },
+        {
+          "id": "n20",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k23",
+              2
+            ]
+          ]
+        },
+        {
+          "id": "n21",
+          "width": 1,
+          "wires": [],
+          "ports": [
+            [
+              "k23",
+              3
+            ]
+          ]
+        }
+      ],
+      "junctions": [
+        [
+          770,
+          300
+        ],
+        [
+          800,
+          300
+        ]
+      ],
+      "memos": [
+        {
+          "x": 200,
+          "y": 90,
+          "w": 180,
+          "h": 140,
+          "color": 0,
+          "text": "AND Gate"
+        },
+        {
+          "x": 180,
+          "y": 300,
+          "w": 140,
+          "h": 120,
+          "color": 3,
+          "text": "half_adder"
+        }
+      ]
+    },
+    "messages": []
+  }
+}

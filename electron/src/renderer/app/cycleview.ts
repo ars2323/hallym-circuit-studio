@@ -222,6 +222,18 @@ export class CycleView {
     if (this.visible) this.refresh();
   }
 
+  // The side tab by name (the tutorial brings one into view, N-18); whether it had to.
+  showTab(name: 'Registers' | 'Memory' | 'Instruction'): boolean {
+    const i = SIDE.indexOf(name);
+    if (i < 0 || this.tab === i) return false;
+    this.sideHead.select(i);
+    this.selectSide(i);
+    return true;
+  }
+
+  // Previous Cycle's own press (the tutorial's skip, N-18).
+  previous(): Promise<void> { return this.step(-1); }
+
   private selectSide(i: number): void {
     this.tab = i;
     this.showSide();

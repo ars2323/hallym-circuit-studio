@@ -175,7 +175,69 @@ async function holdClock(r: Running, cycles: number, hz: number): Promise<{ rele
   return { release: () => r.app.evaluate(() => { (globalThis as unknown as { __held?: unknown }).__held = null; }) };
 }
 
+// The courses' tutorials (N-18, D-161): a step, laid out (its targets, the dim, the card) and settled. The steps are
+// reached with go() and [건너뛰기] is never due (skipAfter), so the card is the same every round.
+type TutorialsOnWindow = { __tutorials: Record<string, { skipAfter: number; go(i: number): Promise<void>; skip(): Promise<void>; shown: { id: string; result: boolean; targets: unknown[]; card: unknown } }> };
+async function tutorialAt(r: Running, track: 'logic' | 'architecture', id: string, result = false): Promise<void> {
+  await r.page.waitForFunction(([k, want, res]) => {
+    const s = (window as unknown as TutorialsOnWindow).__tutorials[k as string].shown;
+    return s.id === want && s.result === res;
+  }, [track, id, result] as const);
+  let last = '';
+  for (let i = 0; i < 40; i += 1) {
+    await settle(r);
+    const now = await r.page.evaluate((k) => JSON.stringify((window as unknown as TutorialsOnWindow).__tutorials[k].shown), track);
+    if (now === last) return;
+    last = now;
+  }
+}
+async function tutorialScenes(): Promise<void> {
+  const r = await start(FHD);
+  const { page } = r;
+  await page.evaluate(() => { for (const t of Object.values((window as unknown as TutorialsOnWindow).__tutorials)) t.skipAfter = 3_600_000; });
+  await page.getByRole('button', { name: /논리설계/ }).click();
+  await page.getByRole('button', { name: /튜토리얼 보기/ }).click();
+  await tutorialAt(r, 'logic', 'L1');
+  // as C1 below: the step once more on the settled window (the Canvas's own fit of a file just opened can land after
+  // the step's), the same view every round
+  await page.evaluate(() => (window as unknown as TutorialsOnWindow).__tutorials.logic.go(0));
+  await tutorialAt(r, 'logic', 'L1');
+  await shot(r, 'tutorial-L1');
+  await page.evaluate(() => (window as unknown as TutorialsOnWindow).__tutorials.logic.go(7));
+  await tutorialAt(r, 'logic', 'L8');
+  await shot(r, 'tutorial-L8');
+  await page.evaluate(() => (window as unknown as TutorialsOnWindow).__tutorials.logic.go(15));
+  await tutorialAt(r, 'logic', 'L16');
+  await shot(r, 'tutorial-done');
+  await r.close();
+  // The architecture course with the real engine (a program loaded into the example's memories draws its words on
+  // the Instruction Memory's body: the fake engine's memories do not)
+  const jar = path.join(repo, 'engine/build/stage/hcs-engine.jar');
+  if (!existsSync(jar)) throw new Error(`${jar}: ./gradlew :engine:stage (the architecture tutorial's screens use the real engine)`);
+  const a = await start(FHD, { env: { HCS_ENGINE_CMD: '', HCS_ENGINE_JAR: jar } });
+  await a.page.evaluate(() => { for (const t of Object.values((window as unknown as TutorialsOnWindow).__tutorials)) t.skipAfter = 3_600_000; });
+  await a.page.getByRole('button', { name: /컴퓨터구조/ }).click();
+  await a.page.getByRole('button', { name: /튜토리얼 보기/ }).click();
+  await tutorialAt(a, 'architecture', 'C1');
+  // C1 fits the whole datapath when it starts, and the panels round the real engine's file may still be settling
+  // then (64 % one round, 65 % the next): the step once more on the settled window, the same fit every round
+  await a.page.evaluate(() => (window as unknown as TutorialsOnWindow).__tutorials.architecture.go(0));
+  await tutorialAt(a, 'architecture', 'C1');
+  await shot(a, 'tutorial-C1');
+  // C6: [건너뛰기]'s Load Program (tutorial.hmx beside the example), its summary's OK, then the result beat
+  await a.page.evaluate(() => (window as unknown as TutorialsOnWindow).__tutorials.architecture.go(5));
+  await tutorialAt(a, 'architecture', 'C6');
+  void a.page.evaluate(() => (window as unknown as TutorialsOnWindow).__tutorials.architecture.skip());
+  await a.page.locator('dialog.loadsummary').getByRole('button', { name: 'OK' }).click();
+  await tutorialAt(a, 'architecture', 'C6', true);
+  await shot(a, 'tutorial-C6');
+  await a.close();
+}
+
 async function captureAll(): Promise<void> {
+// SCREENS_ONLY=tutorial: the tutorials' scenes alone (N-18)
+if (process.env.SCREENS_ONLY === 'tutorial') { await tutorialScenes(); return; }
+await tutorialScenes();
 
 {
   const r = await start(FHD, { motion: true });

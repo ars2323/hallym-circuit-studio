@@ -265,3 +265,37 @@ body.first-screen .status { color: rgba(255,255,255,.85); }
 .about .tabbody p { margin: 6px 0; }
 .about .licenses details { border-bottom: 1px solid var(--border); padding: 6px 0; }
 .about .licenses pre { max-height: 240px; overflow: auto; white-space: pre-wrap; font-size: 11.5px; background: var(--window); padding: 8px 10px; border-radius: 6px; }
+
+/* ---- the tutorial (tutorial.ts; Hallym MIPS v2.5.0 app.css "the tutorial") -------------------- */
+/* Lightly dimmed around what a step points at (the surroundings stay readable), a ring on each
+   target; the card beside them, Haram on its white at the far end.  Under the window's pop-ups
+   (menus, the search palette, dialogs: z-index 40 and up), which a step may open and use; over the
+   panels' own floating bits (Quick Attributes, Find), which a step lets through by name (pass). */
+.tut { position: fixed; inset: 0; z-index: 35; pointer-events: none; }
+.tut-dim { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+/* Dark but for the lit panels (clicks go through it); a clear layer over everything but the
+   targets takes the clicks (tutorial.ts). */
+.tut-dim path.dim { fill: rgba(0, 32, 91, .26); pointer-events: none; } /* overlay.ts TUTORIAL_DIM: the caption buttons' patch matches */
+.tut-dim path.block { fill: rgba(0, 0, 0, 0); pointer-events: visiblePainted; }
+.tut-ring { position: absolute; border: 2px solid var(--blue); border-radius: 6px; box-shadow: 0 0 0 3px rgba(0, 85, 165, .18); pointer-events: none; }
+.tut-ring.tight { border-radius: 4px; box-shadow: none; }
+.tut-card { position: absolute; left: 0; top: 0; width: min(310px, calc(100vw - 32px)); display: flex; align-items: flex-end; gap: 10px;
+  padding: 12px 12px 12px 16px; background: var(--white); border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 32, 91, .22); pointer-events: auto; -webkit-app-region: no-drag; word-break: keep-all; }
+.tut-card.haram-left { flex-direction: row-reverse; padding: 12px 16px 12px 12px; }
+.tut-card img.char { flex: none; }
+.tut-say { flex: 1; min-width: 0; }
+.tut-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); }
+.tut-count { font-weight: 600; color: var(--blue); }
+.tut-quit { border: 0; background: none; padding: 0; height: auto; color: var(--text-2); font-size: 12px; }
+.tut-quit:hover { color: var(--navy); text-decoration: underline; }
+.tut-say h3 { margin: 4px 0 6px; font-size: 15px; line-height: 1.35; color: var(--navy); }
+.tut-say p { margin: 0; color: var(--text); font-size: 13px; line-height: 1.55; }
+.tut-buttons { display: flex; justify-content: flex-end; gap: 6px; margin-top: 10px; }
+.tut-card.kind-end { width: min(420px, calc(100vw - 32px)); }
+@media (max-width: 979px) { .tut-card { width: min(280px, calc(100vw - 32px)); } .tut-card.kind-end { width: min(420px, calc(100vw - 32px)); } }
+body.tutorial-on img.char:not(.tut-char):not(.modal img.char) { visibility: hidden; }
+/* A dialog over the tutorial: its Haram speaks; the card's gives way (one Haram). */
+body:has(dialog[open]) .tut-card img.char { visibility: hidden; }
+/* No character next to an error (D-143): the card gives the room back to its words. */
+body.messages-shown .tut-card img.char, body.band-shown .tut-card img.char, body.error-dialog .tut-card img.char { display: none; }

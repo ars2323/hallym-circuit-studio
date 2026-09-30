@@ -64,6 +64,10 @@
     "tests/e2e/backdrop.e2e.ts": "f0ddc5447e4a84fec65b075b354ff3340793b5c5acccdf9d251d72d439638c35",
     "tests/unit/start-clip.test.ts": "5379c8e063026991773f0d1ddc03713d3544afbfcff7397600df0527c841c347",
     "tests/unit/overlay.test.ts": "4397fb21426c8b5cd2ada3ea018ece49c17a0f44df6d71a4e95199c9416cff31",
-    "tests/unit/names.test.ts": "60cf77f29e3ca114ea1e3e798d4d604c282b322017e3ce541dc5a891772d1479"
+    "tests/unit/names.test.ts": "60cf77f29e3ca114ea1e3e798d4d604c282b322017e3ce541dc5a891772d1479",
+    "src/renderer/shared/tutorial.ts": "6554a7789edd7c1ff283a3dc46f38b2bc12637766318d4edd4538ba7ed4d1466",
+    "src/renderer/shared/placement.ts": "35b63af9b9f4f2d7f1c953d6e4340349c1d9c6311430a5df68cbd010c206c374",
+    "tests/unit/placement.test.ts": "e52160c59d5b43c70dad6dd8f390136dbdf30f921372d2774a498da6f2979fcc",
+    "tests/e2e/tutorial.e2e.ts": "766a7ccca961a60779ea892eecb90e2751397012bb29e6ff559505b1aa51f581"
   }
 }

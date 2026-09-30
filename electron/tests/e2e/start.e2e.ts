@@ -114,18 +114,18 @@ test('steps 2 and 3 are the same card: the same box and the same pixels, but for
   }
 });
 
-for (const course of ['논리설계 및 실험', '컴퓨터구조']) {
-  test(`${course} → 튜토리얼 보기: a new circuit in that course (the course's tutorial is N-18's)`, async () => {
+for (const [course, file, track] of [['논리설계 및 실험', 'tutorial-logic.circ', 'logic'], ['컴퓨터구조', 'tutorial-mips.circ', 'architecture']]) {
+  test(`${course} → 튜토리얼 보기: that course's tutorial at once, on a copy of its example, the window in that course (N-18, D-161)`, async () => {
     const r = await launch();
     const { page } = r;
     try {
       await page.getByRole('button', { name: new RegExp(course) }).click();
       await page.getByRole('button', { name: /튜토리얼 보기/ }).click();
-      await expect(page.locator('.filebar .ptab')).toHaveText(['untitled.circ']);
+      await expect(page.locator('.filebar .ptab')).toHaveText([file]);
       await expect(page.locator('.titlebar .coursechip')).toHaveText(course);
       await expect(page.locator('.stage-welcome')).toBeHidden();
-      await expect(page.locator('.canvas h3')).toHaveText('빈 회로입니다');
-      await expect(page.locator('.toolbar')).toBeVisible();   // in the bar, or in its own row under it
+      await expect(page.locator('.tut-card .tut-count')).toHaveText(track === 'logic' ? '1 / 16' : '1 / 14');
+      await expect(page.locator('dialog[open]')).toHaveCount(0);   // not asked again which course
     } finally {
       await r.close();
     }

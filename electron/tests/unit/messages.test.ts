@@ -78,7 +78,7 @@ test('keepChosen and oscillating', () => {
 test('the fixture: the real engine\'s messages, well formed, Korean sentences with English names', () => {
   const fx = JSON.parse(readFileSync(path.join(import.meta.dirname, '../fixtures/messages.json'), 'utf8')) as
     Record<string, { static: DiagMessage[]; afterCycles?: DiagMessage[] }>;
-  assert.deepEqual(Object.keys(fx).sort(), ['broken-datapath.circ', 'dynamic-oscillation.circ', 'dynamic-x-write-data.circ']);
+  assert.deepEqual(Object.keys(fx).sort(), ['broken-datapath.circ', 'dynamic-oscillation.circ', 'dynamic-x-write-data.circ', 'tutorial-logic.circ', 'tutorial-mips.circ']);
   const all = Object.values(fx).flatMap((e) => [...e.static, ...(e.afterCycles ?? [])]);
   assert.ok(all.length >= 6);
   for (const m of all) {

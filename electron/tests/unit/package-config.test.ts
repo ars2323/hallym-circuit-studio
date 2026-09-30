@@ -82,8 +82,10 @@ test('no auto-update, no file association, no protocol', () => {
 
 test('the engine, its runtime and the notices go in; the icon is the repository\'s', () => {
   assert.deepEqual(config.extraResources, [{ from: path.join('/s', 'engine'), to: 'engine' }, { from: path.join('/s', 'runtime'), to: 'runtime' },
-    ...['adder-1bit.circ', 'ripple-carry-4bit.circ', 'counter-4bit.circ', 'demo-datapath.circ', 'console-demo.circ', 'stack-demo.circ'].map((n) => ({ from: path.join(repo, 'tests/circ', n), to: `examples/${n}` }))]);
-  for (const r of config.extraResources as { from: string }[]) if (r.from.endsWith('.circ')) assert.ok(existsSync(r.from), r.from);   // Help › Examples (D-158)
+    ...['adder-1bit.circ', 'ripple-carry-4bit.circ', 'counter-4bit.circ', 'demo-datapath.circ', 'console-demo.circ', 'stack-demo.circ'].map((n) => ({ from: path.join(repo, 'tests/circ', n), to: `examples/${n}` })),
+    // the tutorials' examples (N-18, D-161)
+    ...['tutorial-logic.circ', 'tutorial-mips.circ', 'tutorial.hmx', 'tutorial.s'].map((n) => ({ from: path.join(repo, 'tests/tutorial', n), to: `tutorial/${n}` }))]);
+  for (const r of config.extraResources as { from: string }[]) if (/\.(circ|hmx|s)$/.test(r.from)) assert.ok(existsSync(r.from), r.from);   // Help › Examples (D-158), the tutorials
   assert.deepEqual(config.extraFiles, [{ from: path.join(repo, 'LICENSE'), to: 'LICENSE.txt' }, { from: path.join(repo, 'NOTICE'), to: 'NOTICE.txt' }]);
   assert.equal((config.win as { icon: string }).icon, path.join(repo, 'assets/hallym/logo/app.ico'));
   assert.ok(existsSync(path.join(repo, 'assets/hallym/logo/app.ico')));

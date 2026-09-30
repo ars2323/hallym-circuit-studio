@@ -23,6 +23,24 @@ export const isExample = (id: string): id is Example => (EXAMPLES as readonly st
 export const examplesDir = (resources: string | null, repoRoot: string | null): string | null =>
   (resources ? path.join(resources, 'examples') : repoRoot ? path.join(repoRoot, 'tests/circ') : null);
 
-// What electron-builder copies into resources/examples/.
-export const exampleResources = (repo: string): { from: string; to: string }[] =>
-  EXAMPLES.map((n) => ({ from: path.join(repo, 'tests/circ', n), to: `examples/${n}` }));
+/* The two courses' tutorials (N-18, D-161): each opens a copy of its example
+   (in this run's folder, removed after quit) so that the student may change
+   it and the example stays as it is; the architecture course's program
+   (tutorial.hmx, exported by Hallym MIPS from tutorial.s) goes beside it. */
+export const TUTORIALS = {
+  logic: ['tutorial-logic.circ'],
+  architecture: ['tutorial-mips.circ', 'tutorial.hmx', 'tutorial.s'],
+} as const;
+export type Course = keyof typeof TUTORIALS;
+export const isCourse = (x: unknown): x is Course => x === 'logic' || x === 'architecture';
+export const TUTORIAL_PROGRAM = 'tutorial.hmx';
+
+// Where they are: resources/tutorial/ in the package, the repository's tests/tutorial/ in the source tree.
+export const tutorialDir = (resources: string | null, repoRoot: string | null): string | null =>
+  (resources ? path.join(resources, 'tutorial') : repoRoot ? path.join(repoRoot, 'tests/tutorial') : null);
+
+// What electron-builder copies into resources/examples/ and resources/tutorial/.
+export const exampleResources = (repo: string): { from: string; to: string }[] => [
+  ...EXAMPLES.map((n) => ({ from: path.join(repo, 'tests/circ', n), to: `examples/${n}` })),
+  ...[...new Set<string>([...TUTORIALS.logic, ...TUTORIALS.architecture])].map((n) => ({ from: path.join(repo, 'tests/tutorial', n), to: `tutorial/${n}` })),
+];

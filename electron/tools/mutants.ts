@@ -1007,6 +1007,27 @@ export const MUTANTS: Mutant[] = [
     find: '      if ((dirty || f.path === null) && !(await this.host.save(f))) return;\n', replace: '', tests: ['tests/e2e/tools.e2e.ts'] },
   { module: 'tools', file: 'src/renderer/app/project-tools.ts', what: 'the export draws everything when the selection was asked for',
     find: 'const snap = c.selection ? subSnapshot(scene.snapshot(), ids) : scene.snapshot();', replace: 'const snap = scene.snapshot();', tests: ['tests/e2e/tools.e2e.ts'] },
+  // ---- the courses' tutorials (N-18, D-161): the facts a practice step waits for, the steps' own rules
+  { module: 'tutorial', file: 'src/renderer/app/tutorial/facts.ts', what: 'a wire at the AND\'s output counts as at an input',
+    find: 'othersAt(s, a.id, 0).find(([c, i]) => c.id === g.id && i >= 1)', replace: 'othersAt(s, a.id, 0).find(([c, i]) => c.id === g.id && i >= 0)', tests: ['tests/unit/tutorial-facts.test.ts'] },
+  { module: 'tutorial', file: 'src/renderer/app/tutorial/facts.ts', what: 'Y at any port of the gate',
+    find: 'othersAt(s, y.id, 0).some(([c, i]) => c.id === g.id && i === 0)', replace: 'othersAt(s, y.id, 0).some(([c]) => c.id === g.id)', tests: ['tests/unit/tutorial-facts.test.ts'] },
+  { module: 'tutorial', file: 'src/renderer/app/tutorial/facts.ts', what: 'one of the half_adder\'s inputs enough',
+    find: 'othersAt(s, k.id, p.i).length > 0).length >= 2', replace: 'othersAt(s, k.id, p.i).length > 0).length >= 1', tests: ['tests/unit/tutorial-facts.test.ts'] },
+  { module: 'tutorial', file: 'src/renderer/app/tutorial/facts.ts', what: 'the Clock at another port of the register',
+    find: "othersAt(s, r.id, 2).some(([c, i]) => c.name === 'Clock' && i === 0)", replace: "othersAt(s, r.id, 1).some(([c, i]) => c.name === 'Clock' && i === 0)", tests: ['tests/unit/tutorial-facts.test.ts'] },
+  { module: 'tutorial', file: 'src/renderer/app/tutorial/facts.ts', what: 'a Signal Flow from a part on the net not counted',
+    find: '(n.wires.includes(id) || n.ports.some(([c]) => c === id))', replace: 'n.wires.includes(id)', tests: ['tests/unit/tutorial-facts.test.ts'] },
+  { module: 'tutorial', file: 'src/renderer/app/tutorial/facts.ts', what: 'the memo\'s box without its size',
+    find: 'return m ? [m.x, m.y, m.x + m.w, m.y + m.h] : null;', replace: 'return m ? [m.x, m.y, m.w, m.h] : null;', tests: ['tests/unit/tutorial-facts.test.ts'] },
+  { module: 'tutorial', file: 'src/renderer/shared/tutorial.ts', what: 'Ctrl with a letter named in lower case',
+    find: 'e.key.length === 1 ? e.key.toUpperCase() : e.key', replace: 'e.key', tests: ['tests/unit/tutorial-steps.test.ts'] },
+  { module: 'tutorial', file: 'src/renderer/shared/tutorial.ts', what: 'Ctrl++ not the same key as Ctrl+=',
+    find: "const k = e.key === '+' ? '=' : ", replace: 'const k = ', tests: ['tests/unit/tutorial-steps.test.ts'] },
+  { module: 'tutorial', file: 'src/renderer/app/tutorial/mips-steps.ts', what: 'C5 without its result beat',
+    find: "    result: {\n      title: () => '짝이 맞았습니다',", replace: "    resultLost: {\n      title: () => '짝이 맞았습니다',", tests: ['tests/unit/tutorial-steps.test.ts'] },
+  { module: 'tutorial', file: 'src/renderer/app/tutorial/logic-steps.ts', what: 'a particle right after a name',
+    find: '이번에는 Components 패널 검색 칸에', replace: '이번에는 Components에 검색 칸에', tests: ['tests/unit/tutorial-steps.test.ts'] },
 ];
 
 function copyTree(dir: string): void {

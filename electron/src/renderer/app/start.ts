@@ -6,8 +6,9 @@
      2  튜토리얼 보기 · 바로 시작          the course's tutorial, or
      3  새 회로 · 파일 열기                (바로 시작) a new circuit or a file
 
-   The tutorial goes straight to the chosen course's track (N-18: startCourse(track);
-   until it lands, app.ts's one adapter starts a new circuit in that course). */
+   The tutorial goes straight to the chosen course's track (app.ts startTutorial
+   → startCourse(track), N-18, D-161): a copy of the course's example opens and
+   the steps begin. */
 
 import { welcome, type Welcome } from '../shared/welcome.ts';
 import type { Course } from './logic/course.ts';

@@ -156,6 +156,13 @@ Hallym MIPS Simulator test files
            commit 8ebd3c9 (tests/golden/text-*.txt, QtSpim output)
   Location: tests/hmx/hallym-mips-v2.4.0/, tests/asm/qtspim/ (test data
             only; not part of the distributed program)
+  Also:    tests/tutorial/tutorial.s and tutorial.hmx, the Computer
+           Architecture tutorial's program (N-18): the program of the golden
+           data.s, assembled by Hallym MIPS 2.6.0 (tag v2.6.0) WITHOUT its
+           exception handler and exported as tutorial.hmx
+           (tests/tutorial/README.md). The image has no SPIM start-up code:
+           only the program's own 18 words, entry = main = 0x00400000.
+           These two are distributed with the program (resources/tutorial/).
 
 --------------------------------------------------------------------------
 Hallym University identity assets (logo, emblem, signature, characters

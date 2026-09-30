@@ -189,6 +189,13 @@ export class Overlays {
     this.emit();
   }
 
+  // Where the Signal Flow on show starts: the wire or the part (the tutorial reads it, N-18); null: none.
+  flowSource(): string | null {
+    const f = this.flowFrom;
+    if (!f || !this.flow.running) return null;
+    return 'wire' in f.target ? f.target.wire : f.target.componentId;
+  }
+
   stopFlow(): void {
     if (!this.flow.running) return;
     this.flow.stop();

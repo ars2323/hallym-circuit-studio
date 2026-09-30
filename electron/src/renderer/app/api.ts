@@ -10,6 +10,7 @@ export interface LoadProgramOptions {
   picks?: Record<string, string>;
   again?: boolean;
   forSource?: string;
+  tutorial?: boolean;   // a tutorial's skip (N-18): tutorial.hmx beside the tutorial's copy, no dialog
 }
 
 // A RAM's or a ROM's image (N-10): which memory, as the engine names it, and load or save.
@@ -93,6 +94,8 @@ export interface AppApi {
   // Help › Examples (D-158): the program's circuits by name; one opened read-only.
   examples(): Promise<{ id: string; name: string; course: 'logic' | 'architecture' }[]>;
   openExample(id: string): Promise<Opened | RecoveryAsk | null>;
+  // A course's tutorial (N-18): a copy of its example, opened for editing (the example stays as it is).
+  openTutorial(course: 'logic' | 'architecture'): Promise<Opened | RecoveryAsk | null>;
   // File › Open Recent (I-130): this run's files by name (the paths stay in the main process).
   recentFiles(): Promise<{ id: string; name: string }[]>;
   openRecent(id: string): Promise<Opened | RecoveryAsk | null>;
