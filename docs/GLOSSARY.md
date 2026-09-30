@@ -9,7 +9,7 @@ Students see English names in class, in the textbook and in original Logisim 2.7
 | English (names and commands) | Korean (explanatory sentences) |
 | --- | --- |
 | Menus and menu items, toolbar buttons, tabs, status bar text | Diagnostic messages (the sentences in the 2c "Messages" tab) |
-| Part names, library names, library categories (Wiring, Plexers …) | Tool descriptions, hover descriptions |
+| Part names, library names, library categories (Wiring, Plexers …) | Tooltips and other hover descriptions |
 | Attribute names and values (Data Bits, Facing, East …) | Guidance and error sentences in dialogs |
 | Right-click menus and their top summary line (`Adder · 32 bits`) | The "Description" column of the shortcut table |
 | Part body titles and state text (Instruction Memory, Data Memory, Stack, Console, `-- exit --`) | First-run guidance, empty-screen guidance |
