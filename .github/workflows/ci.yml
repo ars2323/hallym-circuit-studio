@@ -177,6 +177,14 @@ jobs:
         run: npm run typecheck
       - name: What is taken from Hallym MIPS is there, copies byte for byte (ORIGIN.md)
         run: node tools/import-hmips.ts --check
+      # D-174: every link and anchor in the tracked docs resolves, and every picture under docs/ and electron/docs/
+      # is shown or listed by a doc. Fails on broken > 0 or orphan > 0.
+      - name: Doc links and pictures (broken 0, orphan 0)
+        run: node tools/check-doc-links.ts
+      # D-174: Korean lines in docs and code comments against korean-allowed.txt; the table goes to the job summary.
+      # Report only until G-12 turns on --strict.
+      - name: Korean lines (report only)
+        run: node tools/check-korean.ts
       - name: Unit tests
         run: npm test
       - name: Build the window's script
