@@ -1,0 +1,15 @@
+# Korean that stays (D-174; CLAUDE.md "Language" from G-03). Read by electron/tools/check-korean.ts.
+# One rule a line: <glob>  <max lines or *>  <reason>. The first matching rule sets a file's allowance;
+# a file no rule matches is allowed 0 Korean lines. Only .md/.txt lines and code comments are counted:
+# Korean in string literals (screen text, search terms, patterns) is never counted.
+#
+# The student's screen resources
+**/*_ko.properties                          *   screen text: Korean resource bundles
+app/resources/logisim/ko/**                 *   screen text: Logisim's Korean resources
+# The Korean user guides (docs/usage/*.en.md are their English pairs)
+docs/usage/*.ko.md                          *   Korean user guide
+# The glossary's Korean column: one line per table row
+docs/GLOSSARY.md                            63  Korean column of the glossary tables
+# Test inputs, goldens and fixtures (their READMEs are docs and are translated)
+tests/**/*.{txt,expected,json,s,circ,hmx}   *   test data: inputs, goldens and expected outputs
+electron/tests/fixtures/**                  *   test data: fixtures generated from the engine

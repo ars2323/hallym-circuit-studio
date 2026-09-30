@@ -1028,6 +1028,29 @@ export const MUTANTS: Mutant[] = [
     find: "    result: {\n      title: () => '짝이 맞았습니다',", replace: "    resultLost: {\n      title: () => '짝이 맞았습니다',", tests: ['tests/unit/tutorial-steps.test.ts'] },
   { module: 'tutorial', file: 'src/renderer/app/tutorial/logic-steps.ts', what: 'a particle right after a name',
     find: '이번에는 Components 패널 검색 칸에', replace: '이번에는 Components에 검색 칸에', tests: ['tests/unit/tutorial-steps.test.ts'] },
+  // ---- the repository-in-English checks (tools/check-translation.ts, check-korean.ts, check-doc-links.ts, lexers.ts; D-174)
+  { module: 'english', file: 'tools/check-translation.ts', what: 'comments compared as code',
+    find: "const strip = (ts: Token[]) => ts.filter((t) => t.kind !== 'comment');", replace: 'const strip = (ts: Token[]) => ts;', tests: ['tests/unit/check-translation.test.ts'] },
+  { module: 'english', file: 'tools/check-translation.ts', what: 'a changed string literal let through',
+    find: 'if (!allowed.has(y.text) && !allowed.has(unquote(y.text))) {', replace: 'if (false) {', tests: ['tests/unit/check-translation.test.ts'] },
+  { module: 'english', file: 'tools/check-translation.ts', what: 'table rows not compared',
+    find: "  seq('tables (rows)', a.tables, b.tables);\n", replace: '', tests: ['tests/unit/check-translation.test.ts'] },
+  { module: 'english', file: 'tools/check-translation.ts', what: 'IDs not compared',
+    find: "  multi('IDs', a.ids, b.ids);\n", replace: '', tests: ['tests/unit/check-translation.test.ts'] },
+  { module: 'english', file: 'tools/check-translation.ts', what: 'inline code not compared',
+    find: "  multi('inline code', a.inlineCode, b.inlineCode);\n", replace: '', tests: ['tests/unit/check-translation.test.ts'] },
+  { module: 'english', file: 'tools/lexers.ts', what: 'a regular expression after = taken for a division',
+    find: '      k = s.reScanSlashToken();', replace: '      void 0;', tests: ['tests/unit/check-translation.test.ts'] },
+  { module: 'english', file: 'tools/lexers.ts', what: 'a Java text block read as strings of one line',
+    find: "      else if (text.startsWith('\"\"\"', i)) j = quoted(text, i, '\"\"\"', false);\n", replace: '', tests: ['tests/unit/check-translation.test.ts'] },
+  { module: 'english', file: 'tools/lexers.ts', what: 'Korean in a string literal counted',
+    find: "if (t.kind !== 'comment' || !HANGUL.test(t.text)) continue;", replace: 'if (!HANGUL.test(t.text)) continue;', tests: ['tests/unit/check-korean.test.ts'] },
+  { module: 'english', file: 'tools/check-korean.ts', what: 'a file no rule names allowed any Korean',
+    find: 'const allowed = rule ? rule.max : 0;', replace: 'const allowed = rule ? rule.max : Infinity;', tests: ['tests/unit/check-korean.test.ts'] },
+  { module: 'english', file: 'tools/check-doc-links.ts', what: 'a picture named anywhere taken as used',
+    find: 'return (path.posix.dirname(f) === dir || f === `${dir}/README.md`) && text.includes(name);', replace: 'return text.includes(name);', tests: ['tests/unit/check-doc-links.test.ts'] },
+  { module: 'english', file: 'tools/check-doc-links.ts', what: 'a missing heading not reported',
+    find: "if (hash && resolved.endsWith('.md') && !anchorsOf(resolved).has(decodeURIComponent(hash))) {", replace: 'if (false) {', tests: ['tests/unit/check-doc-links.test.ts'] },
 ];
 
 function copyTree(dir: string): void {
@@ -1038,6 +1061,8 @@ function copyTree(dir: string): void {
   for (const f of ['LICENSE', 'NOTICE']) cpSync(path.join(root, '..', f), path.join(dir, '..', f));
   // engine/: its build file names the runtime's OpenJDK release (tests/unit/notice.test.ts).
   for (const d of ['assets', 'tests', 'engine']) symlinkSync(path.join(root, '..', d), path.join(dir, '..', d));
+  // korean-allowed.txt: tests/unit/check-korean.test.ts reads the repository's allowlist (D-174).
+  cpSync(path.join(root, '..', 'korean-allowed.txt'), path.join(dir, '..', 'korean-allowed.txt'));
 }
 
 if (import.meta.main) {
