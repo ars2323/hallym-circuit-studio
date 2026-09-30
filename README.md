@@ -1,79 +1,166 @@
 # Hallym Circuit Studio
 
-한림대학교 Micro-architecture 실습도구. 수업에서 쓰는 **Logisim 2.7.1**의 시뮬레이션 엔진을 그대로 돌리고, 그 위에 새 화면을 얹었다. 학생이 single-cycle MIPS를 설계하다 막히는 곳을 도구가 짚어 준다.
+> **사용법 (한국어): [docs/GUIDE-ko.md](docs/GUIDE-ko.md)** — 내려받기, 설치,
+> Windows 경고 창 넘기기, 첫 실행과 튜토리얼, 자주 막히는 곳.
 
-- 기존 `.circ` 과제가 그대로 열리고 결과가 같다. 새 부품을 쓰지 않은 파일은 원조 2.7.1과 바이트까지 같게 저장된다.
-- 동작하지 않는 회로(값이 정해지지 않음, 진동, 구조상 동작할 수 없음)만 알린다. 원인 한 곳을 학생이 붙인 이름과 위치로 말하고, 동작하는 회로의 정오는 판단하지 않는다.
-- 사이클마다 명령어·신호·레지스터를 한 화면에서 보고 지난 사이클로 돌아가는 Cycle View.
-- 32비트 주소를 그대로 쓰는 MIPS 부품(Instruction Memory, Data Memory(데이터+스택), Console)과 [Hallym MIPS Simulator](https://github.com/ars2323/hallym-mips-simulator)가 내보낸 실행 이미지(`.hmx`) 불러오기.
+A circuit editor and simulator for the logic design and computer architecture
+courses of Hallym University, built on **Logisim 2.7.1**. It runs the original
+Logisim 2.7.1 simulation engine unchanged and puts a new window on top of it.
+Students draw circuits, from gates and wires up to a single-cycle MIPS
+datapath, run them one clock cycle at a time, and see where a circuit cannot
+work — named with the names they gave it.
 
-**Hallym Circuit Studio 2**(v2.0.0부터)는 화면을 Hallym MIPS와 같은 Electron으로 새로 만들고, 안에서는 Java 엔진이 Logisim 2.7.1을 돌린다. 편집도 엔진이 원조 Logisim의 편집 코드로 하므로 쓰는 법과 결과 파일이 원조와 같다. Swing판(v1.0.x)은 v1.0.3이 마지막이다.
+**Version 2.x — an Electron window with a Java engine that runs Logisim 2.7.1
+— is the current version.** Until 2.0.0 it comes out as pre-releases
+(`v2.0.0-alpha.N`). Version 1.x — the Swing edition — is the previous one; its
+last release is [1.0.3](https://github.com/ars2323/hallym-circuit-studio/releases/tag/v1.0.3),
+and its source is at the tag `v1.0.3`.
 
-기획과 결정 사항은 [PLAN.md](PLAN.md), 작업 규칙은 [CLAUDE.md](CLAUDE.md), 결정 기록은 [docs/DECISIONS.md](docs/DECISIONS.md), 진행 상황은 [docs/PROGRESS.md](docs/PROGRESS.md)에 있다.
+![The window: a MIPS datapath open in the computer architecture course, wires in their value colors, the Components, Tunnels and Attributes panels](electron/docs/screens/open-file.png)
 
-## 화면
+## What's different
 
-| | |
-| --- | --- |
-| ![시작 화면](electron/docs/screens/start.png) | ![회로 열기](electron/docs/screens/open-file.png) |
-| 시작 화면: 튜토리얼 보기 / 바로 시작 | 파일 탭, 값 색으로 그린 회로, 버스 폭, 터널 색, Tunnels |
-| ![Messages](electron/docs/screens/messages-list.png) | ![Cycle View와 Registers](electron/docs/screens/registers.png) |
-| Messages: 동작하지 않는 연결을 종류별로, 학생이 붙인 이름으로 | Cycle View와 Registers(Hallym MIPS와 같은 패널) |
-| ![Load Program](electron/docs/screens/load-summary.png) | ![Signal Flow](electron/docs/screens/signal-flow.png) |
-| 실행 이미지(.hmx) 불러오기 요약 | Signal Flow: 한 번 눌러 신호가 가는 길 |
+Compared with original Logisim 2.7.1, this is what a student sees differently.
+The simulation itself is Logisim's own.
 
-모든 화면은 `electron/docs/screens/`에 있고, 무엇을 볼지는 [그 폴더의 README](electron/docs/screens/README.md)에 있다.
+**Same files, same results** — an existing `.circ` assignment opens as it is
+and simulates the same way. Editing is done by the engine with Logisim's own
+editing code, so a file that uses no new parts is saved byte for byte as
+original 2.7.1 saves it, and still opens there.
 
-## 다운로드
+**Messages** — only a circuit that cannot work is reported: a floating input,
+an E or X value, oscillation, a width conflict, a tunnel without a pair. Each
+message names one cause, in the names the student gave, with its place. A
+circuit that works but gives a wrong answer is not judged.
 
-[Releases](https://github.com/ars2323/hallym-circuit-studio/releases)에서 받는다. v2.0.0 전까지 v2는 사전 릴리스(`v2.0.0-alpha.N`)로 올라온다.
+![Messages: three problems in a broken datapath, grouped by kind](electron/docs/screens/messages-list.png)
 
-- **Windows:** `HallymCircuitStudio-<버전>-win-x64-setup.exe` 하나다. 실행하면 진행 화면 뒤에 마침 화면이 나오고, **지금 실행하기**가 체크된 채로 마침을 누르면 바로 열린다. 관리자 권한도 Java도 필요 없다. 다음부터는 시작 메뉴의 **Hallym Circuit Studio**로 연다.
-- **"Windows의 PC 보호" 창이 뜨면:** 설치 파일에 코드 서명이 없어서 Microsoft Defender SmartScreen이 막는 것이다. **추가 정보** → **실행** 순서로 누른다. 받은 파일이 릴리스의 파일과 같은지는 릴리스 노트의 SHA-256으로 확인한다(`certutil -hashfile <파일> SHA256`).
-- 설치 파일이 쓰는 곳, 조용한 설치(`/S`), 제거, 예전 MSI 설치본 처리는 [docs/install-windows-ko.md](docs/install-windows-ko.md)에 있다.
-- 앱은 설정을 기억하지 않는다. 껐다 켜면 모두 기본값이다(실습실 PC 규칙).
+**Cycle View and Registers** — every cycle is recorded: the program counter,
+the instruction and any signal the student adds, cycle by cycle, with the step
+back to an earlier cycle; the MIPS registers in hex, decimal and binary at once.
 
-## 두 트랙
+![Cycle View and Registers after nine cycles of a program](electron/docs/screens/registers.png)
 
-| | 트랙 A: MIPS 부품 라이브러리 | 트랙 B: Hallym Circuit Studio 앱 |
+**Signal Flow** — click a part or a wire and the way its signal goes is drawn
+over the circuit.
+
+![Signal Flow from the PC register](electron/docs/screens/signal-flow.png)
+
+**Hallym MIPS parts and `.hmx`** — MIPS parts that use real 32-bit addresses
+(Instruction Memory, Data Memory with data and stack, Console, Radix Probe)
+and Load Program…, which loads the executable image (`.hmx`) that
+[Hallym MIPS Simulator](https://github.com/ars2323/hallym-mips-simulator)
+exports. The machine code is loaded as it is; the tool does not assemble or
+re-encode it.
+
+![The load summary of an executable image](electron/docs/screens/load-summary.png)
+
+**Course selection** — at every start the start card asks for the course:
+논리설계 및 실험 (the logic design course) or 컴퓨터구조 (the computer
+architecture course). The logic design course hides the MIPS-only parts and
+features; a file that uses them still opens and runs, with a band that offers
+[컴퓨터구조로 바꾸기] ("Switch to the computer architecture course").
+
+![A MIPS file opened in the logic design course](electron/docs/screens/course-mips-in-logic.png)
+
+**Attributes and Quick Attributes** — the selected part's attributes in a
+panel, with the original names and values, and a small bar with the ones used
+most, placed where it covers no part, wire or chip.
+
+![Attributes and Quick Attributes for the PC register](electron/docs/screens/attributes.png)
+
+**The lab PC rule** — nothing is remembered between runs: every start is the
+same screen, settings apply to this run only, and the app writes nothing
+outside the student's own files (checked on Windows in CI).
+
+![Preferences: "이번 실행에만 적용됩니다" ("applies to this run only")](electron/docs/screens/preferences.png)
+
+## Download
+
+**[Latest release](https://github.com/ars2323/hallym-circuit-studio/releases/latest)**
+(Windows 64-bit): one file, `HallymCircuitStudio-<version>-win-x64-setup.exe`.
+It installs for the current user only (no administrator rights, no Java) and
+adds a Start menu entry. Pre-releases of 2.x are on the
+[releases page](https://github.com/ars2323/hallym-circuit-studio/releases).
+
+The program is not code-signed, so Windows SmartScreen warns the first time it
+runs. Choose **More info → Run anyway** (on Korean Windows: **추가 정보 →
+실행**); the user guide ([한국어](docs/GUIDE-ko.md#1-설치)) shows the steps.
+The notes of each release list the files' SHA-256.
+
+For original Logisim 2.7.1, the MIPS parts are also released on their own as
+`hcs-mips.jar` (track A, below).
+
+## Two tracks
+
+| | Track A: MIPS part library | Track B: Hallym Circuit Studio |
 | --- | --- | --- |
-| 무엇 | 원조 Logisim 2.7.1에서 불러 쓰는 JAR 라이브러리 `hcs-mips.jar` | 이 저장소의 앱(Electron 화면 + Java 엔진) |
-| 받는 것 | `hcs-mips.jar` 또는 `hcs-mips-<버전>-windows.zip` | setup exe |
-| 쓰는 법 | Project › Load Library › JAR Library로 `hcs-mips.jar`를 불러온다([docs/track-a-guide.md](docs/track-a-guide.md)) | 부품 목록의 **Hallym MIPS**에 늘 있다 |
+| What | `hcs-mips.jar`, a JAR library for original Logisim 2.7.1 | This app (Electron window + Java engine) |
+| Download | `hcs-mips.jar` or `hcs-mips-<version>-windows.zip` | the setup exe |
+| Use | Project › Load Library › JAR Library ([docs/track-a-guide.md](docs/track-a-guide.md)) | always in the parts list under **Hallym MIPS** |
 
-두 트랙은 같은 부품 코드(`lib-mips`)를 쓴다. 한 `.circ`가 두 도구에서 모두 열린다(Hallym MIPS 부품을 쓴 파일을 원조에서 열 때는 `.circ` 옆에 `hcs-mips.jar`가 있어야 한다).
+Both tracks use the same part code (`lib-mips`), so one `.circ` opens in both.
+A file that uses Hallym MIPS parts needs `hcs-mips.jar` next to it to open in
+original 2.7.1.
 
-## 소스에서 빌드
-
-필요한 것: JDK를 받아 오는 Gradle wrapper(toolchain 자동 다운로드, JDK 21), Node.js 22.18 이상.
-
-```
-./gradlew :engine:stage          # 엔진 jar(engine/build/stage/hcs-engine.jar)와 hcs-mips.jar
-./gradlew test                   # Java 단위 테스트, 엔진 회귀, 편집 동등성
-cd electron
-npm ci
-npm run electron                 # 앱 실행(소스 트리의 엔진을 씀. java는 JAVA_HOME 또는 PATH)
-npm test                         # 화면 단위 테스트
-xvfb-run -a npm run e2e          # Playwright e2e(Linux는 Xvfb)
-```
-
-Windows 설치 파일은 Windows에서 `./gradlew :engine:stage :engine:runtime` 뒤 `electron/`에서 `node tools/package.ts`로 만든다. 릴리스 순서는 [docs/release.md](docs/release.md), 테스트 전체는 [docs/TESTING.md](docs/TESTING.md)에 있다.
-
-## 폴더
+## Repository layout
 
 ```text
-electron/               화면: Electron main과 렌더러(TypeScript), 테스트, 도구, 설치 파일 설정, 스크린샷
-  src/renderer/shared/  Hallym MIPS에서 가져온 공유 화면 부품(출처는 electron/ORIGIN.md)
-engine/                 Java 엔진 서버: headless Logisim 2.7.1, stdio 위 JSON-RPC(docs/engine-api.md)
-app/                    Logisim 2.7.1 포크 소스와 엔진이 쓰는 GUI 없는 코드
-lib-mips/               트랙 A: MIPS 부품 JAR 라이브러리(원조 2.7.1용, 엔진도 씀)
-vendor/logisim-2.7.1/   Logisim 2.7.1 원본 jar(수정 금지, tools/verify-vendor.sh로 확인)
-assets/                 글꼴, 학교 식별요소 파생 파일
-tests/                  엔진 회귀, 편집 동등성 골든, 실행 이미지(.hmx), 진단 테스트 입력, 굳혀 둔 SPIM 결과
-docs/                   결정 기록, 진행 표, 엔진 규약, 조사 결과, 설계 메모
-tools/                  저장소 검사(vendor, assets, 엔진 불변)와 트랙 A 포장
+electron/               the window: Electron main and renderer (TypeScript), tests, tools, installer settings, screenshots
+  src/renderer/shared/  screen parts taken from Hallym MIPS (sources in electron/ORIGIN.md)
+engine/                 the Java engine server: headless Logisim 2.7.1, JSON-RPC over stdio (docs/engine-api.md)
+app/                    the Logisim 2.7.1 fork source and the GUI-less code the engine uses
+lib-mips/               track A: the MIPS part JAR library (for original 2.7.1; the engine uses it too)
+vendor/logisim-2.7.1/   the original Logisim 2.7.1 jar, unmodified (checked by tools/verify-vendor.sh)
+assets/                 fonts and files derived from the university's marks
+tests/                  engine regression, edit-parity goldens, executable images (.hmx), diagnostic inputs
+docs/                   decisions, progress, the engine protocol, research and design notes
+tools/                  repository checks (vendor, assets, engine unchanged) and track A packaging
 ```
 
-## 라이선스
+## Building
 
-Logisim 2.7.1을 따라 GNU GPL 버전 2 이상으로 배포한다([LICENSE](LICENSE)). 원저작자는 Carl Burch다. Hallym MIPS Simulator에서 가져온 화면 코드는 BSD 3-Clause이고, SPIM 코드는 들어 있지 않다(어셈블은 Hallym MIPS가 하고, SPIM이 낸 출력만 시험 자료로 남는다). 서드파티 라이선스와 학교 식별요소 사용 조건(Hallym University 소유, 상업적 사용 금지, 대학의 공식 제품이 아님)은 [NOTICE](NOTICE)에 있다.
+A JDK is fetched by the Gradle wrapper (toolchains, JDK 21); Node.js 22.18 or
+later.
+
+```sh
+./gradlew :engine:stage          # the engine jar (engine/build/stage/hcs-engine.jar) and hcs-mips.jar
+./gradlew test                   # Java unit tests, engine regression, edit parity
+cd electron
+npm ci
+npm run electron                 # run the app (uses the engine from the source tree; java from JAVA_HOME or PATH)
+npm test                         # window unit tests
+xvfb-run -a npm run e2e          # Playwright e2e (Xvfb on Linux)
+```
+
+The Windows installer is built on Windows: `./gradlew :engine:stage
+:engine:runtime`, then `node tools/package.ts` in `electron/`. The release
+steps are in [docs/release.md](docs/release.md), all the tests in
+[docs/TESTING.md](docs/TESTING.md).
+
+### Continuous integration
+
+One workflow (`ci.yml`). A pull request is gated by the Linux jobs (build,
+Java tests, engine regression, window unit and e2e tests, the bundled runtime
+with the real engine, track A on Java 8, the release file rules); the Windows
+jobs (the installer, installing, upgrading and uninstalling it, and checking
+that nothing is left on the PC) run on `main`, on tags, and on pull requests
+that touch packaging or Windows-only code.
+
+## License
+
+This project is under the GNU General Public License, version 2 or later, as
+Logisim 2.7.1 is ([`LICENSE`](LICENSE)); Logisim's original author is Carl
+Burch. The window code taken from Hallym MIPS Simulator is under the BSD
+3-Clause License. No SPIM code is included: Hallym MIPS assembles, and only
+output SPIM produced is kept as test data. [`NOTICE`](NOTICE) lists every
+third-party component.
+
+The Hallym University marks, the characters Haram and Hari, and the
+university's promotional video on the first screen belong to Hallym
+University. They are not covered by this project's license, may not be used
+commercially, and may not be taken from here and used elsewhere (see
+[`NOTICE`](NOTICE)).
+
+Developed by Hakhyeon Kim, AIAC Lab, Hallym University, as a personal
+project. This is not an official product of Hallym University.

@@ -756,7 +756,7 @@ jobs:
           [ -f "$notes" ] || { echo "::error::no release notes for $VERSION: $notes (from docs/releases/TEMPLATE.md)"; exit 1; }
           {
             cat "$notes"
-            printf '\n## SHA-256\n\nCI가 태그 `%s`(커밋 %s)에서 만든 파일입니다. Windows에서 확인: `certutil -hashfile <파일> SHA256`\n\n```\n' "$GITHUB_REF_NAME" "${GITHUB_SHA::7}"
+            printf '\n## SHA-256\n\nBuilt by CI from tag `%s` (commit %s). To check on Windows: `certutil -hashfile <file> SHA256`\n\n```\n' "$GITHUB_REF_NAME" "${GITHUB_SHA::7}"
             cat SHA256SUMS
             printf '```\n'
           } > release-notes.md
