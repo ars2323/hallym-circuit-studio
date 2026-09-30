@@ -68,6 +68,7 @@
     "src/renderer/shared/tutorial.ts": "6554a7789edd7c1ff283a3dc46f38b2bc12637766318d4edd4538ba7ed4d1466",
     "src/renderer/shared/placement.ts": "35b63af9b9f4f2d7f1c953d6e4340349c1d9c6311430a5df68cbd010c206c374",
     "tests/unit/placement.test.ts": "e52160c59d5b43c70dad6dd8f390136dbdf30f921372d2774a498da6f2979fcc",
-    "tests/e2e/tutorial.e2e.ts": "766a7ccca961a60779ea892eecb90e2751397012bb29e6ff559505b1aa51f581"
+    "tests/e2e/tutorial.e2e.ts": "766a7ccca961a60779ea892eecb90e2751397012bb29e6ff559505b1aa51f581",
+    "tools/check-doc-links.ts": "c6c7c1df238d9f64d3982b5195a92d10ccc241a207d77686f1f791732624489b"
   }
 }
