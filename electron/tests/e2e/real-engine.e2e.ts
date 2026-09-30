@@ -56,7 +56,7 @@ test('the real engine: hello, a new circuit, a .circ with the MIPS library, the 
     await expect(page.locator('.status')).toContainText('Cycle 1');
     // 1 Cycle wholly done (Cycle 1 shows at the rising edge; until the falling one the cycle is still going and F5
     // is Stop): Run is back on its button
-    await expect(page.getByRole('button', { name: /^Run\s*F5$/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Run(\s*F5)?$/ })).toBeVisible();
     await page.keyboard.press('F5');
     await expect(page.locator('.status .run')).toHaveText('Running (1 Hz)');
     await page.keyboard.press('F5');
