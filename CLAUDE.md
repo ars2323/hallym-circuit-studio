@@ -68,7 +68,7 @@ git and gh are installed and logged in. All repository management is done direct
 
 - **Repository:** `ars2323/hallym-circuit-studio`, public (D-017). Make sure the guideline PDF, `.ai`, `resources/`, and secret values never enter the history.
 - **Milestones and issues:** v2 items each get one issue under the `v2.0.0` milestone. The N and A tables in `docs/PROGRESS.md` (ID | issue | status | PR | notes) are updated **only by the coordinator session** whenever an item finishes (D-166). Item PRs do not touch PROGRESS. Open questions become `question`-labeled issues, and when resolved, get the conclusion added and are closed.
-- **Branches and PRs:** don't push directly to `main`. Create `feat/…`, `fix/…`, `docs/…`, `chore/…` branches and open a PR per unit of work. Write the PR body in Korean and add `Closes #N`.
+- **Branches and PRs:** don't push directly to `main`. Create `feat/…`, `fix/…`, `docs/…`, `chore/…` branches and open a PR per unit of work. The PR title is a one-line English imperative (it becomes the squash commit title). Write the PR body in English and add `Closes #N`. Issues (titles, bodies, comments), labels, milestones, release titles and release notes are in English too (section 17, D-174).
 - **Merge procedure:**
   1. Confirm every CI job is green. A skipped check does not count as passing (leave the reason and issue number).
   2. Run compat-reviewer (`.claude/agents/compat-reviewer.md`) on every PR before merging. It looks only at the diff and reports violations of the absolute rules in section 2 and untested feature changes.
@@ -109,7 +109,7 @@ git and gh are installed and logged in. All repository management is done direct
 
 ## 8. Report format
 
-- **At the end of a work session:** short, in Korean. What's done, merged PRs, deployment (release URL, or "no release" with the reason, section 13), what's next, `needs-human` changes. If the screen changed, add a "Screenshots" section at the end (section 7 links).
+- **At the end of a work session:** short, in Korean (reports to the user stay Korean; everything written into the repository or GitHub is English, section 17). What's done, merged PRs, deployment (release URL, or "no release" with the reason, section 13), what's next, `needs-human` changes. If the screen changed, add a "Screenshots" section at the end (section 7 links).
 - **Interim reports:** short, each time alpha is bumped. Release URL, what's done, 5–10 screenshots (one link per line plus one line of what to look at).
 - **Final report (once, after v2.0.0):**
   - first line `커밋: <main SHA>`, next line the release URL
@@ -211,3 +211,22 @@ Keep original zips as-is in `resources/` (gitignored) and commit only derived fi
 - Gather per-part-kind handling into a single registry: an engine-side registry, a screen-side part renderer registry (the spot a future Verilog mapping table attaches to).
 - Manage user-facing wording through Korean/English resources. Diagnostic wording follows the principles of PLAN.md 4.4.
 - A feature PR with no tests is not merged.
+
+## 17. Language (D-174)
+
+Everything in the repository and on GitHub is in English, except what the student sees and data that must stay as it is. `electron/tools/check-korean.ts` counts Korean lines in tracked files (docs: lines; code: lines inside comments only) and fails CI when a file exceeds its allowance in `korean-allowed.txt` (one line per exception: path glob, allowed line count, reason).
+
+| English | Korean stays as it is |
+| --- | --- |
+| All documents: README, CLAUDE.md, PLAN.md, `docs/`, `electron/docs/`, the READMEs in `tests/` and `assets/`, ORIGIN.md | **Screen text the student sees:** screen strings, `ko/` and `*_ko.properties` resources, the tutorial, the examples |
+| Code comments: Java, TypeScript, Kotlin scripts, CSS, workflows, shell, Python, PowerShell, NSIS | **Korean inside string literals that are behavior:** screen text, the Korean search terms in the palette, regexes that recognize Korean messages (e.g. DiagText) |
+| **Text only developers see:** tool output, CI step names and log text, exception, log and assert messages, but only when no test or regex expects that text | **Test inputs, goldens and fixtures:** `.s`, `.circ`, `.hmx`, `.json`, expected outputs |
+| Commit titles and bodies, PR titles and bodies, issue titles, bodies and comments, labels, milestones | The Korean user guides `docs/usage/*.ko.md` (each has an English pair) |
+| Release titles and notes, and the SHA-256 section CI appends to the notes. Only the Korean user-guide link on the notes' first line is Korean | The name parentheses in NOTICE (`Hakhyeon Kim (김학현)`, `Haram (하람)`) and quoted video titles, as in the Hallym MIPS NOTICE |
+| The repository description, the text in `.claude/agents/` and `.claude/hooks/` | The Korean column of `docs/GLOSSARY.md` |
+| | **Reports to the user in chat stay Korean.** |
+
+- **Quoting the screen:** when an English document mentions Korean screen text, quote it as it is and add the meaning: `"설치가 완료되었습니다" ("Installation complete")`, `[컴퓨터구조로 바꾸기] ("Switch to the computer architecture course")`.
+- **Course names:** the course chip on the screen is Korean, so the Korean names stay. On first mention in a document write `논리설계 및 실험 (the logic design course)` and `컴퓨터구조 (the computer architecture course)`, then English only. The fixed English terms are in `docs/GLOSSARY.md` section 5.
+- **History is not rewritten:** commits and tags, merged PRs and closed issues stay as they are (release notes and DECISIONS point at commit hashes and PR numbers). No history rewrite, no force push. From D-174 on, commits and PRs are English.
+- **Translating:** faithful, never summarized. Section numbers, IDs, `#` numbers, paths, code, commands, hashes, link targets and numbers stay; `electron/tools/check-translation.ts <base-ref> [files]` checks that a translated document keeps its code, links, IDs, numbers, headings, table rows and list items, and that a code change touches comments only.

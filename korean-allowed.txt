@@ -13,3 +13,9 @@ docs/GLOSSARY.md                            63  Korean column of the glossary ta
 # Test inputs, goldens and fixtures (their READMEs are docs and are translated)
 tests/**/*.{txt,expected,json,s,circ,hmx}   *   test data: inputs, goldens and expected outputs
 electron/tests/fixtures/**                  *   test data: fixtures generated from the engine
+# Quoted screen text and Korean names in the English rules and plan (G-03)
+CLAUDE.md                                   10  quoted screen text, course names, NOTICE-style names
+PLAN.md                                     17  quoted screen text and course names
+# The reviewers report to the coordinator in Korean (reports stay Korean): their report templates and quoted examples
+.claude/agents/compat-reviewer.md           21  Korean report template and quoted wording examples
+.claude/agents/ui-reviewer.md               16  Korean report template, verdict names and quoted wording examples
