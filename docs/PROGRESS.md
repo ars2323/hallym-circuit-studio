@@ -254,13 +254,16 @@ Swing판 v1.1.0은 내지 않는다(D-132). 엔진 쪽 항목은 v2의 N-00에�
 | A-09 | 사전 릴리스 v2.0.0-alpha.2(N-17·N-21·A-07·A-08 뒤) | #459 | 완료 | #471 | https://github.com/ars2323/hallym-circuit-studio/releases/tag/v2.0.0-alpha.2 (사전 릴리스, 태그 39b923c7), setup exe SHA-256 b617e65679dd57fdce64d5314ae11f6457e26b3d1a7a93893aaa9f8a7ff5e475, 공개 주소에서 받아 4개 파일 해시 일치 |
 | A-10 | CI 속도(PR 게이트는 Linux, Windows 작업은 main·태그·Windows에 닿는 PR, 옛 실행 취소, linux 나누기, 공용 파일은 지휘 세션, 흔들리는 검사 격리) | — | 완료 | #460 | 전: PR 마지막 CI 중앙 24분, 연 뒤 머지 중앙 48분. 후: 화면만 바꾼 PR 9분 9초(#463, Windows 건너뜀), 설치본 attributes.css 빠짐도 고침, D-166 |
 
-## 다음 재개 지점 (2026-09-30, 사용량 한도로 멈춤, 10/5 18:00 뒤 재개)
+## 다음 재개 지점 (2026-10, 영어 정리 뒤)
 
-사용자 지시 순서대로, 동시 에이전트 2개 이하:
+끝난 것:
+- V-16 사이클 0 기록 실패: 고침(#474, D-173, 원인은 원조 Simulator 청취자 목록 경합, 고친 뒤 두 모드 20/20 통과).
+- 튜토리얼(N-18): 머지(#466).
+- 영어 정리(#473): 사용자 지시로 범위를 줄여 두 가지만 했다. README를 영어로(Hallym MIPS 차례), v2.0.0-alpha.2 노트를 영어로(파일, GitHub 본문, TEMPLATE, CI의 SHA-256 절)(#478). 검사 도구 #475(check-doc-links, check-korean 보고만, check-translation)는 그대로 둔다. #476·#477은 머지하지 않고 닫았다(브랜치는 남김). CLAUDE.md, PLAN.md, GLOSSARY, 안내서, 나머지 문서, DECISIONS, 코드 주석, 과거 릴리스, 이슈·마일스톤·라벨은 바꾸지 않는다. 배포 없음(문서와 CI 문장만).
 
-1. **V-16 측정(v2.0.0을 막음):** `RecordTest.cyclesRightAfterOpeningOrResetAreRecordedFromStepZero`를 #453 전(main 9e00f55b)과 후(04e52b69)에서 상수 해시·보통 모드로 각각 20번 이상 돌려 실패 수를 잰다. 원인이 #453의 열 때 나가는 바뀜 신호면 기록 시작이 그보다 먼저 오게 고치고 20번 모두 통과를 보인 뒤 머지, 숫자를 DECISIONS에.
-2. **튜토리얼 #466(N-18) 머지:** compat·UI 재검토 모두 통과(head ae495fa2). main에 rebase, CI 초록이면 머지.
-3. **N-20** 문구 규칙·문구 리소스·About·NOTICE(OPEN-ISSUES V-09·V-10 포함).
-4. **N-25** OPEN-ISSUES 전부(V-01~V-16 등).
-5. **N-26 2단계** 안내서·PDF.
-6. **N-28** v2.0.0.
+다음 순서(동시 에이전트 2개 이하):
+
+1. **N-20** 문구 규칙·문구 리소스·About·NOTICE(OPEN-ISSUES V-09·V-10 포함).
+2. **N-25** OPEN-ISSUES 전부.
+3. **N-26 2단계** 안내서·PDF.
+4. **N-28** v2.0.0.
