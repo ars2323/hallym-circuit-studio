@@ -80,7 +80,10 @@ public final class Doc {
         this.proj = new Project(file);
         RedoStack.of(proj); // 되돌리기 사건을 처음부터 듣는다
         proj.addProjectListener(propagate);
-        proj.getSimulator().requestPropagate(); // 연 회로의 첫 전파(Swing은 창이 뜨며 한다)
+        // 첫 전파는 여기서 요청하지 않는다(V-16, D-173): 원조 Simulator는 청취자를 평범한 ArrayList에 두고 전파 완료마다
+        // 시뮬레이터 스레드가 복사한다. 그 복사와 엔진 스레드의 청취자 더하기가 겹치면 복사본에 null이 들어가
+        // NullPointerException으로 시뮬레이터 스레드가 영영 끝난다. 엔진은 이 생성자 뒤에 청취자(기록기, SimSession,
+        // SimGate, 진단, Canvas)를 붙이므로, 첫 전파는 모두 붙은 뒤 RecordSession.ready가 요청한다(Engine.attach).
         if (restoreCircuits != null) {
             for (Circuit c : file.getCircuits()) {
                 String old = restoreCircuits.get(c.getName());
@@ -271,7 +274,11 @@ public final class Doc {
     /** 모양 편집(N-11, D-153): 회로마다 화면 없는 원조 모양 편집 화면. 이 문서와 함께 사라진다. */
     public final Map<Circuit, Object> appearanceSessions = new java.util.IdentityHashMap<>();
 
-    /** 화면에 붙지 않은 Canvas(선택·Poke 사건용, 그리기 스레드 멈춤). 처음 부를 때 만든다. */
+    /**
+     * 화면에 붙지 않은 Canvas(선택·Poke 사건용, 그리기 스레드 멈춤). 엔진은 파일을 열 때 첫 전파 전에 만든다
+     * (Engine.attach, V-16·D-173): 원조 Canvas는 시뮬레이터 청취자(TickCounter 등)를 더하므로, 시뮬레이터가 도는 중에
+     * 처음 만들면 원조 청취자 목록의 경합으로 시뮬레이터 스레드가 끝날 수 있다.
+     */
     public Canvas canvas() {
         if (canvas == null) {
             canvas = new HiddenCanvas(proj);
