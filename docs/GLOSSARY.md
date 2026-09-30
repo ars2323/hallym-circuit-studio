@@ -109,3 +109,43 @@ What `UiLanguageTest` checks:
 - No key is both a name and an explanation.
 - No Korean sentence uses one of the "Translations not used in sentences" above.
 
+## 5. English terms for English documents
+
+The repository's documents are in English (D-174). These are the English terms for concepts that had only Korean names. Every document and translation uses them. The screen keeps its Korean, so when a document quotes the screen it quotes the Korean and adds the meaning, as in `"설치가 완료되었습니다" ("Installation complete")`.
+
+| Korean | English in documents | Note |
+| --- | --- | --- |
+| 논리설계 및 실험 | the logic design course | The course name on the screen (the course chip, the start card). First mention in a document: `논리설계 및 실험 (the logic design course)`, then English only |
+| 컴퓨터구조 | the computer architecture course | Same rule: `컴퓨터구조 (the computer architecture course)` on first mention |
+| 교과목 | course | |
+| 교과목 칩 | the course chip | The chip in the title bar that shows and switches the course (D-168) |
+| 시작 카드 | the start card | The card on the start screen: course → [튜토리얼 보기] ("View the tutorial") / [바로 시작] ("Start now") → [새 회로] ("New circuit") / [파일 열기] ("Open a file") |
+| 실습실 PC 규칙 | the lab PC rule | Nothing is remembered between launches; the app writes nothing outside the student's files (D-118, D-152) |
+| 트랙 A | track A | `hcs-mips.jar`, the MIPS part library used in original Logisim 2.7.1 |
+| 트랙 B | track B | Hallym Circuit Studio itself |
+| 동작하지 않는 회로 | a circuit that cannot work | What the tool reports: floating inputs, E and X values, oscillation, width conflicts … |
+| 동작하지만 틀린 회로 | a working but wrong circuit | Values flow as 0 and 1 but the result is wrong; the tool does not judge it (CLAUDE.md section 2) |
+| 진단 | diagnostics | Shown in the Messages tab |
+| E, X | E (error) and X (unknown) values | |
+| 원인 한 곳 | one cause | The diagnostic wording rule (PLAN.md 4.4) |
+| 사이클 0 | cycle 0 | The first recorded step after opening or Reset |
+| 실행 이미지 | executable image | A `.hmx` file exported by Hallym MIPS |
+| 원조 Logisim 2.7.1 | original Logisim 2.7.1 | |
+| 엔진 | the engine | The headless Java process that runs Logisim (D-134) |
+| 화면 | the screen, the window | The Electron side |
+| 복구 파일 | recovery file | Next to the student's saved file (D-152) |
+| 알림 띠 | notice band | A thin strip at the top of the work area |
+| 값 칩 | value chip | |
+| 덧그림 | overlay | Signal Flow, influence, active path … drawn over the Canvas |
+| 튜토리얼 | tutorial | |
+| 연습 단계 | practice step | A tutorial step that advances when the student does the task |
+| 사전 릴리스 | pre-release | |
+| 배포 없음 | no release | A round that changed only documents or tests |
+| 격리한 검사 | quarantined checks | D-166 |
+| 지휘 세션 | the coordinator session | The session that assigns D numbers and edits PROGRESS (D-166) |
+| 위반 / 확인 필요 | violation / to check | compat-reviewer verdicts |
+| 막음 / 넘김 | blocking / passed on | ui-reviewer verdicts |
+| 하람, 하리 | Haram and Hari | The university characters |
+| 김학현 | Hakhyeon Kim | |
+| AIAC Lab | AIAC Lab | |
+| 한림대학교 | Hallym University | Screen text also uses "Hallym University", not "한림" |
