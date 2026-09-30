@@ -1,910 +1,908 @@
-# Hallym Circuit Studio 기획서
+# Hallym Circuit Studio Plan
 
-2026-09-24 · 김학현 (AIAC Lab, 한림대학교) · 개정 2026-09-28: Hallym Circuit Studio 2 (D-132)
+2026-09-24 · Hakhyeon Kim (김학현) (AIAC Lab, Hallym University) · Revised 2026-09-28: Hallym Circuit Studio 2 (D-132)
 
-> **이번 개발 범위(v2).** 화면을 Electron으로 새로 만들고 안에서는 Logisim 2.7.1 엔진을 그대로 돌린다(3.1, D-132). v2 로드맵 N-00~N-28(9.2)을 모두 끝내고 v2.0.0을 공개한다. v1(0~4단계와 11장, Swing판 v1.0.x)의 기능은 전부 새 화면으로 옮긴다(`docs/v1-feature-parity.md`).
-> Verilog 연결(7장, 로드맵 5~9단계)은 **구현하지 않는다.** 대신 나중에 붙일 수 있도록 7.0의 설계 원칙을 지킨다.
+> **Scope of this round of development (v2).** Rebuild the screen from scratch in Electron and run the Logisim 2.7.1 engine unchanged inside it (3.1, D-132). Finish all of v2 roadmap N-00 through N-28 (9.2) and publish v2.0.0. All features of v1 (stages 0–4 and chapter 11, the Swing edition v1.0.x) move over to the new screen (`docs/v1-feature-parity.md`).
+> The Verilog connection (chapter 7, roadmap stages 5–9) is **not implemented.** Instead, the design principles of 7.0 are kept so it can be attached later.
 >
-> **읽는 법.** 옛 결정은 지우지 않는다. 바뀐 결정은 그 자리에 "대체됨 (D-xxx)"을 달고 바꾼 결정을 가리킨다. 결정 번호는 [docs/DECISIONS.md](docs/DECISIONS.md)의 항목이다.
+> **How to read this.** Old decisions are not deleted. A changed decision gets a "superseded (D-xxx)" note in place, pointing to the decision that replaced it. Decision numbers are entries in [docs/DECISIONS.md](docs/DECISIONS.md).
 >
-> ~~**이번 개발 범위(v1).** 로드맵 0~4단계(9장, 2a·2b·2c·4b 포함)와 11장 편집기 개선 전체를 구현한다. 오류 진단, MIPS 부품, 프로그램(.hmx) 불러오기, 사이클 뷰, 편집기 개선이 여기에 속한다.~~ 대체됨 (D-132): v1.0.3으로 끝났다(태그 `swing-final`).
+> ~~**Scope of this round of development (v1).** Implement roadmap stages 0–4 (chapter 9, including 2a, 2b, 2c, 4b) and all of chapter 11's editor improvements. Error diagnostics, MIPS parts, loading a program (.hmx), Cycle View, and editor improvements belong here.~~ Superseded (D-132): ended with v1.0.3 (tag `swing-final`).
 
-## 1. 개요
+## 1. Overview
 
-Hallym Circuit Studio는 수업용 Logisim 2.7.1을 포크한 Windows 설치형 Micro-architecture 실습도구다. 학생이 single-cycle MIPS를 설계하다 막히는 곳을 도구가 짚어준다. 나중에는 같은 설계를 Verilog로 읽고 쓰게 한다.
+Hallym Circuit Studio is a Windows-installable Micro-architecture lab tool forked from the classroom's Logisim 2.7.1. It points out to the student where their single-cycle MIPS design is stuck. Later, it will read and write the same design as Verilog.
 
-**배경.** 수업은 한 학기 동안 Logisim 2.7.1로 single-cycle MIPS를 설계한다. 2.7.1은 2011년에 개발이 중단됐다. Verilog는 학생들이 작성을 어려워해 수업에서 쓰지 않는다.
+**Background.** The course spends a semester designing a single-cycle MIPS in Logisim 2.7.1. 2.7.1 stopped development in 2011. Verilog is hard for students to write, so it isn't used in the course.
 
-**해결할 문제.**
+**Problems to solve.**
 
-- 작동하지 않는 회로의 원인을 알려주지 않는다. E만 보여주거나, 클럭이 빠진 레지스터처럼 아무 표시 없이 동작하지 않는다.
-- 클럭에 따른 동작이 한눈에 안 보인다. 학생은 클럭을 손으로 누르거나 probe를 하나씩 보면서, 지금이 몇 번째 명령어인지 머릿속으로 맞춰야 한다.
-- 프로그램을 명령어 메모리 RAM에 손으로 입력한다. 기본 RAM·ROM은 주소가 24비트까지라, MIPS의 32비트 주소를 그대로 쓸 수도 없다.
-- 편집 화면이 2011년 그대로다. 탭이 없고, 확대·축소와 이동이 불편하고, 우클릭 메뉴가 빈약하고, 부품을 찾으려면 트리를 뒤져야 하고, 선이 부품을 따라오지 않는다. 큰 datapath에서 신호가 어디서 와서 어디로 가는지 보기 어렵다.
-- 회로로는 설계할 수 있지만, 같은 회로를 Verilog로 쓰지 못한다(향후 범위).
+- It doesn't say why a circuit doesn't work. It just shows E, or, like a register with no clock, doesn't work with no indication at all.
+- Behavior over clock cycles isn't visible at a glance. The student has to press the clock by hand or watch probes one by one, and figure out in their head which instruction it is right now.
+- Programs are typed into instruction-memory RAM by hand. The default RAM/ROM only goes up to a 24-bit address, so MIPS's 32-bit addresses can't even be used as-is.
+- The editing screen is still 2011. No tabs, awkward zoom and pan, a thin right-click menu, you have to dig through a tree to find a part, and wires don't follow parts. In a big datapath it's hard to see where a signal comes from and where it goes.
+- You can design in a circuit, but you can't write the same circuit in Verilog (future scope).
 
-**설계 원칙.**
+**Design principles.**
 
-- **도구는 부품 라이브러리와 편집 도구를 주고, "동작하지 않는 회로"만 알린다.** 동작하지 않는 회로는 값이 정의되지 않았거나(E, X, 진동) 구조상 동작할 수 없는 회로다.
-- **"동작하지만 잘못된 회로"는 판단하지도, 고치지도, 정답과 비교하지도 않는다.** 모든 선에 0/1이 흐르는데 결과만 틀린 경우다. 학생이 고친다.
-- **도구는 학생 설계에 관여하지 않는다.** 예: 분기 목적지 계산은 학생 데이터패스의 몫이고, 도구는 QtSpim 기계어를 메모리에 올려 주소에 해당하는 워드를 내보낼 뿐이다(D-010).
-- Logisim 시뮬레이션 엔진은 수정하지 않는다. 새 기능은 그 위에 얹는 층으로 만든다.
-- 이 원칙이 4장 진단과 11장 편집기 개선의 기준이다. 편집 도움(포트 변경 영향 미리 보기, 프로그램이 쓰는 명령어 목록, 영향 경로 보기)은 정오 판단이 아니라서 둔다.
+- **The tool gives a part library and editing tools, and reports only "a circuit that cannot work."** A circuit that cannot work is one where a value is undefined (E, X, oscillation) or one that structurally cannot work.
+- **A "working but wrong circuit" is not judged, fixed, or compared against a correct answer.** This is when 0/1 flows on every wire but the result is just wrong. The student fixes it.
+- **The tool does not get involved in student design.** Example: computing the branch destination is the student's datapath's job; the tool only loads QtSpim machine code into memory and emits the word at the corresponding address (D-010).
+- Logisim's simulation engine is not modified. New features are a layer built on top of it.
+- This principle is the standard for chapter 4 (diagnostics) and chapter 11 (editor improvements). Editing aid (previewing the impact of a port change, listing the instructions a program uses, showing the influence path) is kept because it is not a correctness judgment.
 
-**목표.**
+**Goals.**
 
-1. 기존 .circ 과제 파일을 그대로 열고, 채점 결과가 바뀌지 않는다.
-2. 작동하지 않는 회로는 원인 한 곳을, 학생이 붙인 이름과 위치로 알려준다.
-3. 사이클마다 명령어, 선택한 신호, 레지스터 변화를 한 화면에서 보고, 지난 사이클로 돌아간다.
-4. MIPS 32비트 주소를 그대로 쓰는 Instruction Memory, Data Memory(데이터+스택), Console 부품을 제공한다. Hallym MIPS Simulator에서 작성·어셈블해 내보낸 실행 이미지(.hmx)를 그 메모리에 불러온다.
-5. 탭, 확대·축소, 대상별 우클릭 메뉴, 검색, 따라오는 배선, 영향 경로로 요즘 편집기처럼 편집한다. 파일은 원조 2.7.1 형식 그대로다(11장).
-6. (향후) 회로를 Verilog로 읽고, 고치고, 쓴다.
-7. 서버 없이 Windows 설치 파일 하나로 끝난다.
+1. Existing .circ assignment files open as-is, and grading results don't change.
+2. A circuit that doesn't work reports one cause, by the name the student gave it, and its location.
+3. See the instruction, chosen signals, and register changes for each cycle in one screen, and step back to a previous cycle.
+4. Provide Instruction Memory, Data Memory (data + stack), and Console parts that use MIPS's full 32-bit address. Load into that memory the executable image (.hmx) written and assembled in Hallym MIPS Simulator and exported from it.
+5. Edit like a modern editor with tabs, zoom, target-specific right-click menus, search, wires that follow parts, and influence paths. Files stay in the original 2.7.1 format (chapter 11).
+6. (Future) Read, edit, and write the circuit as Verilog.
+7. Finish as a single Windows installer, with no server.
 
-**두 도구의 관계.** 같은 `lw` 하나를 두 층에서 본다. [Hallym MIPS Simulator](https://github.com/ars2323/hallym-mips-simulator)에서 `lw`가 레지스터를 바꾸는 것을 보고, 이 도구에서 그 `lw`가 데이터패스의 어느 선을 타고 레지스터 파일에 도착하는지 본다.
+**How the two tools relate.** The same `lw` is seen through two layers. In [Hallym MIPS Simulator](https://github.com/ars2323/hallym-mips-simulator) you watch `lw` change a register; in this tool you watch which wire of the datapath that same `lw` rides on its way to the register file.
 
 | | Hallym MIPS Simulator | Hallym Circuit Studio |
 | --- | --- | --- |
-| 수업 내 역할 | Computer Architecture 실습 (ISA) | Micro-architecture 실습 |
-| 학생이 보는 것 | 명령어, 레지스터, 메모리 | 데이터패스, 제어 신호, 사이클 |
-| 베이스 | SPIM 9.1.24 코어(C++), Electron 화면 | Logisim 2.7.1 엔진(Java) + Electron 화면(v2, D-132. v1은 Java/Swing) |
-| 연결 | .s 파일을 작성·실행하고 실행 이미지(.hmx)로 내보냄 | 그 실행 이미지를 불러와 학생 회로에서 실행 |
+| Role in the course | Computer Architecture lab (ISA) | Micro-architecture lab |
+| What the student sees | Instructions, registers, memory | Datapath, control signals, cycles |
+| Base | SPIM 9.1.24 core (C++), Electron screen | Logisim 2.7.1 engine (Java) + Electron screen (v2, D-132; v1 was Java/Swing) |
+| Connection | Writes and runs a .s file and exports it as an executable image (.hmx) | Loads that executable image and runs it in the student's circuit |
 
-## 2. 기존 도구와 차별점
+## 2. Differences from existing tools
 
-기존 도구는 증상(E, 선 색)을 보여주고, 회로를 HDL로 내보낼 수는 있다. 하지만 원인 진단과 MIPS 수업에 맞춘 화면은 없다.
+Existing tools show symptoms (E, wire color) and can export a circuit to HDL. But there is no cause diagnosis and no screen tailored to a MIPS course.
 
-| 도구 | 형태 | 되는 것 | 빈 곳 |
+| Tool | Form | What it can do | What's missing |
 | --- | --- | --- | --- |
-| [Logisim-evolution](https://github.com/logisim-evolution/logisim-evolution/releases/tag/v4.1.0) | Java 데스크톱, GPL-3.0, v4.1.0 (2026년 2월) | HDL 생성(FPGA용), chronogram, 레지스터 State 탭, 순차 회로 TestVector | 오류 원인 설명 없음. 내보낸 HDL은 합성용이라 학습용으로 읽기 어려움. 명령어와 사이클 연결 없음 |
-| [Digital](https://github.com/hneemann/Digital) | Java 데스크톱 | Verilog/VHDL 내보내기, 테스트 케이스, [테스트 결과 클릭 시 그 상태로 이동](https://github.com/hneemann/Digital/releases), iverilog Verilog 컴포넌트 | 수업 .circ와 호환 안 됨. Verilog 컴포넌트는 블랙박스 |
-| [CircuitVerse](https://blog.circuitverse.org/posts/vivek_kumar_gsoc2025_finalreport/) | 웹 | Verilog → Yosys → 회로, 실험적 Verilog 내보내기 | 서버 필요. 가져온 회로는 블랙박스 서브회로. 역방향 없음 |
-| DigitalJS | 웹 | Verilog → Yosys 합성 → 회로도, 실시간 파형 | 합성 결과라 학생 코드와 모양이 다름. 역방향 없음 |
+| [Logisim-evolution](https://github.com/logisim-evolution/logisim-evolution/releases/tag/v4.1.0) | Java desktop, GPL-3.0, v4.1.0 (Feb 2026) | HDL generation (for FPGAs), chronogram, register State tab, TestVector for sequential circuits | No explanation of the error cause. Exported HDL is for synthesis and is hard to read for learning. No link between instructions and cycles |
+| [Digital](https://github.com/hneemann/Digital) | Java desktop | Verilog/VHDL export, test cases, [jump to that state by clicking a test result](https://github.com/hneemann/Digital/releases), iverilog Verilog component | Not compatible with course .circ files. Verilog components are a black box |
+| [CircuitVerse](https://blog.circuitverse.org/posts/vivek_kumar_gsoc2025_finalreport/) | Web | Verilog → Yosys → circuit, experimental Verilog export | Needs a server. Imported circuits are black-box subcircuits. No reverse direction |
+| DigitalJS | Web | Verilog → Yosys synthesis → schematic, live waveform | It's a synthesis result, so it looks different from the student's code. No reverse direction |
 
-**Hallym Circuit Studio만의 것.**
+**What only Hallym Circuit Studio has.**
 
-- 작동하지 않는 회로에서 원인 한 곳을 짚는 진단 (4장)
-- MIPS 명령어 단위로 묶인 사이클 뷰와 뒤로 가기 (5장)
-- 32비트 주소 MIPS 메모리 부품과 Hallym MIPS 실행 이미지(.hmx) 바로 불러오기 (6장)
-- 2.7.1 파일 형식을 그대로 둔 채 바꾼 편집 경험: 파일·회로 탭과 탭 간 라이브러리, 대상별 우클릭 메뉴, 한글 별칭 부품 검색, 따라오는 배선, 영향 경로 강조 (11장)
-- (향후) 주석과 서식을 보존하는 회로 ↔ structural Verilog 양방향 편집 (7장)
-- 학생들이 지금 쓰는 2.7.1과 같은 엔진, 기존 .circ 과제 완전 호환
+- Diagnostics that point to one cause in a circuit that doesn't work (chapter 4)
+- A Cycle View grouped by MIPS instruction, with step-back (chapter 5)
+- 32-bit-address MIPS memory parts and direct loading of a Hallym MIPS executable image (.hmx) (chapter 6)
+- An editing experience changed while keeping the 2.7.1 file format: file/circuit tabs and cross-tab libraries, target-specific right-click menus, Korean-alias part search, wires that follow parts, influence-path highlighting (chapter 11)
+- (Future) Two-way circuit ↔ structural Verilog editing that preserves comments and formatting (chapter 7)
+- The same engine students already use with today's 2.7.1, full compatibility with existing .circ assignments
 
-evolution이나 Digital로 갈아타지 않고 Logisim 2.7.1을 포크하는 이유는 호환성이다. 수업 과제와 학생 제출물이 모두 2.7.1 .circ이고, 채점도 2.7.1 결과를 기준으로 한다. evolution은 4.0에서 시뮬레이션 엔진을 다시 설계했고, evolution에서 저장한 파일은 2.7.1에서 열리지 않는다.
+The reason for forking Logisim 2.7.1 instead of switching to evolution or Digital is compatibility. All course assignments and student submissions are 2.7.1 .circ, and grading is based on 2.7.1 results too. evolution redesigned its simulation engine at 4.0, and a file saved by evolution doesn't open in 2.7.1.
 
-## 3. 제품 결정사항
+## 3. Product decisions
 
-Logisim 2.7.1을 포크하되 시뮬레이션 엔진은 손대지 않고, Hallym MIPS Simulator와 같은 방식으로 배포한다. v2부터 화면은 Hallym MIPS와 같은 Electron으로 새로 만들고, 엔진은 화면 뒤에서 도는 Java 프로세스가 된다(3.1). 아래 표에서 v2가 바꾼 칸은 새 결정을 앞에 두고 옛 결정을 "대체됨"으로 남긴다.
+Fork Logisim 2.7.1 without touching the simulation engine, and distribute it the same way as Hallym MIPS Simulator. From v2 on, the screen is rebuilt from scratch in the same Electron as Hallym MIPS, and the engine becomes a Java process running behind the screen (3.1). In the table below, a cell v2 changed puts the new decision first and keeps the old decision marked "superseded."
 
-| 항목 | 결정 | 이유 |
+| Item | Decision | Reason |
 | --- | --- | --- |
-| 이름 | Hallym Circuit Studio. 저장소 `hallym-circuit-studio` | Hallym MIPS Simulator와 한 제품군 |
-| 베이스 | Logisim 2.7.1 포크 | 학생들이 지금 쓰는 버전. 기존 과제와 제출물이 그대로 열리고 채점 결과가 같다. 연결 규칙 검증(부록 A)도 2.7.1 기준 |
-| 엔진 | 시뮬레이션 코어 수정 금지. 표준 2.7.1 jar와 결과를 비교하는 회귀 테스트를 매 push마다 실행. v2에서는 엔진이 회로 모델의 권위이고, 편집은 화면이 의도를 보내 엔진이 원조 Logisim의 편집 코드로 한다(D-133, D-146) | 채점 연속성. Hallym MIPS가 SPIM 코어를 수정하지 않는 것과 같은 원칙. 편집 결과 .circ까지 원조와 같아진다 |
-| 파일 형식 | 2.7.1 .circ 형식 유지 | 새 부품을 쓰지 않은 파일은 원조 2.7.1에서도 열려, 전환기에 두 도구를 섞어 써도 된다 |
-| 새 부품 | MIPS 메모리, Console, 다중 진법 프로브는 2.7.1의 JAR 라이브러리 방식으로 추가 | 코어를 건드리지 않고 부품을 더하는 2.7.1의 공식 확장 방식. 원조 2.7.1에서도 같은 JAR을 불러오면 부품을 쓸 수 있는지 0단계에서 확인 |
-| 플랫폼 | Windows 64비트. **배포물은 setup exe 하나**(`HallymCircuitStudio-<버전>-win-x64-setup.exe`, electron-builder NSIS, 관리자 권한 없는 사용자별 안내형 설치, 엔진과 번들 JRE 포함). 앱 zip과 MSI는 없다(D-148, D-155). 예전 결정 "zip(관리자 권한 불필요)과 v1.1.0부터 jpackage 앱 이미지를 묶은 setup exe"(D-122)는 대체됨 (D-132, D-148) | 실습실 환경, Hallym MIPS와 같은 설치 파일과 같은 설치·제거 경험 |
-| 서버 | 없음 | 모든 처리를 로컬에서 실행 |
-| 프로그램 입력 | Hallym MIPS가 내보낸 실행 이미지(.hmx) | 두 도구의 유일한 접점. .s는 받지 않는다(D-141) |
-| 어셈블 | Hallym MIPS에서만 한다(SPIM 코어) | QtSpim과 기계어가 비트 단위로 같음. 이 도구에는 어셈블러가 없다 (6.7, D-141) |
-| 편집기 | 새 화면이 원조 2.7.1의 도구와 키·마우스 동작을 그대로 옮기고(`docs/interaction-parity.md`, D-139) 탭·확대·우클릭·검색·배선·영향 경로를 더한다. 툴바·마우스 매핑·라벨 글꼴 같은 .circ 안의 값은 바꾸지 않는다. 사용자 설정은 이번 실행에만 둔다(D-152). 예전 결정 "사용자 설정은 앱 환경설정에 둔다"는 대체됨 (D-152) | 학생이 매 시간 쓰는 화면이다. 파일은 원조와 섞어 써야 하므로 표시 층에서만 바꾼다(11장). 실습실 PC는 여럿이 쓴다 |
-| 개발 언어 | **화면은 Electron + TypeScript**(Hallym MIPS와 같은 스택: esbuild, 자체 dom 도우미, UI 프레임워크 없음, `node --test`, Playwright, electron-builder). **안은 Java 21 엔진 서버**(headless Logisim 2.7.1, stdio 위 JSON-RPC, 3.1). 트랙 A(lib-mips)는 Java 8 그대로(D-132, D-133). 예전 결정 "Java, Swing + FlatLaf. Electron은 쓰지 않음"은 대체됨 (D-132) | 사용자 결정. 두 프로그램(Hallym MIPS와 이 도구)을 같은 재료·같은 코드로 맞춘다. 엔진은 그대로 두므로 2.7.1을 고른 이유(호환)가 남고, 트랙 A도 그대로다. Swing판은 v1.0.3으로 끝났다(태그 `swing-final`) |
-| 디자인 | Hallym MIPS `electron/`(참고 태그 v2.6.0, A-07. 처음 v2.3.0, 이어 v2.5.0, D-155)의 디자인 값(`app.css` 변수)과 화면 부품(대화상자, 시작 화면, 빈 상태, 띠, 패널 머리·탭, Registers·Data·Inspector 패널)을 가져와 쓴다(`electron/ORIGIN.md`, D-135, D-155). 예전 결정 "디자인 토큰을 Swing으로 이식"은 대체됨 (D-132) | 두 도구가 한 제품군으로 보이고, 같은 명령이면 같은 필드 색과 이름이 보인다 |
-| 글꼴 | 이름·문장은 Pretendard, 값·주소는 D2Coding(둘 다 SIL OFL 1.1, Hallym MIPS에서 가져온 woff2) | Hallym MIPS와 동일. D2Coding은 0과 O를 가른다 |
-| 그리기 | Canvas 2D. 부품 모양은 벡터 정의(윤곽·곡선·포트 표시·글자 자리)로 부품 렌더러 등록표 하나에 둔다. 크기와 포트 위치는 엔진 값 그대로이고, 그림 내보내기(SVG·PDF·PNG)도 같은 정의를 쓴다(D-137) | ref-mips에서 Canvas와 SVG 요소를 재 보니 클럭 중 선 색 갱신에서 Canvas만 60fps를 지켰다. 원조와 같은 크기·포트라 원조에서 열어도 선이 붙는다 |
-| 실습실 PC | 껐다 켜면 모두 기본값. 앱과 엔진은 설정을 디스크에 남기지 않는다. 비정상 종료 복구 파일은 학생 파일 옆에만 둔다(D-152) | 실습실 PC는 여럿이 쓴다. Hallym MIPS와 같다 |
-| 교과목 | 논리설계 및 실험, 컴퓨터구조. **교과목별 화면**(12.5, A-08, D-168): 켤 때마다 교과목을 먼저 묻고(기억하지 않음), 논리설계 및 실험에서는 MIPS 전용 부품(Instruction Memory, Data Memory, Console, Stack)과 MIPS 기능(Load Program…, Cycle View의 Registers·Memory·Instruction, Mark as PC·Register File, Register Mapping, 필드 색, 상태 표시줄의 PC·Program·Changed, 실행 이미지 알림)을 가린다. Radix Probe는 두 교과목 모두 보인다. 엔진과 저장 파일은 교과목과 상관없다. 예전 결정 "교과목 선택은 튜토리얼에만 쓰고 화면 구성은 같다"(O-08)는 대체됨 (D-168, 사용자 2026-09-29) | 한 도구를 두 과목이 함께 쓴다. 논리설계 및 실험에서는 Instruction Memory·Data Memory·레지스터 파일을 배우지 않는다 |
-| UI 언어 | **이름·명령은 영어, 설명 문장만 한국어**(사용자 확정, D-049). 메뉴·도구 모음·버튼·탭·상태 표시줄·부품·라이브러리 분류·속성 이름과 값·우클릭 메뉴·부품 몸체 제목·검색 결과·단축키 이름·대화 상자 제목은 원조 2.7.1의 영어 그대로다(Poke Tool, Edit Tool, Wiring, Plexers, Splitter …). 새 기능 이름도 같은 문체다(Load Program, 1 Cycle, Quick Attributes, Fit to Window …). 진단 메시지, 도구 설명·마우스 오버 설명 문장, 대화 상자 안내 문장, 단축키 표의 설명 칸, 튜토리얼·빈 화면 안내는 한국어(영어 설정이면 영어)다. 용어와 문장 규칙은 `docs/GLOSSARY.md`. v2의 세부 규칙(상태 표시줄의 사실은 영어, 이름 바로 뒤 조사 없음, 화면에 "한림" 없음, "~하면 됩니다" 없음, `word-break: keep-all`, 오류 문구는 무엇이 잘못 → 무엇을 할지)은 D-135 14항과 CLAUDE.md 10절 | 학생이 수업·교재·원조 2.7.1에서 보는 이름과 같아야 한다. 이름을 번역하면 같은 것이 두 이름을 갖는다 |
-| 라이선스 | GPL(버전 2 이상) | 포크 원본을 따름. 배포 시 소스 공개. SPIM(BSD) 코드는 들어 있지 않다(hcs-asm과 vendor/spim은 D-141에서 지웠다. SPIM이 낸 출력만 시험 자료로 남는다). Hallym MIPS에서 가져온 화면 코드는 BSD-3-Clause이고 GPL 프로젝트에 넣을 수 있다(고지는 NOTICE, D-135) |
+| Name | Hallym Circuit Studio. Repository `hallym-circuit-studio` | Same product family as Hallym MIPS Simulator |
+| Base | Fork of Logisim 2.7.1 | The version students use now. Existing assignments and submissions open as-is, and grading results stay the same. Connection-rule verification (Appendix A) is also based on 2.7.1 |
+| Engine | No modifying the simulation core. Run a regression test on every push that compares results against the standard 2.7.1 jar. In v2, the engine is the authority on the circuit model, and edits are sent as intent by the screen for the engine to carry out with original Logisim's edit code (D-133, D-146) | Grading continuity. Same principle as Hallym MIPS not modifying the SPIM core. Even the resulting edited .circ matches the original |
+| File format | Keep the 2.7.1 .circ format | A file that uses no new part still opens in original 2.7.1 too, so both tools can be mixed during the transition |
+| New parts | MIPS memory, Console, and the multi-radix probe are added as a 2.7.1 JAR library | 2.7.1's official extension method for adding parts without touching the core. Stage 0 confirms whether the same JAR can also be loaded and its parts used in original 2.7.1 |
+| Platform | Windows 64-bit. **A single setup exe distributable** (`HallymCircuitStudio-<버전>-win-x64-setup.exe`, electron-builder NSIS, per-user guided install with no admin rights needed, includes the engine and bundled JRE). No app zip or MSI (D-148, D-155). The prior decision "a zip (no admin rights needed) and, from v1.1.0, a setup exe bundling a jpackage app image" (D-122) is superseded (D-132, D-148) | Lab environment, the same install/uninstall file and experience as Hallym MIPS |
+| Server | None | Everything runs locally |
+| Program input | The executable image (.hmx) exported by Hallym MIPS | The only point of contact between the two tools. .s is not accepted (D-141) |
+| Assembling | Done only by Hallym MIPS (SPIM core) | Machine code is bit-identical to QtSpim. This tool has no assembler (6.7, D-141) |
+| Editor | The new screen carries over original 2.7.1's tool key and mouse behavior as-is (`docs/interaction-parity.md`, D-139) and adds tabs, zoom, right-click, search, wiring, and influence paths. It does not change values stored in the .circ, like the toolbar layout, mouse mapping, and label font. User settings apply only to this run (D-152). The prior decision "user settings go in app preferences" is superseded (D-152) | The student uses this screen every class hour. Files must be interchangeable with the original, so changes are made only at the display layer (chapter 11). Lab PCs are shared by many |
+| Development language | **The screen is Electron + TypeScript** (the same stack as Hallym MIPS: esbuild, its own dom helpers, no UI framework, `node --test`, Playwright, electron-builder). **Inside is a Java 21 engine server** (headless Logisim 2.7.1, JSON-RPC over stdio, 3.1). Track A (lib-mips) stays Java 8 (D-132, D-133). The prior decision "Java, Swing + FlatLaf. No Electron" is superseded (D-132) | User decision. Match the two programs (Hallym MIPS and this tool) with the same materials and same code. The engine stays as-is, so the reason 2.7.1 was chosen (compatibility) remains, and track A stays too. The Swing edition ended at v1.0.3 (tag `swing-final`) |
+| Design | From Hallym MIPS `electron/` (reference tag v2.6.0, A-07; first v2.3.0, then v2.5.0, D-155), bring in and use the design values (`app.css` variables) and screen parts (dialogs, start screen, empty states, bands, panel headers/tabs, the Registers/Data/Inspector panels) (`electron/ORIGIN.md`, D-135, D-155). The prior decision "port design tokens to Swing" is superseded (D-132) | The two tools look like one product family, and the same command shows the same field colors and names |
+| Fonts | Pretendard for names and sentences, D2Coding for values and addresses (both SIL OFL 1.1, woff2 brought in from Hallym MIPS) | Same as Hallym MIPS. D2Coding distinguishes 0 and O |
+| Drawing | Canvas 2D. Part shapes come from vector definitions (outline, curves, port markers, text spots) in a single part renderer registry. Size and port positions are the engine's values as-is, and image export (SVG, PDF, PNG) uses the same definitions too (D-137) | Measuring Canvas vs. SVG elements in ref-mips showed only Canvas held 60fps for wire-color updates during a clock. Same size and ports as the original, so it also connects wires when opened in the original |
+| Lab PC | Turn it off and on, and everything is default. The app and engine never write settings to disk. Crash-recovery files go only next to the student's own file (D-152) | Lab PCs are shared by many. Same as Hallym MIPS |
+| Course | Logic Design and Lab (논리설계 및 실험), Computer Architecture (컴퓨터구조). **A screen per course** (12.5, A-08, D-168): every launch asks which course first (not remembered), and in the logic design course the MIPS-only parts (Instruction Memory, Data Memory, Console, Stack) and MIPS features (Load Program…, Cycle View's Registers/Memory/Instruction, Mark as PC/Register File, Register Mapping, field colors, the status bar's PC/Program/Changed, the executable-image notice) are hidden. Radix Probe is visible for both courses. The engine and saved file don't depend on the course. The prior decision "the course choice is used only for the tutorial, and the screen layout is the same" (O-08) is superseded (D-168, user 2026-09-29) | One tool is shared by two courses. The logic design course doesn't teach Instruction Memory, Data Memory, or the register file |
+| UI language | **Names and commands are English, only explanatory sentences are Korean** (confirmed by the user, D-049). Menus, toolbar, buttons, tabs, status bar, parts, library categories, attribute names and values, right-click menus, part-body titles, search results, shortcut names, dialog titles are all in original 2.7.1's English as-is (Poke Tool, Edit Tool, Wiring, Plexers, Splitter …). New feature names follow the same style too (Load Program, 1 Cycle, Quick Attributes, Fit to Window …). Diagnostic messages, tool description/hover sentences, dialog guidance sentences, the description column of the shortcut table, and tutorial/empty-screen guidance are Korean (English if the language setting is English). Terminology and sentence rules are in `docs/GLOSSARY.md`. v2's detailed rules (status-bar facts are English, no particle right after a name, no "한림" on screen, no "~하면 됩니다" style, `word-break: keep-all`, error wording is what's wrong → what to do) are D-135 item 14 and CLAUDE.md section 10 | It must match the names the student sees in class, in the textbook, and in original 2.7.1. If names were translated, the same thing would have two names |
+| License | GPL (version 2 or later) | Follows the fork's origin. Source disclosed on distribution. SPIM (BSD) code is not included (hcs-asm and vendor/spim were deleted in D-141; only SPIM's output remains as test material). Screen code brought in from Hallym MIPS is BSD-3-Clause and can go into a GPL project (noted in NOTICE, D-135) |
 
-**호환성 주의.** 새 부품을 쓴 .circ는 그 JAR 라이브러리가 없는 원조 2.7.1에서 열리지 않는다. 수업 전체가 새 도구로 넘어가는 시점을 교수님과 정해야 한다.
+**Compatibility note.** A .circ that uses a new part doesn't open in original 2.7.1, which lacks that JAR library. The professor and the user need to agree on when the whole class moves to the new tool.
 
-**학교 식별요소.**
+**School identity elements.**
 
-- **로고:** 심벌마크, 로고타입, 엠블럼, 시그니처. 원형 그대로 쓰고 크기와 여백만 조절한다. 다시 그리거나 색을 바꾸지 않는다. 학교 UI 규정에 따르며 상업적 사용은 금지다. Hallym MIPS의 선례를 따른다.
-- **캐릭터 하람&하리:** 기본형과 응용동작 20종이 있다. 시작 화면, 튜토리얼 카드, 정보 창, 빈 화면 안내처럼 친근함이 필요한 곳에만 아껴 쓴다. 오류 옆에는 두지 않는다(오류 대화상자나 띠가 떠 있는 동안 모두 숨김, D-135 14항). 가이드라인에 따라 요소 추가, 선 변경, 비율·색 변경은 하지 않는다. 복잡하거나 비슷한 색의 배경 위에 두지 않고, 최소 여백을 지킨다.
-- **시작 화면 영상:** 시작 카드 뒤에 Hallym MIPS 2.5.0과 같은 학교 홍보 영상의 첫 장면(느리게, 소리 없음)을 흐리게 깔고 남색 층을 덮는다. 파일과 처리는 Hallym MIPS와 바이트·값까지 같고, 줄인 움직임에서는 정지 그림이다. 캐릭터는 영상이 아니라 카드의 흰 바탕 위에 선다. 출처는 NOTICE에 적는다(D-155).
-- 화면과 고지는 "Hallym University 소유, 상업적 사용 금지, 대학의 공식 제품이 아님"으로 적는다.
+- **Logo:** symbol mark, logotype, emblem, signature. Used in original form, only size and margins adjusted. Not redrawn or recolored. Follows the school's UI rules, and commercial use is forbidden. Follows Hallym MIPS's precedent.
+- **Characters Haram and Hari:** a base form and 20 applied poses exist. Used sparingly only where warmth is needed, like the start screen, tutorial cards, the About window, empty-screen guidance. Never placed next to an error (hidden everywhere on screen while an error dialog or band is showing, D-135 item 14). Per the guidelines, no added elements, no line changes, no proportion/color changes. Not placed over a complex or similarly-colored background, and minimum margins are kept.
+- **Start screen video:** behind the start card, a dimmed, blurred first scene of the same school promotional video as Hallym MIPS 2.5.0 (slow, no sound) is laid under a navy overlay. The file and processing match Hallym MIPS byte-for-byte and value-for-value, and under reduced motion it's a still image. The character stands on the card's white background, not on the video. The source is noted in NOTICE (D-155).
+- Screens and notices are written as "owned by Hallym University, not for commercial use, not an official university product."
 
-### 3.1 v2 아키텍처: 화면은 Electron, 안은 Java (D-132, D-133)
+### 3.1 v2 architecture: the screen is Electron, the inside is Java (D-132, D-133)
 
-사용자 결정이다(D-132). 사용자 눈에 보이는 것은 전부 Electron으로 새로 만든다: 창, 패널, 캔버스, 부품 그림, 대화상자, 튜토리얼. 모양과 흐름은 Hallym MIPS Simulator와 같게 한다. 안에서 도는 것만 Java로 둔다: Logisim 2.7.1 엔진, .circ 읽기·저장, MIPS 부품 로직, 진단·기록·경로 계산. 목표 느낌은 "쓰는 법은 전과 거의 같은데 기능이 많아지고 화면이 깔끔해졌다"이다.
+This is the user's decision (D-132). Everything the user sees is rebuilt from scratch in Electron: window, panels, canvas, part drawings, dialogs, tutorial. Look and flow match Hallym MIPS Simulator. Only what runs inside stays Java: the Logisim 2.7.1 engine, reading/saving .circ, MIPS part logic, diagnostics/recording/path computation. The target feeling is "used almost the same as before, but with more features and a cleaner screen."
 
-**두 프로세스.**
+**Two processes.**
 
 ```mermaid
 flowchart LR
-  R[렌더러<br/>창·패널·Canvas] -- preload API --> M[Electron main]
-  M -- JSON-RPC 2.0<br/>stdio, 한 줄 한 객체 --> E[Java 엔진 서버<br/>headless Logisim 2.7.1]
-  E -- 응답·변경분·값 스트림 --> M
+  R[Renderer<br/>window, panels, Canvas] -- preload API --> M[Electron main]
+  M -- JSON-RPC 2.0<br/>stdio, one object per line --> E[Java engine server<br/>headless Logisim 2.7.1]
+  E -- responses, diffs, value streams --> M
   M --> R
 ```
 
-- **엔진이 권위다.** 회로 모델의 진짜 상태는 엔진에 있다. 화면은 사본을 들고 엔진이 보내는 변경분으로 맞춘다.
-- **편집은 의도다.** 화면은 몸짓을 의도(놓기, 선, 끌기, 삭제, 붙여넣기, 속성 …)로 바꿔 보낸다. 실제 변경은 엔진이 원조 Logisim의 편집·도구 코드로 한다(선 합치기·나누기, 연결점, 되돌리기 기록, D-146). 그래서 결과 .circ가 원조와 같다. 이것을 편집 동등성 골든(`tests/parity`, D-136, D-159)이 바이트로 확인한다.
-- **규약은 문서가 계약이다:** `docs/engine-api.md`(메서드 묶음 engine·file·model·edit·sim·diag·find·flow·trace·mips·record). 값 스트림은 보이는 회로와 구독한 신호의 바뀐 넷만 화면 프레임마다 묶어 보낸다(D-134).
-- **엔진은 앱당 하나**이고 여러 파일(탭)을 함께 연다. 설치본은 jlink로 줄인 JRE 21을 번들한다. 엔진이 죽으면 대화상자로 알리고 다시 띄우며, 열린 파일은 의도 저널로 되살린다(D-142).
-- **보안:** contextIsolation, 렌더러에 nodeIntegration 없음, preload로만 API를 연다. 렌더러는 엔진과 직접 말하지 않고, 부를 수 있는 메서드가 정해져 있으며 경로를 넘기지 못한다(D-135).
-- **실습실 PC 규칙:** 앱과 엔진 모두 설정을 디스크에 남기지 않는다. 엔진은 메모리 전용 환경설정을 쓰고 원조 Logisim의 디스크 설정을 읽지 않는다(D-134, D-152).
+- **The engine is the authority.** The true state of the circuit model lives in the engine. The screen holds a copy and matches it to the diffs the engine sends.
+- **Editing is intent.** The screen turns gestures into intent (place, wire, drag, delete, paste, attributes …) and sends it. The actual change is made by the engine with original Logisim's edit/tool code (merging/splitting wires, connection points, undo history, D-146). That is why the resulting .circ matches the original. This is verified byte-for-byte by the edit-equivalence goldens (`tests/parity`, D-136, D-159).
+- **The contract is a documented one:** `docs/engine-api.md` (method groups engine, file, model, edit, sim, diag, find, flow, trace, mips, record). The value stream bundles, once per screen frame, only the visible circuit and the changed nets of subscribed signals (D-134).
+- **There is one engine per app**, and it opens several files (tabs) together. The installer bundles a JRE 21 shrunk with jlink. If the engine dies, it's reported via dialog and relaunched, and open files are recovered from the intent journal (D-142).
+- **Security:** contextIsolation, no renderer nodeIntegration, the API is opened only through preload. The renderer doesn't talk to the engine directly, the callable methods are fixed, and it cannot pass a path (D-135).
+- **Lab PC rule:** neither the app nor the engine writes settings to disk. The engine uses in-memory-only preferences and doesn't read original Logisim's disk settings (D-134, D-152).
 
-**저장소 구조(v2).**
+**Repository structure (v2).**
 
 ```
-electron/          # 화면: src/main(창·엔진 클라이언트·복구 파일), src/renderer(app, canvas, shared), tests, tools, packaging, docs/screens
-engine/            # Java 엔진 서버(hcs-engine.jar): kr.ac.hallym.hcs.engine.*
-app/               # Logisim 2.7.1 포크 소스(원조 + // HCS: 줄)와 엔진이 쓰는 GUI 없는 kr.ac.hallym.hcs.app.* (Swing 화면은 N-27에서 지움, D-163)
-lib-mips/          # 트랙 A: 원조 2.7.1용 MIPS 부품 JAR. 엔진도 같은 jar를 번들
+electron/          # The screen: src/main (window, engine client, recovery file), src/renderer (app, canvas, shared), tests, tools, packaging, docs/screens
+engine/            # Java engine server (hcs-engine.jar): kr.ac.hallym.hcs.engine.*
+app/               # Fork of the Logisim 2.7.1 source (original + // HCS: lines) and the GUI-less kr.ac.hallym.hcs.app.* used by the engine (the Swing screen was deleted in N-27, D-163)
+lib-mips/          # Track A: MIPS parts JAR for original 2.7.1. The engine also bundles the same jar
 vendor/logisim-2.7.1/, assets/, tests/, docs/, tools/
 ```
 
-예전 구조의 `native/hcs-asm/`과 `vendor/spim-9.1.24/`는 지웠다(D-141).
+`native/hcs-asm/` and `vendor/spim-9.1.24/` from the old structure were deleted (D-141).
 
-**Hallym MIPS와 나누는 것.** Hallym MIPS(같은 저자, BSD-3-Clause)의 `electron/`에서 Hallym MIPS가 직접 쓴 화면 코드·디자인 값·글꼴(Pretendard 부분집합, D2Coding)·Lucide 아이콘·도구(빌드, 스크린샷, 돌연변이, 패키징)를 가져온다. 참고 태그는 v2.6.0이다(A-07. 처음 v2.3.0, 이어 v2.5.0, D-155. 지금 가져온 파일의 태그는 `electron/ORIGIN.md`). 공유 화면 부품은 `electron/src/renderer/shared/` 한 폴더에 모으고, 파일마다 출처와 바꾼 곳을 `electron/ORIGIN.md`에 적는다. `electron/tools/import-hmips.ts`가 다시 가져오고 바이트 동일을 검사한다. SPIM에서 나온 파일(명령어 표, 네이티브 애드온, 코어에 기대는 디코더 등)은 가져오지 않는다(D-133 5항, 3장 라이선스).
+**What's shared with Hallym MIPS.** From Hallym MIPS's (same author, BSD-3-Clause) `electron/`, bring in screen code Hallym MIPS wrote itself, design values, fonts (Pretendard subset, D2Coding), Lucide icons, and tools (build, screenshots, mutation, packaging). The reference tag is v2.6.0 (A-07; first v2.3.0, then v2.5.0, D-155; the tag of files currently imported is in `electron/ORIGIN.md`). Shared screen parts are gathered into one folder, `electron/src/renderer/shared/`, and the source and what changed for each file are recorded in `electron/ORIGIN.md`. `electron/tools/import-hmips.ts` re-imports and checks byte identity. Files that came from SPIM (instruction tables, native addon, decoders that depend on the core, etc.) are not imported (D-133 item 5, chapter 3 licensing).
 
-**캔버스.** Canvas 2D로 그린다. 부품 모양은 벡터 정의로 부품 렌더러 등록표 하나(`electron/src/renderer/canvas/registry.ts`)에 두고, 수업에 쓰는 부품은 전부 제 렌더러가 있다(`docs/canvas-renderers.md`). 크기와 포트 위치는 엔진 값 그대로이고, 기하 동등성 검사가 부품 종류 × 대표 속성마다 엔진 포트 위치에 렌더러가 포트를 그리는지 본다(D-137). 값 색(1·0·떠 있음·오류·버스·폭 불일치)은 원조 Logisim의 뜻 그대로 토큰으로 정하고 범례와 맞춘다.
+**Canvas.** Drawn with Canvas 2D. Part shapes are vector definitions kept in a single part renderer registry (`electron/src/renderer/canvas/registry.ts`), and every part used in the course has its own renderer (`docs/canvas-renderers.md`). Size and port positions are the engine's values as-is, and a geometric-equivalence check verifies, per part kind × representative attribute set, that the renderer draws ports at the engine's port positions (D-137). Value colors (1, 0, floating, error, bus, width mismatch) are defined as tokens with original Logisim's meanings and matched to a legend.
 
-**화면 배치.** 제목 줄 없는 창(frameless)에 로고·이름·파일 이름·도구 모음, 오른쪽 끝에는 시스템 창 버튼만 둔다. 왼쪽은 Components·Circuits와 Tunnels·Minimap, 가운데는 파일 탭·회로 탭과 Canvas, 그 아래 Messages·Cycle View·Console, 오른쪽은 Attributes(Hallym MIPS Inspector 형식)다. 좁은 창에서는 Hallym MIPS처럼 줄이고 탭으로 바꾼다(D-135). 도구 모음은 v1과 같은 명령이고, 상태 표시줄은 사실만 둔다.
+**Screen layout.** A frameless window (no title bar) with the logo, name, file name, toolbar, and only the system window buttons at the far right. The left holds Components/Circuits and Tunnels/Minimap, the center holds file tabs, circuit tabs, and the Canvas, below that Messages/Cycle View/Console, and the right holds Attributes (in Hallym MIPS Inspector form). In a narrow window it collapses and switches to tabs like Hallym MIPS (D-135). The toolbar has the same commands as v1, and the status bar holds only facts.
 
-**성능 목표(재서 보고, D-160).** 앱 첫 시작(엔진 포함) 4초 안, ref-mips 열기 2초 안, ref-mips 이동·확대 60fps(FHD 100·150 %), N Cycles 1000이 v1보다 느리지 않음, Run 중 화면이 끊기지 않음. 측정값과 CI 한도는 `docs/PERFORMANCE.md`다.
+**Performance targets (measure and report, D-160).** App first start (including the engine) under 4 seconds, opening ref-mips under 2 seconds, panning/zooming ref-mips at 60fps (FHD 100/150%), N Cycles at 1000 no slower than v1, no screen stutter during Run. Measured values and CI limits are in `docs/PERFORMANCE.md`.
 
-## 4. 오류 진단
+## 4. Error diagnostics
 
-도구는 값이 정의되지 않았거나(E, X, 진동) 구조상 동작할 수 없는 회로만 알린다. 모든 선에 0/1이 흐르는데 결과만 틀리면 침묵한다.
+The tool reports only a circuit where a value is undefined (E, X, oscillation) or one that structurally cannot work. If 0/1 flows on every wire and only the result is wrong, it stays silent.
 
-### 4.1 정적 검사와 동적 검사
+### 4.1 Static and dynamic checks
 
-값만 보면 부족하다. 클럭이 안 붙은 레지스터는 E도 X도 내지 않고 0을 유지한다. 그래서 두 층으로 검사한다.
+Values alone aren't enough. A register with no clock connected emits neither E nor X — it just holds 0. So checks run in two layers.
 
-- **정적 검사:** 연결 구조만 보고 시뮬레이션 전에 찾는다. 편집을 멈추면 자동으로 돌고 진단 패널에 목록이 뜬다.
-- **동적 검사:** 시뮬레이션 중 값을 보고 찾는다. E·X가 처음 생긴 사이클에 알린다.
+- **Static check:** looks only at connection structure and finds problems before simulation. It runs automatically when editing pauses and a list appears in the diagnostics panel.
+- **Dynamic check:** looks at values during simulation. It reports at the cycle where E/X first appears.
 
-### 4.2 검사 목록
+### 4.2 Check list
 
-| 상황 | 지금 Logisim이 보여주는 것 | 도구가 알려줄 것 | 검사 |
+| Situation | What Logisim shows now | What the tool will report | Check |
 | --- | --- | --- | --- |
-| 레지스터·RAM 클럭 미연결 | 없음. 값이 안 바뀔 뿐 | 어느 레지스터의 클럭이 비었는지 | 정적 |
-| 두 출력이 한 선을 구동(합선) | 빨간 선, E | 충돌하는 두 부품의 이름과 위치 | 정적 |
-| 비트 폭 불일치 | 주황 선 | 양쪽 부품과 폭 (예: 32비트 ↔ 5비트) | 정적 |
-| 연결 안 된 입력 | 파란 선. `gateUndefined=ignore`면 게이트가 조용히 무시 | 어느 부품의 몇 번 입력인지 | 정적 |
-| 짝 없는 터널 | 파란 선 | 터널 이름과 비슷한 이름 후보 (예: RegDst ↔ RegDest) | 정적 |
-| 서브회로 포트 미연결 | 파란 선 또는 없음 | 서브회로 이름과 포트 이름 | 정적 |
-| 조합 루프 | 진동 경고 후 멈춤 | 루프를 이루는 경로 하이라이트 | 정적 + 동적 |
-| E·X가 여러 곳에 퍼짐 | 곳곳에 E | 처음 생긴 지점 하나 | 동적 |
-| X가 레지스터·메모리에 기록됨 | 몇 사이클 뒤 엉뚱한 곳에서 X | 기록된 사이클과 그 원인 | 동적 |
+| Register/RAM clock not connected | Nothing. The value just doesn't change | Which register's clock is empty | Static |
+| Two outputs drive one wire (short) | Red wire, E | The names and locations of the two conflicting parts | Static |
+| Bit width mismatch | Orange wire | Both parts and their widths (e.g. 32-bit ↔ 5-bit) | Static |
+| Unconnected input | Blue wire. If `gateUndefined=ignore`, the gate silently ignores it | Which part, which numbered input | Static |
+| Unpaired tunnel | Blue wire | The tunnel name and similar-name candidates (e.g. RegDst ↔ RegDest) | Static |
+| Subcircuit port not connected | Blue wire or nothing | The subcircuit name and port name | Static |
+| Combinational loop | Oscillation warning, then stops | Highlight the path forming the loop | Static + dynamic |
+| E/X spreads to many places | E everywhere | The one spot where it first appeared | Dynamic |
+| X written to a register/memory | X shows up somewhere unexpected a few cycles later | The cycle it was written and its cause | Dynamic |
 
-MIPS 부품(6.2)을 쓰면 어느 메모리 영역에도 없는 주소 접근(데이터와 스택 영역 사이 포함), 워드 정렬이 안 된 주소, 스택 한계 초과, 메모리 부품 영역 겹침(예: 새 Data Memory 옆의 옛 Stack), 떠 있는 MemWrite·MemRead·Syscall도 잡는다. 이 목록은 초안이다. 지난 학기 조교 질문과 제출물에서 자주 나온 "작동 안 함" 사례로 확정한다.
+Using the MIPS parts (6.2) also catches access to an address in no memory region (including between the data and stack regions), a non-word-aligned address, exceeding the stack limit, memory part region overlap (e.g. a new Data Memory next to an old Stack), and a floating MemWrite·MemRead·Syscall. This list is a draft. It's finalized from "doesn't work" cases that came up often in past-semester TA questions and submissions.
 
-**알리지 않는 것(1장 설계 원칙).** 동작은 하는 회로의 정오 판단, 정답(SPIM 실행 결과)과의 비교, 위험해 보이는 설계(게이트로 만든 클럭 등) 경고. 선이 남의 포트 위를 지나 연결된 것도 진단이 아니다. 연결점을 크게 그려 화면에서 보이게만 하고(11.9), 그 때문에 생긴 합선은 기존 합선 진단이 잡는다.
+**What is not reported (chapter 1 design principle).** Correctness judgment of a circuit that works, comparison against a correct answer (SPIM's execution result), and warnings about risky-looking designs (like a clock made from gates). A wire connected by passing over someone else's port is also not a diagnostic. It's only drawn large enough to be visible on screen (11.9), and any short it causes is caught by the existing short-circuit diagnostic.
 
-### 4.3 E·X 출처 추적
+### 4.3 Tracing the source of E/X
 
-E·X가 보이는 선에서 입력 쪽으로 거슬러 올라가, 처음 생긴 한 곳에서 멈춘다.
+From a wire where E/X is visible, trace back toward the inputs and stop at the one place it first appeared.
 
-1. 현재 선을 구동하는 부품의 입력 중 E·X인 것을 따라간다.
-2. 입력은 모두 정의됐는데 출력이 E·X인 부품, 구동자가 없는 선, 구동자가 둘인 선에서 멈춘다. 그곳이 원인이다.
-3. 서브회로 경계를 만나면 안으로 들어간다.
-4. 레지스터를 만나면 시간을 거슬러, X가 기록된 사이클의 입력에서 계속한다. 이 단계는 5장의 기록 엔진을 쓴다.
+1. Follow, among the inputs of the part driving the current wire, whichever are E/X.
+2. Stop at a part whose inputs are all defined but whose output is E/X, a wire with no driver, or a wire with two drivers. That's the cause.
+3. Cross into a subcircuit boundary when one is met.
+4. At a register, go back in time and continue from the inputs of the cycle where X was written. This step uses the recording engine of chapter 5.
 
-### 4.4 메시지 원칙
+### 4.4 Message principles
 
-- **원인 한 곳만 말한다.** E가 스무 곳에 보여도 처음 생긴 곳 하나만 말한다.
-- **학생이 붙인 이름으로 말한다.** "Register @ (340,120)"이 아니라 "datapath › PC". 라벨이 없으면 서브회로 경로와 부품 종류로 대신한다.
-- **사실과 위치까지만 말한다.** 고치는 방법은 말하지 않는다.
-- **클릭하면 간다.** 메시지를 클릭하면 해당 서브회로로 들어가 부품과 선을 하이라이트한다. 동적 진단은 사이클 뷰도 그 사이클로 옮긴다.
-- **막지 않는다.** 팝업 대신 진단 패널과 회로도 위 표시로 알린다. 학생은 계속 편집할 수 있다.
+- **State only one cause.** Even if E is visible in twenty places, state only the one place it first appeared.
+- **Speak using the name the student gave.** Not "Register @ (340,120)" but "datapath › PC". If there's no label, use the subcircuit path and part kind instead.
+- **State facts and location only.** Don't say how to fix it.
+- **Clicking goes there.** Clicking a message enters the relevant subcircuit and highlights the part and wire. Dynamic diagnostics also move the Cycle View to that cycle.
+- **Never block.** Report through the diagnostics panel and an on-schematic marker instead of a popup. The student can keep editing.
 
-메시지 예시:
+Example messages:
 
-- `datapath › PC` 레지스터의 클럭 입력이 연결되지 않아 값이 바뀌지 않습니다.
-- `datapath` 의 한 선을 `ALU` 출력과 `SignExt` 출력이 함께 구동합니다.
-- 사이클 4에 `RegFile` 에 X가 기록됐습니다. 원인: `control › RegWrite` 출력이 정의되지 않았습니다.
+- The clock input of register `datapath › PC` is not connected, so its value never changes.
+- A wire in `datapath` is driven together by `ALU`'s output and `SignExt`'s output.
+- X was written to `RegFile` at cycle 4. Cause: `control › RegWrite`'s output is undefined.
 
-## 5. 사이클 뷰
+## 5. Cycle View
 
-회로도 아래에 사이클 뷰를 둔다. 열 하나가 클럭 한 사이클이고, 명령어·선택한 신호·레지스터 변화를 한 화면에 보여준다.
+Place a Cycle View below the schematic. Each column is one clock cycle, showing the instruction, chosen signals, and register changes in one screen.
 
-### 5.1 화면 구성
+### 5.1 Screen layout
 
-- **조작 막대:** 이전 사이클, 다음 사이클, 여기까지 실행, 현재 사이클 번호.
-- **사이클 표:** 열은 사이클, 머리는 PC와 명령어다. 명령어는 SPIM 글과 같은 디스어셈블 결과이고 라벨은 실행 이미지의 기호에서 온다(.hmx에는 워드마다 원래 줄이 없다, hmx-feedback.md). 줄은 선택한 신호다. 1비트는 파형, 버스는 값으로 보인다.
-- **레지스터 패널:** PC, 레지스터 파일, 메모리 쓰기. 현재 `$sp`와 스택 깊이(SPIM 시작 `$sp` `0x7FFFEFFC`에서 뺀 값)도 여기서 보인다. 레지스터 파일(5.3)의 `$29`를 읽는다. Stack 부품은 `$sp`를 모르고 사용한 영역(최고 수위)만 보인다(6.2, D-050). 이번 사이클에 바뀐 값을 강조한다. 값은 16진수·10진수·2진수를 한 줄에 함께 보여준다. 레지스터마다 주 표시 진법을 클릭 한 번으로 바꾼다. 10진수는 부호 있음·없음을 고르고, 2진수는 4비트씩 끊어 보인다. Hallym MIPS의 레지스터 창과 같은 모양이다(역할별 묶음, `$name`과 번호, 16진수와 10진수, 바뀐 값은 청록 글자 `#00736F`와 옅은 청록 배경 `#E6F6F5`. 고정폭 열의 정렬이 깨지므로 굵기는 쓰지 않는다). 트랙 A에서는 같은 표시를 하는 다중 진법 프로브 부품을 라이브러리에 넣는다.
+- **Control bar:** previous cycle, next cycle, run until, current cycle number.
+- **Cycle table:** columns are cycles, the header shows PC and the instruction. The instruction is disassembled the same way as SPIM's text, and labels come from the executable image's symbols (a .hmx has no original line per word, hmx-feedback.md). Rows are the chosen signals. A 1-bit signal shows as a waveform, a bus as a value.
+- **Registers panel:** PC, the register file, memory writes. The current `$sp` and stack depth (the value subtracted from SPIM's starting `$sp` `0x7FFFEFFC`) also show here. It reads `$29` from the register file (5.3). The Stack part doesn't know `$sp` and shows only the area used (the high-water mark) (6.2, D-050). Values changed in the current cycle are highlighted. Values show hex, decimal, and binary together on one line. Click once per register to switch its primary display radix. Decimal picks signed or unsigned, and binary is grouped in 4-bit chunks. Same look as Hallym MIPS's register window (grouped by role, `$name` plus number, hex and decimal, a changed value in teal text `#00736F` on a pale teal background `#E6F6F5`. No bold, since it would break alignment in the fixed-width columns). Track A also puts a multi-radix probe part in the library that gives the same display.
 
-### 5.2 동작
+### 5.2 Behavior
 
-- **열 클릭:** 회로도 전체(선 색, 버스 값)가 그 사이클 값으로 바뀐다. 서브회로 안으로 들어가도 시점이 유지된다.
-- **뒤로 가기:** 기록을 재생한다. 지난 사이클에서 입력을 바꾸거나 회로를 고치면, 그 뒤 기록을 버리고 그 시점부터 다시 진행한다.
-- **여기까지 실행:** 조건은 PC 값, 특정 레지스터의 변화, 특정 명령어 종류(예: 다음 `beq`), E·X 발생이다. 무한 루프에 대비해 최대 사이클 수를 둔다.
-- **신호 추가:** 회로도에서 선을 클릭하면 줄이 추가된다. 버스는 한 줄의 16진수 값이고 필요할 때만 비트로 펼친다. 회로도의 어느 선이든 마우스를 올리면 16진수·10진수·2진수를 함께 보여준다.
-- **명령어 클릭:** Hallym MIPS의 Instruction Inspector처럼 32비트를 필드별 색으로 펼친다. 같은 색을 데이터패스의 선에도 칠한다. 예를 들어 `rs` 필드 색이 Read register 1로 가는 선에 칠해진다.
+- **Click a column:** the whole schematic (wire color, bus values) switches to that cycle's values. Going into a subcircuit keeps the same point in time.
+- **Step back:** replays the recording. Changing an input or editing the circuit at a past cycle discards the recording after that point and continues forward from there.
+- **Run until:** the condition can be a PC value, a change to a specific register, a specific instruction kind (e.g. the next `beq`), or an E/X occurring. There's a max-cycle limit in case of an infinite loop.
+- **Add a signal:** clicking a wire on the schematic adds a row. A bus is one row of hex value, expanded into bits only when needed. Hovering any wire on the schematic shows hex, decimal, and binary together.
+- **Click an instruction:** like Hallym MIPS's Instruction Inspector, it spreads the 32 bits out with per-field color. The same colors are painted on the datapath's wires too — for example, the `rs` field's color is painted on the wire going to Read register 1.
 
-### 5.3 PC·명령어·레지스터 파일 찾기
+### 5.3 Finding PC, the instruction, and the register file
 
-- **PC와 명령어:** Instruction Memory(6.2), 또는 프로그램을 불러올 때 고른 명령어 메모리의 주소 입력이 PC, 데이터 출력이 명령어다. 따로 지정할 필요가 없다.
-- **레지스터 파일:** 학생이 만든 서브회로라 자동으로 찾기 어렵다. 서브회로를 우클릭해 "레지스터 파일로 표시"하거나 조교가 과제 템플릿에 지정한다.
-- **지정이 없으면:** 회로 안의 모든 레지스터와 RAM을 서브회로 경로별로 나열한다.
+- **PC and instruction:** in Instruction Memory (6.2), or whichever instruction memory was chosen when loading a program, the address input is PC and the data output is the instruction. No separate specification needed.
+- **Register file:** hard to find automatically since it's a subcircuit the student made. Right-click a subcircuit to "Mark as Register File", or a TA specifies it in the assignment template.
+- **If nothing is specified:** list every register and RAM in the circuit by subcircuit path.
 
-### 5.4 기록 엔진
+### 5.4 Recording engine
 
-- 매 스텝 모든 넷 값을 변화분만 기록한다. 어떤 신호가 필요할지 미리 알 수 없기 때문이다.
-- 사이클 뷰와 동적 진단(4.3)이 같은 기록을 쓴다.
-- 보관할 최대 사이클 수는 과제 회로로 메모리를 측정한 뒤 정한다.
-- 2.7.1에는 chronogram이 없으므로 직접 만든다. 신호 값을 기록하는 구조는 2.7.1의 Logging 기능(Simulate › Logging)을 참고한다.
+- Every step, record every net's value as a diff only. This is because it's not known in advance which signal will be needed.
+- Cycle View and dynamic diagnostics (4.3) use the same recording.
+- The maximum number of cycles kept is decided after measuring memory use with assignment circuits.
+- 2.7.1 has no chronogram, so this is built from scratch. The structure for recording signal values takes reference from 2.7.1's Logging feature (Simulate › Logging).
 
-## 6. MIPS 부품과 프로그램(.hmx) 불러오기
+## 6. MIPS parts and loading a program (.hmx)
 
-MIPS 32비트 주소를 그대로 쓰는 Instruction Memory, Data Memory(데이터+스택), Console 부품을 제공한다. Hallym MIPS에서 어셈블해 내보낸 실행 이미지(`.hmx`)를 골라 이 메모리에 넣는다. 명세 원본은 Hallym MIPS의 [`docs/hmx-format.md`](https://raw.githubusercontent.com/ars2323/hallym-mips-simulator/v2.4.0/docs/hmx-format.md)이고 태그 v2.4.0에 고정한다. 명세와 다르면 명세를 따르고, 명세가 정하지 않은 곳의 우리 선택만 docs/hmx.md에 적는다(D-138). 명세의 골든 7쌍은 `tests/hmx/hallym-mips-v2.4.0/`에 받아 두고 대조한다. 화면·공유 코드의 참고 태그(v2.6.0)와 달리 명세와 골든은 v2.4.0 그대로다(D-155). v2.6.0의 명세는 v2.4.0과 바이트까지 같고 골든은 머리의 produced-by·assembled만 다르다(A-07). 두 도구의 접점은 실행 이미지 파일 하나다. 학생은 Hallym MIPS에서 Ctrl+S로 어셈블한 뒤 제목 줄 오른쪽 아이콘 묶음의 Export executable image (.hmx) 단추로 내보낸 파일을 불러온다. .s는 받지 않는다(사용자 결정, D-141): Hallym MIPS 2.4.0이 내보내기를 배포해 전환 기간의 .s 불러오기와 hcs-asm을 지웠다.
+Provide Instruction Memory, Data Memory (data + stack), and Console parts that use MIPS's full 32-bit address. Pick an executable image (`.hmx`) assembled and exported by Hallym MIPS and load it into this memory. The spec's source is Hallym MIPS's [`docs/hmx-format.md`](https://raw.githubusercontent.com/ars2323/hallym-mips-simulator/v2.4.0/docs/hmx-format.md), pinned at tag v2.4.0. Where we differ from the spec, follow the spec, and record only our own choices for what the spec leaves open in docs/hmx.md (D-138). The spec's 7 golden pairs are fetched into `tests/hmx/hallym-mips-v2.4.0/` and checked against. Unlike the screen/shared-code reference tag (v2.6.0), the spec and goldens stay at v2.4.0 (D-155). v2.6.0's spec is byte-identical to v2.4.0, and the goldens differ only in the header's produced-by and assembled fields (A-07). The point of contact between the two tools is a single executable image file. The student assembles with Ctrl+S in Hallym MIPS, then loads the file exported with the Export executable image (.hmx) button in the icon cluster to the right of the title bar. .s is not accepted (user decision, D-141): Hallym MIPS 2.4.0 shipped the export feature, which removed the transition-period .s loading and hcs-asm.
 
-### 6.1 기본 RAM·ROM의 한계
+### 6.1 Limits of the default RAM and ROM
 
-- Logisim 2.7의 [RAM](https://www.cburch.com/logisim/docs/2.7/en/html/libs/mem/ram.html)과 [ROM](https://www.cburch.com/logisim/docs/2.7/en/html/libs/mem/rom.html)은 주소 24비트(16,777,216개), 데이터 32비트까지다. MIPS의 32비트 주소를 그대로 쓸 수 없어, 학생이 주소의 일부 비트만 잘라 연결한다.
-- 잘린 주소는 조용히 겹친다. 잘못된 주소로 `lw`·`sw`를 해도 다른 칸에 접근할 뿐 아무 표시가 없다.
-- RAM 내용은 .circ에 저장되지 않는다. ROM만 내용이 속성으로 파일에 저장된다. 프로그램을 RAM에 넣으면 파일을 다시 열 때마다 새로 넣어야 한다.
-- RAM의 `sel`, `ld`, `str` 입력은 떠 있으면 1로 취급된다. 연결을 빠뜨려도 오류 없이 동작한다.
-- 기본 부품은 고치지 않는다. 기존 과제 호환과 코어 불변 원칙(3장) 때문이다. 대신 아래 새 부품이 32비트 주소를 지원한다.
+- Logisim 2.7's [RAM](https://www.cburch.com/logisim/docs/2.7/en/html/libs/mem/ram.html) and [ROM](https://www.cburch.com/logisim/docs/2.7/en/html/libs/mem/rom.html) go only up to a 24-bit address (16,777,216 entries), 32-bit data. MIPS's 32-bit address can't be used as-is, so the student connects only part of the address bits.
+- A truncated address silently aliases. A wrong-address `lw`/`sw` just accesses a different cell with no indication at all.
+- RAM contents are not saved to the .circ. Only ROM has its contents saved as an attribute in the file. If a program is placed in RAM, it has to be re-entered every time the file is reopened.
+- RAM's `sel`, `ld`, `str` inputs are treated as 1 when floating. It works with no error even if the connection is missing.
+- The default parts are not modified. Because of existing-assignment compatibility and the core-invariance principle (chapter 3). Instead, the new parts below support 32-bit addresses.
 
-### 6.2 MIPS 메모리 부품
+### 6.2 MIPS memory parts
 
-| 부품 | 포트 | 기본 주소 영역 | 초기 내용 |
+| Part | Ports | Default address region | Initial contents |
 | --- | --- | --- | --- |
-| Instruction Memory | 입력 `Addr`(32), 출력 `Instr`(32). 클럭 없음, 읽기 전용 | `0x00400000`부터 (.text) | 실행 이미지의 .text |
-| Data Memory(데이터+스택) | 입력 `Addr`(32), `WriteData`(32), `MemWrite`, `MemRead`, clk. 출력 `ReadData`(32) | 데이터 `0x10000000`~`0x100FFFFF`(높은 주소 쪽으로, `.data`는 `0x10010000`부터), 스택 `0x7FFC0000`~`0x7FFFFFFF`(낮은 주소 쪽으로) | 실행 이미지의 .data. 스택은 비어 있음(0) |
+| Instruction Memory | Input `Addr` (32), output `Instr` (32). No clock, read-only | From `0x00400000` (.text) | The executable image's .text |
+| Data Memory (data + stack) | Input `Addr` (32), `WriteData` (32), `MemWrite`, `MemRead`, clk. Output `ReadData` (32) | Data `0x10000000`–`0x100FFFFF` (growing toward higher addresses; `.data` starts at `0x10010000`), stack `0x7FFC0000`–`0x7FFFFFFF` (growing toward lower addresses) | The executable image's .data. The stack starts empty (0) |
 
-기본 주소는 QtSpim(SPIM 9.1.24)과 같다: 데이터는 `DATA_BOT`부터 `DATA_LIMIT` 1MB, 스택은 `STACK_TOP`(`0x80000000`) 바로 아래 `STACK_LIMIT` 256KB(소스 줄은 docs/mips-components.md). Hallym MIPS에서 본 주소가 회로에서도 그대로 보인다. **실제 MIPS처럼 데이터 메모리는 하나다**(사용자 결정, D-140): 학생의 단일 사이클 데이터패스에서 `lw`/`sw`와 `$sp` 접근이 같은 Data Memory 한 개로 간다. 따로 있던 Stack 부품은 옛 파일을 위해 남기되 새로 놓는 부품 목록에서 뺐다(v2 목록에서 빠지고, 원조 2.7.1 목록에는 옛 파일을 열기 위해 "Stack (old circuits)"로 남는다). 옛 .circ의 Stack과 스택 영역이 없는 Data Memory는 저장된 속성대로 전과 똑같이 열리고 동작한다. QtSpim 기반 시뮬레이터는 .bss와 힙을 쓰지 않으므로 그 영역은 따로 두지 않는다. 데이터와 스택 영역 사이 주소에 접근하면 어느 영역에도 없는 주소로 진단된다.
+The default addresses match QtSpim (SPIM 9.1.24): data is a 1MB range from `DATA_BOT` to `DATA_LIMIT`, and the stack is 256KB right below `STACK_TOP` (`0x80000000`) down to `STACK_LIMIT` (source lines in docs/mips-components.md). The addresses seen in Hallym MIPS appear exactly the same in the circuit. **As in real MIPS, there is a single data memory** (user decision, D-140): in the student's single-cycle datapath, `lw`/`sw` and `$sp` access go to the same one Data Memory. The formerly separate Stack part is kept for old files but dropped from the list of parts to place newly (dropped from the v2 list; it stays in original 2.7.1's list as "Stack (old circuits)" so old files can still be opened). An old .circ's Stack, and a Data Memory with no stack region, still open and behave exactly as before, per their saved attributes. Since the QtSpim-based simulator doesn't use .bss or the heap, those regions are not provided separately. An access to an address between the data and stack regions is diagnosed as an address in no memory region.
 
-**공통 동작.**
+**Common behavior.**
 
-- **32비트 byte 주소를 그대로 받는다.** PC와 ALU 결과를 스플리터 없이 바로 연결한다. 워드 접근은 하위 2비트를 쓰지 않는다.
-- **희소 저장.** 쓴 페이지만 메모리를 차지한다. 32비트 주소 공간을 써도 크기 부담이 없다.
-- **영역 밖 주소에서는 출력하지 않는다.** 두 영역 밖이면 `ReadData`를 구동하지 않고(floating) 쓰지도 않는다. 그래서 메모리 부품 여럿의 `ReadData`를 한 선에 이어도 되고(옛 Data Memory와 Stack 등), 주소가 속한 쪽만 값을 낸다. 어느 영역에도 없는 주소는 진단이 알려준다.
-- **교재 single-cycle과 같은 타이밍.** 읽기는 조합(클럭 없음), 쓰기는 clk 상승 에지에 `MemWrite`가 1일 때다.
-- **떠 있는 제어 입력은 1로 취급하지 않는다.** 쓰기를 하지 않고 진단으로 알린다. 기본 RAM과 다른 점이다.
-- **워드 접근만.** 바이트·하프워드 접근(`lb`, `sb`, `lh`)은 지원하지 않는다. 워드 정렬이 안 된 주소는 진단으로 알린다.
-- **속성.** 두 영역의 시작 주소(스택은 맨 위 워드)와 크기를 바꿀 수 있다(`base`, `size`, `stacktop`, `stacksize`). 새로 놓는 값은 두 영역이고, 속성이 적히지 않은 옛 파일의 Data Memory는 v1 값(데이터 `0x10010000`부터 1MB, 스택 영역 없음)으로 읽는다(D-140 속성 설계).
-- **자라는 방향과 한계.** 데이터는 시작 주소에서 높은 주소 쪽으로, 스택은 맨 위 워드에서 낮은 주소 쪽으로 자란다. 한계는 속성으로 바꾼다. 희소 저장이라 한계가 커도 쓴 페이지만 메모리를 쓴다.
-- **동작하지 않는 경우만 알린다.** 어느 메모리 영역에도 없는 주소(두 영역 사이 포함), 워드 정렬 안 된 주소, 스택 영역 한계 바로 아래(한계 폭 안) 주소 접근은 "스택 사용량이 한계(256KB)를 넘었습니다", 두 부품의 영역 겹침, 떠 있는 제어 입력. 사실만 말하고 원인·해결책은 추측하지 않는다. 옛 Stack 부품이 든 파일은 진단이 아니라 상태 표시줄 사실 한 줄로 알린다: "이 회로는 따로 된 Stack 부품을 씁니다. 새 Data Memory는 스택 영역을 함께 맡습니다."
-- **모양.** 부품 안에는 두 영역의 범위, 현재 주소의 워드, 쓰임(`data N words, stack peak N B`: 데이터 워드 수, 접근한 가장 낮은 스택 주소까지의 최고 수위)이 보인다. 부품은 `$sp`를 모르므로 현재 깊이는 보이지 않는다. 마지막 접근 주소는 `$sp`가 아니다(D-050). 전체 내용은 Memory 패널에서 본다: Hallym MIPS Data 탭처럼 한 표에 데이터 구간(`0x10010000`부터, .data 라벨)과 스택 구간(높은 주소가 위, `$sp` 표시)을 함께 보이고, 0이 이어지는 곳은 한 줄로 줄인다. 현재 `$sp`와 깊이는 레지스터 패널(5.1)이 "레지스터 파일로 표시"한 서브회로의 `$29`로 보인다.
-- **저장.** Instruction Memory는 실행 이미지(.hmx) 경로와 기계어 스냅샷을 .circ에 저장해, .hmx가 없어도 파일이 동작한다. 옛 파일에 남은 .s 경로는 읽기만 하고(파일은 전과 같이 열리고 저장된다), v2는 파일을 열 때(N-16), 트랙 A는 우클릭 메뉴와 불러오기에서 "이 파일은 .s 파일을 가리킵니다. Hallym MIPS에서 Export executable image (.hmx) 단추로 내보낸 파일을 불러오세요."라는 사실과 할 일을 보인다. .hmx를 고르면 경로가 바뀐다(D-141). Data Memory는 실행 중 쓴 값을 저장하지 않고, 리셋하면 .data 초기값으로 돌아간다(스택 영역은 0).
-- **Verilog(향후).** 표준 라이브러리 모듈 `lg_imem`, `lg_dmem`에 대응하고, 초기 내용은 `$readmemh`로 내보낸다(7.7).
+- **Takes the full 32-bit byte address as-is.** PC and the ALU result connect straight in, with no splitter. Word access ignores the low 2 bits.
+- **Sparse storage.** Only written pages use memory. There's no size cost even with the full 32-bit address space.
+- **Does not drive output for an out-of-range address.** If it's outside both regions, `ReadData` is not driven (floating) and no write happens either. This lets `ReadData` from several memory parts (e.g. an old Data Memory and Stack) be tied to the same wire; only the one whose region the address belongs to drives a value. An address in neither region is reported by diagnostics.
+- **The same timing as the textbook's single-cycle.** Read is combinational (no clock); write happens on clk's rising edge when `MemWrite` is 1.
+- **A floating control input is not treated as 1.** It doesn't write, and diagnostics report it. This differs from the default RAM.
+- **Word access only.** Byte/halfword access (`lb`, `sb`, `lh`) is not supported. A non-word-aligned address is reported by diagnostics.
+- **Attributes.** The two regions' start address (for the stack, the top word) and size can be changed (`base`, `size`, `stacktop`, `stacksize`). A newly placed instance gets both regions, and an old file's Data Memory with no attribute recorded is read with the v1 values (data starting at `0x10010000`, 1MB, no stack region) (D-140 attribute design).
+- **Growth direction and limits.** Data grows from the start address toward higher addresses, and the stack grows from the top word toward lower addresses. The limit is changed via attribute. Since it's sparse storage, a large limit costs nothing beyond the pages actually written.
+- **Reports only what doesn't work.** An address in neither memory region (including between the two regions), a non-word-aligned address, an access near (within the limit's width of) the stack region's limit gets "Stack usage exceeded the limit (256KB)", overlap between two parts' regions, and a floating control input. States facts only, without guessing at cause or fix. A file with an old Stack part is reported not as a diagnostic but as one status-bar fact: "This circuit uses a separate Stack part. The new Data Memory also handles the stack region."
+- **Appearance.** Inside the part, the two regions' ranges, the word at the current address, and usage (`data N words, stack peak N B`: number of data words, the highest-water-mark down to the lowest stack address accessed) are shown. The part doesn't know `$sp`, so current depth is not shown. The last accessed address is not `$sp` (D-050). Full contents are viewed in the Memory panel: like Hallym MIPS's Data tab, one table shows the data region (from `0x10010000`, .data labels) together with the stack region (higher address on top, `$sp` marked), with runs of zero collapsed into one line. Current `$sp` and depth are shown in the Registers panel (5.1) reading `$29` from the subcircuit marked "Mark as Register File".
+- **Saving.** Instruction Memory saves the executable image (.hmx) path and a machine-code snapshot into the .circ, so the file works even without the .hmx. An old file's leftover .s path is read only (the file still opens and saves as before); v2 shows this when the file is opened (N-16), and Track A shows it in the right-click menu and load dialog as a fact and next step: "This file points to a .s file. Load the file exported with the Export executable image (.hmx) button in Hallym MIPS." Picking a .hmx changes the path (D-141). Data Memory does not save values written during execution — resetting returns to the .data initial values (the stack region resets to 0).
+- **Verilog (future).** Maps to the standard-library modules `lg_imem`, `lg_dmem`, with initial contents exported via `$readmemh` (7.7).
 
-### 6.3 불러오기 흐름
+### 6.3 Load flow
 
 ```mermaid
 flowchart LR
-  A[.hmx 선택] --> B[읽기<br/>실행 이미지 파서]
-  B --> C[넣을 메모리 결정<br/>.text / .data]
-  C --> D[주소 확인]
-  D --> E[로드]
-  E --> F[.circ에 설정 저장]
+  A[Choose .hmx] --> B[Read<br/>executable-image parser]
+  B --> C[Decide which memory to fill<br/>.text / .data]
+  C --> D[Check address]
+  D --> E[Load]
+  E --> F[Save the setting to .circ]
 ```
 
-MIPS 메모리 부품을 쓰면 실행 이미지 파일만 고르면 끝난다. .text는 그 주소를 담는 Instruction Memory로, .data는 그 주소를 담는 Data Memory로 가고, 주소는 파일 그대로라 확인할 것이 없다. 담는 부품이 없거나 파일에 오류가 있으면 이유를 말하고 아무것도 넣지 않는다. 같은 부품이 둘 이상일 때만 어느 쪽인지 묻는다. 기본 RAM·ROM을 쓰는 기존 과제만 6.4의 메모리 선택과 6.5의 주소 확인을 거친다.
+If MIPS memory parts are used, picking the executable image file is all it takes. .text goes to the Instruction Memory holding that address, .data goes to the Data Memory holding that address, and there's nothing to check since the address is exactly the file's own. If there's no matching part, or the file has an error, it says why and loads nothing. It only asks which part when there's more than one of the same kind. Only existing assignments using default RAM/ROM go through 6.4's memory selection and 6.5's address rules.
 
-### 6.4 메모리 선택 (기본 RAM·ROM을 쓸 때)
+### 6.4 Memory selection (when using default RAM/ROM)
 
-- 회로 안의 모든 RAM과 ROM을 서브회로 경로와 크기와 함께 보여준다. 예: `datapath › InstrMem (RAM, 8비트 주소 × 32비트)`.
-- 목록에서 고르거나 회로도에서 해당 부품을 클릭한다. `.text`와 `.data`를 각각 다른 메모리에 지정할 수 있다.
-- 조교가 과제 템플릿에 미리 지정해 두면, 학생은 파일만 고른다.
+- Show every RAM and ROM in the circuit with its subcircuit path and size. Example: `datapath › InstrMem (RAM, 8비트 주소 × 32비트)`.
+- Pick from the list, or click the part on the schematic. `.text` and `.data` can each be assigned to a different memory.
+- If a TA has pre-specified it in the assignment template, the student only picks the file.
 
-### 6.5 주소 규칙
+### 6.5 Address rules
 
-- **MIPS 메모리 부품:** 실행 이미지의 주소 그대로 올린다. 재배치가 없다. PC를 entry(`0x00400024`)에서 시작시키는 것은 학생이 회로에서 맞춘다.
-- **기본 RAM·ROM:** 워드를 0번 칸부터 순서대로 넣는다. 기계어는 SPIM 주소 기준이라, 학생 회로가 주소 하위 비트만 쓰면 `j`의 목적지와 `.data` 라벨 주소가 맞지 않을 수 있다. 기존 과제용 호환 경로이고, 새 과제는 MIPS 메모리 부품을 쓴다.
-- **시작 코드 포함(Hallym MIPS 배치, D-126):** Hallym MIPS는 2.2.0부터 늘 기본 예외 처리기를 불러온다. 시작 코드 `__start` 9워드가 `0x00400000`~`0x00400020`에, 학생 `main`이 `0x00400024`에 놓인다. 이 도구는 실행 이미지의 `.text`를 시작 코드까지 파일 주소 그대로 올린다(자르거나 옮기지 않는다). 시작 주소는 파일의 `entry` 줄이 말하고, 도구는 시작 코드 길이나 기호로 추측하지 않는다. 커널 세그먼트(`.ktext`, `.kdata`)는 올리지 않는다. 예전의 "예외 처리기를 끈 설정으로 main을 `0x00400000`에"는 이것으로 바뀌었다. 예외 처리기 없이 어셈블한 이미지(entry = 프로그램의 `__start`)도 받고, 요약에 그 사실을 보인다(D-138).
-- **`$sp` 초기값:** 학생 몫이다. SPIM은 `$sp`를 미리 설정하지만 학생 레지스터 파일은 0에서 시작하므로, 프로그램이나 회로에서 초기화한다. 빠뜨리면 어느 메모리 영역에도 없는 주소 접근으로 진단된다. 실행 이미지의 `reg $sp`(예: `0x7fffffe4`)는 Data Memory 스택 영역의 깊이를 재는 기준으로만 쓴다(D-126, D-140).
+- **MIPS memory parts:** loaded at the executable image's addresses as-is. No relocation. Starting PC at the entry point (`0x00400024`) is something the student sets up in the circuit.
+- **Default RAM/ROM:** words are placed in order starting from cell 0. Since the machine code is addressed for SPIM, if the student's circuit uses only the low address bits, the `j` destination and `.data` label addresses may not line up. This is the compatibility path for existing assignments; new assignments use the MIPS memory parts.
+- **Includes startup code (Hallym MIPS's layout, D-126):** Hallym MIPS has loaded the default exception handler by default since 2.2.0. The 9-word startup code `__start` sits at `0x00400000`–`0x00400020`, and the student's `main` at `0x00400024`. This tool loads the executable image's `.text`, including the startup code, at the file's addresses as-is (no truncation or relocation). The start address comes from the file's `entry` line; the tool does not guess it from startup code length or a symbol. The kernel segments (`.ktext`, `.kdata`) are not loaded. The old approach ("assemble with the exception handler off so main lands at `0x00400000`") has been replaced by this. An image assembled without the exception handler (entry = the program's `__start`) is also accepted, and the summary shows this fact (D-138).
+- **`$sp` initial value:** the student's job. SPIM presets `$sp`, but the student's register file starts at 0, so the program or the circuit must initialize it. Skipping it is reported as an access to an address in no memory region. The executable image's `reg $sp` (e.g. `0x7fffffe4`) is used only as the reference for measuring Data Memory's stack-region depth (D-126, D-140).
 
-### 6.6 올리는 범위
+### 6.6 Scope of what is loaded
 
-- Hallym MIPS가 내보낸 실행 이미지는 그대로 올린다. 의사 명령어(`li`, `la`, `move` 등)는 Hallym MIPS(SPIM)가 편 실제 명령어 워드 그대로다. `syscall`도 기계어 그대로 올린다.
-- .text는 Instruction Memory, .data는 Data Memory의 데이터 영역에 올린다. 스택 영역은 비워 둔다(내용이 실행 이미지에 없다). .bss, 힙, 커널 세그먼트는 올리지 않는다.
-- 그 뒤는 학생의 설계다. 클럭이 뛰면 두 메모리는 실제 RAM처럼 동작한다(6.2). 학생 데이터패스가 그 명령어를 실행하는지는 도구가 검사하지 않는다.
-- 대신 불러온 뒤 프로그램이 실제로 쓰는 명령어 목록을 보여준다(예: `lui`, `ori`, `lw`, `add`, `beq`). 데이터패스가 무엇을 지원해야 하는지 학생이 알 수 있다.
+- The executable image Hallym MIPS exports is loaded as-is. Pseudo-instructions (`li`, `la`, `move`, etc.) are already expanded by Hallym MIPS (SPIM) into the real instruction words. `syscall` is loaded as machine code as-is too.
+- .text goes to Instruction Memory, .data goes to Data Memory's data region. The stack region is left empty (its contents are not in the executable image). .bss, the heap, and kernel segments are not loaded.
+- Everything after that is the student's design. Once the clock runs, both memories behave like real RAM (6.2). The tool doesn't check whether the student's datapath actually executes those instructions.
+- Instead, after loading, it shows the list of instructions the program actually uses (e.g. `lui`, `ori`, `lw`, `add`, `beq`). This lets the student know what the datapath needs to support.
 
-### 6.7 어셈블러
+### 6.7 Assembler
 
-- **어셈블은 Hallym MIPS에서만 한다(D-126, D-141, 사용자 결정).** 학생은 Hallym MIPS에서 Ctrl+S로 어셈블한 뒤 제목 줄 오른쪽 아이콘 묶음의 Export executable image (.hmx) 단추로 내보낸다. 이 도구는 그 실행 이미지(`.hmx` 1판, docs/hmx.md)를 두 트랙 공용 파서로 읽을 뿐 어셈블러를 갖지 않는다. Load Program의 파일 고르기 창은 .hmx만 보인다.
-- QtSpim과 똑같이 어셈블하는 것이 핵심이다. Hallym MIPS는 수정하지 않은 SPIM 코어(`CPU/`)로 어셈블하므로 의사 명령어를 펼치는 방식까지 QtSpim과 같다. 같은 .s면 주소와 기계어가 Hallym MIPS와 비트 단위로 같다. 도구는 기계어를 Hallym MIPS의 Instruction Inspector와 같은 모양으로, 2진수 32칸을 필드별 색으로 끊어 보여준다.
-- 과제 표준 설정은 Hallym MIPS 기본값(예외 처리기 불러옴, 지연 분기 끔, 의사 명령어 켬)이다(D-126).
-- **기계어는 QtSpim 그대로(D-010, 사용자 확정).** 실행 이미지의 워드를 바꾸지 않고 올린다. 인코딩을 고르는 설정은 없다. 분기 목적지 계산은 학생 데이터패스의 몫이다. 참고로 지연 분기를 끈 SPIM은 분기 오프셋을 PC 기준으로 인코딩하고, 교재는 PC+4 기준으로 설명한다.
-- **예전 방식(기록).** v1은 SPIM 코어를 링크한 명령줄 도구 hcs-asm(BSD, 별도 실행 파일)으로 .s를 직접 어셈블했다. 실행 이미지 전환(D-126) 뒤 전환 기간의 .s 경로로만 남았다가, Hallym MIPS 2.4.0 골든 대조(D-138)가 통과해 hcs-asm, `native/`, `vendor/spim-9.1.24`, CI의 SPIM 빌드와 함께 지웠다(D-141). SPIM이 낸 결과(디스어셈블러 골든, 실행 오라클)는 지우기 전에 시험 자료로 굳혀 두었다(docs/hcs-asm.md).
+- **Assembling is done only in Hallym MIPS (D-126, D-141, user decision).** The student assembles with Ctrl+S in Hallym MIPS, then exports with the Export executable image (.hmx) button in the icon cluster to the right of the title bar. This tool only reads that executable image (`.hmx` version 1, docs/hmx.md) with a parser shared between the two tracks, and has no assembler of its own. Load Program's file picker shows only .hmx files.
+- The key point is assembling exactly like QtSpim. Hallym MIPS assembles with an unmodified SPIM core (`CPU/`), so even pseudo-instruction expansion matches QtSpim exactly. The same .s gives bit-identical addresses and machine code to Hallym MIPS. The tool shows the machine code in the same form as Hallym MIPS's Instruction Inspector, breaking 32 binary columns into per-field colors.
+- The standard assignment setting is Hallym MIPS's default (exception handler loaded, delayed branch off, pseudo-instructions on) (D-126).
+- **The machine code is QtSpim as-is (D-010, confirmed by the user).** The executable image's words are loaded without change. There is no setting to choose an encoding. Computing the branch destination is the student's datapath's job. For reference, SPIM with delayed branch off encodes the branch offset relative to PC, while the textbook explains it relative to PC+4.
+- **The old approach (for the record).** v1 used a command-line tool, hcs-asm (BSD, a separate executable), linking the SPIM core, to assemble .s directly. After the switch to the executable image (D-126), it survived only as a transition-period .s path, and once the Hallym MIPS 2.4.0 golden comparison (D-138) passed, it was deleted along with hcs-asm, `native/`, `vendor/spim-9.1.24`, and the SPIM build in CI (D-141). SPIM's output (disassembler goldens, execution oracle) was hardened as test material before deletion (docs/hcs-asm.md).
 
-### 6.8 자동 재로드
+### 6.8 Automatic reload
 
-- .circ에 실행 이미지(.hmx) 경로(상대 경로)와 메모리 지정을 저장한다.
-- 시뮬레이션 리셋, 파일 다시 열기, .hmx 파일 변경 때 다시 로드한다(v2 N-16). Hallym MIPS에서 .s를 고쳤으면 다시 내보내야 한다: 원본 대조가 "내보낸 뒤 바뀜"을 알린다(docs/hmx.md).
-- 옛 파일의 .s 경로는 다시 어셈블하지 않는다(D-141). 사실과 할 일만 알린다(6.2 저장).
+- The .circ saves the executable image (.hmx) path (relative) and memory assignments.
+- Reloads on simulation reset, reopening the file, and .hmx file changes (v2 N-16). If a .s was edited in Hallym MIPS, it must be re-exported: comparing against the original tells you "changed since export" (docs/hmx.md).
+- An old file's .s path is not re-assembled (D-141). It reports only the fact and next step (6.2 saving).
 
-### 6.9 Console 부품
+### 6.9 Console part
 
-프로그램 출력은 레지스터처럼 학생이 회로에 놓고 연결하는 Console 부품으로 보여준다. SPIM 코어는 어셈블만 하고 실행은 학생 회로가 하므로, `syscall`을 처리하는 것도 회로의 일이다.
+Program output is shown via a Console part that the student places and wires into the circuit, like a register. Since the SPIM core only assembles and the student circuit does the running, handling `syscall` is also the circuit's job.
 
-| 포트 | 폭 | 의미 |
+| Port | Width | Meaning |
 | --- | --- | --- |
-| `Syscall` | 1 | 이번 사이클이 `syscall`이면 1. 학생 제어 유닛이 디코드한다 |
-| `V0` | 32 | `$v0` 값(syscall 번호) |
-| `A0` | 32 | `$a0` 값(출력할 값 또는 문자열 주소) |
-| clk | 1 | 상승 에지에 `Syscall`이 1이면 처리 |
+| `Syscall` | 1 | 1 if this cycle is a `syscall`. The student's control unit decodes it |
+| `V0` | 32 | The value of `$v0` (the syscall number) |
+| `A0` | 32 | The value of `$a0` (the value or string address to output) |
+| clk | 1 | Handled on a rising edge when `Syscall` is 1 |
 
-**지원하는 syscall.**
+**Supported syscalls.**
 
-| `$v0` | 동작 |
+| `$v0` | Behavior |
 | --- | --- |
-| 1 | `print_int`: `A0`를 부호 있는 10진수로 출력 |
-| 4 | `print_string`: `A0` 주소부터 0 바이트까지 문자열을 Data Memory(데이터·스택 영역, 옛 Stack 포함)에서 직접 읽어 출력 |
-| 11 | `print_char`: `A0`의 하위 8비트를 문자로 출력 |
-| 10 | `exit`: 프로그램 끝. 시뮬레이션 클럭을 멈춘다 |
+| 1 | `print_int`: output `A0` as a signed decimal |
+| 4 | `print_string`: read a string from Data Memory (data/stack regions, including old Stack) directly, from the `A0` address up to a zero byte, and output it |
+| 11 | `print_char`: output the low 8 bits of `A0` as a character |
+| 10 | `exit`: end the program. Stops the simulation clock |
 
-- 그 밖의 번호나 떠 있는 `Syscall`은 처리하지 않고 진단으로 알린다. 입력 syscall(`read_int` 등)은 나중에 더한다.
-- `print_string`은 MIPS 메모리 부품의 내용을 바이트 단위로 읽는다. 학생 회로에는 워드 접근만 있어도 된다. 바이트 순서는 SPIM과 같은 리틀 엔디언이다.
-- 부품 안에 최근 출력 몇 줄이 보인다(2.7.1의 TTY 부품처럼). 그래서 JAR 라이브러리만 있는 원조 2.7.1에서도 출력을 볼 수 있다.
-- 앱에서는 아래쪽에 Messages · Cycle View · Console 탭을 둔다(v2, D-135). Console은 프로그램 출력, Messages는 진단(4장)이다. v1(Swing)은 Hallym MIPS처럼 Console / Messages 두 탭이었다.
-- 학생은 같은 .s를 Hallym MIPS와 자기 CPU에서 돌려 출력이 같은지 스스로 비교한다.
+- Any other number, or a floating `Syscall`, is not handled and is reported by diagnostics. Input syscalls (`read_int`, etc.) are added later.
+- `print_string` reads the MIPS memory part's contents byte by byte. The student's circuit only needs word access. Byte order is little-endian, same as SPIM.
+- Recent output lines show inside the part (like 2.7.1's TTY part). So output is visible even in original 2.7.1 with just the JAR library.
+- The app has Messages · Cycle View · Console tabs at the bottom (v2, D-135). Console is program output, Messages is diagnostics (chapter 4). v1 (Swing) had two tabs, Console / Messages, like Hallym MIPS.
+- The student runs the same .s in both Hallym MIPS and their own CPU and compares the outputs themselves.
+## 7. The Verilog connection (future scope)
 
-## 7. Verilog 연결 (향후 범위)
+> This chapter is **not implemented** in this round of development. Only 7.0's principles are reflected in the current code now; 7.1–7.7 are kept as design notes for the next stage.
 
-> 이 장은 이번 개발에서 **구현하지 않는다.** 7.0의 원칙만 지금 코드에 반영하고, 7.1~7.7은 다음 단계의 설계 기록으로 남긴다.
+Build on the MIPS circuit the student has already made to let them read, edit, and write Verilog. No testbench is needed. Parts written in Verilog are also checked inside the Logisim circuit, by clicking and by .s programs.
 
-학생이 이미 만든 MIPS 회로를 발판으로 Verilog를 읽고, 고치고, 쓰게 한다. 테스트벤치는 필요 없다. Verilog로 쓴 부분도 Logisim 회로 안에서 클릭과 .s 프로그램으로 확인한다.
+### 7.0 What to keep in the current implementation
 
-### 7.0 지금 구현에서 지킬 것
+- **The circuit model is the center.** Diagnostics, the recording engine, Cycle View, and MIPS parts take the Logisim circuit model (`Circuit`, `Component`, `Wire`, nets) as input, not the GUI. In v2, these live inside the engine and the screen calls them through the engine API (3.1). Later, the Verilog view will also look at the same model through the engine API.
+- **A name is an ID.** Keep a shared utility that treats part labels, subcircuit names, tunnel names, and port names as identifiers. The "datapath › PC" path notation in diagnostic messages and future Verilog instance/net names follow the same rule.
+- **Part kinds are handled in one place.** Gather per-part-kind handling (diagnostic rules, display method) into a registry instead of scattered `instanceof` branches. The future Logisim ↔ Verilog mapping table (7.5) attaches to the same registry.
+- **Match new parts' port names to Verilog module ports.** The port names of Instruction Memory, Data Memory, Stack, and Console are chosen so they can be used as-is as `lg_imem`, `lg_dmem`, `lg_console` module ports.
+- **One scheme for .circ extension attributes.** Gather the additional information the tool saves to the .circ (register-file marking, watch list, tunnel color, signal group, area memo, splitter arm name) into a single namespace, so original 2.7.1 can open it while ignoring it. Future coordinates and Verilog metadata will use the same scheme. The format is: at the end of `<project>`, a single `<hcs:ext>` element (D-024). MIPS parts' own information (executable image path, memory contents) is saved as the new part's own attributes (an old file's .s path is read-only, D-141).
 
-- **회로 모델이 중심이다.** 진단, 기록 엔진, 사이클 뷰, MIPS 부품은 GUI가 아니라 Logisim 회로 모델(`Circuit`, `Component`, `Wire`, 넷)을 입력으로 받는다. v2에서는 이것들이 엔진 안에 있고 화면은 엔진 API로 부른다(3.1). 나중에 Verilog 뷰도 같은 모델을 엔진 API로 보게 된다.
-- **이름이 ID다.** 부품 라벨, 서브회로 이름, 터널 이름, 포트 이름을 식별자로 다루는 공용 유틸리티를 둔다. 진단 메시지의 "datapath › PC" 경로 표기와 향후 Verilog 인스턴스·넷 이름이 같은 규칙을 쓴다.
-- **부품 종류는 한 곳에서 다룬다.** 부품 종류별 처리(진단 규칙, 표시 방법)를 흩어진 `instanceof` 분기 대신 등록표로 모은다. 향후 Logisim ↔ Verilog 매핑표(7.5)가 같은 등록표에 붙는다.
-- **새 부품의 포트 이름을 Verilog 모듈 포트와 맞춘다.** Instruction Memory, Data Memory, Stack, Console의 포트 이름은 `lg_imem`, `lg_dmem`, `lg_console` 모듈 포트로 그대로 쓸 수 있게 정한다.
-- **.circ 확장 속성은 한 방식으로.** 도구가 .circ에 저장하는 추가 정보(레지스터 파일 표시, 관찰 목록, 터널 색, 신호 그룹, 영역 메모, 스플리터 팔 이름)는 하나의 네임스페이스로 모아, 원조 2.7.1이 무시하고 열 수 있게 한다. 향후 좌표·Verilog 메타데이터도 같은 방식을 쓴다. 형식은 `<project>` 마지막의 `<hcs:ext>` 요소 하나다(D-024). MIPS 부품 자신의 정보(실행 이미지 경로, 메모리 내용)는 새 부품의 속성으로 저장한다(옛 파일의 .s 경로는 읽기만 한다, D-141).
+### 7.1 Learning flow
 
-### 7.1 학습 흐름
-
-| 단계 | 학생이 하는 일 | 필요한 기능 |
+| Stage | What the student does | Feature needed |
 | --- | --- | --- |
-| 읽기 | 내가 그린 회로의 Verilog를 옆에서 본다. 회로를 고치면 코드가 바뀐다 | 회로 → 사람이 읽을 수 있는 structural Verilog |
-| 쓰기 시작 | Control, ALU Control, 레지스터 파일을 Verilog 코드 블록으로 쓴다 | behavioral 코드 블록 |
-| 고치기 | 코드의 이름이나 연결을 바꾸면 회로가 바뀐다 | 실시간 양방향 편집, 증분 배선 |
-| 쓰기 | 빈 모듈에서 코드를 써서 회로를 만든다 | Verilog → 회로, 자동 배치·배선 |
+| Reading | Watch the Verilog of the circuit they drew, off to the side. Editing the circuit changes the code | Circuit → human-readable structural Verilog |
+| Starting to write | Write Control, ALU Control, and the register file as Verilog code blocks | Behavioral code blocks |
+| Fixing | Changing a name or connection in the code changes the circuit | Live two-way editing, incremental wiring |
+| Writing | Write code in an empty module to create the circuit | Verilog → circuit, automatic placement and wiring |
 
-### 7.2 MIPS 부품별 역할
+### 7.2 Role of each MIPS part
 
-| 부품 | Verilog 형태 | 역할 |
+| Part | Verilog form | Role |
 | --- | --- | --- |
-| ALU, 가산기, MUX, 부호 확장 | structural, `assign` | 읽기: 내 회로가 이런 코드구나 |
-| Control, ALU Control | `case` 문 | 쓰기 동기: 진리표를 게이트로 그리는 것보다 쉬운 첫 순간 |
-| 레지스터 파일 | `reg` 배열 | 거대한 회로가 코드 몇 줄이 됨 |
-| 최상위 데이터패스 | 모듈 인스턴스 | 양방향 편집의 본무대 |
+| ALU, adder, MUX, sign extend | structural, `assign` | Reading: "oh, this is what my circuit looks like as code" |
+| Control, ALU Control | `case` statement | Motivation to start writing: an easier first moment than drawing a truth table with gates |
+| Register file | `reg` array | A huge circuit becomes a few lines of code |
+| Top-level datapath | module instances | The main stage for two-way editing |
 
-### 7.3 공유 모델
+### 7.3 Shared model
 
-Verilog도 회로도도 원본이 아니다. 둘 다 Logisim 회로 모델이라는 하나의 공유 모델을 보여주는 뷰다.
+Neither the Verilog nor the schematic is the source of truth. Both are views onto one shared model, the Logisim circuit model.
 
 ```mermaid
 flowchart LR
-  V[Verilog 소스<br/>주석·서식 보존] <--> M[공유 모델<br/>Logisim 회로 모델]
-  M <--> S[회로도<br/>좌표 보존]
-  M --> Sim[Logisim 시뮬레이션]
-  Sim --> C[사이클 뷰·진단]
+  V[Verilog source<br/>comments and formatting preserved] <--> M[Shared model<br/>Logisim circuit model]
+  M <--> S[Schematic<br/>coordinates preserved]
+  M --> Sim[Logisim simulation]
+  Sim --> C[Cycle View, diagnostics]
 ```
 
-편집은 항상 공유 모델을 거친다. 한쪽 변경은 모델 변경분으로 바뀌고, 그 변경분만 반대쪽에 반영된다.
+Editing always goes through the shared model. A change on one side becomes a model diff, and only that diff is applied to the other side.
 
-- Logisim 2.7.1의 `Circuit`, `Component`, `Wire`를 그대로 쓴다. 서브회로 하나가 Verilog `module` 하나다.
-- 새 부품은 하나, Verilog 코드 블록뿐이다. 2.7.1의 JAR 라이브러리 방식으로 추가한다(3장).
+- Use Logisim 2.7.1's `Circuit`, `Component`, `Wire` as-is. One subcircuit is one Verilog `module`.
+- The only new part is a Verilog code-block part. It's added via 2.7.1's JAR library method (chapter 3).
 
-### 7.4 코드 블록
+### 7.4 Code blocks
 
-- `always`, `assign` 블록은 게이트로 풀지 않고 회로도에 박스 하나로 넣는다. 포트는 코드가 읽는 신호와 쓰는 신호에서 자동 추출한다.
-- 더블클릭하면 코드 편집기가 열린다. 합성 결과 미리보기는 읽기 전용이다.
-- 시뮬레이션은 Yosys로 백그라운드에서 게이트 합성한 뒤 Logisim 엔진 안에서 돌린다. 화면에는 코드 박스만 보인다.
-- 합성 가능한 서브셋만 허용한다: `assign`, `always @(*)`, `always @(posedge clk)`, `if`, `case`, 산술·논리 연산. `#delay`, `initial`, `$display`는 오류로 표시하고 그 블록은 실행하지 않는다.
+- `always` and `assign` blocks are not broken down into gates; they go into the schematic as a single box. Ports are auto-extracted from the signals the code reads and writes.
+- Double-clicking opens the code editor. The synthesis-result preview is read-only.
+- Simulation synthesizes to gates in the background with Yosys, then runs inside the Logisim engine. Only the code box shows on screen.
+- Only a synthesizable subset is allowed: `assign`, `always @(*)`, `always @(posedge clk)`, `if`, `case`, arithmetic/logical operators. `#delay`, `initial`, `$display` are flagged as errors and that block is not executed.
 
-### 7.5 structural 양방향 편집
+### 7.5 Two-way structural editing
 
-- **좌표 보존:** .v로 내보낼 때 Verilog-2001 attribute에 좌표를 넣는다. iverilog와 Yosys는 이를 무시한다. 좌표가 없는 새 인스턴스는 연결된 이웃 근처에 자동 배치한다(부록 A).
+- **Coordinate preservation:** when exporting to .v, coordinates are put into a Verilog-2001 attribute. iverilog and Yosys ignore this. A new instance with no coordinate is auto-placed near its connected neighbors (Appendix A).
 
 ```verilog
 (* lg_pos = "120,80" *)
 full_adder fa0 (.a(a[0]), .b(b[0]), .cin(c0), .s(s[0]), .cout(c1));
 ```
 
-- **재생성 대신 패치:** Verilog 파싱은 ANTLR(grammars-v4 Verilog 문법)를 쓴다. 회로도 변경은 `TokenStreamRewriter`로 해당 토큰만 고친다. 주석, 공백, 코드 순서가 그대로 남는다.
-- **대응 관계:** 인스턴스명과 넷 이름이 ID다. 이름 없이 그은 선은 `w_1`, `w_2`처럼 자동 이름을 받는다.
-- **예외:** 문법 오류 중에는 회로도를 마지막 정상 상태로 멈추고 오류 위치만 표시한다. `generate`, `parameter`는 펼친 결과를 읽기 전용으로 보여준다. 동시 편집은 포커스가 있는 쪽이 편집권을 가진다.
+- **Patch instead of regenerate:** Verilog parsing uses ANTLR (the grammars-v4 Verilog grammar). A schematic change fixes only the relevant tokens via `TokenStreamRewriter`. Comments, whitespace, and code order stay untouched.
+- **Correspondence:** instance names and net names are the ID. A wire drawn with no name gets an automatic name like `w_1`, `w_2`.
+- **Exceptions:** while there's a syntax error, the schematic freezes at the last valid state and only the error location is marked. `generate` and `parameter` show their expanded result read-only. In simultaneous editing, whichever side has focus holds edit rights.
 
 | Logisim | Verilog |
 | --- | --- |
-| AND/OR/NOT 등 게이트 | 게이트 프리미티브 `and`, `or`, `not` |
-| 서브회로 | 모듈 인스턴스 |
-| 스플리터 | 비트 슬라이스 `a[3:0]`, 연결 `{a, b}` |
-| 터널 | 같은 이름의 넷 |
-| 상수 | `4'b0000` 같은 리터럴 |
-| 핀(입력/출력) | `input` / `output` 포트 |
-| MUX, 레지스터, RAM 등 내장 부품 | 표준 라이브러리 모듈 (예: `lg_mux #(.WIDTH(32))`) |
+| AND/OR/NOT etc. gates | gate primitives `and`, `or`, `not` |
+| Subcircuit | module instance |
+| Splitter | bit slice `a[3:0]`, concatenation `{a, b}` |
+| Tunnel | a net of the same name |
+| Constant | a literal like `4'b0000` |
+| Pin (input/output) | `input` / `output` port |
+| Built-in parts like MUX, register, RAM | standard-library module (e.g. `lg_mux #(.WIDTH(32))`) |
 
-이 표는 실제 MIPS 과제에 쓰이는 부품 목록을 뽑아 확정한다.
+This table is finalized by pulling the list of parts actually used in MIPS assignments.
 
-### 7.6 초보자 실수가 회로에서 보인다
+### 7.6 Beginner mistakes become visible in the circuit
 
-| 실수 | 코드에서는 | 회로에서는 |
+| Mistake | In the code | In the circuit |
 | --- | --- | --- |
-| 넷 이름 오타 (`carry` → `cary`) | 암묵적 1비트 wire가 조용히 생김 | 어디에도 안 이어진 선. 4장 진단이 연결 안 된 입력으로 알림 |
-| 위치 기반 포트 순서 틀림 | 문법상 정상 | 입력과 출력이 뒤바뀐 선 |
-| 비트 폭 불일치 | 경고 한 줄 또는 무시 | 폭 불일치 진단 |
-| 모듈 인스턴스 누락 | 컴파일은 됨 | 떠 있는 출력 핀 |
+| A net-name typo (`carry` → `cary`) | An implicit 1-bit wire is silently created | A wire connected to nothing. Chapter 4's diagnostics report it as an unconnected input |
+| Positional port order wrong | Syntactically fine | Inputs and outputs swapped |
+| Bit width mismatch | One warning line, or ignored | Width-mismatch diagnostic |
+| Missing module instance | Compiles fine | A floating output pin |
 
-### 7.7 테스트벤치와 다음 과목
+### 7.7 Testbench and the next course
 
-기본은 테스트벤치 없이 회로 안에서 확인한다. 선택 기능으로 전체 MIPS를 .v로 내보내면서, 불러온 .s를 `$readmemh`용 파일로, 간단한 테스트벤치를 자동으로 함께 만든다. iverilog로 바로 돌려볼 수 있어 다음 과목으로 가는 다리가 된다.
+By default, verification happens inside the circuit with no testbench. As an optional feature, exporting the whole MIPS to .v also auto-generates the loaded .s as a `$readmemh` file and a simple testbench. It can be run right away with iverilog, becoming a bridge to the next course.
 
-## 8. 배포와 개발 환경
+## 8. Deployment and development environment
 
-**Windows 배포물은 setup exe 하나다**(사용자 결정, D-148). Hallym MIPS와 같은 electron-builder NSIS 설치 파일이고, 엔진과 번들 JRE가 들어 있어 학생 PC에 따로 설치할 것이 없다. 앱 zip과 MSI는 배포하지 않는다.
+**The Windows distributable is a single setup exe** (user decision, D-148). The same electron-builder NSIS installer as Hallym MIPS, including the engine and bundled JRE, so nothing extra needs to be installed on the student's PC. No app zip or MSI is distributed.
 
-> 예전 결정(대체됨, D-132·D-148): "JRE를 포함한 zip으로 배포하고, v1.1.0부터는 jpackage 앱 이미지를 묶은 setup exe로도 낸다. MSI는 배포하지 않는다(D-122)." Swing판 v1.1.0은 내지 않았다. v1.0.x 릴리스(zip, v1.0.2까지는 MSI)는 게시한 그대로 남는다.
+> Old decision (superseded, D-132/D-148): "Distribute as a zip with a bundled JRE, and from v1.1.0 also as a setup exe bundling a jpackage app image. No MSI (D-122)." The Swing edition v1.1.0 was never shipped. The v1.0.x releases (zip, and MSI up to v1.0.2) stay published as-is.
 
-### 8.1 배포
+### 8.1 Deployment
 
-- **설치 파일:** `HallymCircuitStudio-<버전>-win-x64-setup.exe`, x64만. 관리자 권한 없이 `%LOCALAPPDATA%\Programs\Hallym Circuit Studio`에 사용자별로 설치한다. Hallym MIPS 2.5.0과 같은 안내형이다: 진행 화면 → 마침 화면("지금 실행하기" 체크), 한국어 설치 화면, 왼쪽 남색 띠와 학교 심벌, 앱 파랑 진행 막대. 설치 폴더·사용자 범위는 묻지 않는다. 시작 메뉴 바로 가기, 제거 항목, 덮어 설치가 있고, 자동 업데이트·바탕 화면 바로 가기·`.circ` 연결은 없다(D-148, D-155). 조용한 설치는 `/S`다.
-- **예전 설치본:** v1.0.x MSI 설치본은 새 프로그램을 놓은 뒤 조용히 지운다(UpgradeCode로 찾음). v1.0.3 zip은 설치가 아니므로 둔다(D-148).
-- **코드 서명:** 인증서가 없어 하지 않는다. 릴리스 노트와 안내서에 SmartScreen 안내(추가 정보 → 실행)를 넣는다.
-- **함께 올리는 것:** 트랙 A 파일(`hcs-mips.jar`, 트랙 A zip)과 이름에 `guide`가 든 안내 PDF뿐이다. 그 밖의 파일이 릴리스에 붙으면 CI가 실패한다(`electron/tools/release-assets.ts`).
-- **번들:** 어셈블러는 번들하지 않는다(어셈블은 Hallym MIPS에서, D-141). 시스템 PATH는 건드리지 않는다. (향후) 코드 블록용 Yosys는 설치 폴더에 넣고 상대 경로로 호출한다.
-- **라이선스:** 글꼴은 Hallym MIPS와 같은 Pretendard·D2Coding(SIL OFL 1.1)이다. 라이선스 파일을 설치 폴더에 넣고 About › Licenses에서 보인다. SPIM 코드는 배포물에 없다(D-141).
-- **트랙 A 배포:** MIPS 부품 JAR 라이브러리와 사용 안내를 묶은 zip을 따로 배포한다. 원조 2.7.1에서 Project › Load Library › JAR Library로 불러 쓴다.
-- **사전 릴리스와 정식 릴리스:** v2.0.0 전에는 큰 묶음마다 `v2.0.0-alpha.N`을 GitHub 사전 릴리스(Latest 아님)로 올린다. v2.0.0은 9.2의 항목이 모두 끝나면 공개 릴리스(Latest)로 올린다. 옛 릴리스는 지우지 않는다. 태그는 버전을 올린 커밋에 달고, 크기와 해시는 공개된 자산의 것만 적는다(D-154). 순서는 `docs/release.md`다.
-- **배포 후 검증:** 공개 주소에서 setup exe를 받아 해시 대조 → 깨끗한 Windows에 조용히 설치 → 시작 화면 → 두 트랙 튜토리얼 → 예제 .hmx 불러오기와 실행 → ref-mips N Cycles → 종료 뒤 레지스트리·AppData 변화 0 → 제거.
-- **업데이트:** 학기 중 버그 수정은 새 버전 배포로 처리한다. 자동 업데이트는 범위 밖이다.
+- **Installer:** `HallymCircuitStudio-<버전>-win-x64-setup.exe`, x64 only. Installed per-user with no admin rights, at `%LOCALAPPDATA%\Programs\Hallym Circuit Studio`. Guided like Hallym MIPS 2.5.0: progress screen → finish screen (an "Run now" checkbox), Korean install screens, a navy band on the left with the school symbol, the app's blue progress bar. It doesn't ask for the install folder or user scope. There's a Start Menu shortcut, an uninstall entry, and reinstall-over support; no auto-update, no desktop shortcut, no `.circ` file association (D-148, D-155). Silent install is `/S`.
+- **Old install:** the v1.0.x MSI installer is silently removed after placing the new program (found by UpgradeCode). The v1.0.3 zip isn't an install, so it's left alone (D-148).
+- **Code signing:** none — no certificate. Add SmartScreen guidance to the release notes and the manual (More info → Run anyway).
+- **What's uploaded alongside:** only track A files (`hcs-mips.jar`, the track A zip) and a guide PDF whose name contains `guide`. CI fails if any other file is attached to a release (`electron/tools/release-assets.ts`).
+- **Bundling:** the assembler is not bundled (assembling is done in Hallym MIPS, D-141). The system PATH is untouched. (Future) Yosys for code blocks goes into the install folder and is called by relative path.
+- **Licensing:** fonts are the same Pretendard/D2Coding as Hallym MIPS (SIL OFL 1.1). License files go into the install folder and show in About › Licenses. SPIM code is not in the distributable (D-141).
+- **Track A distribution:** the MIPS parts JAR library and usage guide are distributed as a separate zip. Loaded in original 2.7.1 via Project › Load Library › JAR Library.
+- **Pre-release and full release:** before v2.0.0, every major batch is uploaded as `v2.0.0-alpha.N` as a GitHub pre-release (not Latest). v2.0.0 goes up as a public release (Latest) once every item in 9.2 is done. Old releases are not deleted. The tag goes on the commit that bumped the version, and size and hash are recorded only for the published asset (D-154). The order is in `docs/release.md`.
+- **Post-release verification:** fetch the setup exe from the public URL and check the hash → install quietly on a clean Windows → start screen → both track tutorials → load and run a sample .hmx → ref-mips N Cycles → zero registry/AppData change after exit → uninstall.
+- **Updates:** in-semester bug fixes are handled by shipping a new version. Auto-update is out of scope.
 
-### 8.2 개발 환경
+### 8.2 Development environment
 
-- 개발과 테스트는 Linux에서 한다(Node 22.18 이상, Gradle toolchain의 JDK 21).
-- Windows 설치 파일과 번들 JRE는 GitHub Actions의 Windows 러너에서 만든다(번들 JRE가 OS마다 다르다). 예전 결정 "jpackage로 Windows 패키지"는 대체됨 (D-148).
-- 설치·실행·제거와 실행 전후 변화 0은 CI의 깨끗한 Windows 러너에서 자동으로 확인하고(D-148), 실습실 PC 확인은 needs-human으로 남긴다.
+- Development and testing are done on Linux (Node 22.18+, JDK 21 via Gradle toolchain).
+- The Windows installer and bundled JRE are built on GitHub Actions' Windows runner (the bundled JRE differs by OS). The old decision "package Windows with jpackage" is superseded (D-148).
+- Install, run, uninstall, and zero change before/after a run are automatically checked on CI's clean Windows runner (D-148); lab-PC confirmation is left as needs-human.
 
-### 8.3 테스트
+### 8.3 Testing
 
-| 테스트 | 내용 | 통과 기준 |
+| Test | Content | Pass criterion |
 | --- | --- | --- |
-| 엔진 회귀 | 기존 과제 .circ 세트를 표준 2.7.1 jar와 포크에서 같은 입력으로 실행 | 모든 넷 값 일치 |
-| 진단 | 알려진 오류를 심은 "고장 회로 모음"과 정상 과제 회로 | 고장 회로는 기대 메시지, 정상 회로는 메시지 0건 |
-| 편집 동등성 | v1이 원조 편집 코드로 만든 의도 단위 시나리오의 결과 .circ(`tests/parity`)를 v2가 같은 의도를 엔진에 보내 재생 | 골든과 바이트 일치(D-136, D-159) |
-| 기하 동등성 | 부품 종류 × 대표 속성 조합마다 엔진이 준 포트 위치와 렌더러가 그린 포트 | 모든 조합 일치(D-137) |
-| 조작 동등성 | 원조 2.7.1의 도구와 키·마우스 동작 표(`docs/interaction-parity.md`) | 표의 줄마다 e2e 통과(D-139) |
-| 열고 저장 | 새 부품을 안 쓴 .circ를 열고 저장 | 원조 2.7.1과 바이트 동일(D-006, D-149) |
-| 화면 e2e | Playwright, 1920×1080의 100·125·150 %. 주요 흐름은 진짜 엔진으로도 | 통과. 튜토리얼은 모든 단계에서 12장의 다섯 가지 |
-| Windows 설치본 | 깨끗한 Windows 러너에 설치·실행·제거, v1.0.2 MSI 위에 설치 | 설치한 것만 바뀌고 실행 전후 변화 0(D-148) |
-| 불러오기 일치 | Hallym MIPS가 내보낸 실행 이미지 골든(태그 v2.4.0)과 굳혀 둔 SPIM 목록을 불러와 부품에서 되읽은 결과와 비교 | 주소·기계어·데이터 일치(D-138, D-141) |
-| MIPS 부품 | 참조 single-cycle MIPS 회로로 예제 실행 이미지 실행 | 레지스터·메모리·Console 출력이 SPIM 실행 결과(굳혀 둔 오라클)와 일치 |
-| (향후) Verilog 왕복 | 과제 .circ → .v → .circ | 연결 불일치 0건. 꺾임·교차·총 길이 추적 |
-| (향후) 연결 규칙 | `rules_test*.circ` (부록 A) | 예측한 연결 결과와 일치 |
+| Engine regression | Run an existing set of assignment .circ files with the same input in both the standard 2.7.1 jar and the fork | All net values match |
+| Diagnostics | A "collection of broken circuits" seeded with known errors, plus normal assignment circuits | Broken circuits get the expected message, normal circuits get 0 messages |
+| Edit equivalence | v1 replays the same intent-unit scenarios that built the reference result .circ (`tests/parity`) with original edit code, and v2 sends the same intents to the engine | Byte match with the golden (D-136, D-159) |
+| Geometric equivalence | For every part kind × representative attribute combination, the port position the engine gives vs. what the renderer draws | Every combination matches (D-137) |
+| Interaction equivalence | The original 2.7.1 tool/key/mouse-behavior table (`docs/interaction-parity.md`) | e2e passes for every row of the table (D-139) |
+| Open and save | Open and save a .circ using no new part | Byte-identical to original 2.7.1 (D-006, D-149) |
+| Screen e2e | Playwright, 1920×1080 at 100/125/150%. Main flows also with the real engine | Passes. The tutorial passes the five checks of chapter 12 at every step |
+| Windows installer | Install/run/uninstall on a clean Windows runner, install over v1.0.2 MSI | Only what was installed changes, and zero change before/after a run (D-148) |
+| Load match | Load golden executable images exported by Hallym MIPS (tag v2.4.0) and a hardened SPIM list, and compare against what's read back from the part | Address, machine code, and data match (D-138, D-141) |
+| MIPS parts | Run a sample executable image on a reference single-cycle MIPS circuit | Register, memory, and Console output match SPIM's execution result (a hardened oracle) |
+| (future) Verilog round trip | assignment .circ → .v → .circ | 0 connection mismatches. Track bends, crossings, total length |
+| (future) Connection rules | `rules_test*.circ` (Appendix A) | Matches the predicted connection result |
 
-매 push마다 엔진 회귀, 진단, 동등성, 불러오기 일치, MIPS 부품, 화면 e2e, Windows 설치본 테스트를 돌린다. 고장 회로 모음은 지난 학기 실제 사례에서 만든다.
+On every push, run the engine regression, diagnostics, equivalence, load match, MIPS parts, screen e2e, and Windows installer tests. The broken-circuit collection is built from real cases from past semesters.
 
-## 9. 개발 로드맵
+## 9. Development roadmap
 
-### 9.1 v1 로드맵 (0~4b단계, 완료)
+### 9.1 v1 roadmap (stages 0–4b, complete)
 
-v1.0.0~v1.0.3(Swing판)으로 끝났다. 2a단계의 "FlatLaf·디자인 토큰·Pretendard 적용, 창 구조와 탭, 자동 저장"과 2b~4b의 Swing 화면은 v2가 새 화면으로 다시 만든다(대체됨, D-132). 엔진 쪽 결과(진단, 기록 엔진, 연결 탐색, MIPS 부품, 실행 이미지 로더)는 v2 엔진이 그대로 쓴다.
+Ended with v1.0.0–v1.0.3 (the Swing edition). Stage 2a's "apply FlatLaf, design tokens, Pretendard, window structure and tabs, auto-save" and the Swing screen of 2b–4b are rebuilt from scratch by v2's new screen (superseded, D-132). The engine-side results (diagnostics, recording engine, connection search, MIPS parts, executable-image loader) are used as-is by the v2 engine.
 
-두 트랙으로 간다. 트랙 A(1단계)는 2.7.1 jar에 대고 만드는 JAR 라이브러리라 포크 없이 바로 시작하고 배포할 수 있다. 트랙 B(2단계부터)는 2.7.1 소스를 포크해 UI를 바꾼다. 단계가 끝날 때마다 수업에 쓸 수 있는 상태가 된다.
+Proceeds along two tracks. Track A (stage 1) is a JAR library built against the 2.7.1 jar, so it can start and ship right away without a fork. Track B (from stage 2) forks the 2.7.1 source to change the UI. Each finished stage is usable in class.
 
-| 단계 | 내용 | 끝나면 할 수 있는 것 | 이번 범위 |
+| Stage | Content | What becomes possible when done | This round's scope |
 | --- | --- | --- | --- |
-| 0. 기반 | 2.7.1 jar·소스 확보, JAR 라이브러리 방식 확인, SPIM 명령줄 도구 빌드, 과제 부품 목록 정리, Hallym MIPS 과제 표준 설정(예외 처리기, 지연 분기) 확정 | 두 트랙의 준비 완료 | 예 |
-| 1. MIPS 부품 라이브러리 (트랙 A) | Instruction Memory, Data Memory, Stack, Console, 다중 진법 프로브 부품. 부품 메뉴에서 .s 불러오기(D-126 뒤 Load Program, D-141부터 .hmx만) | 원조 2.7.1에서도 프로그램을 올려 돌리고 출력을 본다. RAM 손 입력이 사라진다 | 예 |
-| 2a. 포크 + 편집기 기반 (트랙 B) | 2.7.1 소스 포크, 최신 JDK 빌드, 엔진 회귀 테스트, FlatLaf·디자인 토큰·Pretendard 적용, 창 구조와 탭(11.1, 탭 간 라이브러리 제외), 확대·축소(11.2), 자동 저장(11.13) | 포크를 매일 쓸 수 있다 | 예 |
-| 2b. 편집 핵심 | 우클릭 메뉴, 속성 편집, 빠른 Probe, 검색과 명령, 툴바·상태 표시줄·조작, 라벨 칩·밀도·터널 자동 색·마우스 오버 정보, 터널 이동·Ctrl+F, 스플리터 편집기(11.3~11.7, 11.11~11.12 일부) | 편집이 빨라진다 | 예 |
-| 2c. 정적 진단 + 배선 | 검사 목록 확정, 정적 진단과 Messages 탭, 따라오는 배선(11.9), 영향 경로(11.12), 서브회로 인스턴스 안내·포트 변경 영향(11.10), 탭 간 라이브러리와 저장 반영(11.1) | 회로가 왜 안 도는지 안다 | 예 |
-| 3. 기록 엔진 + 사이클 뷰 | 전 넷 기록, 사이클 표, 소스 줄 표시, 레지스터 패널, 뒤로 가기, 여기까지 실행, Console 탭, 자동 재로드, 버스 값 표시·활성 경로(11.12) | 클럭 동작을 한 화면에서 보고 되돌린다 | 예 |
-| 4. 동적 진단 | E·X 출처 추적, 진동 경로, X 기록 감지, 사이클 뷰 연동 | "왜 E지?"에 도구가 한 곳으로 답한다 | 예 |
-| 4b. 편의 마무리 | N개 복제·정렬, 포트 순서·다른 파일에서 가져오기, 버스 폭·범례, 신호 그룹 색·교차 점프, 되돌리기 목록·제출 파일·그림 내보내기, 미니맵·영역 메모, 나란히 보기·창 분리, 단축키 설정(11장 나머지) | 과제 제출까지 도구 안에서 끝난다 | 예 |
-| 5. 회로 → Verilog 보기 | 사람이 읽을 수 있는 structural 출력, 좌표 속성, 실시간 갱신 | 읽기 | 향후 |
-| 6. 코드 블록 | Yosys 번들, 포트 추출, 합성 서브셋 검사 | Control, ALU Control, 레지스터 파일을 Verilog로 쓴다 | 향후 |
-| 7. 실시간 양방향 | ANTLR 파싱, 토큰 패치, ID 대응, 증분 배선, 오류 중 동결 | 고치기 | 향후 |
-| 8. Verilog → 회로 | 좌표 없는 모듈 전체 자동 배치·배선(부록 A) | 쓰기 | 향후 |
-| 9. (선택) .v 내보내기 | 전체 MIPS .v, `$readmemh` 파일, 테스트벤치 자동 생성 | iverilog로 다음 과목과 연결 | 향후 |
+| 0. Foundation | Obtain the 2.7.1 jar/source, confirm the JAR library method, build the SPIM command-line tool, sort out the list of assignment parts, finalize Hallym MIPS's standard assignment settings (exception handler, delayed branch) | Both tracks are ready | Yes |
+| 1. MIPS parts library (Track A) | Instruction Memory, Data Memory, Stack, Console, multi-radix probe parts. Load a .s from the part menu (Load Program after D-126, .hmx only from D-141) | Programs can be loaded and run even in original 2.7.1, and output seen. Hand-entered RAM disappears | Yes |
+| 2a. Fork + editor foundation (Track B) | Fork the 2.7.1 source, build with a modern JDK, engine regression tests, apply FlatLaf/design tokens/Pretendard, window structure and tabs (11.1, excluding cross-tab libraries), zoom (11.2), auto-save (11.13) | The fork is usable day to day | Yes |
+| 2b. Editing core | Right-click menu, attribute editing, quick Probe, search and commands, toolbar/status bar/operations, label chips, density, tunnel auto-color, hover info, tunnel jump, Ctrl+F, splitter editor (11.3–11.7, part of 11.11–11.12) | Editing gets faster | Yes |
+| 2c. Static diagnostics + wiring | Finalize check list, static diagnostics and a Messages tab, wires that follow parts (11.9), influence path (11.12), subcircuit instance guidance and port-change impact (11.10), cross-tab libraries and save propagation (11.1) | You know why a circuit doesn't work | Yes |
+| 3. Recording engine + Cycle View | Record every net, cycle table, source-line display, registers panel, step back, run until, Console tab, auto-reload, bus value display and active path (11.12) | Watch and undo clock behavior in one screen | Yes |
+| 4. Dynamic diagnostics | E/X source tracing, oscillation path, X-recording detection, tied into Cycle View | The tool answers "why is this E?" with one location | Yes |
+| 4b. Convenience wrap-up | Duplicate N and align, port ordering, import from another file, bus width and legend, signal group color and cross jump, undo list, submission file, image export, minimap, area memo, side-by-side view and window split, keybinding customization (rest of chapter 11) | Assignment submission finishes inside the tool | Yes |
+| 5. Circuit → Verilog view | Human-readable structural output, coordinate attribute, live update | Reading | Future |
+| 6. Code blocks | Bundle Yosys, port extraction, synthesizable-subset check | Write Control, ALU Control, register file as Verilog | Future |
+| 7. Live two-way | ANTLR parsing, token patching, ID correspondence, incremental wiring, freeze on error | Fixing | Future |
+| 8. Verilog → circuit | Automatic full-module placement and wiring with no coordinates (Appendix A) | Writing | Future |
+| 9. (Optional) .v export | Full MIPS .v, `$readmemh` file, auto-generated testbench | Bridge to the next course via iverilog | Future |
 
-**우선순위 근거.**
+**Priority reasoning.**
 
-- 1단계는 jar만 있으면 되고, 학생이 바로 체감한다(RAM 손 입력 제거, 32비트 주소, 출력 확인). SPIM 코어 연결 파이프라인도 여기서 먼저 검증된다.
-- 2~4단계는 Verilog 없이 지금 과제에 효과가 나고, 교수님께 보여줄 데모가 된다.
-- 편집기 개선은 창 구조와 탭(2a)을 먼저 만든다. 이후 UI가 모두 그 위에 얹히기 때문이다. 편집 핵심(2b)을 정적 진단(2c)보다 먼저 두는 것은 진단 표시(Messages 탭, 하이라이트, 클릭 이동)가 편집기 틀 위에서 동작하기 때문이다. 탭 간 라이브러리와 포트 변경 영향은 연결 탐색 엔진과 진단이 있어야 해서 2c에 둔다. 없어도 수업이 되는 편의 기능은 4b로 미룬다(D-016).
-- 5~8단계는 7.1의 학습 흐름 순서다. Control 유닛이 학생이 Verilog를 쓰고 싶어지는 첫 지점이라, 코드 블록이 양방향 편집보다 먼저 온다.
-- 7~8단계가 가장 크고 위험하다. 배선 규칙 검증(부록 A)은 이미 진행 중이다.
+- Stage 1 needs only a jar, and the student feels it right away (no hand-entered RAM, 32-bit addressing, checking output). The SPIM-core connection pipeline is also verified here first.
+- Stages 2–4 pay off for current assignments even without Verilog, and make a demo to show the professor.
+- Editor improvements build window structure and tabs (2a) first, since all subsequent UI sits on top of it. Editing core (2b) comes before static diagnostics (2c) because diagnostic display (Messages tab, highlighting, click-to-navigate) works on top of the editor frame. Cross-tab libraries and port-change impact go in 2c since they need the connection-search engine and diagnostics. Convenience features that aren't needed for class go to 4b (D-016).
+- Stages 5–8 follow the learning-flow order of 7.1. The Control unit is the first point where a student wants to write Verilog, so code blocks come before two-way editing.
+- Stages 7–8 are the biggest and riskiest. Wiring-rule verification (Appendix A) is already underway.
 
-### 9.2 v2 로드맵 (N-00~N-28, 이번 범위)
+### 9.2 v2 roadmap (N-00–N-28, this round's scope)
 
-항목마다 이슈 하나(마일스톤 v2.0.0)다. 상태와 PR은 `docs/PROGRESS.md`의 N 표가 기준이다. 사용자 추가 지시는 같은 파일의 A 표(A-01 .hmx 명세 따르기, A-02 .s 제거, A-03 Data Memory와 Stack 합치기, A-04 벡터 부품 그림, A-05 Hallym MIPS 2.5.0 맞추기, A-06 보기 전용 사전 릴리스)로 올린다.
+One issue per item (milestone v2.0.0). Status and PR are tracked in the N table of `docs/PROGRESS.md`. New instructions from the user go into the A table of the same file (A-01 follow the .hmx spec, A-02 remove .s, A-03 merge Data Memory and Stack, A-04 vector part drawings, A-05 match Hallym MIPS 2.5.0, A-06 view-only pre-release).
 
-| ID | 항목 |
+| ID | Item |
 | --- | --- |
-| N-00 | 전환: 최종 라운드 정리(멈춤·마무리·넘김), OPEN-ISSUES 등 main 이동, v1.0.3 게시 확인, `swing-final` 태그 |
-| N-01 | 편집 동등성 골든 채집(Swing 삭제 전, 의도 단위 시나리오) |
-| N-02 | electron/ 기반: Hallym MIPS 스택·공유 코드 가져오기(ORIGIN.md, shared/), 빌드·테스트·e2e·스크린샷·패키징 뼈대 |
-| N-03 | Java 엔진 서버: headless Logisim, JSON-RPC, 파일·모델·시뮬레이션 API, GUI 없는 기존 코드 이전 |
-| N-04 | jlink JRE 번들, 엔진 시작·종료·재시작·복구 |
-| N-05 | 캔버스 보기: 그리기 엔진, 부품 렌더러 등록표(수업 부품 전부), 선·연결점·점프·버스, 라벨 칩·터널 색·포트 이름·값 칩, 배율·이동 |
-| N-06 | 기하 동등성 검사 |
-| N-07 | 시뮬레이션 연결: Poke, 1 Cycle, N Cycles, Run, Reset, 주파수, 값 스트림, 진동 |
-| N-08 | 편집 도구와 조작(원조와 같은 사용감 표 전부) |
-| N-09 | 편집 동등성 통과 → v2.0.0-alpha.1 |
-| N-10 | Attributes(Inspector 형식), Quick Attributes, 우클릭 메뉴 |
-| N-11 | 여러 파일 탭, 탭 간 라이브러리, 서브회로(들어가기, 포트 순서, Auto Appearance, 모양 편집, 가져오기), 창 분리·나란히 보기 |
-| N-12 | 부품 목록·검색 팔레트, Splitter 편집기, 찾기, Tunnels, Minimap |
-| N-13 | Messages(정적·동적 진단), E/X 출처, 진동, 가까운 이름 |
-| N-14 | Cycle View, Run Until, Registers·Memory·Instruction(Hallym MIPS 패널), Mark as PC, Register Mapping |
-| N-15 | Signal Flow, 영향 경로, 활성 경로, 버스 값 칩, 신호 그룹, 영역 메모 |
-| N-16 | MIPS: Load Program(.hmx), 요약, entry·시작 값, 디스어셈블, Console, 자동 재로드, 실패 시 유지 띠(.s는 D-141로 뺌) |
-| N-17 | 창(frameless)·배치·도구 모음·상태 표시줄·시작 화면·대화상자·빈 상태·알림 띠 |
-| N-18 | 튜토리얼 엔진 + 논리설계 트랙 + 컴퓨터구조 트랙(12장) |
-| N-19 | 실습실 PC 규칙(화면·엔진)과 자동 검사 |
-| N-20 | 화면 문구 규칙, 문구 리소스, About·NOTICE |
-| N-21 | 그 밖의 v1 기능 전부(Undo History, 단축키, Create Submission, 그림 내보내기, Duplicate N·정렬·선택 필터, jar 복사 알림 등), v1 기능 대조표 완료 |
-| N-22 | 성능 목표 측정과 달성(3.1) |
-| N-23 | setup exe(electron-builder NSIS), 예전 설치본 처리, zip·MSI 금지 CI, Windows 설치본 e2e |
-| N-24 | 사전 릴리스 alpha들 |
-| N-25 | OPEN-ISSUES 전부 해소 |
-| N-26 | PLAN 개정, CLAUDE.md, 안내서·PDF, README |
-| N-27 | Swing 화면 코드 삭제, 빌드·CI 정리 |
-| N-28 | v2.0.0 릴리스, 배포 후 검증, needs-human 갱신, 최종 보고 |
+| N-00 | Transition: wrap up the final round (stop, finish, hand off), move OPEN-ISSUES etc. to main, confirm v1.0.3 is published, tag `swing-final` |
+| N-01 | Collect edit-equivalence goldens (before deleting Swing, intent-unit scenarios) |
+| N-02 | electron/ foundation: import the Hallym MIPS stack and shared code (ORIGIN.md, shared/), skeleton for build/test/e2e/screenshot/packaging |
+| N-03 | Java engine server: headless Logisim, JSON-RPC, file/model/simulation API, move over existing GUI-less code |
+| N-04 | jlink JRE bundling, engine start/stop/restart/recovery |
+| N-05 | Canvas view: drawing engine, part renderer registry (every part used in class), wires/connection points/jumps/buses, label chips, tunnel colors, port names, value chips, scale and pan |
+| N-06 | Geometric-equivalence check |
+| N-07 | Wire up simulation: Poke, 1 Cycle, N Cycles, Run, Reset, frequency, value stream, oscillation |
+| N-08 | Editing tools and operations (the entire same-feel-as-original table) |
+| N-09 | Edit-equivalence passes → v2.0.0-alpha.1 |
+| N-10 | Attributes (Inspector form), Quick Attributes, right-click menu |
+| N-11 | Multiple file tabs, cross-tab libraries, subcircuits (enter, port order, Auto Appearance, appearance editing, import), split windows/side-by-side view |
+| N-12 | Part list/search palette, Splitter editor, Find, Tunnels, Minimap |
+| N-13 | Messages (static/dynamic diagnostics), E/X source, oscillation, similar-name candidates |
+| N-14 | Cycle View, Run Until, Registers/Memory/Instruction (Hallym MIPS panels), Mark as PC, Register Mapping |
+| N-15 | Signal Flow, influence path, active path, bus-value chip, signal group, area memo |
+| N-16 | MIPS: Load Program (.hmx), summary, entry and starting values, disassembly, Console, auto-reload, keep-last-good band on failure (.s dropped per D-141) |
+| N-17 | Window (frameless), layout, toolbar, status bar, start screen, dialogs, empty states, notice bands |
+| N-18 | Tutorial engine + logic-design track + computer-architecture track (chapter 12) |
+| N-19 | Lab PC rule (screen and engine) and automated checks |
+| N-20 | Screen wording rules, wording resources, About/NOTICE |
+| N-21 | Every remaining v1 feature (Undo History, keyboard shortcuts, Create Submission, image export, Duplicate N and align, selection filter, jar-copy notice, etc.), completion of the v1 feature-parity table |
+| N-22 | Measure and achieve performance targets (3.1) |
+| N-23 | setup exe (electron-builder NSIS), handling the old installer, CI ban on zip/MSI, Windows installer e2e |
+| N-24 | Pre-release alphas |
+| N-25 | Resolve all OPEN-ISSUES |
+| N-26 | Revise PLAN, CLAUDE.md, manual/PDF, README |
+| N-27 | Delete the Swing screen code, clean up build and CI |
+| N-28 | v2.0.0 release, post-release verification, update needs-human, final report |
 
-**v2.0.0 태그 조건.** 위 표가 모두 끝나고, `docs/v1-feature-parity.md`의 모든 줄에 v2 PR과 테스트가 이어져 있어야 한다. v1 기능을 빼려면 이유를 DECISIONS에 적는다(기본은 전부 옮김). 원조 2.7.1에 없는 편집(새 부품 종류 등)은 만들지 않고, hcs:ext에 담는 정보만 새로 저장한다.
+**v2.0.0 tag conditions.** The table above must be entirely done, and every row of `docs/v1-feature-parity.md` must be linked to a v2 PR and test. To drop a v1 feature, write the reason in DECISIONS (the default is to move everything over). No editing not present in original 2.7.1 (e.g. a new part kind) is created — only information stored in hcs:ext is newly saved.
 
-## 10. 리스크와 미결정 사항
+## 10. Risks and open items
 
-가장 큰 리스크는 진단 오탐과 기존 과제 호환성이다. 둘 다 학생과 교수님의 신뢰를 바로 잃게 한다.
+The biggest risks are diagnostic false positives and compatibility with existing assignments. Both would immediately cost students' and the professor's trust.
 
-| 리스크 | 영향 | 대응 |
+| Risk | Impact | Response |
 | --- | --- | --- |
-| 진단 오탐 | 정상 회로에 메시지가 뜨면 학생이 진단을 무시하게 됨 | 정상 과제 회로에서 메시지 0건을 필수 테스트로. 확실한 것만 알림 |
-| 2011년 코드 현대화 | 최신 JDK, 고해상도 화면, 한글 폰트에서 문제 | 0단계에서 실습실 PC 기준으로 빌드·실행 확인. v2는 화면을 Electron이 그리므로 엔진은 headless로만 돈다 |
-| QtSpim 시작 코드로 주소 어긋남 | 같은 명령어 주소가 Hallym MIPS와 회로에서 다름 | 실행 이미지를 시작 코드까지 파일 주소 그대로 올리고, 회로의 PC는 entry(`0x00400024`)에서 시작(6.5, D-126) |
-| (해소) SPIM 명령줄 도구 빌드·번들 | Windows 빌드와 설치 파일 관리 부담 | 어셈블을 Hallym MIPS에 맡기고 hcs-asm을 지웠다(D-141) |
-| 기록 메모리 | 긴 프로그램에서 느려짐 | 변화분만 기록, 보관 사이클 상한 |
-| (향후) Verilog 자동 배치가 읽기 어려움 | 가져온 회로가 교육적으로 쓸모없음 | 좌표 속성 우선, 모듈 단위로 작게 배치, 수동 정리 도구 |
-| (향후) 코드 블록 합성 결과가 의도와 다름 | 학생 혼란 | 합성 가능한 서브셋 강제, 합성 결과 미리보기 |
-| 편집기 개선이 .circ를 바꿈 | 원조 2.7.1과 파일이 어긋나 호환이 깨짐 | 툴바·매핑·라벨 글꼴은 .circ 밖(v2는 이번 실행에만, D-152)에 두고, 모든 편집 기능 뒤에 원조 저장 결과와 바이트 동일 회귀 테스트(11.16) |
-| 편집기 개선으로 범위가 커짐 | 진단·사이클 뷰가 늦어짐 | 2a·2b·2c로 나눠 단계마다 쓸 수 있는 상태로 끊고, 편의 기능은 4b로 미룸 |
-| 새 화면이 원조와 다르게 편집함(v2) | 저장한 .circ가 원조·v1과 달라짐 | 편집은 엔진이 원조 편집 코드로 하고(3.1), 편집 동등성 골든과 바이트 비교(D-136, D-159) |
-| 엔진 프로세스가 죽음(v2) | 저장하지 않은 편집을 잃음 | 다시 띄우고 의도 저널로 되살림(D-142), 앱이 죽으면 학생 파일 옆 복구 파일(D-152) |
-| 설치 크기·첫 시작 시간(v2) | 실습실 PC에서 느림 | jlink로 줄인 JRE와 AppCDS(D-142), 성능 목표를 CI가 잼(D-160) |
-| 조교 1인 개발 규모 | 일정 지연 | 로드맵 단계마다 쓸 수 있는 상태로 끊어 배포 |
+| Diagnostic false positive | If a message appears on a normal circuit, students start ignoring diagnostics | Zero messages on a normal assignment circuit is a required test. Report only what's certain |
+| Modernizing 2011 code | Problems with a modern JDK, high-DPI screens, Korean fonts | Confirm build and run against the lab PC baseline in stage 0. v2 has the screen drawn by Electron, so the engine only runs headless |
+| Address mismatch from QtSpim's startup code | The same instruction address differs between Hallym MIPS and the circuit | Load the executable image, including the startup code, at the file's addresses as-is, and start the circuit's PC at entry (`0x00400024`) (6.5, D-126) |
+| (resolved) Building/bundling the SPIM command-line tool | Burden of managing the Windows build and installer | Left assembling to Hallym MIPS and deleted hcs-asm (D-141) |
+| Recording memory | Slows down for long programs | Record diffs only, with an upper bound on cycles kept |
+| (future) Automatic Verilog placement hard to read | An imported circuit becomes educationally useless | Prioritize coordinate attributes, place small by module, provide manual cleanup tools |
+| (future) Code-block synthesis result differs from intent | Student confusion | Enforce a synthesizable subset, preview the synthesis result |
+| Editor improvements change the .circ | File mismatch with original 2.7.1 breaks compatibility | Keep the toolbar, mapping, and label font outside the .circ (only for this run in v2, D-152), and put a byte-identical-to-original-save regression test (11.16) behind every editing feature |
+| Editor improvements grow the scope | Diagnostics and Cycle View are delayed | Split into 2a/2b/2c so each stage leaves a usable state, and push convenience features to 4b |
+| The new screen edits differently from the original (v2) | The saved .circ diverges from the original and v1 | The engine does editing with original edit code (3.1), verified with edit-equivalence goldens and byte comparison (D-136, D-159) |
+| The engine process dies (v2) | Unsaved edits are lost | Relaunch and recover from the intent journal (D-142); if the app dies, a recovery file next to the student's file (D-152) |
+| Install size / first-start time (v2) | Slow on lab PCs | A shrunk JRE via jlink and AppCDS (D-142), performance targets measured by CI (D-160) |
+| Scale of a single TA developing it | Schedule slips | Break the roadmap into stages each leaving a usable, shippable state |
 
-**미결정 사항.**
+**Open items.**
 
-- [x] QtSpim의 분기 오프셋 인코딩 확인(0단계) → QtSpim 기계어를 그대로 올리기로 확정(D-010)
-- [ ] 교수님 승인과 도입 시점(학기 중 일부 과제, 또는 다음 학기 전면)
-- [ ] 지난 학기 "작동 안 함" 사례 목록(4.2 검사 목록과 고장 회로 모음 확정용)
-- [ ] 과제에 실제로 쓰이는 부품 목록(7.5 매핑표 확정용)
-- [ ] 기계어를 손으로 인코딩하는 연습을 남길지(예: 첫 과제만 수동 입력)
-- [ ] 저장소 공개 시점과 유지보수 담당(다음 학기 조교 인수인계). 공개는 정했다(D-017). 유지보수 담당은 남음
+- [x] Confirm QtSpim's branch-offset encoding (stage 0) → decided to load QtSpim's machine code as-is (D-010)
+- [ ] Professor's approval and rollout timing (some assignments mid-semester, or full rollout next semester)
+- [ ] A list of last semester's "doesn't work" cases (for finalizing the 4.2 check list and broken-circuit collection)
+- [ ] The list of parts actually used in assignments (for finalizing the 7.5 mapping table)
+- [ ] Whether to keep a hand-encoding-machine-code exercise (e.g. manual entry for the first assignment only)
+- [ ] When to make the repository public and who maintains it (handoff to next semester's TA). Publicity is decided (D-017). Maintenance ownership remains open
 
-**결정된 사항.**
+**Decided items.**
 
-- PC 시작값과 `$sp` 초기화는 학생이 회로와 프로그램에서 맞춘다.
-- 원칙 밖이라 하지 않는다(1장 설계 원칙): SPIM 정답 레지스터 값을 학생에게 보여주거나 회로 결과와 비교하는 기능, 게이트로 만든 클럭처럼 동작은 하지만 위험한 설계의 경고.
-- 과제 표준 SPIM 설정은 Hallym MIPS 기본값(예외 처리기 불러옴, 지연 분기 끔, 의사 명령어 켬)이다. 시작 코드 9워드가 `0x00400000`~`0x00400020`, `main`이 `0x00400024`다(D-126이 D-010의 "예외 처리기 끔"을 바꿨다). 도구는 이 설정의 QtSpim 기계어를 그대로 올리고 인코딩과 분기 계산에 관여하지 않는다(D-010, 사용자 확정).
-- Data Memory 하나가 데이터와 스택 영역을 함께 맡는다(사용자 결정, D-140). 따로 된 Stack 부품은 옛 파일을 위해서만 남는다.
-- MIPS 메모리 부품은 워드 접근만 지원한다.
-- 베이스는 Logisim 2.7.1 포크다. 학생들이 지금 쓰는 버전이라 기존 과제와 채점 결과가 그대로 유지된다.
-- 프로그램은 Hallym MIPS가 내보낸 실행 이미지(`.hmx`)로만 받아 시작 코드까지 파일 주소 그대로 올린다(D-126). .s 불러오기와 hcs-asm은 지웠다(사용자 결정, D-141). .bss와 힙은 쓰지 않는다. 나머지 데이터패스는 학생이 설계한다.
-- 화면은 Electron으로 Hallym MIPS와 같은 재료로 만들고, 안에서는 Java 엔진 서버가 Logisim 2.7.1을 돌린다. 엔진이 모델의 권위이고 편집은 의도로 보낸다(3.1, D-132). 글꼴은 Pretendard와 D2Coding이다.
-- ~~UI는 Swing + FlatLaf로 만든다. Electron은 쓰지 않는다. 글꼴은 Pretendard다.~~ 대체됨 (D-132).
-- Windows 배포물은 setup exe 하나다. 앱 zip과 MSI는 없다(D-148, D-155).
-- 실습실 PC는 껐다 켜면 모두 기본값이다. 앱과 엔진은 설정을 기억하지 않는다(D-152). 기준 화면은 1920×1080의 100·125·150 %다(D-118).
-- 이름은 Hallym Circuit Studio다. 저장소 이름은 `hallym-circuit-studio`.
-- 이번 개발은 v2 로드맵 N-00~N-28(9.2)과 v2.0.0 공개다. Verilog(5~9단계)는 구현하지 않고, 7.0의 원칙만 지킨다. ~~이번 개발은 0~4단계(2a·2b·2c·4b 포함)와 11장 편집기 개선 전체다.~~ 대체됨 (D-132): v1.0.x로 끝났다.
-- 편집기 개선은 전부 표시 층이다. .circ 안의 툴바·마우스 매핑·라벨 글꼴은 바꾸지 않고, 사용자가 직접 지정한 정보(터널 색, 신호 그룹, 영역 메모, 스플리터 팔 이름)만 7.0 네임스페이스로 저장한다. 영향 경로·E·X 추적·넷 정보는 연결 탐색 엔진 하나를 쓴다(11.0).
-- 실행 이미지 명세는 Hallym MIPS `docs/hmx-format.md` 태그 v2.4.0이다(D-138). .s 불러오기와 hcs-asm은 지웠다(D-141).
-- Data Memory 하나가 데이터와 스택을 맡는다(D-140). 부품 모양은 벡터 정의의 렌더러 등록표 하나다(D-137).
+- The PC starting value and `$sp` initialization are set by the student, in the circuit and program.
+- These are out of scope and not done (chapter 1 design principle): showing the student SPIM's correct register values or comparing them against the circuit's result, and warnings about risky-but-working designs like a clock made from gates.
+- The standard assignment SPIM setting is Hallym MIPS's default (exception handler loaded, delayed branch off, pseudo-instructions on). The 9-word startup code is at `0x00400000`–`0x00400020`, `main` at `0x00400024` (D-126 changed D-010's "exception handler off"). The tool loads this setting's QtSpim machine code as-is and doesn't get involved in encoding or branch computation (D-010, confirmed by the user).
+- One Data Memory handles both the data and stack regions (user decision, D-140). The separate Stack part remains only for old files.
+- MIPS memory parts support word access only.
+- The base is a fork of Logisim 2.7.1. It's the version students use now, so existing assignments and grading results stay the same.
+- A program is accepted only as an executable image (`.hmx`) exported by Hallym MIPS, loaded including the startup code at the file's addresses as-is (D-126). .s loading and hcs-asm were deleted (user decision, D-141). .bss and the heap are not used. The rest of the datapath is the student's design.
+- The screen is built in Electron with the same materials as Hallym MIPS, and inside, a Java engine server runs Logisim 2.7.1. The engine is the authority on the model, and edits are sent as intent (3.1, D-132). The fonts are Pretendard and D2Coding.
+- ~~The UI is built with Swing + FlatLaf. No Electron. The font is Pretendard.~~ Superseded (D-132).
+- The Windows distributable is a single setup exe. No app zip or MSI (D-148, D-155).
+- Lab PCs return entirely to default on power-off/on. The app and engine remember no settings (D-152). The baseline screen is 1920×1080 at 100/125/150% (D-118).
+- The name is Hallym Circuit Studio. The repository name is `hallym-circuit-studio`.
+- This round of development is the v2 roadmap N-00–N-28 (9.2) and publishing v2.0.0. Verilog (stages 5–9) is not implemented; only 7.0's principles are kept. ~~This round of development is stages 0–4 (including 2a, 2b, 2c, 4b) and all of chapter 11's editor improvements.~~ Superseded (D-132): ended with v1.0.x.
+- Editor improvements are entirely a display layer. The toolbar, mouse mapping, and label font inside the .circ are unchanged; only information the user explicitly specified (tunnel color, signal group, area memo, splitter arm name) is saved under the 7.0 namespace. Influence path, E/X tracing, and net info all use one connection-search engine (11.0).
+- The executable-image spec is Hallym MIPS `docs/hmx-format.md` tag v2.4.0 (D-138). .s loading and hcs-asm were deleted (D-141).
+- One Data Memory handles data and stack (D-140). Part shapes come from a single renderer registry of vector definitions (D-137).
+## 11. Editor improvements
 
-## 11. 편집기 개선
+Bring 2.7.1's editing screen up to the level of a modern editor. Tabs, zoom, target-specific right-click menus, search, wiring, and influence paths are the core. All of it is a change to the screen (UI) layer; the engine and file format stay the same.
 
-2.7.1의 편집 화면을 요즘 편집기 수준으로 고친다. 탭, 확대·축소, 대상별 우클릭 메뉴, 검색, 배선, 영향 경로가 핵심이다. 전부 화면(UI) 층의 변경이고 엔진과 파일 형식은 그대로다.
+v1 built this chapter on the Swing screen. v2 rebuilds the same features on the Electron screen, and model-side computation (connection search, wires that follow parts, diagnostics, paths) calls the v1 code as-is from the engine. The table linking each v1 feature to a v2 PR and e2e is `docs/v1-feature-parity.md`, and the table carrying over original 2.7.1's operations is `docs/interaction-parity.md` (D-139). Among the behaviors in the table below, ones that don't fit the lab PC rule (leaving settings, tab restoration, or auto-save on disk) were changed by D-152.
 
-v1은 이 장을 Swing 화면에 만들었다. v2는 같은 기능을 Electron 화면에 다시 만들고, 모델 쪽 계산(연결 탐색, 따라오는 선, 진단, 경로)은 v1 코드를 엔진에서 그대로 부른다. v1 기능마다 v2 PR과 e2e를 잇는 표가 `docs/v1-feature-parity.md`이고, 원조 2.7.1의 조작을 옮기는 표가 `docs/interaction-parity.md`다(D-139). 아래 표의 동작 가운데 실습실 PC 규칙과 맞지 않는 것(설정·탭 복원·자동 저장을 디스크에 남기기)은 D-152로 바뀌었다.
+### 11.0 Common principles
 
-### 11.0 공통 원칙
+- **Don't touch the engine.** Every item is a UI layer (chapter 3, "Engine"). Where the 2.7.1 API can't do it, isolate it in a single minimal patch and keep a DECISIONS entry and a regression test.
+- **The .circ stays original.** 2.7.1 saves the toolbar layout (`<toolbar>`), mouse mapping (`<mappings>`), and label font inside the .circ. New toolbars, right-click menus, and label display are built as a separate layer that doesn't change these values, and user settings apply only to the current run (D-152; the old "goes in app preferences" is superseded). A .circ using no new part stays byte-compatible with original 2.7.1 (by the D-006 standard).
+- **Separate drawing from saving.** Label chips, auto-coloring, value display, and cross jump apply only when drawing. Only information the user explicitly specified (tunnel color, signal group, area memo, splitter arm name) is saved through the 7.0 namespace scheme so original 2.7.1 can ignore it.
+- **There is one connection-search engine.** Influence path, E/X tracing (4.3), and net info use the same engine. It takes the circuit model as input and is tested with no GUI.
+- **Don't convey meaning by color alone.** Pair it with a label, and choose a palette that accounts for color blindness.
+- **Wording lives in resource bundles.** Manage names (fixed English) and explanatory sentences (Korean/English) in separate bundles (chapter 3, UI language, D-049).
 
-- **엔진은 건드리지 않는다.** 모든 항목이 UI 층이다(3장 "엔진"). 2.7.1 API로 안 되는 곳은 최소 패치 하나로 격리하고 DECISIONS와 회귀 테스트를 둔다.
-- **.circ는 원조 그대로다.** 2.7.1은 툴바 구성(`<toolbar>`), 마우스 매핑(`<mappings>`), 라벨 글꼴을 .circ 안에 저장한다. 새 툴바·우클릭 메뉴·라벨 표시는 이 값을 바꾸지 않는 별도 층으로 만들고, 사용자 설정은 이번 실행에만 둔다(D-152. 예전 "앱 환경설정에 둔다"는 대체됨). 새 부품을 안 쓴 .circ는 원조 2.7.1과 바이트 수준으로 호환된다(D-006 기준).
-- **그리는 것과 저장하는 것을 나눈다.** 라벨 칩, 자동 색, 값 표시, 교차 점프는 그릴 때만 적용한다. 사용자가 직접 지정한 정보(터널 색, 신호 그룹, 영역 메모, 스플리터 팔 이름)만 7.0의 네임스페이스 방식으로 저장해 원조 2.7.1이 무시하게 한다.
-- **연결 탐색 엔진은 하나다.** 영향 경로, E·X 추적(4.3), 넷 정보가 같은 엔진을 쓴다. 회로 모델을 입력으로 받고 GUI 없이 테스트한다.
-- **색만으로 뜻을 전하지 않는다.** 라벨 글자를 함께 쓰고, 팔레트는 색각 이상을 고려한다.
-- **문구는 리소스 번들로.** 이름(영어 고정)과 설명 문장(한국어·영어)을 나눈 번들로 관리한다(3장 UI 언어, D-049).
+### 11.1 Window structure and tabs (A)
 
-### 11.1 창 구조와 탭 (A)
+Build this first. All later UI sits on top of it.
 
-가장 먼저 만든다. 이후 UI가 모두 여기에 얹힌다.
-
-| 기능 | 동작 |
+| Feature | Behavior |
 | --- | --- |
-| 파일 탭 | 열린 .circ마다 탭. 저장 안 된 변경은 점. 같은 파일을 다시 열면 기존 탭으로 간다. 그 아래 회로 탭과 경로(`main › datapath`) |
-| 탭별 상태 | 되돌리기 기록, 시뮬레이션 상태, 사이클 뷰, 진단이 탭마다 따로다 |
-| 창 배치 | 탭을 끌어 나란히 보기, 창 밖으로 끌어 별도 창. 다시 실행하면 빈 시작 화면이다(탭을 되살리지 않음, D-152·D-153. 예전 "열린 탭을 복원한다"는 대체됨) |
-| 탭 간 라이브러리 | 부품 검색에 "열린 파일의 회로" 묶음. 고르거나 파일 탭을 캔버스로 끌면 Load Library를 자동으로 하고 상대 경로로 저장한다. 2.7.1 원래 방식이라 원조에서도 열린다 |
-| 저장 반영 | 파일을 저장하면 그것을 라이브러리로 쓰는 열린 탭이 새 버전을 다시 불러오고 시뮬레이션을 리셋하고 "갱신됨"을 표시한다. 인스턴스 우클릭 "원본 파일에서 편집"으로 원본 탭으로 간다 |
-| 포트 변경 영향 | 저장할 때 포트가 바뀌면 "ripple_carry의 fa0~fa3 연결 12곳이 끊깁니다"처럼 미리 알린다. 포트가 옆 선으로 당겨져 조용히 잘못 이어지는 곳도 핀 이름으로 맞춰 센다(정적 진단으로는 알 수 없다, D-065). 닫혀 있던 파일은 다음에 열 때 라이브러리 갱신을 알린다 |
-| 안전 | 순환 참조는 막는다. 깨진 라이브러리 경로는 "찾기" 창으로 복구한 뒤 상대 경로로 다시 저장한다 |
+| File tabs | One tab per open .circ. A dot for unsaved changes. Reopening the same file goes to the existing tab. Below it, circuit tabs and path (`main › datapath`) |
+| Per-tab state | Undo history, simulation state, Cycle View, and diagnostics are separate per tab |
+| Window layout | Drag a tab to view side by side, drag out of the window for a separate window. Restarting shows an empty start screen (tabs are not restored, D-152/D-153; old "restore open tabs" is superseded) |
+| Cross-tab libraries | Part search gets an "open files' circuits" group. Picking one, or dragging a file tab onto the Canvas, does Load Library automatically and saves it as a relative path. It's 2.7.1's own original mechanism, so it opens in the original too |
+| Save propagation | When a file is saved, any open tab using it as a library reloads the new version, resets its simulation, and shows "updated". Right-click an instance and choose "Edit in Source File" to go to the original tab |
+| Port-change impact | Saving with a changed port warns beforehand, like "12 connections to ripple_carry's fa0–fa3 will be broken." Also counts, by pin name, spots where a port got silently misconnected because it was pulled onto a neighboring wire (static diagnostics can't catch this, D-065). A closed file is told about the library update the next time it's opened |
+| Safety | Circular references are blocked. A broken library path is recovered via a "Find" window and re-saved as a relative path |
 
-라이브러리 재로드는 2.7.1의 기존 API(Loader, 라이브러리 교체)로 만든다. 안 되면 11.0의 최소 패치 규칙을 따른다.
+Library reload is built on 2.7.1's existing API (Loader, library replacement). If it can't, follow the minimal-patch rule of 11.0.
 
-### 11.2 확대·축소와 이동 (B)
+### 11.2 Zoom and pan (B)
 
-| 조작 | 동작 |
+| Operation | Behavior |
 | --- | --- |
-| Ctrl+휠 | 커서 위치 중심 확대·축소 |
-| Ctrl+= / Ctrl+- | 한 단계 확대·축소 |
-| Ctrl+0 / Ctrl+1 | 전체 맞춤 / 100% |
-| 선택 후 F | 선택 부분으로 확대 |
-| 스페이스+드래그, 가운데 버튼 드래그 | 이동 |
-| 휠 / Shift+휠 | 상하 / 좌우 스크롤 |
+| Ctrl+wheel | Zoom centered on the cursor |
+| Ctrl+= / Ctrl+- | Zoom in/out one step |
+| Ctrl+0 / Ctrl+1 | Fit to window / 100% |
+| Select then F | Zoom to the selection |
+| Space+drag, middle-button drag | Pan |
+| Wheel / Shift+wheel | Scroll vertically / horizontally |
 
-비율은 25~400% 단계다. 상태 표시줄의 비율을 누르면 직접 입력한다.
+Scale steps from 25% to 400%. Click the scale in the status bar to type it directly.
 
-### 11.3 우클릭 메뉴 (C)
+### 11.3 Right-click menu (C)
 
-누른 대상에 맞는 메뉴를 띄운다. 2.7.1의 마우스 매핑과 따로 동작한다.
+Shows a menu fitted to what was clicked. Works independently of 2.7.1's mouse mapping.
 
-| 대상 | 메뉴 |
+| Target | Menu |
 | --- | --- |
-| 포트 | 입력·출력 핀 붙이기(폭·방향 자동, 라벨 = 포트 이름), 상수 0/1, Probe, 터널 붙이기, 이 입력 부정 |
-| 게이트 | 입력 수, 크기, 방향, 비트 수, 종류 바꾸기(AND/OR/NAND…), 라벨 편집, 복제 |
-| 선 | Probe 붙이기(진법 선택), 사이클 뷰에 추가, 넷 정보(폭, 구동자, 연결 포트), 넷 전체 선택·강조·삭제, 터널로 바꾸기, 영향 경로 보기 |
-| 핀 | 입력↔출력, 비트 폭, 3상태·pull, 라벨, 입력 핀 "값 입력…"(16진·10진) |
-| 서브회로 | 안으로 들어가기, 원본 파일에서 편집, 모양 편집, 레지스터 파일로 표시 |
-| MIPS 메모리 | 프로그램(.hmx) 불러오기·다시 불러오기·내용 보기 |
-| 터널 | 같은 이름 터널로 이동, 모두 강조, 색 지정 |
-| 빈 곳 | 여기에 부품 추가(커서 위치 검색창), 붙여넣기, 화면 맞춤 |
-| 다중 선택 | 정렬, 같은 종류 속성 일괄 변경, 라벨 일괄 편집 |
+| Port | Attach an input/output pin (width/direction auto, label = port name), constant 0/1, Probe, attach a tunnel, negate this input |
+| Gate | Input count, size, facing, bit width, change kind (AND/OR/NAND…), edit label, duplicate |
+| Wire | Attach a Probe (choose radix), add to Cycle View, net info (width, drivers, connected ports), select/highlight/delete whole net, convert to tunnel, show influence path |
+| Pin | Input↔output, bit width, tri-state/pull, label, input-pin "Enter value…" (hex/decimal) |
+| Subcircuit | Enter, edit in source file, edit appearance, Mark as Register File |
+| MIPS memory | Load Program (.hmx), reload, view contents |
+| Tunnel | Jump to same-name tunnel, highlight all, set color |
+| Empty space | Add part here (a search box at the cursor), paste, fit to window |
+| Multiple selection | Align, batch-change attribute of the same kind, batch-edit labels |
 
-게이트 종류를 바꾸면 NAND·NOR·XOR·XNOR는 몸체가 넓어 입력 핀이 10px 밀린다(부록 A.5). 입력 핀 위치를 고정하고 부품을 옮긴 뒤 출력 선을 다시 잇는다.
+Changing a gate's kind for NAND/NOR/XOR/XNOR shifts the input pins 10px since the body is wider (Appendix A.5). Keep the input pin position fixed, move the part, and reconnect the output wire.
 
-### 11.4 속성 편집 (D)
+### 11.4 Attribute editing (D)
 
-- **빠른 속성 창:** 선택한 부품 옆에 자주 바꾸는 속성 3~5개를 버튼 묶음으로 띄운다. "모든 속성"으로 전체 목록을 연다. 2.7.1의 숨은 단축키(숫자 키 등)를 함께 보인다.
-- **속성 패널:** 왼쪽 아래 고정 대신 오른쪽 도킹 패널. 접을 수 있다.
-- **라벨:** 더블클릭이나 F2로 제자리에서 편집한다.
+- **Quick Attributes window:** shows 3–5 frequently-changed attributes for the selected part as a button group, next to it. "All Attributes" opens the full list. Also shows 2.7.1's hidden shortcuts (number keys, etc.).
+- **Attributes panel:** a docked panel on the right instead of the fixed one at the bottom left. Collapsible.
+- **Label:** edit in place with a double-click or F2.
 
-### 11.5 빠른 Probe (E)
+### 11.5 Quick Probe (E)
 
-- 선·포트 우클릭, 또는 선 위에서 P → 16진 / 10진 / 2진 / 세 가지 모두(다중 진법 프로브, 6장). 부호 있음·없음은 Probe 우클릭으로 바꾼다.
-- 라벨은 터널 이름·핀 라벨로 자동으로 붙는다.
-- 선 옆 빈 격자에 놓고 짧은 선으로 잇는다. **교차점 위에는 절대 놓지 않는다.** 교차하던 두 넷이 합쳐진다(부록 A.4).
-- Probe를 한꺼번에 숨기거나 지운다.
+- Right-click a wire/port, or press P over a wire → Hex / Decimal / Binary / all three (the multi-radix probe, chapter 6). Signed/unsigned is switched with right-click on the Probe.
+- The label is auto-attached from the tunnel name or pin label.
+- Placed in an empty grid cell next to the wire and joined with a short wire. **Never placed on a crossing.** Two crossing nets would merge (Appendix A.4).
+- Hide or delete Probes all at once.
 
-### 11.6 부품 검색과 명령 (F)
+### 11.6 Part search and commands (F)
 
-- 탐색기 위 검색창. 한글 별칭(앤드, 멀티플렉서, 레지스터, 가산기)과 약어(mux, reg, add)를 받는다.
-- 속성까지 한 번에: `and 3`, `mux 32`, `reg 32` → Enter로 그 속성 그대로 커서 위치에 놓는다.
-- 캔버스에서 아무 키나 누르거나 Ctrl+K → 커서 옆 검색창.
-- 결과 순서: 최근 사용, 즐겨찾기, 이 프로젝트의 서브회로, 열린 파일의 회로.
-- 같은 검색창에서 명령을 실행한다(리셋, 클럭 한 번, 프로그램 불러오기 등).
+- A search box above the explorer. Accepts Korean aliases (앤드, 멀티플렉서, 레지스터, 가산기) and abbreviations (mux, reg, add).
+- Attributes in one go: `and 3`, `mux 32`, `reg 32` → Enter places it at the cursor with those attributes.
+- Any key press on the canvas, or Ctrl+K → a search box next to the cursor.
+- Result order: recently used, favorites, this project's subcircuits, open files' circuits.
+- Run commands from the same search box (reset, tick once, load program, etc.).
 
-### 11.7 툴바, 상태 표시줄, 조작 (G)
+### 11.7 Toolbar, status bar, and operations (G)
 
-| 영역 | 내용 |
+| Area | Content |
 | --- | --- |
-| 툴바 | 그룹: 파일·되돌리기 / 도구(선택·조작·배선) / 자주 쓰는 부품(입력·출력·터널·Probe) / 시뮬레이션(실행·1 사이클·N 사이클·리셋·속도, 사이클 뷰 앞뒤) / 프로그램(Load Program, .hmx). 아이콘+글자, 아이콘 전용 전환 |
-| 상태 표시줄 | 진단 개수(누르면 Messages), 시뮬레이션 상태, 사이클·PC, 불러온 프로그램, 확대 비율, 선 색 범례 |
-| 알림 | 시뮬레이션이 꺼져 있으면 캔버스 위 띠. 진동 진단에는 루프 경로와 "리셋" 버튼 |
-| 기본 단위 | 학생에게는 반 주기 틱보다 "한 사이클" |
-| 도구 전환 줄이기 | 선택 모드에서 Ctrl+클릭으로 입력 핀 토글·버튼 누르기, 더블클릭으로 값 입력 |
-| 단축키 | R 회전, 방향키 미세 이동, Ctrl+D 복제, ? 단축키 표, 사용자 설정(이번 실행에만, D-152) |
-| 포트 | 마우스를 올리면 포트 이름과 폭 |
+| Toolbar | Groups: file/undo / tools (select, poke, wiring) / frequently-used parts (input, output, tunnel, Probe) / simulation (run, 1 cycle, N cycles, reset, speed, Cycle View back/forward) / program (Load Program, .hmx). Icon+text, switchable to icon-only |
+| Status bar | Diagnostic count (click for Messages), simulation state, cycle/PC, loaded program, zoom, wire-color legend |
+| Notice | A band over the canvas when simulation is off. For an oscillation diagnostic, the loop path and a "Reset" button |
+| Default unit | "One cycle" for the student, instead of a half-period tick |
+| Fewer tool switches | In select mode, Ctrl+click toggles an input pin/presses a button, double-click enters a value |
+| Shortcuts | R rotate, arrow keys nudge, Ctrl+D duplicate, ? shortcut table, user customization (this run only, D-152) |
+| Port | Hovering shows the port name and width |
 
-### 11.8 배치와 편집 (H)
+### 11.8 Placement and editing (H)
 
-- N개 복제: 개수, 간격, 방향, 라벨 자동 번호(R0…R31).
-- 정렬, 같은 간격 배치. 선택 필터(부품만/선만).
+- Duplicate N: count, spacing, direction, auto-numbered labels (R0…R31).
+- Align, equal spacing. Selection filter (parts only / wires only).
 
-### 11.9 배선 (I)
+### 11.9 Wiring (I)
 
-- 부품을 옮기면 붙은 선이 따라와 연결이 유지된다(늘리고 꺾기).
-- 가운데 선분을 끌어 평행 이동하면 양쪽 꺾임이 따라온다.
-- 연결점은 큰 점, 연결 없는 교차는 반원 점프로 그린다.
-- 선이 남의 포트 위를 지나 연결된 곳도 연결점을 크게 그려 화면에서 보이게 한다. 진단은 아니다(1장 설계 원칙). 그 때문에 생긴 합선은 기존 합선 진단이 잡는다.
-- 넷 단위로 선택·강조·삭제한다.
-- 새 선도 부록 A.4 출력 규칙(교차점에 끝점 없음, T자 분기, 남의 포트 위 통과 금지)을 지킨다.
-- 선·부품을 자동으로 두는 기능(붙이기, 게이트 바꾸기, 선을 터널로, 빠른 Probe, 비트 나누기·합치기, 스플리터 고치기, 복제)은 검사기 하나를 거친다: A.4 규칙, 군더더기 없음, 다른 넷 불변, 뜻한 점 밖 접촉 없음. 어기면 바꾸지 않고 상태 표시줄에 알린다(W-05, D-059).
+- Moving a part keeps its attached wires connected, following along (stretching and bending).
+- Dragging a middle segment to pan moves both bends along with it.
+- Connection points draw as a large dot, unconnected crossings as a semicircular jump.
+- A wire connected by passing over someone else's port is also drawn with a large connection point so it's visible on screen. This is not a diagnostic (chapter 1 design principle); any resulting short is caught by the existing short-circuit diagnostic.
+- Select, highlight, and delete by net.
+- New wires also follow Appendix A.4's output rules (no endpoint at a crossing, T-junction branching, no passing over someone else's port).
+- Features that place wires/parts automatically (attach, change gate, wire-to-tunnel, quick Probe, bit split/merge, splitter fix, duplicate) go through a single checker: the A.4 rules, no clutter, other nets unchanged, no contact outside the intended point. If it fails, nothing changes and the status bar reports it (W-05, D-059).
 
-### 11.10 서브회로 (J)
+### 11.10 Subcircuits (J)
 
-- 탐색기에서 연 서브회로가 실행 중인 인스턴스가 아니면 화면 위에 알리고 "main 안의 이 인스턴스로 가기"를 준다.
-- 핀을 추가·이동하기 전에 끊길 인스턴스 연결 수를 보이고, 되면 연결을 유지한다.
-- 포트 목록을 끌어 순서를 바꾸고, 모양을 자동 정렬한다. 모양 자동 정렬은 서브회로 우클릭 "Auto Appearance"로 2b에서 먼저 만들었다(D-051): 원조 2.7.1 표준 사용자 모양(포트 이름이 들어가는 폭의 상자, 포트 이름, 회로 이름)이고 포트 순서를 지킨다.
-- 다른 .circ에서 서브회로를 가져온다(딸린 서브회로 포함).
+- If the subcircuit opened from the explorer isn't the running instance, notify on screen with "Go to this instance inside main."
+- Before adding or moving a pin, show how many instance connections will be broken, and keep them connected when it's possible.
+- Drag the port list to reorder, and auto-arrange the appearance. Auto-arranging the appearance was already built in 2b via right-click "Auto Appearance" on a subcircuit (D-051): original 2.7.1's standard user appearance (a box wide enough for the port names, port names, circuit name), keeping port order.
+- Import a subcircuit from another .circ (including its dependent subcircuits).
 
-### 11.11 버스, 스플리터, 터널, 찾기 (K)
+### 11.11 Buses, splitters, tunnels, find (K)
 
-- **스플리터 편집기(2b).** 결과는 늘 2.7.1 표준 속성(`fanout`, `incoming`, `bitN`)으로 저장해 원조와 호환된다. 팔 이름만 7.0 네임스페이스로 저장한다.
+- **Splitter editor (2b).** The result is always saved as 2.7.1's standard attributes (`fanout`, `incoming`, `bitN`) for compatibility with the original. Only arm names are saved under the 7.0 namespace.
 
-  | 기능 | 동작 |
+  | Feature | Behavior |
   | --- | --- |
-  | 범위 입력 | `31:26, 25:21, 20:16, 15:0`, `4x8`(8비트 팔 4개), `32x1` |
-  | 비트 그림 | 32칸. 경계를 클릭해 나누기·합치기, 드래그로 범위, 팔마다 색(글자 병기) |
-  | 프리셋 | MIPS R형(op rs rt rd shamt funct), I형(op rs rt imm), J형(op addr), 바이트 4개, 상·하위 16비트, 부호 비트 + 나머지 |
-  | 팔 라벨 | 작은 "0-3" 대신 "[31:26] op"처럼 범위 + 이름 |
-  | 방향 | "위에서부터 MSB / LSB"를 고르면 그에 맞게 `bitN`을 배정 |
-  | 선 우클릭 | "비트 나누기…"(스플리터를 만들고 연결), 여러 선을 골라 "하나의 버스로 합치기", "비트 하나 뽑기 [n]". 합치기는 학생이 고른 선을 **고른 순서대로**(먼저 고른 것이 위 = MSB) 각 선의 폭 그대로 묶을 뿐이다. 어떤 비트를 어디에 둘지는 학생이 정하고 도구는 정하지 않는다(1장 설계 원칙). 예: 학생이 PC의 상위 4비트 선, addr 선, 상수 00 선을 순서대로 고르면 `{PC[31:28], addr, 00}` 모양의 스플리터가 생긴다 |
-  | 표시 | 편집기 안에서 배정 안 된 비트, 팔 폭과 연결된 선 폭 불일치 |
-- **버스:** 폭 숫자 표시 옵션. 버스는 1비트 선보다 굵게.
-- **선 색 범례:** 마우스를 올리면 파랑·빨강·주황·초록 진하기·검정의 뜻.
-- **터널:** 같은 이름 터널로 이동·모두 강조. 이름 목록 패널에서 사용 위치를 본다.
-- **Ctrl+F:** 라벨·터널·서브회로 이름을 모든 서브회로에서 찾아 이동한다.
+  | Range input | `31:26, 25:21, 20:16, 15:0`, `4x8` (four 8-bit arms), `32x1` |
+  | Bit diagram | 32 cells. Click a boundary to split/merge, drag for a range, a color per arm (with text label) |
+  | Presets | MIPS R-type (op rs rt rd shamt funct), I-type (op rs rt imm), J-type (op addr), 4 bytes, upper/lower 16 bits, sign bit + rest |
+  | Arm label | "[31:26] op" (range + name) instead of a small "0-3" |
+  | Direction | Choosing "MSB from the top / LSB" assigns `bitN` accordingly |
+  | Wire right-click | "Split bits…" (creates and connects a splitter), select several wires for "Merge into one bus," "Take one bit [n]." Merge simply bundles the wires the student picked, **in the order picked** (the first picked is on top = MSB), each at its own width. Which bit goes where is the student's choice, not the tool's (chapter 1 design principle). Example: if the student picks the PC's top 4 bits, then addr, then the constant 00 in that order, a splitter shaped `{PC[31:28], addr, 00}` is created |
+  | Display | Unassigned bits, and a mismatch between arm width and connected wire width, inside the editor |
+- **Bus:** an option to show the width number. A bus draws thicker than a 1-bit wire.
+- **Wire-color legend:** hovering shows what blue, red, orange, dark green, and black mean.
+- **Tunnel:** jump to / highlight all same-name tunnels. A name-list panel shows where each is used.
+- **Ctrl+F:** find and jump to a label, tunnel, or subcircuit name across every subcircuit.
 
-### 11.12 가독성 (L)
+### 11.12 Readability (L)
 
-| 기능 | 동작 |
+| Feature | Behavior |
 | --- | --- |
-| 영향 경로 | 선택한 부품·선의 앞(영향을 줌)/뒤(영향을 받음)/양쪽을 다른 색으로 강조하고 나머지는 흐리게. 기본은 레지스터·메모리에서 멈추고 "레지스터 넘어서" 옵션. 키로 한 단계씩 넓힌다. 같은 이름 터널을 건너 양쪽을 강조하고 두 터널 사이에 점선. 서브회로 경계에서는 인스턴스 테두리를 강조하고 "alu 안 3곳", 들어가면 계속 강조. 두 부품을 고르면 둘 사이 경로만 |
-| 신호 흐름(Signal Flow, P-07) | 부품·선을 누르면 그 신호가 가는 경로(Forward, Shift는 Backward)를 먼저 계산하고, 경로 위로 신호 방향의 흐름 애니메이션을 겹쳐 그린다. 영향 경로와 같은 연결 엔진을 쓰고, 레지스터에서 멈춤("Through Registers"), 터널 점프, 서브회로 내부 계산, 스플리터 비트 추적, "Active Path Only"(MUX 등 선택 입력 값), "Reduce Motion"(정적 화살표·번호). 값 색은 그대로 두고 오버레이만 그린다. 파일에 저장하지 않는다(설정은 환경설정) |
-| 활성 경로 | 사이클 뷰에서 고른 사이클의 MUX 선택 신호를 보고, 실제로 선택된 입력 쪽 경로만 진하게(3단계) |
-| 마우스 오버 | 전체 경로(`main › datapath › alu › AND #3`), 라벨, 입력 수·폭, 연결된 넷 이름. 미니맵에 위치 점 |
-| 서브회로 상자 | 인스턴스 상자 안에 포트 이름과 회로 이름 |
-| 라벨 | 옅은 배경의 칩, Pretendard, 확대 비율과 무관한 최소 크기. 겹치면 빈 방향으로 옮기고 멀면 지시선. 밀도 3단계(전부 / 핀·터널·서브회로만 / 마우스 올린 것만). 긴 버스에 넷 이름과 폭(`ALUResult[31:0]`) |
-| 터널 색 | 이름 해시로 같은 이름 = 같은 색(저장 안 함). 우클릭으로 직접 지정(저장) |
-| 신호 그룹 | 넷을 제어/데이터/주소 그룹으로 나눈다. `control` 서브회로의 출력 넷은 자동으로 "제어". 선 색은 원래 값(0/1/연결 안 됨/오류/폭 불일치)의 뜻이므로 "색 보기: 값 / 그룹"을 전환한다(편집 중 그룹, 시뮬레이션 중 값이 기본). 그룹 색은 선 옆 얇은 테두리와 라벨 칩에만 칠한다 |
-| 버스 값 | 시뮬레이션 중 버스 위에 현재 값 칩(진법 전환). 부품이 아니라 표시라 파일은 그대로(3단계) |
+| Influence path | Highlight, in a different color, what's before (affects it) / after (is affected by) / both directions of the selected part or wire, and dim everything else. By default it stops at registers/memory, with a "past the register" option. Widen it one step at a time with a key. Crosses a same-name tunnel to highlight both sides, with a dotted line between the two tunnels. At a subcircuit boundary it highlights the instance outline and shows "3 spots inside alu"; entering it keeps the highlight going. Picking two parts shows only the path between them |
+| Signal Flow (P-07) | Clicking a part/wire first computes where that signal goes (Forward, Shift for Backward), then overlays a flow animation in the signal's direction along the path. Uses the same connection engine as the influence path, stops at registers ("Through Registers"), tunnel jumps, computation inside a subcircuit, splitter bit tracing, "Active Path Only" (a MUX's chosen-input value), "Reduce Motion" (static arrows/numbers). Value colors are left as-is; only an overlay is drawn. Not saved to the file (the setting is in preferences) |
+| Active path | In Cycle View, looking at a chosen cycle's MUX select signal, darken only the actually-selected input's path (3 levels) |
+| Hover | Full path (`main › datapath › alu › AND #3`), label, input count/width, connected net name. A position dot on the minimap |
+| Subcircuit box | Port names and circuit name inside the instance box |
+| Labels | A chip on a pale background, Pretendard, a minimum size independent of zoom. If overlapping, move toward an open direction, and a leader line if far. Three density levels (all / pins, tunnels, subcircuits only / only the one under the pointer). A net name and width (`ALUResult[31:0]`) on a long bus |
+| Tunnel color | Same name = same color, by name hash (not saved). Right-click to set it directly (saved) |
+| Signal group | Splits nets into control/data/address groups. The `control` subcircuit's output nets are automatically "control." Wire color already carries the meaning of the raw value (0/1/unconnected/error/width-mismatch), so toggle "Color view: Value / Group" (group while editing, value during simulation, by default). Group color is painted only as a thin border next to the wire and on the label chip |
+| Bus value | A current-value chip (switchable radix) over a bus during simulation. It's a display, not a part, so the file is unchanged (level 3) |
 
-### 11.13 파일과 제출 (M)
+### 11.13 Files and submission (M)
 
-- **복구 파일(v2):** 편집 뒤 몇 초 안에 학생 파일 옆에 복구 파일을 쓰고, 그 파일을 다시 열 때만 되살릴지 묻는다. 새 파일·쓸 수 없는 폴더에는 쓰지 않는다. 저장·닫기·정상 종료에 지운다. 원본 .circ는 건드리지 않는다(D-152).
-- ~~**자동 저장:** 몇 분마다 별도 파일에 저장하고 다음 실행 때 복구를 제안한다.~~ 대체됨 (D-152): 앱 설정 폴더에 남기는 것은 실습실 규칙과 맞지 않는다.
-- **되돌리기 목록**(무엇을 되돌리는지 표시), 최근 파일, 창에 .circ를 끌어 놓아 열기.
-- **제출 파일 만들기:** .circ + 불러온 프로그램(.hmx) + 불러온 라이브러리 .circ·JAR를 zip 하나로. 묶기 전에 점검한다: 진단 0건, 남은 Probe, 원조 2.7.1에서 열리는지.
-- **그림 내보내기:** 회로 전체·선택 영역을 SVG, PDF, 고해상도 PNG로.
+- **Recovery file (v2):** within a few seconds after an edit, write a recovery file next to the student's file, and ask whether to restore only when that file is reopened. Never written for a new file, or a folder that can't be written to. Deleted on save, close, or normal exit. The original .circ is never touched (D-152).
+- ~~**Auto-save:** save to a separate file every few minutes and offer recovery on the next run.~~ Superseded (D-152): leaving it in the app's settings folder doesn't fit the lab rule.
+- **Undo list** (shows what each entry undoes), recent files, drag-and-drop a .circ onto the window to open it.
+- **Create submission:** bundles the .circ + loaded program (.hmx) + imported library .circ/JAR files into one zip. Checks before bundling: 0 diagnostics, leftover Probes, opens in original 2.7.1.
+- **Image export:** export the whole circuit or a selection as SVG, PDF, or high-resolution PNG.
 
-### 11.14 화면 (N)
+### 11.14 Screen (N)
 
-- 미니맵.
-- 영역 메모: IF/ID/EX… 영역을 감싸는 색 상자와 메모. 7.0 네임스페이스로 저장한다.
+- Minimap.
+- Area memo: a colored box wrapping a region like IF/ID/EX… with a memo. Saved under the 7.0 namespace.
 
-### 11.15 단계 배치
+### 11.15 Stage placement
 
-| 단계 | 편집기 개선 항목 |
+| Stage | Editor improvement items |
 | --- | --- |
-| 2a 포크 + 편집기 기반 | A 창 구조와 탭(탭 간 라이브러리 제외), B 확대·축소, M 자동 저장(v2는 복구 파일, D-152) |
-| 2b 편집 핵심 | C 우클릭, D 속성 편집, E 빠른 Probe, F 검색과 명령, G 툴바·상태 표시줄·조작. L 중 서브회로 포트 이름·라벨 칩·라벨 밀도·터널 자동 색·마우스 오버 정보. K 중 터널 이동·Ctrl+F·스플리터 편집기 |
-| 2c 정적 진단 + 배선 | I 배선 전체, L 영향 경로·신호 흐름(P-07), J 인스턴스 안내·포트 변경 영향, A 탭 간 라이브러리와 저장 반영 |
-| 3 기록 엔진 + 사이클 뷰 | L 버스 값 표시·활성 경로 |
-| 4b 편의 마무리 | H, J 포트 순서·다른 파일에서 가져오기, K 버스 폭·범례, L 신호 그룹 색·교차 점프, M 되돌리기 목록·제출 파일·그림 내보내기, N, 나란히 보기·창 분리, 단축키 설정 |
+| 2a Fork + editor foundation | A window structure and tabs (excluding cross-tab libraries), B zoom, M auto-save (v2: recovery file, D-152) |
+| 2b Editing core | C right-click, D attribute editing, E quick Probe, F search and commands, G toolbar/status bar/operations. From L: subcircuit port names, label chip, label density, tunnel auto-color, hover info. From K: tunnel jump, Ctrl+F, splitter editor |
+| 2c Static diagnostics + wiring | I wiring in full, L influence path and Signal Flow (P-07), J instance guidance and port-change impact, A cross-tab libraries and save propagation |
+| 3 Recording engine + Cycle View | L bus-value display and active path |
+| 4b Convenience wrap-up | H, J port order and import from another file, K bus width and legend, L signal-group color and cross jump, M undo list/submission file/image export, N, side-by-side view/window split, keybinding customization |
 
-위 표는 v1의 배치다. v2에서는 N-05(그리기), N-08(편집 도구), N-10~N-15(속성·메뉴, 탭·서브회로, 찾기, 진단, Cycle View, 덧그림), N-21(나머지)이 같은 기능을 옮긴다(9.2).
+The table above is v1's placement. In v2, N-05 (drawing), N-08 (editing tools), N-10–N-15 (attributes/menus, tabs/subcircuits, find, diagnostics, Cycle View, overlays), N-21 (the rest) move the same features over (9.2).
 
-### 11.16 테스트 기준
+### 11.16 Test standard
 
-- UI 기능마다 모델 수준 단위 테스트를 둔다: 연결 탐색, 라벨 배치, 스플리터 매핑, 라이브러리 재로드, 제출 zip 내용. v2에서는 엔진 API 단위 테스트(Java), 화면 로직 단위 테스트(`node --test`), 돌연변이, Playwright e2e가 이것을 맡는다. 예전 "가능한 곳은 GUI 스모크 테스트(Xvfb)"는 Playwright e2e로 대체됨 (D-135, D-163).
-- 편집 기능은 편집 동등성 골든(D-136, D-159)과 조작 동등성 표의 e2e(D-139)를 통과해야 한다.
-- 모든 편집 기능 뒤에 "새 부품을 안 쓴 .circ를 저장하면 원조 2.7.1 저장 결과와 바이트 동일"(D-006 기준) 회귀 테스트가 통과해야 머지한다.
-- 탭 간 라이브러리: `1bit_adder.circ`를 고쳐 저장하면 `ripple_carry.circ` 탭에 반영되는 것, 포트 변경 경고, 순환 참조 차단을 자동 테스트로 확인한다.
+- Give every UI feature a model-level unit test: connection search, label placement, splitter mapping, library reload, submission zip contents. In v2, engine API unit tests (Java), screen logic unit tests (`node --test`), mutation testing, and Playwright e2e cover this. The old "GUI smoke test (Xvfb) where possible" is superseded by Playwright e2e (D-135, D-163).
+- Editing features must pass the edit-equivalence goldens (D-136, D-159) and the interaction-equivalence table's e2e (D-139).
+- Every editing feature must pass the "saving a .circ using no new part is byte-identical to original 2.7.1's save result" (D-006 standard) regression test before merging.
+- Cross-tab libraries: automated tests confirm that editing and saving `1bit_adder.circ` propagates to the `ripple_carry.circ` tab, that the port-change warning fires, and that circular references are blocked.
 
-## 12. 시작 화면과 튜토리얼 (v2, N-17·N-18)
+## 12. Start screen and tutorial (v2, N-17/N-18)
 
-Hallym MIPS와 같은 시작 화면과 튜토리얼 엔진을 쓴다(D-132). 교과목을 먼저 묻고 교과목마다 화면을 나눈다(12.5, A-08, D-168).
+Uses the same start screen and tutorial engine as Hallym MIPS (D-132). It asks for the course first and splits the screen by course (12.5, A-08, D-168).
 
-### 12.1 시작 화면
+### 12.1 Start screen
 
-- Hallym MIPS `welcome` 카드 그대로다. 제목 "안녕하세요!", 설명 "논리 회로와 MIPS 프로세서를 그리고, 클럭을 한 번씩 뛰며 동작을 보는 곳입니다."
-- 1단계(교과목, 켤 때마다 묻고 기억하지 않음): [논리설계 및 실험 — 게이트와 선, 서브회로, 클럭과 레지스터] [컴퓨터구조 — MIPS 부품, 프로그램 불러오기, 사이클 보기].
-- 2단계: [튜토리얼 보기 — 예제를 열어 한 단계씩 따라가 봅니다] [바로 시작 — 새 회로를 그리거나 가진 파일을 엽니다]. 튜토리얼은 1단계에서 고른 교과목의 트랙으로 바로 간다(다시 묻지 않음).
-- 3단계(바로 시작): [새 회로] [파일 열기 (Ctrl+O)].
-- 세 단계 모두 같은 카드(위치·크기·제목·본문 픽셀 동일)에서 선택지와 "← 이전"(한 단계 뒤로)만 바뀐다.
-- 카드 뒤에는 Hallym MIPS 2.5.0과 같은 배경 영상이 돈다(3장 학교 식별요소, D-155). `.circ`를 인자로 열면 시작 화면 없이 열고, 교과목은 파일로 정한다(12.5).
+- Exactly Hallym MIPS's `welcome` card. Title "안녕하세요!" ("Hello!"), description "논리 회로와 MIPS 프로세서를 그리고, 클럭을 한 번씩 뛰며 동작을 보는 곳입니다." ("A place to draw logic circuits and a MIPS processor, and watch the behavior by stepping the clock.")
+- Step 1 (course, asked every launch and not remembered): [논리설계 및 실험 — 게이트와 선, 서브회로, 클럭과 레지스터] ("Logic Design and Lab — gates and wires, subcircuits, clocks and registers") [컴퓨터구조 — MIPS 부품, 프로그램 불러오기, 사이클 보기] ("Computer Architecture — MIPS parts, loading a program, viewing cycles").
+- Step 2: [튜토리얼 보기 — 예제를 열어 한 단계씩 따라가 봅니다] ("View the tutorial — open an example and follow it step by step") [바로 시작 — 새 회로를 그리거나 가진 파일을 엽니다] ("Start now — draw a new circuit or open a file you have"). The tutorial goes straight to the track for the course chosen in step 1 (not asked again).
+- Step 3 (start now): [새 회로] ("New circuit") [파일 열기 (Ctrl+O)] ("Open a file (Ctrl+O)").
+- All three steps use the same card (position, size, title, body pixel-identical); only the choices and "← 이전" ("← Previous", one step back) change.
+- Behind the card runs the same background video as Hallym MIPS 2.5.0 (chapter 3, school identity elements, D-155). Opening with a `.circ` argument skips the start screen and the course is decided by the file (12.5).
 
-### 12.2 원칙 (Hallym MIPS tutorial.ts와 같음)
+### 12.2 Principles (same as Hallym MIPS's tutorial.ts)
 
-- 단계는 배열 하나로 두고, 단계마다 제목과 본문(하나의 글), 밝힐 패널(들), 박스 대상(들), 종류(설명·실습), 실습이면 기다릴 것, 결과 단계 여부를 선언한다.
-- 카드: "3 / 16", "그만두기", 제목, 본문, 작은 캐릭터(카드 먼 쪽 끝), [이전]·[다음].
-- 설명 단계는 [다음]으로 넘어간다. 실습 단계에는 [다음]이 없고, 본문 마지막 문장이 무엇을 하면 넘어가는지 말한다. [건너뛰기]는 몇 초 뒤 나타나서 동작을 대신 한다.
-- 결과가 눈에 보이는 실습은 같은 단계에서 카드만 바꿔 결과를 짚고 [다음]을 기다린다.
-- 두 겹 강조: 대상 패널 전체를 밝게, 대상에 박스, 밖은 어둡게. 대상이 아닌 곳은 눌리지 않고, 요구하지 않은 키는 먹지 않는다. 튜토리얼 중에는 창 버튼 자리까지 어두워진다.
-- 카드는 박스를 절대 덮지 않는다. 대상을 실제로 보이게 맞추고(탭, 스크롤, 배율, 접힌 칸), 한 일을 로그로 남긴다.
-- 예제는 트랙마다 한 파일이다. 읽기 전용으로 열고 끝나면 내린다(디스크에서 불변). 학생 파일의 저장 안 된 변경은 먼저 묻고, 끝나면 원래대로 돌려놓는다.
-- 진행을 저장하지 않는다. 켤 때마다 교과목 선택부터다(실습실 PC 규칙).
-- 키: → ← Esc(묻고 그만둠). 시뮬레이션 중에는 Esc가 정지다.
-- 판정은 엔진 이벤트(모델·시뮬레이션·선택)로 한다.
-- 검사: 두 트랙의 모든 단계에서 FHD 100·125·150 %로 ① 대상 패널이 통째로 밝은지 ② 밖이 정확히 어두운지 ③ 박스가 대상에 맞는지 ④ 밝아도 대상 아닌 곳은 안 눌리는지 ⑤ 카드가 박스를 덮지 않는지를 본다. [건너뛰기]만으로 완주, 실습 단계가 실제 동작으로 넘어감, 결과 단계가 기다림, 예제 파일 불변도 본다.
+- Steps are one array; each step declares a title and body (a single piece of text), the panel(s) to highlight, the box target(s), the kind (explanation or practice), what to wait for if practice, and whether it's a result step.
+- Card: "3 / 16", "그만두기" ("Quit"), title, body, a small character (at the card's far end), [이전]·[다음] ("Previous"/"Next").
+- Explanation steps advance with [다음] ("Next"). Practice steps have no [다음]; the last sentence of the body says what to do to advance. [건너뛰기] ("Skip") appears after a few seconds and performs the action instead.
+- For practice with a visible result, only the card changes within the same step to point out the result, then it waits for [다음] ("Next").
+- Double-layer emphasis: the whole target panel lit up, a box on the target, everything else darkened. Anything not the target isn't clickable, and keys that aren't required do nothing. During the tutorial, even the window-button area darkens.
+- The card never covers the box. It makes the target actually visible (tab, scroll, zoom, collapsed panels) and logs what it did.
+- There's one example file per track. It opens read-only and is unloaded when done (unchanged on disk). Unsaved changes to the student's file are confirmed first, and restored when done.
+- Progress is not saved. Every start begins from choosing the course (lab PC rule).
+- Keys: → ← Esc (confirm then quit). During simulation, Esc stops it.
+- Judging is done from engine events (model, simulation, selection).
+- Check: at every step of both tracks, at FHD 100/125/150%, verify ① the target panel is lit entirely ② the outside is exactly darkened ③ the box fits the target ④ a lit but non-target area isn't clickable ⑤ the card doesn't cover the box. Also check: finishing the whole thing with [건너뛰기] ("Skip") alone, a practice step advancing on the real action, a result step waiting, and the example file being unchanged.
 
-### 12.3 논리설계 및 실험 트랙 (16단계)
+### 12.3 Logic Design and Lab track (16 steps)
 
-예제 `tutorial-logic.circ`: main(입력 핀 A·B, 출력 핀 Y, 점선 자리), 서브회로 half_adder, 4비트 버스와 Splitter, 클럭이 빠진 4비트 Register + Clock + 가산기·상수 카운터 고리, 다중 진법 Probe. MIPS 부품은 없다.
+Example `tutorial-logic.circ`: main (input pins A, B, output pin Y, a dashed placeholder spot), subcircuit half_adder, a 4-bit bus and Splitter, a 4-bit Register missing its clock + Clock + an adder/constant counter loop, a multi-radix Probe. No MIPS parts.
 
-L1 [설명] 환영 · L2 [실습] Ctrl+K에 and → AND Gate 고르기 · L3 [실습] 점선 자리에 놓기 · L4 [실습] A·B → AND 입력, AND 출력 → Y 잇기 · L5 [실습] Poke로 A·B를 1로(Y=1, 선 색의 뜻) · L6 [실습] Quick Attributes Label에 g1 · L7 [실습] 150 % 이상 확대 · L8 [실습] half_adder를 main에 놓기 · L9 [실습] half_adder 더블클릭으로 안 보기 · L10 [설명] 버스와 Splitter 팔 라벨 · L11 [실습] Messages 한 줄 누르기(Register 클럭 없음) · L12 [실습] Clock을 Register에 잇기(0건) · L13 [실습] Register 출력 선 Signal Flow · L14 [실습] 1 Cycle · L15 [실습] Cycle View에서 Previous Cycle · L16 [설명] 끝.
+L1 [explanation] welcome · L2 [practice] Ctrl+K, type and → pick AND Gate · L3 [practice] place it at the dashed spot · L4 [practice] wire A, B → AND inputs, AND output → Y · L5 [practice] Poke A, B to 1 (Y=1, what the wire color means) · L6 [practice] Quick Attributes Label to g1 · L7 [practice] zoom to 150% or more · L8 [practice] place half_adder in main · L9 [practice] double-click half_adder to look inside · L10 [explanation] buses and Splitter arm labels · L11 [practice] click a Messages line (Register has no clock) · L12 [practice] wire Clock to Register (0 messages) · L13 [practice] Signal Flow on Register's output wire · L14 [practice] 1 Cycle · L15 [practice] Previous Cycle in Cycle View · L16 [explanation] end.
 
-### 12.4 컴퓨터구조 트랙 (14단계)
+### 12.4 Computer Architecture track (14 steps)
 
-예제 `tutorial-mips.circ`(작은 단일 사이클 데이터패스, Data Memory(데이터+스택) 하나, Console, PC 시작 = entry, RegWrite 터널 하나를 RegWirte로 틀려 둠)와 `tutorial.hmx`(Hallym MIPS에서 내보낸 실행 이미지. .s는 받지 않는다, D-141).
+Example `tutorial-mips.circ` (a small single-cycle datapath, one Data Memory (data + stack), Console, PC starting at entry, one RegWrite tunnel misspelled as RegWirte) and `tutorial.hmx` (an executable image exported from Hallym MIPS; .s is not accepted, D-141).
 
-C1 [설명] 환영(편집 기초는 논리설계 트랙에) · C2 [설명] 데이터패스 둘러보기(PC, Instruction Memory, regfile, alu, Data Memory(데이터+스택), Console) · C3 [설명] 부품 목록의 Hallym MIPS · C4 [실습] Messages 한 줄(짝 없는 터널 RegWirte) 누르기 · C5 [실습] 터널 이름을 RegWrite로(0건, "혹시 RegWrite?") · C6 [실습] Load Program…으로 tutorial.hmx(words, entry, 요약. Hallym MIPS 제목 줄 오른쪽의 Export executable image (.hmx) 단추로 내보낸 파일임을 말함) · C7 [설명] 진입점과 PC(시작 코드 자리는 실행되지 않음, PC 시작값은 회로의 몫) · C8 [실습] 1 Cycle · C9 [실습] Previous Cycle · C10 [설명] Registers(16·10·2진수, 방금 바뀜) · C11 [설명] Instruction(필드 색, Hallym MIPS Inspector와 같은 명령·같은 값) · C12 [실습] PC 출력 선 Signal Flow · C13 [실습] Run으로 끝까지(Console exit) · C14 [설명] 끝.
+C1 [explanation] welcome (editing basics are in the logic-design track) · C2 [explanation] datapath tour (PC, Instruction Memory, regfile, alu, Data Memory (data + stack), Console) · C3 [explanation] Hallym MIPS in the part list · C4 [practice] click the Messages line (unpaired tunnel RegWirte) · C5 [practice] rename the tunnel to RegWrite (0 messages, "did you mean RegWrite?") · C6 [practice] Load Program… with tutorial.hmx (words, entry, summary; says it's a file exported with Hallym MIPS's Export executable image (.hmx) button at the top right of the title bar) · C7 [explanation] entry point and PC (the startup-code spot isn't executed, the PC starting value is the circuit's job) · C8 [practice] 1 Cycle · C9 [practice] Previous Cycle · C10 [explanation] Registers (hex/decimal/binary, just-changed) · C11 [explanation] Instruction (field colors, same instructions and values as Hallym MIPS's Inspector) · C12 [practice] Signal Flow on PC's output wire · C13 [practice] Run to the end (Console exit) · C14 [explanation] end.
 
-단계를 바꾸는 편이 낫다고 판단하면(시도·측정 근거) 바꾸고 이유를 DECISIONS에 적는다.
+If you judge, from trial and measurement, that a different step arrangement is better, change it and write the reason in DECISIONS.
 
-### 12.5 교과목별 화면 (A-08, D-168)
+### 12.5 Per-course screen (A-08, D-168)
 
-교과목은 화면에 보이는 것만 정한다. 회로·시뮬레이션·엔진·저장 파일은 교과목과 상관없다. 표는 화면 코드 한 곳(`electron/src/renderer/app/logic/course.ts`의 `COURSE_TABLE`, `MIPS_ONLY`)이다.
+The course decides only what's shown on screen. The circuit, simulation, engine, and saved file don't depend on the course. The table lives in one place in the screen code (`electron/src/renderer/app/logic/course.ts`'s `COURSE_TABLE`, `MIPS_ONLY`).
 
-| 보이는 것 | 논리설계 및 실험 | 컴퓨터구조 |
+| What's shown | Logic Design and Lab | Computer Architecture |
 | --- | --- | --- |
-| 부품 목록·Ctrl+K의 Hallym MIPS 부품 | Radix Probe만 | 모두(Instruction Memory, Data Memory, Console, Radix Probe) |
-| 도구 모음·» 메뉴·Ctrl+K 명령의 Load Program…, 메모리 부품의 Load Program…·Reload | 없음 | 있음 |
-| Cycle View | 사이클 표와 파형만(표가 폭 전부) | 사이클 표 + Registers·Memory·Instruction |
-| Mark as PC, Mark as Register File, Register Mapping… | 없음 | 있음 |
-| 명령어 필드 색 덧그림 | 없음 | 있음 |
-| 상태 표시줄의 PC, Program 사실, Changed(방금 바뀐 레지스터) | 없음 | 있음 |
-| 실행 이미지 알림(다시 불러오기 실패 띠 등) | 없음 | 있음 |
+| Hallym MIPS parts in the part list / Ctrl+K | Radix Probe only | All (Instruction Memory, Data Memory, Console, Radix Probe) |
+| Load Program… in the toolbar, » menu, Ctrl+K commands, and the memory part's Load Program…/Reload | Absent | Present |
+| Cycle View | Cycle table and waveform only (table takes full width) | Cycle table + Registers/Memory/Instruction |
+| Mark as PC, Mark as Register File, Register Mapping… | Absent | Present |
+| Instruction field-color overlay | Absent | Present |
+| Status bar's PC, Program fact, Changed (just-changed register) | Absent | Present |
+| Executable-image notices (e.g. a reload-failure band) | Absent | Present |
 | Help › Examples | adder-1bit, ripple-carry-4bit, counter-4bit | demo-datapath, console-demo, stack-demo |
 
-- 제목 줄의 칩이 지금 교과목을 보이고, 누르면 바꾼다(기억하지 않음). 시작 화면에서는 칩이 없다(카드가 묻는다).
-- 교과목을 고르기 전에 연 파일(명령줄 인자, 시작 화면의 Ctrl+O)은 MIPS 전용 부품이 있으면 컴퓨터구조, 없으면 논리설계 및 실험으로 연다(Radix Probe만 있으면 논리설계). 고르기 전의 Ctrl+N은 논리설계 및 실험이다.
-- 논리설계 및 실험에서 MIPS 전용 부품이 든 파일을 열면 부품은 그대로 그려지고 돈다. 얇은 띠: "이 파일은 컴퓨터구조 부품(Hallym MIPS)을 씁니다" + [컴퓨터구조로 바꾸기].
-- 새 파일에는 교과목과 상관없이 Hallym MIPS 라이브러리가 들어가지 않는다(부품을 처음 놓을 때 들어감, V-01). 그래서 MIPS 부품을 놓지 않은 파일은 원조 2.7.1과 바이트가 같고, 논리설계에서 Radix Probe를 놓은 파일은 컴퓨터구조에서 같은 편집을 한 파일과 바이트가 같다(`real-engine-course.e2e.ts`).
+- The chip in the title bar shows the current course; clicking it switches (not remembered). On the start screen there's no chip (the card asks).
+- A file opened before choosing a course (a command-line argument, Ctrl+O on the start screen) opens as Computer Architecture if it has a MIPS-only part, otherwise Logic Design and Lab (Radix Probe alone still counts as logic design). Ctrl+N before choosing is Logic Design and Lab.
+- Opening a file with MIPS-only parts while in Logic Design and Lab still draws and runs those parts normally. A thin band: "이 파일은 컴퓨터구조 부품(Hallym MIPS)을 씁니다" ("This file uses Computer Architecture parts (Hallym MIPS)") + [컴퓨터구조로 바꾸기] ("Switch to the Computer Architecture course").
+- A new file never includes the Hallym MIPS library regardless of course (it's added only when a part is first placed, V-01). So a file with no MIPS part placed is byte-identical to original 2.7.1, and a file where Radix Probe was placed in Logic Design is byte-identical to the same edit done in Computer Architecture (`real-engine-course.e2e.ts`).
 
-## 부록 A. 자동 배치·배선과 검증된 연결 규칙 (향후 Verilog → 회로용)
+## Appendix A. Automatic placement/wiring and verified connection rules (for a future Verilog → circuit)
 
-Verilog → 회로 품질은 배선이 좌우한다. 규칙 기반으로 .circ XML을 직접 찍어내면 Logisim의 연결 규칙과 어긋나 합선·단선이 생긴다. 그래서 Logisim 연결 규칙을 제약으로 둔 탐색과 실제 엔진 검증으로 간다. 연결 규칙은 Logisim 2.7.1에서 `rules_test.circ`, 핀 공식과 두 선 모두 잘린 교차(B1'')는 `rules_test_v2.circ`로 검증했다. 두 테스트 파일은 Verilog 작업을 시작할 때 `tests/rules/`에 넣는다.
+The quality of Verilog → circuit hinges on wiring. Stamping out .circ XML directly from rules clashes with Logisim's connection rules and creates shorts and disconnections. So the approach is a search constrained by Logisim's connection rules, verified against the real engine. The connection rules were verified in Logisim 2.7.1 with `rules_test.circ`, and the pin formula and a crossing where both wires are cut (B1'') with `rules_test_v2.circ`. Both test files go into `tests/rules/` when Verilog work begins.
 
-### A.1 배선이 까다로운 이유
+### A.1 Why wiring is tricky
 
-- 다른 넷의 선이 같은 직선 위에서 겹치면 하나로 합쳐져 합선이 된다.
-- 선의 끝점이 다른 선의 중간에 닿으면 T자로 연결된다. 경로가 다른 넷의 끝점·분기점·핀 위를 지나가도 연결될 수 있다.
-- 끝점 없이 수직으로 교차하는 것만 연결되지 않는다.
-- 핀 위치는 부품 종류, 방향(facing), 입력 수, 크기 속성에 따라 달라지고 10px 격자에 맞아야 한다.
+- If another net's wire overlaps on the same straight line, it merges into one and shorts.
+- If a wire's endpoint touches the middle of another wire, it connects as a T. A path passing over another net's endpoint, branch point, or pin can also connect.
+- Only a crossing with no endpoint, crossing perpendicularly, stays unconnected.
+- Pin position depends on part kind, facing, input count, and size attribute, and must land on the 10px grid.
 
-### A.2 파이프라인
+### A.2 Pipeline
 
-1. **핀 좌표 계산:** 포크 안에서 Logisim 부품 객체를 실제로 만들어 포트 위치를 받아온다.
-2. **배치:** ELK layered(신호 흐름 좌→우 계층 배치)로 부품 위치를 정한다. 포트는 실제 Logisim 핀 좌표로 고정한다. 레지스터 피드백은 역방향 간선으로 처리한다.
-3. **배선:** 10px 격자 위 A\* 미로 라우터. 다른 넷이 쓴 격자 선분과 끝점·핀 칸은 금지, 수직 교차는 허용, 같은 넷의 기존 선에는 T자로 붙기 허용. 비용은 길이 + 꺾임 + 교차. 실패한 넷은 막는 넷을 뜯어내고 다시 라우팅(rip-up and reroute)한다.
-4. **배선 줄이기:** 클럭·리셋과 팬아웃이 큰 넷은 터널로 대체한다. 다비트 신호는 버스 한 줄로 그리고 스플리터는 끝에만 둔다. 모듈은 계층별로 따로 배치한다.
-5. **엔진 검증:** 생성한 회로를 Logisim 자체 연결 계산으로 넷리스트를 다시 뽑아 원래 넷리스트와 비교한다. 다르면 해당 넷만 다시 라우팅한다. 검증을 통과하지 못한 회로는 저장하지 않는다.
-6. **증분 배선:** 양방향 편집 중에는 전체를 다시 배치하지 않는다. 기존 선은 고정하고 새로 생긴·바뀐 넷만 라우팅한다.
+1. **Compute pin coordinates:** actually construct Logisim part objects inside the fork and read back the port positions.
+2. **Placement:** decide part positions with ELK layered (signal flow left-to-right layered layout). Ports are pinned to real Logisim pin coordinates. Register feedback is handled as a reverse-direction edge.
+3. **Wiring:** an A* maze router on a 10px grid. Grid segments and endpoint/pin cells used by another net are forbidden, perpendicular crossing is allowed, T-junction attachment to the same net's existing wire is allowed. Cost is length + bends + crossings. A failed net triggers rip-up and reroute of the blocking net.
+4. **Reducing wiring:** clock, reset, and high-fanout nets are replaced by tunnels. Multi-bit signals are drawn as a single bus line, with splitters only at the ends. Modules are placed separately, by hierarchy.
+5. **Engine verification:** re-extract the netlist from the generated circuit using Logisim's own connection computation and compare against the original netlist. If they differ, only that net is rerouted. A circuit that fails verification is not saved.
+6. **Incremental wiring:** during two-way editing, the whole thing is not re-placed. Existing wires stay fixed, and only new or changed nets are routed.
 
-### A.3 과거 실패 사례
+### A.3 Past failure cases
 
-| 증상 | 원인 | 대응 |
+| Symptom | Cause | Response |
 | --- | --- | --- |
-| +자 교차가 연결됨 | 교차점에 선의 끝점(분할점·꺾임점)이 있었음 | 같은 방향으로 이어지는 선분은 최대 선분 하나로 출력. 교차점은 두 선 모두의 내부점이어야 함. 꺾임점이 다른 넷 위에 오면 라우터가 금지 |
-| 게이트 입력에 선이 안 닿음 | 핀 좌표를 규칙으로 계산해 크기·입력 수·방향·부정 버블에 따라 어긋남 | 핀 좌표는 Logisim 부품 객체에서 직접 받음. 엔진 검증에서 끊긴 핀을 잡아 재라우팅 |
-| 입력 핀이 격자 중간(5px)에 있음 | 게이트 크기·입력 수 조합에 따라 핀이 10px 격자 밖에 놓임 | ① 모든 핀이 격자에 오는 속성 조합을 우선 선택 ② 안 되면 이 넷 전용의 짧은 ㄱ자 스터브(수평 한 칸 + 수직 5px), 그 영역은 다른 넷 금지 |
-| 테스트 회로에서 가운데 입력만 연결됨 (`rules_test.circ` A절) | 핀 선이 세로선 가운데에서 끝나고 같은 점에서 가로선이 다시 시작 → 두 조각이 합쳐져 끝점 없는 +자 교차가 됨. `gateUndefined=ignore`라 드러나지 않음 | v2에서 T자만 쓰고 `gateUndefined=error`로 변경 |
+| A + crossing connected | The crossing point had a wire endpoint (a split/bend point) | Output same-direction runs as a single maximal segment. A crossing point must be an interior point of both wires. If a bend point lands on another net, the router forbids it |
+| A wire doesn't reach a gate input | Pin coordinates computed by rule drifted with size/input-count/facing/negation-bubble combinations | Get pin coordinates directly from a Logisim part object. Engine verification catches a disconnected pin and reroutes |
+| An input pin lands mid-grid (5px) | Some gate size/input-count combinations put the pin off the 10px grid | ① prefer attribute combinations where every pin lands on the grid ② otherwise a short L-shaped stub just for this net (one horizontal cell + 5px vertical), and that area is forbidden to other nets |
+| Only the middle input connected in a test circuit (`rules_test.circ` section A) | A pin wire ended in the middle of a vertical line and a horizontal line started at the same point again → the two pieces merged into an endpoint-free + crossing. It didn't surface because `gateUndefined=ignore` | v2 uses only T-junctions and switches to `gateUndefined=error` |
 
-**라우터 격자 상태.** 격자점마다 상태를 둔다: 비어 있음 / 수평 통과(넷) / 수직 통과(넷) / 끝점·꺾임·분기(넷) / 핀(넷). 다른 넷은 수직 방향 통과점만 가로질러야 하고, 끝점·꺾임·분기·핀 칸과 같은 방향 통과는 금지한다.
+**Router grid state.** Each grid point holds a state: empty / horizontal pass-through (net) / vertical pass-through (net) / endpoint, bend, or branch (net) / pin (net). Another net may only cross a vertical pass-through point, and same-direction pass-through of an endpoint/bend/branch/pin cell is forbidden.
 
-### A.4 검증된 Logisim 2.7.1 연결 규칙
+### A.4 Verified Logisim 2.7.1 connection rules
 
-| 상황 | 결과 |
+| Situation | Result |
 | --- | --- |
-| 끝점 없이 +자 교차 | 연결 안 됨 |
-| 한 선만 교차점에서 잘림 | 연결 안 됨. 같은 직선 위 두 조각이 하나로 합쳐짐 |
-| 두 선 모두 교차점에서 잘림 | 연결됨. 예전 "+자 교차 연결" 버그의 원인 |
-| 다른 넷이 같은 직선에서 겹침 | 합쳐져 합선 |
-| 선 끝점이 다른 선 중간에 닿음(T) | 연결 |
-| 선이 부품 포트 위를 지나감(남의 포트, 같은 게이트의 다른 포트 포함) | 연결 |
-| 부품을 격자 밖(5px) 위치에 둠 | 파일에 적힌 위치 그대로 유지, ㄱ자 스터브로 연결됨 |
-| 스플리터(동쪽, fanout 4) 끝점 | (x+20, y−40)~(x+20, y−10), 위쪽이 bit 0 |
+| A + crossing with no endpoints | Not connected |
+| Only one wire is cut at the crossing | Not connected. The two pieces on the same line merge into one |
+| Both wires are cut at the crossing | Connected. The cause of the old "+ crossing connects" bug |
+| Another net overlaps on the same line | Merges into a short |
+| A wire's endpoint touches another wire's middle (T) | Connected |
+| A wire passes over a part's port (someone else's port, including another port of the same gate) | Connected |
+| A part placed off-grid (5px) | Kept exactly at the position in the file, connected with an L-shaped stub |
+| Splitter (facing east, fanout 4) endpoint | (x+20, y−40)–(x+20, y−10), top is bit 0 |
 
-Logisim의 판단 순서는 두 단계다. ① 한 점에서 끝나는 선이 같은 직선 위의 두 조각뿐이면 하나로 합친다. ② 그 뒤에도 선 끝점이나 부품 포트가 남아 있는 점은, 그 점을 지나는 모든 선을 연결한다.
+Logisim's judgment order is two steps. ① If the wires ending at one point are only two pieces on the same line, merge them into one. ② After that, at any point where a wire endpoint or part port remains, connect every wire passing through that point.
 
-**출력 규칙(확정).**
+**Output rules (finalized).**
 
-- 교차점에는 어느 선의 끝점도 두지 않는다. 직선은 최대 길이 한 조각으로 출력한다.
-- 분기는 T자를 기본으로 한다. 4방향 분기가 꼭 필요하면 두 선을 모두 그 점에서 자른다. 한쪽만 자르면 합쳐져서 끊긴다.
-- 선은 자기 넷의 목적 포트를 제외한 어떤 포트 위도 지나지 않는다. 목적 포트를 지나쳐 뻗는 것(오버슈트)도 금지한다.
+- Never place any wire's endpoint at a crossing. Output a straight line as one maximal-length piece.
+- Branching defaults to a T-junction. If a 4-way branch is truly needed, cut both wires at that point. Cutting only one merges them and leaves it disconnected.
+- A wire never passes over any port other than its own net's destination port. Overshooting past the destination port is also forbidden.
 
-### A.5 게이트 입력 핀 공식
+### A.5 Gate input pin formula
 
-핀 좌표는 원칙적으로 Logisim 객체에서 받지만, 포크 밖 테스트 도구용으로 공식을 기록한다. 13개 설정으로 검증했다.
+Pin coordinates are, in principle, read from Logisim objects, but the formula is recorded here for a test tool outside the fork. Verified with 13 configurations.
 
-- 가로 거리 = size + (XOR/XNOR면 10) + (NAND/NOR/XNOR면 10)
-- 입력 n개, i번째(0부터) 세로 오프셋: n이 홀수면 start×(n−1) + dist×i, 짝수면 start×n + dist×i에 i ≥ n/2일 때 lowerEven을 더함
-- 방향: 동쪽 (−거리, dy), 서쪽 (+거리, dy), 남쪽 (dy, −거리)
+- Horizontal distance = size + (10 if XOR/XNOR) + (10 if NAND/NOR/XNOR)
+- For n inputs, the i-th (0-based) vertical offset: if n is odd, start×(n−1) + dist×i; if even, start×n + dist×i, plus lowerEven when i ≥ n/2
+- Direction: east (−distance, dy), west (+distance, dy), south (dy, −distance)
 
-| 조건 | start | dist | lowerEven |
+| Condition | start | dist | lowerEven |
 | --- | --- | --- | --- |
 | n ≤ 3, size < 40 | −5 | 10 | 10 |
-| n ≤ 3, size < 60 또는 n ≤ 2 | −10 | 20 | 20 |
-| n ≤ 3, 그 외 | −15 | 30 | 30 |
+| n ≤ 3, size < 60, or n ≤ 2 | −10 | 20 | 20 |
+| n ≤ 3, otherwise | −15 | 30 | 30 |
 | n = 4, size ≥ 60 | −5 | 20 | 0 |
-| 그 외 | −5 | 10 | 10 |
+| otherwise | −5 | 10 | 10 |
 
-**검증된 설정:** AND 50/2, 30/3, 70/3, 70/4(비대칭 −20·0·20·40), OR 50/4, NAND 50/5, XOR 50/2, 30/2, XNOR 30/3, 50/2, NOR 30/6, AND 남쪽, OR 서쪽.
+**Verified configurations:** AND 50/2, 30/3, 70/3, 70/4 (asymmetric −20/0/20/40), OR 50/4, NAND 50/5, XOR 50/2, 30/2, XNOR 30/3, 50/2, NOR 30/6, AND facing south, OR facing west.
 
-**미검증:** 입력 부정 버블, 북쪽 방향, 비대칭 입력의 서쪽·남쪽 부호.
+**Unverified:** negated inputs, facing north, asymmetric inputs' west/south signs.
