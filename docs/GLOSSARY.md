@@ -1,33 +1,33 @@
-# UI 용어집: 영어 이름과 한국어 문장
+# UI glossary: English names and Korean sentences
 
-**방침(사용자 확정, PLAN.md 3장 "UI 언어", D-049): 이름·명령은 영어, 설명 문장만 한국어.**
+**Policy (confirmed by the user, PLAN.md chapter 3 "UI language", D-049): names and commands are English; only explanatory sentences are Korean.**
 
-학생은 수업·교재·원조 Logisim 2.7.1에서 영어 이름을 본다. 도구가 이름을 번역하면 같은 것이 두 이름을 갖게 된다. 그래서 화면에서 무엇을 가리키는 말(이름)은 영어로 두고, 무엇을 알려 주는 문장(설명)만 한국어로 쓴다.
+Students see English names in class, in the textbook and in original Logisim 2.7.1. If the tool translated names, the same thing would have two names. So words that point at something on the screen (names) stay English, and only sentences that tell the student something (explanations) are Korean.
 
-## 1. 어느 쪽이 영어이고 어느 쪽이 한국어인가
+## 1. Which side is English and which is Korean
 
-| 영어(이름·명령) | 한국어(설명 문장) |
+| English (names and commands) | Korean (explanatory sentences) |
 | --- | --- |
-| 메뉴와 메뉴 항목, 도구 모음 버튼, 탭, 상태 표시줄 글자 | 진단 메시지(2c "Messages" 탭의 문장) |
-| 부품 이름, 라이브러리 이름, 라이브러리 분류(Wiring, Plexers …) | 도구 설명, 마우스 오버 설명 문장 |
-| 속성 이름과 값(Data Bits, Facing, East …) | 대화 상자의 안내 문장, 오류 문장 |
-| 우클릭 메뉴와 맨 위 요약 줄(`Adder · 32 bits`) | 단축키 표의 "설명" 칸 |
-| 부품 몸체 제목과 상태 글자(Instruction Memory, Data Memory, Stack, Console, `-- exit --`) | 첫 실행 안내, 빈 화면 안내 |
-| 검색 결과, 단축키 이름, 대화 상자 제목 | 불러오기 요약의 문장 |
+| Menus and menu items, toolbar buttons, tabs, status bar text | Diagnostic messages (the sentences in the 2c "Messages" tab) |
+| Part names, library names, library categories (Wiring, Plexers …) | Tool descriptions, hover descriptions |
+| Attribute names and values (Data Bits, Facing, East …) | Guidance and error sentences in dialogs |
+| Right-click menus and their top summary line (`Adder · 32 bits`) | The "Description" column of the shortcut table |
+| Part body titles and state text (Instruction Memory, Data Memory, Stack, Console, `-- exit --`) | First-run guidance, empty-screen guidance |
+| Search results, shortcut names, dialog titles | Sentences in the load summary |
 
-경계에 있는 것:
-- 포트 설명은 "포트 이름: 설명" 모양이다. 포트 이름은 영어, 설명은 한국어다(`Clock: 트리거가 오면 상태가 바뀝니다`).
-- 입력 칸 앞 글자(`Tunnel Name:`, `Label:`)는 이름이다. 한 문장 안내(`클럭 사이클 수:`)는 설명이다.
-- `-tty` 출력의 표 머리(`TOTAL` 등)는 이름이다. 채점 스크립트가 원조 출력을 읽는다(D-026).
-- 검색 별칭(`Palette.ALIASES`, 예: "먹스", "리셋")은 학생이 칠 수 있는 말이라 한국어도 받는다. 화면에 보이는 결과는 영어 이름이다.
+On the border:
+- A port description has the form "port name: description". The port name is English and the description is Korean (`Clock: 트리거가 오면 상태가 바뀝니다`).
+- The label in front of an input field (`Tunnel Name:`, `Label:`) is a name. A one-sentence prompt (`클럭 사이클 수:`) is an explanation.
+- The table header of `-tty` output (`TOTAL` and so on) is a name. Grading scripts read the original output (D-026).
+- Search aliases (`Palette.ALIASES`, for example "먹스" ("mux") and "리셋" ("reset")) are words a student may type, so Korean is accepted too. The result shown is the English name.
 
-## 2. 영어 이름
+## 2. English names
 
-원조 2.7.1이 쓰는 말은 그대로 쓴다. 새 기능 이름도 같은 문체(명사구, 제목식 대문자)로 짓는다.
+Words the original 2.7.1 uses are used as they are. Names of new features follow the same style (noun phrases, title case).
 
-### 원조 2.7.1의 이름(예)
+### Names from the original 2.7.1 (examples)
 
-| 영어 이름 | 문장 안에서 쓰지 않는 번역 |
+| English name | Translations not used in sentences (문장 안에서 쓰지 않는 번역) |
 | --- | --- |
 | Poke Tool | 조작 도구, 찌르기 |
 | Edit Tool | 편집 도구 |
@@ -45,9 +45,9 @@
 | Simulate › Reset Simulation, Tick Once, Step Simulation, Simulation Enabled | |
 | Project › Add Circuit, Load Library, Unload Libraries, Move Circuit Up, Move Circuit Down, Set As Main Circuit, Remove Circuit, Edit Circuit Layout, Edit Circuit Appearance, Revert To Default Appearance | |
 
-### Hallym Circuit Studio가 더한 이름
+### Names Hallym Circuit Studio added
 
-| 영어 이름 | 문장 안에서 쓰지 않는 번역 |
+| English name | Translations not used in sentences (문장 안에서 쓰지 않는 번역) |
 | --- | --- |
 | Instruction Memory | 명령어 메모리 |
 | Data Memory | 데이터 메모리 |
@@ -82,29 +82,30 @@
 | More commands, More facts, Canvas, Panels, Changed, Read-only, Turn On, Try Again | 방금 바뀜 |
 | Open Recent, Close, Save As…, Exit, Minimize, Maximize, Examples, Keyboard Shortcuts, Ticks Enabled, Tick Frequency, Simulation Enabled, Reset Simulation, Step Simulation, Tick Once | 최근 파일 |
 
-"문장 안에서 쓰지 않는 번역" 칸의 말은 한국어 설명 문장에 나오면 안 된다. 쉼표로 나누고, 빈 칸은 확인하지 않는다. `UiLanguageTest`가 원조 한국어 번들, 앱 `messages_ko.properties`, lib-mips `Text.of`의 한국어 문장을 확인한다.
+The words in the "Translations not used in sentences" column must not appear in Korean explanatory sentences. The cell is split at commas, and empty cells are not checked. `UiLanguageTest` checks the original Korean bundle, the app's `messages_ko.properties` and the Korean sentences of lib-mips `Text.of`. It finds these tables by the Korean words "쓰지 않는 번역" in the header, so the header keeps them.
 
-## 3. 한국어 문장 규칙
+## 3. Rules for Korean sentences
 
-- 문장 안에서 이름을 말할 때는 영어 이름 그대로 쓴다: "Instruction Memory를 오른쪽 클릭하고 "Load Program..."을 고릅니다", "Poke Tool(손 모양)을 고르고".
-- Hallym MIPS가 내보내는 `.hmx`는 문장에서 "실행 이미지"라고 부른다. 목적 파일·오브젝트 파일·`.o`라고 부르지 않는다(D-126).
-- 파일 이름, 레지스터, 키, 자리 표시(`{0}`) 바로 뒤에는 조사를 붙이지 않는다. 사이에 한국어 명사를 두거나("`$sp` 레지스터", "`entry` 키가") "File: lab04.s"처럼 쓴다(D-126, 실행 이미지 오류 문구).
-- 메뉴 경로는 `›`로 잇는다: `Simulate › Reset Simulation`.
-- 조사는 영어 이름의 끝소리에 맞춘다(Console이, Stack을). 헷갈리면 "은(는)"처럼 둘 다 적는다.
-- 회로, 선, 부품, 포트, 버스, 비트, 라벨, 터널, 서브회로 같은 일반 명사는 한국어로 쓴다. 화면의 특정 버튼·메뉴·부품 종류를 가리킬 때만 영어 이름이다.
-- 진단 문장은 PLAN.md 4.4를 따른다: 원인 한 곳, 학생이 붙인 이름, 사실과 위치까지만.
-- 포트 이름(`Addr`, `WriteData`, `Count`, `Load` …)과 파일 형식(`.circ`, `.s`)은 번역하지 않는다.
-- 영어 개수 표시는 단수·복수를 가린다: `1 bit`, `32 bits`, `1 word`, `27 words`(MessageFormat choice, lib-mips `Text.count`).
+- When a sentence names something, it uses the English name as it is: "Instruction Memory를 오른쪽 클릭하고 "Load Program..."을 고릅니다" ("Right-click Instruction Memory and choose "Load Program...""), "Poke Tool(손 모양)을 고르고" ("choose the Poke Tool (the hand)").
+- In sentences, the `.hmx` that Hallym MIPS exports is called "실행 이미지" ("executable image"). It is not called an object file or `.o` (D-126).
+- No particle goes right after a file name, a register, a key or a placeholder (`{0}`). Put a Korean noun between them ("`$sp` 레지스터" ("the $sp register"), "`entry` 키가" ("the entry key")) or write it like "File: lab04.s" (D-126, the executable-image error wording).
+- Menu paths are joined with `›`: `Simulate › Reset Simulation`.
+- A particle follows the final sound of the English name (Console이, Stack을). When unsure, write both, as in "은(는)".
+- Common nouns such as circuit, wire, part, port, bus, bit, label, tunnel and subcircuit are written in Korean. Only a specific button, menu or part kind on the screen gets its English name.
+- Diagnostic sentences follow PLAN.md 4.4: one cause, the names the student gave, facts and places only.
+- Port names (`Addr`, `WriteData`, `Count`, `Load` …) and file formats (`.circ`, `.s`) are not translated.
+- English counts distinguish singular and plural: `1 bit`, `32 bits`, `1 word`, `27 words` (MessageFormat choice, lib-mips `Text.count`).
 
-## 4. 문구 리소스
+## 4. Wording resources
 
-| 종류 | 앱(`app/src-hcs/kr/ac/hallym/hcs/app/`) | 원조(`app/resources/logisim/`) | lib-mips |
+| Kind | App (`app/src-hcs/kr/ac/hallym/hcs/app/`) | Original (`app/resources/logisim/`) | lib-mips |
 | --- | --- | --- | --- |
-| 이름(영어 고정) | `names.properties` 하나. 언어별 파일 없음 | `en/*.properties` | `Text.name("…")` |
-| 설명(한국어·영어) | `messages.properties`, `messages_ko.properties` | `ko/*.properties`에는 설명 키만 있다. 나머지 키는 `en`으로 넘어간다 | `Text.of("영어", "한국어")` |
+| Names (English, fixed) | One `names.properties`. No per-language files | `en/*.properties` | `Text.name("…")` |
+| Explanations (Korean and English) | `messages.properties`, `messages_ko.properties` | `ko/*.properties` holds only explanation keys. Other keys fall back to `en` | `Text.of("영어", "한국어")` |
 
-`UiLanguageTest`가 확인하는 것:
-- 이름 리소스(`names.properties`, `Text.name`의 인자, lib-mips 부품·속성·선택지를 한국어 설정에서 읽은 값)에 한글이 없다.
-- 원조 `ko/*.properties`에는 설명 문장 키만 있다(키 끝말과 문장 모양으로 가른다. 규칙은 테스트 안에 있다).
-- 한 키가 이름과 설명 양쪽에 있지 않다.
-- 한국어 문장에 위 "쓰지 않는 번역"이 없다.
+What `UiLanguageTest` checks:
+- The name resources (`names.properties`, the arguments of `Text.name`, and lib-mips part, attribute and option values read under the Korean locale) contain no Hangul.
+- The original `ko/*.properties` holds only explanation keys (told apart by the key's ending and the text's shape; the rules are in the test).
+- No key is both a name and an explanation.
+- No Korean sentence uses one of the "Translations not used in sentences" above.
+
