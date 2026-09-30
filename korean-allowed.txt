@@ -9,7 +9,7 @@ app/resources/logisim/ko/**                 *   screen text: Logisim's Korean re
 # The Korean user guides (docs/usage/*.en.md are their English pairs)
 docs/usage/*.ko.md                          *   Korean user guide
 # The glossary's Korean column: one line per table row
-docs/GLOSSARY.md                            63  Korean column of the glossary tables
+docs/GLOSSARY.md                            68  Korean columns of the glossary tables and quoted screen examples
 # Test inputs, goldens and fixtures (their READMEs are docs and are translated)
 tests/**/*.{txt,expected,json,s,circ,hmx}   *   test data: inputs, goldens and expected outputs
 electron/tests/fixtures/**                  *   test data: fixtures generated from the engine
